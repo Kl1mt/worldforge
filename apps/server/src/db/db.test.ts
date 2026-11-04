@@ -53,7 +53,7 @@ async function sqlState(p: Promise<unknown>): Promise<string | undefined> {
 }
 
 describe('migrations', () => {
-  it('create exactly the expected tables (Phase 1, 2.3 materials & professions) from scratch', async () => {
+  it('create exactly the expected tables (Phase 1, 2.3 materials & professions, 2.6 economy) from scratch', async () => {
     const rows = await queryRows<{ table_name: string }>(
       db(),
       sql`select table_name from information_schema.tables where table_schema = 'public' order by 1`,
@@ -65,7 +65,9 @@ describe('migrations', () => {
       'character_materials',
       'character_professions',
       'characters',
+      'idempotency_keys',
       'item_instances',
+      'merchant_purchases',
       'sessions',
     ]);
   });
@@ -77,7 +79,7 @@ describe('migrations', () => {
       db(),
       sql`select count(*)::int as n from drizzle.__drizzle_migrations`,
     );
-    expect(applied[0]).toEqual({ n: 7 });
+    expect(applied[0]).toEqual({ n: 8 });
     expect(await db().$count(accounts)).toBe(1);
   });
 });

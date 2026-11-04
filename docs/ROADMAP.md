@@ -228,7 +228,7 @@ GDD: §6.4, §11.2, §4.3. Needs 2.3 and A.3.
 - **Web:** crypt entrance from the world map; a run screen with room progress, combat log and the boss encounter; a result screen.
 **Acceptance:** determinism and invariance tests; run-vs-farming exclusivity; double claim grants once (PG); screenshots including the boss.
 
-### 2.6 Forge & Merchant (vertical) — `todo`
+### 2.6 Forge & Merchant (vertical) — `done (PR #27)`
 GDD: §4.2, §8, §11.3, §13.3. Needs 2.3.
 - **Merchant:** sell items for gold (value from rarity and item level); buy a small daily stock of basic gear per unlocked area (server-seeded). Prices and stock are server data. Every buy and sell uses `Idempotency-Key` and is audited.
 - **Forge (Phase 2 scope):** salvage items into materials (and a little gold); craft a few basic recipes from materials (e.g. tier-appropriate gear with a guaranteed slot, or an upgrade material for Phase 3). **Upgrades, rerolls and affix improvement are Phase 3; don't build them.**

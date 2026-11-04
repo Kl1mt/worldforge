@@ -77,7 +77,7 @@ export function inventoryView(character: Character, items: readonly ItemInstance
   };
 }
 
-const itemSchema = {
+export const itemSchema = {
   type: 'object',
   required: [
     'id',
@@ -112,7 +112,7 @@ const itemSchema = {
   },
 } as const;
 
-const inventoryResponseSchema = {
+export const inventoryResponseSchema = {
   type: 'object',
   required: ['equipped', 'inventory', 'stats'],
   properties: {
@@ -126,7 +126,7 @@ const inventoryResponseSchema = {
   },
 } as const;
 
-const characterParamsSchema = {
+export const characterParamsSchema = {
   type: 'object',
   required: ['characterId'],
   properties: { characterId: { type: 'string', format: 'uuid' } },
@@ -155,7 +155,7 @@ interface ItemParams {
 const UNIQUE_VIOLATION = '23505';
 
 /** Same answer for "doesn't exist" and "another account's": character ids can't be probed. */
-const characterNotFound = () => new ApiError(404, 'not_found', 'No such character.');
+export const characterNotFound = () => new ApiError(404, 'not_found', 'No such character.');
 
 /**
  * Locks the character row (serializing inventory changes), checks ownership, and settles its
@@ -163,7 +163,7 @@ const characterNotFound = () => new ApiError(404, 'not_found', 'No such characte
  * unsettled window: equip a gold-find set just before settling and hours of farming would count
  * with it, or discard items so earlier drops are not salvaged by the capacity rule.
  */
-async function lockOwnedCharacter(
+export async function lockOwnedCharacter(
   tx: Transaction,
   accountId: string,
   characterId: string,
@@ -179,7 +179,7 @@ async function lockOwnedCharacter(
   return settled?.character ?? character;
 }
 
-async function loadItems(tx: Transaction, characterId: string): Promise<ItemInstance[]> {
+export async function loadItems(tx: Transaction, characterId: string): Promise<ItemInstance[]> {
   return tx
     .select()
     .from(itemInstances)
