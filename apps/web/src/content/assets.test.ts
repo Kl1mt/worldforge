@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ASSETS } from './assets';
+import { CLASS_IDS } from '@worldforge/game-core';
+import { ASSETS, classPortrait } from './assets';
 
 interface ManifestEntry {
   id: string;
@@ -28,5 +29,13 @@ describe('asset registry', () => {
       facing: m.facing,
     }));
     expect(registry).toEqual(fromManifest);
+  });
+});
+
+describe('classPortrait', () => {
+  it('has a portrait for every class', () => {
+    for (const classId of CLASS_IDS) {
+      expect(classPortrait(classId).path).toBe(`/assets/characters/${classId}.png`);
+    }
   });
 });

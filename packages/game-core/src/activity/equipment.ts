@@ -1,7 +1,7 @@
 import type { EquipmentStatContribution } from '../combat/characterStats.js';
-import { findAffix } from '../items/affixes.js';
 import { DEFAULT_LOOT_CONFIG, type LootConfig } from '../loot/config.js';
-import { getImplicitStats, type GeneratedItem } from '../loot/generate.js';
+import type { GeneratedItem } from '../loot/generate.js';
+import { itemSecondaryModifiers, itemStatContribution } from '../equipment.js';
 import { DEFAULT_ACTIVITY_CONFIG, type ModifierCaps } from './config.js';
 
 /** What one item adds to the character: core stats for combat plus secondary modifiers. */
@@ -15,16 +15,11 @@ export function itemContribution(
   item: Pick<GeneratedItem, 'baseId' | 'rarityId' | 'itemLevel' | 'affixes'>,
   config: LootConfig = DEFAULT_LOOT_CONFIG,
 ): ItemContribution {
-  const stats: EquipmentStatContribution = {};
-  let goldFind = 0;
-  for (const s of getImplicitStats(item, config)) stats[s.stat] = (stats[s.stat] ?? 0) + s.value;
-  for (const a of item.affixes) {
-    const def = findAffix(a.affixId);
-    if (!def || !Number.isFinite(a.value)) continue;
-    if (def.stat === 'goldFind') goldFind += a.value;
-    else stats[def.stat] = (stats[def.stat] ?? 0) + a.value;
-  }
-  return { stats, goldFind };
+  // One source of truth for item → stats: the equipment bridge (ticket 1.7).
+  return {
+    stats: itemStatContribution(item, config),
+    goldFind: itemSecondaryModifiers(item).goldFind,
+  };
 }
 
 export interface EquipmentModifiers {

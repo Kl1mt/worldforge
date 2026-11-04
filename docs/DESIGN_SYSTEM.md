@@ -124,7 +124,7 @@ The large character and inventory variants are chosen from the measured width of
 
 ## Open points
 
-- Every class uses the warrior portrait until class art exists; the banner colour is the only visible cosmetic (GDD §5.1 asks for body, face, hair — later).
+- Each class shows its own portrait (`classPortrait(classId)`); the banner colour is the only visible cosmetic (GDD §5.1 asks for body, face, hair — later).
 
 - The selected-socket outline and the focus ring are both brass. They are distinct (1 px vs 2 px, different tone), but this may need a stronger difference.
 - Mana, Focus and Soul Fragments meter colours are not defined yet. They are needed once other classes are playable.

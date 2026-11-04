@@ -13,6 +13,8 @@ The server (ticket 1.6) is the only caller that may award results; it derives th
 ## Stats
 `deriveCharacterStats(classId, level, equipment)` adds class base, level growth and each item's `EquipmentStatContribution` (additive, in stat units), then clamps to `STAT_LIMITS` (crit chance ≤ 75 %, attack speed 0.25–4/s, nothing negative). Units: `attackSpeed` attacks/s, `critChance` 0–1, `critDamage` multiplier (1.5 = 150 %). Non-finite inputs throw.
 
+Loot → combat bridge (`packages/game-core/src/equipment.ts`, ticket 1.7): `itemStatContribution(item)` turns a `GeneratedItem` into its `EquipmentStatContribution`: implicit stats (`getImplicitStats`: base scaled by item level and rarity) plus every affix on a core stat, summed. Gold find is not a combat stat and is left out; `itemSecondaryModifiers(item)` returns it uncapped (the cap before `rollLoot` is ticket 1.6's). `deriveEquippedStats(classId, level, items)` is `deriveCharacterStats` over those contributions. `checkEquip(baseId, classId, slot)` holds the equip rules (slot fits the base's kind, class allowed; GDD §7.1) and `defaultEquipSlot` picks a slot when the player names none (first free ring slot for rings).
+
 ## Rules
 - **Damage:** the class's primary damage stat (physical or magic) × skill multiplier × crit multiplier × (1 − mitigation), rounded, at least 1. Enemies never crit.
 - **Mitigation:** `defense / (defense + 50 + 10 · attackerLevel)`, capped at 75 %. Armor applies to physical damage, resistance to magic.
