@@ -235,7 +235,7 @@ GDD: §4.2, §8, §11.3, §13.3. Needs 2.3.
 - **Web:** Merchant and Forge screens in the established style (buy/sell lists, salvage preview, recipe list).
 **Acceptance:** no gold or item duplication under concurrent buy/sell/salvage (PG tests); idempotency replay tests; screenshots.
 
-### 2.7 Onboarding & progression feedback (web) — `todo`
+### 2.7 Onboarding & progression feedback (web) — `done (PR #30)`
 GDD: §1.3, §3, §18. Needs 2.2–2.6. Take the owner's playtest feedback into account.
 - A first-session flow: a short guided path (create character → start farming → first drop → equip → visit the Tavern), dismissible and remembered per account.
 - Progression feedback: level-up, area-unlocked and quest-complete notices; "new" markers on items and quests; a clear "what continues offline" explanation (GDD §9.2).
