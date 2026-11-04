@@ -4,6 +4,7 @@ Browser-first dark-fantasy idle RPG: automatic combat, loot-driven builds, offli
 
 - Design: [`docs/GDD.md`](docs/GDD.md)
 - Tickets and status: [`docs/ROADMAP.md`](docs/ROADMAP.md)
+- UI and art: [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md), [`docs/ASSET_GUIDELINES.md`](docs/ASSET_GUIDELINES.md)
 - Tech decisions: [`docs/TECH_STACK.md`](docs/TECH_STACK.md), [`docs/DATA_MODEL.md`](docs/DATA_MODEL.md), [`docs/API_CONVENTIONS.md`](docs/API_CONVENTIONS.md)
 
 ## Requirements
@@ -19,6 +20,8 @@ pnpm dev
 ```
 
 `pnpm dev` starts the API server on <http://127.0.0.1:3000> and the web client on <http://localhost:5173>. The web dev server proxies `/api/*` to the API server (override the target with `WORLDFORGE_SERVER_URL`).
+
+The Phase 0 prototype screens are at `#/area`, `#/character` and `#/inventory`. With `pnpm dev` running, `node tools/screenshots/phase-0.mjs` captures them at 1440 and 390 px into `docs/screenshots/phase-0/` (it uses the preinstalled Playwright).
 
 ## Repository layout
 

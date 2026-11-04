@@ -1,0 +1,214 @@
+.pack__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+
+.pack__eyebrow {
+  color: var(--brass-500);
+}
+
+.pack__title {
+  font-size: var(--text-3xl);
+}
+
+.pack__capacity {
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+}
+
+.pack__capacity-num {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  color: var(--bone-100);
+}
+
+.pack__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-5);
+}
+
+.pack__filter {
+  min-height: 32px;
+  padding: 0 var(--space-3);
+}
+
+.pack__pip {
+  width: 8px;
+  height: 8px;
+  background: var(--rarity);
+  transform: rotate(45deg);
+}
+
+.pack__count {
+  color: var(--text-faint);
+  font-weight: 400;
+}
+
+.pack__body {
+  display: grid;
+  grid-template-columns: max-content minmax(300px, 1fr);
+  gap: var(--space-8);
+  align-items: start;
+}
+
+/* ── Stash: a dark-wood chest with iron straps; sockets are recessed. ─── */
+.stash {
+  position: relative;
+  padding: var(--space-6);
+  background:
+    linear-gradient(
+      to right,
+      transparent 18px,
+      var(--iron-700) 18px 22px,
+      transparent 22px calc(100% - 22px),
+      var(--iron-700) calc(100% - 22px) calc(100% - 18px),
+      transparent calc(100% - 18px)
+    ),
+    repeating-linear-gradient(to bottom, var(--wood-700) 0 46px, var(--wood-800) 46px 48px);
+  box-shadow:
+    0 0 0 1px var(--outline-dark),
+    inset 0 0 0 2px var(--wood-600),
+    inset 0 0 0 3px var(--outline-dark),
+    inset 0 0 40px rgb(0 0 0 / 0.6),
+    var(--shadow-drop);
+}
+
+.stash::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: var(--texture-grain);
+  pointer-events: none;
+}
+
+.stash__grid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(10, 72px);
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: rgb(12 10 9 / 0.82);
+  box-shadow:
+    inset 0 2px 6px rgb(0 0 0 / 0.8),
+    0 0 0 1px var(--wood-600);
+}
+
+.stash__socket {
+  width: 72px;
+  height: 72px;
+  background: var(--ink-900);
+  box-shadow:
+    inset 0 0 0 1px var(--ink-750),
+    inset 0 2px 4px rgb(0 0 0 / 0.7);
+}
+
+.stash__empty {
+  position: relative;
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  width: calc(10 * 72px + 9 * var(--space-2) + 2 * var(--space-3));
+  max-width: 100%;
+  padding: var(--space-8) var(--space-6);
+  background: rgb(12 10 9 / 0.85);
+  color: var(--text-dim);
+}
+
+.stash__empty .display {
+  font-size: var(--text-xl);
+  color: var(--text);
+}
+
+.stash__free {
+  position: relative;
+  margin-top: var(--space-2);
+  padding: 0 var(--space-1);
+  color: var(--bone-200);
+  font-size: var(--text-xs);
+  text-shadow: 0 1px 0 #000;
+}
+
+.pack__inspect {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.pack__equipped {
+  opacity: 0.82;
+}
+
+.pack__hint {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+@media (max-width: 1260px) {
+  .pack__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .stash {
+    justify-self: start;
+  }
+
+  .stash__grid {
+    grid-template-columns: repeat(8, 72px);
+  }
+}
+
+@media (max-width: 760px) {
+  .pack__title {
+    font-size: var(--text-2xl);
+  }
+
+  .pack__filters {
+    gap: 6px;
+  }
+
+  .pack__filter {
+    min-height: 32px;
+    padding: 0 var(--space-2);
+    font-size: var(--text-xs);
+  }
+
+  /* Phone: the chest loses its straps; five sockets per row at ×2. */
+  .stash {
+    justify-self: stretch;
+    padding: 4px;
+    background: repeating-linear-gradient(
+      to bottom,
+      var(--wood-700) 0 46px,
+      var(--wood-800) 46px 48px
+    );
+  }
+
+  .stash__grid {
+    grid-template-columns: repeat(5, 66px);
+    justify-content: center;
+    gap: 2px;
+    padding: 4px;
+  }
+
+  .stash__grid .item-frame {
+    padding: 0;
+  }
+
+  .stash__socket {
+    width: 66px;
+    height: 66px;
+  }
+
+  /* Four rows on a phone; the free-slot count below covers the rest. */
+  .stash__grid > li:nth-child(n + 21) {
+    display: none;
+  }
+
+  .pack__equipped {
+    display: none;
+  }
+}

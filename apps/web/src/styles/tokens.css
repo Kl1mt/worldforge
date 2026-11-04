@@ -1,0 +1,128 @@
+/*
+ * Worldforge design tokens (ticket 0.3). Documented in docs/DESIGN_SYSTEM.md.
+ * Palette anchors are sampled from the Phase 0 art (docs/ASSET_GUIDELINES.md).
+ */
+:root {
+  /* ── Grounds: charcoal, near-black, deep brown ─────────────────────── */
+  --ink-950: #0c0a09;
+  --ink-900: #13100e;
+  --ink-850: #1b1512;
+  --ink-800: #241d18;
+  --ink-750: #2c241e;
+
+  /* ── Frames: weathered iron, stone, dark wood ──────────────────────── */
+  --iron-800: #26221f;
+  --iron-700: #34302c;
+  --iron-600: #4b443f;
+  --iron-500: #635b53;
+  --wood-800: #2a1d14;
+  --wood-700: #3a2819;
+  --wood-600: #4d3521;
+
+  /* ── Text: bone tones ──────────────────────────────────────────────── */
+  --bone-100: #e6dccb;
+  --bone-200: #c3b8a6;
+  --bone-300: #978c7e;
+  --bone-400: #6d645a;
+
+  /* ── Accents ───────────────────────────────────────────────────────── */
+  --brass-700: #5a4628;
+  --brass-600: #7c6237;
+  --brass-500: #a3824a;
+  --brass-400: #c7a15e;
+  --brass-300: #e2c58e;
+  --crimson-800: #3f171f;
+  --crimson-700: #5c282c;
+  --crimson-500: #8f3734;
+  --crimson-400: #b8493f;
+  --arcane-violet: #7a68a6;
+  --arcane-blue: #5f80a8;
+  --moss-600: #43453a;
+  --moss-500: #606652;
+  --moss-400: #8a9070;
+
+  /* ── Rarity (GDD §7.2). Used for frame, name and pip only — never baked into art. */
+  --rarity-common: #a7a198;
+  --rarity-uncommon: #79a95a;
+  --rarity-rare: #5292dc;
+  --rarity-epic: #a46cd6;
+  --rarity-legendary: #e38b2f;
+  --rarity-mythic: #ec4a3c;
+
+  /* ── Semantic aliases ──────────────────────────────────────────────── */
+  --bg-page: var(--ink-950);
+  --bg-surface: var(--ink-850);
+  --bg-sunken: var(--ink-900);
+  --text: var(--bone-100);
+  --text-muted: var(--bone-200);
+  --text-dim: var(--bone-300);
+  --text-faint: var(--bone-400);
+  --accent: var(--brass-400);
+  --accent-strong: var(--brass-300);
+  --line: var(--iron-700);
+  --line-strong: var(--iron-600);
+  --outline-dark: #070605;
+  --delta-up: #8fbf6a;
+  --delta-down: #d0604f;
+  --health: #a8392f;
+  --health-back: #2b1210;
+  --rage: #c8682a;
+  --rage-back: #2e1a0d;
+  --focus-ring: var(--brass-300);
+
+  /* ── Typography ────────────────────────────────────────────────────── */
+  --font-display: 'IM Fell English SC', 'Iowan Old Style', Georgia, serif;
+  --font-body: 'Alegreya Sans', 'Segoe UI', system-ui, sans-serif;
+  --text-xs: 0.75rem; /* 12 */
+  --text-sm: 0.875rem; /* 14 */
+  --text-md: 1rem; /* 16 */
+  --text-lg: 1.125rem; /* 18 */
+  --text-xl: 1.375rem; /* 22 */
+  --text-2xl: 1.75rem; /* 28 */
+  --text-3xl: 2.25rem; /* 36 */
+  --leading-tight: 1.15;
+  --leading-body: 1.45;
+  --tracking-caps: 0.08em;
+
+  /* ── Spacing (4 px base) ───────────────────────────────────────────── */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --gutter: var(--space-4);
+  --content-max: 1320px;
+
+  /* ── Borders & radii: square corners; iron is never rounded. ───────── */
+  --radius: 0;
+  --border-hair: 1px solid var(--line);
+  --border-iron: 1px solid var(--line-strong);
+  --border-brass: 1px solid var(--brass-600);
+
+  /* ── Surfaces ──────────────────────────────────────────────────────── */
+  /* Fine grain: an SVG noise tile, kept very low in opacity. */
+  --texture-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 .55 0'/%3E%3C/filter%3E%3Crect width='120' height='120' filter='url(%23n)'/%3E%3C/svg%3E");
+  /* Four brass rivets, one per corner. */
+  --rivets:
+    radial-gradient(circle at 7px 7px, var(--brass-500) 1.5px, transparent 2.2px),
+    radial-gradient(circle at calc(100% - 7px) 7px, var(--brass-500) 1.5px, transparent 2.2px),
+    radial-gradient(circle at 7px calc(100% - 7px), var(--brass-500) 1.5px, transparent 2.2px),
+    radial-gradient(
+      circle at calc(100% - 7px) calc(100% - 7px),
+      var(--brass-500) 1.5px,
+      transparent 2.2px
+    );
+  /* Iron frame: dark outline, iron band, inner brass hairline. */
+  --frame-iron:
+    0 0 0 1px var(--outline-dark), inset 0 0 0 1px var(--iron-600), inset 0 0 0 3px var(--ink-850),
+    inset 0 0 0 4px rgb(163 130 74 / 0.28);
+  --shadow-drop: 0 6px 18px rgb(0 0 0 / 0.55);
+
+  /* ── Motion: effects are reserved for meaningful events (GDD §3.2). ── */
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --dur-fast: 120ms;
+}

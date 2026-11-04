@@ -40,6 +40,11 @@ export default defineConfig(
     languageOptions: { globals: globals.node },
   },
   {
+    // Playwright scripts: Node, plus browser globals inside page.evaluate callbacks.
+    files: ['tools/**/*.mjs'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+  },
+  {
     files: ['apps/web/src/**/*.{ts,tsx}'],
     languageOptions: { globals: globals.browser },
     plugins: { 'react-hooks': reactHooks },
