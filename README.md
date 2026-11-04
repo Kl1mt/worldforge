@@ -26,7 +26,7 @@ The server refuses to start without a reachable `DATABASE_URL`. Tests don't need
 
 `pnpm dev` starts the API server on <http://127.0.0.1:3000> and the web client on <http://localhost:5173>. The web dev server proxies `/api/*` to the API server (override the target with `WORLDFORGE_SERVER_URL`).
 
-The Phase 0 prototype screens are at `#/area`, `#/character` and `#/inventory`. With `pnpm dev` running, `node tools/screenshots/phase-0.mjs` captures them at 1440 and 390 px into `docs/screenshots/phase-0/` (it uses the preinstalled Playwright).
+Open the app and create an account at `#/register` (or log in at `#/login`); the game screens `#/area`, `#/character` and `#/inventory` need a session. With `pnpm dev` running, `node tools/screenshots/phase-0.mjs` captures the game screens at 1440 and 390 px into `docs/screenshots/phase-0/` (it registers a throwaway account) and `node tools/screenshots/auth.mjs` captures the login and register screens into `docs/screenshots/phase-1/` (both use the preinstalled Playwright).
 
 ## Repository layout
 
@@ -55,6 +55,6 @@ The Phase 0 prototype screens are at `#/area`, `#/character` and `#/inventory`. 
 
 Run a single package with a filter, e.g. `pnpm --filter @worldforge/server test`.
 
-Production server: `pnpm build`, then `pnpm --filter @worldforge/server db:migrate:prod` and `node apps/server/dist/index.js` (env: `DATABASE_URL`, `DATABASE_POOL_MAX`, `PORT`, `HOST`, `LOG_LEVEL`; see `apps/server/.env.example`).
+Production server: `pnpm build`, then `pnpm --filter @worldforge/server db:migrate:prod` and `node apps/server/dist/index.js` (env: `DATABASE_URL`, `DATABASE_POOL_MAX`, `PORT`, `HOST`, `LOG_LEVEL`, `SESSION_TTL_HOURS`, `SESSION_COOKIE_SECURE`, `TRUST_PROXY`; see `apps/server/.env.example`).
 
 CI (`.github/workflows/ci.yml`) runs install, format check, lint, typecheck, test and build on every PR and on `main`, then applies the migrations to a fresh PostgreSQL 16 service container.

@@ -55,8 +55,10 @@ Limits: PGlite is a single connection, so true multi-connection concurrency (row
 ### Local database: Docker Compose
 `docker-compose.yml` at the repo root runs `postgres:16-alpine` on `127.0.0.1:5432` with local-only credentials matching `apps/server/.env.example`. `pnpm db:up` / `pnpm db:down` start and stop it. Any other PostgreSQL ≥ 16 works by pointing `DATABASE_URL` at it.
 
-### Dev identity vs. real auth
-Phase 1 starts with a **development identity**: a dev-only endpoint issues a session for a named test account. It is enabled only when `NODE_ENV !== 'production'` *and* an explicit `DEV_AUTH=1` flag is set, lives in its own module, and is covered by a test that asserts it is unreachable in production config. Real authentication (email/password with Argon2id or an OAuth provider, HTTP-only secure session cookies) replaces it before any public deployment. Gameplay code depends only on an `accountId` from the session, so swapping auth does not touch game logic.
+### Authentication (ticket 1.2)
+Owner decision (GDD v0.3): real registration and login from Phase 1, no development identity. Email + password, hashed with **argon2id** via `@node-rs/argon2` (prebuilt native binaries, no build step; Node 22 has no built-in argon2). Sessions are opaque random tokens in an `HttpOnly`, `Secure`, `SameSite=Lax` cookie scoped to `/api`, stored server-side as a SHA-256 hash so they can be revoked; no JWTs. Browsers accept `Secure` cookies on `http://localhost`, so local development uses the same flags (`SESSION_COOKIE_SECURE=0` exists only for plain-http hosts other than localhost). Code lives in `apps/server/src/auth/`; gameplay code depends only on `request.auth.account.id` from `app.requireAccount`, so adding OAuth later does not touch game logic.
+Rate limits use `@fastify/rate-limit` with its in-memory store, which is correct for the single API instance assumed below; a horizontally scaled deployment needs a shared store (Redis or Postgres).
+Not in scope yet (follow-ups): email verification, password reset, OAuth, "log out everywhere", sliding session renewal, pruning expired session rows, and argon2 parameter upgrades on login.
 
 ### Vite + React 19 web client
 React has the broadest ecosystem and hiring familiarity; the UI is panel- and list-heavy rather than a real-time canvas game, so a DOM UI with CSS pixel-art rendering (`image-rendering: pixelated`, integer scaling) fits. Vite gives fast HMR and a simple static production build. Visual design is defined by the design system (ticket 0.3), not a component library, to avoid a generic look (GDD §3.2).
@@ -66,7 +68,7 @@ React has the broadest ecosystem and hiring familiarity; the UI is panel- and li
 - API: a single Node 22 process behind HTTPS (a container on a managed platform). Stateless apart from the database, so it can scale horizontally later.
 - Database: managed PostgreSQL with daily backups and point-in-time recovery.
 - Same-origin deployment (`/api` reverse-proxied next to the static client) is preferred to avoid CORS and keep cookies simple; development mirrors this with the Vite proxy.
-- Config via environment variables only (`PORT`, `HOST`, `LOG_LEVEL`, `DATABASE_URL`, `DATABASE_POOL_MAX`); secrets never committed. `pnpm dev` / `start` / `db:migrate` also read `apps/server/.env` if present (Node `--env-file-if-exists`).
+- Config via environment variables only (`PORT`, `HOST`, `LOG_LEVEL`, `DATABASE_URL`, `DATABASE_POOL_MAX`, `SESSION_TTL_HOURS`, `SESSION_COOKIE_SECURE`, `TRUST_PROXY`); secrets never committed. `pnpm dev` / `start` / `db:migrate` also read `apps/server/.env` if present (Node `--env-file-if-exists`).
 
 ### Desktop: Tauri
 Wraps the same web build in a native window with a small footprint (system webview instead of bundled Chromium). Electron stays the fallback if a webview incompatibility appears (GDD §2). Gameplay remains server-side, so the shell adds no game logic.

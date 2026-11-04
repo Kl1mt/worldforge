@@ -4,7 +4,7 @@ The Worldforge UI language, set up in ticket 0.3. It covers GDD §3.2–§3.4. P
 
 The aim is a weathered artefact, not a dashboard. Iron, brass, dark wood and ledger paper set the tone. Corners are square, gradients appear only where light would actually fall, and glow is reserved for Legendary and Mythic items.
 
-Screenshots of the prototype are in `docs/screenshots/phase-0/`. Regenerate them with `node tools/screenshots/phase-0.mjs` while `pnpm dev` is running.
+Screenshots of the prototype are in `docs/screenshots/phase-0/`. Regenerate them with `node tools/screenshots/phase-0.mjs` while `pnpm dev` is running. The login and register screens (ticket 1.2) are in `docs/screenshots/phase-1/` (`node tools/screenshots/auth.mjs`).
 
 ## Colour tokens
 
@@ -66,6 +66,7 @@ Each screen uses a different treatment, so screens do not all look like the same
 | Niche | `.doll__niche` (character) | Arched stone alcove, crimson under-light, wood plaque | Character portrait. |
 | Scene frame | `.scene__stage` | Thick iron border, vignette | Area backdrop. |
 | Tooltip plate | `.tooltip` | Chamfered corners, rim in the rarity colour, rarity wash behind the name | Item details. |
+| Gate | `.gate` (`screens/gate.css`) | Lintel with the wordmark only; the fields backdrop at ×2 in the scene-stage frame beside an iron form plate. Tabs (Enter / Join) hang from the plate like the lintel nav: brass bar + diamond | Login, register, session check, server offline. |
 
 Grain (`--texture-grain`, an inline SVG noise tile) is the only texture. Keep its opacity low.
 
@@ -76,7 +77,8 @@ Grain (`--texture-grain`, an inline SVG noise tile) is the only texture. Keep it
 - **ItemTooltip**: name, rarity and base type, slot and item level, base stats, affixes (blue), unique effect (rarity-coloured rule), flavour (brass italic), and an optional comparison block with ▲/▼ deltas. Comparison math is in `apps/web/src/lib/compare.ts`.
 - **Meter**: health / rage / xp bars with `role="meter"`.
 - **LabeledMeter**: a Meter with its name and value written above it ("Health 842 / 1,046", "Rage 62 / 100"). Used for the combatant HUD on the area scene and the character plaque. The visible text is `aria-hidden`; the meter keeps its accessible name and values.
-- **Buttons**: `.btn`, an iron plate. The pressed state (`aria-pressed`) gets a brass underline.
+- **Buttons**: `.btn`, an iron plate. The pressed state (`aria-pressed`) gets a brass underline. `.btn--brass` is a brass plate for the single primary action of a screen (the gate's submit); do not use it for secondary actions. Disabled buttons fade to 70 %.
+- **Fields** (`.field`, in `gate.css`): a caps label, a sunken well with an iron rim (brass when focused, crimson when invalid), a faint hint, or an error line marked with ✕ plus text. Errors are tied to the input with `aria-describedby` and `aria-invalid`. Password wells have a Show/Hide toggle (`aria-pressed`).
 - **Rule heading**: `.rule-heading`, display face with a brass rule that fades to the right.
 
 ## Pixel-art scaling in layouts
@@ -106,6 +108,7 @@ The large character and inventory variants are chosen from the measured width of
 ## States
 
 - **Loading / success / error:** the status bar's server line (`HealthLine`) shows "Reaching the server…", "Server online", or "Server offline: …" (`role="alert"`).
+- **Session check:** while the client asks `GET /api/account`, the gate shows "Opening the gate / Checking your session…" (`role="status"`). If the server cannot be reached, it shows "The road is closed" with a Try again button. Forms show a busy label on submit ("Entering…", "Signing…"), a crimson-edged form alert (`role="alert"`) and per-field errors, and focus the first invalid field.
 - **Empty:** empty equipment sockets show the slot name. An inventory filter with no matches shows an explanation and a "Show all items" action. An empty Chronicle shows a quiet line. An unequipped selected slot shows a dashed hint.
 - **Missing art:** `PixelSprite` fallback.
 

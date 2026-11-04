@@ -9,6 +9,9 @@ describe('loadConfig', () => {
       logLevel: 'info',
       databaseUrl: undefined,
       databasePoolMax: 10,
+      sessionTtlHours: 720,
+      sessionCookieSecure: true,
+      trustProxy: false,
     });
   });
 
@@ -20,6 +23,9 @@ describe('loadConfig', () => {
         LOG_LEVEL: 'debug',
         DATABASE_URL: 'postgres://u:p@db:5432/wf',
         DATABASE_POOL_MAX: '20',
+        SESSION_TTL_HOURS: '24',
+        SESSION_COOKIE_SECURE: '0',
+        TRUST_PROXY: 'true',
       }),
     ).toEqual({
       host: '0.0.0.0',
@@ -27,6 +33,9 @@ describe('loadConfig', () => {
       logLevel: 'debug',
       databaseUrl: 'postgres://u:p@db:5432/wf',
       databasePoolMax: 20,
+      sessionTtlHours: 24,
+      sessionCookieSecure: false,
+      trustProxy: true,
     });
   });
 
@@ -38,6 +47,11 @@ describe('loadConfig', () => {
   it('rejects a non-postgres DATABASE_URL and a bad pool size', () => {
     expect(() => loadConfig({ DATABASE_URL: 'mysql://x' })).toThrow(/Invalid DATABASE_URL/);
     expect(() => loadConfig({ DATABASE_POOL_MAX: '0' })).toThrow(/Invalid DATABASE_POOL_MAX/);
+  });
+
+  it('rejects bad auth settings', () => {
+    expect(() => loadConfig({ SESSION_COOKIE_SECURE: 'yes' })).toThrow(/SESSION_COOKIE_SECURE/);
+    expect(() => loadConfig({ SESSION_TTL_HOURS: '0' })).toThrow(/SESSION_TTL_HOURS/);
   });
 
   it('requireDatabaseUrl fails fast when unset', () => {

@@ -1,18 +1,23 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { getClass } from '@worldforge/game-core';
 import { formatNumber } from '../lib/format';
-import { routeHref, type Route } from '../lib/route';
+import { useAuth } from '../auth/AuthProvider';
+import { routeHref, type GameRoute } from '../lib/route';
 import { CHARACTER } from '../mock/character';
 import { HealthLine } from './HealthLine';
 import './shell.css';
 
-const NAV: { route: Route; label: string; hint: string }[] = [
+const NAV: { route: GameRoute; label: string; hint: string }[] = [
   { route: 'area', label: 'Fields', hint: 'Abandoned Fields' },
   { route: 'character', label: 'Character', hint: 'Equipment & stats' },
   { route: 'inventory', label: 'Pack', hint: 'Inventory' },
 ];
 
-export function Shell({ route, children }: { route: Route; children: ReactNode }) {
+export function Shell({ route, children }: { route: GameRoute; children: ReactNode }) {
+  const auth = useAuth();
+  const account = auth.state.kind === 'authenticated' ? auth.state.account : null;
+  const [leaving, setLeaving] = useState(false);
+  const [logoutError, setLogoutError] = useState<string | null>(null);
   const cls = getClass(CHARACTER.classId);
   const mainRef = useRef<HTMLElement>(null);
   const first = useRef(true);
@@ -43,6 +48,21 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
     </ul>
   );
 
+  const onLogout = async () => {
+    setLeaving(true);
+    setLogoutError(null);
+    const failure = await auth.logout();
+    // On success the route guard sends the visitor to the gate and this shell unmounts.
+    if (failure) {
+      setLeaving(false);
+      setLogoutError(
+        failure.code === 'network'
+          ? 'Could not log out: server unreachable.'
+          : 'Could not log out.',
+      );
+    }
+  };
+
   return (
     <div className="shell">
       <a className="skip-link" href="#main">
@@ -67,6 +87,15 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
               <span className="purse__coin" aria-hidden="true" />
               {formatNumber(CHARACTER.gold)}
             </div>
+            <button
+              type="button"
+              className="btn topbar__leave"
+              onClick={onLogout}
+              disabled={leaving}
+              aria-busy={leaving}
+            >
+              {leaving ? 'Leaving…' : 'Log out'}
+            </button>
           </div>
         </div>
       </header>
@@ -77,7 +106,15 @@ export function Shell({ route, children }: { route: Route; children: ReactNode }
 
       <footer className="statusbar">
         <HealthLine />
-        <span className="statusbar__note">Phase 0 prototype · mock data</span>
+        {logoutError ? (
+          <p className="statusbar__alert" role="alert">
+            {logoutError}
+          </p>
+        ) : null}
+        <span className="statusbar__note">
+          {account ? `Signed in as ${account.displayName} · ` : null}character and gold are mock
+          data
+        </span>
       </footer>
 
       <nav className="bottombar" aria-label="Main (mobile)">

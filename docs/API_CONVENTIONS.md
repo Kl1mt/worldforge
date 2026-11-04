@@ -1,6 +1,6 @@
 # API conventions
 
-Applies to every endpoint served by `apps/server`. Implemented so far: `GET /api/health`, `GET /api/content`, the 404 handler and the error handler (`apps/server/src/errors.ts`).
+Applies to every endpoint served by `apps/server`. Implemented so far: health, content, the account/auth endpoints (ticket 1.2), the 404 handler and the error handler (`apps/server/src/errors.ts`; throw `ApiError(status, code, message, details?)` for deliberate failures).
 
 ## Basics
 - REST over HTTPS, JSON request and response bodies (`application/json; charset=utf-8`).
@@ -43,7 +43,7 @@ Every non-2xx response has this shape:
 | 500    | `internal_error`                 | Unexpected server error                                     |
 
 ## Validation
-- Every route declares JSON Schemas for `params`, `querystring` and `body` (Fastify's built-in Ajv). Unknown body properties are rejected (`additionalProperties: false`). Response schemas are declared so serialisation strips unexpected fields.
+- Every route declares JSON Schemas for `params`, `querystring` and `body` (Fastify's built-in Ajv). Unknown body properties are rejected (`additionalProperties: false`; `buildApp` sets Ajv's `removeAdditional: false` so they are not silently stripped). Response schemas are declared so serialisation strips unexpected fields.
 - Schema validation only checks shape. Game rules (ownership, slot eligibility, affordability, cooldowns) are checked on the server against stored state and return `4xx` domain codes.
 - The server never accepts client-computed outcomes: no currency amounts, item rolls, combat results, damage numbers or scores in request bodies (GDD §16.3). Clients send intents and IDs only.
 
@@ -53,8 +53,11 @@ Every non-2xx response has this shape:
 - Reward grants are additionally guarded by state (e.g. an offline-progress window can be claimed once, enforced by a unique constraint), so a lost idempotency record cannot duplicate loot.
 
 ## Auth & sessions
-- Session via an HTTP-only, `Secure`, `SameSite=Lax` cookie. The handler resolves it to an `accountId`; no route trusts an account or character id from the body without an ownership check.
-- The Phase 1 development identity follows the same cookie flow (see `docs/TECH_STACK.md`).
+- Session via the `wf_session` cookie: `HttpOnly`, `Secure`, `SameSite=Lax`, `Path=/api`, expiring with the session. The value is a random 256-bit token; the database stores only its SHA-256 (`sessions.id`).
+- Routes that need a player use `preHandler: app.requireAccount`, then read `request.auth.account` (and `request.auth.sessionId`). It answers `401 unauthenticated` and clears a stale cookie when the session is missing, unknown, revoked or expired. No route trusts an account or character id from the body without an ownership check.
+- Sessions have a fixed lifetime from login (`SESSION_TTL_HOURS`, default 30 days; no sliding renewal yet). Logout revokes the row (`revoked_at`) and clears the cookie.
+- Failed logins always return the same `401 invalid_credentials` body, whether the email is unknown or the password is wrong, and unknown emails still run an argon2 verification so timing matches. Registration does reveal `409 email_taken` (there is no email verification yet to send a "you already have an account" mail instead); it is rate-limited.
+- Rate limits (`@fastify/rate-limit`, per client IP, in-process memory): login 10/minute, register 5/hour. Over the limit: `429 rate_limited` with `Retry-After` and `details.retryAfterSeconds`. Behind a reverse proxy set `TRUST_PROXY=1` so the IP comes from `X-Forwarded-For`.
 
 ## Observability
 - Each request gets a request id (Fastify `reqId`), included in logs; later echoed as `X-Request-Id`.
@@ -66,3 +69,11 @@ Every non-2xx response has this shape:
 | ------ | -------------- | ----------------------------------------------------------------- |
 | GET    | `/api/health`  | `{ "status": "ok", "uptimeSeconds": number }`                     |
 | GET    | `/api/content` | `GameContent` from `@worldforge/game-core` (classes, resources, rarities, equipment slots, stats, `version`) |
+| POST   | `/api/auth/register` | Body `{ email, displayName, password }` → `201 { account }` + session cookie. `400 validation_failed` with `details.fields` (per-field messages), `409 email_taken` / `display_name_taken`, `429 rate_limited` |
+| POST   | `/api/auth/login` | Body `{ email, password }` → `200 { account }` + session cookie. `401 invalid_credentials`, `429 rate_limited` |
+| POST   | `/api/auth/logout` | `204`, revokes the session and clears the cookie; idempotent (also `204` without a session) |
+| GET    | `/api/account` | `200 { account }` for the session's account, else `401 unauthenticated` |
+
+`account` is `{ id, email, displayName, characterSlots, createdAt }`. Registration rules (`apps/server/src/auth/validation.ts`): email trimmed, `x@y.tld` shape, ≤ 254 chars, unique case-insensitively; display name trimmed, 3–20 letters/digits with single spaces, `-`, `'` or `_` inside, unique case-insensitively; password 10–128 characters and not equal to the email. Passwords are hashed with argon2id (`@node-rs/argon2`, 19 MiB, t=2, p=1).
+
+Audit events: `account.register`, `auth.login`, `auth.login_failed` (`data.reason`: `unknown_email` / `bad_password`; account id when known), `auth.logout`. No emails, IPs or passwords are written to the audit log.

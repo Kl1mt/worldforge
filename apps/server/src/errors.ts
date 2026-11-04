@@ -13,6 +13,22 @@ export function errorBody(code: string, message: string, details?: unknown): Api
   return { error: details === undefined ? { code, message } : { code, message, details } };
 }
 
+/**
+ * A deliberate, client-facing failure: thrown from handlers and hooks, rendered by the error
+ * handler as the standard envelope with this status, code and (optional) details.
+ */
+export class ApiError extends Error {
+  constructor(
+    readonly statusCode: number,
+    readonly code: string,
+    message: string,
+    readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
 export function registerErrorHandling(app: FastifyInstance): void {
   app.setNotFoundHandler((request, reply) => {
     void reply
@@ -20,7 +36,10 @@ export function registerErrorHandling(app: FastifyInstance): void {
       .send(errorBody('not_found', `Route ${request.method} ${request.url} not found`));
   });
 
-  app.setErrorHandler((err: FastifyError, request, reply) => {
+  app.setErrorHandler((err: FastifyError | ApiError, request, reply) => {
+    if (err instanceof ApiError) {
+      return reply.code(err.statusCode).send(errorBody(err.code, err.message, err.details));
+    }
     if (err.validation) {
       return reply.code(400).send(errorBody('validation_failed', err.message, err.validation));
     }
