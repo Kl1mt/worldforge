@@ -1,20 +1,30 @@
 import { buildApp } from './app.js';
-import { loadConfig } from './config.js';
+import { loadConfig, requireDatabaseUrl } from './config.js';
+import { createPostgresDatabase } from './db/client.js';
 
 const config = loadConfig();
-const app = buildApp({ logger: { level: config.logLevel } });
+const database = createPostgresDatabase({
+  url: requireDatabaseUrl(config),
+  poolMax: config.databasePoolMax,
+  onIdleError: (err) => app.log.warn({ err }, 'idle database connection lost'),
+});
+const app = buildApp({ logger: { level: config.logLevel }, database });
 
 const shutdown = async (signal: string) => {
   app.log.info({ signal }, 'shutting down');
   await app.close();
+  await database.close();
   process.exit(0);
 };
 process.on('SIGINT', () => void shutdown('SIGINT'));
 process.on('SIGTERM', () => void shutdown('SIGTERM'));
 
 try {
+  // Fail fast on a wrong URL/credentials instead of on the first request.
+  await database.ping(5000);
   await app.listen({ host: config.host, port: config.port });
 } catch (err) {
   app.log.error(err);
+  await database.close().catch(() => undefined);
   process.exit(1);
 }
