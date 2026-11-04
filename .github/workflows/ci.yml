@@ -26,3 +26,42 @@ jobs:
       - run: pnpm typecheck
       - run: pnpm test
       - run: pnpm build
+
+  migrations:
+    # Applies the committed migrations from scratch to a real PostgreSQL server with the
+    # production build (unit tests use in-memory PGlite; see docs/TECH_STACK.md).
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: worldforge
+          POSTGRES_PASSWORD: worldforge
+          POSTGRES_DB: worldforge
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U worldforge -d worldforge"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://worldforge:worldforge@127.0.0.1:5432/worldforge
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build
+      - name: Apply migrations from scratch
+        run: pnpm --filter @worldforge/server db:migrate:prod
+      - name: Re-apply migrations (must be a no-op)
+        run: pnpm --filter @worldforge/server db:migrate:prod
+      - name: Verify schema
+        run: |
+          n=$(psql "$DATABASE_URL" -Atc "select count(*) from information_schema.tables where table_schema = 'public' and table_name in ('accounts', 'sessions', 'audit_log')")
+          test "$n" = "3"

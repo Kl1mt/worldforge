@@ -1,0 +1,21 @@
+# Local development database. Start with `pnpm db:up`, then `pnpm db:migrate`.
+# Credentials are for local use only and match apps/server/.env.example.
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: worldforge
+      POSTGRES_PASSWORD: worldforge
+      POSTGRES_DB: worldforge
+    ports:
+      - '127.0.0.1:5432:5432'
+    volumes:
+      - worldforge-db:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U worldforge -d worldforge']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  worldforge-db:
