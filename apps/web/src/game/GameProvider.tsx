@@ -82,6 +82,10 @@ interface GameContextValue {
   equip: (itemId: string, slot?: EquipmentSlotId) => Promise<string | null>;
   unequip: (itemId: string) => Promise<string | null>;
   discard: (itemId: string) => Promise<string | null>;
+  /** Shows an inventory the server returned from another action (merchant, forge: ticket 2.6). */
+  applyInventory: (dto: InventoryDto) => void;
+  /** Re-reads materials after an action that changed them (forge: ticket 2.6). */
+  refreshMaterials: () => void;
   reload: () => void;
 }
 
@@ -408,6 +412,12 @@ export function GameProvider({
     [characterId, itemAction],
   );
 
+  const applyInventory = useCallback(
+    (dto: InventoryDto) => setInventory({ kind: 'ready', value: toInventory(dto) }),
+    [],
+  );
+  const refreshMaterials = useCallback(() => void loadMaterials(), [loadMaterials]);
+
   const reload = useCallback(() => {
     setActivity({ kind: 'loading' });
     setWorld({ kind: 'loading' });
@@ -435,6 +445,8 @@ export function GameProvider({
       equip,
       unequip,
       discard,
+      applyInventory,
+      refreshMaterials,
       reload,
     }),
     [
@@ -454,6 +466,8 @@ export function GameProvider({
       equip,
       unequip,
       discard,
+      applyInventory,
+      refreshMaterials,
       reload,
     ],
   );

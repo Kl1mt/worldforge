@@ -8,9 +8,11 @@ import { AuthScreen, GateStatus } from './screens/AuthScreen';
 import { BuildingScreen } from './screens/BuildingScreen';
 import { CharacterScreen } from './screens/CharacterScreen';
 import { CharactersScreen } from './screens/CharactersScreen';
+import { ForgeScreen } from './screens/ForgeScreen';
 import { HubScreen } from './screens/HubScreen';
 import { InventoryScreen } from './screens/InventoryScreen';
 import { MapScreen } from './screens/MapScreen';
+import { MerchantScreen } from './screens/MerchantScreen';
 import { Shell } from './shell/Shell';
 import { useRoute } from './shell/useRoute';
 
@@ -59,9 +61,9 @@ function Routes() {
         {route === 'hub' ? <HubScreen /> : null}
         {route === 'map' ? <MapScreen /> : null}
         {route === 'area' ? <AreaScreen /> : null}
-        {route === 'tavern' || route === 'forge' || route === 'merchant' ? (
-          <BuildingScreen building={route} />
-        ) : null}
+        {route === 'tavern' ? <BuildingScreen building={route} /> : null}
+        {route === 'forge' ? <ForgeScreen /> : null}
+        {route === 'merchant' ? <MerchantScreen /> : null}
         {route === 'character' ? <CharacterScreen /> : null}
         {route === 'inventory' ? <InventoryScreen /> : null}
       </Shell>

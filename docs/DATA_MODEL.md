@@ -117,7 +117,7 @@ The character's current farming activity. Settlement rules: `docs/FARMING.md`.
 Stopping deletes the row after saving `seed_secret`, `cycle_index`, `health` (and the unfinished cycle's area) to `characters.farm_state` (the audit log keeps the history). Per-settlement history lives in the audit log (`activity.reward`) rather than an `offline_settlement` table for now.
 
 ### character_materials — implemented (2.3)
-Materials a character holds. Granted only by settlement (later also the forge, 2.6).
+Materials a character holds. Granted by settlement and forge salvage, spent by forge crafting (2.6).
 | Column       | Type        | Notes                                                        |
 | ------------ | ----------- | ------------------------------------------------------------ |
 | character_id | uuid FK     | → `characters.id` `ON DELETE CASCADE`; PK with `material_id` |
@@ -139,8 +139,31 @@ Gathering profession progress (game-core `ProfessionState`). A missing row means
 
 Written by settlement only, read before `settleFarming` and written back in the same transaction.
 
-### idempotency_key — not implemented (planned)
-Phase 1 endpoints are idempotent by state (see `docs/API_CONVENTIONS.md`, Idempotency); this table arrives with the first non-idempotent value operation. `(account_id, key) PK`, `request_hash`, `response jsonb`, `status_code`, `created_at` (expired after 24h). See `docs/API_CONVENTIONS.md`.
+### idempotency_keys — implemented (2.6)
+Stored responses of requests sent with an `Idempotency-Key` header (`apps/server/src/idempotency/`, `docs/API_CONVENTIONS.md`).
+| Column       | Type        | Notes                                                                 |
+| ------------ | ----------- | --------------------------------------------------------------------- |
+| account_id   | uuid FK     | → `accounts.id` `ON DELETE CASCADE`; PK with `key`                    |
+| key          | text        | the client's key (8–128 visible ASCII, a UUID by convention)          |
+| request_hash | text        | SHA-256 of method, path and canonical JSON body                       |
+| status_code  | smallint    | status of the stored response                                         |
+| response     | jsonb       | the response body                                                     |
+| created_at   | timestamptz |                                                                       |
+| expires_at   | timestamptz | created + 24 h; indexed; expired rows are reused and pruned hourly by the settlement scheduler |
+
+The row is claimed (inserted) at the start of the mutation's own transaction and filled in before it commits, so it exists only for committed successes.
+
+### merchant_purchases — implemented (2.6)
+Merchant offers a character bought; each daily offer sells once.
+| Column       | Type        | Notes                                                          |
+| ------------ | ----------- | -------------------------------------------------------------- |
+| character_id | uuid FK     | → `characters.id` `ON DELETE CASCADE`; PK with `offer_id`      |
+| offer_id     | text        | game-core offer id `<day>.<areaId>.<index>`                    |
+| item_id      | uuid        | the item created (no FK: it may be sold or salvaged later)     |
+| price        | bigint      | gold paid, `CHECK (>= 0)`                                      |
+| created_at   | timestamptz |                                                                |
+
+The primary key is the state guard behind the idempotency key: even without the stored response an offer cannot be bought twice.
 
 ## Relationships
 
@@ -151,7 +174,8 @@ account 1─* character 1─1 activity
                      1─* character_materials, 1─* character_professions
                      1─* currency_ledger
 account 0..1─* audit_log
-account 1─* idempotency_key
+account 1─* idempotency_keys
+character 1─* merchant_purchases
 ```
 
 ## Open questions

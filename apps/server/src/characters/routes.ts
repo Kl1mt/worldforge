@@ -41,7 +41,7 @@ export function characterView(c: Character): CharacterView {
   };
 }
 
-const characterSchema = {
+export const characterSchema = {
   type: 'object',
   required: ['id', 'name', 'classId', 'appearance', 'level', 'experience', 'gold', 'createdAt'],
   properties: {
