@@ -266,7 +266,7 @@ describe('progress and turn-in', () => {
       error: { code: 'idempotency_key_required' },
     });
     expect((await turnIn(p, quest.id, 'bad key!')).json()).toMatchObject({
-      error: { code: 'idempotency_key_invalid' },
+      error: { code: 'validation_failed' },
     });
 
     const before = await characterRow(p.id);
@@ -287,7 +287,7 @@ describe('progress and turn-in', () => {
 
     const replay = await turnIn(p, quest.id, 'turn-in-key-0001');
     expect(replay.statusCode).toBe(200);
-    expect(replay.headers['idempotent-replayed']).toBe('true');
+    expect(replay.headers['idempotency-replayed']).toBe('true');
     expect(replay.json()).toEqual(body);
     const again = await turnIn(p, quest.id, 'turn-in-key-0002');
     expect(again.statusCode).toBe(409);

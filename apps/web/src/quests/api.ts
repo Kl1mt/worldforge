@@ -86,13 +86,6 @@ export const questsApi = {
     ),
 };
 
-/** A new Idempotency-Key (a UUID). */
-export function newIdempotencyKey(): string {
-  if (typeof crypto.randomUUID === 'function') return crypto.randomUUID();
-  const b = crypto.getRandomValues(new Uint8Array(16));
-  return Array.from(b, (x) => x.toString(16).padStart(2, '0')).join('');
-}
-
 /** A short sentence for a failed quest action. */
 export function describeQuestFailure(error: Pick<ApiFailure, 'code'>): string {
   switch (error.code) {

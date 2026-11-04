@@ -1,5 +1,5 @@
 {
-  "id": "0af3d93d-42d9-4ddd-9f88-7aa19908d2c4",
+  "id": "e9cba71e-1695-4c6e-a5d6-77b2d6c02cdd",
   "prevId": "1138d5e8-b6d1-4e4d-a385-9800989e8b48",
   "version": "7",
   "dialect": "postgresql",
@@ -554,195 +554,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.character_quests": {
-      "name": "character_quests",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "character_id": {
-          "name": "character_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "quest_id": {
-          "name": "quest_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "contract_day": {
-          "name": "contract_day",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "contract_slot": {
-          "name": "contract_slot",
-          "type": "smallint",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "objectives": {
-          "name": "objectives",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "progress": {
-          "name": "progress",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "reward": {
-          "name": "reward",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'active'"
-        },
-        "accepted_at": {
-          "name": "accepted_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "turned_in_at": {
-          "name": "turned_in_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        }
-      },
-      "indexes": {
-        "character_quests_character_id_status_idx": {
-          "name": "character_quests_character_id_status_idx",
-          "columns": [
-            {
-              "expression": "character_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "character_quests_story_key": {
-          "name": "character_quests_story_key",
-          "columns": [
-            {
-              "expression": "character_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "quest_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"character_quests\".\"kind\" = 'story'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "character_quests_contract_slot_key": {
-          "name": "character_quests_contract_slot_key",
-          "columns": [
-            {
-              "expression": "character_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "contract_day",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "contract_slot",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": true,
-          "where": "\"character_quests\".\"kind\" = 'contract'",
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "character_quests_character_id_characters_id_fk": {
-          "name": "character_quests_character_id_characters_id_fk",
-          "tableFrom": "character_quests",
-          "tableTo": "characters",
-          "columnsFrom": [
-            "character_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "character_quests_kind_check": {
-          "name": "character_quests_kind_check",
-          "value": "\"character_quests\".\"kind\" in ('story', 'contract')"
-        },
-        "character_quests_status_check": {
-          "name": "character_quests_status_check",
-          "value": "\"character_quests\".\"status\" in ('active', 'turnedIn')"
-        },
-        "character_quests_turned_in_check": {
-          "name": "character_quests_turned_in_check",
-          "value": "(\"character_quests\".\"status\" = 'turnedIn') = (\"character_quests\".\"turned_in_at\" is not null)"
-        },
-        "character_quests_contract_check": {
-          "name": "character_quests_contract_check",
-          "value": "(\"character_quests\".\"kind\" = 'contract') = (\"character_quests\".\"contract_day\" is not null and \"character_quests\".\"contract_slot\" is not null)"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.characters": {
       "name": "characters",
       "schema": "",
@@ -939,14 +750,20 @@
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
         }
       },
       "indexes": {
-        "idempotency_keys_created_at_idx": {
-          "name": "idempotency_keys_created_at_idx",
+        "idempotency_keys_expires_at_idx": {
+          "name": "idempotency_keys_expires_at_idx",
           "columns": [
             {
-              "expression": "created_at",
+              "expression": "expires_at",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1115,6 +932,77 @@
         "item_instances_item_level_check": {
           "name": "item_instances_item_level_check",
           "value": "\"item_instances\".\"item_level\" >= 1"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.merchant_purchases": {
+      "name": "merchant_purchases",
+      "schema": "",
+      "columns": {
+        "character_id": {
+          "name": "character_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "offer_id": {
+          "name": "offer_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "item_id": {
+          "name": "item_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "price": {
+          "name": "price",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "merchant_purchases_character_id_characters_id_fk": {
+          "name": "merchant_purchases_character_id_characters_id_fk",
+          "tableFrom": "merchant_purchases",
+          "tableTo": "characters",
+          "columnsFrom": [
+            "character_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "merchant_purchases_character_id_offer_id_pk": {
+          "name": "merchant_purchases_character_id_offer_id_pk",
+          "columns": [
+            "character_id",
+            "offer_id"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "merchant_purchases_price_check": {
+          "name": "merchant_purchases_price_check",
+          "value": "\"merchant_purchases\".\"price\" >= 0"
         }
       },
       "isRLSEnabled": false

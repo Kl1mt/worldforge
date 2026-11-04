@@ -16,7 +16,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { and, eq, isNotNull, sql } from 'drizzle-orm';
-import { generateItem } from '@worldforge/game-core';
+import { randomUUID } from 'node:crypto';
+import { generateItem, salvageYield, sellPrice } from '@worldforge/game-core';
 import { buildApp } from './app.js';
 import { SESSION_COOKIE } from './auth/index.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from './activity/settle.js';
@@ -29,6 +30,7 @@ import {
   characterQuests,
   characters,
   itemInstances,
+  merchantPurchases,
 } from './db/schema.js';
 import { transactionStats, withTransaction } from './db/transaction.js';
 import type { DatabaseHandle } from './db/types.js';
@@ -421,6 +423,180 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
     expect(discardAudits).toHaveLength(1);
   });
 
+  // Ticket 2.6: merchant and forge. Every request carries its own Idempotency-Key unless a test
+  // races one key on purpose.
+  const keyed = (p: Player, path: string, payload: object, key: string = randomUUID()) =>
+    app.inject({
+      method: 'POST',
+      url: path,
+      payload,
+      headers: { 'idempotency-key': key },
+      cookies: { [SESSION_COOKIE]: p.token },
+    });
+  const goldOf = async (id: string) =>
+    (await database.db.select().from(characters).where(eq(characters.id, id)))[0]!.gold;
+  const setGold = (id: string, gold: number) =>
+    database.db.update(characters).set({ gold }).where(eq(characters.id, id));
+  const eventsOf = (id: string, event: string) =>
+    database.db
+      .select()
+      .from(auditLog)
+      .where(and(eq(auditLog.characterId, id), eq(auditLog.event, event)));
+
+  it('sells an item once when sells with different keys race (ticket 2.6)', async () => {
+    const p = await newPlayer();
+    const id = await newCharacter(p);
+    const item = await grant(id, 'iron-helm', 1);
+    const results = await Promise.all(
+      Array.from({ length: N }, () =>
+        keyed(p, `/api/characters/${id}/merchant/sell`, { itemIds: [item] }),
+      ),
+    );
+    const codes = results.map((r) => r.statusCode).sort();
+    expect(codes).toEqual([200, ...Array(N - 1).fill(404)]);
+    expect(await goldOf(id)).toBe(sellPrice({ rarityId: 'common', itemLevel: 5 }));
+    expect(await eventsOf(id, 'merchant.sell')).toHaveLength(1);
+  });
+
+  it('runs a request once when the same Idempotency-Key races; the rest replay it', async () => {
+    const p = await newPlayer();
+    const id = await newCharacter(p);
+    const items = await Promise.all([1, 2, 3].map((s) => grant(id, 'iron-helm', s)));
+    const key = randomUUID();
+    const results = await Promise.all(
+      Array.from({ length: N }, () =>
+        keyed(p, `/api/characters/${id}/merchant/sell`, { itemIds: items }, key),
+      ),
+    );
+    expect(results.map((r) => r.statusCode)).toEqual(Array(N).fill(200));
+    const replayed = results.filter((r) => r.headers['idempotency-replayed'] === 'true');
+    expect(replayed).toHaveLength(N - 1);
+    for (const r of results) expect(r.json()).toEqual(results[0]!.json());
+    expect(await goldOf(id)).toBe(3 * sellPrice({ rarityId: 'common', itemLevel: 5 }));
+    expect(await eventsOf(id, 'merchant.sell')).toHaveLength(1);
+  });
+
+  it('sells a merchant offer once when buys race, and never spends gold twice', async () => {
+    const p = await newPlayer();
+    const id = await newCharacter(p);
+    await setGold(id, 100_000);
+    const stock = await call(p, 'GET', `/api/characters/${id}/merchant`);
+    const offer = stock.json<{ offers: { offerId: string; price: number }[] }>().offers[0]!;
+    const results = await Promise.all(
+      Array.from({ length: N }, () =>
+        keyed(p, `/api/characters/${id}/merchant/buy`, { offerId: offer.offerId }),
+      ),
+    );
+    const codes = results.map((r) => r.statusCode).sort();
+    expect(codes).toEqual([200, ...Array(N - 1).fill(409)]);
+    expect(await goldOf(id)).toBe(100_000 - offer.price);
+    const items = await database.db
+      .select()
+      .from(itemInstances)
+      .where(eq(itemInstances.characterId, id));
+    expect(items).toHaveLength(1);
+    const bought = await database.db
+      .select()
+      .from(merchantPurchases)
+      .where(eq(merchantPurchases.characterId, id));
+    expect(bought).toHaveLength(1);
+  });
+
+  it('never lets racing buys spend more gold than the character has', async () => {
+    const p = await newPlayer();
+    const id = await newCharacter(p);
+    await database.db.update(characters).set({ level: 20 }).where(eq(characters.id, id));
+    const stock = await call(p, 'GET', `/api/characters/${id}/merchant`);
+    const offers = stock.json<{ offers: { offerId: string; price: number }[] }>().offers;
+    const cheapest = Math.min(...offers.map((o) => o.price));
+    // Enough for any one affordable offer, never for two.
+    const gold = 2 * cheapest - 1;
+    await setGold(id, gold);
+    const results = await Promise.all(
+      offers.map((o) => keyed(p, `/api/characters/${id}/merchant/buy`, { offerId: o.offerId })),
+    );
+    expect(results.filter((r) => r.statusCode === 200)).toHaveLength(1);
+    for (const r of results.filter((r) => r.statusCode !== 200)) {
+      expect(r.json().error.code).toBe('insufficient_gold');
+    }
+    const left = await goldOf(id);
+    expect(left).toBeGreaterThanOrEqual(0);
+    const audits = await eventsOf(id, 'merchant.buy');
+    expect(audits).toHaveLength(1);
+    const paid = audits.reduce((s, a) => s + (a.data as { price: number }).price, 0);
+    expect(left).toBe(gold - paid);
+  });
+
+  it('settle, sell, salvage and discard racing for one item: exactly one takes it', async () => {
+    const { p, id } = await farmer();
+    advance(10 * MIN);
+    const item = await grant(id, 'barbute', 9);
+    const [row] = await database.db.select().from(itemInstances).where(eq(itemInstances.id, item));
+    const base = `/api/characters/${id}`;
+    const results = await Promise.all([
+      keyed(p, `${base}/merchant/sell`, { itemIds: [item] }),
+      keyed(p, `${base}/forge/salvage`, { itemIds: [item] }),
+      call(p, 'DELETE', `${base}/items/${item}`),
+      keyed(p, `${base}/merchant/sell`, { itemIds: [item] }),
+      keyed(p, `${base}/forge/salvage`, { itemIds: [item] }),
+      call(p, 'POST', `${base}/activity/settle`),
+    ]);
+    const takers = results.slice(0, 5).filter((r) => r.statusCode === 200);
+    expect(takers).toHaveLength(1);
+    const sold = await eventsOf(id, 'merchant.sell');
+    const salvaged = await eventsOf(id, 'forge.salvage');
+    const discarded = await eventsOf(id, 'item.discard');
+    expect(sold.length + salvaged.length + discarded.length).toBe(1);
+    const rewards = await audited(id);
+    const expectedGold =
+      rewards.gold +
+      (sold.length ? sellPrice(row!) : 0) +
+      (salvaged.length ? salvageYield(row!).gold : 0);
+    expect(await goldOf(id)).toBe(expectedGold);
+    const remaining = await database.db
+      .select()
+      .from(itemInstances)
+      .where(eq(itemInstances.id, item));
+    expect(remaining).toHaveLength(0);
+  });
+
+  it('crafts only as often as the materials allow when crafts race', async () => {
+    const p = await newPlayer();
+    const id = await newCharacter(p);
+    await setGold(id, 1_000);
+    await database.db.insert(characterMaterials).values([
+      { characterId: id, materialId: 'timber', quantity: 25 },
+      { characterId: id, materialId: 'ashwort', quantity: 100 },
+    ]);
+    const results = await Promise.all(
+      Array.from({ length: N }, () =>
+        keyed(p, `/api/characters/${id}/forge/craft`, {
+          recipeId: 'fieldsmithWork',
+          slot: 'head',
+        }),
+      ),
+    );
+    const ok = results.filter((r) => r.statusCode === 200);
+    expect(ok).toHaveLength(2);
+    for (const r of results.filter((r) => r.statusCode !== 200)) {
+      expect(r.json().error.code).toBe('insufficient_materials');
+    }
+    const mats = await database.db
+      .select()
+      .from(characterMaterials)
+      .where(eq(characterMaterials.characterId, id));
+    expect(Object.fromEntries(mats.map((m) => [m.materialId, m.quantity]))).toEqual({
+      timber: 5,
+      ashwort: 90,
+    });
+    expect(await goldOf(id)).toBe(950);
+    const items = await database.db
+      .select()
+      .from(itemInstances)
+      .where(eq(itemInstances.characterId, id));
+    expect(items).toHaveLength(2);
+  });
+
   // Runs last (tests in a file run in order). Retries keep the races correct, but each one is a
   // deadlock: before ticket 1.9 used `FOR NO KEY UPDATE` for the account/character locks, the
   // foreign-key checks of audit and activity inserts (`FOR KEY SHARE`) deadlocked against them
@@ -467,7 +643,7 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
       const shared = results.filter((_, i) => keys[i] === 'shared-key-0001');
       const own = results.filter((_, i) => keys[i] !== 'shared-key-0001');
       const winners = results.filter(
-        (r) => r.statusCode === 200 && r.headers['idempotent-replayed'] !== 'true',
+        (r) => r.statusCode === 200 && r.headers['idempotency-replayed'] !== 'true',
       );
       expect(winners).toHaveLength(1);
       // Every request with the shared key gets the same answer: all the stored success, or all

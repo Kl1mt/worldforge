@@ -12,6 +12,9 @@ import {
 import { registerInventory } from './inventory/routes.js';
 import { registerWorld } from './world/routes.js';
 import { registerMaterials } from './materials/routes.js';
+import { registerMerchant } from './merchant/routes.js';
+import { registerForge } from './forge/routes.js';
+import { pruneIdempotencyKeys } from './idempotency/index.js';
 import { registerQuests } from './quests/routes.js';
 import type { Database, DatabaseHandle } from './db/types.js';
 
@@ -57,6 +60,8 @@ export function buildApp({ database, auth, activity, ...options }: AppOptions): 
       await registerInventory(api, activityOptions);
       await registerWorld(api);
       await registerMaterials(api);
+      await registerMerchant(api, activityOptions);
+      await registerForge(api, activityOptions);
       await registerQuests(api, activityOptions);
 
       api.get('/health', async (request, reply): Promise<HealthResponse> => {
@@ -85,16 +90,19 @@ export function buildApp({ database, auth, activity, ...options }: AppOptions): 
   return app;
 }
 
+const PRUNE_EVERY_MS = 60 * 60 * 1000;
+
 /**
  * Periodically settles activities the client has not settled for one interval, so rewards and the
  * world stay current while players are away. Each run settles at most one batch; overlapping runs
- * are skipped.
+ * are skipped. Also prunes expired idempotency keys (ticket 2.6).
  */
 function registerSettlementScheduler(app: FastifyInstance, options: ActivityOptions): void {
   const intervalMs = options.settleIntervalMs;
   if (intervalMs <= 0) return;
   let timer: NodeJS.Timeout | undefined;
   let running = false;
+  let lastPrune = 0;
   app.addHook('onReady', async () => {
     timer = setInterval(() => {
       if (running) return;
@@ -104,6 +112,15 @@ function registerSettlementScheduler(app: FastifyInstance, options: ActivityOpti
           if (n > 0) app.log.info({ settled: n }, 'scheduled settlement');
         })
         .catch((err: unknown) => app.log.error({ err }, 'scheduled settlement failed'))
+        .then(async () => {
+          // Expired idempotency keys (ticket 2.6): at most once an hour.
+          const now = options.now();
+          if (now.getTime() - lastPrune < PRUNE_EVERY_MS) return;
+          lastPrune = now.getTime();
+          const n = await pruneIdempotencyKeys(app.db, now);
+          if (n > 0) app.log.info({ pruned: n }, 'pruned idempotency keys');
+        })
+        .catch((err: unknown) => app.log.error({ err }, 'idempotency key pruning failed'))
         .finally(() => {
           running = false;
         });

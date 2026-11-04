@@ -43,7 +43,6 @@ export async function apiRequest<T>(
     method?: string;
     body?: unknown;
     signal?: AbortSignal;
-    /** Extra request headers, e.g. `Idempotency-Key` (ticket 2.4). */
     headers?: Record<string, string>;
   } = {},
   fetchImpl: typeof fetch = fetch,

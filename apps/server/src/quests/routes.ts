@@ -6,7 +6,7 @@ import { withTransaction } from '../db/transaction.js';
 import { ApiError } from '../errors.js';
 import { settleActivityTx, type ActivityOptions } from '../activity/settle.js';
 import { characterView } from '../characters/routes.js';
-import { idempotentTx, readIdempotencyKey } from '../idempotency/index.js';
+import { idempotentTransaction } from '../idempotency/index.js';
 import { acceptQuestTx, questBoard, turnInQuestTx, type AcceptRequest } from './store.js';
 
 const characterParamsSchema = {
@@ -123,25 +123,19 @@ export async function registerQuests(
     { preHandler: app.requireAccount, schema: { params: questParamsSchema } },
     async (request, reply) => {
       const accountId = request.auth!.account.id;
-      const key = readIdempotencyKey(request);
       const { characterId, questId } = request.params;
-      return withTransaction(app.db, async (tx) => {
+      return idempotentTransaction(app, request, reply, { now: activity.now }, async (tx) => {
         const now = activity.now();
-        return idempotentTx(tx, request, reply, { accountId, key, now }, async () => {
-          const character = await lockAndSettle(tx, accountId, characterId, activity);
-          const outcome = await turnInQuestTx(tx, character, questId, {
-            inventoryCapacity: activity.rules.inventory.capacity,
-            now,
-          });
-          return {
-            statusCode: 200,
-            body: {
-              quests: await questBoard(tx, outcome.character, now),
-              character: characterView(outcome.character),
-              reward: outcome.reward,
-            },
-          };
+        const character = await lockAndSettle(tx, accountId, characterId, activity);
+        const outcome = await turnInQuestTx(tx, character, questId, {
+          inventoryCapacity: activity.rules.inventory.capacity,
+          now,
         });
+        return {
+          quests: await questBoard(tx, outcome.character, now),
+          character: characterView(outcome.character),
+          reward: outcome.reward,
+        };
       });
     },
   );

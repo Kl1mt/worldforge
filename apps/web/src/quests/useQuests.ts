@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useCharacters } from '../characters/CharactersProvider';
+import { ActionKeys } from '../game/economy';
 import { useGame, type Load } from '../game/GameProvider';
 import {
   describeQuestFailure,
-  newIdempotencyKey,
   questsApi,
   type AcceptIntent,
   type QuestBoard,
@@ -36,9 +36,9 @@ export function useQuests(characterId: string): QuestsState {
   const [error, setError] = useState<string | null>(null);
   const [lastReward, setLastReward] = useState<QuestsState['lastReward']>(null);
   const [attempt, setAttempt] = useState(0);
-  // One Idempotency-Key per quest until the turn-in gets a definite answer, so a retry after a
-  // lost response replays instead of being refused.
-  const keys = useRef(new Map<string, string>());
+  // One Idempotency-Key per turn-in until it gets a definite answer, so a retry after a lost
+  // response replays instead of being refused (ticket 2.6's client helper).
+  const keys = useRef(new ActionKeys());
 
   const settledAt = activity.kind === 'ready' ? (activity.value?.settledAt ?? null) : null;
 
@@ -80,19 +80,16 @@ export function useQuests(characterId: string): QuestsState {
 
   const turnIn = useCallback(
     async (questRowId: string) => {
-      let key = keys.current.get(questRowId);
-      if (!key) {
-        key = newIdempotencyKey();
-        keys.current.set(questRowId, key);
-      }
+      const action = `turn-in:${questRowId}`;
+      const key = keys.current.keyFor(action);
       const quest =
         board.kind === 'ready' ? board.value.quests.find((q) => q.id === questRowId) : undefined;
       setBusy(questRowId);
       setError(null);
       const res = await questsApi.turnIn(characterId, questRowId, key);
       setBusy(null);
+      keys.current.settle(action, res.ok ? null : res.error);
       if (res.ok) {
-        keys.current.delete(questRowId);
         setBoard({ kind: 'ready', value: res.value.quests });
         updateCharacter(res.value.character);
         setLastReward({
@@ -106,8 +103,6 @@ export function useQuests(characterId: string): QuestsState {
         }
         return;
       }
-      // Network failures keep the key for the retry; any server answer ends this attempt.
-      if (res.error.status !== 0) keys.current.delete(questRowId);
       setError(describeQuestFailure(res.error));
       setAttempt((n) => n + 1);
     },
