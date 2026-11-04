@@ -1,6 +1,6 @@
 # API conventions
 
-Applies to every endpoint served by `apps/server`. Implemented so far: health, content, the account/auth endpoints (ticket 1.2), the character endpoints (ticket 1.3), the 404 handler and the error handler (`apps/server/src/errors.ts`; throw `ApiError(status, code, message, details?)` for deliberate failures).
+Applies to every endpoint served by `apps/server`. Implemented so far: health, content, the account/auth endpoints (ticket 1.2), the character endpoints (ticket 1.3), the inventory & equipment endpoints (ticket 1.7), the 404 handler and the error handler (`apps/server/src/errors.ts`; throw `ApiError(status, code, message, details?)` for deliberate failures).
 
 ## Basics
 - REST over HTTPS, JSON request and response bodies (`application/json; charset=utf-8`).
@@ -76,9 +76,15 @@ Every non-2xx response has this shape:
 | GET    | `/api/characters` | `200 { characters, slots: { used, total }, activeCharacterId }` — the account's characters, oldest first. Not paginated: bounded by the slot count |
 | POST   | `/api/characters` | Body `{ name, classId, appearance: { banner } }` → `201 { character }`; the new character becomes active. `400 validation_failed` (`details.fields`: `name`, `classId`, `appearance.banner`), `409 character_name_taken`, `422 no_free_slot` (`details.slots`) |
 | POST   | `/api/characters/:characterId/select` | `200 { character }` and makes it the account's active character. `403 forbidden` for another account's character, `404 not_found`, `400` for a malformed id |
+| GET    | `/api/characters/:characterId/inventory` | `200 { equipped, inventory, stats }` — equipped items in canonical slot order, unequipped items oldest first, and the character's effective stats with that equipment (derived server-side). Not paginated: bounded by inventory capacity (ticket 1.6). `403 forbidden` for another account's character, `404 not_found` |
+| POST   | `/api/characters/:characterId/items/:itemId/equip` | Optional body `{ slot }` (an `EquipmentSlotId`) → `200` inventory body. Without `slot` the item's only slot is used; a ring goes to the first free of `ring1`/`ring2` (else `ring1`), an already equipped item stays put. The previous occupant of the slot goes back to the inventory, except that moving an equipped ring onto the other ring slot swaps the two rings. Equipping into the current slot is a no-op. `422 wrong_slot` / `wrong_class` / `item_unusable` (base no longer in content), `400` for an unknown slot or extra fields, `404 not_found` if the item isn't this character's |
+| POST   | `/api/characters/:characterId/items/:itemId/unequip` | `200` inventory body; no-op for an item already in the inventory. Same `403`/`404` rules |
+| DELETE | `/api/characters/:characterId/items/:itemId` | Discards (deletes) an inventory item → `200` inventory body. `409 item_equipped` if it is equipped (unequip first). Same `403`/`404` rules |
 
 `account` is `{ id, email, displayName, characterSlots, createdAt }`. Registration rules (`apps/server/src/auth/validation.ts`): email trimmed, `x@y.tld` shape, ≤ 254 chars, unique case-insensitively; display name trimmed, 3–20 letters/digits with single spaces, `-`, `'` or `_` inside, unique case-insensitively; password 10–128 characters and not equal to the email. Passwords are hashed with argon2id (`@node-rs/argon2`, 19 MiB, t=2, p=1).
 
 `character` is `{ id, name, classId, appearance: { banner }, level, experience, gold, createdAt }`. Clients never send level, experience or gold; unknown body fields are rejected. All character routes require a session.
 
-Audit events: `character.create` (character id, `data.classId`), `account.register`, `auth.login`, `auth.login_failed` (`data.reason`: `unknown_email` / `bad_password`; account id when known), `auth.logout`. No emails, IPs or passwords are written to the audit log.
+`item` is `{ id, baseId, rarityId, itemLevel, affixes: [{ affixId, tier, value }], equippedSlot, source, createdAt }` (no seed). `stats` is a game-core `StatBlock`. Clients send item ids and slots only; items are created only by the server (loot, ticket 1.6). Every inventory change locks the character row in one transaction, so changes to one character are serialized; the partial unique index on `(character_id, equipped_slot)` is the database backstop (a clash would surface as `409 slot_conflict`). An item id under another character's path is `404`, so item ids can't be probed.
+
+Audit events: `item.discard` (`data`: item id, base, rarity, item level, seed; equip/unequip are not audited because they move no value), `character.create` (character id, `data.classId`), `account.register`, `auth.login`, `auth.login_failed` (`data.reason`: `unknown_email` / `bad_password`; account id when known), `auth.logout`. No emails, IPs or passwords are written to the audit log.
