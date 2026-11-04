@@ -1,5 +1,6 @@
 import type { RarityId } from '../rarity.js';
 import { ITEM_BASES } from '../items/bases.js';
+import { AREA_LOOT_TABLES } from './tables.js';
 
 export interface RarityRule {
   /**
@@ -32,6 +33,8 @@ export interface LootTableDefinition {
   id: string;
   /** Chance per kill that one item drops. */
   itemDropChance: number;
+  /** Inclusive range the rolled item level is clamped to (after `LootConfig` clamping). */
+  itemLevel?: { min: number; max: number };
   entries: readonly LootTableEntry[];
 }
 
@@ -62,17 +65,29 @@ export const DEFAULT_LOOT_CONFIG: LootConfig = {
   maxItemLevel: 60,
 };
 
-/** Default table: every Phase 1 base, equally weighted (gated by each base's minItemLevel). */
+/**
+ * Default table: every Phase 1 (tier 1) base, equally weighted (gated by each base's
+ * minItemLevel). Used when no table is given; settlement uses the area's table (ticket 2.1).
+ */
 export const STANDARD_LOOT_TABLE: LootTableDefinition = {
   id: 'standard',
   itemDropChance: 0.12,
-  entries: ITEM_BASES.map((b) => ({ baseId: b.id, weight: 1 })),
+  entries: ITEM_BASES.filter((b) => b.tier === 1).map((b) => ({ baseId: b.id, weight: 1 })),
 };
 
-export const LOOT_TABLES: readonly LootTableDefinition[] = [STANDARD_LOOT_TABLE];
+export const LOOT_TABLES: readonly LootTableDefinition[] = [
+  STANDARD_LOOT_TABLE,
+  ...AREA_LOOT_TABLES,
+];
+
+const LOOT_TABLES_BY_ID = new Map(LOOT_TABLES.map((t) => [t.id, t]));
+
+export function findLootTable(id: string): LootTableDefinition | undefined {
+  return LOOT_TABLES_BY_ID.get(id);
+}
 
 export function getLootTable(id: string): LootTableDefinition {
-  const table = LOOT_TABLES.find((t) => t.id === id);
+  const table = LOOT_TABLES_BY_ID.get(id);
   if (!table) throw new Error(`Unknown loot table: ${id}`);
   return table;
 }

@@ -1,32 +1,71 @@
 import type { DamageType } from '../classes.js';
 
-/** Enemy archetypes (GDD §4.3, §6.1). Stats scale linearly with enemy level. */
-export const ENEMY_IDS = ['risenFarmhand', 'carrionWolf', 'boneScarecrow'] as const;
+/**
+ * Enemy archetypes (GDD §4.3, §6.1). Ids are a shared contract with the art tickets
+ * (`docs/ROADMAP.md`, Phase 2 content contract). Stats scale linearly with enemy level.
+ */
+export const ENEMY_IDS = [
+  // Abandoned Fields (Phase 1 numbers, unchanged).
+  'risenFarmhand',
+  'carrionWolf',
+  'boneScarecrow',
+  // Crowwood.
+  'banditCutthroat',
+  'corruptedCrow',
+  // Old Burial Grounds.
+  'risenSkeleton',
+  'graveCrawler',
+  // Blackwater.
+  'drownedThrall',
+  'bogHorror',
+  // Sunken Abbey.
+  'fallenKnight',
+  'abbeyWraith',
+  // The Nameless Crypt (dungeon).
+  'cryptGhoul',
+  'boneAcolyte',
+  'gravewarden',
+] as const;
 
 export type EnemyId = (typeof ENEMY_IDS)[number];
+
+/** `normal` enemies fill area and dungeon rosters; a `boss` ends a dungeon. */
+export type EnemyRank = 'normal' | 'boss';
+
+export interface ScaledStat {
+  base: number;
+  perLevel: number;
+}
 
 export interface EnemyDefinition {
   id: EnemyId;
   name: string;
-  /** Asset id in `apps/web/public/assets/manifest.json`. */
+  /** Asset id in `apps/web/public/assets/manifest.json` (`enemy.<kebab-case id>` for Phase 2). */
   assetId: string;
+  /** Damage family: which defense (armor or resistance) mitigates its hits. */
   damageType: DamageType;
+  /** Undead drop `soulShard` in combat (ticket 2.3). */
+  undead: boolean;
+  rank: EnemyRank;
   /** Attacks per second. */
   attackSpeed: number;
-  health: { base: number; perLevel: number };
-  damage: { base: number; perLevel: number };
-  armor: { base: number; perLevel: number };
-  resistance: { base: number; perLevel: number };
+  health: ScaledStat;
+  damage: ScaledStat;
+  armor: ScaledStat;
+  resistance: ScaledStat;
   /** Experience awarded on kill, before the level-difference factor. */
-  xp: { base: number; perLevel: number };
+  xp: ScaledStat;
 }
 
 export const ENEMIES: readonly EnemyDefinition[] = [
+  // — Abandoned Fields (levels 1–6). Numbers unchanged from Phase 1; balance is ticket B.1.
   {
     id: 'risenFarmhand',
     name: 'Risen Farmhand',
     assetId: 'enemy.undead-farmer',
     damageType: 'physical',
+    undead: true,
+    rank: 'normal',
     attackSpeed: 0.8,
     health: { base: 60, perLevel: 14 },
     damage: { base: 6, perLevel: 1.6 },
@@ -39,6 +78,8 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     name: 'Carrion Wolf',
     assetId: 'enemy.wolf',
     damageType: 'physical',
+    undead: false,
+    rank: 'normal',
     attackSpeed: 1.3,
     health: { base: 45, perLevel: 10 },
     damage: { base: 5, perLevel: 1.3 },
@@ -51,6 +92,8 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     name: 'Bone Scarecrow',
     assetId: 'enemy.skeletal-scarecrow',
     damageType: 'magic',
+    undead: true,
+    rank: 'normal',
     attackSpeed: 0.6,
     health: { base: 85, perLevel: 18 },
     damage: { base: 8, perLevel: 2 },
@@ -58,14 +101,175 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     resistance: { base: 14, perLevel: 1.5 },
     xp: { base: 18, perLevel: 4 },
   },
+  // — Crowwood (levels 5–10).
+  {
+    id: 'banditCutthroat',
+    name: 'Bandit Cutthroat',
+    assetId: 'enemy.bandit-cutthroat',
+    damageType: 'physical',
+    undead: false,
+    rank: 'normal',
+    attackSpeed: 1.1,
+    health: { base: 60, perLevel: 14 },
+    damage: { base: 4.5, perLevel: 1.15 },
+    armor: { base: 10, perLevel: 2.2 },
+    resistance: { base: 6, perLevel: 1.2 },
+    xp: { base: 13, perLevel: 3.2 },
+  },
+  {
+    id: 'corruptedCrow',
+    name: 'Corrupted Crow',
+    assetId: 'enemy.corrupted-crow',
+    damageType: 'magic',
+    undead: false,
+    rank: 'normal',
+    attackSpeed: 1.4,
+    health: { base: 40, perLevel: 10 },
+    damage: { base: 4, perLevel: 1.2 },
+    armor: { base: 5, perLevel: 1 },
+    resistance: { base: 10, perLevel: 1.6 },
+    xp: { base: 12, perLevel: 3 },
+  },
+  // — Old Burial Grounds (levels 9–14).
+  {
+    id: 'risenSkeleton',
+    name: 'Risen Skeleton',
+    assetId: 'enemy.risen-skeleton',
+    damageType: 'physical',
+    undead: true,
+    rank: 'normal',
+    attackSpeed: 0.9,
+    health: { base: 65, perLevel: 15 },
+    damage: { base: 4, perLevel: 1.15 },
+    armor: { base: 12, perLevel: 2.6 },
+    resistance: { base: 6, perLevel: 1.2 },
+    xp: { base: 14, perLevel: 3.4 },
+  },
+  {
+    id: 'graveCrawler',
+    name: 'Grave Crawler',
+    assetId: 'enemy.grave-crawler',
+    damageType: 'physical',
+    undead: true,
+    rank: 'normal',
+    attackSpeed: 1.2,
+    health: { base: 55, perLevel: 13 },
+    damage: { base: 3.4, perLevel: 0.95 },
+    armor: { base: 8, perLevel: 1.6 },
+    resistance: { base: 8, perLevel: 1.6 },
+    xp: { base: 13, perLevel: 3.2 },
+  },
+  // — Blackwater (levels 13–18).
+  {
+    id: 'drownedThrall',
+    name: 'Drowned Thrall',
+    assetId: 'enemy.drowned-thrall',
+    damageType: 'physical',
+    undead: true,
+    rank: 'normal',
+    attackSpeed: 0.8,
+    health: { base: 75, perLevel: 16 },
+    damage: { base: 5, perLevel: 1.3 },
+    armor: { base: 10, perLevel: 2.2 },
+    resistance: { base: 8, perLevel: 1.5 },
+    xp: { base: 15, perLevel: 3.6 },
+  },
+  {
+    id: 'bogHorror',
+    name: 'Bog Horror',
+    assetId: 'enemy.bog-horror',
+    damageType: 'magic',
+    undead: false,
+    rank: 'normal',
+    attackSpeed: 0.7,
+    health: { base: 85, perLevel: 17 },
+    damage: { base: 6.2, perLevel: 1.55 },
+    armor: { base: 12, perLevel: 2.4 },
+    resistance: { base: 12, perLevel: 2 },
+    xp: { base: 18, perLevel: 4 },
+  },
+  // — Sunken Abbey (levels 17–22).
+  {
+    id: 'fallenKnight',
+    name: 'Fallen Knight',
+    assetId: 'enemy.fallen-knight',
+    damageType: 'physical',
+    undead: true,
+    rank: 'normal',
+    attackSpeed: 0.8,
+    health: { base: 80, perLevel: 17 },
+    damage: { base: 4.5, perLevel: 1.2 },
+    armor: { base: 16, perLevel: 3 },
+    resistance: { base: 8, perLevel: 1.6 },
+    xp: { base: 17, perLevel: 3.8 },
+  },
+  {
+    id: 'abbeyWraith',
+    name: 'Abbey Wraith',
+    assetId: 'enemy.abbey-wraith',
+    damageType: 'magic',
+    undead: true,
+    rank: 'normal',
+    attackSpeed: 0.9,
+    health: { base: 60, perLevel: 14 },
+    damage: { base: 5.3, perLevel: 1.35 },
+    armor: { base: 6, perLevel: 1.2 },
+    resistance: { base: 14, perLevel: 2.4 },
+    xp: { base: 16, perLevel: 3.8 },
+  },
+  // — The Nameless Crypt (dungeon, levels 12–16). Room rules and the boss mechanic are ticket 2.5.
+  {
+    id: 'cryptGhoul',
+    name: 'Crypt Ghoul',
+    assetId: 'enemy.crypt-ghoul',
+    damageType: 'physical',
+    undead: true,
+    rank: 'normal',
+    attackSpeed: 1.1,
+    health: { base: 70, perLevel: 15 },
+    damage: { base: 3.8, perLevel: 1.05 },
+    armor: { base: 9, perLevel: 2 },
+    resistance: { base: 8, perLevel: 1.5 },
+    xp: { base: 16, perLevel: 3.6 },
+  },
+  {
+    id: 'boneAcolyte',
+    name: 'Bone Acolyte',
+    assetId: 'enemy.bone-acolyte',
+    damageType: 'magic',
+    undead: true,
+    rank: 'normal',
+    attackSpeed: 0.7,
+    health: { base: 65, perLevel: 14 },
+    damage: { base: 8, perLevel: 2 },
+    armor: { base: 8, perLevel: 1.6 },
+    resistance: { base: 14, perLevel: 2.2 },
+    xp: { base: 17, perLevel: 3.8 },
+  },
+  {
+    id: 'gravewarden',
+    name: 'The Gravewarden',
+    assetId: 'enemy.gravewarden',
+    damageType: 'physical',
+    undead: true,
+    rank: 'boss',
+    attackSpeed: 0.6,
+    health: { base: 400, perLevel: 80 },
+    damage: { base: 12, perLevel: 2.6 },
+    armor: { base: 20, perLevel: 3.5 },
+    resistance: { base: 14, perLevel: 2.5 },
+    xp: { base: 120, perLevel: 25 },
+  },
 ];
+
+const ENEMIES_BY_ID = new Map(ENEMIES.map((e) => [e.id, e]));
 
 export function isEnemyId(value: unknown): value is EnemyId {
   return typeof value === 'string' && (ENEMY_IDS as readonly string[]).includes(value);
 }
 
 export function getEnemy(id: EnemyId): EnemyDefinition {
-  const def = ENEMIES.find((e) => e.id === id);
+  const def = ENEMIES_BY_ID.get(id);
   if (!def) throw new Error(`Unknown enemy: ${id}`);
   return def;
 }

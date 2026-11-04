@@ -34,6 +34,10 @@ export interface ItemBaseStat {
   perLevel: number;
 }
 
+export const ITEM_TIERS = [1, 2, 3] as const;
+
+export type ItemTier = (typeof ITEM_TIERS)[number];
+
 export interface ItemBaseDefinition {
   id: string;
   name: string;
@@ -42,6 +46,12 @@ export interface ItemBaseDefinition {
   icon: string;
   /** Classes allowed to equip this base. Armor and jewelry are usable by all classes (GDD §7.1). */
   classes: readonly ClassId[];
+  /**
+   * Content tier (ticket 2.1): 1 = Phase 1 / Abandoned Fields, 2 = Crowwood to Blackwater,
+   * 3 = Blackwater, the Nameless Crypt and the Sunken Abbey. Higher tiers have stronger implicit
+   * stats at the same item level; area loot tables weight tiers by area.
+   */
+  tier: ItemTier;
   /** Lowest item level at which this base can drop. */
   minItemLevel: number;
   stats: readonly ItemBaseStat[];
@@ -50,8 +60,10 @@ export interface ItemBaseDefinition {
 const ALL_CLASSES = CLASS_IDS;
 
 /**
- * Phase 1 item bases: one per curated item icon (`apps/web/public/assets/items/`).
- * Shoulders, legs and relic have no art yet, so they have no bases and cannot drop.
+ * Item bases. Tier 1 are the Phase 1 bases, one per curated item icon
+ * (`apps/web/public/assets/items/`). Tiers 2 and 3 (ticket 2.1) add one base per slot kind that
+ * has art and per weapon family; until ticket A.4 delivers their icons they point at the closest
+ * tier-1 icon. Shoulders, legs and relic have no art yet, so they have no bases and cannot drop.
  */
 export const ITEM_BASES: readonly ItemBaseDefinition[] = [
   // Weapons — class-restricted.
@@ -61,6 +73,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     slot: 'weapon',
     icon: 'item.longsword-notched',
     classes: ['warrior'],
+    tier: 1,
     minItemLevel: 1,
     stats: [{ stat: 'physicalDamage', base: 4, perLevel: 1.4 }],
   },
@@ -70,6 +83,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     slot: 'weapon',
     icon: 'item.longsword',
     classes: ['warrior'],
+    tier: 1,
     minItemLevel: 5,
     stats: [{ stat: 'physicalDamage', base: 6, perLevel: 1.6 }],
   },
@@ -79,6 +93,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     slot: 'weapon',
     icon: 'item.skull-staff',
     classes: ['mage', 'warlock'],
+    tier: 1,
     minItemLevel: 1,
     stats: [{ stat: 'magicDamage', base: 5, perLevel: 1.5 }],
   },
@@ -88,6 +103,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     slot: 'weapon',
     icon: 'item.hunting-bow',
     classes: ['hunter'],
+    tier: 1,
     minItemLevel: 1,
     stats: [{ stat: 'physicalDamage', base: 5, perLevel: 1.5 }],
   },
@@ -98,6 +114,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     slot: 'offhand',
     icon: 'item.round-shield',
     classes: ['warrior'],
+    tier: 1,
     minItemLevel: 1,
     stats: [{ stat: 'armor', base: 4, perLevel: 1.2 }],
   },
@@ -107,6 +124,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     slot: 'offhand',
     icon: 'item.heater-shield',
     classes: ['warrior'],
+    tier: 1,
     minItemLevel: 5,
     stats: [
       { stat: 'armor', base: 6, perLevel: 1.5 },
@@ -120,6 +138,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     slot: 'head',
     icon: 'item.iron-helm',
     classes: ALL_CLASSES,
+    tier: 1,
     minItemLevel: 1,
     stats: [{ stat: 'armor', base: 3, perLevel: 1 }],
   },
@@ -129,6 +148,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     slot: 'head',
     icon: 'item.horned-helm',
     classes: ALL_CLASSES,
+    tier: 1,
     minItemLevel: 5,
     stats: [
       { stat: 'armor', base: 4, perLevel: 1.2 },
@@ -141,6 +161,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     slot: 'hands',
     icon: 'item.leather-gloves',
     classes: ALL_CLASSES,
+    tier: 1,
     minItemLevel: 1,
     stats: [{ stat: 'armor', base: 2, perLevel: 0.8 }],
   },
@@ -150,6 +171,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     slot: 'hands',
     icon: 'item.iron-gauntlets',
     classes: ALL_CLASSES,
+    tier: 1,
     minItemLevel: 5,
     stats: [{ stat: 'armor', base: 3, perLevel: 1.1 }],
   },
@@ -159,6 +181,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     slot: 'chest',
     icon: 'item.leather-jerkin',
     classes: ALL_CLASSES,
+    tier: 1,
     minItemLevel: 1,
     stats: [{ stat: 'armor', base: 4, perLevel: 1.4 }],
   },
@@ -168,6 +191,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     slot: 'chest',
     icon: 'item.chainmail',
     classes: ALL_CLASSES,
+    tier: 1,
     minItemLevel: 3,
     stats: [{ stat: 'armor', base: 6, perLevel: 2 }],
   },
@@ -177,6 +201,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     slot: 'chest',
     icon: 'item.plate-cuirass',
     classes: ALL_CLASSES,
+    tier: 1,
     minItemLevel: 8,
     stats: [
       { stat: 'armor', base: 8, perLevel: 2.6 },
@@ -189,6 +214,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     slot: 'feet',
     icon: 'item.leather-boots',
     classes: ALL_CLASSES,
+    tier: 1,
     minItemLevel: 1,
     stats: [{ stat: 'armor', base: 2, perLevel: 0.9 }],
   },
@@ -199,6 +225,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     slot: 'ring',
     icon: 'item.brass-ring',
     classes: ALL_CLASSES,
+    tier: 1,
     minItemLevel: 1,
     stats: [{ stat: 'resistance', base: 2, perLevel: 0.6 }],
   },
@@ -208,6 +235,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     slot: 'ring',
     icon: 'item.iron-ring',
     classes: ALL_CLASSES,
+    tier: 1,
     minItemLevel: 3,
     stats: [{ stat: 'health', base: 6, perLevel: 2 }],
   },
@@ -217,10 +245,251 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     slot: 'neck',
     icon: 'item.bone-amulet',
     classes: ALL_CLASSES,
+    tier: 1,
     minItemLevel: 1,
     stats: [
       { stat: 'resistance', base: 2, perLevel: 0.6 },
       { stat: 'health', base: 4, perLevel: 1.5 },
+    ],
+  }, // — Tier 2 (ticket 2.1; placeholder icons until A.4).
+  {
+    id: 'bastard-sword',
+    name: 'Grave-Iron Bastard Sword',
+    slot: 'weapon',
+    icon: 'item.longsword',
+    classes: ['warrior'],
+    tier: 2,
+    minItemLevel: 9,
+    stats: [{ stat: 'physicalDamage', base: 9, perLevel: 1.8 }],
+  },
+  {
+    id: 'bog-oak-staff',
+    name: 'Bog-Oak Staff',
+    slot: 'weapon',
+    icon: 'item.skull-staff',
+    classes: ['mage', 'warlock'],
+    tier: 2,
+    minItemLevel: 9,
+    stats: [{ stat: 'magicDamage', base: 8, perLevel: 1.8 }],
+  },
+  {
+    id: 'crowwood-longbow',
+    name: 'Crowwood Longbow',
+    slot: 'weapon',
+    icon: 'item.hunting-bow',
+    classes: ['hunter'],
+    tier: 2,
+    minItemLevel: 9,
+    stats: [{ stat: 'physicalDamage', base: 8, perLevel: 1.75 }],
+  },
+  {
+    id: 'kite-shield',
+    name: 'Iron-Bound Kite Shield',
+    slot: 'offhand',
+    icon: 'item.heater-shield',
+    classes: ['warrior'],
+    tier: 2,
+    minItemLevel: 9,
+    stats: [
+      { stat: 'armor', base: 8, perLevel: 1.7 },
+      { stat: 'resistance', base: 3, perLevel: 0.6 },
+    ],
+  },
+  {
+    id: 'barbute',
+    name: 'Barbute',
+    slot: 'head',
+    icon: 'item.horned-helm',
+    classes: ALL_CLASSES,
+    tier: 2,
+    minItemLevel: 9,
+    stats: [
+      { stat: 'armor', base: 5, perLevel: 1.4 },
+      { stat: 'health', base: 6, perLevel: 2.2 },
+    ],
+  },
+  {
+    id: 'brigandine',
+    name: 'Brigandine',
+    slot: 'chest',
+    icon: 'item.chainmail',
+    classes: ALL_CLASSES,
+    tier: 2,
+    minItemLevel: 10,
+    stats: [
+      { stat: 'armor', base: 10, perLevel: 2.9 },
+      { stat: 'health', base: 8, perLevel: 2.4 },
+    ],
+  },
+  {
+    id: 'ringmail-gloves',
+    name: 'Ringmail Gloves',
+    slot: 'hands',
+    icon: 'item.iron-gauntlets',
+    classes: ALL_CLASSES,
+    tier: 2,
+    minItemLevel: 9,
+    stats: [
+      { stat: 'armor', base: 4, perLevel: 1.3 },
+      { stat: 'resistance', base: 1, perLevel: 0.3 },
+    ],
+  },
+  {
+    id: 'iron-shod-boots',
+    name: 'Iron-Shod Boots',
+    slot: 'feet',
+    icon: 'item.leather-boots',
+    classes: ALL_CLASSES,
+    tier: 2,
+    minItemLevel: 9,
+    stats: [{ stat: 'armor', base: 4, perLevel: 1.2 }],
+  },
+  {
+    id: 'raven-talisman',
+    name: 'Raven Talisman',
+    slot: 'neck',
+    icon: 'item.bone-amulet',
+    classes: ALL_CLASSES,
+    tier: 2,
+    minItemLevel: 9,
+    stats: [
+      { stat: 'resistance', base: 3, perLevel: 0.8 },
+      { stat: 'health', base: 6, perLevel: 1.8 },
+    ],
+  },
+  {
+    id: 'grave-gold-ring',
+    name: 'Grave-Gold Ring',
+    slot: 'ring',
+    icon: 'item.iron-ring',
+    classes: ALL_CLASSES,
+    tier: 2,
+    minItemLevel: 9,
+    stats: [
+      { stat: 'resistance', base: 3, perLevel: 0.8 },
+      { stat: 'health', base: 4, perLevel: 1.2 },
+    ],
+  },
+  // — Tier 3 (ticket 2.1; placeholder icons until A.4).
+  {
+    id: 'knights-greatsword',
+    name: 'Knight’s Greatsword',
+    slot: 'weapon',
+    icon: 'item.longsword',
+    classes: ['warrior'],
+    tier: 3,
+    minItemLevel: 15,
+    stats: [{ stat: 'physicalDamage', base: 13, perLevel: 2 }],
+  },
+  {
+    id: 'drowned-crozier',
+    name: 'Drowned Crozier',
+    slot: 'weapon',
+    icon: 'item.skull-staff',
+    classes: ['mage', 'warlock'],
+    tier: 3,
+    minItemLevel: 15,
+    stats: [{ stat: 'magicDamage', base: 12, perLevel: 2 }],
+  },
+  {
+    id: 'horn-recurve',
+    name: 'Horn Recurve',
+    slot: 'weapon',
+    icon: 'item.hunting-bow',
+    classes: ['hunter'],
+    tier: 3,
+    minItemLevel: 15,
+    stats: [{ stat: 'physicalDamage', base: 12, perLevel: 1.95 }],
+  },
+  {
+    id: 'tower-shield',
+    name: 'Abbey Tower Shield',
+    slot: 'offhand',
+    icon: 'item.heater-shield',
+    classes: ['warrior'],
+    tier: 3,
+    minItemLevel: 15,
+    stats: [
+      { stat: 'armor', base: 11, perLevel: 2 },
+      { stat: 'resistance', base: 4, perLevel: 0.8 },
+    ],
+  },
+  {
+    id: 'great-helm',
+    name: 'Great Helm',
+    slot: 'head',
+    icon: 'item.horned-helm',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 15,
+    stats: [
+      { stat: 'armor', base: 7, perLevel: 1.6 },
+      { stat: 'health', base: 8, perLevel: 2.6 },
+    ],
+  },
+  {
+    id: 'knights-plate',
+    name: 'Fallen Knight’s Plate',
+    slot: 'chest',
+    icon: 'item.plate-cuirass',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 16,
+    stats: [
+      { stat: 'armor', base: 13, perLevel: 3.2 },
+      { stat: 'health', base: 10, perLevel: 2.8 },
+    ],
+  },
+  {
+    id: 'plated-gauntlets',
+    name: 'Plated Gauntlets',
+    slot: 'hands',
+    icon: 'item.iron-gauntlets',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 15,
+    stats: [
+      { stat: 'armor', base: 5, perLevel: 1.5 },
+      { stat: 'resistance', base: 2, perLevel: 0.4 },
+    ],
+  },
+  {
+    id: 'plate-sabatons',
+    name: 'Plate Sabatons',
+    slot: 'feet',
+    icon: 'item.leather-boots',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 15,
+    stats: [
+      { stat: 'armor', base: 5, perLevel: 1.5 },
+      { stat: 'health', base: 4, perLevel: 1.5 },
+    ],
+  },
+  {
+    id: 'abbey-pendant',
+    name: 'Abbey Pendant',
+    slot: 'neck',
+    icon: 'item.bone-amulet',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 15,
+    stats: [
+      { stat: 'resistance', base: 4, perLevel: 0.9 },
+      { stat: 'health', base: 8, perLevel: 2.2 },
+    ],
+  },
+  {
+    id: 'abbey-signet',
+    name: 'Abbey Signet',
+    slot: 'ring',
+    icon: 'item.brass-ring',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 15,
+    stats: [
+      { stat: 'resistance', base: 4, perLevel: 0.9 },
+      { stat: 'health', base: 6, perLevel: 1.8 },
     ],
   },
 ];

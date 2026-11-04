@@ -149,8 +149,10 @@ describe('generated items', () => {
     const bases = new Set(sampleItems(5000, 1).map((i) => i.baseId));
     for (const id of bases) expect(getItemBase(id).minItemLevel).toBe(1);
     expect(bases.has('plate-cuirass')).toBe(false);
-    // At high level every base can drop.
-    expect(new Set(sampleItems(5000, 30).map((i) => i.baseId)).size).toBe(ITEM_BASES.length);
+    // At high level every base of the (tier 1) standard table can drop.
+    expect(new Set(sampleItems(5000, 30).map((i) => i.baseId)).size).toBe(
+      STANDARD_LOOT_TABLE.entries.length,
+    );
   });
 
   it('every affix eventually appears on every slot it allows', () => {
