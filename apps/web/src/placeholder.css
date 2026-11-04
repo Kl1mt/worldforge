@@ -1,0 +1,8 @@
+/* Placeholder only; replaced by the design system in ticket 0.3. */
+body {
+  margin: 0;
+  padding: 2rem 1rem;
+  background: #111;
+  color: #ddd;
+  font-family: system-ui, sans-serif;
+}

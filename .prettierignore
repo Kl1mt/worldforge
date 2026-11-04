@@ -1,0 +1,9 @@
+node_modules
+dist
+coverage
+pnpm-lock.yaml
+# Hand-written prose; not machine-formatted (avoids churn across parallel tickets).
+*.md
+# Raw and curated art (ticket 0.2) and generated JSON manifests.
+art
+apps/web/public/assets

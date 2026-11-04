@@ -1,0 +1,22 @@
+{
+  "name": "@worldforge/game-core",
+  "version": "0.0.0",
+  "private": true,
+  "description": "UI-free, deterministic gameplay rules and content definitions shared by server and client.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "source": "./src/index.ts",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  }
+}
