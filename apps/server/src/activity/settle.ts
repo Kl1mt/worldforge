@@ -4,6 +4,7 @@ import {
   DEFAULT_ACTIVITY_CONFIG,
   PROFESSION_IDS,
   RARITY_IDS,
+  questEventsFromSettlement,
   settleFarming,
   type ActivityConfig,
   type FarmingSettlement,
@@ -23,6 +24,7 @@ import { withTransaction } from '../db/transaction.js';
 import { writeAudit } from '../db/audit.js';
 import { uuidv7 } from '../db/uuid.js';
 import { grantGatheringTx, loadProfessions } from '../materials/store.js';
+import { recordQuestEventsTx } from '../quests/store.js';
 
 export interface ActivityOptions {
   /** Offline accumulation cap (GDD §9.1: 3 h, `OFFLINE_CAP_SECONDS`). */
@@ -218,6 +220,19 @@ export async function settleActivityTx(
       professionsBefore,
       settlement.professions,
       now,
+    );
+
+    // Quest progress from the same settlement, under the same character lock (ticket 2.4).
+    await recordQuestEventsTx(
+      tx,
+      characterId,
+      questEventsFromSettlement({
+        startAreaId: activity.areaId,
+        endAreaId: settlement.areaId,
+        encounters: settlement.encounters,
+        killsByEnemy: settlement.killsByEnemy,
+        materials: settlement.materials,
+      }),
     );
 
     const [written] = await tx

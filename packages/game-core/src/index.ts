@@ -13,3 +13,4 @@ export * from './loot/index.js';
 export * from './activity/index.js';
 export * from './professions/index.js';
 export * from './economy/index.js';
+export * from './quests/index.js';
