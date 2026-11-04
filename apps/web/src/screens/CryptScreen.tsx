@@ -30,6 +30,7 @@ import { materialCounts } from '../game/materials';
 import { formatDuration, formatNumber } from '../lib/format';
 import { PHONE_QUERY, pixelScale, sceneSpriteScale } from '../lib/pixel';
 import { routeHref } from '../lib/route';
+import { Trail } from '../shell/Trail';
 import './area.css';
 import './crypt.css';
 
@@ -424,12 +425,14 @@ export function CryptScreen() {
 
   const head = (
     <header className="crypt__head">
-      <p className="caps crypt__region">
-        Graumark ·{' '}
-        <a className="area__maplink" href={routeHref('map')}>
-          World Map
-        </a>
-      </p>
+      <Trail
+        className="crypt__region"
+        steps={[
+          { label: 'Town', route: 'hub' },
+          { label: 'World map', route: 'map' },
+          { label: CRYPT.name },
+        ]}
+      />
       <h1 className="display crypt__title">{CRYPT.name}</h1>
       <p className="crypt__desc">{CRYPT.description}</p>
     </header>

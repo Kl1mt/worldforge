@@ -14,6 +14,7 @@ import { useGame } from '../game/GameProvider';
 import { canUse, equippedBySlot, slotName, targetSlot, type ItemView } from '../game/items';
 import { PACK_LARGE_MIN_WIDTH, STASH_LARGE, socketSize } from '../lib/pixel';
 import { routeHref } from '../lib/route';
+import { useOnboarding } from '../onboarding/OnboardingProvider';
 import { MaterialsTab } from './MaterialsTab';
 import './inventory.css';
 
@@ -34,6 +35,7 @@ function usableBy(classes: readonly ClassId[]): string {
 export function InventoryScreen() {
   const hero = useActiveCharacter();
   const { inventory, materials, equip, discard, reload } = useGame();
+  const { newItems, markItemsSeen } = useOnboarding();
   const [tab, setTab] = useState<Tab>('items');
   const [filter, setFilter] = useState<Filter>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -71,6 +73,7 @@ export function InventoryScreen() {
 
   const choose = (item: ItemView) => {
     setSelectedId(item.id);
+    markItemsSeen([item.id]);
     setConfirmDiscard(false);
     setNotice(null);
   };
@@ -160,6 +163,7 @@ export function InventoryScreen() {
               scale={iconScale}
               selected={item.id === selected?.id}
               onSelect={() => choose(item)}
+              isNew={newItems.has(item.id)}
             />
           </li>
         ))}

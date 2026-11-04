@@ -17,6 +17,7 @@ import { useGame } from '../game/GameProvider';
 import type { WorldState } from '../game/api';
 import { PHONE_QUERY, pixelScale } from '../lib/pixel';
 import { routeHref } from '../lib/route';
+import { Trail } from '../shell/Trail';
 import './map.css';
 
 const MAP = asset('map.graumark');
@@ -218,7 +219,10 @@ export function MapScreen() {
   return (
     <div className="map">
       <header className="map__head">
-        <p className="caps map__region">Graumark · The border country</p>
+        <Trail
+          className="map__region"
+          steps={[{ label: 'Town', route: 'hub' }, { label: 'World map' }]}
+        />
         <h1 className="display map__title">World Map</h1>
         {pending && current ? (
           <p className="map__travel" role="status">

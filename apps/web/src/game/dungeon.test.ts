@@ -39,7 +39,15 @@ describe('crypt client', () => {
   it('names the boss without a doubled article', () => {
     const lines = cryptLog(
       [
-        { t: 0, type: 'spawn', enemyId: 'gravewarden', enemyLevel: 14, enemyHealth: 900, health: 200, maxHealth: 200 },
+        {
+          t: 0,
+          type: 'spawn',
+          enemyId: 'gravewarden',
+          enemyLevel: 14,
+          enemyHealth: 900,
+          health: 200,
+          maxHealth: 200,
+        },
         { t: 1, type: 'attack', damage: 156, crit: false, skill: true, enemyHealth: 744 },
       ],
       4,

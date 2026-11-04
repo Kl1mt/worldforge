@@ -60,6 +60,8 @@ export interface ReturnSummary {
 export interface ActivityState {
   activity: Activity | null;
   character: Character;
+  /** Only on `GET …/activity` (ticket 2.7): how long farming keeps counting offline. */
+  offlineCapMs?: number;
 }
 
 export interface SettleResult extends ActivityState {

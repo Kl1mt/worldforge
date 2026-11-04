@@ -7,12 +7,13 @@ import {
 import { asset } from '../content/assets';
 import { HUB_HOTSPOTS } from '../content/world';
 import { useMediaQuery } from '../components/useMediaQuery';
-import { useActiveCharacter } from '../characters/CharactersProvider';
 import { PHONE_QUERY } from '../lib/pixel';
 import { formatNumber } from '../lib/format';
 import { routeHref } from '../lib/route';
 import type { ContractOfferDto, QuestDto } from '../quests/api';
 import { useQuests } from '../quests/useQuests';
+import { useOnboarding } from '../onboarding/OnboardingProvider';
+import { questKey } from '../onboarding/seen';
 import {
   contractTitle,
   objectiveLabel,
@@ -58,13 +59,19 @@ function ObjectiveRow({ objective, value }: { objective: QuestObjective; value: 
   );
 }
 
+function NewTag() {
+  return <span className="new-tag">New</span>;
+}
+
 function QuestEntry({
   quest,
   busy,
+  isNew,
   onTurnIn,
 }: {
   quest: QuestDto;
   busy: boolean;
+  isNew: boolean;
   onTurnIn: () => void;
 }) {
   const ready = quest.status === 'ready';
@@ -72,7 +79,15 @@ function QuestEntry({
   return (
     <li className={`entry${ready ? ' entry--ready' : ''}`}>
       <div className="entry__head">
-        <p className="caps entry__kind">{quest.kind === 'story' ? 'Story' : 'Contract'}</p>
+        <p className="caps entry__kind">
+          {quest.kind === 'story' ? 'Story' : 'Contract'}
+          {isNew ? (
+            <>
+              {' '}
+              <NewTag />
+            </>
+          ) : null}
+        </p>
         <h3 className="entry__title display">{title}</h3>
       </div>
       <ul className="entry__objectives">
@@ -96,11 +111,13 @@ function ContractSlip({
   offer,
   full,
   busy,
+  isNew,
   onAccept,
 }: {
   offer: ContractOfferDto;
   full: boolean;
   busy: boolean;
+  isNew: boolean;
   onAccept: () => void;
 }) {
   const template = findContractTemplate(offer.templateId);
@@ -108,7 +125,15 @@ function ContractSlip({
   return (
     <li className={`note note--slip${offer.accepted ? ' note--taken' : ''}`}>
       <span className="note__pin" aria-hidden="true" />
-      <p className="caps note__from">Contract{area ? ` · ${area}` : ''}</p>
+      <p className="caps note__from">
+        Contract{area ? ` · ${area}` : ''}
+        {isNew ? (
+          <>
+            {' '}
+            <NewTag />
+          </>
+        ) : null}
+      </p>
       <h3 className="note__title display">{contractTitle(offer.objective)}</h3>
       <p className="note__task">{objectiveLabel(offer.objective)}</p>
       <Rewards parts={rewardParts(offer.reward)} />
@@ -132,8 +157,9 @@ function ContractSlip({
 /** The Tavern (ticket 2.4): the notice board with the story chain and daily contracts. */
 export function TavernScreen() {
   const phone = useMediaQuery(PHONE_QUERY);
-  const quests = useQuests(useActiveCharacter().id);
+  const quests = useQuests();
   const { board, busy, error, lastReward } = quests;
+  const { newQuests } = useOnboarding();
   const spot = HUB_HOTSPOTS.find((h) => h.id === 'tavern')!;
   const scale = phone ? 2 : 3;
 
@@ -220,7 +246,15 @@ export function TavernScreen() {
                   return (
                     <article className={`note note--story${locked ? ' note--locked' : ''}`}>
                       <span className="note__pin" aria-hidden="true" />
-                      <p className="caps note__from">Story · {def.giver}</p>
+                      <p className="caps note__from">
+                        Story · {def.giver}
+                        {newQuests.has(questKey.story(next.questId)) ? (
+                          <>
+                            {' '}
+                            <NewTag />
+                          </>
+                        ) : null}
+                      </p>
                       <h3 className="note__title display">{def.name}</h3>
                       <p className="note__text">{def.description}</p>
                       <ul className="note__tasks">
@@ -273,6 +307,9 @@ export function TavernScreen() {
                     offer={offer}
                     full={board.value.contracts.active >= board.value.contracts.maxActive}
                     busy={busy === `slot:${offer.slot}`}
+                    isNew={newQuests.has(
+                      questKey.offer(board.value.day, offer.slot, offer.templateId),
+                    )}
                     onAccept={() => void quests.accept({ kind: 'contract', slot: offer.slot })}
                   />
                 ))}
@@ -299,6 +336,7 @@ export function TavernScreen() {
                     key={q.id}
                     quest={q}
                     busy={busy === q.id}
+                    isNew={newQuests.has(questKey.ready(q.id))}
                     onTurnIn={() => void quests.turnIn(q.id)}
                   />
                 ))}

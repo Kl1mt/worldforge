@@ -69,6 +69,8 @@ interface GameContextValue {
   materials: Load<MaterialsState>;
   chronicle: LogEntry[];
   tally: SessionTally;
+  /** Server's offline accumulation cap (GDD §9.1), once known. */
+  offlineCapMs: number | null;
   /** The summary to show in the return dialog, until dismissed. */
   returnSummary: ReturnSummary | null;
   dismissReturn: () => void;
@@ -127,6 +129,7 @@ export function GameProvider({
   const [returnSummary, setReturnSummary] = useState<ReturnSummary | null>(null);
   const [farmBusy, setFarmBusy] = useState(false);
   const [farmError, setFarmError] = useState<string | null>(null);
+  const [offlineCapMs, setOfflineCapMs] = useState<number | null>(null);
   const seq = useRef(0);
   /** Area of the activity as last rendered, to notice a deferred switch arriving in a settle. */
   const shownArea = useRef<AreaId | null>(null);
@@ -252,6 +255,7 @@ export function GameProvider({
           return;
         }
         setActivity({ kind: 'ready', value: res.value.activity });
+        if (res.value.offlineCapMs !== undefined) setOfflineCapMs(res.value.offlineCapMs);
         if (res.value.activity) void settle(true);
       },
       () => {
@@ -436,6 +440,7 @@ export function GameProvider({
       materials,
       chronicle,
       tally,
+      offlineCapMs,
       returnSummary,
       dismissReturn,
       farmBusy,
@@ -457,6 +462,7 @@ export function GameProvider({
       materials,
       chronicle,
       tally,
+      offlineCapMs,
       returnSummary,
       dismissReturn,
       farmBusy,

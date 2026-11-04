@@ -8,8 +8,8 @@ import './quest-tracker.css';
  * Quest tracker on the area screen (ticket 2.4): each accepted quest with its first unfinished
  * objective, refreshed after every settlement. Ready quests point to the Tavern.
  */
-export function QuestTracker({ characterId }: { characterId: string }) {
-  const { board } = useQuests(characterId);
+export function QuestTracker() {
+  const { board } = useQuests();
   if (board.kind !== 'ready') return null;
   const quests = board.value.quests;
   if (quests.length === 0) {

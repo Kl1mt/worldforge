@@ -6,6 +6,9 @@ import { routeHref, type GameRoute } from '../lib/route';
 import { useActiveCharacter } from '../characters/CharactersProvider';
 import { ReturnSummaryDialog } from '../game/ReturnSummary';
 import { useGame } from '../game/GameProvider';
+import { FirstSteps, ReopenGuide } from '../onboarding/FirstSteps';
+import { Notices } from '../onboarding/Notices';
+import { useOnboarding } from '../onboarding/OnboardingProvider';
 import { HealthLine } from './HealthLine';
 import { useLogout } from './useLogout';
 import './shell.css';
@@ -36,6 +39,12 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
   const cls = getClass(character.classId);
   const { areaId } = useGame();
   const NAV = navEntries(getArea(areaId).name);
+  const { newItems, newQuests } = useOnboarding();
+  // "New" counts on the nav (ticket 2.7): the Pack for unseen drops, the Town for the Tavern.
+  const fresh: Partial<Record<GameRoute, number>> = {
+    inventory: newItems.size,
+    hub: newQuests.size,
+  };
   const mainRef = useRef<HTMLElement>(null);
   const first = useRef(true);
 
@@ -57,7 +66,17 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
             className="nav__link"
             aria-current={route === n.route || n.also?.includes(route) ? 'page' : undefined}
           >
-            <span className="nav__label">{n.label}</span>
+            <span className="nav__label">
+              {n.label}
+              {fresh[n.route] ? (
+                <span className="new-tag nav__new">
+                  {variant === 'top' ? `${fresh[n.route]} new` : 'New'}
+                  <span className="visually-hidden">
+                    {n.route === 'hub' ? ' at the Tavern' : ' items'}
+                  </span>
+                </span>
+              ) : null}
+            </span>
             {variant === 'top' ? <span className="nav__hint">{n.hint}</span> : null}
           </a>
         </li>
@@ -107,6 +126,7 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
       </header>
 
       <main id="main" ref={mainRef} tabIndex={-1} className="shell__main">
+        <FirstSteps route={route} />
         {children}
       </main>
 
@@ -117,6 +137,7 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
             {logoutError}
           </p>
         ) : null}
+        <ReopenGuide />
         {account ? (
           <span className="statusbar__note">Signed in as {account.displayName}</span>
         ) : null}
@@ -126,6 +147,7 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
         {nav('bottom')}
       </nav>
 
+      <Notices />
       <ReturnSummaryDialog heroName={character.name} />
     </div>
   );

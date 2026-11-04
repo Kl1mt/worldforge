@@ -11,7 +11,20 @@
 
 .area__region {
   grid-area: region;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--space-4);
   color: var(--brass-500);
+}
+
+.area__levels {
+  color: var(--text-faint);
+}
+
+/* The "what continues offline" note spans the header under the tracker (ticket 2.7). */
+.area__head > .offline {
+  grid-column: 1 / -1;
 }
 
 .area__title {
@@ -161,12 +174,6 @@
   color: var(--bone-400);
   font-family: var(--font-display);
   font-size: var(--text-xl);
-}
-
-.area__maplink {
-  color: var(--brass-400);
-  text-decoration: underline;
-  text-underline-offset: 3px;
 }
 
 .area__travel {

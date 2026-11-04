@@ -8,7 +8,13 @@ import {
   type ReactNode,
 } from 'react';
 import type { ApiFailure } from '../lib/api';
-import { authApi, type Account, type LoginInput, type RegisterInput } from './api';
+import {
+  authApi,
+  type Account,
+  type GuideUpdate,
+  type LoginInput,
+  type RegisterInput,
+} from './api';
 
 export type AuthState =
   | { kind: 'loading' }
@@ -25,6 +31,11 @@ interface AuthContextValue {
   logout: () => Promise<ApiFailure | null>;
   /** Re-run the session check after an `error` state. */
   retry: () => void;
+  /**
+   * Records a first-session guide change (ticket 2.7). Optimistic: the account shows it at
+   * once; the server's answer replaces it. A failure is ignored (the guide is a convenience).
+   */
+  updateGuide: (update: GuideUpdate) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -74,9 +85,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setAttempt((n) => n + 1);
   }, []);
 
+  const updateGuide = useCallback((update: GuideUpdate) => {
+    setState((prev) => {
+      if (prev.kind !== 'authenticated') return prev;
+      const g = prev.account.guide;
+      const guide =
+        'step' in update
+          ? g.steps.includes(update.step)
+            ? g
+            : { ...g, steps: [...g.steps, update.step] }
+          : { ...g, dismissed: update.dismissed };
+      return guide === g ? prev : { ...prev, account: { ...prev.account, guide } };
+    });
+    void authApi.guide(update).then((res) => {
+      if (!res.ok) return;
+      setState((prev) => {
+        if (prev.kind !== 'authenticated' || prev.account.id !== res.value.account.id) return prev;
+        // Answers can arrive out of order: keep steps an earlier answer already confirmed, and
+        // let only a dismiss/reopen answer change `dismissed` (a late step answer must not
+        // reopen a guide the player just closed).
+        const server = res.value.account.guide;
+        const local = prev.account.guide;
+        const guide = {
+          steps: [...new Set([...local.steps, ...server.steps])],
+          dismissed: 'dismissed' in update ? server.dismissed : local.dismissed,
+        };
+        return { ...prev, account: { ...res.value.account, guide } };
+      });
+    });
+  }, []);
+
   const value = useMemo(
-    () => ({ state, login, register, logout, retry }),
-    [state, login, register, logout, retry],
+    () => ({ state, login, register, logout, retry, updateGuide }),
+    [state, login, register, logout, retry, updateGuide],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

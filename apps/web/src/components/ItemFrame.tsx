@@ -13,6 +13,8 @@ interface ItemFrameProps {
   onSelect?: () => void;
   /** Accessible description of the frame's context, e.g. "Head slot". */
   context?: string;
+  /** Not looked at yet on this device (ticket 2.7): a "New" tag on the socket. */
+  isNew?: boolean;
 }
 
 /**
@@ -26,6 +28,7 @@ export function ItemFrame({
   selected,
   onSelect,
   context,
+  isNew,
 }: ItemFrameProps) {
   const size = 32 * scale;
   const classes = [
@@ -33,14 +36,21 @@ export function ItemFrame({
     item ? `rarity-${item.rarity}` : 'item-frame--empty',
     selected ? 'item-frame--selected' : '',
     onSelect ? 'item-frame--interactive' : '',
+    item && isNew ? 'item-frame--new' : '',
   ]
     .filter(Boolean)
     .join(' ');
   const label = item
-    ? `${context ? `${context}: ` : ''}${item.name}, ${item.rarity}`
+    ? `${context ? `${context}: ` : ''}${item.name}, ${item.rarity}${isNew ? ', new' : ''}`
     : `${context ?? 'Empty slot'}${emptyLabel && !context ? `: ${emptyLabel}` : ''}, empty`;
 
-  const inner = item?.icon ? (
+  const tag =
+    item && isNew ? (
+      <span className="item-frame__new" aria-hidden="true">
+        New
+      </span>
+    ) : null;
+  const art = item?.icon ? (
     <PixelSprite sprite={asset(item.icon)} scale={scale} alt="" />
   ) : item ? (
     // No art for this item (its base left the content): a marked socket, not a broken image.
@@ -51,6 +61,12 @@ export function ItemFrame({
     <span className="item-frame__empty" style={{ width: size, height: size }}>
       {emptyLabel}
     </span>
+  );
+  const inner = (
+    <>
+      {art}
+      {tag}
+    </>
   );
 
   if (onSelect) {
