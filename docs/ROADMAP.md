@@ -16,7 +16,7 @@ GDD to read: §2, §15 (Phase 0), §16.
 
 **Acceptance:** `pnpm install && pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build` pass; CI is green on the PR; the server answers `/api/health`.
 
-### 0.2 Art assets — `todo` (can run in parallel with 0.1)
+### 0.2 Art assets — `done (PR #1)` (can run in parallel with 0.1)
 GDD to read: §3.1, §3.3, §4.3, §7.2.
 Raw item icons (32×32, 64 variants) are already in `art/source/pixellab/icons-batch-01/` (contact sheet: `_contact-sheet.png`, row-major 8×8, indices 00–63). Suggested picks: longsword 00 & 09, helm 04, horned helm 12, leather gloves 10, gauntlets 19, rings 07 & 21, round shield 25, heater shield 28, bone amulet 31, boots 35, chainmail 36, plate chest 37, leather chest 43, skull staff 58, bow 61.
 
