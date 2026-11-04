@@ -8,6 +8,8 @@ Status: **partly implemented.** Tables marked *implemented* exist in `apps/serve
 | `sessions`  | implemented (ticket 1.1) |
 | `audit_log` | implemented (ticket 1.1) |
 | `characters` | implemented (ticket 1.3) |
+| `item_instances` | implemented (tickets 1.6 / 1.7) |
+| `activities` | implemented (ticket 1.6) |
 | others      | draft                   |
 
 ## Principles
@@ -59,7 +61,7 @@ A session is valid iff `revoked_at IS NULL AND expires_at > now()` (the server c
 | version        | integer     | default 0; optimistic concurrency counter for later value-changing writes |
 | created_at / updated_at | timestamptz | default `now()`                         |
 
-`rng_state` from the draft is not added yet; ticket 1.6 decides whether it lives on the character or per activity. Characters cannot be deleted or renamed yet.
+`rng_state` from the draft is not used: settlement seeds come from a per-activity secret (see `activities`). Characters cannot be deleted or renamed yet.
 
 ### audit_log — implemented (1.1)
 Append-only (the server never updates or deletes rows) for valuable or security-relevant events (auth events, item grants of epic+, deletions, rewards).
@@ -91,6 +93,25 @@ One owned item, created from a game-core `GeneratedItem`. Location is a column, 
 
 Indexes: `(character_id)`; partial unique `(character_id, equipped_slot) where equipped_slot is not null`.
 
+### activities — implemented (1.6)
+The character's current farming activity. Settlement rules: `docs/FARMING.md`.
+| Column         | Type        | Notes                                                              |
+| -------------- | ----------- | ------------------------------------------------------------------ |
+| character_id   | uuid PK/FK  | → `characters.id` `ON DELETE CASCADE`; one activity per character  |
+| account_id     | uuid FK     | → `accounts.id` `ON DELETE CASCADE`; **unique** (one farming character per account) |
+| area_id        | text        | game-core `AreaId`                                                 |
+| seed_secret    | text        | 128-bit random hex, never sent to clients; seed = `${seed_secret}:${settlement_seq}` |
+| settlement_seq | integer     | settlements so far, `CHECK (>= 0)`                                  |
+| started_at     | timestamptz | start (or last area switch)                                        |
+| settled_at     | timestamptz | progress computed up to here (server clock); indexed for the scheduler |
+| last_seen_at   | timestamptz | last client contact; offline credit ends at `last_seen_at + OFFLINE_CAP_SECONDS` |
+| carry_ms       | integer     | `unusedMs` carried into the next settlement, `CHECK (>= 0)`        |
+| health         | integer?    | health between settlements; null = full                            |
+| summary        | jsonb       | rewards since the client last collected the return summary         |
+| updated_at     | timestamptz |                                                                    |
+
+Stopping deletes the row (the audit log keeps the history). Per-settlement history lives in the audit log (`activity.reward`) rather than an `offline_settlement` table for now.
+
 ### idempotency_key
 `(account_id, key) PK`, `request_hash`, `response jsonb`, `status_code`, `created_at` (expired after 24h). See `docs/API_CONVENTIONS.md`.
 
@@ -100,7 +121,6 @@ Indexes: `(character_id)`; partial unique `(character_id, equipped_slot) where e
 account 1─* sessions
 account 1─* character 1─1 activity
                      1─* item_instance (equipped_slot null = inventory)
-                     1─* offline_settlement
                      1─* currency_ledger
 account 0..1─* audit_log
 account 1─* idempotency_key
@@ -108,5 +128,5 @@ account 1─* idempotency_key
 
 ## Open questions
 - ~~Single `item_location` table vs. separate `equipment` / `inventory_entry`~~ Decided: a nullable `equipped_slot` column on `item_instances`.
-- Whether partial offline settlement happens on every login or on an explicit claim (cap decided: 3 h, GDD v0.3).
-- Whether `rng_state` lives on the character or per activity (ticket 1.6).
+- ~~Whether partial offline settlement happens on every login or on an explicit claim~~ Decided (1.6): rewards are granted at every settlement (client or scheduled); the client's settle call collects the summary.
+- ~~Whether `rng_state` lives on the character or per activity~~ Decided (1.6): per activity, as a seed secret plus a settlement counter.

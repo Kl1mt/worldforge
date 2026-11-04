@@ -16,6 +16,10 @@ const app = buildApp({
     sessionTtlMs: config.sessionTtlHours * 60 * 60 * 1000,
     cookieSecure: config.sessionCookieSecure,
   },
+  activity: {
+    offlineCapMs: config.offlineCapSeconds * 1000,
+    settleIntervalMs: config.settleIntervalSeconds * 1000,
+  },
 });
 
 const shutdown = async (signal: string) => {

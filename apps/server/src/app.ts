@@ -3,6 +3,12 @@ import { getGameContent } from '@worldforge/game-core';
 import { registerErrorHandling } from './errors.js';
 import { DEFAULT_AUTH_OPTIONS, registerAuth, type AuthOptions } from './auth/index.js';
 import { registerCharacters } from './characters/routes.js';
+import { registerActivities } from './activity/routes.js';
+import {
+  DEFAULT_ACTIVITY_OPTIONS,
+  settleDueActivities,
+  type ActivityOptions,
+} from './activity/settle.js';
 import type { Database, DatabaseHandle } from './db/types.js';
 
 declare module 'fastify' {
@@ -23,9 +29,11 @@ export interface AppOptions extends FastifyServerOptions {
   database: DatabaseHandle;
   /** Session and rate-limit settings; defaults in `DEFAULT_AUTH_OPTIONS`. */
   auth?: Partial<AuthOptions>;
+  /** Farming settlement settings; defaults in `DEFAULT_ACTIVITY_OPTIONS` (scheduler off). */
+  activity?: Partial<ActivityOptions>;
 }
 
-export function buildApp({ database, auth, ...options }: AppOptions): FastifyInstance {
+export function buildApp({ database, auth, activity, ...options }: AppOptions): FastifyInstance {
   const app = Fastify({
     // API_CONVENTIONS: unknown body properties are rejected, not silently stripped (Fastify's
     // default is `removeAdditional: true`).
@@ -34,11 +42,14 @@ export function buildApp({ database, auth, ...options }: AppOptions): FastifyIns
   });
   app.decorate('db', database.db);
   registerErrorHandling(app);
+  const activityOptions: ActivityOptions = { ...DEFAULT_ACTIVITY_OPTIONS, ...activity };
+  registerSettlementScheduler(app, activityOptions);
 
   void app.register(
     async (api) => {
       await registerAuth(api, { ...DEFAULT_AUTH_OPTIONS, ...auth });
       await registerCharacters(api);
+      await registerActivities(api, activityOptions);
 
       api.get('/health', async (request, reply): Promise<HealthResponse> => {
         let db: HealthResponse['db'] = 'up';
@@ -64,4 +75,34 @@ export function buildApp({ database, auth, ...options }: AppOptions): FastifyIns
   );
 
   return app;
+}
+
+/**
+ * Periodically settles activities the client has not settled for one interval, so rewards and the
+ * world stay current while players are away. Each run settles at most one batch; overlapping runs
+ * are skipped.
+ */
+function registerSettlementScheduler(app: FastifyInstance, options: ActivityOptions): void {
+  const intervalMs = options.settleIntervalMs;
+  if (intervalMs <= 0) return;
+  let timer: NodeJS.Timeout | undefined;
+  let running = false;
+  app.addHook('onReady', async () => {
+    timer = setInterval(() => {
+      if (running) return;
+      running = true;
+      settleDueActivities(app.db, options, { olderThanMs: intervalMs })
+        .then((n) => {
+          if (n > 0) app.log.info({ settled: n }, 'scheduled settlement');
+        })
+        .catch((err: unknown) => app.log.error({ err }, 'scheduled settlement failed'))
+        .finally(() => {
+          running = false;
+        });
+    }, intervalMs);
+    timer.unref();
+  });
+  app.addHook('onClose', async () => {
+    if (timer) clearInterval(timer);
+  });
 }

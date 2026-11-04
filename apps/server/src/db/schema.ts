@@ -14,6 +14,7 @@ import {
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import type {
+  AreaId,
   CharacterAppearance,
   ClassId,
   EquipmentSlotId,
@@ -142,6 +143,76 @@ export const itemInstances = pgTable(
   ],
 );
 
+/** One item summarised for the return summary (the full row lives in `item_instances`). */
+export interface ActivitySummaryItem {
+  id: string;
+  baseId: string;
+  rarityId: RarityId;
+  itemLevel: number;
+}
+
+/**
+ * Rewards accumulated since the client last collected the summary (ticket 1.6). Scheduled
+ * settlements add to it; the client's settle call returns it and starts a new one.
+ */
+export interface ActivitySummary {
+  /** ISO time the summary started (the previous client settle). */
+  since: string;
+  settlements: number;
+  simulatedMs: number;
+  /** Time beyond the offline cap that earned nothing. */
+  cappedMs: number;
+  kills: number;
+  deaths: number;
+  xpGained: number;
+  levelsGained: number;
+  goldGained: number;
+  /** Part of `goldGained` that came from salvaging items that did not fit the inventory. */
+  goldSalvaged: number;
+  itemsGained: number;
+  itemsSalvaged: number;
+  /** The most recent gained items (at most 100). */
+  items: ActivitySummaryItem[];
+}
+
+/**
+ * The character's current activity (ticket 1.6, GDD §9). At most one per character and one per
+ * account. Progress is settled from server time only; see docs/FARMING.md.
+ */
+export const activities = pgTable(
+  'activities',
+  {
+    characterId: uuid('character_id')
+      .primaryKey()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    /** game-core `AreaId`. */
+    areaId: text('area_id').$type<AreaId>().notNull(),
+    /** Random per-activity secret; settlement seeds are `${seedSecret}:${settlementSeq}`. Never sent to clients. */
+    seedSecret: text('seed_secret').notNull(),
+    settlementSeq: integer('settlement_seq').notNull().default(0),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    /** Progress has been computed up to this server time. */
+    settledAt: timestamp('settled_at', { withTimezone: true }).notNull(),
+    /** Last client contact; offline progress accrues until `last_seen_at + OFFLINE_CAP_SECONDS`. */
+    lastSeenAt: timestamp('last_seen_at', { withTimezone: true }).notNull(),
+    /** `unusedMs` from the last settlement, credited to the next one. */
+    carryMs: integer('carry_ms').notNull().default(0),
+    /** Current health between settlements; null = full. */
+    health: integer('health'),
+    summary: jsonb('summary').$type<ActivitySummary>().notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    uniqueIndex('activities_account_id_key').on(t.accountId),
+    index('activities_settled_at_idx').on(t.settledAt),
+    check('activities_carry_ms_check', sql`${t.carryMs} >= 0`),
+    check('activities_settlement_seq_check', sql`${t.settlementSeq} >= 0`),
+  ],
+);
+
 /** Append-only record of security-relevant and valuable events. */
 export const auditLog = pgTable(
   'audit_log',
@@ -170,3 +241,5 @@ export type AuditLogEntry = typeof auditLog.$inferSelect;
 export type NewAuditLogEntry = typeof auditLog.$inferInsert;
 export type ItemInstance = typeof itemInstances.$inferSelect;
 export type NewItemInstance = typeof itemInstances.$inferInsert;
+export type Activity = typeof activities.$inferSelect;
+export type NewActivity = typeof activities.$inferInsert;

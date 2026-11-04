@@ -12,6 +12,8 @@ describe('loadConfig', () => {
       sessionTtlHours: 720,
       sessionCookieSecure: true,
       trustProxy: false,
+      offlineCapSeconds: 10800,
+      settleIntervalSeconds: 300,
     });
   });
 
@@ -26,6 +28,8 @@ describe('loadConfig', () => {
         SESSION_TTL_HOURS: '24',
         SESSION_COOKIE_SECURE: '0',
         TRUST_PROXY: 'true',
+        OFFLINE_CAP_SECONDS: '3600',
+        SETTLE_INTERVAL_SECONDS: '0',
       }),
     ).toEqual({
       host: '0.0.0.0',
@@ -36,6 +40,8 @@ describe('loadConfig', () => {
       sessionTtlHours: 24,
       sessionCookieSecure: false,
       trustProxy: true,
+      offlineCapSeconds: 3600,
+      settleIntervalSeconds: 0,
     });
   });
 

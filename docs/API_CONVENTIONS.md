@@ -75,10 +75,16 @@ Every non-2xx response has this shape:
 | GET    | `/api/account` | `200 { account }` for the session's account, else `401 unauthenticated` |
 | GET    | `/api/characters` | `200 { characters, slots: { used, total }, activeCharacterId }` — the account's characters, oldest first. Not paginated: bounded by the slot count |
 | POST   | `/api/characters` | Body `{ name, classId, appearance: { banner } }` → `201 { character }`; the new character becomes active. `400 validation_failed` (`details.fields`: `name`, `classId`, `appearance.banner`), `409 character_name_taken`, `422 no_free_slot` (`details.slots`) |
+| GET    | `/api/characters/:characterId/activity` | `200 { activity, character }`; `activity` is `{ characterId, areaId, startedAt, settledAt }` or null. Read-only: does not settle |
+| POST   | `/api/characters/:characterId/activity` | Body `{ areaId }` → `201 { activity, character }` (or `200` if already farming that area; another area switches after settling). Stops the account's other activity. `400 validation_failed` (`details.fields.areaId`), `409 character_not_active` |
+| POST   | `/api/characters/:characterId/activity/settle` | `200 { activity, character, summary }`: settles from server time and returns the return summary since the previous call (see `docs/FARMING.md`). `409 not_farming` |
+| POST   | `/api/characters/:characterId/activity/stop` | `200 { activity: null, character, summary }`: settles, then stops. `409 not_farming` |
 | POST   | `/api/characters/:characterId/select` | `200 { character }` and makes it the account's active character. `403 forbidden` for another account's character, `404 not_found`, `400` for a malformed id |
 
 `account` is `{ id, email, displayName, characterSlots, createdAt }`. Registration rules (`apps/server/src/auth/validation.ts`): email trimmed, `x@y.tld` shape, ≤ 254 chars, unique case-insensitively; display name trimmed, 3–20 letters/digits with single spaces, `-`, `'` or `_` inside, unique case-insensitively; password 10–128 characters and not equal to the email. Passwords are hashed with argon2id (`@node-rs/argon2`, 19 MiB, t=2, p=1).
 
 `character` is `{ id, name, classId, appearance: { banner }, level, experience, gold, createdAt }`. Clients never send level, experience or gold; unknown body fields are rejected. All character routes require a session.
 
-Audit events: `character.create` (character id, `data.classId`), `account.register`, `auth.login`, `auth.login_failed` (`data.reason`: `unknown_email` / `bad_password`; account id when known), `auth.logout`. No emails, IPs or passwords are written to the audit log.
+Activity routes return `404 not_found` for another account's character (no distinction from a missing one).
+
+Audit events: `activity.start` (`data.areaId`), `activity.stop`, `activity.reward` (per settlement with a reward: credited/capped ms, kills, xp, gold, items, salvaged, epic+ items with seeds), `character.create` (character id, `data.classId`), `account.register`, `auth.login`, `auth.login_failed` (`data.reason`: `unknown_email` / `bad_password`; account id when known), `auth.logout`. No emails, IPs or passwords are written to the audit log.
