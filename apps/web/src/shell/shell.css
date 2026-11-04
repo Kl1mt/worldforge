@@ -1,0 +1,272 @@
+.shell {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.skip-link {
+  position: absolute;
+  left: var(--space-2);
+  top: -100px;
+  z-index: 20;
+  padding: var(--space-2) var(--space-3);
+  background: var(--ink-850);
+  color: var(--accent-strong);
+}
+
+.skip-link:focus {
+  top: var(--space-2);
+}
+
+/* ── Top bar: a dark-iron lintel with a brass underline ──────────────────── */
+.topbar {
+  position: relative;
+  background: var(--texture-grain), linear-gradient(to bottom, #1d1814, #120f0d);
+  border-bottom: 1px solid var(--outline-dark);
+  box-shadow:
+    0 1px 0 var(--brass-700),
+    0 2px 0 var(--outline-dark),
+    0 6px 14px rgb(0 0 0 / 0.5);
+}
+
+.topbar__inner {
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-8);
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: 0 var(--space-6);
+  min-height: 64px;
+}
+
+.wordmark {
+  align-self: center;
+  color: var(--accent-strong);
+  font-size: var(--text-2xl);
+  text-decoration: none;
+  text-shadow: 0 1px 0 var(--outline-dark);
+}
+
+.topbar__nav {
+  display: flex;
+  flex: 1;
+}
+
+.nav {
+  display: flex;
+}
+
+.nav__link {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 100%;
+  padding: 0 var(--space-5);
+  color: var(--text-dim);
+  text-decoration: none;
+  line-height: 1.15;
+}
+
+.nav__label {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+}
+
+.nav__hint {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+
+.nav__link:hover {
+  color: var(--text);
+}
+
+/* Active tab: brass bar with a small diamond, hung from the lintel's underline. */
+.nav--top .nav__link[aria-current='page'] {
+  color: var(--accent-strong);
+  background: linear-gradient(to top, rgb(163 130 74 / 0.12), transparent 70%);
+}
+
+.nav--top .nav__link[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  left: var(--space-3);
+  right: var(--space-3);
+  bottom: -1px;
+  height: 2px;
+  background: var(--brass-400);
+}
+
+.nav--top .nav__link[aria-current='page']::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: -5px;
+  width: 8px;
+  height: 8px;
+  background: var(--brass-400);
+  transform: translateX(-50%) rotate(45deg);
+  box-shadow: 0 0 0 2px var(--ink-950);
+  z-index: 1;
+}
+
+.nav__link:focus-visible {
+  outline-offset: -4px;
+}
+
+.purse {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+  margin-left: auto;
+}
+
+.purse__who {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  line-height: 1.2;
+}
+
+.purse__name {
+  font-weight: 700;
+}
+
+.purse__class {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+}
+
+.purse__gold {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--brass-700);
+  background: var(--ink-950);
+  color: var(--brass-300);
+  font-weight: 700;
+}
+
+/* A coin drawn as two stacked squares of brass: no stock icon. */
+.purse__coin {
+  width: 10px;
+  height: 10px;
+  background: var(--brass-400);
+  box-shadow:
+    inset -2px -2px 0 var(--brass-600),
+    inset 2px 2px 0 var(--brass-300);
+  transform: rotate(45deg);
+}
+
+.shell__main {
+  flex: 1;
+  width: 100%;
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-8) var(--space-6) var(--space-10);
+}
+
+.shell__main:focus {
+  outline: none;
+}
+
+.statusbar {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  max-width: var(--content-max);
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-6);
+  border-top: 1px solid var(--line);
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+}
+
+.health {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.health__dot {
+  width: 6px;
+  height: 6px;
+  background: var(--iron-500);
+}
+
+.health--ok .health__dot {
+  background: var(--moss-400);
+}
+
+.health--error {
+  color: var(--crimson-400);
+}
+
+.health--error .health__dot {
+  background: var(--crimson-400);
+}
+
+.bottombar {
+  display: none;
+}
+
+/* ── Narrow screens: compact lintel, nav moves to a bottom bar ───────────── */
+@media (max-width: 760px) {
+  .topbar__inner {
+    gap: var(--space-3);
+    padding: 0 var(--gutter);
+    min-height: 52px;
+  }
+
+  .wordmark {
+    font-size: var(--text-xl);
+  }
+
+  .topbar__nav,
+  .purse__who {
+    display: none;
+  }
+
+  .shell__main {
+    padding: var(--space-4) var(--gutter) var(--space-8);
+  }
+
+  .statusbar {
+    flex-direction: column;
+    gap: var(--space-1);
+    padding: var(--space-3) var(--gutter) calc(64px + var(--space-3));
+  }
+
+  .bottombar {
+    display: block;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 10;
+    background: var(--texture-grain), linear-gradient(to bottom, #1a1512, #0f0c0a);
+    border-top: 1px solid var(--brass-700);
+    box-shadow: 0 -6px 14px rgb(0 0 0 / 0.5);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .nav--bottom {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .nav--bottom .nav__link {
+    align-items: center;
+    min-height: 56px;
+    padding: 0;
+  }
+
+  .nav--bottom .nav__link[aria-current='page'] {
+    color: var(--accent-strong);
+    box-shadow: inset 0 2px 0 var(--brass-400);
+    background: linear-gradient(to bottom, rgb(163 130 74 / 0.14), transparent 80%);
+  }
+}

@@ -1,0 +1,83 @@
+.item-frame {
+  --rarity: var(--iron-600);
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  padding: 3px;
+  border: 1px solid var(--outline-dark);
+  background:
+    radial-gradient(
+      circle at 50% 60%,
+      color-mix(in srgb, var(--rarity) 16%, transparent),
+      transparent 70%
+    ),
+    var(--ink-900);
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--rarity) 70%, var(--ink-900)),
+    inset 0 0 0 2px var(--ink-950);
+}
+
+/* Corner notch: a small rarity-coloured triangle, readable even for colour-blind players
+   alongside the name colour and tooltip label. */
+.item-frame::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 7px;
+  height: 7px;
+  background: linear-gradient(135deg, var(--rarity) 50%, transparent 50%);
+}
+
+.item-frame--empty {
+  box-shadow:
+    inset 0 0 0 1px var(--iron-700),
+    inset 0 0 0 2px var(--ink-950);
+  background: var(--ink-900);
+}
+
+.item-frame--empty::after {
+  display: none;
+}
+
+.item-frame__empty {
+  display: grid;
+  place-items: center;
+  padding: 2px;
+  color: var(--text-faint);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.1;
+}
+
+/* Legendary and Mythic earn a restrained glow; everything else stays flat. */
+.item-frame.rarity-legendary,
+.item-frame.rarity-mythic {
+  box-shadow:
+    inset 0 0 0 1px var(--rarity),
+    inset 0 0 0 2px var(--ink-950),
+    0 0 10px -2px color-mix(in srgb, var(--rarity) 60%, transparent);
+}
+
+.item-frame--interactive {
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease);
+}
+
+.item-frame--interactive:hover {
+  border-color: var(--brass-600);
+}
+
+.item-frame--selected {
+  border-color: var(--brass-300);
+  outline: 1px solid var(--brass-500);
+  outline-offset: 1px;
+}
+
+.item-frame--interactive:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}

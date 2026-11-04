@@ -1,0 +1,158 @@
+/* Tooltip: chamfered plate with a rarity-coloured rim. The rim is the outer layer
+   showing through a 1 px gap; clip-path keeps the cut corners on both layers. */
+.tooltip {
+  --cut: 10px;
+  --rarity: var(--rarity-common);
+  padding: 1px;
+  background: color-mix(in srgb, var(--rarity) 75%, var(--ink-950));
+  clip-path: polygon(
+    var(--cut) 0,
+    calc(100% - var(--cut)) 0,
+    100% var(--cut),
+    100% calc(100% - var(--cut)),
+    calc(100% - var(--cut)) 100%,
+    var(--cut) 100%,
+    0 calc(100% - var(--cut)),
+    0 var(--cut)
+  );
+  filter: drop-shadow(0 8px 16px rgb(0 0 0 / 0.6));
+  font-size: var(--text-sm);
+}
+
+.tooltip__body {
+  clip-path: inherit;
+  padding: var(--space-4) var(--space-5) var(--space-5);
+  background:
+    linear-gradient(
+      to bottom,
+      color-mix(in srgb, var(--rarity) 14%, transparent),
+      transparent 88px
+    ),
+    var(--texture-grain), #110e0c;
+}
+
+.tooltip__caption {
+  margin-bottom: var(--space-2);
+  color: var(--text-faint);
+}
+
+.tooltip__head {
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid color-mix(in srgb, var(--rarity) 35%, var(--iron-700));
+}
+
+.tooltip__name {
+  color: var(--rarity);
+  font-size: var(--text-lg);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.tooltip__type {
+  color: var(--text-muted);
+}
+
+.tooltip__rarity {
+  color: var(--rarity);
+}
+
+.tooltip__meta {
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+}
+
+.tooltip__base {
+  display: grid;
+  gap: 2px;
+  margin-block: var(--space-3) 0;
+}
+
+.tooltip__base div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.tooltip__base dt {
+  color: var(--text-dim);
+}
+
+.tooltip__base dd {
+  color: var(--text);
+  font-size: var(--text-md);
+  font-weight: 700;
+}
+
+.tooltip__affixes {
+  display: grid;
+  gap: 2px;
+  margin-top: var(--space-3);
+  color: var(--arcane-blue);
+}
+
+.tooltip__affixes li {
+  color: #93acd0;
+}
+
+.tooltip__affix-value {
+  font-weight: 700;
+}
+
+.tooltip__plain {
+  margin-top: var(--space-3);
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.tooltip__unique {
+  margin-top: var(--space-3);
+  padding-left: var(--space-3);
+  border-left: 2px solid var(--rarity);
+  color: color-mix(in srgb, var(--rarity) 55%, var(--bone-100));
+}
+
+.tooltip__flavor {
+  margin-top: var(--space-3);
+  color: var(--brass-500);
+  font-style: italic;
+}
+
+.tooltip__compare {
+  margin-top: var(--space-4);
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--iron-600);
+}
+
+.tooltip__compare ul {
+  display: grid;
+  gap: 2px;
+  margin-top: var(--space-2);
+}
+
+.tooltip__compare li {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  color: var(--text-muted);
+}
+
+.tooltip__compare li > span:first-child {
+  width: 1em;
+  font-size: 10px;
+}
+
+.tooltip__delta {
+  min-width: 3.25em;
+  font-weight: 700;
+}
+
+.tooltip__compare .is-up > span:first-child,
+.tooltip__compare .is-up .tooltip__delta {
+  color: var(--delta-up);
+}
+
+.tooltip__compare .is-down > span:first-child,
+.tooltip__compare .is-down .tooltip__delta {
+  color: var(--delta-down);
+}

@@ -1,0 +1,268 @@
+.char__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-6);
+  padding-bottom: var(--space-4);
+  margin-bottom: var(--space-6);
+  border-bottom: 1px solid var(--line);
+}
+
+.char__eyebrow {
+  color: var(--brass-500);
+}
+
+.char__name {
+  font-size: var(--text-3xl);
+  color: var(--bone-100);
+}
+
+.char__line {
+  color: var(--text-muted);
+}
+
+.char__xp {
+  width: min(320px, 100%);
+}
+
+.char__xp-text {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+}
+
+.char__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 360px;
+  gap: var(--space-8);
+  align-items: start;
+}
+
+/* ── Paper doll ───────────────────────────────────────────────────────── */
+.doll {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) auto minmax(150px, 1fr);
+  gap: var(--space-4);
+  align-items: center;
+}
+
+.doll__col {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.slot {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.slot--left {
+  flex-direction: row-reverse;
+  text-align: right;
+}
+
+.slot__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.2;
+}
+
+.slot__name {
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.slot__item {
+  font-size: var(--text-sm);
+  font-weight: 500;
+  color: var(--text-faint);
+}
+
+.slot__item[class*='rarity-'] {
+  color: var(--rarity);
+}
+
+/* The niche: a dark stone alcove with an arched top and a lit floor. */
+.doll__niche {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 432px;
+  max-width: 100%;
+  padding-top: var(--space-6);
+  background:
+    radial-gradient(ellipse 46% 7% at 50% 66%, rgb(0 0 0 / 0.65), transparent),
+    radial-gradient(ellipse 60% 50% at 50% 38%, rgb(92 40 44 / 0.22), transparent 70%),
+    linear-gradient(to bottom, #1d1714, #120e0c 70%);
+  border-radius: 216px 216px 0 0;
+  box-shadow:
+    inset 0 0 0 1px var(--iron-700),
+    inset 0 0 0 4px var(--ink-950),
+    inset 0 0 0 5px rgb(163 130 74 / 0.25),
+    inset 0 20px 60px rgb(0 0 0 / 0.6);
+}
+
+.doll__plaque {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  width: 100%;
+  padding: var(--space-3) var(--space-5) var(--space-4);
+  border-top: 2px solid var(--brass-700);
+  background: var(--texture-grain), var(--wood-800);
+  text-align: center;
+}
+
+.doll__class {
+  font-size: var(--text-xl);
+  color: var(--accent-strong);
+}
+
+.doll__identity {
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+}
+
+.doll__bars {
+  display: grid;
+  gap: 4px;
+  width: 70%;
+  margin-top: var(--space-1);
+}
+
+/* ── Side column: attributes ledger + inspected item ──────────────────── */
+.char__side {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.ledger__group {
+  margin-top: var(--space-4);
+}
+
+.ledger__group h3 {
+  margin-bottom: var(--space-1);
+}
+
+.ledger__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: 3px 0;
+}
+
+/* Dotted leader between label and value, like an old ledger. */
+.ledger__row dt {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  gap: var(--space-2);
+  color: var(--text-muted);
+}
+
+.ledger__row dt::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px dotted var(--iron-500);
+  transform: translateY(-4px);
+}
+
+.ledger__row dd {
+  min-width: 4.5em;
+  text-align: right;
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--bone-100);
+}
+
+.ledger__row.is-zero dd,
+.ledger__row.is-zero dt {
+  color: var(--text-faint);
+}
+
+.inspect__empty {
+  padding: var(--space-5);
+  border: 1px dashed var(--iron-600);
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+/* With the slot name beside the socket, the empty socket shows a small mark instead. */
+@media (min-width: 901px) {
+  .slot .item-frame__empty {
+    font-size: 0;
+  }
+
+  .slot .item-frame__empty::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border: 1px solid var(--iron-600);
+    transform: rotate(45deg);
+  }
+}
+
+@media (max-width: 1180px) {
+  .char__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .char__side {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    align-items: start;
+  }
+}
+
+@media (max-width: 760px) {
+  .char__head {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--space-3);
+    margin-bottom: var(--space-4);
+  }
+
+  .char__name {
+    font-size: var(--text-2xl);
+  }
+
+  .char__xp {
+    width: 100%;
+  }
+
+  .char__body {
+    gap: var(--space-6);
+  }
+}
+
+/* Narrow: portrait first, then all twelve sockets in a 4 × 3 grid. */
+@media (max-width: 900px) {
+  .doll {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-areas: 'niche niche niche niche';
+    justify-items: center;
+    gap: var(--space-2);
+    width: 100%;
+    max-width: 432px;
+    margin-inline: auto;
+  }
+
+  .doll__niche {
+    grid-area: niche;
+    width: 100%;
+    padding-top: var(--space-4);
+    border-radius: 160px 160px 0 0;
+  }
+
+  .doll__col {
+    display: contents;
+  }
+
+  .slot__text {
+    display: none;
+  }
+}

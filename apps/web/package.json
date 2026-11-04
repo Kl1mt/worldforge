@@ -11,6 +11,8 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fontsource/alegreya-sans": "^5.3.0",
+    "@fontsource/im-fell-english-sc": "^5.3.0",
     "@worldforge/game-core": "workspace:*",
     "react": "^19.3.1",
     "react-dom": "^19.3.1"

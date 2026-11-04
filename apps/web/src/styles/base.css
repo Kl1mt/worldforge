@@ -1,0 +1,242 @@
+@import '@fontsource/im-fell-english-sc/400.css';
+@import '@fontsource/alegreya-sans/400.css';
+@import '@fontsource/alegreya-sans/500.css';
+@import '@fontsource/alegreya-sans/700.css';
+@import '@fontsource/alegreya-sans/400-italic.css';
+@import './tokens.css';
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background-color: var(--bg-page);
+  background-image:
+    var(--texture-grain), radial-gradient(ellipse at 50% -10%, #221a15 0%, var(--bg-page) 60%);
+  color: var(--text);
+  font-family: var(--font-body);
+  font-size: var(--text-md);
+  line-height: var(--leading-body);
+  font-variant-numeric: tabular-nums;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-weight: 400;
+  line-height: var(--leading-tight);
+}
+
+p,
+ol,
+ul,
+dl,
+dd,
+figure {
+  margin: 0;
+}
+
+ol,
+ul {
+  padding: 0;
+  list-style: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--accent);
+}
+
+/* Visible keyboard focus everywhere: a brass ring outside the element. */
+:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ── Pixel art ─────────────────────────────────────────────────────────── */
+.pixel {
+  image-rendering: pixelated;
+  display: block;
+  flex: none;
+  max-width: none;
+}
+
+.pixel--mirror {
+  transform: scaleX(-1);
+}
+
+.pixel-missing {
+  display: grid;
+  place-items: center;
+  flex: none;
+  border: 1px dashed var(--line-strong);
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
+/* ── Typography helpers ────────────────────────────────────────────────── */
+.display {
+  font-family: var(--font-display);
+  letter-spacing: 0.01em;
+}
+
+.caps {
+  font-size: var(--text-xs);
+  font-weight: 500;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.rarity-common {
+  --rarity: var(--rarity-common);
+}
+.rarity-uncommon {
+  --rarity: var(--rarity-uncommon);
+}
+.rarity-rare {
+  --rarity: var(--rarity-rare);
+}
+.rarity-epic {
+  --rarity: var(--rarity-epic);
+}
+.rarity-legendary {
+  --rarity: var(--rarity-legendary);
+}
+.rarity-mythic {
+  --rarity: var(--rarity-mythic);
+}
+
+/* ── Panel treatments ──────────────────────────────────────────────────── */
+/* Iron: the default framed panel. Riveted corners, inner brass hairline. */
+.panel-iron {
+  position: relative;
+  background-color: var(--bg-surface);
+  background-image: var(--rivets), var(--texture-grain);
+  box-shadow: var(--frame-iron);
+  padding: var(--space-5);
+}
+
+/* Ledger: ruled, sunken surface for logs and lists. */
+.panel-ledger {
+  background-color: var(--bg-sunken);
+  background-image:
+    var(--texture-grain),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 27px,
+      rgb(99 91 83 / 0.16) 27px,
+      rgb(99 91 83 / 0.16) 28px
+    );
+  border-top: 2px solid var(--brass-700);
+  border-bottom: 2px solid var(--brass-700);
+}
+
+/* Section heading with a brass rule that runs to the edge. */
+.rule-heading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--accent-strong);
+}
+
+.rule-heading::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: linear-gradient(to right, var(--brass-600), transparent);
+}
+
+/* ── Meters ────────────────────────────────────────────────────────────── */
+.meter {
+  --fill: var(--health);
+  --back: var(--health-back);
+  position: relative;
+  height: 8px;
+  background: var(--back);
+  box-shadow: 0 0 0 1px var(--outline-dark);
+}
+
+.meter > span {
+  display: block;
+  height: 100%;
+  width: var(--value);
+  background: var(--fill);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+
+.meter--rage {
+  --fill: var(--rage);
+  --back: var(--rage-back);
+}
+
+.meter--xp {
+  --fill: var(--brass-500);
+  --back: var(--ink-900);
+  height: 4px;
+}
+
+/* ── Buttons ───────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 36px;
+  padding: 0 var(--space-4);
+  border: 1px solid var(--outline-dark);
+  background: linear-gradient(to bottom, var(--iron-700), var(--iron-800));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.06),
+    inset 0 0 0 1px var(--iron-600);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.btn:hover {
+  color: var(--text);
+}
+
+.btn[aria-pressed='true'] {
+  color: var(--accent-strong);
+  box-shadow:
+    inset 0 0 0 1px var(--brass-600),
+    inset 0 -2px 0 var(--brass-500);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -1,0 +1,428 @@
+.area__head {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'region pace'
+    'title pace'
+    'desc pace';
+  column-gap: var(--space-8);
+  margin-bottom: var(--space-6);
+}
+
+.area__region {
+  grid-area: region;
+  color: var(--brass-500);
+}
+
+.area__title {
+  grid-area: title;
+  font-size: var(--text-3xl);
+  color: var(--bone-100);
+  text-shadow: 0 2px 0 var(--outline-dark);
+}
+
+.area__desc {
+  grid-area: desc;
+  max-width: 60ch;
+  margin-top: var(--space-1);
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.area__pace {
+  grid-area: pace;
+  align-self: end;
+  display: flex;
+  border: var(--border-hair);
+  background: var(--bg-sunken);
+}
+
+.area__pace div {
+  padding: var(--space-2) var(--space-4);
+}
+
+.area__pace div + div {
+  border-left: var(--border-hair);
+}
+
+.area__pace dt {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+}
+
+.area__pace dd {
+  font-size: var(--text-lg);
+  font-weight: 700;
+}
+
+.area__fighting {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--crimson-400);
+}
+
+.area__fighting::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  background: currentColor;
+  transform: rotate(45deg);
+}
+
+.area__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 768px) minmax(300px, 1fr);
+  grid-template-areas:
+    'scene log'
+    'below log';
+  gap: var(--space-6);
+  align-items: start;
+}
+
+/* ── Scene ────────────────────────────────────────────────────────────── */
+.scene {
+  grid-area: scene;
+  min-width: 0;
+}
+
+.scene__stage {
+  position: relative;
+  overflow: hidden;
+  background: var(--ink-850);
+  box-shadow:
+    0 0 0 1px var(--outline-dark),
+    0 0 0 3px var(--iron-700),
+    0 0 0 4px var(--outline-dark),
+    var(--shadow-drop);
+}
+
+.scene__backdrop {
+  position: absolute;
+  top: 0;
+}
+
+/* Vignette: darkens edges so plates and HUD stay legible on the art. */
+.scene__stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(to bottom, rgb(12 10 9 / 0.35), transparent 22%),
+    radial-gradient(ellipse at 50% 55%, transparent 55%, rgb(12 10 9 / 0.55));
+}
+
+.scene__ground {
+  position: absolute;
+  inset: auto 0 5% 0;
+  z-index: 1;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 0 calc(var(--px) * 24);
+}
+
+.scene__hero {
+  margin-bottom: calc(var(--px) * -6);
+}
+
+.scene__foes {
+  display: flex;
+  align-items: flex-end;
+  gap: calc(var(--px) * 10);
+}
+
+.foe {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.foe__plate {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  margin-bottom: var(--space-1);
+}
+
+.foe .meter {
+  width: 100%;
+}
+
+.foe__name {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--bone-200);
+  text-align: center;
+  white-space: nowrap;
+  text-shadow:
+    0 1px 0 #000,
+    0 0 3px #000;
+}
+
+.foe .meter {
+  height: 5px;
+}
+
+.foe--target .foe__name {
+  color: var(--brass-300);
+}
+
+.foe--target .foe__plate::before {
+  content: '';
+  justify-self: center;
+  width: 0;
+  height: 0;
+  border: 5px solid transparent;
+  border-top-color: var(--brass-400);
+  border-bottom: 0;
+}
+
+.foe__hit {
+  position: absolute;
+  top: 30%;
+  left: -40%;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  color: var(--brass-300);
+  text-shadow:
+    0 2px 0 #000,
+    0 0 6px rgb(0 0 0 / 0.8);
+  transform: rotate(-8deg);
+}
+
+.scene__hud {
+  position: absolute;
+  z-index: 2;
+  left: var(--space-3);
+  top: var(--space-3);
+  display: grid;
+  gap: 3px;
+  width: 176px;
+  padding: var(--space-2) var(--space-3);
+  background: rgb(12 10 9 / 0.78);
+  border-left: 2px solid var(--brass-500);
+}
+
+.scene__hud-name {
+  font-weight: 700;
+  font-size: var(--text-sm);
+}
+
+.scene__hud-nums {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+/* ── Chronicle (combat log) ───────────────────────────────────────────── */
+.log {
+  grid-area: log;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: 640px;
+}
+
+.log__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--brass-700);
+}
+
+.log__head h2 {
+  font-size: var(--text-xl);
+  color: var(--accent-strong);
+}
+
+.log__list {
+  overflow-y: auto;
+  padding: var(--space-1) 0 var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.log__row {
+  display: grid;
+  grid-template-columns: 64px 1fr;
+  gap: var(--space-3);
+  padding: 4px var(--space-4);
+  line-height: 20px;
+  color: var(--text-muted);
+}
+
+.log__row:first-child {
+  background: rgb(163 130 74 / 0.08);
+}
+
+.log__time {
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+  line-height: 20px;
+}
+
+.log__num {
+  color: var(--bone-100);
+}
+
+.log__num--crit,
+.log__crit {
+  color: var(--brass-300);
+}
+
+.log__num--hurt {
+  color: var(--crimson-400);
+}
+
+.log__kill {
+  color: var(--moss-400);
+}
+
+.log__dim {
+  color: var(--text-faint);
+}
+
+.log__loot {
+  color: var(--rarity);
+  font-weight: 700;
+}
+
+.log__gold {
+  color: var(--brass-400);
+}
+
+.log__note {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.log__empty {
+  padding: var(--space-6) var(--space-4);
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+/* ── Below the scene: foes and spoils ─────────────────────────────────── */
+.roster,
+.spoils {
+  grid-area: below;
+}
+
+.roster {
+  align-self: start;
+  max-width: 470px;
+}
+
+.spoils {
+  justify-self: end;
+  width: 260px;
+}
+
+.roster__list {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.roster__foe {
+  display: grid;
+  justify-items: center;
+  text-align: center;
+}
+
+.roster__plinth {
+  display: grid;
+  place-items: center;
+  width: 80px;
+  height: 72px;
+  background: radial-gradient(ellipse 34% 9% at 50% 90%, rgb(0 0 0 / 0.75), transparent);
+  border-bottom: 1px solid var(--iron-700);
+}
+
+.roster__name {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.roster__count {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+}
+
+.spoils__list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+}
+
+/* ── Tablet & phone ───────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .area__grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'scene'
+      'log'
+      'roster'
+      'spoils';
+  }
+
+  .roster {
+    grid-area: roster;
+    max-width: none;
+  }
+
+  .spoils {
+    grid-area: spoils;
+    justify-self: stretch;
+    width: auto;
+  }
+
+  .log {
+    max-height: 360px;
+  }
+}
+
+@media (max-width: 760px) {
+  .area__head {
+    grid-template-columns: 1fr;
+    grid-template-areas: 'region' 'title' 'desc' 'pace';
+    margin-bottom: var(--space-4);
+  }
+
+  .area__title {
+    font-size: var(--text-2xl);
+  }
+
+  .area__desc {
+    font-size: var(--text-sm);
+  }
+
+  .area__pace {
+    margin-top: var(--space-3);
+    justify-self: start;
+  }
+
+  .area__pace div {
+    padding: var(--space-1) var(--space-3);
+  }
+
+  /* The scene runs edge to edge; the backdrop is cropped, never shrunk. */
+  .scene {
+    margin-inline: calc(var(--gutter) * -1);
+  }
+
+  .scene__ground {
+    padding: 0 var(--space-2);
+  }
+
+  .scene__hud {
+    width: 150px;
+  }
+}
