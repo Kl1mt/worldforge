@@ -1,10 +1,10 @@
 import { asset } from '../content/assets';
-import type { MockItem } from '../mock/items';
+import type { ItemView } from '../game/items';
 import { PixelSprite } from './PixelSprite';
 import './item-frame.css';
 
 interface ItemFrameProps {
-  item: Pick<MockItem, 'icon' | 'name' | 'rarity'> | undefined;
+  item: Pick<ItemView, 'icon' | 'name' | 'rarity'> | undefined;
   /** Icon scale (icons are 32 px native). */
   scale?: number;
   /** Shown in an empty frame, e.g. the slot name. */
@@ -40,8 +40,13 @@ export function ItemFrame({
     ? `${context ? `${context}: ` : ''}${item.name}, ${item.rarity}`
     : `${context ?? 'Empty slot'}${emptyLabel && !context ? `: ${emptyLabel}` : ''}, empty`;
 
-  const inner = item ? (
+  const inner = item?.icon ? (
     <PixelSprite sprite={asset(item.icon)} scale={scale} alt="" />
+  ) : item ? (
+    // No art for this item (its base left the content): a marked socket, not a broken image.
+    <span className="item-frame__empty" style={{ width: size, height: size }}>
+      ?
+    </span>
   ) : (
     <span className="item-frame__empty" style={{ width: size, height: size }}>
       {emptyLabel}

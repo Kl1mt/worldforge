@@ -52,6 +52,15 @@ Relational data (accounts, characters, item instances, inventory, ledgers) with 
 Database tests run against **PGlite** (`@electric-sql/pglite`): the real PostgreSQL engine compiled to WASM, in-process and in-memory. Each test file gets a fresh database with all migrations applied (`createTestDatabase()` in `apps/server/src/test/db.ts`), so the tests exercise real Postgres semantics — constraints, `lower()` unique indexes, FK actions, `jsonb`, isolation levels — with no Docker, network or shared state, in the sandbox and in CI alike.
 Limits: PGlite is a single connection, so true multi-connection concurrency (row locks, serialization conflicts between two sessions) cannot be exercised there; the retry path is unit-tested with a fake. Real-server coverage comes from CI, which also starts a `postgres:16` service container and applies the migrations from scratch (twice, for idempotency) with the production build. Tickets that need multi-connection concurrency tests (1.6, 1.7) should run them against that service container.
 
+### End-to-end run (ticket 1.8)
+`tools/e2e/farm-loop.mjs` drives the real UI and server with Playwright: register → create character → farm → loot → equip → leave → return summary, at 1440 and 390 px, and saves screenshots to `docs/screenshots/phase-1/`. Sandboxes without Docker run the server through **`pnpm --filter @worldforge/server e2e:serve`** (`apps/server/src/e2e/serve.ts`): the real `buildApp()` on an in-process PGlite database (fresh on every start). The only differences are server-side: the **farming clock runs `E2E_TIME_SCALE` times faster** (default 120; sessions, cookies and rate limits keep the real clock) and scheduled settlement runs every `E2E_SETTLE_INTERVAL_SECONDS` (default 5). Auth and validation are unchanged, and the client still only sends intents. The file is excluded from the production build (`tsconfig.build.json`) and refuses to start with `NODE_ENV=production`; `src/index.ts` is untouched.
+
+```
+OFFLINE_CAP_SECONDS=1800 pnpm --filter @worldforge/server e2e:serve   # small cap, so the return shows capped time
+pnpm --filter @worldforge/web dev
+node tools/e2e/farm-loop.mjs
+```
+
 ### Local database: Docker Compose
 `docker-compose.yml` at the repo root runs `postgres:16-alpine` on `127.0.0.1:5432` with local-only credentials matching `apps/server/.env.example`. `pnpm db:up` / `pnpm db:down` start and stop it. Any other PostgreSQL ≥ 16 works by pointing `DATABASE_URL` at it.
 
@@ -78,4 +87,5 @@ Layouts are responsive from Phase 0 (down to ~375px) with touch-sized targets. W
 
 ## Changes
 - 2026-11-04 — initial record (ticket 0.1).
+- 2026-11-04 — e2e test server on PGlite with a scaled farming clock (ticket 1.8).
 - 2026-11-04 — PostgreSQL + Drizzle wired, PGlite chosen for tests, Docker Compose for local dev (ticket 1.1).

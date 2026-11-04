@@ -28,6 +28,8 @@ export interface ActivityView {
   areaId: AreaId;
   startedAt: string;
   settledAt: string;
+  /** Health carried between settlements (after the last simulated fight); null = full. */
+  health: number | null;
 }
 
 export function activityView(a: Activity): ActivityView {
@@ -36,6 +38,7 @@ export function activityView(a: Activity): ActivityView {
     areaId: a.areaId,
     startedAt: a.startedAt.toISOString(),
     settledAt: a.settledAt.toISOString(),
+    health: a.health,
   };
 }
 

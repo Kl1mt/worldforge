@@ -29,9 +29,45 @@
   font-style: italic;
 }
 
-.area__pace {
+.area__controls {
   grid-area: pace;
   align-self: end;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.area__action {
+  min-height: 52px;
+  padding: 0 var(--space-6);
+  font-size: var(--text-md);
+}
+
+.area__wait {
+  align-self: center;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.area__alert {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--crimson-400);
+  background: rgb(184 73 63 / 0.1);
+  color: var(--bone-200);
+  font-size: var(--text-sm);
+}
+
+.area__alert--line {
+  grid-column: 1 / -1;
+  margin-top: var(--space-3);
+}
+
+.area__pace {
   display: flex;
   border: var(--border-hair);
   background: var(--bg-sunken);
@@ -61,6 +97,10 @@
   align-items: center;
   gap: var(--space-2);
   color: var(--crimson-400);
+}
+
+.area__resting {
+  color: var(--text-dim);
 }
 
 .area__fighting::before {
@@ -157,10 +197,6 @@
   margin-bottom: var(--space-1);
 }
 
-.foe .meter {
-  width: 100%;
-}
-
 .foe__name {
   font-size: 11px;
   font-weight: 500;
@@ -173,35 +209,16 @@
     0 0 3px #000;
 }
 
-.foe .meter {
-  height: 5px;
+.foe__level {
+  font-size: 10px;
+  line-height: 1;
+  color: var(--text-dim);
+  text-shadow: 0 1px 0 #000;
 }
 
-.foe--target .foe__name {
-  color: var(--brass-300);
-}
-
-.foe--target .foe__plate::before {
-  content: '';
-  justify-self: center;
-  width: 0;
-  height: 0;
-  border: 5px solid transparent;
-  border-top-color: var(--brass-400);
-  border-bottom: 0;
-}
-
-.foe__hit {
-  position: absolute;
-  top: 30%;
-  left: -40%;
-  font-family: var(--font-display);
-  font-size: var(--text-2xl);
-  color: var(--brass-300);
-  text-shadow:
-    0 2px 0 #000,
-    0 0 6px rgb(0 0 0 / 0.8);
-  transform: rotate(-8deg);
+.scene__stage--idle .scene__foes {
+  opacity: 0.55;
+  filter: saturate(0.6);
 }
 
 .scene__hud {
@@ -220,6 +237,11 @@
 .scene__hud-name {
   font-weight: 700;
   font-size: var(--text-sm);
+}
+
+.scene__hud-wait {
+  font-size: 11px;
+  color: var(--text-faint);
 }
 
 .scene__hud .meter-field__text {
@@ -283,16 +305,12 @@
   line-height: 20px;
 }
 
-.log__num {
-  color: var(--bone-100);
-}
-
-.log__num--crit,
-.log__crit {
+.log__level {
   color: var(--brass-300);
+  font-weight: 700;
 }
 
-.log__num--hurt {
+.log__hurt {
   color: var(--crimson-400);
 }
 
@@ -378,6 +396,20 @@
   color: var(--text-dim);
 }
 
+.spoils__note {
+  margin-top: var(--space-3);
+  color: var(--text-faint);
+  font-style: italic;
+  font-size: var(--text-sm);
+}
+
+.spoils__link {
+  display: inline-block;
+  margin-top: var(--space-3);
+  color: var(--brass-400);
+  font-size: var(--text-sm);
+}
+
 .spoils__list {
   display: flex;
   flex-wrap: wrap;
@@ -432,9 +464,14 @@
     font-size: var(--text-sm);
   }
 
-  .area__pace {
+  .area__controls {
     margin-top: var(--space-3);
-    justify-self: start;
+    justify-content: flex-start;
+  }
+
+  .area__action {
+    flex: 1 1 100%;
+    justify-content: center;
   }
 
   .area__pace div {

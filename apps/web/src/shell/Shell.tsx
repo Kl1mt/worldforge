@@ -4,6 +4,7 @@ import { formatNumber } from '../lib/format';
 import { useAuth } from '../auth/AuthProvider';
 import { routeHref, type GameRoute } from '../lib/route';
 import { useActiveCharacter } from '../characters/CharactersProvider';
+import { ReturnSummaryDialog } from '../game/ReturnSummary';
 import { HealthLine } from './HealthLine';
 import { useLogout } from './useLogout';
 import './shell.css';
@@ -101,15 +102,16 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
             {logoutError}
           </p>
         ) : null}
-        <span className="statusbar__note">
-          {account ? `Signed in as ${account.displayName} · ` : null}combat, items and stats are
-          mock data
-        </span>
+        {account ? (
+          <span className="statusbar__note">Signed in as {account.displayName}</span>
+        ) : null}
       </footer>
 
       <nav className="bottombar" aria-label="Main (mobile)">
         {nav('bottom')}
       </nav>
+
+      <ReturnSummaryDialog heroName={character.name} />
     </div>
   );
 }

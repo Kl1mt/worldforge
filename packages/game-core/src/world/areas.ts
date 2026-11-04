@@ -15,6 +15,8 @@ export interface AreaDefinition {
   id: AreaId;
   name: string;
   region: string;
+  /** One line of flavour for the area screen. */
+  description: string;
   /** Asset id of the backdrop in the asset manifest. */
   assetId: string;
   /** Inclusive enemy level range. */
@@ -28,6 +30,8 @@ export const AREAS: readonly AreaDefinition[] = [
     id: 'abandonedFields',
     name: 'Abandoned Fields',
     region: 'Graumark',
+    description:
+      'Fallow land below the old reeve’s farm. The dead still walk the furrows they ploughed in life.',
     assetId: 'area.abandoned-fields',
     minLevel: 1,
     maxLevel: 6,

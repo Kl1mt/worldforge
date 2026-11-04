@@ -26,6 +26,8 @@ interface CharactersContextValue {
   create: (input: CreateCharacterInput) => Promise<ApiFailure | null>;
   select: (id: string) => Promise<ApiFailure | null>;
   reload: () => void;
+  /** Replaces a character with the server's newer copy (e.g. gold and XP after a settlement). */
+  updateCharacter: (character: Character) => void;
 }
 
 const IDLE: RosterState = { kind: 'idle' };
@@ -109,14 +111,23 @@ export function CharactersProvider({ children }: { children: ReactNode }) {
     [reload, patchRoster],
   );
 
+  const updateCharacter = useCallback(
+    (character: Character) =>
+      patchRoster((r) => ({
+        ...r,
+        characters: r.characters.map((c) => (c.id === character.id ? character : c)),
+      })),
+    [patchRoster],
+  );
+
   const active =
     state.kind === 'ready'
       ? (state.roster.characters.find((c) => c.id === state.roster.activeCharacterId) ?? null)
       : null;
 
   const value = useMemo(
-    () => ({ state, active, create, select, reload }),
-    [state, active, create, select, reload],
+    () => ({ state, active, create, select, reload, updateCharacter }),
+    [state, active, create, select, reload, updateCharacter],
   );
   return <CharactersContext.Provider value={value}>{children}</CharactersContext.Provider>;
 }
