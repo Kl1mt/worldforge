@@ -5,7 +5,7 @@ Phases follow GDD §15. A phase is closed only when its exit criteria hold and `
 
 ## Phase 0 — Foundation & visual prototype
 
-### 0.1 Project foundation — `todo`
+### 0.1 Project foundation — `done (PR #2)`
 GDD to read: §2, §15 (Phase 0), §16.
 - pnpm workspace monorepo, Node 22, **TypeScript 5.9.x** (not 7.x; tooling compatibility). Write configs by hand, no scaffolders.
 - `packages/game-core`: pure TS, no DOM/Node deps. Phase 0 content only: class definitions (Warrior/Rage, Mage/Mana, Hunter/Focus, Warlock/Soul Fragments), the 6 rarity ids in order, the equipment slot list (head, shoulders, chest, hands, legs, feet, neck, ring1, ring2, weapon, offhand, relic), core stat ids (§6.2), a seeded deterministic RNG with tests. No combat or loot logic.

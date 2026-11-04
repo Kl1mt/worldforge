@@ -1,0 +1,21 @@
+{
+  "name": "@worldforge/server",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "dev": "tsx watch --conditions=source src/index.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/index.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@worldforge/game-core": "workspace:*",
+    "fastify": "^5.12.8"
+  },
+  "devDependencies": {
+    "tsx": "^4.23.15"
+  }
+}
