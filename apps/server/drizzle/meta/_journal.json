@@ -15,6 +15,13 @@
       "when": 1793781155890,
       "tag": "0001_characters",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793782433336,
+      "tag": "0002_item_instances",
+      "breakpoints": true
     }
   ]
 }

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { eq, sql } from 'drizzle-orm';
 import { createTestDatabase } from '../test/db.js';
-import { accounts, auditLog, characters, sessions } from './schema.js';
+import { accounts, auditLog, characters, itemInstances, sessions } from './schema.js';
 import { migrateDatabase } from './migrate.js';
 import { writeAudit } from './audit.js';
 import { withTransaction } from './transaction.js';
@@ -21,7 +21,9 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await db().execute(sql`truncate audit_log, sessions, characters, accounts cascade`);
+  await db().execute(
+    sql`truncate audit_log, sessions, item_instances, characters, accounts cascade`,
+  );
 });
 
 function newAccount(overrides: Partial<typeof accounts.$inferInsert> = {}) {
@@ -51,7 +53,7 @@ async function sqlState(p: Promise<unknown>): Promise<string | undefined> {
 }
 
 describe('migrations', () => {
-  it('create exactly the Phase 1 tables (1.1 + 1.3 characters) from scratch', async () => {
+  it('create exactly the Phase 1 tables (1.1, 1.3 characters, item instances) from scratch', async () => {
     const rows = await queryRows<{ table_name: string }>(
       db(),
       sql`select table_name from information_schema.tables where table_schema = 'public' order by 1`,
@@ -60,6 +62,7 @@ describe('migrations', () => {
       'accounts',
       'audit_log',
       'characters',
+      'item_instances',
       'sessions',
     ]);
   });
@@ -71,7 +74,7 @@ describe('migrations', () => {
       db(),
       sql`select count(*)::int as n from drizzle.__drizzle_migrations`,
     );
-    expect(applied[0]).toEqual({ n: 2 });
+    expect(applied[0]).toEqual({ n: 3 });
     expect(await db().$count(accounts)).toBe(1);
   });
 });
@@ -228,22 +231,22 @@ describe('withTransaction', () => {
   });
 });
 
-describe('characters', () => {
-  const newCharacter = (
-    accountId: string,
-    overrides: Partial<typeof characters.$inferInsert> = {},
-  ) => {
-    const id = uuidv7();
-    return {
-      id,
-      accountId,
-      name: `Hero${id.slice(-6).replace(/[^a-z]/g, 'x')}`,
-      classId: 'warrior' as const,
-      appearance: { banner: 'ash' as const },
-      ...overrides,
-    };
+const newCharacter = (
+  accountId: string,
+  overrides: Partial<typeof characters.$inferInsert> = {},
+) => {
+  const id = uuidv7();
+  return {
+    id,
+    accountId,
+    name: `Hero${id.slice(-6).replace(/[^a-z]/g, 'x')}`,
+    classId: 'warrior' as const,
+    appearance: { banner: 'ash' as const },
+    ...overrides,
   };
+};
 
+describe('characters', () => {
   it('reject negative gold or experience and a level below 1', async () => {
     const account = newAccount();
     await db().insert(accounts).values(account);
@@ -297,5 +300,51 @@ describe('characters', () => {
     await db().insert(characters).values(newCharacter(account.id));
     await db().delete(accounts).where(eq(accounts.id, account.id));
     expect(await db().select().from(characters)).toEqual([]);
+  });
+});
+
+describe('item instances', () => {
+  async function setup() {
+    const account = newAccount();
+    await db().insert(accounts).values(account);
+    const character = newCharacter(account.id);
+    await db().insert(characters).values(character);
+    return character.id as string;
+  }
+  const item = (characterId: string, equippedSlot: 'weapon' | 'ring1' | null = null) => ({
+    id: uuidv7(),
+    characterId,
+    baseId: 'longsword',
+    rarityId: 'common' as const,
+    itemLevel: 1,
+    seed: 4_000_000_000,
+    equippedSlot,
+    source: 'test',
+  });
+
+  it('allow any number of inventory items but one item per equipped slot', async () => {
+    const characterId = await setup();
+    await db()
+      .insert(itemInstances)
+      .values([item(characterId), item(characterId)]);
+    await db().insert(itemInstances).values(item(characterId, 'weapon'));
+    await db().insert(itemInstances).values(item(characterId, 'ring1'));
+    expect(await sqlState(db().insert(itemInstances).values(item(characterId, 'weapon')))).toBe(
+      '23505',
+    );
+  });
+
+  it('reject an item level below 1 and are deleted with their character', async () => {
+    const characterId = await setup();
+    expect(
+      await sqlState(
+        db()
+          .insert(itemInstances)
+          .values({ ...item(characterId), itemLevel: 0 }),
+      ),
+    ).toBe('23514');
+    await db().insert(itemInstances).values(item(characterId));
+    await db().delete(characters).where(eq(characters.id, characterId));
+    expect(await db().select().from(itemInstances)).toHaveLength(0);
   });
 });

@@ -13,7 +13,13 @@ import {
   uuid,
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
-import type { CharacterAppearance, ClassId } from '@worldforge/game-core';
+import type {
+  CharacterAppearance,
+  ClassId,
+  EquipmentSlotId,
+  RarityId,
+  RolledAffix,
+} from '@worldforge/game-core';
 
 /**
  * Database schema (see docs/DATA_MODEL.md). Only player/world *state* lives here;
@@ -102,6 +108,40 @@ export const characters = pgTable(
   ],
 );
 
+/**
+ * One owned item. Created from a game-core `GeneratedItem` (loot, ticket 1.5); the server is the only
+ * writer. An item is in the character's inventory when `equipped_slot` is null, otherwise equipped in
+ * that slot. Shared by ticket 1.6 (granting loot) and ticket 1.7 (inventory & equipment).
+ */
+export const itemInstances = pgTable(
+  'item_instances',
+  {
+    id: uuid('id').primaryKey(),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    /** game-core item base id. */
+    baseId: text('base_id').notNull(),
+    rarityId: text('rarity_id').$type<RarityId>().notNull(),
+    itemLevel: integer('item_level').notNull(),
+    affixes: jsonb('affixes').$type<RolledAffix[]>().notNull().default([]),
+    /** The generation seed (uint32), kept for audit and reproducibility. */
+    seed: bigint('seed', { mode: 'number' }).notNull(),
+    /** Null while in the inventory; the game-core `EquipmentSlotId` while equipped. */
+    equippedSlot: text('equipped_slot').$type<EquipmentSlotId>(),
+    /** Where the item came from, e.g. `farming`. */
+    source: text('source').notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    index('item_instances_character_id_idx').on(t.characterId),
+    uniqueIndex('item_instances_equipped_slot_key')
+      .on(t.characterId, t.equippedSlot)
+      .where(sql`${t.equippedSlot} is not null`),
+    check('item_instances_item_level_check', sql`${t.itemLevel} >= 1`),
+  ],
+);
+
 /** Append-only record of security-relevant and valuable events. */
 export const auditLog = pgTable(
   'audit_log',
@@ -128,3 +168,5 @@ export type Character = typeof characters.$inferSelect;
 export type NewCharacter = typeof characters.$inferInsert;
 export type AuditLogEntry = typeof auditLog.$inferSelect;
 export type NewAuditLogEntry = typeof auditLog.$inferInsert;
+export type ItemInstance = typeof itemInstances.$inferSelect;
+export type NewItemInstance = typeof itemInstances.$inferInsert;
