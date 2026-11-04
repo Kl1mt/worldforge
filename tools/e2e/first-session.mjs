@@ -68,7 +68,7 @@ async function follow(page, label) {
 async function run(browser, vp) {
   const context = await browser.newContext({
     viewport: { width: vp.width, height: vp.height },
-    deviceScaleFactor: 2,
+    deviceScaleFactor: 1,
   });
   // Record every notice as it appears: with the fast clock several arrive in one burst and fade.
   await context.addInitScript(() => {
