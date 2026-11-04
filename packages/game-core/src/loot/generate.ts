@@ -161,7 +161,10 @@ export function rollLoot(
 
   const items: GeneratedItem[] = [];
   if (rng.chance(table.itemDropChance)) {
-    const itemLevel = rollItemLevel(sourceLevel, rng, config);
+    const rolled = rollItemLevel(sourceLevel, rng, config);
+    const itemLevel = table.itemLevel
+      ? Math.min(table.itemLevel.max, Math.max(table.itemLevel.min, rolled))
+      : rolled;
     const seed = rng.int(0, MAX_SEED);
     const item = generateItem({ seed, itemLevel, lootTable: table }, config);
     if (item) items.push(item);

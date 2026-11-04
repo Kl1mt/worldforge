@@ -4,8 +4,8 @@ Ticket 1.4. Pure, deterministic rules in `packages/game-core/src/combat/`; conte
 The server (ticket 1.6) is the only caller that may award results; it derives the seed itself.
 
 ## Content
-- `world/enemies.ts`: Risen Farmhand, Carrion Wolf, Bone Scarecrow. Each stat is `base + perLevel · (level − 1)`. The scarecrow deals magic damage, the others physical.
-- `world/areas.ts`: Abandoned Fields, enemy levels 1–6, spawn weights 50 / 35 / 15.
+- `world/enemies.ts`: all enemies of Graumark (ticket 2.1 added the Phase 2 areas, the crypt and the Gravewarden; see `docs/WORLD.md`). Each stat is `base + perLevel · (level − 1)`; `damageType` picks the defense that mitigates it.
+- `world/areas.ts`: the five areas with level ranges, spawn weights, unlock rules and loot tables (`docs/WORLD.md`). Abandoned Fields: enemy levels 1–6, spawn weights 50 / 35 / 15.
 - `combat/characterStats.ts`: per-class base stats and per-level growth (`CLASS_STAT_PROFILES`).
 - `combat/skills.ts`: one auto-skill per class that replaces every n-th basic attack (Heavy Strike, Firebolt, Aimed Shot, Shadow Bolt). No resource costs yet.
 - `combat/encounter.ts`: `DEFAULT_COMBAT_CONFIG` holds every tunable (search time, regeneration, respawn delay, fight timeout, mitigation and XP-penalty constants).
@@ -34,7 +34,7 @@ Both run the same cycle loop (`runFarming`); only the fight resolution differs.
 Both are deterministic for a given seed. They consume the RNG differently, so the same seed gives different (but equally distributed) results. Tests compare them per fight (20,000 trials) and per farming window (300 seeds, means within 4 standard errors). A 3-hour window settles in about 10 ms with either function at Phase 1 numbers.
 
 ## Results
-`FarmingResult`: kills (total and per enemy), deaths, timeouts, encounters, XP gained, start/end level and XP, levels gained, damage taken, final and max health, `simulatedMs` / `unusedMs`, and the event log.
+`FarmingResult`: kills (total and per enemy of the area's roster), deaths, timeouts, encounters, XP gained, start/end level and XP, levels gained, damage taken, final and max health, `simulatedMs` / `unusedMs`, and the event log.
 
 ## Balance baseline (ticket 1.9, not tuned)
 Starting numbers for later balancing: a fresh level-1 character farming Abandoned Fields, no equipment, one `settleFarming` window, mean of 20 seeds (game-core defaults at ticket 1.9). Items = drops before the capacity rule.

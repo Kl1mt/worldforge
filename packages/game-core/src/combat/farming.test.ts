@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   CLASS_IDS,
   DEFAULT_COMBAT_CONFIG,
-  ENEMY_IDS,
+  getArea,
   MAX_LEVEL,
   simulateFarming,
   simulateFarmingAggregate,
@@ -41,7 +41,12 @@ function expectValid(r: FarmingResult, i: FarmingInput): void {
       DEFAULT_COMBAT_CONFIG.respawnMs,
   );
   expect(r.encounters).toBe(r.kills + r.deaths + r.timeouts);
-  expect(ENEMY_IDS.reduce((s, id) => s + r.killsByEnemy[id], 0)).toBe(r.kills);
+  expect(Object.values(r.killsByEnemy).reduce((s, n) => s + n, 0)).toBe(r.kills);
+  expect(Object.keys(r.killsByEnemy).sort()).toEqual(
+    getArea(i.areaId)
+      .enemies.map((e) => e.enemyId)
+      .sort(),
+  );
   expect(r.level).toBeGreaterThanOrEqual(r.startLevel);
   expect(r.levelsGained).toBe(r.level - r.startLevel);
   expect(r.level).toBeLessThanOrEqual(MAX_LEVEL);

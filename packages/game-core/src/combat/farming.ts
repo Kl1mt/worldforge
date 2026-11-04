@@ -1,7 +1,7 @@
 import { isClassId, type ClassId } from '../classes.js';
 import { createRng, type Rng } from '../rng.js';
 import { getArea, isAreaId, type AreaId } from '../world/areas.js';
-import { ENEMY_IDS, type EnemyId } from '../world/enemies.js';
+import type { EnemyId } from '../world/enemies.js';
 import {
   deriveCharacterStats,
   type EquipmentStatContribution,
@@ -77,7 +77,8 @@ export interface FarmingResult {
   unusedMs: number;
   encounters: number;
   kills: number;
-  killsByEnemy: Record<EnemyId, number>;
+  /** Kills per enemy of the area's roster (every roster enemy present, possibly 0). */
+  killsByEnemy: Partial<Record<EnemyId, number>>;
   deaths: number;
   timeouts: number;
   damageTaken: number;
@@ -176,10 +177,10 @@ function runFarming(
     Math.max(1, Math.floor(input.character.health ?? stats.health)),
   );
 
-  const killsByEnemy = Object.fromEntries(ENEMY_IDS.map((id) => [id, 0])) as Record<
-    EnemyId,
-    number
-  >;
+  // One counter per enemy of the area's roster (all zero at the start).
+  const killsByEnemy: Partial<Record<EnemyId, number>> = Object.fromEntries(
+    area.enemies.map((e) => [e.enemyId, 0]),
+  );
   let now = 0;
   let encounters = 0;
   let kills = 0;
@@ -225,7 +226,7 @@ function runFarming(
     health = healthAtFight - lost;
     if (outcome.kind === 'kill') {
       kills++;
-      killsByEnemy[setup.enemyId]++;
+      killsByEnemy[setup.enemyId] = (killsByEnemy[setup.enemyId] ?? 0) + 1;
       xpGained += setup.xpReward;
       buffer?.push({ t: fightEnd, type: 'kill', enemyId: setup.enemyId, xp: setup.xpReward });
       const after = applyXp({ level, xp }, setup.xpReward);
