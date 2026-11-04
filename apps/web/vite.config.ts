@@ -9,6 +9,8 @@ export default defineConfig({
     // Consume workspace packages (game-core) from TypeScript source.
     conditions: ['source'],
   },
+  // Vitest runs in the node environment, which resolves via the SSR conditions.
+  ssr: { resolve: { conditions: ['source'] } },
   server: {
     port: 5173,
     strictPort: true,
