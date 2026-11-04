@@ -43,7 +43,7 @@ GDD to read: §3 (all), §4.2, §5.2, §6.2, §7.1–7.2.
 
 **Acceptance:** checks pass; screenshots are attached to the PR for the review called for in GDD §3.4.
 
-### 0.4 Visual polish — `todo`
+### 0.4 Visual polish — `done (PR #5)`
 GDD to read: §3.2, §3.4. The owner approved the visual direction of 0.3 (PR #3). Keep the direction; fix only these:
 - **Bigger pixel art on desktop.** Character, enemy and item sprites read too small at desktop widths. Scale them up by an integer step (e.g. ×3 → ×4 or more) at desktop breakpoints, on the area scene, the character portrait, the "Foes" row, and the item slots/grid. **Mobile sizes are approved; leave them unchanged.**
 - Label the health and resource bars (character card on the character screen, combatant HUD on the area screen), e.g. "Health 842 / 1,046" and "Rage 62 / 100".

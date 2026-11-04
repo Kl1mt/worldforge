@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 import { RARITIES, type RarityId } from '@worldforge/game-core';
 import { ItemFrame } from '../components/ItemFrame';
 import { ItemTooltip } from '../components/ItemTooltip';
+import { useElementWidth } from '../components/useElementWidth';
 import { equippedCounterpart } from '../lib/compare';
+import { PACK_LARGE_MIN_WIDTH, STASH_LARGE, socketSize } from '../lib/pixel';
 import { EQUIPPED, INVENTORY, INVENTORY_CAPACITY } from '../mock/items';
 import './inventory.css';
 
@@ -11,6 +13,10 @@ type Filter = 'all' | RarityId;
 export function InventoryScreen() {
   const [filter, setFilter] = useState<Filter>('all');
   const [selectedUid, setSelectedUid] = useState<string | null>(INVENTORY[0]?.uid ?? null);
+  const [bodyRef, bodyWidth] = useElementWidth<HTMLDivElement>(0);
+  // Desktop with room: 8 × 5 sockets at ×3. Otherwise the approved ×2 grid (phones included).
+  const large = bodyWidth >= PACK_LARGE_MIN_WIDTH;
+  const iconScale = large ? 3 : 2;
 
   const counts = useMemo(() => {
     const map = new Map<RarityId, number>();
@@ -60,8 +66,16 @@ export function InventoryScreen() {
         ))}
       </div>
 
-      <div className="pack__body">
-        <section className="stash" aria-label="Carried items">
+      <div className={`pack__body${large ? ' pack__body--large' : ''}`} ref={bodyRef}>
+        <section
+          className="stash"
+          aria-label="Carried items"
+          style={{
+            ['--socket' as string]: `${socketSize(iconScale)}px`,
+            ['--stash-cols' as string]: large ? STASH_LARGE.columns : undefined,
+            ['--stash-gap' as string]: large ? `${STASH_LARGE.gap}px` : undefined,
+          }}
+        >
           {visible.length === 0 ? (
             <div className="stash__empty">
               <p className="display">Nothing of that rarity.</p>
@@ -80,7 +94,7 @@ export function InventoryScreen() {
                 <li key={item.uid}>
                   <ItemFrame
                     item={item}
-                    scale={2}
+                    scale={iconScale}
                     selected={item.uid === selectedUid}
                     onSelect={() => setSelectedUid(item.uid)}
                   />

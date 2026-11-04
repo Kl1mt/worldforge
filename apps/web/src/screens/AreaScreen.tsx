@@ -1,10 +1,11 @@
 import { asset } from '../content/assets';
 import { ItemFrame } from '../components/ItemFrame';
-import { Meter } from '../components/Meter';
+import { LabeledMeter, Meter } from '../components/Meter';
 import { PixelSprite } from '../components/PixelSprite';
 import { useElementWidth } from '../components/useElementWidth';
+import { useMediaQuery } from '../components/useMediaQuery';
 import { formatNumber } from '../lib/format';
-import { pixelScale } from '../lib/pixel';
+import { PHONE_QUERY, pixelScale, sceneSpriteScale } from '../lib/pixel';
 import { CHARACTER } from '../mock/character';
 import { AREA, COMBAT_LOG, ENEMIES, RECENT_DROPS, ROSTER, type LogEntry } from '../mock/combat';
 import './area.css';
@@ -12,18 +13,18 @@ import './area.css';
 const BACKDROP = asset('area.abandoned-fields');
 const HERO = asset('character.warrior');
 
-function Scene() {
+function Scene({ phone }: { phone: boolean }) {
   const [ref, width] = useElementWidth<HTMLDivElement>(768);
-  // Backdrop at ×N (even), sprites at ×N/2 so enemies stay smaller than the hero.
+  // Backdrop at ×N (even). Sprites match it on wider screens and stay at ×N/2 on phones.
   const scale = pixelScale(width, BACKDROP.width, { step: 2, min: 2, max: 4 });
-  const spriteScale = scale / 2;
+  const spriteScale = sceneSpriteScale(scale, phone);
   const stageWidth = Math.min(Math.floor(width), BACKDROP.width * scale);
   const stageHeight = BACKDROP.height * scale;
   const backdropLeft = Math.round((stageWidth - BACKDROP.width * scale) / 2);
   const target = ENEMIES.find((e) => e.targeted);
 
   return (
-    <div className="scene" ref={ref}>
+    <div className={`scene${phone ? '' : ' scene--wide'}`} ref={ref}>
       <figure
         className="scene__stage"
         style={{ width: stageWidth || undefined, height: stageHeight }}
@@ -49,8 +50,13 @@ function Scene() {
                   className={`foe${enemy.targeted ? ' foe--target' : ''}`}
                   style={{ marginBottom: enemy.lift * spriteScale }}
                 >
-                  <div className="foe__plate" style={{ width: sprite.width * spriteScale }}>
-                    {enemy.targeted ? <span className="foe__name">{enemy.name}</span> : null}
+                  <div
+                    className="foe__plate"
+                    // Wide: the bar spans the middle of the sprite so neighbouring plates
+                    // never touch. Phones keep the approved full-width bar.
+                    style={{ width: Math.round(sprite.width * spriteScale * (phone ? 1 : 0.625)) }}
+                  >
+                    <span className="foe__name">{enemy.name}</span>
                     <Meter
                       current={enemy.health.current}
                       max={enemy.health.max}
@@ -75,21 +81,19 @@ function Scene() {
         </div>
         <figcaption className="scene__hud">
           <span className="scene__hud-name">{CHARACTER.name}</span>
-          <Meter
+          <LabeledMeter
             current={CHARACTER.health.current}
             max={CHARACTER.health.max}
-            label="Your health"
+            label="Health"
+            value={`${formatNumber(CHARACTER.health.current)} / ${formatNumber(CHARACTER.health.max)}`}
           />
-          <Meter
+          <LabeledMeter
             current={CHARACTER.resource.current}
             max={CHARACTER.resource.max}
             label="Rage"
+            value={`${CHARACTER.resource.current} / ${CHARACTER.resource.max}`}
             variant="rage"
           />
-          <span className="scene__hud-nums">
-            {formatNumber(CHARACTER.health.current)} / {formatNumber(CHARACTER.health.max)} ·{' '}
-            {CHARACTER.resource.current} Rage
-          </span>
         </figcaption>
         {target ? (
           <p className="visually-hidden">
@@ -165,8 +169,11 @@ function CombatLog() {
 }
 
 export function AreaScreen() {
+  const phone = useMediaQuery(PHONE_QUERY);
+  // Roster figures and spoils icons: ×1 on phones (approved), ×2 on wider screens.
+  const smallArt = phone ? 1 : 2;
   return (
-    <div className="area">
+    <div className={`area${phone ? '' : ' area--wide'}`}>
       <header className="area__head">
         <p className="area__region caps">
           {AREA.region} <span aria-hidden="true">·</span> Danger {'I'.repeat(AREA.danger)}{' '}
@@ -191,8 +198,10 @@ export function AreaScreen() {
       </header>
 
       <div className="area__grid">
-        <Scene />
-        <CombatLog />
+        <Scene phone={phone} />
+        <div className="area__log">
+          <CombatLog />
+        </div>
 
         <section className="roster" aria-labelledby="roster-title">
           <h2 id="roster-title" className="rule-heading">
@@ -206,7 +215,7 @@ export function AreaScreen() {
                   <span className="roster__plinth">
                     <PixelSprite
                       sprite={sprite}
-                      scale={1}
+                      scale={smallArt}
                       alt=""
                       mirror={sprite.facing === 'right'}
                     />
@@ -226,7 +235,7 @@ export function AreaScreen() {
           <ul className="spoils__list">
             {RECENT_DROPS.map((drop, i) => (
               <li key={i}>
-                <ItemFrame item={drop} scale={1} context="Recent drop" />
+                <ItemFrame item={drop} scale={smallArt} context="Recent drop" />
               </li>
             ))}
           </ul>

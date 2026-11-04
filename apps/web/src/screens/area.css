@@ -128,6 +128,15 @@
   margin-bottom: calc(var(--px) * -6);
 }
 
+/* Wider screens: sprites share the backdrop's density, so the ground needs less inset. */
+.scene--wide .scene__ground {
+  padding: 0 calc(var(--px) * 6);
+}
+
+.scene--wide .scene__foes {
+  gap: calc(var(--px) * 2);
+}
+
 .scene__foes {
   display: flex;
   align-items: flex-end;
@@ -155,6 +164,7 @@
 .foe__name {
   font-size: 11px;
   font-weight: 500;
+  line-height: 1.15;
   color: var(--bone-200);
   text-align: center;
   white-space: nowrap;
@@ -201,7 +211,7 @@
   top: var(--space-3);
   display: grid;
   gap: 3px;
-  width: 176px;
+  width: 196px;
   padding: var(--space-2) var(--space-3);
   background: rgb(12 10 9 / 0.78);
   border-left: 2px solid var(--brass-500);
@@ -212,19 +222,26 @@
   font-size: var(--text-sm);
 }
 
-.scene__hud-nums {
+.scene__hud .meter-field__text {
   font-size: 11px;
-  color: var(--text-dim);
 }
 
 /* ── Chronicle (combat log) ───────────────────────────────────────────── */
-.log {
+/* Desktop: the column spans the scene and the row below it, but never sets their height.
+   The Chronicle sizes to its entries and is capped at the column height (then scrolls),
+   so it never shows empty ruled rows. */
+.area__log {
   grid-area: log;
+  position: relative;
   align-self: stretch;
+}
+
+.log {
+  position: absolute;
+  inset: 0 0 auto;
   display: flex;
   flex-direction: column;
-  min-height: 0;
-  max-height: 640px;
+  max-height: 100%;
 }
 
 .log__head {
@@ -241,6 +258,7 @@
 }
 
 .log__list {
+  min-height: 0;
   overflow-y: auto;
   padding: var(--space-1) 0 var(--space-3);
   font-size: var(--text-sm);
@@ -350,6 +368,11 @@
   font-weight: 500;
 }
 
+.area--wide .roster__plinth {
+  width: 140px;
+  height: 136px;
+}
+
 .roster__count {
   font-size: var(--text-xs);
   color: var(--text-dim);
@@ -384,7 +407,12 @@
     width: auto;
   }
 
+  .area__log {
+    position: static;
+  }
+
   .log {
+    position: static;
     max-height: 360px;
   }
 }
@@ -424,5 +452,11 @@
 
   .scene__hud {
     width: 150px;
+  }
+
+  /* Phone plates are only 64 px wide: names wrap instead of running into each other. */
+  .foe__name {
+    font-size: 10px;
+    white-space: normal;
   }
 }

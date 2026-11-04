@@ -72,24 +72,36 @@ Grain (`--texture-grain`, an inline SVG noise tile) is the only texture. Keep it
 ## Components
 
 - **PixelSprite**: renders a manifest asset at an integer scale with `image-rendering: pixelated`. It floors fractional scales. If the image fails to load, it shows a dashed "art missing" box (the error state).
-- **ItemFrame**: a 32 px icon socket (×1 or ×2). It handles rarity frame, empty state (slot name), selected state, and keyboard/button semantics.
+- **ItemFrame**: a 32 px icon socket (×1, ×2 or ×3). Its outer size is `socketSize(scale)` = 32 × scale + 8 px (`lib/pixel.ts`). It handles rarity frame, empty state (slot name), selected state, and keyboard/button semantics.
 - **ItemTooltip**: name, rarity and base type, slot and item level, base stats, affixes (blue), unique effect (rarity-coloured rule), flavour (brass italic), and an optional comparison block with ▲/▼ deltas. Comparison math is in `apps/web/src/lib/compare.ts`.
 - **Meter**: health / rage / xp bars with `role="meter"`.
+- **LabeledMeter**: a Meter with its name and value written above it ("Health 842 / 1,046", "Rage 62 / 100"). Used for the combatant HUD on the area scene and the character plaque. The visible text is `aria-hidden`; the meter keeps its accessible name and values.
 - **Buttons**: `.btn`, an iron plate. The pressed state (`aria-pressed`) gets a brass underline.
 - **Rule heading**: `.rule-heading`, display face with a brass rule that fades to the right.
 
 ## Pixel-art scaling in layouts
 
-- **Area scene:** backdrop at an even scale N (`pixelScale(width, 384, { step: 2, min: 2, max: 4 })`), sprites at N/2. Below 768 px the backdrop stays ×2 and is cropped around its centre. It is never shrunk. On phones the scene runs edge to edge.
-- **Character portrait:** ×3 on desktop, ×2 on narrow screens.
-- **Item icons:** ×2 in the inventory, paper doll and tooltips. ×1 in compact lists (recent spoils, enemy roster).
+Ticket 0.4 raised every sprite on desktop by one integer step. Phone sizes (≤ 760 px, `PHONE_QUERY`) are the approved 0.3 sizes and do not change. Helpers and thresholds live in `apps/web/src/lib/pixel.ts`.
+
+| Where | Phone (≤ 760 px) | Wider screens | Rule |
+|---|---|---|---|
+| Area backdrop | ×2, cropped around its centre | even N from `pixelScale(width, 384, { step: 2, min: 2, max: 4 })`, ×2 in the 768 px desktop column | Never shrunk. On phones the scene runs edge to edge. |
+| Area hero and enemies | N/2 (×1) | **N (×2)** | `sceneSpriteScale`. Off-phone, sprites share the backdrop's pixel density. |
+| Foes roster | ×1 | **×2** | Plinth grows to 140 × 136. |
+| Recent spoils | ×1 | **×2** | Three per row. |
+| Character portrait | ×2 / ×3 by niche width | **×4** in a 512 px niche when the doll has room | "Room" = `DOLL_LARGE_MIN_WIDTH` (936 px), the doll gets the `doll--large` class. Otherwise ×3. |
+| Paper-doll sockets | ×2 | **×3** with the large doll | Slot text may wrap to two lines. |
+| Inventory sockets | ×2, five per row | **×3, 8 × 5 grid** when the pack is ≥ `PACK_LARGE_MIN_WIDTH` (1270 px) | Otherwise ×2 in ten (or eight below 1260 px) columns. |
+| Tooltips | ×2 | ×2 | Unchanged. |
+
+The large character and inventory variants are chosen from the measured width of the doll and the pack body, not from the viewport, so they only switch on when the bigger art actually fits. At 1440 px both are on. At 1280 px the approved ×3 / ×2 layout is used.
 
 ## Layout and responsiveness
 
 - Breakpoints: `760px` (phone: bottom navigation, single column, compact headings), `1080–1180px` (tablet: side columns drop below the main content).
 - Navigation: a top bar on desktop. On phones, a fixed bottom bar with three 56 px tap targets, and the top bar keeps only the wordmark and gold.
 - No horizontal page scroll down to 375 px. The screenshot script warns if it finds any.
-- Screens: Area = scene + Chronicle side column, with foes and spoils below. Character = three-column paper doll around the niche, with the attributes ledger and the inspected item beside it. On phones, the doll becomes a 4 × 3 socket grid under the portrait. Inventory = stash chest + pinned tooltips (selected with comparison, then currently equipped). On phones, the grid has five sockets per row, shows four rows, and gives a free-slot count.
+- Screens: Area = scene + Chronicle side column, with foes and spoils below. On desktop the Chronicle never sets the row height: it sizes to its entries and is capped at the height of the scene and the row below it, then scrolls. It never shows empty ruled rows. Every enemy has a small name above its health bar. The current target's name is brass with a marker. On wide screens the bar spans the middle 62.5 % of the sprite so plates never touch. On phones names are 10 px. Character = three-column paper doll around the niche, with the attributes ledger and the inspected item beside it. On phones, the doll becomes a 4 × 3 socket grid under the portrait. Inventory = stash chest + pinned tooltips (selected with comparison, then currently equipped). On desktop with room, the chest is an 8 × 5 grid at ×3, about as tall as the tooltip column, so there is no empty floor under it. On phones, the grid has five sockets per row, shows four rows, and gives a free-slot count. The rarity filters sit on one horizontally scrollable row that runs to the screen edges (no visible scrollbar; the cut-off chip signals more).
 
 ## States
 
@@ -104,8 +116,7 @@ Grain (`--texture-grain`, an inline SVG noise tile) is the only texture. Keep it
 - Interactive sockets are `<button>`s with `aria-pressed` and full labels (slot, item, rarity). Rarity filters are a labelled button group.
 - `prefers-reduced-motion` disables transitions.
 
-## Open points for ticket 0.4
+## Open points
 
-- Review the screenshots against GDD §3.2 / §3.4 with the owner.
 - The selected-socket outline and the focus ring are both brass. They are distinct (1 px vs 2 px, different tone), but this may need a stronger difference.
 - Mana, Focus and Soul Fragments meter colours are not defined yet. They are needed once other classes are playable.
