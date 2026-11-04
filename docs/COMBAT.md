@@ -36,4 +36,4 @@ Both are deterministic for a given seed. They consume the RNG differently, so th
 - Balance numbers are first-pass. Casters die more often than melee classes in the Fields.
 - Item stats are only an input; the loot module (ticket 1.5) produces them.
 - Damage over time, resources and skill loadouts come in later phases.
-- The window should be at least one full cycle (≈ 42 s) for any progress; settlement chunks of minutes are fine.
+- Windows shorter than the longest cycle (42 s: search + timeout + respawn) may return no progress; settle in chunks of minutes and carry `unusedMs` forward.
