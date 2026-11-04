@@ -237,7 +237,9 @@ describe('inventory API', () => {
       await unequip(thief, sword, owner.characterId),
       await discard(thief, sword, owner.characterId),
     ]) {
-      expect(res.statusCode).toBe(403);
+      // 404, not 403: another account's character looks like a missing one (ticket 1.9).
+      expect(res.statusCode).toBe(404);
+      expect(res.json()).toMatchObject({ error: { code: 'not_found' } });
     }
     // The thief's own character path with the owner's item id: the item isn't there.
     for (const res of [await equip(thief, sword), await discard(thief, sword)]) {

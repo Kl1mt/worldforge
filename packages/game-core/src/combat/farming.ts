@@ -35,6 +35,24 @@ export interface FarmingInput {
   seed: number | string;
   /** Simulated time window in milliseconds (non-negative integer). */
   durationMs: number;
+  /**
+   * Per-cycle RNG. When set, cycle `i` of this window draws from its own stream seeded with
+   * `${seed}:${firstCycle + i}` instead of one stream for the whole window. A cycle's outcome then
+   * depends only on the seed, its global index and the state at its start — not on where a
+   * settlement window happened to end — so settling more or less often cannot re-roll an
+   * unfinished cycle (ticket 1.9). Offline settlement always sets it.
+   */
+  firstCycle?: number;
+}
+
+/** A committed cycle, reported to `SimulationOptions.onCycle`. */
+export interface CycleRecord {
+  /** Global cycle index (`firstCycle` + position in the window); position when unset. */
+  index: number;
+  outcome: 'kill' | 'death' | 'timeout';
+  enemyId: EnemyId;
+  /** Character level at the start of the cycle (before any level-up from this kill). */
+  level: number;
 }
 
 /** Compact combat log entry; `t` is milliseconds since the start of the window. */
@@ -78,6 +96,8 @@ export interface FarmingResult {
 
 export interface SimulationOptions {
   config?: CombatConfig;
+  /** Called once per committed cycle, in order (e.g. to roll loot per kill). */
+  onCycle?: (cycle: CycleRecord) => void;
 }
 
 export interface DetailedSimulationOptions extends SimulationOptions {
@@ -117,6 +137,12 @@ function validateInput(input: FarmingInput, config: CombatConfig): void {
   if (character.health !== undefined && !Number.isFinite(character.health)) {
     throw new RangeError(`Invalid health: ${character.health}`);
   }
+  if (
+    input.firstCycle !== undefined &&
+    (!Number.isSafeInteger(input.firstCycle) || input.firstCycle < 0)
+  ) {
+    throw new RangeError(`Invalid firstCycle: ${input.firstCycle}`);
+  }
   if (!Number.isInteger(durationMs) || durationMs < 0 || durationMs > config.maxDurationMs) {
     throw new RangeError(`Invalid duration: ${durationMs}`);
   }
@@ -132,9 +158,12 @@ function runFarming(
   resolveFight: FightResolver,
   buffer: CombatEvent[] | null,
   sink: EventSink | null,
+  onCycle?: (cycle: CycleRecord) => void,
 ): FarmingResult {
   validateInput(input, config);
-  const rng = createRng(input.seed);
+  const perCycle = input.firstCycle !== undefined;
+  const firstCycle = input.firstCycle ?? 0;
+  let rng = createRng(input.seed);
   const area = getArea(input.areaId);
   const { classId } = input.character;
   const equipment = input.equipment ?? [];
@@ -169,6 +198,7 @@ function runFarming(
     const fightStart = cycleStart + config.searchMs;
     if (fightStart > input.durationMs) break;
     const healthAtFight = Math.min(stats.health, health + regen);
+    if (perCycle) rng = createRng(`${input.seed}:${firstCycle + encounters}`);
 
     const setup = rollEncounter(rng, area, classId, level, stats, config);
     buffer?.push({
@@ -183,6 +213,12 @@ function runFarming(
     if (cycleEnd > input.durationMs) break;
 
     // Commit the cycle.
+    onCycle?.({
+      index: firstCycle + encounters,
+      outcome: outcome.kind,
+      enemyId: setup.enemyId,
+      level,
+    });
     encounters++;
     const lost = Math.min(healthAtFight, outcome.enemyHits * setup.enemyHit);
     damageTaken += lost;
@@ -306,6 +342,7 @@ export function simulateFarming(
     (setup, health, rng, startMs) => resolveFightDetailed(setup, health, rng, startMs, buffer),
     buffer,
     sink,
+    options.onCycle,
   );
   events = maxEvents === 0 ? [] : events.slice(-maxEvents);
   return { ...result, events, eventsDropped: total - events.length };
@@ -333,5 +370,5 @@ export function simulateFarmingAggregate(
     }
     return sampleFight(setup, health, rng, distribution);
   };
-  return runFarming(input, config, resolver, null, null);
+  return runFarming(input, config, resolver, null, null, options.onCycle);
 }

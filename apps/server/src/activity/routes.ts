@@ -16,7 +16,8 @@ import { ApiError } from '../errors.js';
 import { characterView, type CharacterView } from '../characters/routes.js';
 import {
   emptySummary,
-  newSeedSecret,
+  endActivityTx,
+  initialFarmState,
   settleActivityTx,
   type ActivityOptions,
   type SettleOutcome,
@@ -151,7 +152,7 @@ export async function registerActivities(
           .select({ activeCharacterId: accounts.activeCharacterId })
           .from(accounts)
           .where(eq(accounts.id, accountId))
-          .for('update');
+          .for('no key update');
         await ownedCharacter(tx, accountId, characterId);
         if (account?.activeCharacterId !== characterId) {
           throw new ApiError(
@@ -166,8 +167,8 @@ export async function registerActivities(
           .from(activities)
           .where(and(eq(activities.accountId, accountId), ne(activities.characterId, characterId)));
         for (const other of others) {
-          await settleActivityTx(tx, other.characterId, options, { touch: true });
-          await tx.delete(activities).where(eq(activities.characterId, other.characterId));
+          const settled = await settleActivityTx(tx, other.characterId, options, { touch: true });
+          if (settled) await endActivityTx(tx, settled.activity);
           await writeAudit(tx, {
             event: 'activity.stop',
             accountId,
@@ -197,19 +198,21 @@ export async function registerActivities(
         }
 
         const now = options.now();
+        const farmState = initialFarmState(await ownedCharacter(tx, accountId, characterId));
         const [activity] = await tx
           .insert(activities)
           .values({
             characterId,
             accountId,
             areaId,
-            seedSecret: newSeedSecret(),
+            seedSecret: farmState.seedSecret,
+            cycleIndex: farmState.cycleIndex,
             settlementSeq: 0,
             startedAt: now,
             settledAt: now,
             lastSeenAt: now,
             carryMs: 0,
-            health: null,
+            health: farmState.health,
             summary: emptySummary(now),
             updatedAt: now,
           })
@@ -265,7 +268,7 @@ export async function registerActivities(
           ...outcome.activity.summary,
           until: outcome.activity.settledAt.toISOString(),
         };
-        await tx.delete(activities).where(eq(activities.characterId, characterId));
+        await endActivityTx(tx, outcome.activity);
         await writeAudit(tx, {
           event: 'activity.stop',
           accountId,

@@ -330,3 +330,104 @@ describe('settlement', () => {
     expect(await inventoryCount(id)).toBe(capacity);
   });
 });
+
+/** Ticket 1.9 exploit review: fixes that keep the timing of client requests from changing rewards. */
+describe('hardening (ticket 1.9)', () => {
+  it('advances cycle_index by the completed cycles and seeds by it, not by settlement count', async () => {
+    const { p, id } = await farmer();
+    advance(20 * MIN);
+    const { summary } = (await settle(p, id)).json<SettleResponse>();
+    const [row] = await database.db.select().from(activities).where(eq(activities.characterId, id));
+    expect(summary.kills).toBeGreaterThan(0);
+    expect(row!.cycleIndex).toBeGreaterThanOrEqual(summary.kills + summary.deaths);
+    // Half a second finishes at most one cycle, and the index moves by exactly what completed.
+    advance(500);
+    const next = (await settle(p, id)).json<SettleResponse>().summary;
+    const [again] = await database.db
+      .select()
+      .from(activities)
+      .where(eq(activities.characterId, id));
+    const delta = again!.cycleIndex - row!.cycleIndex;
+    expect(delta).toBeLessThanOrEqual(1);
+    expect(delta).toBeGreaterThanOrEqual(next.kills + next.deaths);
+  });
+
+  it('stop → start restores health, seed secret and cycle index (no free heal or re-roll)', async () => {
+    // A mage at level 1 takes damage; stop/start used to reset health to full and re-roll the
+    // next encounter (simulated: 0 deaths and +25 % kills when cycled after every kill).
+    const { p, id } = await farmer('mage');
+    advance(10 * MIN);
+    await settle(p, id);
+    const [before] = await database.db
+      .select()
+      .from(activities)
+      .where(eq(activities.characterId, id));
+    expect((await stop(p, id)).statusCode).toBe(200);
+    const saved = (await characterRow(id)).farmState;
+    expect(saved).toEqual({
+      seedSecret: before!.seedSecret,
+      cycleIndex: before!.cycleIndex,
+      health: before!.health,
+    });
+    expect((await start(p, id)).statusCode).toBe(201);
+    const [after] = await database.db
+      .select()
+      .from(activities)
+      .where(eq(activities.characterId, id));
+    expect(after).toMatchObject({
+      seedSecret: before!.seedSecret,
+      cycleIndex: before!.cycleIndex,
+      health: before!.health,
+    });
+    // The farm state is never part of a response.
+    const list = await call(p, 'GET', '/api/characters');
+    expect(list.body).not.toContain(before!.seedSecret);
+    expect(list.body).not.toContain('farmState');
+  });
+
+  it('switching characters saves the stopped character’s farm state', async () => {
+    const { p, id } = await farmer();
+    advance(5 * MIN);
+    const second = await newCharacter(p);
+    expect((await start(p, second)).statusCode).toBe(201);
+    expect((await characterRow(id)).farmState?.cycleIndex).toBeGreaterThan(0);
+  });
+
+  async function grantItem(characterId: string, baseId = 'longsword-notched') {
+    const id = uuidv7();
+    await database.db.insert(itemInstances).values({
+      id,
+      characterId,
+      baseId,
+      rarityId: 'common',
+      itemLevel: 1,
+      seed: 1,
+      source: 'test',
+    });
+    return id;
+  }
+
+  it('equip, unequip and discard settle the running activity first (no retroactive gear)', async () => {
+    const { p, id } = await farmer();
+    const sword = await grantItem(id);
+    const junk = await grantItem(id, 'iron-ring');
+    for (const [method, url] of [
+      ['POST', `/api/characters/${id}/items/${sword}/equip`],
+      ['POST', `/api/characters/${id}/items/${sword}/unequip`],
+      ['DELETE', `/api/characters/${id}/items/${junk}`],
+    ] as const) {
+      advance(30 * MIN);
+      const audits = (await rewardAudits(id)).length;
+      const res = await app.inject({ method, url, cookies: { [SESSION_COOKIE]: p.token } });
+      expect(res.statusCode).toBe(200);
+      // The 30 minutes before the change were credited with the gear worn during them.
+      expect(await rewardAudits(id)).toHaveLength(audits + 1);
+      const [row] = await database.db
+        .select()
+        .from(activities)
+        .where(eq(activities.characterId, id));
+      expect(row!.settledAt.getTime()).toBe(nowMs);
+      expect(row!.lastSeenAt.getTime()).toBe(nowMs);
+    }
+  });
+});

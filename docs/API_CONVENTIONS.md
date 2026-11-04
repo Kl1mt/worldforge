@@ -35,8 +35,8 @@ Every non-2xx response has this shape:
 | ------ | -------------------------------- | ----------------------------------------------------------- |
 | 400    | `validation_failed`              | Body/query/params failed schema validation                  |
 | 401    | `unauthenticated`                | No or invalid session                                       |
-| 403    | `forbidden`                      | Authenticated, but not allowed (e.g. someone else's char)   |
-| 404    | `not_found`                      | Route or resource does not exist                            |
+| 403    | `forbidden`                      | Authenticated, but not allowed (not used for other accounts' resources, see 404) |
+| 404    | `not_found`                      | Route or resource does not exist — **also for another account's resource** (ticket 1.9), so ids can't be probed |
 | 409    | `conflict` / `idempotency_conflict` | State conflict, or idempotency key reused with another body |
 | 422    | domain codes, e.g. `slot_mismatch`, `insufficient_gold` | Valid request that the game rules reject |
 | 429    | `rate_limited`                   | Too many requests                                           |
@@ -48,7 +48,9 @@ Every non-2xx response has this shape:
 - The server never accepts client-computed outcomes: no currency amounts, item rolls, combat results, damage numbers or scores in request bodies (GDD §16.3). Clients send intents and IDs only.
 
 ## Idempotency
-- Every state-changing `POST`/`PATCH`/`DELETE` that grants, spends or moves value (claiming offline rewards, equipping, selling, crafting) requires an `Idempotency-Key` header (a client-generated UUID).
+**Phase 1 status (ticket 1.9 review):** the `Idempotency-Key` mechanism below is *not implemented yet*. Every Phase 1 mutation is idempotent by state instead, so a retried or duplicated request cannot duplicate value: settle credits elapsed server time once (row locks; a repeat credits ~0 and returns an empty summary); start is a no-op for the same area; stop/settle without an activity answer `409 not_farming`; equip into the current slot and unequip of an inventory item are no-ops; a second discard of the same item is `404`; register and character creation are guarded by unique indexes (`409`). The header becomes mandatory with the first operation that is not idempotent by state (selling, crafting, trading).
+
+- Every state-changing `POST`/`PATCH`/`DELETE` that grants, spends or moves value (selling, crafting) will require an `Idempotency-Key` header (a client-generated UUID).
 - The server stores `(accountId, key) → request hash + response` for 24 hours inside the same transaction as the mutation. A retry with the same key and body returns the stored response; the same key with a different body returns `409 idempotency_conflict`.
 - Reward grants are additionally guarded by state (e.g. an offline-progress window can be claimed once, enforced by a unique constraint), so a lost idempotency record cannot duplicate loot.
 
@@ -79,11 +81,11 @@ Every non-2xx response has this shape:
 | POST   | `/api/characters/:characterId/activity` | Body `{ areaId }` → `201 { activity, character }` (or `200` if already farming that area; another area switches after settling). Stops the account's other activity. `400 validation_failed` (`details.fields.areaId`), `409 character_not_active` |
 | POST   | `/api/characters/:characterId/activity/settle` | `200 { activity, character, summary }`: settles from server time and returns the return summary since the previous call (see `docs/FARMING.md`). `409 not_farming` |
 | POST   | `/api/characters/:characterId/activity/stop` | `200 { activity: null, character, summary }`: settles, then stops. `409 not_farming` |
-| POST   | `/api/characters/:characterId/select` | `200 { character }` and makes it the account's active character. `403 forbidden` for another account's character, `404 not_found`, `400` for a malformed id |
-| GET    | `/api/characters/:characterId/inventory` | `200 { equipped, inventory, stats }` — equipped items in canonical slot order, unequipped items oldest first, and the character's effective stats with that equipment (derived server-side). Not paginated: bounded by inventory capacity (ticket 1.6). `403 forbidden` for another account's character, `404 not_found` |
+| POST   | `/api/characters/:characterId/select` | `200 { character }` and makes it the account's active character. `404 not_found` for a missing or another account's character (ticket 1.9: no `403`, so ids can't be probed), `400` for a malformed id |
+| GET    | `/api/characters/:characterId/inventory` | `200 { equipped, inventory, stats }` — equipped items in canonical slot order, unequipped items oldest first, and the character's effective stats with that equipment (derived server-side). Not paginated: bounded by inventory capacity (ticket 1.6). `404 not_found` for a missing or another account's character |
 | POST   | `/api/characters/:characterId/items/:itemId/equip` | Optional body `{ slot }` (an `EquipmentSlotId`) → `200` inventory body. Without `slot` the item's only slot is used; a ring goes to the first free of `ring1`/`ring2` (else `ring1`), an already equipped item stays put. The previous occupant of the slot goes back to the inventory, except that moving an equipped ring onto the other ring slot swaps the two rings. Equipping into the current slot is a no-op. `422 wrong_slot` / `wrong_class` / `item_unusable` (base no longer in content), `400` for an unknown slot or extra fields, `404 not_found` if the item isn't this character's |
-| POST   | `/api/characters/:characterId/items/:itemId/unequip` | `200` inventory body; no-op for an item already in the inventory. Same `403`/`404` rules |
-| DELETE | `/api/characters/:characterId/items/:itemId` | Discards (deletes) an inventory item → `200` inventory body. `409 item_equipped` if it is equipped (unequip first). Same `403`/`404` rules |
+| POST   | `/api/characters/:characterId/items/:itemId/unequip` | `200` inventory body; no-op for an item already in the inventory. Same `404` rules |
+| DELETE | `/api/characters/:characterId/items/:itemId` | Discards (deletes) an inventory item → `200` inventory body. `409 item_equipped` if it is equipped (unequip first). Same `404` rules |
 
 `account` is `{ id, email, displayName, characterSlots, createdAt }`. Registration rules (`apps/server/src/auth/validation.ts`): email trimmed, `x@y.tld` shape, ≤ 254 chars, unique case-insensitively; display name trimmed, 3–20 letters/digits with single spaces, `-`, `'` or `_` inside, unique case-insensitively; password 10–128 characters and not equal to the email. Passwords are hashed with argon2id (`@node-rs/argon2`, 19 MiB, t=2, p=1).
 
@@ -92,5 +94,7 @@ Every non-2xx response has this shape:
 Activity routes return `404 not_found` for another account's character (no distinction from a missing one).
 
 `item` is `{ id, baseId, rarityId, itemLevel, affixes: [{ affixId, tier, value }], equippedSlot, source, createdAt }` (no seed). `stats` is a game-core `StatBlock`. Clients send item ids and slots only; items are created only by the server (loot, ticket 1.6). Every inventory change locks the character row in one transaction, so changes to one character are serialized; the partial unique index on `(character_id, equipped_slot)` is the database backstop (a clash would surface as `409 slot_conflict`). An item id under another character's path is `404`, so item ids can't be probed.
+
+Equip, unequip and discard first settle the character's running activity (as client contact), so the time before the change is credited with the gear that was worn (ticket 1.9, `docs/FARMING.md`).
 
 Audit events: `activity.start` (`data.areaId`), `activity.stop`, `activity.reward` (per settlement with a reward: credited/capped ms, kills, xp, gold, items, salvaged, epic+ items with seeds), `item.discard` (`data`: item id, base, rarity, item level, seed; equip/unequip are not audited because they move no value), `character.create` (character id, `data.classId`), `account.register`, `auth.login`, `auth.login_failed` (`data.reason`: `unknown_email` / `bad_password`; account id when known), `auth.logout`. No emails, IPs or passwords are written to the audit log.

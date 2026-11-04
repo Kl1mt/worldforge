@@ -27,7 +27,7 @@ Node 22 (`.nvmrc`), pnpm 10. Run from the repo root:
 - `pnpm dev` — server on :3000 (tsx watch) + web on :5173 (Vite, proxies `/api` → :3000).
 - `pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build` — the full check suite (same as CI). `pnpm format` fixes formatting.
 - Single package: `pnpm --filter @worldforge/<game-core|server|web> <script>`.
-- Database: `pnpm db:up` (Docker Postgres), `pnpm db:migrate`, `pnpm db:generate` (new migration after editing `apps/server/src/db/schema.ts`). Server tests use in-memory PGlite (`createTestDatabase()`), no Docker needed.
+- Database: `pnpm db:up` (Docker Postgres), `pnpm db:migrate`, `pnpm db:generate` (new migration after editing `apps/server/src/db/schema.ts`). Server tests use in-memory PGlite (`createTestDatabase()`), no Docker needed. Real-Postgres concurrency tests: `DATABASE_URL=… pnpm --filter @worldforge/server test:pg` (skipped without `DATABASE_URL`; CI runs them).
 
 Layout: `packages/game-core` (pure TS rules + content, no DOM/Node), `apps/server` (Fastify, `buildApp()`), `apps/web` (Vite + React).
 Workspace packages are resolved from TS source via the `source` export condition in dev/test/typecheck, and from `dist/` in production builds (`pnpm build` builds in dependency order).

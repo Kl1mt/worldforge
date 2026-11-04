@@ -75,7 +75,7 @@ describe('migrations', () => {
       db(),
       sql`select count(*)::int as n from drizzle.__drizzle_migrations`,
     );
-    expect(applied[0]).toEqual({ n: 4 });
+    expect(applied[0]).toEqual({ n: 5 });
     expect(await db().$count(accounts)).toBe(1);
   });
 });

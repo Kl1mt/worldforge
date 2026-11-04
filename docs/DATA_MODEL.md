@@ -58,10 +58,11 @@ A session is valid iff `revoked_at IS NULL AND expires_at > now()` (the server c
 | level          | integer     | default 1, `CHECK (>= 1)`                        |
 | experience     | bigint      | default 0, `CHECK (>= 0)`; within the current level |
 | gold           | bigint      | default 0, `CHECK (>= 0)`                        |
+| farm_state     | jsonb?      | `{ seedSecret, cycleIndex, health }` saved when the character's activity ends and restored when it starts again (ticket 1.9), so stop → start neither heals nor re-rolls. Never sent to clients |
 | version        | integer     | default 0; optimistic concurrency counter for later value-changing writes |
 | created_at / updated_at | timestamptz | default `now()`                         |
 
-`rng_state` from the draft is not used: settlement seeds come from a per-activity secret (see `activities`). Characters cannot be deleted or renamed yet.
+`rng_state` from the draft is not used: settlement RNG comes from a per-character secret and cycle index (see `activities` and `farm_state`). Characters cannot be deleted or renamed yet.
 
 ### audit_log — implemented (1.1)
 Append-only (the server never updates or deletes rows) for valuable or security-relevant events (auth events, item grants of epic+, deletions, rewards).
@@ -100,8 +101,9 @@ The character's current farming activity. Settlement rules: `docs/FARMING.md`.
 | character_id   | uuid PK/FK  | → `characters.id` `ON DELETE CASCADE`; one activity per character  |
 | account_id     | uuid FK     | → `accounts.id` `ON DELETE CASCADE`; **unique** (one farming character per account) |
 | area_id        | text        | game-core `AreaId`                                                 |
-| seed_secret    | text        | 128-bit random hex, never sent to clients; seed = `${seed_secret}:${settlement_seq}` |
-| settlement_seq | integer     | settlements so far, `CHECK (>= 0)`                                  |
+| seed_secret    | text        | 128-bit random hex, never sent to clients; carried over in `characters.farm_state` |
+| settlement_seq | integer     | settlements that credited time, `CHECK (>= 0)` (audit only)         |
+| cycle_index    | bigint      | cycles completed with `seed_secret`, `CHECK (>= 0)`; cycle `i` uses RNG `${seed_secret}:${i}` (ticket 1.9) |
 | started_at     | timestamptz | start (or last area switch)                                        |
 | settled_at     | timestamptz | progress computed up to here (server clock); indexed for the scheduler |
 | last_seen_at   | timestamptz | last client contact; offline credit ends at `last_seen_at + OFFLINE_CAP_SECONDS` |
@@ -110,10 +112,10 @@ The character's current farming activity. Settlement rules: `docs/FARMING.md`.
 | summary        | jsonb       | rewards since the client last collected the return summary         |
 | updated_at     | timestamptz |                                                                    |
 
-Stopping deletes the row (the audit log keeps the history). Per-settlement history lives in the audit log (`activity.reward`) rather than an `offline_settlement` table for now.
+Stopping deletes the row after saving `seed_secret`, `cycle_index` and `health` to `characters.farm_state` (the audit log keeps the history). Per-settlement history lives in the audit log (`activity.reward`) rather than an `offline_settlement` table for now.
 
-### idempotency_key
-`(account_id, key) PK`, `request_hash`, `response jsonb`, `status_code`, `created_at` (expired after 24h). See `docs/API_CONVENTIONS.md`.
+### idempotency_key — not implemented (planned)
+Phase 1 endpoints are idempotent by state (see `docs/API_CONVENTIONS.md`, Idempotency); this table arrives with the first non-idempotent value operation. `(account_id, key) PK`, `request_hash`, `response jsonb`, `status_code`, `created_at` (expired after 24h). See `docs/API_CONVENTIONS.md`.
 
 ## Relationships
 

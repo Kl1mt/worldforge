@@ -126,7 +126,7 @@ GDD: §3, §9.2, §14, §18.
 - Equip/unequip from inventory with comparison tooltip. Loading, empty, error, success states.
 **Acceptance:** Playwright run of: register → create character → farm → get loot → equip; screenshots.
 
-### 1.9 Phase 1 hardening — `todo`
+### 1.9 Phase 1 hardening — `done (PR #18)`
 GDD: §15 Phase 1 exit criteria, §16.3.
 - End-to-end test of the full exit-criteria flow including offline return (with simulated time).
 - Exploit review: duplicate requests, replay, concurrency, negative/overflow values, cap bypass. Fix what's found.
@@ -136,6 +136,24 @@ GDD: §15 Phase 1 exit criteria, §16.3.
 - Turn `tools/e2e/farm-loop.mjs` (ticket 1.8) into the exit-criteria e2e run and add it to CI if it runs in a reasonable time.
 - Balance sanity check (not tuning): in the 1.8 e2e runs, characters died often (e.g. 12 deaths in ~30 simulated minutes). Record the numbers in `docs/COMBAT.md` as a starting point for later balancing.
 - Update docs; Phase 1 retrospective notes in this file.
+
+### Phase 1 retrospective (ticket 1.9)
+**Exit criteria (GDD §15 Phase 1): met.** Checked end to end twice: through the HTTP API with a simulated clock (`apps/server/src/e2e/exit-criteria.test.ts`: register → create → farm → XP and loot → equip → log out → 5 h later log in → capped, audit-reconciled offline summary; replays and the revoked session grant nothing), and in a real browser at 1440/390 px (`tools/e2e/farm-loop.mjs`, now CI job `e2e`). "No critical duplication or reward exploits remain" holds after the fixes below; the accepted risks are listed in PR #18.
+
+**What the exploit review found.** The serious problems were not in locking or validation (the row locks held under real parallel transactions, and no client numbers reach the rules) but in *timing*: two ways to farm better by choosing when to send ordinary requests.
+- Settle spam re-rolled the unfinished encounter every window: settling every second removed nearly all deaths and gave ~+20 % kills. Fixed with per-cycle RNG keyed by a global cycle index, so a span of farming gives the same result however it is split (game-core tests pin exact equality).
+- Stop → start healed to full and re-rolled the next encounter (level-1 mage: 0 deaths, +25 % kills). Fixed by saving the farm state (secret, cycle index, health) on the character.
+- Equipment and discards applied retroactively to the unsettled window. Fixed by settling before inventory changes.
+- Another account's character answered `403` (ids could be probed); now `404` everywhere.
+
+**What went well.** game-core as pure, seeded functions made both timing exploits measurable in a few lines and their fixes provable by exact-equality tests. Server-side clock injection made the offline cap and the exit-criteria flow testable without waiting. Ticket order (rules → persistence → UI) kept each PR reviewable.
+
+**What to do differently in Phase 2.**
+- Test invariances, not just outcomes: "the result must not depend on how often the client calls X" should be a standard property test for every time-based system (activities, crafting timers, world events).
+- Run concurrency tests on real PostgreSQL from the ticket that adds the lock, not afterwards; PGlite serialises transactions and hid a removed lock in a mutation check.
+- Docs promised an `Idempotency-Key` mechanism that was never built; Phase 1 is idempotent by state instead (documented). Build the header with the first non-idempotent value operation (selling, crafting, trading).
+- Balance is untouched: casters die about once a minute at levels 1–3, and every class reaches the Fields' top level within one 3 h cap (`docs/COMBAT.md`, baseline). Phase 2's world structure needs a balancing pass with these numbers.
+- Carry-overs: per-account rate limits on game routes (requests are reward-neutral now, but cost DB time); per-account login throttling; area/equipment changes re-simulating the unfinished cycle (harmless with one area); email verification, password reset, session pruning (ticket 1.2 follow-ups).
 
 ## Art tickets (run alongside the phases)
 

@@ -233,8 +233,9 @@ describe('characters API', () => {
     const c = (await create(owner, body())).json<{ character: CharacterView }>().character;
 
     const res = await select(other, c.id);
-    expect(res.statusCode).toBe(403);
-    expect(res.json()).toMatchObject({ error: { code: 'forbidden' } });
+    // 404, not 403: the answer must not reveal that the id exists (ticket 1.9).
+    expect(res.statusCode).toBe(404);
+    expect(res.json()).toMatchObject({ error: { code: 'not_found' } });
     expect((await list(other)).json<ListBody>().activeCharacterId).toBeNull();
 
     const missing = await select(other, '01900000-0000-7000-8000-000000000000');

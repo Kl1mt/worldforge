@@ -18,6 +18,7 @@ import { constraintOf, sqlStateOf, withTransaction } from '../db/transaction.js'
 import type { Transaction } from '../db/types.js';
 import { writeAudit } from '../db/audit.js';
 import { ApiError } from '../errors.js';
+import { settleActivityTx, type ActivityOptions } from '../activity/settle.js';
 
 /**
  * Inventory & equipment (ticket 1.7, GDD §7.1, §14 steps 4–5). Items are created only by the
@@ -153,22 +154,29 @@ interface ItemParams {
 
 const UNIQUE_VIOLATION = '23505';
 
-/** Locks the character row (serializing inventory changes) and checks ownership. */
+/** Same answer for "doesn't exist" and "another account's": character ids can't be probed. */
+const characterNotFound = () => new ApiError(404, 'not_found', 'No such character.');
+
+/**
+ * Locks the character row (serializing inventory changes), checks ownership, and settles its
+ * running activity first (ticket 1.9). Without that, a change made now would apply to the whole
+ * unsettled window: equip a gold-find set just before settling and hours of farming would count
+ * with it, or discard items so earlier drops are not salvaged by the capacity rule.
+ */
 async function lockOwnedCharacter(
   tx: Transaction,
   accountId: string,
   characterId: string,
+  activity: ActivityOptions,
 ): Promise<Character> {
   const [character] = await tx
     .select()
     .from(characters)
-    .where(eq(characters.id, characterId))
-    .for('update');
-  if (!character) throw new ApiError(404, 'not_found', 'No such character.');
-  if (character.accountId !== accountId) {
-    throw new ApiError(403, 'forbidden', 'This character belongs to another account.');
-  }
-  return character;
+    .where(and(eq(characters.id, characterId), eq(characters.accountId, accountId)))
+    .for('no key update');
+  if (!character) throw characterNotFound();
+  const settled = await settleActivityTx(tx, characterId, activity, { touch: true });
+  return settled?.character ?? character;
 }
 
 async function loadItems(tx: Transaction, characterId: string): Promise<ItemInstance[]> {
@@ -209,7 +217,10 @@ async function inventoryTransaction<T>(
   }
 }
 
-export async function registerInventory(app: FastifyInstance): Promise<void> {
+export async function registerInventory(
+  app: FastifyInstance,
+  activity: ActivityOptions,
+): Promise<void> {
   app.get<{ Params: { characterId: string } }>(
     '/characters/:characterId/inventory',
     {
@@ -224,10 +235,7 @@ export async function registerInventory(app: FastifyInstance): Promise<void> {
           .select()
           .from(characters)
           .where(eq(characters.id, characterId));
-        if (!character) throw new ApiError(404, 'not_found', 'No such character.');
-        if (character.accountId !== accountId) {
-          throw new ApiError(403, 'forbidden', 'This character belongs to another account.');
-        }
+        if (!character || character.accountId !== accountId) throw characterNotFound();
         const items = await tx
           .select()
           .from(itemInstances)
@@ -253,7 +261,7 @@ export async function registerInventory(app: FastifyInstance): Promise<void> {
       const { characterId, itemId } = request.params;
       const requested = request.body?.slot;
       return inventoryTransaction(app, async (tx) => {
-        const character = await lockOwnedCharacter(tx, accountId, characterId);
+        const character = await lockOwnedCharacter(tx, accountId, characterId, activity);
         const items = await loadItems(tx, characterId);
         const item = findItem(items, itemId);
 
@@ -310,7 +318,7 @@ export async function registerInventory(app: FastifyInstance): Promise<void> {
       const accountId = request.auth!.account.id;
       const { characterId, itemId } = request.params;
       return inventoryTransaction(app, async (tx) => {
-        const character = await lockOwnedCharacter(tx, accountId, characterId);
+        const character = await lockOwnedCharacter(tx, accountId, characterId, activity);
         const items = await loadItems(tx, characterId);
         const item = findItem(items, itemId);
         // Idempotent: unequipping an inventory item changes nothing. Inventory capacity is
@@ -334,7 +342,7 @@ export async function registerInventory(app: FastifyInstance): Promise<void> {
       const accountId = request.auth!.account.id;
       const { characterId, itemId } = request.params;
       return inventoryTransaction(app, async (tx) => {
-        const character = await lockOwnedCharacter(tx, accountId, characterId);
+        const character = await lockOwnedCharacter(tx, accountId, characterId, activity);
         const items = await loadItems(tx, characterId);
         const item = findItem(items, itemId);
         if (item.equippedSlot !== null) {

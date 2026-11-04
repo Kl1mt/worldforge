@@ -32,6 +32,13 @@ export function constraintOf(err: unknown): string | undefined {
   return undefined;
 }
 
+/**
+ * Process-wide count of transactions retried after a serialization failure or deadlock. Retries
+ * are correct but hide lock-order problems, so the real-PostgreSQL concurrency tests assert that
+ * their races cause none (ticket 1.9).
+ */
+export const transactionStats = { retries: 0 };
+
 export function isRetryableTransactionError(err: unknown): boolean {
   const state = sqlStateOf(err);
   return state !== undefined && RETRYABLE_SQLSTATES.has(state);
@@ -53,6 +60,7 @@ export async function withTransaction<T>(
       return await db.transaction(fn, { isolationLevel });
     } catch (err) {
       if (attempt >= maxAttempts || !isRetryableTransactionError(err)) throw err;
+      transactionStats.retries++;
       // Short jittered backoff so competing transactions don't collide again in lockstep.
       await new Promise((r) => setTimeout(r, Math.random() * 10 * attempt));
     }
