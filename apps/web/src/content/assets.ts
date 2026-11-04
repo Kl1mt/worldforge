@@ -61,6 +61,17 @@ export const ASSETS = {
   'character.hunter': character('hunter'),
   'character.warlock': character('warlock'),
   'area.abandoned-fields': { path: '/assets/areas/abandoned-fields.png', width: 384, height: 216 },
+  'hub.graumark': { path: '/assets/hub/graumark.png', width: 384, height: 216 },
+  'map.graumark': { path: '/assets/map/graumark.png', width: 384, height: 216 },
+  'area.crowwood': { path: '/assets/areas/crowwood.png', width: 384, height: 216 },
+  'area.old-burial-grounds': {
+    path: '/assets/areas/old-burial-grounds.png',
+    width: 384,
+    height: 216,
+  },
+  'area.blackwater': { path: '/assets/areas/blackwater.png', width: 384, height: 216 },
+  'area.sunken-abbey': { path: '/assets/areas/sunken-abbey.png', width: 384, height: 216 },
+  'area.nameless-crypt': { path: '/assets/areas/nameless-crypt.png', width: 384, height: 216 },
 } as const satisfies Record<string, SpriteAsset>;
 
 export type AssetId = keyof typeof ASSETS;

@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, backdrop, top-down painted map of the dark borderland of Graumark on aged dark parchment, a small fortified town in the centre, abandoned farm fields, a dark forest, a graveyard with headstones, a black marsh, a half-sunken ruined abbey by a lake, a crypt entrance in the hills, winding dirt roads connecting them, faded ink and worn edges, muted desaturated palette, charcoal and deep brown, aged brass and dim crimson accents, gloomy overcast light",
+  "style_image": "apps/web/public/assets/areas/abandoned-fields.png",
+  "job_id": "9eef1134-34b4-4b4a-92f2-5a3e344ab03d",
+  "created_at": "2026-11-04T14:28:55.120162+00:00",
+  "seed": 94705210,
+  "generations": 15.0,
+  "count": 1,
+  "width": 384,
+  "height": 216
+}

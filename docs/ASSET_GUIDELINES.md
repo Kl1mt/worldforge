@@ -7,10 +7,12 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | Path | Contents |
 |---|---|
 | `art/source/pixellab/<batch>/` | Raw generator output, unedited: `NN.png`, `_contact-sheet.png`, `_job.json` (prompt, size, seed, job id). Never served. |
-| `apps/web/public/assets/{items,enemies,characters,areas}/` | Curated picks at **native resolution**, kebab-case names (`iron-helm.png`). |
+| `apps/web/public/assets/{items,enemies,characters,areas,hub,map}/` | Curated picks at **native resolution**, kebab-case names (`iron-helm.png`). |
 | `apps/web/public/assets/manifest.json` | One entry per curated asset (see below). |
 | `art/preview-phase-0.png` | Combined preview of all curated Phase 0 assets. |
 | `art/preview-class-portraits.png` | The four class portraits side by side at ×3. |
+| `art/preview-hub-map-areas.png` | Hub, world map and all area backdrops at ×2. |
+| `art/preview-hub-map-layout.png` | Hub hotspots and map markers from the manifest, drawn over the art at ×3. |
 | `tools/art/pixellab_gen.py` | Generate/collect/contact-sheet helper. |
 
 Curated files are byte-for-byte copies of a raw variant. Do not hand-edit them in place. If an asset needs fixing, save the edit as a new file and record it in the manifest `source`.
@@ -23,6 +25,7 @@ Curated files are byte-for-byte copies of a raw variant. Do not hand-edit them i
 | Enemy | 64×64 | Transparent background, full body, feet on the bottom rows. |
 | Character | 128×128 | Transparent background, full body. |
 | Area backdrop | 384×216 | Opaque, 16:9. It fills the scene. |
+| Hub, world map | 384×216 | Opaque, 16:9, same pixel scale as the backdrops. |
 
 Assets are always stored at native size. All enlargement happens at render time.
 
@@ -116,13 +119,23 @@ It uses only the async flow: it POSTs, then polls `GET /background-jobs/{id}` ev
 ```
 
 - `id` is `<kind>.<kebab-name>` and stays stable once referenced by content data.
-- `kind` is one of `item | enemy | character | area`.
+- `kind` is one of `item | enemy | character | area | hub | map`.
 - The optional fields are `slot` (items, using the GDD §7.1 slot family: `weapon`, `offhand`, `head`, `chest`, `hands`, `feet`, `neck`, `ring`) and `facing` (sprites).
+- `hotspots` (`hub` only): clickable buildings as `{ id, label, x, y, width, height }` rectangles in native image pixels (origin top-left). Building ids: `forge`, `merchant`, `tavern`, `guildHall`, `warehouse`, `summoningShrine`, `worldMap` (the signpost and map table). Rectangles do not overlap. Whether a building is locked is game state, not art data.
+- `markers` (`map` only): `{ id, x, y }` centre points in native image pixels, one per `AreaId` (including the dungeon `namelessCrypt`) plus `hub` for the town of Graumark.
+
+When the UI scales a hub or map by an integer ×N, multiply hotspot and marker coordinates by the same N.
 - Content definitions (items, enemies) should reference art by manifest `id`, not by path.
 
 ## Class portraits
 
 Each class has a 128×128 full-body portrait at `/assets/characters/<classId>.png` (manifest id `character.<classId>`). Mage, Hunter and Warlock were generated with the warrior as `style_image`, so they share its pixel scale and palette. The web app picks the portrait with `classPortrait(classId)` (`apps/web/src/content/assets.ts`). A test checks that every class in `CLASS_IDS` has one.
+
+## Hub, world map and area backdrops (ticket A.2)
+
+All generated with `abandoned-fields.png` as `style_image`, so they share its pixel scale, palette (about 15–25 colours) and overcast light. Each area's backdrop id is `area.<kebab-area-id>` (`area.crowwood`, `area.old-burial-grounds`, `area.blackwater`, `area.sunken-abbey`, `area.nameless-crypt`). The hub is `hub.graumark` and the world map is `map.graumark`.
+
+The world map came out with opaque white pixels along its burnt edge (about 1,150, all on the outer border). The curated file is `map-graumark-02/00-edge-fill.png`, which fills only those pixels with the map's own darkest colour (`#040202`); the raw `00.png` is kept unchanged. The first map attempt (`map-graumark-01`) was rejected for garbled lettering, so map prompts ask for `no text, no lettering`.
 
 ## Known gaps (Phase 0)
 

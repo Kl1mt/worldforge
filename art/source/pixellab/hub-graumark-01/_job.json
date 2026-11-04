@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, backdrop, side view of the frontier town of Graumark at dusk, a row of clearly separated buildings along a muddy street: a blacksmith forge with chimney and anvil, a merchant stall with awning, a timber tavern with hanging sign and lit windows, a stone guild hall with banners, a large wooden warehouse with barn doors, a small stone shrine with candles, a map table signpost in the foreground, palisade wall, muted desaturated palette, charcoal and deep brown, aged brass and dim crimson accents, gloomy overcast light",
+  "style_image": "apps/web/public/assets/areas/abandoned-fields.png",
+  "job_id": "5a2fa6ab-1a61-463b-bfb9-577e4ee2a848",
+  "created_at": "2026-11-04T14:28:55.092334+00:00",
+  "seed": 534213424,
+  "generations": 15.0,
+  "count": 1,
+  "width": 384,
+  "height": 216
+}
