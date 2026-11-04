@@ -1,5 +1,5 @@
 # WORLDFORGE — GAME DESIGN DOCUMENT
-**Version 0.2 | November 4, 2026**  
+**Version 0.3 | November 4, 2026**  
 **Browser-first • Desktop companion • Mobile-ready architecture**  
 **Persistent dark-fantasy idle RPG with loot-driven progression and social competition**
 
@@ -173,7 +173,7 @@ Each class has skills that execute automatically during combat and passive effec
 ## 7. Loot and Equipment
 
 ### 7.1 Equipment Slots
-The final slot count is intentionally open. A working proposal includes head, shoulders, chest, hands, legs, feet, neck, two rings, weapon, off-hand, and relic. Weapon and off-hand eligibility is class-dependent. Most armor and jewelry should remain broadly usable to avoid unnecessary item proliferation.
+**Decided (v0.3): 12 equipment slots** — head, shoulders, chest, hands, legs, feet, neck, two rings, weapon, off-hand, and relic. Weapon and off-hand eligibility is class-dependent. Most armor and jewelry should remain broadly usable to avoid unnecessary item proliferation.
 
 ### 7.2 Rarity
 | Rarity | Color convention | Role |
@@ -227,7 +227,7 @@ Items should not scale indefinitely. Strong items may remain useful for a meanin
 ### 9.1 Offline Progress
 When a player is away, the selected character continues to make progress in the selected farming activity. On return, the player receives a summary of earned experience, gold, resources, and eligible loot.
 
-Offline progress is calculated or validated server-side. A configurable offline accumulation cap is proposed to protect the economy, but its duration and rules must be decided through testing. Offline progress should be useful and predictable, not a punishment for absence.
+Offline progress is calculated or validated server-side. **Decided (v0.3): the offline accumulation cap starts at 3 hours** and is a configurable server value. The cap is intended to be raised later through player progression (for example upgrades, achievements, or account milestones); the exact upgrade path is still open. Offline progress should be useful and predictable, not a punishment for absence.
 
 ### 9.2 Active Play Advantages
 - Active sessions can be more efficient than offline farming.
@@ -363,7 +363,7 @@ A cosmetic-only draw system is a possible later feature. A daily free draw was p
 
 ### Phase 1 — Core Playable Vertical Slice
 **Goal:** deliver the smallest complete version that feels like Worldforge.
-- Account registration and login, or a temporary development identity clearly isolated from production authentication.
+- Real account registration and login (decided in v0.3; no temporary development identity).
 - Create one character and choose a class; support all four class definitions in data even if balance is initially basic.
 - One starter area: Abandoned Fields in Graumark.
 - A small enemy roster and server-authoritative automatic combat simulation.
@@ -492,9 +492,10 @@ Track aggregate metrics such as session frequency, offline return rates, area ef
 ## 17. Open Design Decisions
 | Topic | Current status / next decision |
 |---|---|
-| Exact equipment slot count | Open; validate against UI complexity and itemization needs. |
+| Exact equipment slot count | **Decided (v0.3):** 12 slots (head, shoulders, chest, hands, legs, feet, neck, ring ×2, weapon, off-hand, relic). |
+| Authentication | **Decided (v0.3):** real account registration and login from Phase 1. |
 | Final tech stack and hosting | Decide in Phase 0 after evaluating browser, desktop, and future mobile needs. |
-| Offline accumulation cap | Open; tune using progression and economy tests. |
+| Offline accumulation cap | **Decided (v0.3):** 3 hours to start, server-configurable; to be upgradeable through progression later (upgrade path open). |
 | Combat timing and formulas | Open; prototype and test in Phase 1. |
 | Drop rates and affix ranges | Open; data-driven and tuned through telemetry. |
 | Variant stacking rules | Open; define before implementing multiple variant combinations. |
