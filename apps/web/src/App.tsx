@@ -5,7 +5,7 @@ import { GameProvider } from './game/GameProvider';
 import { guardRoute, isGameRoute, routeHref, type Standing } from './lib/route';
 import { AreaScreen } from './screens/AreaScreen';
 import { AuthScreen, GateStatus } from './screens/AuthScreen';
-import { BuildingScreen } from './screens/BuildingScreen';
+import { TavernScreen } from './screens/TavernScreen';
 import { CharacterScreen } from './screens/CharacterScreen';
 import { CharactersScreen } from './screens/CharactersScreen';
 import { CryptScreen } from './screens/CryptScreen';
@@ -63,7 +63,7 @@ function Routes() {
         {route === 'map' ? <MapScreen /> : null}
         {route === 'area' ? <AreaScreen /> : null}
         {route === 'crypt' ? <CryptScreen /> : null}
-        {route === 'tavern' ? <BuildingScreen building={route} /> : null}
+        {route === 'tavern' ? <TavernScreen /> : null}
         {route === 'forge' ? <ForgeScreen /> : null}
         {route === 'merchant' ? <MerchantScreen /> : null}
         {route === 'character' ? <CharacterScreen /> : null}

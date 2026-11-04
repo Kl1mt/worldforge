@@ -3,8 +3,8 @@ import type {
   DungeonId,
   DungeonRunProgress,
   EnemyId,
-  GameEvent,
   MaterialId,
+  QuestEvent,
   RarityId,
   UnlockBlocker,
 } from '@worldforge/game-core';
@@ -58,7 +58,7 @@ export interface DungeonResult {
   bossDefeated: boolean;
   bossLoot: boolean;
   firstBossKill: boolean;
-  questEvents: GameEvent[];
+  questEvents: QuestEvent[];
 }
 
 const d = (id: string) => `/characters/${encodeURIComponent(id)}/dungeon`;

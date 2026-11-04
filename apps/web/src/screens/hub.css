@@ -221,16 +221,7 @@
   }
 }
 
-/* ── Building placeholders (Tavern, Forge, Merchant) ─────────────────── */
-.building {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
-  gap: var(--space-8);
-  align-items: center;
-  max-width: 960px;
-  margin: var(--space-6) auto 0;
-}
-
+/* ── Building niche (Tavern, Forge, Merchant headers) ────────────────── */
 /* The building cut from the town picture, enlarged, in an arched stone niche. */
 .building__niche {
   overflow: hidden;
@@ -257,40 +248,4 @@
   color: var(--bone-100);
   font-family: var(--font-display);
   text-align: center;
-}
-
-.building__title {
-  font-size: var(--text-3xl);
-  line-height: var(--leading-tight);
-}
-
-.building__soon {
-  margin-top: var(--space-1);
-  color: var(--brass-500);
-}
-
-.building__text {
-  max-width: 52ch;
-  margin-top: var(--space-3);
-  color: var(--text-muted);
-}
-
-.building__actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-3);
-  margin-top: var(--space-5);
-}
-
-@media (max-width: 760px) {
-  .building {
-    grid-template-columns: 1fr;
-    justify-items: center;
-    gap: var(--space-5);
-    margin-top: var(--space-2);
-  }
-
-  .building__title {
-    font-size: var(--text-2xl);
-  }
 }

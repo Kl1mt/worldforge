@@ -158,6 +158,25 @@ One dungeon run (`docs/DUNGEONS.md`). Claimed rows stay as history (the boss-loo
 | created_at         | timestamptz |                                                                       |
 Index `(character_id, started_at)`.
 
+### character_quests — implemented (2.4)
+Quests a character accepted (story chain and daily contracts, `docs/QUESTS.md`).
+| Column        | Type        | Notes                                                                   |
+| ------------- | ----------- | ----------------------------------------------------------------------- |
+| id            | uuid PK     | UUIDv7; the id the client turns in                                      |
+| character_id  | uuid FK     | → `characters.id` `ON DELETE CASCADE`                                   |
+| kind          | text        | `story` / `contract` (`CHECK`)                                          |
+| quest_id      | text        | game-core `StoryQuestId`, or the `ContractTemplate` id                  |
+| contract_day  | text        | contracts only: UTC day `YYYY-MM-DD` (`CHECK`: set iff contract)        |
+| contract_slot | smallint    | contracts only: board slot 0–2                                          |
+| objectives    | jsonb       | game-core `QuestObjective[]`, copied at acceptance                      |
+| progress      | jsonb       | `number[]`, per objective, capped at each target                        |
+| reward        | jsonb       | game-core `QuestReward`, fixed at acceptance (contracts scale by level) |
+| status        | text        | `active` / `turnedIn` (`CHECK`; `turned_in_at` set iff `turnedIn`)      |
+| accepted_at   | timestamptz |                                                                         |
+| turned_in_at  | timestamptz |                                                                         |
+
+Partial unique indexes: `(character_id, quest_id) WHERE kind = 'story'` (a story quest once), `(character_id, contract_day, contract_slot) WHERE kind = 'contract'` (a slot once a day). Progress is written only by settlement / dungeon events under the character lock; turn-in locks the row and flips the status in the reward transaction.
+
 ### idempotency_keys — implemented (2.6)
 Stored responses of requests sent with an `Idempotency-Key` header (`apps/server/src/idempotency/`, `docs/API_CONVENTIONS.md`).
 | Column       | Type        | Notes                                                                 |
@@ -192,6 +211,7 @@ account 1─* character 1─1 activity
                      1─* dungeon_runs (≤ 1 unclaimed per account)
                      1─* item_instance (equipped_slot null = inventory)
                      1─* character_materials, 1─* character_professions
+                     1─* character_quests
                      1─* currency_ledger
 account 0..1─* audit_log
 account 1─* idempotency_keys

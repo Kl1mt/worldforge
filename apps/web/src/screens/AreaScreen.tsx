@@ -20,6 +20,7 @@ import type { LogEntry } from '../game/chronicle';
 import { formatClock, formatDuration, formatNumber } from '../lib/format';
 import { PHONE_QUERY, pixelScale, sceneSpriteScale } from '../lib/pixel';
 import { routeHref } from '../lib/route';
+import { QuestTracker } from '../quests/QuestTracker';
 import './area.css';
 
 /** Vertical stagger in sprite pixels so the line of foes reads as depth, not a row. */
@@ -379,6 +380,7 @@ function FarmControl({ farming, view }: { farming: boolean; view: AreaView }) {
 export function AreaScreen() {
   const phone = useMediaQuery(PHONE_QUERY);
   const { activity, tally, farmError, areaId } = useGame();
+  const { id: characterId } = useActiveCharacter();
   const view = areaView(areaId);
   const { area, levels, foes, totalWeight } = view;
   const farming = activity.kind === 'ready' && activity.value !== null;
@@ -434,6 +436,7 @@ export function AreaScreen() {
             {farmError}
           </p>
         ) : null}
+        <QuestTracker characterId={characterId} />
       </header>
 
       <div className="area__grid">

@@ -16,6 +16,7 @@ import { registerDungeons } from './dungeon/routes.js';
 import { registerMerchant } from './merchant/routes.js';
 import { registerForge } from './forge/routes.js';
 import { pruneIdempotencyKeys } from './idempotency/index.js';
+import { registerQuests } from './quests/routes.js';
 import type { Database, DatabaseHandle } from './db/types.js';
 
 declare module 'fastify' {
@@ -63,6 +64,7 @@ export function buildApp({ database, auth, activity, ...options }: AppOptions): 
       await registerDungeons(api, activityOptions);
       await registerMerchant(api, activityOptions);
       await registerForge(api, activityOptions);
+      await registerQuests(api, activityOptions);
 
       api.get('/health', async (request, reply): Promise<HealthResponse> => {
         let db: HealthResponse['db'] = 'up';

@@ -12,8 +12,8 @@ import {
   type DungeonId,
   type DungeonRunProgress,
   type DungeonRunResult,
-  type GameEvent,
   type MaterialId,
+  type QuestEvent,
   type UnlockBlocker,
 } from '@worldforge/game-core';
 import {
@@ -38,6 +38,7 @@ import {
   type ActivityOptions,
 } from '../activity/settle.js';
 import { grantGatheringTx } from '../materials/store.js';
+import { recordQuestEventsTx } from '../quests/store.js';
 import { idempotentTransaction } from '../idempotency/index.js';
 
 /** A run as clients see it: what has happened so far, never the seed or the future. */
@@ -98,7 +99,7 @@ export interface DungeonResultView {
   /** The first Gravewarden kill of this character (it opens the Sunken Abbey). */
   firstBossKill: boolean;
   /** Game events for quests (ticket 2.4). */
-  questEvents: GameEvent[];
+  questEvents: QuestEvent[];
 }
 
 export interface DungeonClaimResponse {
@@ -463,6 +464,10 @@ export async function registerDungeons(
           if (rows.length > 0) await tx.insert(itemInstances).values(rows);
           const none = normalizeProfessions({});
           await grantGatheringTx(tx, characterId, r.materials, none, none, now);
+
+          // Quests (ticket 2.4): a Gravewarden kill completes the story's last step. The character
+          // row is locked above, as recordQuestEventsTx requires (docs/QUESTS.md).
+          await recordQuestEventsTx(tx, characterId, r.questEvents);
 
           const gold = r.goldLooted + r.goldSalvaged;
           const firstBossKill = r.bossDefeated && !character.progress.gravewardenDefeated;

@@ -21,8 +21,8 @@ Server-authoritative dungeon runs (GDD §6.4, §11.2). Rules are pure functions 
 - Inventory capacity applies at the claim like in farming: drops beyond free space are salvaged to gold.
 - Defeating the Gravewarden sets `characters.progress.gravewardenDefeated` (the Sunken Abbey's boss gate).
 
-## Quest events (for ticket 2.4)
-`packages/game-core/src/events.ts` defines `GameEvent` (for now `{ type: 'bossDefeated', bossId: EnemyId }`). A boss kill emits `{ type: 'bossDefeated', bossId: 'gravewarden' }`: in `DungeonRunResult.questEvents`, in the claim response (`result.questEvents`) and in the `dungeon.claim` audit entry. Ticket 2.4 can consume them in the claim transaction (`apps/server/src/dungeon/routes.ts`, where the result is granted) and merge `GameEvent` into its quest event type.
+## Quest events (ticket 2.4)
+A boss kill emits the ticket 2.4 `QuestEvent` `{ type: 'bossDefeated', bossId: 'gravewarden' }` (game-core `quests/events.ts`): in `DungeonRunResult.questEvents`, in the claim response (`result.questEvents`) and in the `dungeon.claim` audit entry. The claim calls `recordQuestEventsTx` with these events inside its transaction, after locking the character row, so the story's last step ("defeat the Gravewarden", `docs/QUESTS.md`) completes with the claim, exactly once. Chamber kills emit no `enemyKilled` events yet (quests count farming kills only).
 
 ## Lifecycle and exclusivity
 - **Start** (`POST …/dungeon`): the account's active character only, the dungeon must be unlocked (level 12). Locks account → character (same order as the farming start). **Every farming activity of the account is settled and stopped first** (`activity.stop` with `reason: dungeon_started`). One unclaimed run per **account** (partial unique index `dungeon_runs_account_open_key`), so a run never stacks with farming of the same or another hero.

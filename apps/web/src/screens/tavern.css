@@ -1,0 +1,417 @@
+/*
+ * Tavern (ticket 2.4): a dark-wood notice board with pinned parchment notes (the story notice and
+ * three contract slips), beside the "Your quests" ledger with progress meters.
+ */
+.tavern {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.tavern__head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-6);
+  align-items: end;
+}
+
+.tavern__niche {
+  justify-self: start;
+}
+
+.tavern__where {
+  color: var(--brass-500);
+}
+
+.tavern__title {
+  margin: var(--space-1) 0 var(--space-2);
+  font-size: var(--text-3xl);
+  color: var(--accent-strong);
+}
+
+.tavern__text {
+  max-width: 60ch;
+  margin: 0 0 var(--space-4);
+  color: var(--text-muted);
+}
+
+.tavern__wait {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.tavern__alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--crimson-400);
+  background: var(--crimson-800);
+  color: var(--bone-100);
+}
+
+.tavern__alert p {
+  margin: 0;
+}
+
+.tavern__paid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--brass-400);
+  background: var(--bg-sunken);
+}
+
+.tavern__paid p {
+  margin: 0;
+}
+
+.tavern__paid .caps {
+  color: var(--brass-400);
+}
+
+.tavern__paid strong {
+  color: var(--brass-300);
+  font-weight: 500;
+}
+
+.tavern__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(320px, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+/* ── The board: dark planks in an iron frame, notes nailed on ─────────── */
+.board {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-6) var(--space-5);
+  background-color: var(--wood-800);
+  background-image:
+    var(--texture-grain),
+    repeating-linear-gradient(
+      to bottom,
+      transparent 0,
+      transparent 63px,
+      rgb(0 0 0 / 0.45) 63px,
+      rgb(0 0 0 / 0.45) 65px
+    ),
+    linear-gradient(to right, rgb(255 255 255 / 0.03), transparent 40%, rgb(0 0 0 / 0.2));
+  box-shadow:
+    0 0 0 1px var(--outline-dark),
+    0 0 0 5px var(--iron-700),
+    0 0 0 6px var(--outline-dark),
+    inset 0 0 40px rgb(0 0 0 / 0.55);
+  margin: 6px;
+}
+
+.board__label {
+  margin: 0 0 var(--space-3);
+  color: var(--bone-200);
+  text-shadow: 0 1px 0 var(--outline-dark);
+}
+
+.board__slips {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.board__foot {
+  margin: var(--space-3) 0 0;
+  color: var(--bone-300);
+  font-size: var(--text-xs);
+}
+
+/* ── Notes: parchment slips with a brass nail ─────────────────────────── */
+.note {
+  --paper: #d9ccb2;
+  --paper-edge: #b9a888;
+  --ink: #2a211a;
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  padding: var(--space-5) var(--space-4) var(--space-4);
+  background-color: var(--paper);
+  background-image:
+    var(--texture-grain),
+    radial-gradient(ellipse at 30% 0%, rgb(255 255 255 / 0.18), transparent 60%),
+    linear-gradient(to bottom, transparent 70%, rgb(90 70 40 / 0.18));
+  box-shadow:
+    inset 0 0 0 1px var(--paper-edge),
+    0 6px 10px -4px rgb(0 0 0 / 0.7);
+  color: var(--ink);
+}
+
+.note--story {
+  transform: rotate(-0.6deg);
+  max-width: 640px;
+}
+
+.board__slips .note:nth-child(2) {
+  transform: rotate(0.7deg);
+}
+
+.board__slips .note:nth-child(3) {
+  transform: rotate(-0.4deg);
+}
+
+.note__pin {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  background: linear-gradient(135deg, var(--brass-300), var(--brass-600));
+  box-shadow:
+    0 0 0 1px var(--outline-dark),
+    1px 2px 2px rgb(0 0 0 / 0.5);
+  transform: rotate(45deg);
+}
+
+.note .note__from {
+  margin: 0;
+  color: #6b4f2a;
+}
+
+.note__title {
+  margin: 0;
+  font-size: var(--text-xl);
+  line-height: 1.15;
+  color: var(--ink);
+}
+
+.note__text,
+.note__task {
+  margin: 0;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.note__text {
+  font-style: italic;
+}
+
+.note__tasks {
+  margin: 0;
+  padding-left: var(--space-5);
+  font-weight: 500;
+}
+
+.note__tasks li::marker {
+  content: '◆  ';
+  color: #8f3734;
+  font-size: 0.7em;
+}
+
+.note__reward {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.note .note__reward .caps {
+  color: #6b4f2a;
+}
+
+.note .btn {
+  justify-self: start;
+  margin-top: var(--space-1);
+}
+
+.note__blocked {
+  margin: var(--space-1) 0 0;
+  padding: var(--space-1) var(--space-2);
+  border-left: 2px solid #8f3734;
+  background: rgb(143 55 52 / 0.12);
+  font-size: var(--text-sm);
+  font-weight: 500;
+}
+
+.note--locked {
+  --paper: #c4b597;
+}
+
+.note--taken {
+  --paper: #bfb197;
+  opacity: 0.8;
+}
+
+/* A crimson stamp across a taken slip. */
+.note__stamp {
+  justify-self: start;
+  margin: var(--space-1) 0 0;
+  padding: 0 var(--space-2);
+  border: 2px solid #8f3734;
+  color: #8f3734;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  text-transform: uppercase;
+  transform: rotate(-4deg);
+}
+
+/* ── Your quests: the ledger ──────────────────────────────────────────── */
+.quests {
+  padding: var(--space-5);
+}
+
+.quests__empty {
+  margin-top: var(--space-4);
+  color: var(--text-dim);
+}
+
+.quests__empty .display {
+  margin: 0 0 var(--space-1);
+  color: var(--text-muted);
+  font-size: var(--text-lg);
+}
+
+.quests__list {
+  display: grid;
+  gap: var(--space-4);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.entry {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-left: 2px solid var(--iron-600);
+  background: rgb(12 10 9 / 0.55);
+}
+
+.entry--ready {
+  border-left-color: var(--brass-400);
+}
+
+.entry__head {
+  display: grid;
+  gap: 2px;
+}
+
+.entry__kind {
+  margin: 0;
+  color: var(--text-dim);
+}
+
+.entry--ready .entry__kind.caps {
+  color: var(--brass-400);
+}
+
+.entry__title {
+  margin: 0;
+  font-size: var(--text-lg);
+  color: var(--text);
+}
+
+.entry__objectives {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.objective__label {
+  color: var(--text-muted);
+}
+
+.objective__tick {
+  display: inline-block;
+  width: 1.2em;
+  color: var(--text-faint);
+}
+
+.objective--done .objective__tick {
+  color: var(--moss-400);
+}
+
+.meter.meter--quest {
+  --fill: var(--brass-500);
+  --back: var(--ink-900);
+  height: 5px;
+}
+
+.objective--done .meter.meter--quest {
+  --fill: var(--moss-400);
+}
+
+.entry .note__reward {
+  color: var(--text-dim);
+}
+
+.entry .note .note__reward .caps {
+  color: var(--brass-500);
+}
+
+.entry__hint {
+  margin: 0;
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+}
+
+.entry .btn {
+  justify-self: start;
+}
+
+.quests__deeds {
+  margin-top: var(--space-5);
+}
+
+.quests__deeds h3 {
+  margin: 0 0 var(--space-2);
+  color: var(--text-dim);
+}
+
+.quests__deeds ul {
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--text-muted);
+}
+
+.quests__deeds li::marker {
+  content: '✓  ';
+  color: var(--moss-400);
+}
+
+/* ── Tablet & phone ───────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .tavern__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .tavern__head {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
+  }
+
+  .tavern__title {
+    font-size: var(--text-2xl);
+  }
+
+  .board {
+    padding: var(--space-5) var(--space-3);
+  }
+
+  .board__slips {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .note,
+  .board__slips .note:nth-child(n) {
+    transform: none;
+  }
+}

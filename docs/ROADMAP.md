@@ -214,7 +214,7 @@ GDD: §11.3, §9. Needs 2.2.
 - **Web:** a materials tab in the Pack; a professions panel on the character screen; materials in the chronicle and return summary.
 **Acceptance:** invariance and determinism tests; PG concurrency test for settle-vs-settle granting materials once; screenshots.
 
-### 2.4 Tavern: quests & contracts (vertical) — `todo`
+### 2.4 Tavern: quests & contracts (vertical) — `done (PR #28)`
 GDD: §6.4, §11.1, §4.2. Needs 2.3.
 - **Rules:** data-driven quest definitions (kill N of an enemy, gather N of a material, reach an area, defeat the Gravewarden); a short Graumark story chain leading to the crypt; repeatable contracts (3 per day per character, chosen by a server-side daily seed). Progress comes from settlement and dungeon events, never from the client.
 - **Server:** quest state per character; accept, track and turn in (turn-in uses `Idempotency-Key`; rewards granted once, audited). Rewards: XP, gold, materials, sometimes an item.

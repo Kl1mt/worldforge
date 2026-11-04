@@ -18,6 +18,10 @@ import { DEFAULT_ACTIVITY_OPTIONS, type ActivityOptions } from '../activity/sett
 import { replayRun, type DungeonClaimResponse, type DungeonStateResponse } from './routes.js';
 import type { DungeonRunView } from './routes.js';
 import type { WorldStateResponse } from '../world/routes.js';
+import type { QuestBoardResponse } from '../quests/store.js';
+import { STORY_QUEST_IDS } from '@worldforge/game-core';
+import { characterQuests } from '../db/schema.js';
+import { uuidv7 } from '../db/uuid.js';
 
 const SEC = 1000;
 const HOUR = 3600 * SEC;
@@ -368,5 +372,80 @@ describe('the Nameless Crypt (ticket 2.5)', () => {
     const result = same[0]!.json<DungeonClaimResponse>().result;
     expect(after.items.length - before.items.length).toBe(result.items.length);
     expect(after.character.gold - before.character.gold).toBe(result.goldGained);
+  });
+
+  describe('quests (ticket 2.4)', () => {
+    /** Turns in the story chain before the crypt step and accepts "The Nameless Crypt". */
+    async function onTheCryptStep(p: Player, id: string) {
+      const before = STORY_QUEST_IDS.slice(0, STORY_QUEST_IDS.indexOf('theNamelessCrypt'));
+      for (const questId of before) {
+        await database.db.insert(characterQuests).values({
+          id: uuidv7(),
+          characterId: id,
+          kind: 'story',
+          questId,
+          objectives: [],
+          progress: [],
+          reward: { xp: 0, gold: 0, materials: {}, item: null },
+          status: 'turnedIn',
+          acceptedAt: new Date(nowMs),
+          turnedInAt: new Date(nowMs),
+        });
+      }
+      const res = await call(p, 'POST', `/api/characters/${id}/quests`, {
+        kind: 'story',
+        questId: 'theNamelessCrypt',
+      });
+      expect(res.statusCode).toBe(201);
+    }
+    const cryptQuest = async (p: Player, id: string) => {
+      const b = (await call(p, 'GET', `/api/characters/${id}/quests`)).json<QuestBoardResponse>();
+      return b.quests.find((q) => q.questId === 'theNamelessCrypt')!;
+    };
+
+    it('defeating the Gravewarden completes the story step "The Nameless Crypt", once', async () => {
+      const { p, id } = await hero();
+      await onTheCryptStep(p, id);
+      expect(await cryptQuest(p, id)).toMatchObject({ status: 'active', progress: [0] });
+
+      const run = (await enter(p, id)).json<{ run: DungeonRunView }>().run;
+      // Nothing counts before the result is claimed.
+      nowMs = Date.parse(run.endsAt);
+      expect((await settle(p, id)).statusCode).toBe(200);
+      expect((await cryptQuest(p, id)).progress).toEqual([0]);
+
+      const key = `quest-claim-${tag()}-key`;
+      const claimed = (await claim(p, id, key)).json<DungeonClaimResponse>().result;
+      expect(claimed.questEvents).toEqual([{ type: 'bossDefeated', bossId: 'gravewarden' }]);
+      expect(await cryptQuest(p, id)).toMatchObject({ status: 'ready', progress: [1] });
+      // A replayed claim does not run again.
+      expect((await claim(p, id, key)).statusCode).toBe(200);
+      expect((await cryptQuest(p, id)).progress).toEqual([1]);
+
+      // The step can be turned in like any other quest.
+      const quest = await cryptQuest(p, id);
+      const turnIn = await call(
+        p,
+        'POST',
+        `/api/characters/${id}/quests/${quest.id}/turn-in`,
+        undefined,
+        { 'idempotency-key': `turn-in-${tag()}-key` },
+      );
+      expect(turnIn.statusCode).toBe(200);
+      const board = (
+        await call(p, 'GET', `/api/characters/${id}/quests`)
+      ).json<QuestBoardResponse>();
+      expect(board.story.completed).toContain('theNamelessCrypt');
+    });
+
+    it('a failed run does not advance the step', async () => {
+      const { p, id } = await hero('mage', 12, false);
+      await onTheCryptStep(p, id);
+      const run = (await enter(p, id)).json<{ run: DungeonRunView }>().run;
+      nowMs = Date.parse(run.endsAt);
+      const { result } = (await claim(p, id)).json<DungeonClaimResponse>();
+      expect(result.outcome).toBe('failed');
+      expect(await cryptQuest(p, id)).toMatchObject({ status: 'active', progress: [0] });
+    });
   });
 });

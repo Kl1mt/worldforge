@@ -23,6 +23,8 @@ import type {
   EquipmentSlotId,
   MaterialId,
   ProfessionId,
+  QuestObjective,
+  QuestReward,
   RarityId,
   RolledAffix,
   WorldProgress,
@@ -309,55 +311,57 @@ export const characterProfessions = pgTable(
   ],
 );
 
-/** Character snapshot a dungeon run is played with (ticket 2.5); taken at the run's start. */
-export interface DungeonRunSnapshot {
-  classId: ClassId;
-  level: number;
-  xp: number;
-  equipment: { baseId: string; rarityId: RarityId; itemLevel: number; affixes: RolledAffix[] }[];
-}
+/** Quest kinds (ticket 2.4): the story chain or a repeatable daily contract. */
+export type QuestKind = 'story' | 'contract';
+/** `active` until turned in; completion is derived from `progress` vs the objectives. */
+export type QuestStatus = 'active' | 'turnedIn';
 
 /**
- * Dungeon runs (ticket 2.5, docs/DUNGEONS.md). A run is fully determined by `seed_secret` and
- * `snapshot` at the start; the server reveals it as time passes and grants its result once, at the
- * claim. At most one unclaimed run per account (it also blocks farming). Claimed rows stay as
- * history: the boss-loot cooldown is read from them.
+ * Quests a character accepted (ticket 2.4, docs/QUESTS.md). Objectives and rewards are copied from
+ * game-core at acceptance, so a content change never alters an accepted quest. Progress is written
+ * only by the server from settlement and dungeon events, under the character lock.
  */
-export const dungeonRuns = pgTable(
-  'dungeon_runs',
+export const characterQuests = pgTable(
+  'character_quests',
   {
     id: uuid('id').primaryKey(),
     characterId: uuid('character_id')
       .notNull()
       .references(() => characters.id, { onDelete: 'cascade' }),
-    accountId: uuid('account_id')
-      .notNull()
-      .references(() => accounts.id, { onDelete: 'cascade' }),
-    /** game-core `DungeonId`. */
-    dungeonId: text('dungeon_id').$type<DungeonId>().notNull(),
-    /** Random secret of this run. Never sent to clients. */
-    seedSecret: text('seed_secret').notNull(),
-    snapshot: jsonb('snapshot').$type<DungeonRunSnapshot>().notNull(),
-    /** Boss loot was off cooldown at the start (decided then, so the run is fixed). */
-    bossLootEligible: boolean('boss_loot_eligible').notNull(),
-    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
-    /** When the result is ready (`started_at` + the run's duration). */
-    endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
-    claimedAt: timestamp('claimed_at', { withTimezone: true }),
-    /** `cleared` / `failed`, set at the claim. */
-    outcome: text('outcome').$type<'cleared' | 'failed'>(),
-    /** Whether the claim granted boss loot (drives the cooldown). */
-    bossLootGranted: boolean('boss_loot_granted').notNull().default(false),
-    /** The claim's result view, for display after the claim. */
-    result: jsonb('result').$type<Record<string, unknown>>(),
-    ...timestamps,
+    kind: text('kind').$type<QuestKind>().notNull(),
+    /** game-core `StoryQuestId`, or the `ContractTemplate` id for contracts. */
+    questId: text('quest_id').notNull(),
+    /** Contracts: the UTC day (`YYYY-MM-DD`) and board slot they were posted in. */
+    contractDay: text('contract_day'),
+    contractSlot: smallint('contract_slot'),
+    objectives: jsonb('objectives').$type<QuestObjective[]>().notNull(),
+    /** Progress per objective (same order), capped at each target. */
+    progress: jsonb('progress').$type<number[]>().notNull(),
+    reward: jsonb('reward').$type<QuestReward>().notNull(),
+    status: text('status').$type<QuestStatus>().notNull().default('active'),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }).notNull(),
+    turnedInAt: timestamp('turned_in_at', { withTimezone: true }),
   },
   (t) => [
-    uniqueIndex('dungeon_runs_account_open_key')
-      .on(t.accountId)
-      .where(sql`${t.claimedAt} is null`),
-    index('dungeon_runs_character_id_started_at_idx').on(t.characterId, t.startedAt),
-    check('dungeon_runs_ends_at_check', sql`${t.endsAt} >= ${t.startedAt}`),
+    index('character_quests_character_id_status_idx').on(t.characterId, t.status),
+    // A story quest can be accepted once per character.
+    uniqueIndex('character_quests_story_key')
+      .on(t.characterId, t.questId)
+      .where(sql`${t.kind} = 'story'`),
+    // A contract slot can be accepted once per day.
+    uniqueIndex('character_quests_contract_slot_key')
+      .on(t.characterId, t.contractDay, t.contractSlot)
+      .where(sql`${t.kind} = 'contract'`),
+    check('character_quests_kind_check', sql`${t.kind} in ('story', 'contract')`),
+    check('character_quests_status_check', sql`${t.status} in ('active', 'turnedIn')`),
+    check(
+      'character_quests_turned_in_check',
+      sql`(${t.status} = 'turnedIn') = (${t.turnedInAt} is not null)`,
+    ),
+    check(
+      'character_quests_contract_check',
+      sql`(${t.kind} = 'contract') = (${t.contractDay} is not null and ${t.contractSlot} is not null)`,
+    ),
   ],
 );
 
@@ -411,6 +415,58 @@ export const merchantPurchases = pgTable(
   ],
 );
 
+/** Character snapshot a dungeon run is played with (ticket 2.5); taken at the run's start. */
+export interface DungeonRunSnapshot {
+  classId: ClassId;
+  level: number;
+  xp: number;
+  equipment: { baseId: string; rarityId: RarityId; itemLevel: number; affixes: RolledAffix[] }[];
+}
+
+/**
+ * Dungeon runs (ticket 2.5, docs/DUNGEONS.md). A run is fully determined by `seed_secret` and
+ * `snapshot` at the start; the server reveals it as time passes and grants its result once, at the
+ * claim. At most one unclaimed run per account (it also blocks farming). Claimed rows stay as
+ * history: the boss-loot cooldown is read from them.
+ */
+export const dungeonRuns = pgTable(
+  'dungeon_runs',
+  {
+    id: uuid('id').primaryKey(),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    /** game-core `DungeonId`. */
+    dungeonId: text('dungeon_id').$type<DungeonId>().notNull(),
+    /** Random secret of this run. Never sent to clients. */
+    seedSecret: text('seed_secret').notNull(),
+    snapshot: jsonb('snapshot').$type<DungeonRunSnapshot>().notNull(),
+    /** Boss loot was off cooldown at the start (decided then, so the run is fixed). */
+    bossLootEligible: boolean('boss_loot_eligible').notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    /** When the result is ready (`started_at` + the run's duration). */
+    endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }),
+    /** `cleared` / `failed`, set at the claim. */
+    outcome: text('outcome').$type<'cleared' | 'failed'>(),
+    /** Whether the claim granted boss loot (drives the cooldown). */
+    bossLootGranted: boolean('boss_loot_granted').notNull().default(false),
+    /** The claim's result view, for display after the claim. */
+    result: jsonb('result').$type<Record<string, unknown>>(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('dungeon_runs_account_open_key')
+      .on(t.accountId)
+      .where(sql`${t.claimedAt} is null`),
+    index('dungeon_runs_character_id_started_at_idx').on(t.characterId, t.startedAt),
+    check('dungeon_runs_ends_at_check', sql`${t.endsAt} >= ${t.startedAt}`),
+  ],
+);
+
 /** Append-only record of security-relevant and valuable events. */
 export const auditLog = pgTable(
   'audit_log',
@@ -441,6 +497,7 @@ export type ItemInstance = typeof itemInstances.$inferSelect;
 export type NewItemInstance = typeof itemInstances.$inferInsert;
 export type CharacterMaterial = typeof characterMaterials.$inferSelect;
 export type CharacterProfession = typeof characterProfessions.$inferSelect;
+export type CharacterQuest = typeof characterQuests.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
 export type NewActivity = typeof activities.$inferInsert;
 export type IdempotencyKey = typeof idempotencyKeys.$inferSelect;

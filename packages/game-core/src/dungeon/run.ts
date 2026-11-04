@@ -11,7 +11,7 @@ import {
   type EncounterSetup,
 } from '../combat/encounter.js';
 import { MAX_LEVEL, applyXp, xpToNextLevel } from '../combat/progression.js';
-import type { GameEvent } from '../events.js';
+import type { QuestEvent } from '../quests/events.js';
 import { DEFAULT_LOOT_CONFIG, getLootTable, type LootConfig } from '../loot/config.js';
 import { generateItem, rollItemLevel, rollLoot, type GeneratedItem } from '../loot/generate.js';
 import { RARITY_IDS } from '../rarity.js';
@@ -131,7 +131,7 @@ export interface DungeonRunResult {
   salvaged: GeneratedItem[];
   materials: Partial<Record<MaterialId, number>>;
   /** Events for quests (ticket 2.4), e.g. `{ type: 'bossDefeated', bossId: 'gravewarden' }`. */
-  questEvents: GameEvent[];
+  questEvents: QuestEvent[];
 }
 
 const MAX_SEED = 0xffffffff;
@@ -246,7 +246,7 @@ export function simulateDungeonRun(
   const materials: Partial<Record<MaterialId, number>> = {};
   const events: DungeonEvent[] = [];
   const encounters: DungeonEncounterRecord[] = [];
-  const questEvents: GameEvent[] = [];
+  const questEvents: QuestEvent[] = [];
 
   const regen = (ms: number) => {
     const gained = Math.floor((stats.health * combat.outOfCombatRegenPerSecond * ms) / 1000);
