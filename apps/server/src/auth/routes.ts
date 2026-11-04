@@ -3,7 +3,7 @@ import fastifyCookie from '@fastify/cookie';
 import fastifyRateLimit from '@fastify/rate-limit';
 import { sql } from 'drizzle-orm';
 import { accounts, type Account } from '../db/schema.js';
-import { sqlStateOf, withTransaction } from '../db/transaction.js';
+import { constraintOf, sqlStateOf, withTransaction } from '../db/transaction.js';
 import { writeAudit } from '../db/audit.js';
 import { uuidv7 } from '../db/uuid.js';
 import { ApiError } from '../errors.js';
@@ -126,16 +126,6 @@ const loginBodySchema = {
 } as const;
 
 const UNIQUE_VIOLATION = '23505';
-
-/** The violated constraint's name, searched along the `cause` chain (Drizzle wraps driver errors). */
-function constraintOf(err: unknown): string | undefined {
-  for (let e: unknown = err, depth = 0; e && typeof e === 'object' && depth < 5; depth++) {
-    const c = (e as { constraint?: unknown }).constraint;
-    if (typeof c === 'string') return c;
-    e = (e as { cause?: unknown }).cause;
-  }
-  return undefined;
-}
 
 const INVALID_CREDENTIALS = () =>
   new ApiError(401, 'invalid_credentials', 'Email or password is incorrect.');

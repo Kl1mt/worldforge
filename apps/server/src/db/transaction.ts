@@ -22,6 +22,16 @@ export function sqlStateOf(err: unknown): string | undefined {
   return undefined;
 }
 
+/** The violated constraint's name, searched along the `cause` chain (Drizzle wraps driver errors). */
+export function constraintOf(err: unknown): string | undefined {
+  for (let e: unknown = err, depth = 0; e && typeof e === 'object' && depth < 5; depth++) {
+    const c = (e as { constraint?: unknown }).constraint;
+    if (typeof c === 'string') return c;
+    e = (e as { cause?: unknown }).cause;
+  }
+  return undefined;
+}
+
 export function isRetryableTransactionError(err: unknown): boolean {
   const state = sqlStateOf(err);
   return state !== undefined && RETRYABLE_SQLSTATES.has(state);

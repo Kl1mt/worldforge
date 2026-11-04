@@ -4,7 +4,7 @@ The Worldforge UI language, set up in ticket 0.3. It covers GDD §3.2–§3.4. P
 
 The aim is a weathered artefact, not a dashboard. Iron, brass, dark wood and ledger paper set the tone. Corners are square, gradients appear only where light would actually fall, and glow is reserved for Legendary and Mythic items.
 
-Screenshots of the prototype are in `docs/screenshots/phase-0/`. Regenerate them with `node tools/screenshots/phase-0.mjs` while `pnpm dev` is running. The login and register screens (ticket 1.2) are in `docs/screenshots/phase-1/` (`node tools/screenshots/auth.mjs`).
+Screenshots of the prototype are in `docs/screenshots/phase-0/`. Regenerate them with `node tools/screenshots/phase-0.mjs` while `pnpm dev` is running. The login and register screens (ticket 1.2) are in `docs/screenshots/phase-1/` (`node tools/screenshots/auth.mjs`), and the character select and creation screens (ticket 1.3) next to them (`node tools/screenshots/characters.mjs`).
 
 ## Colour tokens
 
@@ -20,6 +20,7 @@ Grounds and frames come from the palette sampled in `ASSET_GUIDELINES.md`, so th
 | Crimson (secondary) | `--crimson-800` … `--crimson-400` | "Fighting" status, damage taken, error states. |
 | Magic / nature | `--arcane-violet`, `--arcane-blue`, `--moss-*` | Affix text (blue), kills and nature (moss). |
 | Meters | `--health`, `--rage` (+ `-back`) | Resource bars. Later classes add `--mana`, `--focus` and `--soul`. |
+| Banners | `--banner-ash`, `--banner-ember`, `--banner-moss`, `--banner-dusk` | The character banner cosmetic, through `.banner-<id>` (sets `--banner`). Muted dyed-cloth tones that sit behind the art. |
 | Deltas | `--delta-up`, `--delta-down` | Comparison gains and losses. Always shown with ▲/▼ and a hidden "Gain"/"Loss" label, never by colour alone. |
 
 Semantic aliases (`--bg-page`, `--text`, `--text-dim`, `--accent`, `--line`, …) are what components use. Raw scale tokens are for the treatments below.
@@ -67,6 +68,7 @@ Each screen uses a different treatment, so screens do not all look like the same
 | Scene frame | `.scene__stage` | Thick iron border, vignette | Area backdrop. |
 | Tooltip plate | `.tooltip` | Chamfered corners, rim in the rarity colour, rarity wash behind the name | Item details. |
 | Gate | `.gate` (`screens/gate.css`) | Lintel with the wordmark only; the fields backdrop at ×2 in the scene-stage frame beside an iron form plate. Tabs (Enter / Join) hang from the plate like the lintel nav: brass bar + diamond | Login, register, session check, server offline. |
+| Hall | `.hall`, `.muster` (`screens/characters.css`) | Character select: a row of arched alcoves (the niche stone, smaller), each with a swallow-tailed banner in the character's colour behind the portrait and a wood plaque below. The last-played hero gets a brass "Last played" pennant and brass rim. Empty slots are unlit alcoves with a dashed lozenge. Creation: a large niche preview beside an iron form plate with class plates (brass rim + ✓ when chosen) and banner chips. Phones: each hero is a row (alcove beside plaque). | Character select, character creation. |
 
 Grain (`--texture-grain`, an inline SVG noise tile) is the only texture. Keep its opacity low.
 
@@ -109,6 +111,7 @@ The large character and inventory variants are chosen from the measured width of
 
 - **Loading / success / error:** the status bar's server line (`HealthLine`) shows "Reaching the server…", "Server online", or "Server offline: …" (`role="alert"`).
 - **Session check:** while the client asks `GET /api/account`, the gate shows "Opening the gate / Checking your session…" (`role="status"`). If the server cannot be reached, it shows "The road is closed" with a Try again button. Forms show a busy label on submit ("Entering…", "Signing…"), a crimson-edged form alert (`role="alert"`) and per-field errors, and focus the first invalid field.
+- **Characters:** after login the client loads `GET /api/characters` (the gate's "Checking your session…" stays up meanwhile; a failure shows "The muster roll is out of reach" with Try again). Without an active character every game route redirects to `#/characters`; with no characters at all that screen opens straight on creation ("Forge your first hero"). Creating shows "Forging…", per-field errors and a form alert. The shell's purse shows the real active character and links back to character select.
 - **Empty:** empty equipment sockets show the slot name. An inventory filter with no matches shows an explanation and a "Show all items" action. An empty Chronicle shows a quiet line. An unequipped selected slot shows a dashed hint.
 - **Missing art:** `PixelSprite` fallback.
 
@@ -120,6 +123,8 @@ The large character and inventory variants are chosen from the measured width of
 - `prefers-reduced-motion` disables transitions.
 
 ## Open points
+
+- Every class uses the warrior portrait until class art exists; the banner colour is the only visible cosmetic (GDD §5.1 asks for body, face, hair — later).
 
 - The selected-socket outline and the focus ring are both brass. They are distinct (1 px vs 2 px, different tone), but this may need a stronger difference.
 - Mana, Focus and Soul Fragments meter colours are not defined yet. They are needed once other classes are playable.

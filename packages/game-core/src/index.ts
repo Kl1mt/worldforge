@@ -1,3 +1,4 @@
+export * from './characters.js';
 export * from './classes.js';
 export * from './content.js';
 export * from './rarity.js';

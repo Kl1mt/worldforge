@@ -1,8 +1,10 @@
-/** Game screens; they need a logged-in account. */
+/** Game screens; they need a logged-in account with an active character. */
 export const GAME_ROUTES = ['area', 'character', 'inventory'] as const;
 /** The gate: only shown to visitors without a session. */
 export const AUTH_ROUTES = ['login', 'register'] as const;
-export const ROUTES = [...GAME_ROUTES, ...AUTH_ROUTES] as const;
+/** Character select and creation: needs an account, but not an active character. */
+export const ROSTER_ROUTE = 'characters' as const;
+export const ROUTES = [...GAME_ROUTES, ...AUTH_ROUTES, ROSTER_ROUTE] as const;
 
 export type GameRoute = (typeof GAME_ROUTES)[number];
 export type AuthRoute = (typeof AUTH_ROUTES)[number];
@@ -25,12 +27,23 @@ export function isGameRoute(route: Route): route is GameRoute {
   return (GAME_ROUTES as readonly string[]).includes(route);
 }
 
+export function isAuthRoute(route: Route): route is AuthRoute {
+  return (AUTH_ROUTES as readonly string[]).includes(route);
+}
+
 /**
- * Route guard: where a visitor in this auth state should be sent, or `null` to stay.
- * Logged-out visitors go to the login gate; logged-in players skip the gate.
+ * How far into the game the visitor is: logged out, logged in without an active character,
+ * or playing a character.
  */
-export function guardRoute(route: Route, signedIn: boolean): Route | null {
-  if (!signedIn && isGameRoute(route)) return LOGIN_ROUTE;
-  if (signedIn && !isGameRoute(route)) return DEFAULT_ROUTE;
-  return null;
+export type Standing = 'anonymous' | 'account' | 'playing';
+
+/**
+ * Route guard: where a visitor with this standing should be sent, or `null` to stay.
+ * Logged-out visitors go to the login gate; logged-in players skip the gate and, until they
+ * have an active character, land on character select.
+ */
+export function guardRoute(route: Route, standing: Standing): Route | null {
+  if (standing === 'anonymous') return isAuthRoute(route) ? null : LOGIN_ROUTE;
+  if (standing === 'account') return route === ROSTER_ROUTE ? null : ROSTER_ROUTE;
+  return isAuthRoute(route) ? DEFAULT_ROUTE : null;
 }

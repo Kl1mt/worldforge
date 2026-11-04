@@ -2,8 +2,10 @@ import { useState } from 'react';
 import {
   CORE_STATS,
   EQUIPMENT_SLOTS,
+  MAX_LEVEL,
   RESOURCES,
   getClass,
+  xpToNextLevel,
   type CoreStatId,
   type EquipmentSlotDefinition,
   type EquipmentSlotId,
@@ -16,6 +18,7 @@ import { PixelSprite } from '../components/PixelSprite';
 import { useElementWidth } from '../components/useElementWidth';
 import { formatNumber, formatStatValue } from '../lib/format';
 import { DOLL_LARGE_MIN_WIDTH, pixelScale } from '../lib/pixel';
+import { useActiveCharacter } from '../characters/CharactersProvider';
 import { CHARACTER } from '../mock/character';
 import { EQUIPPED } from '../mock/items';
 import './character.css';
@@ -73,7 +76,9 @@ function Slot({
 }
 
 export function CharacterScreen() {
-  const cls = getClass(CHARACTER.classId);
+  const hero = useActiveCharacter();
+  const cls = getClass(hero.classId);
+  const xpToNext = hero.level < MAX_LEVEL ? xpToNextLevel(hero.level) : hero.experience;
   const resource = RESOURCES.find((r) => r.id === cls.resource);
   const [selected, setSelected] = useState<EquipmentSlotId>('weapon');
   const [dollRef, dollWidth] = useElementWidth<HTMLElement>(0);
@@ -90,9 +95,9 @@ export function CharacterScreen() {
       <header className="char__head">
         <div>
           <p className="caps char__eyebrow">Character</p>
-          <h1 className="char__name display">{CHARACTER.name}</h1>
+          <h1 className="char__name display">{hero.name}</h1>
           <p className="char__line">
-            Level {CHARACTER.level} {cls.name}
+            Level {hero.level} {cls.name}
             <span aria-hidden="true"> · </span>
             {resource?.name}
           </p>
@@ -101,12 +106,12 @@ export function CharacterScreen() {
           <div className="char__xp-text">
             <span className="caps">Experience</span>
             <span>
-              {formatNumber(CHARACTER.xp)} / {formatNumber(CHARACTER.xpToNext)}
+              {formatNumber(hero.experience)} / {formatNumber(xpToNext)}
             </span>
           </div>
           <Meter
-            current={CHARACTER.xp}
-            max={CHARACTER.xpToNext}
+            current={hero.experience}
+            max={xpToNext}
             label="Experience to next level"
             variant="xp"
           />
@@ -136,7 +141,7 @@ export function CharacterScreen() {
             <PixelSprite
               sprite={WARRIOR}
               scale={portraitScale}
-              alt={`${CHARACTER.name}, a warrior in plate with a crimson cloak`}
+              alt={`${hero.name}, shown with the warrior portrait: plate armour and a crimson cloak`}
               className="doll__hero"
             />
             <div className="doll__plaque">

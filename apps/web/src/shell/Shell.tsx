@@ -1,10 +1,11 @@
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { getClass } from '@worldforge/game-core';
 import { formatNumber } from '../lib/format';
 import { useAuth } from '../auth/AuthProvider';
 import { routeHref, type GameRoute } from '../lib/route';
-import { CHARACTER } from '../mock/character';
+import { useActiveCharacter } from '../characters/CharactersProvider';
 import { HealthLine } from './HealthLine';
+import { useLogout } from './useLogout';
 import './shell.css';
 
 const NAV: { route: GameRoute; label: string; hint: string }[] = [
@@ -16,9 +17,9 @@ const NAV: { route: GameRoute; label: string; hint: string }[] = [
 export function Shell({ route, children }: { route: GameRoute; children: ReactNode }) {
   const auth = useAuth();
   const account = auth.state.kind === 'authenticated' ? auth.state.account : null;
-  const [leaving, setLeaving] = useState(false);
-  const [logoutError, setLogoutError] = useState<string | null>(null);
-  const cls = getClass(CHARACTER.classId);
+  const character = useActiveCharacter();
+  const { leaving, error: logoutError, logout } = useLogout();
+  const cls = getClass(character.classId);
   const mainRef = useRef<HTMLElement>(null);
   const first = useRef(true);
 
@@ -48,21 +49,6 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
     </ul>
   );
 
-  const onLogout = async () => {
-    setLeaving(true);
-    setLogoutError(null);
-    const failure = await auth.logout();
-    // On success the route guard sends the visitor to the gate and this shell unmounts.
-    if (failure) {
-      setLeaving(false);
-      setLogoutError(
-        failure.code === 'network'
-          ? 'Could not log out: server unreachable.'
-          : 'Could not log out.',
-      );
-    }
-  };
-
   return (
     <div className="shell">
       <a className="skip-link" href="#main">
@@ -77,20 +63,24 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
             {nav('top')}
           </nav>
           <div className="purse">
-            <div className="purse__who">
-              <span className="purse__name">{CHARACTER.name}</span>
+            <a
+              className="purse__who"
+              href={routeHref('characters')}
+              aria-label={`${character.name}, level ${character.level} ${cls.name}. Change character`}
+            >
+              <span className="purse__name">{character.name}</span>
               <span className="purse__class">
-                Level {CHARACTER.level} {cls.name}
+                Level {character.level} {cls.name} · Change
               </span>
-            </div>
-            <div className="purse__gold" aria-label={`${formatNumber(CHARACTER.gold)} gold`}>
+            </a>
+            <div className="purse__gold" aria-label={`${formatNumber(character.gold)} gold`}>
               <span className="purse__coin" aria-hidden="true" />
-              {formatNumber(CHARACTER.gold)}
+              {formatNumber(character.gold)}
             </div>
             <button
               type="button"
               className="btn topbar__leave"
-              onClick={onLogout}
+              onClick={logout}
               disabled={leaving}
               aria-busy={leaving}
             >
@@ -112,8 +102,8 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
           </p>
         ) : null}
         <span className="statusbar__note">
-          {account ? `Signed in as ${account.displayName} · ` : null}character and gold are mock
-          data
+          {account ? `Signed in as ${account.displayName} · ` : null}combat, items and stats are
+          mock data
         </span>
       </footer>
 

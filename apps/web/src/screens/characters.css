@@ -1,0 +1,594 @@
+/* ── The muster hall: character select and creation ────────────────────────
+   Its own treatment (DESIGN_SYSTEM.md "Hall"): a row of arched alcoves, each with a hanging
+   banner behind the portrait and a wood plaque below, like heroes on a muster wall. */
+
+.banner-ash {
+  --banner: var(--banner-ash);
+}
+.banner-ember {
+  --banner: var(--banner-ember);
+}
+.banner-moss {
+  --banner: var(--banner-moss);
+}
+.banner-dusk {
+  --banner: var(--banner-dusk);
+}
+
+.hall__main {
+  display: grid;
+  align-content: start;
+  padding-top: var(--space-10);
+  padding-bottom: var(--space-12);
+}
+
+.hall__section {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.hall__head {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: center;
+  text-align: center;
+}
+
+.hall__eyebrow {
+  color: var(--text-faint);
+}
+
+.hall__title {
+  font-size: var(--text-3xl);
+  color: var(--bone-100);
+  text-shadow: 0 2px 0 var(--outline-dark);
+}
+
+.hall__lede {
+  max-width: 60ch;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.hall__alert {
+  justify-self: center;
+  width: min(100%, 560px);
+  margin-top: 0;
+}
+
+.hall__fine {
+  color: var(--text-faint);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+/* ── Hero portrait: a swallow-tailed banner hanging behind the sprite ──── */
+.hero-portrait {
+  position: relative;
+  display: grid;
+  place-items: end center;
+}
+
+.hero-portrait__banner {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 74%;
+  height: 80%;
+  transform: translateX(-50%);
+  background:
+    linear-gradient(to bottom, rgb(0 0 0 / 0.35), transparent 18%),
+    linear-gradient(
+      to right,
+      rgb(0 0 0 / 0.25),
+      transparent 30%,
+      transparent 70%,
+      rgb(0 0 0 / 0.25)
+    ),
+    var(--texture-grain), var(--banner, var(--banner-ash));
+  border-top: 4px solid var(--brass-600);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 84%, 0 100%);
+}
+
+.hero-portrait__sprite {
+  position: relative;
+}
+
+/* ── Roster ────────────────────────────────────────────────────────────── */
+.muster {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.muster__slot {
+  width: 320px;
+}
+
+.muster__card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+}
+
+.muster__card--empty {
+  cursor: default;
+}
+
+.muster__card:disabled {
+  cursor: progress;
+}
+
+.muster__card:focus-visible {
+  outline-offset: 4px;
+}
+
+/* The alcove: same stone as the character niche, smaller arch. */
+.muster__niche {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  height: 300px;
+  padding-top: var(--space-5);
+  background:
+    radial-gradient(ellipse 46% 7% at 50% 94%, rgb(0 0 0 / 0.65), transparent),
+    linear-gradient(to bottom, #1d1714, #120e0c 70%);
+  border-radius: 160px 160px 0 0;
+  box-shadow:
+    inset 0 0 0 1px var(--iron-700),
+    inset 0 0 0 4px var(--ink-950),
+    inset 0 0 0 5px rgb(163 130 74 / 0.25),
+    inset 0 20px 60px rgb(0 0 0 / 0.6);
+}
+
+.muster__card:not(:disabled):hover .muster__niche {
+  box-shadow:
+    inset 0 0 0 1px var(--iron-600),
+    inset 0 0 0 4px var(--ink-950),
+    inset 0 0 0 5px rgb(199 161 94 / 0.55),
+    inset 0 20px 60px rgb(0 0 0 / 0.5);
+}
+
+.muster__niche .hero-portrait {
+  width: 256px;
+  height: 256px;
+}
+
+.muster__niche--empty {
+  align-items: center;
+  background: linear-gradient(to bottom, #171210, #0f0c0a 70%);
+  box-shadow:
+    inset 0 0 0 1px var(--iron-700),
+    inset 0 0 0 4px var(--ink-950),
+    inset 0 0 0 5px rgb(75 68 63 / 0.6);
+}
+
+/* An unlit brass lozenge where a banner could hang. */
+.muster__lozenge {
+  width: 18px;
+  height: 18px;
+  border: 2px dashed var(--iron-500);
+  transform: rotate(45deg);
+}
+
+.muster__plaque {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-5) var(--space-5);
+  border-top: 2px solid var(--brass-700);
+  background: var(--texture-grain), var(--wood-800);
+  box-shadow:
+    0 0 0 1px var(--outline-dark),
+    var(--shadow-drop);
+}
+
+.muster__slot--empty .muster__plaque {
+  border-top-color: var(--iron-600);
+  background: var(--texture-grain), var(--ink-850);
+}
+
+.muster__name {
+  font-size: var(--text-xl);
+  color: var(--accent-strong);
+}
+
+.muster__slot--empty .muster__name {
+  color: var(--text-dim);
+}
+
+.muster__line {
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+}
+
+.muster__gold {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--brass-300);
+  font-weight: 700;
+}
+
+.muster__play {
+  justify-content: center;
+  min-width: 160px;
+  min-height: 40px;
+  margin-top: var(--space-3);
+}
+
+/* The last-played hero: a brass pennant on the arch and a brass ring on the plaque. */
+.muster__mark {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  z-index: 1;
+  padding: 2px var(--space-3);
+  transform: translate(-50%, -50%);
+  background: var(--brass-400);
+  font-weight: 700;
+  box-shadow: 0 0 0 1px var(--outline-dark);
+}
+
+.muster__mark.caps {
+  color: var(--ink-950);
+}
+
+.muster__slot--active .muster__plaque {
+  border-top-color: var(--brass-400);
+  box-shadow:
+    0 0 0 1px var(--outline-dark),
+    0 0 0 2px var(--brass-600),
+    var(--shadow-drop);
+}
+
+/* ── Creation ──────────────────────────────────────────────────────────── */
+.forge__body {
+  display: grid;
+  grid-template-columns: 420px minmax(0, 620px);
+  justify-content: center;
+  align-items: start;
+  gap: var(--space-10);
+}
+
+.forge__preview {
+  position: sticky;
+  top: var(--space-6);
+  display: grid;
+}
+
+.forge__niche {
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+  height: 440px;
+  padding-top: var(--space-6);
+  background:
+    radial-gradient(ellipse 46% 6% at 50% 95%, rgb(0 0 0 / 0.65), transparent),
+    radial-gradient(ellipse 60% 50% at 50% 40%, rgb(92 40 44 / 0.18), transparent 70%),
+    linear-gradient(to bottom, #1d1714, #120e0c 70%);
+  border-radius: 210px 210px 0 0;
+  box-shadow:
+    inset 0 0 0 1px var(--iron-700),
+    inset 0 0 0 4px var(--ink-950),
+    inset 0 0 0 5px rgb(163 130 74 / 0.25),
+    inset 0 20px 60px rgb(0 0 0 / 0.6);
+}
+
+.forge__niche .hero-portrait {
+  width: 384px;
+  height: 384px;
+}
+
+.forge__plaque {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-5) var(--space-4);
+  border-top: 2px solid var(--brass-700);
+  background: var(--texture-grain), var(--wood-800);
+  box-shadow: 0 0 0 1px var(--outline-dark);
+  text-align: center;
+}
+
+.forge__name {
+  font-size: var(--text-2xl);
+  color: var(--accent-strong);
+  overflow-wrap: anywhere;
+}
+
+/* Doubled class: base.css (with .panel-iron's padding) is loaded after screen styles. */
+.forge__form.panel-iron {
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-8);
+}
+
+.forge__alert {
+  margin-top: 0;
+}
+
+.forge__group {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.forge__group legend {
+  margin-bottom: var(--space-2);
+  padding: 0;
+}
+
+.forge__classes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+/* A class choice: a sunken plate; the chosen one gets a brass rim and a lit top edge. */
+.class-card {
+  position: relative;
+  display: grid;
+  align-content: start;
+  gap: 2px;
+  min-height: 112px;
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-sunken);
+  box-shadow:
+    inset 0 0 0 1px var(--iron-700),
+    inset 0 2px 6px rgb(0 0 0 / 0.5);
+  cursor: pointer;
+}
+
+.class-card:hover {
+  box-shadow:
+    inset 0 0 0 1px var(--iron-500),
+    inset 0 2px 6px rgb(0 0 0 / 0.5);
+}
+
+.class-card--chosen,
+.class-card--chosen:hover {
+  background: linear-gradient(to bottom, rgb(163 130 74 / 0.14), transparent 60%), var(--bg-sunken);
+  box-shadow:
+    inset 0 0 0 1px var(--brass-500),
+    inset 0 2px 0 var(--brass-400);
+}
+
+/* The radio stays in the accessibility tree; its focus ring is drawn on the card. */
+.class-card__input,
+.banner-chip__input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  pointer-events: none;
+}
+
+.class-card:has(:focus-visible),
+.banner-chip:has(:focus-visible) {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.class-card__name {
+  font-size: var(--text-lg);
+  color: var(--text);
+}
+
+.class-card--chosen .class-card__name {
+  color: var(--accent-strong);
+}
+
+/* A ✓ beside the chosen class so colour is not the only cue. */
+.class-card--chosen .class-card__name::after {
+  content: ' ✓';
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--brass-300);
+}
+
+.class-card__resource {
+  color: var(--text-faint);
+}
+
+.class-card__identity {
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+}
+
+.forge__banners {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+.banner-chip {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-sunken);
+  box-shadow: inset 0 0 0 1px var(--iron-700);
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.banner-chip:hover {
+  color: var(--text);
+}
+
+.banner-chip--chosen {
+  color: var(--text);
+  box-shadow:
+    inset 0 0 0 1px var(--brass-500),
+    inset 0 -2px 0 var(--brass-400);
+}
+
+.banner-chip__swatch {
+  flex: none;
+  width: 14px;
+  height: 20px;
+  background: var(--banner);
+  box-shadow: 0 0 0 1px var(--outline-dark);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 80%, 0 100%);
+}
+
+.forge__back {
+  justify-content: center;
+  min-height: 44px;
+  margin-top: calc(var(--space-3) * -1);
+}
+
+@media (max-width: 1080px) {
+  .forge__body {
+    grid-template-columns: 320px minmax(0, 1fr);
+    gap: var(--space-6);
+  }
+
+  .forge__niche {
+    height: 320px;
+    border-radius: 160px 160px 0 0;
+  }
+
+  .forge__niche .hero-portrait {
+    width: 256px;
+    height: 256px;
+  }
+}
+
+@media (max-width: 760px) {
+  .hall__main {
+    padding-top: var(--space-6);
+  }
+
+  .hall__title {
+    font-size: var(--text-2xl);
+  }
+
+  .muster {
+    gap: var(--space-6);
+  }
+
+  /* Phones: each hero is a row — small alcove beside the plaque. */
+  .muster__slot {
+    width: 100%;
+  }
+
+  .muster__card {
+    flex-direction: row;
+    text-align: left;
+  }
+
+  .muster__niche {
+    flex: none;
+    width: 128px;
+    height: 160px;
+    padding-top: var(--space-3);
+    border-radius: 64px 64px 0 0;
+  }
+
+  .muster__niche .hero-portrait {
+    width: 128px;
+    height: 128px;
+  }
+
+  .muster__plaque {
+    flex: 1;
+    justify-items: start;
+    align-content: center;
+    border-top: 0;
+    border-left: 2px solid var(--brass-700);
+    padding: var(--space-3) var(--space-4);
+  }
+
+  .muster__slot--empty .muster__plaque {
+    border-left-color: var(--iron-600);
+  }
+
+  .muster__slot--active .muster__plaque {
+    border-left-color: var(--brass-400);
+  }
+
+  .muster__mark {
+    left: 64px;
+  }
+
+  .muster__play {
+    min-width: 0;
+    width: 100%;
+    margin-top: var(--space-2);
+  }
+
+  .forge__body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-5);
+  }
+
+  .forge__preview {
+    position: static;
+    grid-template-columns: 128px minmax(0, 1fr);
+  }
+
+  .forge__niche {
+    height: 160px;
+    padding-top: var(--space-3);
+    border-radius: 64px 64px 0 0;
+  }
+
+  .forge__niche .hero-portrait {
+    width: 128px;
+    height: 128px;
+  }
+
+  .forge__plaque {
+    justify-items: start;
+    align-content: center;
+    border-top: 0;
+    border-left: 2px solid var(--brass-700);
+    text-align: left;
+  }
+
+  .forge__name {
+    font-size: var(--text-xl);
+  }
+
+  .forge__form.panel-iron {
+    padding: var(--space-5);
+  }
+
+  .forge__classes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .class-card {
+    min-height: 0;
+  }
+
+  .forge__banners {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .hall .statusbar {
+    padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
+  }
+}
