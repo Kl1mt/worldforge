@@ -166,6 +166,95 @@ Goal: the owner playtests Phase 1 on their own machine (OS unknown; not necessar
 - `docs/PLAYTEST_FEEDBACK.md`: feedback template (first impressions, confusing moments, bugs, balance feel per class, UI notes) for Phase 2 planning. Link PLAYTEST.md from the README.
 - Verified in the sandbox: `pnpm playtest` starts; registration and farming work in a browser (Playwright); data survives a restart; `playtest:reset` clears it. Game rules unchanged.
 
+## Phase 2 — World structure & early progression
+GDD §15 Phase 2. **Exit:** players can progress through several connected Graumark areas, complete quests, gather resources, and clear the first dungeon (The Nameless Crypt) and its boss (The Gravewarden).
+
+**Ground rules for Phase 2**
+- **Vertical slices.** From 2.3 on, each feature ticket ships rules (game-core), server and UI together, so every merged ticket is playable. 2.1 is content only.
+- **Lessons from the Phase 1 retrospective apply.** Every time-based system (gathering, contracts, dungeon runs) must give the same result however often the client calls it (an invariance test, like 1.9's settlement-splitting test). Every new mutating endpoint gets a real-Postgres concurrency test (`test:pg`). Endpoints that aren't naturally repeat-safe (selling, buying, crafting, quest turn-in) use the `Idempotency-Key` header (`docs/API_CONVENTIONS.md`).
+- **Migrations in parallel tickets.** If `main` gained a migration while you worked, merge `main`, delete your generated migration (its `.sql`, snapshot and journal entry), and re-run `pnpm db:generate`.
+- **Content ids are shared contracts.** The enemy, material and area ids below are fixed so that art and code tickets can run in parallel.
+- **Playtest feedback.** The owner is playtesting Phase 1. Feedback goes into B.1 (balance) and may adjust the UI tickets before they start.
+
+**Content contract (ids)**
+| Area (`AreaId`) | Levels | Unlock | Enemies (`EnemyId`) | Gatherable materials |
+|---|---|---|---|---|
+| `abandonedFields` | 1–6 | start | `risenFarmhand`, `carrionWolf`, `boneScarecrow` | `timber`, `ashwort` |
+| `crowwood` | 5–10 | level 5 | `banditCutthroat`, `corruptedCrow` | `timber`, `rawHide` |
+| `oldBurialGrounds` | 9–14 | level 9 | `risenSkeleton`, `graveCrawler` | `soulShard` |
+| `blackwater` | 13–18 | level 13 | `drownedThrall`, `bogHorror` | `ashwort`, `ironOre` |
+| `sunkenAbbey` | 17–22 | level 17 + Gravewarden defeated | `fallenKnight`, `abbeyWraith` | `ironOre`, `abbeySilver` (rare) |
+| Dungeon `namelessCrypt` | 12–16 | level 12 | `cryptGhoul`, `boneAcolyte`; boss `gravewarden` | boss drop `gravewardenSeal` |
+
+Professions (GDD §11.3): Woodcutting → `timber`, Herbalism → `ashwort`, Skinning → `rawHide`, Mining → `ironOre` and `abbeySilver`. `soulShard` drops from undead in combat. Ranges and numbers are first-pass; tune in tests and B.1.
+
+**Waves:** 2.1, A.2 and A.3 run in parallel. Then 2.2 and A.4. Then 2.3. Then 2.4, 2.5 and 2.6 in parallel. Then 2.7 and 2.8. B.1 runs whenever the playtest feedback is in.
+
+### 2.1 World content: areas, enemies, item tiers, loot tables (game-core) — `todo`
+GDD: §4.3, §6.2, §7.1–7.3, §11.3, §16.2. Read `docs/COMBAT.md`, `docs/LOOT.md`.
+- All areas, enemies and the dungeon from the content contract as data in `packages/game-core/src/world/` (dungeon definitions can be data only here; 2.5 adds the rules). Enemy families: physical vs magic damage; undead flag (for `soulShard` drops).
+- Item tiers: extend the item bases so higher areas drop better gear (e.g. a tier 2 and tier 3 per slot with higher `minItemLevel`). Bases name an icon asset id; new bases may temporarily point at an existing icon (A.4 delivers new icons and switches them).
+- Area-specific loot tables (base weights per area, item-level ranges per area); the area's loot table is used in settlement instead of the global one.
+- Material definitions (ids above, name, rarity, which area and profession) as data. Gathering rules are 2.3; no server changes here.
+- Unlock rules as pure functions: `isAreaUnlocked(character, progress)`, with progress covering at least the level and `gravewardenDefeated`.
+- Keep the Abandoned Fields numbers unchanged (balance is B.1).
+**Acceptance:** content validation tests (every enemy in exactly one roster, every loot-table base exists, level ranges ordered and overlapping by one step, ids match the contract); farming simulations for a mid-level character in each area complete without timeouts; no server or UI changes.
+
+### 2.2 Hub & world map (server + web) — `todo`
+GDD: §3, §4.2, §4.3, §14. Needs 2.1 and A.2 merged.
+- **Server:** the activity start accepts any unlocked area (validated with `isAreaUnlocked`, server-side); character progress needed for unlocks is persisted (e.g. `characters.progress` jsonb or a table). `GET` world state for a character: areas with locked/unlocked and the reason.
+- **Web:** an illustrated hub screen (A.2 art) with clickable building hotspots: World Map, Tavern, Forge, Merchant are present; Guild Hall, Warehouse and Summoning Shrine are visibly locked ("later"). Hotspots work with keyboard and touch and have accessible labels. A world-map screen (A.2 art) with the five areas and the crypt, showing locked/unlocked/current state; choosing an area starts or switches farming. The area screen works for every area (backdrop and enemies from the assets, fallback when art is missing).
+- Navigation update: Hub becomes the home. Fields becomes "Area" (current area). Tavern, Forge and Merchant screens can be "coming soon" placeholders until their tickets land.
+**Acceptance:** tests for unlock validation (locked area refused, level-gated and boss-gated); desktop and mobile screenshots of hub, map and two areas.
+
+### 2.3 Materials & professions (vertical) — `todo`
+GDD: §11.3, §9. Needs 2.2.
+- **Rules (game-core):** gathering during farming. Each area has material yields; the character's profession level raises yield. Gathering is part of the per-cycle settlement (same seed scheme as 1.9, so results don't depend on settle frequency; add the invariance test). Profession XP and levels (cap e.g. 50).
+- **Server:** a material storage table (character, material id, quantity, `CHECK >= 0`); profession levels per character; settlement grants materials and profession XP in the same transaction; the return summary includes materials. Materials stack and have no capacity limit for now.
+- **Web:** a materials tab in the Pack; a professions panel on the character screen; materials in the chronicle and return summary.
+**Acceptance:** invariance and determinism tests; PG concurrency test for settle-vs-settle granting materials once; screenshots.
+
+### 2.4 Tavern: quests & contracts (vertical) — `todo`
+GDD: §6.4, §11.1, §4.2. Needs 2.3.
+- **Rules:** data-driven quest definitions (kill N of an enemy, gather N of a material, reach an area, defeat the Gravewarden); a short Graumark story chain leading to the crypt; repeatable contracts (3 per day per character, chosen by a server-side daily seed). Progress comes from settlement and dungeon events, never from the client.
+- **Server:** quest state per character; accept, track and turn in (turn-in uses `Idempotency-Key`; rewards granted once, audited). Rewards: XP, gold, materials, sometimes an item.
+- **Web:** a Tavern screen (notice board), quest tracker on the area screen, turn-in flow.
+**Acceptance:** progress-from-events tests; double turn-in grants once (PGlite and PG); screenshots.
+
+### 2.5 The Nameless Crypt & the Gravewarden (vertical) — `todo`
+GDD: §6.4, §11.2, §4.3. Needs 2.3 and A.3.
+- **Rules:** a dungeon run is a sequence of encounters (e.g. 4 rooms) and the Gravewarden boss with its own mechanic (e.g. an enrage timer or a shield phase), resolved by the deterministic combat engine with a seed derived server-side. The run takes real time (minutes), so it is an active-play goal; it must not stack with farming (the character leaves the fields while in the crypt). Failure keeps nothing from the boss but never removes progress. The boss loot table has a guaranteed `gravewardenSeal`, better rarity odds and unique items.
+- **Server:** start run, settle and claim result (claim with `Idempotency-Key`); one run at a time per character; a daily or cooldown limit on boss loot. Defeating the Gravewarden sets `gravewardenDefeated` (unlocks Sunken Abbey).
+- **Web:** crypt entrance from the world map; a run screen with room progress, combat log and the boss encounter; a result screen.
+**Acceptance:** determinism and invariance tests; run-vs-farming exclusivity; double claim grants once (PG); screenshots including the boss.
+
+### 2.6 Forge & Merchant (vertical) — `todo`
+GDD: §4.2, §8, §11.3, §13.3. Needs 2.3.
+- **Merchant:** sell items for gold (value from rarity and item level); buy a small daily stock of basic gear per unlocked area (server-seeded). Prices and stock are server data. Every buy and sell uses `Idempotency-Key` and is audited.
+- **Forge (Phase 2 scope):** salvage items into materials (and a little gold); craft a few basic recipes from materials (e.g. tier-appropriate gear with a guaranteed slot, or an upgrade material for Phase 3). **Upgrades, rerolls and affix improvement are Phase 3; don't build them.**
+- **Web:** Merchant and Forge screens in the established style (buy/sell lists, salvage preview, recipe list).
+**Acceptance:** no gold or item duplication under concurrent buy/sell/salvage (PG tests); idempotency replay tests; screenshots.
+
+### 2.7 Onboarding & progression feedback (web) — `todo`
+GDD: §1.3, §3, §18. Needs 2.2–2.6. Take the owner's playtest feedback into account.
+- A first-session flow: a short guided path (create character → start farming → first drop → equip → visit the Tavern), dismissible and remembered per account.
+- Progression feedback: level-up, area-unlocked and quest-complete notices; "new" markers on items and quests; a clear "what continues offline" explanation (GDD §9.2).
+- Navigation polish for the bigger world (hub ↔ map ↔ area).
+**Acceptance:** Playwright run of the first-session flow; screenshots.
+
+### 2.8 Phase 2 hardening & exit — `todo`
+GDD: §15 Phase 2 exit criteria, §16.3.
+- An exit-criteria e2e test (server with simulated clock, plus the browser run): progress through several areas, complete quests, gather resources, clear the crypt and the Gravewarden, unlock the Sunken Abbey.
+- An exploit review of all Phase 2 endpoints (timing invariance, idempotency, concurrency on real Postgres, client-trusted values); fix what's found.
+- Phase 2 retrospective in this file.
+
+### B.1 Balance pass (from playtest feedback) — `todo`
+GDD: §2, §6, §9, §18. Starts when the owner's playtest feedback is in (`docs/PLAYTEST_FEEDBACK.md`).
+- Phase 1 baseline (1.9): deaths per 30 min at level 1 with no gear were warrior 6.5, hunter 19, warlock 25, mage 29. Casters die far too often.
+- Tune the class profiles, enemy stats and XP curve in game-core so that every class can farm the Abandoned Fields with a similar, low death rate, and later areas feel like a step up. Address the owner's feedback.
+- Add a simulation-based balance test (per class and area: deaths, kills/min, XP/hour within target bands), so future content can't silently break balance.
+- Record the targets and the results in `docs/COMBAT.md`.
+
 ## Art tickets (run alongside the phases)
 
 ### A.1 Class portraits — `done (PR #14)`
@@ -175,3 +264,25 @@ GDD: §3.1, §5.1–5.2. Read `docs/ASSET_GUIDELINES.md` and `CLAUDE.md` (Art pi
 - Curate into `apps/web/public/assets/characters/{mage,hunter,warlock}.png`, update `manifest.json`, and make the web app pick the portrait by class wherever the warrior is shown for every class now (character select, creation preview, character screen). Remove the "every class wears the warrior's portrait" note.
 - Re-take the character select/creation screenshots.
 **Acceptance:** checks pass; a contact sheet of all four classes side by side in the PR description.
+
+### A.2 Hub, world map & area backdrops — `todo`
+GDD: §3.1, §3.3, §4.2, §4.3. Read `docs/ASSET_GUIDELINES.md`. Match `apps/web/public/assets/areas/abandoned-fields.png` (pass it as `style_image`).
+- **Hub:** an illustrated frontier town of Graumark, side view or slight top-down, 384×216, with clearly separated building silhouettes: forge, merchant stall, tavern, guild hall, warehouse, a shrine, and a map table or signpost. Record the building hotspot rectangles (in image pixels) in the manifest for 2.2.
+- **World map:** a Graumark map, 384×216, aged parchment or a dark painted map in the same palette, with the five areas and the crypt as recognisable places. Record the area marker positions in the manifest.
+- **Area backdrops**, 384×216, one per area, from the content contract in Phase 2: Crowwood (dark crow-infested forest, bandit camp), Old Burial Grounds (graves, crooked headstones, mist), Blackwater (black marsh, dead trees, cursed water), Sunken Abbey (half-sunken ruined abbey, flooded nave), Nameless Crypt (crypt interior, torchlight, bone niches).
+- Budget: one job per image (backdrop-size jobs return a single image); at most 2 regenerations in total. Raw results in `art/source/pixellab/`, curated into `apps/web/public/assets/{hub,map,areas}/`, manifest updated.
+**Acceptance:** one contact sheet of all images in the PR; they look like one world with the Abandoned Fields.
+
+### A.3 Enemies & the Gravewarden — `todo`
+GDD: §3.1, §4.3. Match the existing enemies (64×64, side view, transparent; `apps/web/public/assets/enemies/`), passing one as `style_image`.
+- Enemies (ids from the content contract): `banditCutthroat`, `corruptedCrow`, `risenSkeleton`, `graveCrawler`, `drownedThrall`, `bogHorror`, `fallenKnight`, `abbeyWraith`, `cryptGhoul`, `boneAcolyte`.
+- Boss `gravewarden`: 128×128, an imposing armoured undead warden of the crypt (keys, lantern or great shield), clearly bigger and more ornate than normal enemies.
+- Budget: up to 2–3 enemies per 64px job (16 variants each), so about 4–5 jobs plus one boss job; at most 2 regenerations. Raw results in `art/source/pixellab/`, curated into `apps/web/public/assets/enemies/` with kebab-case names of the ids, manifest updated.
+**Acceptance:** a contact sheet with all new enemies next to the three existing ones and the boss in the PR.
+
+### A.4 Material & tier-2/3 item icons — `todo`
+GDD: §3.1, §7. Needs 2.1 merged (it defines the new item bases). Match the existing 32×32 item icons (`apps/web/public/assets/items/`).
+- Material icons: `timber`, `ashwort`, `rawHide`, `ironOre`, `soulShard`, `abbeySilver`, `gravewardenSeal`.
+- Icons for the new item bases from 2.1 (use one 32px job for gear: 64 variants for 10 generations; one more for materials).
+- Switch the new bases from their placeholder icons to the new ones; update the manifest.
+**Acceptance:** a contact sheet of all new icons next to the existing ones in the PR.

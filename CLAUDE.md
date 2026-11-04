@@ -15,6 +15,7 @@ Browser-first dark-fantasy idle RPG: automatic combat, loot-driven builds, offli
 - Add tests for gameplay rules and persistence. Run format, lint, typecheck, test and build before opening the PR.
 - Handle loading, empty, error and success states. UI follows the design system and must not look like a generic AI dashboard (GDD §3.2).
 - Update docs when architecture or behavior changes.
+- Migrations: if `main` gained a migration while you worked, merge `main`, delete your generated migration (`.sql`, snapshot, journal entry) and re-run `pnpm db:generate`.
 - In `docs/ROADMAP.md`, set your ticket to `done (PR #n)`. In the PR description, report the changed files, decisions, test results and remaining risks.
 
 ## Token economy
