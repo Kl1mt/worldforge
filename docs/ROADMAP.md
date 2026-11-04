@@ -135,7 +135,7 @@ GDD: §15 Phase 1 exit criteria, §16.3.
 
 ## Art tickets (run alongside the phases)
 
-### A.1 Class portraits — `in progress`
+### A.1 Class portraits — `done (PR #14)`
 GDD: §3.1, §5.1–5.2. Read `docs/ASSET_GUIDELINES.md` and `CLAUDE.md` (Art pipeline).
 - Generate full-body portraits for **Mage, Hunter, Warlock** at 128×128 with transparent background, matching the existing warrior (`apps/web/public/assets/characters/warrior.png`): same pixel scale, three-quarter front view, muted desaturated dark-fantasy palette, weathered gear, readable silhouette. Pass the warrior as `style_image` to `/generate-image-v2` so the style matches. Class identity: Mage = elemental/arcane robes and staff; Hunter = leather and hood, bow; Warlock = dark robes, shadow/soul motifs, skull or grimoire.
 - Budget: one job per class (4 variants each), at most one regeneration in total. Keep raw results under `art/source/pixellab/`.
