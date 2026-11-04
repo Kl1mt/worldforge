@@ -2,6 +2,7 @@
 
 Browser-first dark-fantasy idle RPG: automatic combat, loot-driven builds, offline progress and a shared persistent world in 2D pixel art.
 
+- **Play it on your own computer (no Docker needed): [`docs/PLAYTEST.md`](docs/PLAYTEST.md)** — `pnpm install && pnpm playtest`
 - Design: [`docs/GDD.md`](docs/GDD.md)
 - Tickets and status: [`docs/ROADMAP.md`](docs/ROADMAP.md)
 - UI and art: [`docs/DESIGN_SYSTEM.md`](docs/DESIGN_SYSTEM.md), [`docs/ASSET_GUIDELINES.md`](docs/ASSET_GUIDELINES.md)
@@ -52,6 +53,10 @@ Open the app and create an account at `#/register` (or log in at `#/login`); the
 | `pnpm db:up` / `db:down` | Start / stop the local Postgres container                 |
 | `pnpm db:migrate`   | Apply pending migrations to `DATABASE_URL`                     |
 | `pnpm db:generate`  | Generate a new SQL migration from `apps/server/src/db/schema.ts` |
+| `pnpm playtest`     | Local playtest without Docker: server on persistent PGlite (`.playtest-data/`) + web ([`docs/PLAYTEST.md`](docs/PLAYTEST.md)) |
+| `pnpm playtest:fast` | Same, with the server's farming clock ×60 (see offline progress in minutes) |
+| `pnpm playtest:reset` | Delete the local playtest data                                |
+| `pnpm run doctor`   | Check Node, pnpm, ports and Docker; prints next steps (plain `pnpm doctor` is pnpm's built-in) |
 
 Run a single package with a filter, e.g. `pnpm --filter @worldforge/server test`.
 

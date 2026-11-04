@@ -13,7 +13,15 @@ import type { DatabaseHandle } from '../db/types.js';
  * for one test file. No Docker or external server needed. See docs/TECH_STACK.md.
  */
 export async function createTestDatabase(): Promise<DatabaseHandle> {
-  const client = new PGlite();
+  return createPgliteDatabase();
+}
+
+/**
+ * A migrated PGlite database, in memory or (with `dataDir`) persisted to a local directory.
+ * The persisted form is only for the local playtest server (`src/playtest/serve.ts`).
+ */
+export async function createPgliteDatabase(dataDir?: string): Promise<DatabaseHandle> {
+  const client = dataDir === undefined ? new PGlite() : new PGlite(dataDir);
   const db = drizzle(client, { schema, casing: 'snake_case' });
   await migrateDatabase(db);
   return {

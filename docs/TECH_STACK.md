@@ -67,6 +67,9 @@ pnpm --filter @worldforge/web dev
 node tools/e2e/farm-loop.mjs
 ```
 
+### Local playtest without Docker (ticket P.1)
+`pnpm playtest` runs `apps/server/src/playtest/serve.ts`: the real `buildApp()` on a PGlite database persisted to `.playtest-data/` (git-ignored), plus the web dev server, for playtesting on a machine without Docker or PostgreSQL. Like the e2e server it is excluded from the production build and refuses `NODE_ENV=production`; auth and rules are unchanged. Optional fast time (`pnpm playtest:fast`, `PLAYTEST_TIME_SCALE`) speeds up only the server's farming clock and never runs it backwards across restarts. User guide and details: `docs/PLAYTEST.md`.
+
 ### Local database: Docker Compose
 `docker-compose.yml` at the repo root runs `postgres:16-alpine` on `127.0.0.1:5432` with local-only credentials matching `apps/server/.env.example`. `pnpm db:up` / `pnpm db:down` start and stop it. Any other PostgreSQL ≥ 16 works by pointing `DATABASE_URL` at it.
 
