@@ -131,6 +131,10 @@ GDD: §15 Phase 1 exit criteria, §16.3.
 - End-to-end test of the full exit-criteria flow including offline return (with simulated time).
 - Exploit review: duplicate requests, replay, concurrency, negative/overflow values, cap bypass. Fix what's found.
 - Return 404 (not 403) for other accounts' resources (e.g. selecting another account's character), so resource ids can't be probed.
+- Re-run the concurrency tests against a **real PostgreSQL** (PGlite runs transactions one at a time, so today's race tests check the logic, not true parallelism): settlement double-credit, equip races, slot-limit races, settle-vs-equip/discard. In CI, use the existing Postgres service from the `migrations` job.
+- Test stability: server test files create a PGlite database in `beforeAll`, which hit the 10 s hook timeout on a cold container. Raise `hookTimeout` (or share one migrated template), so CI can't flake.
+- Turn `tools/e2e/farm-loop.mjs` (ticket 1.8) into the exit-criteria e2e run and add it to CI if it runs in a reasonable time.
+- Balance sanity check (not tuning): in the 1.8 e2e runs, characters died often (e.g. 12 deaths in ~30 simulated minutes). Record the numbers in `docs/COMBAT.md` as a starting point for later balancing.
 - Update docs; Phase 1 retrospective notes in this file.
 
 ## Art tickets (run alongside the phases)
