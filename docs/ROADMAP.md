@@ -273,7 +273,7 @@ GDD: §3.1, §3.3, §4.2, §4.3. Read `docs/ASSET_GUIDELINES.md`. Match `apps/we
 - Budget: one job per image (backdrop-size jobs return a single image); at most 2 regenerations in total. Raw results in `art/source/pixellab/`, curated into `apps/web/public/assets/{hub,map,areas}/`, manifest updated.
 **Acceptance:** one contact sheet of all images in the PR; they look like one world with the Abandoned Fields.
 
-### A.3 Enemies & the Gravewarden — `todo`
+### A.3 Enemies & the Gravewarden — `done (PR #21)`
 GDD: §3.1, §4.3. Match the existing enemies (64×64, side view, transparent; `apps/web/public/assets/enemies/`), passing one as `style_image`.
 - Enemies (ids from the content contract): `banditCutthroat`, `corruptedCrow`, `risenSkeleton`, `graveCrawler`, `drownedThrall`, `bogHorror`, `fallenKnight`, `abbeyWraith`, `cryptGhoul`, `boneAcolyte`.
 - Boss `gravewarden`: 128×128, an imposing armoured undead warden of the crypt (keys, lantern or great shield), clearly bigger and more ornate than normal enemies.
