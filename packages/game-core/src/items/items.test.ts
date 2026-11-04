@@ -36,9 +36,45 @@ const ITEM_ICONS = [
 ];
 
 describe('item bases', () => {
-  it('has exactly one base per curated item icon', () => {
-    expect(ITEM_BASES.map((b) => b.icon).sort()).toEqual(ITEM_ICONS.map((i) => `item.${i}`).sort());
+  it('has exactly one tier-1 base per curated item icon', () => {
+    const tier1 = ITEM_BASES.filter((b) => b.tier === 1);
+    expect(tier1.map((b) => b.icon).sort()).toEqual(ITEM_ICONS.map((i) => `item.${i}`).sort());
     expect(new Set(ITEM_BASES.map((b) => b.id)).size).toBe(ITEM_BASES.length);
+  });
+
+  it('points every base at a curated icon (tiers 2–3 use placeholders until ticket A.4)', () => {
+    const icons = new Set(ITEM_ICONS.map((i) => `item.${i}`));
+    for (const b of ITEM_BASES) expect(icons.has(b.icon), b.id).toBe(true);
+  });
+
+  it('has a tier 2 and a tier 3 base per slot kind with art and per weapon family', () => {
+    const families = (b: (typeof ITEM_BASES)[number]) =>
+      b.slot === 'weapon' ? `weapon:${[...b.classes].sort().join('+')}` : b.slot;
+    const tier1 = new Set(ITEM_BASES.filter((b) => b.tier === 1).map(families));
+    for (const tier of [2, 3] as const) {
+      const bases = ITEM_BASES.filter((b) => b.tier === tier);
+      expect(new Set(bases.map(families))).toEqual(tier1);
+      expect(bases.length).toBe(tier1.size);
+    }
+  });
+
+  it('makes higher tiers stronger at the same item level and later to drop', () => {
+    const family = (b: (typeof ITEM_BASES)[number]) =>
+      b.slot === 'weapon' ? `weapon:${[...b.classes].sort().join('+')}` : b.slot;
+    const total = (b: (typeof ITEM_BASES)[number], level: number) =>
+      b.stats.reduce((s, x) => s + x.base + x.perLevel * (level - 1), 0);
+    for (const tier of [2, 3] as const) {
+      for (const b of ITEM_BASES.filter((x) => x.tier === tier)) {
+        const lower = ITEM_BASES.filter((x) => x.tier === tier - 1 && family(x) === family(b));
+        expect(lower.length, b.id).toBeGreaterThan(0);
+        for (const l of lower) {
+          expect(b.minItemLevel, b.id).toBeGreaterThan(l.minItemLevel);
+          expect(total(b, b.minItemLevel), `${b.id} vs ${l.id}`).toBeGreaterThan(
+            total(l, b.minItemLevel),
+          );
+        }
+      }
+    }
   });
 
   it('maps every slot kind onto the 12 equipment slots', () => {

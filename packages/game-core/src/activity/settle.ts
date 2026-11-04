@@ -1,6 +1,6 @@
 import { simulateFarmingAggregate, type FarmingCharacter } from '../combat/farming.js';
 import { DEFAULT_COMBAT_CONFIG, type CombatConfig } from '../combat/encounter.js';
-import { DEFAULT_LOOT_CONFIG, STANDARD_LOOT_TABLE, type LootConfig } from '../loot/config.js';
+import { DEFAULT_LOOT_CONFIG, getLootTable, type LootConfig } from '../loot/config.js';
 import { rollLoot, type GeneratedItem } from '../loot/generate.js';
 import { createRng } from '../rng.js';
 import { getArea, type AreaId } from '../world/areas.js';
@@ -39,7 +39,7 @@ export interface FarmingSettlement {
   unusedMs: number;
   encounters: number;
   kills: number;
-  killsByEnemy: Record<EnemyId, number>;
+  killsByEnemy: Partial<Record<EnemyId, number>>;
   deaths: number;
   timeouts: number;
   damageTaken: number;
@@ -86,8 +86,9 @@ export function salvageValue(
  * one settlement at the end gives (ticket 1.9; before, each window re-rolled the unfinished cycle,
  * which favoured short cycles and let frequent settling avoid deaths).
  *
- * The loot source level is the character's level at the start of the killing cycle, clamped to
- * the area's enemy levels.
+ * Kills roll the area's loot table (`AreaDefinition.lootTableId`, ticket 2.1). The loot source
+ * level is the character's level at the start of the killing cycle, clamped to the area's enemy
+ * levels.
  */
 export function settleFarming(
   input: SettleFarmingInput,
@@ -107,6 +108,7 @@ export function settleFarming(
   }
 
   const area = getArea(input.areaId);
+  const lootTable = getLootTable(area.lootTableId);
   const modifiers = equipmentModifiers(input.equipment ?? [], activity.modifierCaps, lootConfig);
   const items: GeneratedItem[] = [];
   const salvaged: GeneratedItem[] = [];
@@ -132,7 +134,7 @@ export function settleFarming(
           {
             rng: createRng(`${input.seed}:loot:${cycle.index}`),
             sourceLevel,
-            lootTable: STANDARD_LOOT_TABLE,
+            lootTable,
             goldFind: modifiers.goldFind,
           },
           lootConfig,
