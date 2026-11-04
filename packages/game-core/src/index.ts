@@ -1,6 +1,7 @@
 export * from './characters.js';
 export * from './classes.js';
 export * from './content.js';
+export * from './equipment.js';
 export * from './rarity.js';
 export * from './rng.js';
 export * from './slots.js';
