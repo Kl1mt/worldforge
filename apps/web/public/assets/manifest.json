@@ -254,6 +254,42 @@
       "facing": "front"
     },
     {
+      "id": "character.mage",
+      "path": "/assets/characters/mage.png",
+      "kind": "character",
+      "size": {
+        "width": 128,
+        "height": 128
+      },
+      "prompt": "dark fantasy pixel art, full body, mage in frayed hooded arcane robes of faded blue and grey, holding a tall gnarled wooden staff with a dim crystal, three-quarter front view, standing, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/character-mage-01/00.png",
+      "facing": "front"
+    },
+    {
+      "id": "character.hunter",
+      "path": "/assets/characters/hunter.png",
+      "kind": "character",
+      "size": {
+        "width": 128,
+        "height": 128
+      },
+      "prompt": "dark fantasy pixel art, full body, hunter in worn leather armor and a deep hood, quiver on back, holding a longbow, desaturated green and brown, three-quarter front view, standing, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/character-hunter-01/00.png",
+      "facing": "front"
+    },
+    {
+      "id": "character.warlock",
+      "path": "/assets/characters/warlock.png",
+      "kind": "character",
+      "size": {
+        "width": 128,
+        "height": 128
+      },
+      "prompt": "dark fantasy pixel art, full body, warlock in tattered black and deep violet robes, skull motifs, holding an old grimoire, faint shadow wisps, three-quarter front view, standing, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/character-warlock-01/01.png",
+      "facing": "front"
+    },
+    {
       "id": "area.abandoned-fields",
       "path": "/assets/areas/abandoned-fields.png",
       "kind": "area",

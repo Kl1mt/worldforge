@@ -20,6 +20,11 @@ Examples:
   python3 tools/art/pixellab_gen.py collect --job <uuid> \
       --out art/source/pixellab/some-batch --prompt "what was asked"
 
+  # match an existing sprite's style (pixel scale, palette, outline, shading)
+  python3 tools/art/pixellab_gen.py generate --style-image apps/web/public/assets/characters/warrior.png \
+      --prompt "dark fantasy pixel art, full body, mage ..." \
+      --width 128 --height 128 --out art/source/pixellab/character-mage-01
+
   # rebuild a contact sheet from a folder of PNGs
   python3 tools/art/pixellab_gen.py sheet art/source/pixellab/icons-batch-01
 
@@ -65,7 +70,25 @@ def _request(method: str, path: str, body: dict | None = None) -> dict:
         raise SystemExit(f"{method} {path} failed: HTTP {err.code}: {detail}") from err
 
 
-def submit(prompt: str, width: int, height: int, seed: int | None, no_background: bool) -> str:
+def _style_image(path: Path) -> dict:
+    from PIL import Image
+
+    with Image.open(path) as img:
+        width, height = img.size
+    return {
+        "image": {"base64": "data:image/png;base64," + base64.b64encode(path.read_bytes()).decode()},
+        "size": {"width": width, "height": height},
+    }
+
+
+def submit(
+    prompt: str,
+    width: int,
+    height: int,
+    seed: int | None,
+    no_background: bool,
+    style_image: Path | None = None,
+) -> str:
     body: dict = {
         "description": prompt,
         "image_size": {"width": width, "height": height},
@@ -73,6 +96,8 @@ def submit(prompt: str, width: int, height: int, seed: int | None, no_background
     }
     if seed is not None:
         body["seed"] = seed
+    if style_image is not None:
+        body["style_image"] = _style_image(style_image)
     resp = _request("POST", "/generate-image-v2", body)
     job_id = resp.get("background_job_id")
     if not job_id:
@@ -162,6 +187,7 @@ def main() -> None:
     g.add_argument("--height", type=int, required=True)
     g.add_argument("--seed", type=int)
     g.add_argument("--keep-background", action="store_true", help="do not request transparency")
+    g.add_argument("--style-image", type=Path, help="PNG to match pixel size, palette, outline and shading")
     g.add_argument("--out", type=Path, required=True)
 
     c = sub.add_parser("collect", help="poll an existing job id, save, contact sheet")
@@ -178,8 +204,12 @@ def main() -> None:
         print(contact_sheet(paths, args.folder / "_contact-sheet.png"))
         return
     if args.cmd == "generate":
-        job_id = submit(args.prompt, args.width, args.height, args.seed, not args.keep_background)
+        job_id = submit(
+            args.prompt, args.width, args.height, args.seed, not args.keep_background, args.style_image
+        )
         meta = {"prompt": args.prompt}
+        if args.style_image is not None:
+            meta["style_image"] = str(args.style_image)
     else:
         job_id = args.job
         meta = {"prompt": args.prompt}

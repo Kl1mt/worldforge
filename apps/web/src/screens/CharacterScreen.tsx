@@ -10,7 +10,7 @@ import {
   type EquipmentSlotDefinition,
   type EquipmentSlotId,
 } from '@worldforge/game-core';
-import { asset } from '../content/assets';
+import { classPortrait } from '../content/assets';
 import { ItemFrame } from '../components/ItemFrame';
 import { ItemTooltip } from '../components/ItemTooltip';
 import { LabeledMeter, Meter } from '../components/Meter';
@@ -22,8 +22,6 @@ import { useActiveCharacter } from '../characters/CharactersProvider';
 import { CHARACTER } from '../mock/character';
 import { EQUIPPED } from '../mock/items';
 import './character.css';
-
-const WARRIOR = asset('character.warrior');
 
 /** Paper-doll sides: armour on the left, jewellery and arms on the right. */
 const LEFT: EquipmentSlotId[] = ['head', 'shoulders', 'chest', 'hands', 'legs', 'feet'];
@@ -78,6 +76,7 @@ function Slot({
 export function CharacterScreen() {
   const hero = useActiveCharacter();
   const cls = getClass(hero.classId);
+  const portrait = classPortrait(hero.classId);
   const xpToNext = hero.level < MAX_LEVEL ? xpToNextLevel(hero.level) : hero.experience;
   const resource = RESOURCES.find((r) => r.id === cls.resource);
   const [selected, setSelected] = useState<EquipmentSlotId>('weapon');
@@ -85,7 +84,7 @@ export function CharacterScreen() {
   // Desktop with room: portrait ×4 and sockets ×3. Otherwise the approved ×3 / ×2 (phones ×2).
   const large = dollWidth >= DOLL_LARGE_MIN_WIDTH;
   const [portraitRef, portraitWidth] = useElementWidth<HTMLDivElement>(384);
-  const portraitScale = pixelScale(portraitWidth, WARRIOR.width, { min: 2, max: large ? 4 : 3 });
+  const portraitScale = pixelScale(portraitWidth, portrait.width, { min: 2, max: large ? 4 : 3 });
   const slotScale = large ? 3 : 2;
   const selectedItem = EQUIPPED[selected];
   const statName = new Map(CORE_STATS.map((s) => [s.id, s.name]));
@@ -139,9 +138,9 @@ export function CharacterScreen() {
 
           <div className="doll__niche" ref={portraitRef}>
             <PixelSprite
-              sprite={WARRIOR}
+              sprite={portrait}
               scale={portraitScale}
-              alt={`${hero.name}, shown with the warrior portrait: plate armour and a crimson cloak`}
+              alt={`${hero.name} the ${cls.name}`}
               className="doll__hero"
             />
             <div className="doll__plaque">

@@ -87,9 +87,6 @@ function HallLayout({ children }: { children: ReactNode }) {
             {error}
           </p>
         ) : null}
-        <span className="statusbar__note">
-          Every class wears the warrior&rsquo;s portrait until its own art is drawn.
-        </span>
       </footer>
     </div>
   );
@@ -171,7 +168,12 @@ function RosterView({ roster, onCreate }: { roster: Roster; onCreate: () => void
               >
                 {active ? <span className="muster__mark caps">Last played</span> : null}
                 <span className="muster__niche">
-                  <HeroPortrait banner={c.appearance.banner} scale={phone ? 1 : 2} alt="" />
+                  <HeroPortrait
+                    classId={c.classId}
+                    banner={c.appearance.banner}
+                    scale={phone ? 1 : 2}
+                    alt=""
+                  />
                 </span>
                 <span className="muster__plaque">
                   <span className="muster__name display">{c.name}</span>
@@ -299,6 +301,7 @@ function CreateForm({
         <figure className="forge__preview" aria-label="Preview">
           <div className="forge__niche">
             <HeroPortrait
+              classId={classId}
               banner={banner}
               scale={phone ? 1 : 3}
               alt={`${shownName} the ${cls.name}, in front of a ${bannerName.toLowerCase()} banner`}

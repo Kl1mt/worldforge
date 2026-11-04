@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, full body, warlock in tattered black and deep violet robes, skull motifs, holding an old grimoire, faint shadow wisps, three-quarter front view, standing, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+  "style_image": "apps/web/public/assets/characters/warrior.png",
+  "job_id": "ed10144d-a408-42c6-8af3-f169654bc8fd",
+  "created_at": "2026-11-04T09:02:41.869293+00:00",
+  "seed": 296645741,
+  "generations": 10.0,
+  "count": 4,
+  "width": 128,
+  "height": 128
+}
