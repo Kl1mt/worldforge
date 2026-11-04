@@ -1,0 +1,268 @@
+{
+  "version": 1,
+  "assets": [
+    {
+      "id": "item.longsword",
+      "path": "/assets/items/longsword.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art item icon, worn iron longsword, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-01/00.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.longsword-notched",
+      "path": "/assets/items/longsword-notched.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art item icon, notched iron longsword, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-01/09.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.skull-staff",
+      "path": "/assets/items/skull-staff.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art item icon, wooden staff topped with a skull, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-01/58.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.hunting-bow",
+      "path": "/assets/items/hunting-bow.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art item icon, bone-tipped wooden hunting bow, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-01/61.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.iron-helm",
+      "path": "/assets/items/iron-helm.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art item icon, closed iron helm, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-01/04.png",
+      "slot": "head"
+    },
+    {
+      "id": "item.horned-helm",
+      "path": "/assets/items/horned-helm.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art item icon, horned iron helm, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-01/12.png",
+      "slot": "head"
+    },
+    {
+      "id": "item.leather-gloves",
+      "path": "/assets/items/leather-gloves.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art item icon, leather gloves, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-01/10.png",
+      "slot": "hands"
+    },
+    {
+      "id": "item.iron-gauntlets",
+      "path": "/assets/items/iron-gauntlets.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art item icon, dark iron gauntlets, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-01/19.png",
+      "slot": "hands"
+    },
+    {
+      "id": "item.chainmail",
+      "path": "/assets/items/chainmail.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art item icon, chainmail hauberk, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-01/36.png",
+      "slot": "chest"
+    },
+    {
+      "id": "item.plate-cuirass",
+      "path": "/assets/items/plate-cuirass.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art item icon, iron plate cuirass, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-01/37.png",
+      "slot": "chest"
+    },
+    {
+      "id": "item.leather-jerkin",
+      "path": "/assets/items/leather-jerkin.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art item icon, leather jerkin, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-01/43.png",
+      "slot": "chest"
+    },
+    {
+      "id": "item.leather-boots",
+      "path": "/assets/items/leather-boots.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art item icon, worn leather boots, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-01/35.png",
+      "slot": "feet"
+    },
+    {
+      "id": "item.brass-ring",
+      "path": "/assets/items/brass-ring.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art item icon, aged brass signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-01/07.png",
+      "slot": "ring"
+    },
+    {
+      "id": "item.iron-ring",
+      "path": "/assets/items/iron-ring.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art item icon, iron ring with a dark stone, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-01/21.png",
+      "slot": "ring"
+    },
+    {
+      "id": "item.bone-amulet",
+      "path": "/assets/items/bone-amulet.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art item icon, amulet of teeth and a small skull on a cord, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-01/31.png",
+      "slot": "neck"
+    },
+    {
+      "id": "item.round-shield",
+      "path": "/assets/items/round-shield.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art item icon, round wooden shield with iron boss, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-01/25.png",
+      "slot": "offhand"
+    },
+    {
+      "id": "item.heater-shield",
+      "path": "/assets/items/heater-shield.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art item icon, wooden heater shield with iron cross, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-01/28.png",
+      "slot": "offhand"
+    },
+    {
+      "id": "enemy.undead-farmer",
+      "path": "/assets/enemies/undead-farmer.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art enemies of the Abandoned Fields: undead farmer, gaunt wolf, skeletal scarecrow, full body, transparent background",
+      "source": "art/source/pixellab/enemies-abandoned-fields-01/00.png",
+      "facing": "front"
+    },
+    {
+      "id": "enemy.wolf",
+      "path": "/assets/enemies/wolf.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art enemies of the Abandoned Fields: undead farmer, gaunt wolf, skeletal scarecrow, full body, transparent background",
+      "source": "art/source/pixellab/enemies-abandoned-fields-01/14.png",
+      "facing": "right"
+    },
+    {
+      "id": "enemy.skeletal-scarecrow",
+      "path": "/assets/enemies/skeletal-scarecrow.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art enemies of the Abandoned Fields: undead farmer, gaunt wolf, skeletal scarecrow, full body, transparent background",
+      "source": "art/source/pixellab/enemies-abandoned-fields-01/13.png",
+      "facing": "front"
+    },
+    {
+      "id": "character.warrior",
+      "path": "/assets/characters/warrior.png",
+      "kind": "character",
+      "size": {
+        "width": 128,
+        "height": 128
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art warrior, full body, weathered iron armor, sword, front three-quarter view, transparent background",
+      "source": "art/source/pixellab/character-warrior-01/00.png",
+      "facing": "front"
+    },
+    {
+      "id": "area.abandoned-fields",
+      "path": "/assets/areas/abandoned-fields.png",
+      "kind": "area",
+      "size": {
+        "width": 384,
+        "height": 216
+      },
+      "prompt": "(reconstructed) dark fantasy pixel art backdrop, Abandoned Fields of Graumark: overgrown dead farmland, broken fences, gloomy overcast sky, muted desaturated palette",
+      "source": "art/source/pixellab/area-abandoned-fields-01/00.png"
+    }
+  ]
+}
