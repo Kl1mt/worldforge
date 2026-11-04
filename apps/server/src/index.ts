@@ -8,7 +8,15 @@ const database = createPostgresDatabase({
   poolMax: config.databasePoolMax,
   onIdleError: (err) => app.log.warn({ err }, 'idle database connection lost'),
 });
-const app = buildApp({ logger: { level: config.logLevel }, database });
+const app = buildApp({
+  logger: { level: config.logLevel },
+  trustProxy: config.trustProxy,
+  database,
+  auth: {
+    sessionTtlMs: config.sessionTtlHours * 60 * 60 * 1000,
+    cookieSecure: config.sessionCookieSecure,
+  },
+});
 
 const shutdown = async (signal: string) => {
   app.log.info({ signal }, 'shutting down');

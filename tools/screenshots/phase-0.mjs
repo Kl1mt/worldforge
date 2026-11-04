@@ -1,5 +1,6 @@
 // Captures the Phase 0 visual prototype at desktop (1440) and mobile (390) widths.
-// Usage: start the app (`pnpm dev`, or `pnpm --filter @worldforge/web preview`), then
+// The game screens need a session (ticket 1.2), so each run registers a throwaway account.
+// Usage: start the app with a migrated database (`pnpm dev`), then
 //   node tools/screenshots/phase-0.mjs [baseUrl] [outDir]
 // Uses the Playwright that ships with the environment (`require('playwright')`).
 import { mkdirSync } from 'node:fs';
@@ -26,10 +27,20 @@ mkdirSync(outDir, { recursive: true });
 const browser = await playwright.chromium.launch();
 try {
   for (const vp of VIEWPORTS) {
-    const page = await browser.newPage({
+    const context = await browser.newContext({
       viewport: { width: vp.width, height: vp.height },
       deviceScaleFactor: 1,
     });
+    const stamp = `${Date.now().toString(36)}${vp.name[0]}`;
+    const res = await context.request.post(`${baseUrl}/api/auth/register`, {
+      data: {
+        email: `shots-${stamp}@worldforge.test`,
+        displayName: `Shots ${stamp}`,
+        password: 'screenshot-account',
+      },
+    });
+    if (!res.ok()) throw new Error(`could not register a screenshot account: ${res.status()}`);
+    const page = await context.newPage();
     for (const screen of SCREENS) {
       await page.goto(`${baseUrl}/#/${screen}`, { waitUntil: 'networkidle' });
       await page.evaluate(() => document.fonts.ready);
@@ -46,7 +57,7 @@ try {
       await page.setViewportSize({ width: vp.width, height: vp.height });
       console.log(`saved ${file}`);
     }
-    await page.close();
+    await context.close();
   }
 } finally {
   await browser.close();

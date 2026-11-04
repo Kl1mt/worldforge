@@ -25,7 +25,7 @@ Status: **partly implemented.** Tables marked *implemented* exist in `apps/serve
 | id              | uuid PK     | UUIDv7                                                       |
 | email           | text        | stored trimmed as entered; unique on `lower(email)`          |
 | display_name    | text        | unique on `lower(display_name)`                              |
-| password_hash   | text        | PHC string (argon2id, or scrypt fallback), written by 1.2    |
+| password_hash   | text        | argon2id PHC string (`$argon2id$v=19$m=19456,t=2,p=1$…`), written by 1.2 |
 | character_slots | smallint    | default 2 (GDD §5.3), `CHECK (>= 0)`                         |
 | created_at      | timestamptz | default `now()`                                              |
 | updated_at      | timestamptz | default `now()`; set by the server on update                 |
@@ -41,7 +41,7 @@ Owner decision (GDD v0.3): real registration/login from Phase 1, no dev identity
 | expires_at | timestamptz | `CHECK (expires_at > created_at)`                                 |
 | revoked_at | timestamptz | null while active; set on logout                                  |
 
-A session is valid iff `revoked_at IS NULL AND expires_at > now()`. Pruning expired rows is left to a later maintenance job.
+A session is valid iff `revoked_at IS NULL AND expires_at > now()` (the server compares against its own clock). Login and registration insert a row (`created_at` = issue time, `expires_at` = + `SESSION_TTL_HOURS`); logout sets `revoked_at`. Pruning expired rows is left to a later maintenance job.
 
 ### character
 | Column         | Type        | Notes                                            |

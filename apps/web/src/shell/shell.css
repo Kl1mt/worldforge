@@ -160,6 +160,16 @@
   transform: rotate(45deg);
 }
 
+.topbar__leave {
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-xs);
+}
+
+.statusbar__alert {
+  color: var(--crimson-400);
+}
+
 .shell__main {
   flex: 1;
   width: 100%;
@@ -228,6 +238,14 @@
   .topbar__nav,
   .purse__who {
     display: none;
+  }
+
+  .purse {
+    gap: var(--space-2);
+  }
+
+  .topbar__leave {
+    min-height: 40px;
   }
 
   .shell__main {

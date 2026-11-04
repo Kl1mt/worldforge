@@ -5,6 +5,12 @@ export interface ServerConfig {
   /** PostgreSQL connection string. Required to start the server or run migrations. */
   databaseUrl: string | undefined;
   databasePoolMax: number;
+  /** Session lifetime from login, in hours (default 720 = 30 days). */
+  sessionTtlHours: number;
+  /** `Secure` flag on the session cookie. Only turn off for plain-http testing off localhost. */
+  sessionCookieSecure: boolean;
+  /** Trust `X-Forwarded-For` (behind a reverse proxy), so rate limits key on the real client IP. */
+  trustProxy: boolean;
 }
 
 function intEnv(env: NodeJS.ProcessEnv, name: string, fallback: number, min: number, max: number) {
@@ -14,6 +20,14 @@ function intEnv(env: NodeJS.ProcessEnv, name: string, fallback: number, min: num
     throw new Error(`Invalid ${name}: ${raw}`);
   }
   return value;
+}
+
+function boolEnv(env: NodeJS.ProcessEnv, name: string, fallback: boolean): boolean {
+  const raw = env[name];
+  if (raw === undefined || raw === '') return fallback;
+  if (raw === '1' || raw === 'true') return true;
+  if (raw === '0' || raw === 'false') return false;
+  throw new Error(`Invalid ${name}: ${raw} (expected 1/0/true/false)`);
 }
 
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
@@ -27,6 +41,9 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     logLevel: env.LOG_LEVEL ?? 'info',
     databaseUrl,
     databasePoolMax: intEnv(env, 'DATABASE_POOL_MAX', 10, 1, 1000),
+    sessionTtlHours: intEnv(env, 'SESSION_TTL_HOURS', 720, 1, 24 * 365),
+    sessionCookieSecure: boolEnv(env, 'SESSION_COOKIE_SECURE', true),
+    trustProxy: boolEnv(env, 'TRUST_PROXY', false),
   };
 }
 
