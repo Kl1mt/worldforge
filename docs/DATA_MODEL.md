@@ -116,6 +116,29 @@ The character's current farming activity. Settlement rules: `docs/FARMING.md`.
 
 Stopping deletes the row after saving `seed_secret`, `cycle_index`, `health` (and the unfinished cycle's area) to `characters.farm_state` (the audit log keeps the history). Per-settlement history lives in the audit log (`activity.reward`) rather than an `offline_settlement` table for now.
 
+### character_materials — implemented (2.3)
+Materials a character holds. Granted only by settlement (later also the forge, 2.6).
+| Column       | Type        | Notes                                                        |
+| ------------ | ----------- | ------------------------------------------------------------ |
+| character_id | uuid FK     | → `characters.id` `ON DELETE CASCADE`; PK with `material_id` |
+| material_id  | text        | game-core `MaterialId`                                       |
+| quantity     | bigint      | `CHECK (>= 0)`; stacks without a capacity limit for now      |
+| updated_at   | timestamptz |                                                              |
+
+Settlement adds with `INSERT … ON CONFLICT DO UPDATE SET quantity = quantity + excluded.quantity` in the settlement transaction (under the character lock).
+
+### character_professions — implemented (2.3)
+Gathering profession progress (game-core `ProfessionState`). A missing row means level 1 with 0 XP.
+| Column        | Type        | Notes                                                          |
+| ------------- | ----------- | -------------------------------------------------------------- |
+| character_id  | uuid FK     | → `characters.id` `ON DELETE CASCADE`; PK with `profession_id` |
+| profession_id | text        | game-core `ProfessionId`                                       |
+| level         | integer     | `CHECK (>= 1)`; cap 50 in game-core config                     |
+| experience    | bigint      | XP within the level, `CHECK (>= 0)`                            |
+| updated_at    | timestamptz |                                                                |
+
+Written by settlement only, read before `settleFarming` and written back in the same transaction.
+
 ### idempotency_key — not implemented (planned)
 Phase 1 endpoints are idempotent by state (see `docs/API_CONVENTIONS.md`, Idempotency); this table arrives with the first non-idempotent value operation. `(account_id, key) PK`, `request_hash`, `response jsonb`, `status_code`, `created_at` (expired after 24h). See `docs/API_CONVENTIONS.md`.
 
@@ -125,6 +148,7 @@ Phase 1 endpoints are idempotent by state (see `docs/API_CONVENTIONS.md`, Idempo
 account 1─* sessions
 account 1─* character 1─1 activity
                      1─* item_instance (equipped_slot null = inventory)
+                     1─* character_materials, 1─* character_professions
                      1─* currency_ledger
 account 0..1─* audit_log
 account 1─* idempotency_key

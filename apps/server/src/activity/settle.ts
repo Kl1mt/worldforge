@@ -2,10 +2,12 @@ import { randomBytes } from 'node:crypto';
 import { and, asc, count, eq, isNotNull, isNull, lt, sql } from 'drizzle-orm';
 import {
   DEFAULT_ACTIVITY_CONFIG,
+  PROFESSION_IDS,
   RARITY_IDS,
   settleFarming,
   type ActivityConfig,
   type FarmingSettlement,
+  type MaterialId,
 } from '@worldforge/game-core';
 import {
   activities,
@@ -20,6 +22,7 @@ import type { Database, Transaction } from '../db/types.js';
 import { withTransaction } from '../db/transaction.js';
 import { writeAudit } from '../db/audit.js';
 import { uuidv7 } from '../db/uuid.js';
+import { grantGatheringTx, loadProfessions } from '../materials/store.js';
 
 export interface ActivityOptions {
   /** Offline accumulation cap (GDD §9.1: 3 h, `OFFLINE_CAP_SECONDS`). */
@@ -59,6 +62,8 @@ export function emptySummary(since: Date): ActivitySummary {
     itemsGained: 0,
     itemsSalvaged: 0,
     items: [],
+    materials: {},
+    professions: {},
   };
 }
 
@@ -141,7 +146,13 @@ export async function settleActivityTx(
 
   let settlement: FarmingSettlement | null = null;
   let updatedCharacter = character;
-  const summary: ActivitySummary = { ...activity.summary, items: [...activity.summary.items] };
+  const summary: ActivitySummary = {
+    ...activity.summary,
+    items: [...activity.summary.items],
+    // Summaries written before ticket 2.3 have no material fields.
+    materials: { ...activity.summary.materials },
+    professions: { ...activity.summary.professions },
+  };
   summary.cappedMs += cappedMs;
   const patch: Partial<Activity> = {
     settledAt: newSettledAt,
@@ -162,6 +173,9 @@ export async function settleActivityTx(
       .from(itemInstances)
       .where(and(eq(itemInstances.characterId, characterId), isNull(itemInstances.equippedSlot)));
 
+    // Safe to read before settling: the character lock above serialises settlements.
+    const professionsBefore = await loadProfessions(tx, characterId);
+
     const seq = activity.settlementSeq + 1;
     settlement = settleFarming(
       {
@@ -178,6 +192,7 @@ export async function settleActivityTx(
         firstCycle: activity.cycleIndex,
         durationMs,
         inventoryCount: inventory?.n ?? 0,
+        professions: professionsBefore,
       },
       { activity: options.rules },
     );
@@ -196,6 +211,14 @@ export async function settleActivityTx(
       createdAt: now,
     }));
     if (rows.length > 0) await tx.insert(itemInstances).values(rows);
+    await grantGatheringTx(
+      tx,
+      characterId,
+      settlement.materials,
+      professionsBefore,
+      settlement.professions,
+      now,
+    );
 
     const [written] = await tx
       .update(characters)
@@ -250,8 +273,30 @@ export async function settleActivityTx(
       })),
     );
     summary.items = summary.items.slice(-SUMMARY_ITEM_LIMIT);
+    const materials = summary.materials!;
+    for (const [id, n] of Object.entries(settlement.materials) as [MaterialId, number][]) {
+      materials[id] = (materials[id] ?? 0) + n;
+    }
+    const professions = summary.professions!;
+    for (const id of PROFESSION_IDS) {
+      const xpGained = settlement.professionXpGained[id] ?? 0;
+      if (xpGained === 0) continue;
+      const prev = professions[id] ?? { xpGained: 0, levelsGained: 0 };
+      professions[id] = {
+        xpGained: prev.xpGained + xpGained,
+        levelsGained:
+          prev.levelsGained + settlement.professions[id].level - professionsBefore[id].level,
+      };
+    }
+    const materialsGained = Object.keys(settlement.materials).length > 0;
 
-    if (settlement.xpGained > 0 || gold > 0 || rows.length > 0 || settlement.salvaged.length > 0) {
+    if (
+      settlement.xpGained > 0 ||
+      gold > 0 ||
+      rows.length > 0 ||
+      settlement.salvaged.length > 0 ||
+      materialsGained
+    ) {
       await writeAudit(tx, {
         event: 'activity.reward',
         accountId: character.accountId,
@@ -269,6 +314,7 @@ export async function settleActivityTx(
           goldSalvaged: settlement.goldSalvaged,
           items: rows.length,
           itemsSalvaged: settlement.salvaged.length,
+          materials: settlement.materials,
           notableItems: rows
             .filter((r) => RARITY_IDS.indexOf(r.rarityId) >= NOTABLE_RARITY)
             .map((r) => ({ id: r.id, baseId: r.baseId, rarityId: r.rarityId, seed: r.seed })),

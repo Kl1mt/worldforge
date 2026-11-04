@@ -207,7 +207,7 @@ GDD: §3, §4.2, §4.3, §14. Needs 2.1 and A.2 merged.
 - Navigation update: Hub becomes the home. Fields becomes "Area" (current area). Tavern, Forge and Merchant screens can be "coming soon" placeholders until their tickets land.
 **Acceptance:** tests for unlock validation (locked area refused, level-gated and boss-gated); desktop and mobile screenshots of hub, map and two areas.
 
-### 2.3 Materials & professions (vertical) — `todo`
+### 2.3 Materials & professions (vertical) — `in review`
 GDD: §11.3, §9. Needs 2.2.
 - **Rules (game-core):** gathering during farming. Each area has material yields; the character's profession level raises yield. Gathering is part of the per-cycle settlement (same seed scheme as 1.9, so results don't depend on settle frequency; add the invariance test). Profession XP and levels (cap e.g. 50).
 - **Server:** a material storage table (character, material id, quantity, `CHECK >= 0`); profession levels per character; settlement grants materials and profession XP in the same transaction; the return summary includes materials. Materials stack and have no capacity limit for now.

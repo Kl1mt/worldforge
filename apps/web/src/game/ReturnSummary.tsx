@@ -1,9 +1,11 @@
 import { useEffect, useRef } from 'react';
 import { ItemFrame } from '../components/ItemFrame';
+import { MaterialStack } from '../components/MaterialStack';
 import { formatDuration, formatNumber } from '../lib/format';
 import { routeHref } from '../lib/route';
 import { useGame } from './GameProvider';
 import { summaryItemView } from './items';
+import { materialCounts, professionName } from './materials';
 import './return-summary.css';
 
 /** Most item icons shown in the dialog; the rest are counted. */
@@ -32,6 +34,10 @@ export function ReturnSummaryDialog({ heroName }: { heroName: string }) {
   const shown = summary.items.slice(-ITEM_ICONS).reverse().map(summaryItemView);
   const unlisted = summary.itemsGained - shown.length;
   const lootGold = summary.goldGained - summary.goldSalvaged;
+  const gathered = materialCounts(summary.materials);
+  const crafts = Object.entries(summary.professions ?? {}).filter(
+    ([, p]) => p && p.xpGained > 0,
+  ) as [Parameters<typeof professionName>[0], { xpGained: number; levelsGained: number }][];
 
   return (
     <dialog
@@ -89,6 +95,38 @@ export function ReturnSummaryDialog({ heroName }: { heroName: string }) {
           </section>
         ) : null}
 
+        {gathered.length > 0 ? (
+          <section className="return__materials" aria-labelledby="return-materials">
+            <h3 id="return-materials" className="caps">
+              Gathered
+            </h3>
+            <ul>
+              {gathered.map(({ material, quantity }) => (
+                <li key={material.id}>
+                  <MaterialStack material={material} quantity={quantity} scale={1} sign="+" />
+                  <span className="return__material-name">{material.name}</span>
+                </li>
+              ))}
+            </ul>
+            {crafts.length > 0 ? (
+              <p className="return__crafts">
+                {crafts.map(([id, p], i) => (
+                  <span key={id}>
+                    {i > 0 ? ' · ' : ''}
+                    {professionName(id)} +{formatNumber(p.xpGained)} XP
+                    {p.levelsGained > 0 ? (
+                      <strong>
+                        {' '}
+                        ({p.levelsGained === 1 ? 'level up' : `+${p.levelsGained} levels`})
+                      </strong>
+                    ) : null}
+                  </span>
+                ))}
+              </p>
+            ) : null}
+          </section>
+        ) : null}
+
         <ul className="return__notes">
           <li>
             Fought for {formatDuration(summary.simulatedMs)}
@@ -121,7 +159,7 @@ export function ReturnSummaryDialog({ heroName }: { heroName: string }) {
           >
             Back to the fields
           </button>
-          {summary.itemsGained > 0 ? (
+          {summary.itemsGained > 0 || gathered.length > 0 ? (
             <a className="btn" href={routeHref('inventory')} onClick={() => ref.current?.close()}>
               Open the pack
             </a>

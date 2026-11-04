@@ -16,6 +16,7 @@ import { classPortrait } from '../content/assets';
 import { ItemFrame } from '../components/ItemFrame';
 import { ItemTooltip } from '../components/ItemTooltip';
 import { LabeledMeter, Meter } from '../components/Meter';
+import { ProfessionsPanel } from './ProfessionsPanel';
 import { PixelSprite } from '../components/PixelSprite';
 import { useElementWidth } from '../components/useElementWidth';
 import { formatNumber, formatStatValue } from '../lib/format';
@@ -239,6 +240,8 @@ export function CharacterScreen() {
                 </div>
               ))}
           </section>
+
+          <ProfessionsPanel />
 
           <section className="inspect" aria-live="polite" aria-label="Selected slot">
             {selectedItem ? (

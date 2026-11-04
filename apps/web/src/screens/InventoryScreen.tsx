@@ -14,9 +14,11 @@ import { useGame } from '../game/GameProvider';
 import { canUse, equippedBySlot, slotName, targetSlot, type ItemView } from '../game/items';
 import { PACK_LARGE_MIN_WIDTH, STASH_LARGE, socketSize } from '../lib/pixel';
 import { routeHref } from '../lib/route';
+import { MaterialsTab } from './MaterialsTab';
 import './inventory.css';
 
 type Filter = 'all' | RarityId;
+type Tab = 'items' | 'materials';
 type Notice = { kind: 'ok' | 'error'; text: string };
 
 /** Server rule (game-core activity config): drops beyond this are salvaged to gold. */
@@ -31,7 +33,8 @@ function usableBy(classes: readonly ClassId[]): string {
 
 export function InventoryScreen() {
   const hero = useActiveCharacter();
-  const { inventory, equip, discard, reload } = useGame();
+  const { inventory, materials, equip, discard, reload } = useGame();
+  const [tab, setTab] = useState<Tab>('items');
   const [filter, setFilter] = useState<Filter>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState<'equip' | 'discard' | null>(null);
@@ -181,113 +184,172 @@ export function InventoryScreen() {
         </p>
       </header>
 
-      <div className="pack__filters" role="group" aria-label="Filter by rarity">
+      <div className="pack__tabs" role="tablist" aria-label="Pack contents">
         <button
           type="button"
-          className="btn pack__filter"
-          aria-pressed={filter === 'all'}
-          onClick={() => setFilter('all')}
-        >
-          All <span className="pack__count">{items.length}</span>
-        </button>
-        {RARITIES.map((r) => (
-          <button
-            key={r.id}
-            type="button"
-            className={`btn pack__filter rarity-${r.id}`}
-            aria-pressed={filter === r.id}
-            onClick={() => setFilter(r.id)}
-          >
-            <span className="pack__pip" aria-hidden="true" />
-            {r.name} <span className="pack__count">{counts.get(r.id) ?? 0}</span>
-          </button>
-        ))}
-      </div>
-
-      <div className={`pack__body${large ? ' pack__body--large' : ''}`} ref={bodyRef}>
-        <section
-          className="stash"
-          aria-label="Carried items"
-          style={{
-            ['--socket' as string]: `${socketSize(iconScale)}px`,
-            ['--stash-cols' as string]: large ? STASH_LARGE.columns : undefined,
-            ['--stash-gap' as string]: large ? `${STASH_LARGE.gap}px` : undefined,
+          role="tab"
+          id="pack-tab-items"
+          aria-controls="pack-panel-items"
+          aria-selected={tab === 'items'}
+          tabIndex={tab === 'items' ? 0 : -1}
+          className="pack__tab"
+          onClick={() => setTab('items')}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+              setTab('materials');
+              document.getElementById('pack-tab-materials')?.focus();
+            }
           }}
         >
-          {stash}
-          {ready && filter === 'all' && items.length > 0 ? (
-            <p className="stash__free">
-              {free} free {free === 1 ? 'slot' : 'slots'}
-              {free === 0 ? ' · new drops are salvaged for gold' : ''}
-            </p>
-          ) : null}
-        </section>
-
-        <section className="pack__inspect" aria-label="Selected item">
-          {notice ? (
-            <p
-              className={`pack__notice pack__notice--${notice.kind}`}
-              role={notice.kind === 'error' ? 'alert' : 'status'}
-            >
-              {notice.text}
-            </p>
-          ) : null}
-          {selected ? (
-            <>
-              <ItemTooltip
-                item={selected}
-                {...(usable && counterpart !== undefined ? { compareTo: counterpart } : {})}
-                caption="Selected"
-                {...(usable
-                  ? {}
-                  : {
-                      note: selected.slot
-                        ? `${usableBy(selected.classes)} only`
-                        : 'No longer usable',
-                    })}
-              >
-                <button
-                  type="button"
-                  className="btn btn--brass"
-                  onClick={() => void onEquip(selected)}
-                  disabled={!usable || busy !== null}
-                  aria-busy={busy === 'equip'}
-                >
-                  {busy === 'equip' ? 'Equipping…' : 'Equip'}
-                </button>
-                <button
-                  type="button"
-                  className={`btn${confirmDiscard ? ' pack__discard--confirm' : ''}`}
-                  onClick={() => void onDiscard(selected)}
-                  disabled={busy !== null}
-                  aria-busy={busy === 'discard'}
-                >
-                  {busy === 'discard'
-                    ? 'Discarding…'
-                    : confirmDiscard
-                      ? 'Discard for good?'
-                      : 'Discard'}
-                </button>
-                {confirmDiscard && busy === null ? (
-                  <button type="button" className="btn" onClick={() => setConfirmDiscard(false)}>
-                    Keep it
-                  </button>
-                ) : null}
-              </ItemTooltip>
-              {counterpart && usable ? (
-                <div className="pack__equipped">
-                  <ItemTooltip
-                    item={counterpart}
-                    caption={`Currently equipped${slot ? ` · ${slotName(slot)}` : ''}`}
-                  />
-                </div>
-              ) : null}
-            </>
-          ) : (
-            items.length > 0 && <p className="pack__hint">Select an item to inspect it.</p>
-          )}
-        </section>
+          Items <span className="pack__count">{ready ? items.length : '–'}</span>
+        </button>
+        <button
+          type="button"
+          role="tab"
+          id="pack-tab-materials"
+          aria-controls="pack-panel-materials"
+          aria-selected={tab === 'materials'}
+          tabIndex={tab === 'materials' ? 0 : -1}
+          className="pack__tab"
+          onClick={() => setTab('materials')}
+          onKeyDown={(e) => {
+            if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+              setTab('items');
+              document.getElementById('pack-tab-items')?.focus();
+            }
+          }}
+        >
+          Materials{' '}
+          <span className="pack__count">
+            {materials.kind === 'ready' ? materials.value.materials.length : '–'}
+          </span>
+        </button>
       </div>
+
+      {tab === 'materials' ? (
+        <section
+          id="pack-panel-materials"
+          role="tabpanel"
+          aria-labelledby="pack-tab-materials"
+          className="pack__materials"
+        >
+          <MaterialsTab />
+        </section>
+      ) : (
+        <div id="pack-panel-items" role="tabpanel" aria-labelledby="pack-tab-items">
+          <div className="pack__filters" role="group" aria-label="Filter by rarity">
+            <button
+              type="button"
+              className="btn pack__filter"
+              aria-pressed={filter === 'all'}
+              onClick={() => setFilter('all')}
+            >
+              All <span className="pack__count">{items.length}</span>
+            </button>
+            {RARITIES.map((r) => (
+              <button
+                key={r.id}
+                type="button"
+                className={`btn pack__filter rarity-${r.id}`}
+                aria-pressed={filter === r.id}
+                onClick={() => setFilter(r.id)}
+              >
+                <span className="pack__pip" aria-hidden="true" />
+                {r.name} <span className="pack__count">{counts.get(r.id) ?? 0}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className={`pack__body${large ? ' pack__body--large' : ''}`} ref={bodyRef}>
+            <section
+              className="stash"
+              aria-label="Carried items"
+              style={{
+                ['--socket' as string]: `${socketSize(iconScale)}px`,
+                ['--stash-cols' as string]: large ? STASH_LARGE.columns : undefined,
+                ['--stash-gap' as string]: large ? `${STASH_LARGE.gap}px` : undefined,
+              }}
+            >
+              {stash}
+              {ready && filter === 'all' && items.length > 0 ? (
+                <p className="stash__free">
+                  {free} free {free === 1 ? 'slot' : 'slots'}
+                  {free === 0 ? ' · new drops are salvaged for gold' : ''}
+                </p>
+              ) : null}
+            </section>
+
+            <section className="pack__inspect" aria-label="Selected item">
+              {notice ? (
+                <p
+                  className={`pack__notice pack__notice--${notice.kind}`}
+                  role={notice.kind === 'error' ? 'alert' : 'status'}
+                >
+                  {notice.text}
+                </p>
+              ) : null}
+              {selected ? (
+                <>
+                  <ItemTooltip
+                    item={selected}
+                    {...(usable && counterpart !== undefined ? { compareTo: counterpart } : {})}
+                    caption="Selected"
+                    {...(usable
+                      ? {}
+                      : {
+                          note: selected.slot
+                            ? `${usableBy(selected.classes)} only`
+                            : 'No longer usable',
+                        })}
+                  >
+                    <button
+                      type="button"
+                      className="btn btn--brass"
+                      onClick={() => void onEquip(selected)}
+                      disabled={!usable || busy !== null}
+                      aria-busy={busy === 'equip'}
+                    >
+                      {busy === 'equip' ? 'Equipping…' : 'Equip'}
+                    </button>
+                    <button
+                      type="button"
+                      className={`btn${confirmDiscard ? ' pack__discard--confirm' : ''}`}
+                      onClick={() => void onDiscard(selected)}
+                      disabled={busy !== null}
+                      aria-busy={busy === 'discard'}
+                    >
+                      {busy === 'discard'
+                        ? 'Discarding…'
+                        : confirmDiscard
+                          ? 'Discard for good?'
+                          : 'Discard'}
+                    </button>
+                    {confirmDiscard && busy === null ? (
+                      <button
+                        type="button"
+                        className="btn"
+                        onClick={() => setConfirmDiscard(false)}
+                      >
+                        Keep it
+                      </button>
+                    ) : null}
+                  </ItemTooltip>
+                  {counterpart && usable ? (
+                    <div className="pack__equipped">
+                      <ItemTooltip
+                        item={counterpart}
+                        caption={`Currently equipped${slot ? ` · ${slotName(slot)}` : ''}`}
+                      />
+                    </div>
+                  ) : null}
+                </>
+              ) : (
+                items.length > 0 && <p className="pack__hint">Select an item to inspect it.</p>
+              )}
+            </section>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

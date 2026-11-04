@@ -28,6 +28,29 @@ const summary = (over: Partial<ReturnSummary> = {}): ReturnSummary => ({
 describe('chronicleEntries', () => {
   it('shows nothing for a quiet settlement', () => {
     expect(chronicleEntries(summary(), 1)).toEqual([]);
+    expect(chronicleEntries(summary({ materials: {}, professions: {} }), 1)).toEqual([]);
+  });
+
+  it('lists gathered materials in content order and profession level-ups (ticket 2.3)', () => {
+    const lines = chronicleEntries(
+      summary({
+        materials: { ashwort: 2, timber: 5 },
+        professions: {
+          woodcutting: { xpGained: 50, levelsGained: 1 },
+          herbalism: { xpGained: 20, levelsGained: 0 },
+        },
+      }),
+      7,
+    );
+    expect(lines.map((l) => l.kind)).toEqual(['profession', 'materials']);
+    expect(lines[0]).toMatchObject({ profession: 'Woodcutting', levels: 1 });
+    expect(lines[1]).toMatchObject({
+      id: '7:materials',
+      materials: [
+        { name: 'Timber', rarity: 'common', quantity: 5 },
+        { name: 'Ashwort', rarity: 'common', quantity: 2 },
+      ],
+    });
   });
 
   it('turns a settlement into log lines, newest (level-up) first', () => {

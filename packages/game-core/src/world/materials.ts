@@ -1,7 +1,7 @@
 import type { RarityId } from '../rarity.js';
 import type { AreaId } from './areas.js';
 
-/** Gathering professions (GDD §11.3). Rules and levels are ticket 2.3. */
+/** Gathering professions (GDD §11.3). Rules and levels: `professions/` (ticket 2.3). */
 export const PROFESSION_IDS = ['mining', 'woodcutting', 'herbalism', 'skinning'] as const;
 
 export type ProfessionId = (typeof PROFESSION_IDS)[number];

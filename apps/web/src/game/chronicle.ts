@@ -2,6 +2,7 @@ import type { RarityId } from '@worldforge/game-core';
 import { formatDuration } from '../lib/format';
 import type { ReturnSummary } from './api';
 import { summaryItemView } from './items';
+import { materialCounts, professionName } from './materials';
 
 /**
  * The Chronicle (area screen log) is built from settled summaries the server returns: it shows
@@ -12,6 +13,13 @@ export type LogEntry =
   | { id: string; at: string; kind: 'loot'; item: string; rarity: RarityId }
   | { id: string; at: string; kind: 'gold'; amount: number }
   | { id: string; at: string; kind: 'level'; levels: number }
+  | {
+      id: string;
+      at: string;
+      kind: 'materials';
+      materials: { name: string; rarity: RarityId; quantity: number }[];
+    }
+  | { id: string; at: string; kind: 'profession'; profession: string; levels: number }
   | { id: string; at: string; kind: 'death'; deaths: number }
   | { id: string; at: string; kind: 'note'; text: string };
 
@@ -44,6 +52,19 @@ export function chronicleEntries(summary: ReturnSummary, seq: number): LogEntry[
     const view = summaryItemView(item);
     out.push({ id: id(`loot:${item.id}`), at, kind: 'loot', item: view.name, rarity: view.rarity });
   }
+  const gathered = materialCounts(summary.materials);
+  if (gathered.length > 0) {
+    out.push({
+      id: id('materials'),
+      at,
+      kind: 'materials',
+      materials: gathered.map((g) => ({
+        name: g.material.name,
+        rarity: g.material.rarity,
+        quantity: g.quantity,
+      })),
+    });
+  }
   const unlisted = summary.itemsGained - shown.length;
   if (unlisted > 0) {
     out.push({
@@ -63,6 +84,16 @@ export function chronicleEntries(summary: ReturnSummary, seq: number): LogEntry[
   }
   if (summary.levelsGained > 0) {
     out.push({ id: id('level'), at, kind: 'level', levels: summary.levelsGained });
+  }
+  for (const [pid, p] of Object.entries(summary.professions ?? {})) {
+    if (!p || p.levelsGained <= 0) continue;
+    out.push({
+      id: id(`prof:${pid}`),
+      at,
+      kind: 'profession',
+      profession: professionName(pid as Parameters<typeof professionName>[0]),
+      levels: p.levelsGained,
+    });
   }
   return out.reverse();
 }

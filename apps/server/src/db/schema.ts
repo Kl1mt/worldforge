@@ -6,6 +6,7 @@ import {
   index,
   jsonb,
   pgTable,
+  primaryKey,
   smallint,
   text,
   timestamp,
@@ -18,6 +19,8 @@ import type {
   CharacterAppearance,
   ClassId,
   EquipmentSlotId,
+  MaterialId,
+  ProfessionId,
   RarityId,
   RolledAffix,
   WorldProgress,
@@ -203,6 +206,10 @@ export interface ActivitySummary {
   itemsSalvaged: number;
   /** The most recent gained items (at most 100). */
   items: ActivitySummaryItem[];
+  /** Materials gained (ticket 2.3). Absent in summaries written before 2.3. */
+  materials?: Partial<Record<MaterialId, number>>;
+  /** Profession XP and level-ups (ticket 2.3). Absent in summaries written before 2.3. */
+  professions?: Partial<Record<ProfessionId, { xpGained: number; levelsGained: number }>>;
 }
 
 /**
@@ -255,6 +262,51 @@ export const activities = pgTable(
   ],
 );
 
+/**
+ * Materials a character holds (ticket 2.3). One row per material with a quantity; materials stack
+ * and have no capacity limit for now. Written only by the server (settlement; later the forge).
+ */
+export const characterMaterials = pgTable(
+  'character_materials',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    /** game-core `MaterialId`. */
+    materialId: text('material_id').$type<MaterialId>().notNull(),
+    quantity: bigint('quantity', { mode: 'number' }).notNull().default(0),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.characterId, t.materialId] }),
+    check('character_materials_quantity_check', sql`${t.quantity} >= 0`),
+  ],
+);
+
+/**
+ * Gathering profession progress per character (ticket 2.3, game-core `ProfessionState`). A missing
+ * row means level 1 with 0 XP. Written only by settlement, under the character lock.
+ */
+export const characterProfessions = pgTable(
+  'character_professions',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    /** game-core `ProfessionId`. */
+    professionId: text('profession_id').$type<ProfessionId>().notNull(),
+    level: integer('level').notNull().default(1),
+    /** Experience within the current level. */
+    experience: bigint('experience', { mode: 'number' }).notNull().default(0),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.characterId, t.professionId] }),
+    check('character_professions_level_check', sql`${t.level} >= 1`),
+    check('character_professions_experience_check', sql`${t.experience} >= 0`),
+  ],
+);
+
 /** Append-only record of security-relevant and valuable events. */
 export const auditLog = pgTable(
   'audit_log',
@@ -283,5 +335,7 @@ export type AuditLogEntry = typeof auditLog.$inferSelect;
 export type NewAuditLogEntry = typeof auditLog.$inferInsert;
 export type ItemInstance = typeof itemInstances.$inferSelect;
 export type NewItemInstance = typeof itemInstances.$inferInsert;
+export type CharacterMaterial = typeof characterMaterials.$inferSelect;
+export type CharacterProfession = typeof characterProfessions.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
 export type NewActivity = typeof activities.$inferInsert;

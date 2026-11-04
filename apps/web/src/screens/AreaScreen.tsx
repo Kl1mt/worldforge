@@ -221,6 +221,26 @@ function LogLine({ entry }: { entry: LogEntry }) {
           {entry.levels === 1 ? 'Level up.' : `${entry.levels} levels gained.`}
         </span>
       );
+    case 'materials':
+      return (
+        <>
+          Gathered{' '}
+          {entry.materials.map((m, i) => (
+            <span key={m.name}>
+              {i > 0 ? ', ' : ''}
+              <span className={`log__material rarity-${m.rarity}`}>
+                {formatNumber(m.quantity)} {m.name}
+              </span>
+            </span>
+          ))}
+        </>
+      );
+    case 'profession':
+      return (
+        <span className="log__level">
+          {entry.profession} {entry.levels === 1 ? 'improves.' : `+${entry.levels} levels.`}
+        </span>
+      );
     case 'death':
       return (
         <span className="log__hurt">

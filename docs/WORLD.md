@@ -26,7 +26,7 @@ The Abandoned Fields enemies keep their Phase 1 numbers. The new enemies use the
 - `undeadDrop`: `soulShard` (listed in the Old Burial Grounds, where every enemy is undead).
 - `bossDrop`: `gravewardenSeal`.
 
-Yields, gathering and profession levels are ticket 2.3.
+Yields, gathering and profession levels (ticket 2.3): `packages/game-core/src/professions/`, rules in `docs/FARMING.md` ("Gathering & professions").
 
 ## Unlocks
 `isAreaUnlocked(areaId, character, progress)` and `isDungeonUnlocked(…)` with `character = { level }` and `progress = { gravewardenDefeated }`. `areaUnlockBlockers` / `dungeonUnlockBlockers` return the unmet conditions in a stable order (`{ kind: 'level', required }`, then `{ kind: 'gravewardenDefeated' }`) for the world map. A non-integer or < 1 level throws. The rules live in `UnlockRule` on each place (data), so new places need no code.

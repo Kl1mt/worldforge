@@ -42,7 +42,7 @@ export interface AreaDefinition {
   maxLevel: number;
   unlock: UnlockRule;
   enemies: readonly AreaEnemyEntry[];
-  /** Materials gathered here (rules: ticket 2.3). */
+  /** Materials gathered here (yields: `DEFAULT_PROFESSION_CONFIG.areas`, ticket 2.3). */
   materials: readonly MaterialId[];
   /** Loot table rolled for kills here (`getLootTable`). */
   lootTableId: string;

@@ -43,6 +43,13 @@
       "when": 1793805247058,
       "tag": "0005_world_progress",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1793807528312,
+      "tag": "0006_materials_professions",
+      "breakpoints": true
     }
   ]
 }
