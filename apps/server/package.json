@@ -10,6 +10,7 @@
     "start": "node --env-file-if-exists=.env dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
+    "e2e:serve": "tsx --conditions=source src/e2e/serve.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --env-file-if-exists=.env --conditions=source src/db/migrate-cli.ts",
     "db:migrate:prod": "node --env-file-if-exists=.env dist/db/migrate-cli.js"

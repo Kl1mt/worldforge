@@ -10,6 +10,8 @@ import {
   type EquipmentSlotDefinition,
   type EquipmentSlotId,
 } from '@worldforge/game-core';
+import { useGame } from '../game/GameProvider';
+import { equippedBySlot, type EquippedMap, type ItemView } from '../game/items';
 import { classPortrait } from '../content/assets';
 import { ItemFrame } from '../components/ItemFrame';
 import { ItemTooltip } from '../components/ItemTooltip';
@@ -17,10 +19,9 @@ import { LabeledMeter, Meter } from '../components/Meter';
 import { PixelSprite } from '../components/PixelSprite';
 import { useElementWidth } from '../components/useElementWidth';
 import { formatNumber, formatStatValue } from '../lib/format';
+import { routeHref } from '../lib/route';
 import { DOLL_LARGE_MIN_WIDTH, pixelScale } from '../lib/pixel';
 import { useActiveCharacter } from '../characters/CharactersProvider';
-import { CHARACTER } from '../mock/character';
-import { EQUIPPED } from '../mock/items';
 import './character.css';
 
 /** Paper-doll sides: armour on the left, jewellery and arms on the right. */
@@ -44,15 +45,17 @@ function Slot({
   scale,
   selected,
   onSelect,
+  equipped,
 }: {
   id: EquipmentSlotId;
   side: 'left' | 'right';
   scale: number;
   selected: boolean;
   onSelect: () => void;
+  equipped: EquippedMap;
 }) {
   const def = slotDef(id);
-  const item = EQUIPPED[id];
+  const item = equipped[id];
   return (
     <li className={`slot slot--${side}${item ? '' : ' slot--empty'}`}>
       <ItemFrame
@@ -79,15 +82,40 @@ export function CharacterScreen() {
   const portrait = classPortrait(hero.classId);
   const xpToNext = hero.level < MAX_LEVEL ? xpToNextLevel(hero.level) : hero.experience;
   const resource = RESOURCES.find((r) => r.id === cls.resource);
+  const { inventory, activity, unequip, reload } = useGame();
   const [selected, setSelected] = useState<EquipmentSlotId>('weapon');
+  const [busy, setBusy] = useState(false);
+  const [notice, setNotice] = useState<{ kind: 'ok' | 'error'; text: string } | null>(null);
   const [dollRef, dollWidth] = useElementWidth<HTMLElement>(0);
   // Desktop with room: portrait ×4 and sockets ×3. Otherwise the approved ×3 / ×2 (phones ×2).
   const large = dollWidth >= DOLL_LARGE_MIN_WIDTH;
   const [portraitRef, portraitWidth] = useElementWidth<HTMLDivElement>(384);
   const portraitScale = pixelScale(portraitWidth, portrait.width, { min: 2, max: large ? 4 : 3 });
   const slotScale = large ? 3 : 2;
-  const selectedItem = EQUIPPED[selected];
+  const ready = inventory.kind === 'ready' ? inventory.value : null;
+  const equipped: EquippedMap = ready ? equippedBySlot(ready.equipped) : {};
+  const selectedItem = equipped[selected];
   const statName = new Map(CORE_STATS.map((s) => [s.id, s.name]));
+  const maxHealth = ready?.stats.health ?? 0;
+  const carried = activity.kind === 'ready' ? (activity.value?.health ?? null) : null;
+  const health = Math.min(maxHealth, carried ?? maxHealth);
+
+  const select = (id: EquipmentSlotId) => {
+    setSelected(id);
+    setNotice(null);
+  };
+
+  const takeOff = async (item: ItemView) => {
+    setBusy(true);
+    setNotice(null);
+    const failure = await unequip(item.id);
+    setBusy(false);
+    setNotice(
+      failure
+        ? { kind: 'error', text: failure }
+        : { kind: 'ok', text: `${item.name} went back into the pack.` },
+    );
+  };
 
   return (
     <div className="char">
@@ -131,7 +159,8 @@ export function CharacterScreen() {
                 side="left"
                 scale={slotScale}
                 selected={selected === id}
-                onSelect={() => setSelected(id)}
+                onSelect={() => select(id)}
+                equipped={equipped}
               />
             ))}
           </ul>
@@ -147,19 +176,14 @@ export function CharacterScreen() {
               <span className="display doll__class">{cls.name}</span>
               <span className="doll__identity">{cls.identity}</span>
               <div className="doll__bars">
-                <LabeledMeter
-                  current={CHARACTER.health.current}
-                  max={CHARACTER.health.max}
-                  label="Health"
-                  value={`${formatNumber(CHARACTER.health.current)} / ${formatNumber(CHARACTER.health.max)}`}
-                />
-                <LabeledMeter
-                  current={CHARACTER.resource.current}
-                  max={CHARACTER.resource.max}
-                  label={resource?.name ?? 'Resource'}
-                  value={`${formatNumber(CHARACTER.resource.current)} / ${formatNumber(CHARACTER.resource.max)}`}
-                  variant="rage"
-                />
+                {ready ? (
+                  <LabeledMeter
+                    current={health}
+                    max={maxHealth}
+                    label="Health"
+                    value={`${formatNumber(health)} / ${formatNumber(maxHealth)}`}
+                  />
+                ) : null}
               </div>
             </div>
           </div>
@@ -172,7 +196,8 @@ export function CharacterScreen() {
                 side="right"
                 scale={slotScale}
                 selected={selected === id}
-                onSelect={() => setSelected(id)}
+                onSelect={() => select(id)}
+                equipped={equipped}
               />
             ))}
           </ul>
@@ -183,33 +208,71 @@ export function CharacterScreen() {
             <h2 id="stats-title" className="rule-heading">
               Attributes
             </h2>
-            {STAT_GROUPS.map((group) => (
-              <div key={group.title} className="ledger__group">
-                <h3 className="caps">{group.title}</h3>
-                <dl>
-                  {group.stats.map((id) => (
-                    <div
-                      key={id}
-                      className={`ledger__row${CHARACTER.stats[id] === 0 ? ' is-zero' : ''}`}
-                    >
-                      <dt>{statName.get(id)}</dt>
-                      <dd>{formatStatValue(id, CHARACTER.stats[id])}</dd>
-                    </div>
-                  ))}
-                </dl>
+            {inventory.kind === 'loading' ? (
+              <p className="ledger__state" role="status">
+                Tallying attributes…
+              </p>
+            ) : null}
+            {inventory.kind === 'error' ? (
+              <div className="ledger__state" role="alert">
+                <p>{inventory.message}</p>
+                <button type="button" className="btn" onClick={reload}>
+                  Try again
+                </button>
               </div>
-            ))}
+            ) : null}
+            {ready &&
+              STAT_GROUPS.map((group) => (
+                <div key={group.title} className="ledger__group">
+                  <h3 className="caps">{group.title}</h3>
+                  <dl>
+                    {group.stats.map((id) => (
+                      <div
+                        key={id}
+                        className={`ledger__row${ready.stats[id] === 0 ? ' is-zero' : ''}`}
+                      >
+                        <dt>{statName.get(id)}</dt>
+                        <dd>{formatStatValue(id, ready.stats[id])}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              ))}
           </section>
 
           <section className="inspect" aria-live="polite" aria-label="Selected slot">
             {selectedItem ? (
-              <ItemTooltip item={selectedItem} caption={`Equipped · ${slotDef(selected).name}`} />
+              <ItemTooltip item={selectedItem} caption={`Equipped · ${slotDef(selected).name}`}>
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => void takeOff(selectedItem)}
+                  disabled={busy}
+                  aria-busy={busy}
+                >
+                  {busy ? 'Unequipping…' : 'Unequip'}
+                </button>
+              </ItemTooltip>
             ) : (
               <div className="inspect__empty">
                 <p className="caps">{slotDef(selected).name}</p>
-                <p>Nothing equipped. Items for this slot will drop in the fields.</p>
+                <p>
+                  {inventory.kind === 'loading'
+                    ? 'Checking this slot…'
+                    : 'Nothing equipped. Items for this slot drop in the fields; equip them from the '}
+                  {inventory.kind === 'loading' ? null : <a href={routeHref('inventory')}>pack</a>}
+                  {inventory.kind === 'loading' ? null : '.'}
+                </p>
               </div>
             )}
+            {notice ? (
+              <p
+                className={`inspect__notice inspect__notice--${notice.kind}`}
+                role={notice.kind === 'error' ? 'alert' : 'status'}
+              >
+                {notice.text}
+              </p>
+            ) : null}
           </section>
         </aside>
       </div>

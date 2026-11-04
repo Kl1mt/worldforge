@@ -1,6 +1,6 @@
 # API conventions
 
-Applies to every endpoint served by `apps/server`. Implemented so far: health, content, the account/auth endpoints (ticket 1.2), the character endpoints (ticket 1.3), the inventory & equipment endpoints (ticket 1.7), the 404 handler and the error handler (`apps/server/src/errors.ts`; throw `ApiError(status, code, message, details?)` for deliberate failures).
+Applies to every endpoint served by `apps/server`. Implemented so far: health, content, the account/auth endpoints (ticket 1.2), the character endpoints (ticket 1.3), the farming endpoints (ticket 1.6), the inventory & equipment endpoints (ticket 1.7), the 404 handler and the error handler (`apps/server/src/errors.ts`; throw `ApiError(status, code, message, details?)` for deliberate failures).
 
 ## Basics
 - REST over HTTPS, JSON request and response bodies (`application/json; charset=utf-8`).
@@ -75,7 +75,7 @@ Every non-2xx response has this shape:
 | GET    | `/api/account` | `200 { account }` for the session's account, else `401 unauthenticated` |
 | GET    | `/api/characters` | `200 { characters, slots: { used, total }, activeCharacterId }` — the account's characters, oldest first. Not paginated: bounded by the slot count |
 | POST   | `/api/characters` | Body `{ name, classId, appearance: { banner } }` → `201 { character }`; the new character becomes active. `400 validation_failed` (`details.fields`: `name`, `classId`, `appearance.banner`), `409 character_name_taken`, `422 no_free_slot` (`details.slots`) |
-| GET    | `/api/characters/:characterId/activity` | `200 { activity, character }`; `activity` is `{ characterId, areaId, startedAt, settledAt }` or null. Read-only: does not settle |
+| GET    | `/api/characters/:characterId/activity` | `200 { activity, character }`; `activity` is `{ characterId, areaId, startedAt, settledAt, health }` or null (`health`: hit points carried between settlements, null = full; added in ticket 1.8). Read-only: does not settle |
 | POST   | `/api/characters/:characterId/activity` | Body `{ areaId }` → `201 { activity, character }` (or `200` if already farming that area; another area switches after settling). Stops the account's other activity. `400 validation_failed` (`details.fields.areaId`), `409 character_not_active` |
 | POST   | `/api/characters/:characterId/activity/settle` | `200 { activity, character, summary }`: settles from server time and returns the return summary since the previous call (see `docs/FARMING.md`). `409 not_farming` |
 | POST   | `/api/characters/:characterId/activity/stop` | `200 { activity: null, character, summary }`: settles, then stops. `409 not_farming` |

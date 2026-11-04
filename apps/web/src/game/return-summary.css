@@ -1,0 +1,135 @@
+/* "While you were away": an iron plate pinned over the dimmed game, brass header rule,
+   a four-column tally like a ledger line, then the found items in small sockets. */
+.return {
+  max-width: min(560px, calc(100vw - 2 * var(--gutter)));
+  width: 100%;
+  margin: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.return::backdrop {
+  background: rgb(12 10 9 / 0.78);
+}
+
+.return__plate {
+  position: relative;
+  background-color: var(--bg-surface);
+  background-image: var(--rivets), var(--texture-grain);
+  box-shadow: var(--frame-iron), var(--shadow-drop);
+  padding: var(--space-6);
+}
+
+.return__head {
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--brass-700);
+}
+
+.return__head .caps {
+  color: var(--brass-500);
+}
+
+.return__head h2 {
+  margin-top: var(--space-1);
+  font-size: var(--text-2xl);
+  color: var(--bone-100);
+  text-shadow: 0 2px 0 var(--outline-dark);
+}
+
+.return__tally {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  margin-top: var(--space-4);
+  border: var(--border-hair);
+  background: var(--bg-sunken);
+}
+
+.return__tally div {
+  padding: var(--space-2) var(--space-3);
+}
+
+.return__tally div + div {
+  border-left: var(--border-hair);
+}
+
+.return__tally dt {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+  letter-spacing: 0.04em;
+}
+
+.return__tally dd {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--bone-100);
+}
+
+.return__gold {
+  color: var(--brass-400) !important;
+}
+
+.return__level {
+  margin-top: var(--space-3);
+  color: var(--brass-300);
+  font-weight: 700;
+}
+
+.return__items {
+  margin-top: var(--space-4);
+}
+
+.return__items ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.return__more {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+}
+
+.return__notes {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.return__capped {
+  color: var(--crimson-400);
+}
+
+.return__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+@media (max-width: 760px) {
+  .return__plate {
+    padding: var(--space-4);
+  }
+
+  .return__tally {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .return__tally div:nth-child(3) {
+    border-left: 0;
+  }
+
+  .return__tally div:nth-child(n + 3) {
+    border-top: var(--border-hair);
+  }
+
+  .return__actions .btn {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+}

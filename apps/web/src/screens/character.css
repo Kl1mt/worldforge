@@ -211,6 +211,33 @@
   font-size: var(--text-sm);
 }
 
+.inspect__empty a {
+  color: var(--brass-400);
+}
+
+.ledger__state {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  margin-top: var(--space-4);
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* Success / error line under the inspected item (after equip or unequip). */
+.inspect__notice {
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--moss-400);
+  font-size: var(--text-sm);
+  color: var(--bone-200);
+}
+
+.inspect__notice--error {
+  border-left-color: var(--crimson-400);
+  background: rgb(184 73 63 / 0.1);
+}
+
 /* With the slot name beside the socket, the empty socket shows a small mark instead. */
 @media (min-width: 901px) {
   .slot .item-frame__empty {

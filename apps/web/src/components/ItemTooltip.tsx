@@ -1,26 +1,28 @@
-import { EQUIPMENT_SLOTS, RARITIES } from '@worldforge/game-core';
-import { compareItems } from '../lib/compare';
+import type { ReactNode } from 'react';
+import { RARITIES } from '@worldforge/game-core';
+import { compareItems, slotName, type ItemView } from '../game/items';
 import { formatStatDelta, formatStatValue, statDefinition } from '../lib/format';
-import type { ItemSlotKind, MockItem } from '../mock/items';
 import './item-tooltip.css';
 
 const RARITY_NAME = new Map(RARITIES.map((r) => [r.id, r.name]));
 
-function slotName(slot: ItemSlotKind): string {
-  if (slot === 'ring') return 'Ring';
-  return EQUIPMENT_SLOTS.find((s) => s.id === slot)?.name ?? slot;
-}
-
 interface ItemTooltipProps {
-  item: MockItem;
-  /** When set, a comparison block shows the change if `item` replaced it. */
-  compareTo?: MockItem | null;
+  item: ItemView;
+  /**
+   * When set, a comparison block shows the change if `item` replaced it (`null` = the target
+   * slot is empty).
+   */
+  compareTo?: ItemView | null;
   /** Small caption above the tooltip, e.g. "Equipped". */
   caption?: string;
+  /** A line under the header, e.g. "Warrior only". */
+  note?: string;
+  /** Actions at the foot of the plate (equip, unequip, discard). */
+  children?: ReactNode;
   id?: string;
 }
 
-export function ItemTooltip({ item, compareTo, caption, id }: ItemTooltipProps) {
+export function ItemTooltip({ item, compareTo, caption, note, children, id }: ItemTooltipProps) {
   const deltas = compareTo !== undefined ? compareItems(item, compareTo ?? undefined) : null;
   const rarity = RARITY_NAME.get(item.rarity) ?? item.rarity;
 
@@ -35,11 +37,11 @@ export function ItemTooltip({ item, compareTo, caption, id }: ItemTooltipProps) 
         <header className="tooltip__head">
           <h3 className="tooltip__name">{item.name}</h3>
           <p className="tooltip__type">
-            <span className="tooltip__rarity">{rarity}</span> {item.baseType}
+            <span className="tooltip__rarity">{rarity}</span>{' '}
+            {item.slot ? slotName(item.slot) : 'Relic of a lost age'}
           </p>
-          <p className="tooltip__meta">
-            {slotName(item.slot)} <span aria-hidden="true">·</span> Item level {item.itemLevel}
-          </p>
+          <p className="tooltip__meta">Item level {item.itemLevel}</p>
+          {note ? <p className="tooltip__note">{note}</p> : null}
         </header>
 
         {item.base.length > 0 ? (
@@ -55,8 +57,8 @@ export function ItemTooltip({ item, compareTo, caption, id }: ItemTooltipProps) 
 
         {item.affixes.length > 0 ? (
           <ul className="tooltip__affixes" aria-label="Affixes">
-            {item.affixes.map((line) => (
-              <li key={line.stat}>
+            {item.affixes.map((line, i) => (
+              <li key={`${line.stat}-${i}`}>
                 <span className="tooltip__affix-value">
                   {formatStatDelta(line.stat, line.value)}
                 </span>{' '}
@@ -67,9 +69,6 @@ export function ItemTooltip({ item, compareTo, caption, id }: ItemTooltipProps) 
         ) : (
           <p className="tooltip__plain">No affixes.</p>
         )}
-
-        {item.unique ? <p className="tooltip__unique">{item.unique}</p> : null}
-        {item.flavor ? <p className="tooltip__flavor">“{item.flavor}”</p> : null}
 
         {deltas ? (
           <section className="tooltip__compare" aria-label="Comparison with equipped item">
@@ -96,6 +95,8 @@ export function ItemTooltip({ item, compareTo, caption, id }: ItemTooltipProps) 
             )}
           </section>
         ) : null}
+
+        {children ? <div className="tooltip__actions">{children}</div> : null}
       </div>
     </article>
   );

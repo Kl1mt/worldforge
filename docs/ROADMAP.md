@@ -119,7 +119,7 @@ GDD: §7.1, §14 steps 4–5.
 - Transaction-safe; an item can only be in one place; ownership checked.
 **Acceptance:** tests for invalid slot, wrong class, other account's item, double equip, concurrency.
 
-### 1.8 Connect the UI to the real game — `todo`
+### 1.8 Connect the UI to the real game — `done (PR #16)`
 GDD: §3, §9.2, §14, §18.
 - Replace mock data on the area, character and inventory screens with the API. Live combat log from settled events (polling is fine).
 - Offline return summary shown on login/return.

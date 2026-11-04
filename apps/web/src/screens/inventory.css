@@ -235,3 +235,24 @@
     display: none;
   }
 }
+
+/* Success / error line above the inspected item (after equip or discard). */
+.pack__notice {
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--moss-400);
+  background: rgb(138 144 112 / 0.08);
+  font-size: var(--text-sm);
+  color: var(--bone-200);
+}
+
+.pack__notice--error {
+  border-left-color: var(--crimson-400);
+  background: rgb(184 73 63 / 0.1);
+}
+
+.pack__discard--confirm {
+  color: var(--crimson-400);
+  box-shadow:
+    inset 0 0 0 1px var(--crimson-400),
+    inset 0 1px 0 rgb(255 255 255 / 0.06);
+}

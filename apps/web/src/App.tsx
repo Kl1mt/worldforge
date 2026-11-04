@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { CharactersProvider, useCharacters } from './characters/CharactersProvider';
+import { GameProvider } from './game/GameProvider';
 import { guardRoute, isGameRoute, routeHref, type Standing } from './lib/route';
 import { AreaScreen } from './screens/AreaScreen';
 import { AuthScreen, GateStatus } from './screens/AuthScreen';
@@ -46,11 +47,16 @@ function Routes() {
   if (route === 'characters') return <CharactersScreen />;
   if (!isGameRoute(route)) return <AuthScreen mode={route} />;
 
+  // The guard guarantees an active character here. Keyed by it, so switching heroes starts
+  // from fresh game state.
+  const active = roster.active!;
   return (
-    <Shell route={route}>
-      {route === 'area' ? <AreaScreen /> : null}
-      {route === 'character' ? <CharacterScreen /> : null}
-      {route === 'inventory' ? <InventoryScreen /> : null}
-    </Shell>
+    <GameProvider key={active.id} character={active}>
+      <Shell route={route}>
+        {route === 'area' ? <AreaScreen /> : null}
+        {route === 'character' ? <CharacterScreen /> : null}
+        {route === 'inventory' ? <InventoryScreen /> : null}
+      </Shell>
+    </GameProvider>
   );
 }

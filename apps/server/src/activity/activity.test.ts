@@ -150,7 +150,11 @@ describe('start / stop', () => {
     expect(again.statusCode).toBe(200);
     expect(again.body).not.toContain('seed');
     const state = await call(p, 'GET', `/api/characters/${id}/activity`);
-    expect(state.json().activity).toMatchObject({ characterId: id, areaId: 'abandonedFields' });
+    expect(state.json().activity).toMatchObject({
+      characterId: id,
+      areaId: 'abandonedFields',
+      health: null, // full until the first settlement
+    });
     expect(state.body).not.toContain('seed');
   });
 
@@ -189,7 +193,8 @@ describe('settlement', () => {
     advance(HOUR);
     const res = await settle(p, id);
     expect(res.statusCode).toBe(200);
-    const { summary, character } = res.json<SettleResponse>();
+    const { summary, character, activity } = res.json<SettleResponse>();
+    expect(activity?.health === null || Number.isInteger(activity?.health)).toBe(true);
     expect(summary.xpGained).toBeGreaterThan(0);
     expect(summary.goldGained).toBeGreaterThan(0);
     expect(summary.itemsGained).toBeGreaterThan(0);
