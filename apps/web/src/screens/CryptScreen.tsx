@@ -19,7 +19,7 @@ import { useMediaQuery } from '../components/useMediaQuery';
 import { useGame } from '../game/GameProvider';
 import {
   claimKey,
-  cryptLogLine,
+  cryptLog,
   describeDungeonFailure,
   dungeonApi,
   type DungeonResult,
@@ -220,10 +220,8 @@ function Descent({ progress }: { progress: DungeonRunProgress | null }) {
 }
 
 function CryptLog({ progress }: { progress: DungeonRunProgress }) {
-  const lines = progress.events
-    .map((e) => cryptLogLine(e, progress.totalRooms))
-    .filter((l) => l !== null)
-    .reverse();
+  const { classId } = useActiveCharacter();
+  const lines = cryptLog(progress.events, progress.totalRooms, classId).reverse();
   return (
     <section className="log panel-ledger crypt-log" aria-labelledby="crypt-log-title">
       <header className="log__head">

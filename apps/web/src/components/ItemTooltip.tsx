@@ -41,6 +41,11 @@ export function ItemTooltip({ item, compareTo, caption, note, children, id }: It
             {item.slot ? slotName(item.slot) : 'Relic of a lost age'}
           </p>
           <p className="tooltip__meta">Item level {item.itemLevel}</p>
+          {item.uniqueSource ? (
+            <p className="tooltip__unique">
+              <span className="caps">Unique boss drop</span> Only {item.uniqueSource} drops this.
+            </p>
+          ) : null}
           {note ? <p className="tooltip__note">{note}</p> : null}
         </header>
 

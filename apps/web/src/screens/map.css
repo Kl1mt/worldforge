@@ -170,8 +170,10 @@
   grid-template-columns: 1fr auto;
   grid-template-areas:
     'name state'
-    'levels state';
-  align-items: center;
+    'levels levels';
+  /* The state label sits on the name's row (baseline), the levels line below both. */
+  align-items: baseline;
+  column-gap: var(--space-3);
   width: 100%;
   min-height: 48px;
   padding: var(--space-1) var(--space-3);

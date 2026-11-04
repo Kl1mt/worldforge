@@ -1,4 +1,7 @@
 import {
+  BOSS_LOOT_TABLES,
+  DUNGEONS,
+  getEnemy,
   CORE_STAT_IDS,
   EQUIPMENT_SLOTS,
   defaultEquipSlot,
@@ -42,6 +45,20 @@ export interface ItemView {
   classes: readonly ClassId[];
   equippedSlot: EquipmentSlotId | null;
   createdAt: string;
+  /**
+   * For a boss-exclusive (`unique`) base: who drops it, e.g. "The Gravewarden of The Nameless
+   * Crypt". Null for ordinary bases.
+   */
+  uniqueSource: string | null;
+}
+
+/** Where a boss-exclusive base drops, from the boss loot tables and dungeon content. */
+export function uniqueSourceOf(baseId: string): string | null {
+  const base = findItemBase(baseId);
+  if (!base?.unique) return null;
+  const table = BOSS_LOOT_TABLES.find((t) => t.entries.some((e) => e.baseId === baseId));
+  const dungeon = table && DUNGEONS.find((d) => d.bossLoot.lootTableId === table.id);
+  return dungeon ? `${getEnemy(dungeon.bossId).name} of ${dungeon.name}` : 'a boss';
 }
 
 function iconOf(id: string | undefined): ItemAssetId | null {
@@ -68,6 +85,7 @@ export function toItemView(dto: ItemDto): ItemView {
     classes: base?.classes ?? [],
     equippedSlot: dto.equippedSlot,
     createdAt: dto.createdAt,
+    uniqueSource: uniqueSourceOf(dto.baseId),
   };
 }
 

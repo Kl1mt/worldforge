@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { dungeonRunProgress, simulateDungeonRun } from '@worldforge/game-core';
-import { claimKey, cryptLogLine, describeDungeonFailure, dungeonApi } from './dungeon';
+import { claimKey, cryptLog, describeDungeonFailure, dungeonApi } from './dungeon';
 
 describe('crypt client', () => {
   it('sends the idempotency key with the claim', async () => {
@@ -22,11 +22,30 @@ describe('crypt client', () => {
       bossLootEligible: true,
       inventoryCount: 0,
     });
-    const lines = dungeonRunProgress(run, run.durationMs, 10_000)
-      .events.map((e) => cryptLogLine(e, run.totalRooms))
-      .filter((l) => l !== null);
+    const lines = cryptLog(
+      dungeonRunProgress(run, run.durationMs, 10_000).events,
+      run.totalRooms,
+      'mage',
+    );
     expect(lines[0]!.text).toContain('chamber 1 of 4');
     expect(lines.at(-1)!.tone).toBe('fall');
+    // Hit lines name the skill and the foe, never a bare "Skill for 156".
+    const hits = lines.filter((l) => l.tone === 'hit');
+    expect(hits.length).toBeGreaterThan(0);
+    for (const h of hits) expect(h.text).toMatch(/^(Firebolt|Your strike) (hits|crits) the \S/);
+    expect(lines.some((l) => /Skill for/.test(l.text))).toBe(false);
+  });
+
+  it('names the boss without a doubled article', () => {
+    const lines = cryptLog(
+      [
+        { t: 0, type: 'spawn', enemyId: 'gravewarden', enemyLevel: 14, enemyHealth: 900, health: 200, maxHealth: 200 },
+        { t: 1, type: 'attack', damage: 156, crit: false, skill: true, enemyHealth: 744 },
+      ],
+      4,
+      'warrior',
+    );
+    expect(lines.at(-1)!.text).toBe('Heavy Strike hits the Gravewarden for 156.');
   });
 
   it('explains dungeon errors', () => {
