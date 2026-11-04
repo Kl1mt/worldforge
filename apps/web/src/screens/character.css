@@ -35,8 +35,8 @@
 
 .char__body {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 360px;
-  gap: var(--space-8);
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--space-6);
   align-items: start;
 }
 
@@ -130,9 +130,28 @@
 
 .doll__bars {
   display: grid;
-  gap: 4px;
+  gap: var(--space-2);
   width: 70%;
-  margin-top: var(--space-1);
+  margin-top: var(--space-2);
+  text-align: left;
+}
+
+/* Desktop with room (DOLL_LARGE_MIN_WIDTH): portrait ×4 in a 512 px niche, sockets ×3. */
+.doll--large {
+  gap: var(--space-3);
+}
+
+.doll--large .doll__niche {
+  width: 512px;
+  border-radius: 256px 256px 0 0;
+}
+
+.doll--large .slot {
+  gap: var(--space-3);
+}
+
+.doll--large .slot__item {
+  overflow-wrap: anywhere;
 }
 
 /* ── Side column: attributes ledger + inspected item ──────────────────── */

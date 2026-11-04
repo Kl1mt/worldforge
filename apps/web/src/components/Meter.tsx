@@ -22,3 +22,21 @@ export function Meter({ current, max, label, variant = 'health', className }: Me
     </div>
   );
 }
+
+interface LabeledMeterProps extends MeterProps {
+  /** Visible value, e.g. "842 / 1,046". */
+  value: string;
+}
+
+/** A meter with its name and value written above the bar, e.g. "Health 842 / 1,046". */
+export function LabeledMeter({ value, className, ...meter }: LabeledMeterProps) {
+  return (
+    <div className={['meter-field', className].filter(Boolean).join(' ')}>
+      <div className="meter-field__text" aria-hidden="true">
+        <span className="meter-field__name">{meter.label}</span>
+        <span className="meter-field__value">{value}</span>
+      </div>
+      <Meter {...meter} />
+    </div>
+  );
+}

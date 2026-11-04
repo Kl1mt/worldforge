@@ -11,11 +11,11 @@ import {
 import { asset } from '../content/assets';
 import { ItemFrame } from '../components/ItemFrame';
 import { ItemTooltip } from '../components/ItemTooltip';
-import { Meter } from '../components/Meter';
+import { LabeledMeter, Meter } from '../components/Meter';
 import { PixelSprite } from '../components/PixelSprite';
 import { useElementWidth } from '../components/useElementWidth';
 import { formatNumber, formatStatValue } from '../lib/format';
-import { pixelScale } from '../lib/pixel';
+import { DOLL_LARGE_MIN_WIDTH, pixelScale } from '../lib/pixel';
 import { CHARACTER } from '../mock/character';
 import { EQUIPPED } from '../mock/items';
 import './character.css';
@@ -40,11 +40,13 @@ const slotDef = (id: EquipmentSlotId) =>
 function Slot({
   id,
   side,
+  scale,
   selected,
   onSelect,
 }: {
   id: EquipmentSlotId;
   side: 'left' | 'right';
+  scale: number;
   selected: boolean;
   onSelect: () => void;
 }) {
@@ -54,7 +56,7 @@ function Slot({
     <li className={`slot slot--${side}${item ? '' : ' slot--empty'}`}>
       <ItemFrame
         item={item}
-        scale={2}
+        scale={scale}
         emptyLabel={def.name}
         context={`${def.name} slot`}
         selected={selected}
@@ -74,8 +76,12 @@ export function CharacterScreen() {
   const cls = getClass(CHARACTER.classId);
   const resource = RESOURCES.find((r) => r.id === cls.resource);
   const [selected, setSelected] = useState<EquipmentSlotId>('weapon');
+  const [dollRef, dollWidth] = useElementWidth<HTMLElement>(0);
+  // Desktop with room: portrait ×4 and sockets ×3. Otherwise the approved ×3 / ×2 (phones ×2).
+  const large = dollWidth >= DOLL_LARGE_MIN_WIDTH;
   const [portraitRef, portraitWidth] = useElementWidth<HTMLDivElement>(384);
-  const portraitScale = pixelScale(portraitWidth, WARRIOR.width, { min: 2, max: 3 });
+  const portraitScale = pixelScale(portraitWidth, WARRIOR.width, { min: 2, max: large ? 4 : 3 });
+  const slotScale = large ? 3 : 2;
   const selectedItem = EQUIPPED[selected];
   const statName = new Map(CORE_STATS.map((s) => [s.id, s.name]));
 
@@ -108,13 +114,18 @@ export function CharacterScreen() {
       </header>
 
       <div className="char__body">
-        <section className="doll" aria-label="Equipment">
+        <section
+          className={`doll${large ? ' doll--large' : ''}`}
+          aria-label="Equipment"
+          ref={dollRef}
+        >
           <ul className="doll__col doll__col--left">
             {LEFT.map((id) => (
               <Slot
                 key={id}
                 id={id}
                 side="left"
+                scale={slotScale}
                 selected={selected === id}
                 onSelect={() => setSelected(id)}
               />
@@ -132,15 +143,17 @@ export function CharacterScreen() {
               <span className="display doll__class">{cls.name}</span>
               <span className="doll__identity">{cls.identity}</span>
               <div className="doll__bars">
-                <Meter
+                <LabeledMeter
                   current={CHARACTER.health.current}
                   max={CHARACTER.health.max}
                   label="Health"
+                  value={`${formatNumber(CHARACTER.health.current)} / ${formatNumber(CHARACTER.health.max)}`}
                 />
-                <Meter
+                <LabeledMeter
                   current={CHARACTER.resource.current}
                   max={CHARACTER.resource.max}
                   label={resource?.name ?? 'Resource'}
+                  value={`${formatNumber(CHARACTER.resource.current)} / ${formatNumber(CHARACTER.resource.max)}`}
                   variant="rage"
                 />
               </div>
@@ -153,6 +166,7 @@ export function CharacterScreen() {
                 key={id}
                 id={id}
                 side="right"
+                scale={slotScale}
                 selected={selected === id}
                 onSelect={() => setSelected(id)}
               />

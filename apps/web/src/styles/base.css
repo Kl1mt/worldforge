@@ -197,6 +197,29 @@ a {
   --back: var(--rage-back);
 }
 
+.meter-field {
+  display: grid;
+  gap: 2px;
+}
+
+.meter-field__text {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-xs);
+  line-height: 1.25;
+}
+
+.meter-field__name {
+  color: var(--text-dim);
+}
+
+.meter-field__value {
+  font-weight: 700;
+  color: var(--bone-100);
+}
+
 .meter--xp {
   --fill: var(--brass-500);
   --back: var(--ink-900);
