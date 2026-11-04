@@ -77,7 +77,8 @@ async function run(browser, vp) {
       for (const el of document.querySelectorAll('.notice')) {
         const title = el.querySelector('.notice__title')?.textContent ?? '';
         const kind = [...el.classList].find((c) => c.startsWith('notice--'))?.slice(8) ?? '';
-        if (!window.__notices.some((n) => n.title === title)) window.__notices.push({ kind, title });
+        if (!window.__notices.some((n) => n.title === title))
+          window.__notices.push({ kind, title });
       }
     }).observe(document, { childList: true, subtree: true });
   });
