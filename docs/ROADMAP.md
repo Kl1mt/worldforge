@@ -280,7 +280,7 @@ GDD: §3.1, §4.3. Match the existing enemies (64×64, side view, transparent; `
 - Budget: up to 2–3 enemies per 64px job (16 variants each), so about 4–5 jobs plus one boss job; at most 2 regenerations. Raw results in `art/source/pixellab/`, curated into `apps/web/public/assets/enemies/` with kebab-case names of the ids, manifest updated.
 **Acceptance:** a contact sheet with all new enemies next to the three existing ones and the boss in the PR.
 
-### A.4 Material & tier-2/3 item icons — `todo`
+### A.4 Material & tier-2/3 item icons — `done (PR #24)`
 GDD: §3.1, §7. Needs 2.1 merged (it defines the new item bases). Match the existing 32×32 item icons (`apps/web/public/assets/items/`).
 - Material icons: `timber`, `ashwort`, `rawHide`, `ironOre`, `soulShard`, `abbeySilver`, `gravewardenSeal`.
 - Icons for the new item bases from 2.1 (use one 32px job for gear: 64 variants for 10 generations; one more for materials).

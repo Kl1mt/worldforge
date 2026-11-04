@@ -603,6 +603,325 @@
       },
       "prompt": "dark fantasy pixel art, backdrop, Nameless Crypt: underground crypt interior, stone walls lined with bone niches and skulls, flickering torchlight on sconces, cracked stone floor, sarcophagus, deep shadows, muted desaturated palette, charcoal and deep brown, aged brass and dim crimson accents, gloomy overcast light",
       "source": "art/source/pixellab/area-nameless-crypt-01/00.png"
+    },
+    {
+      "id": "item.bastard-sword",
+      "path": "/assets/items/bastard-sword.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/03.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.bog-oak-staff",
+      "path": "/assets/items/bog-oak-staff.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/11.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.crowwood-longbow",
+      "path": "/assets/items/crowwood-longbow.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/22.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.kite-shield",
+      "path": "/assets/items/kite-shield.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/27.png",
+      "slot": "offhand"
+    },
+    {
+      "id": "item.barbute",
+      "path": "/assets/items/barbute.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/33.png",
+      "slot": "head"
+    },
+    {
+      "id": "item.brigandine",
+      "path": "/assets/items/brigandine.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/41.png",
+      "slot": "chest"
+    },
+    {
+      "id": "item.ringmail-gloves",
+      "path": "/assets/items/ringmail-gloves.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/48.png",
+      "slot": "hands"
+    },
+    {
+      "id": "item.iron-shod-boots",
+      "path": "/assets/items/iron-shod-boots.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/53.png",
+      "slot": "feet"
+    },
+    {
+      "id": "item.raven-talisman",
+      "path": "/assets/items/raven-talisman.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/56.png",
+      "slot": "neck",
+      "note": "right half of the source (one of two objects), centred"
+    },
+    {
+      "id": "item.grave-gold-ring",
+      "path": "/assets/items/grave-gold-ring.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/59.png",
+      "slot": "ring"
+    },
+    {
+      "id": "item.knights-greatsword",
+      "path": "/assets/items/knights-greatsword.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/04.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.drowned-crozier",
+      "path": "/assets/items/drowned-crozier.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/13.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.horn-recurve",
+      "path": "/assets/items/horn-recurve.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/23.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.tower-shield",
+      "path": "/assets/items/tower-shield.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/30.png",
+      "slot": "offhand"
+    },
+    {
+      "id": "item.great-helm",
+      "path": "/assets/items/great-helm.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/37.png",
+      "slot": "head"
+    },
+    {
+      "id": "item.knights-plate",
+      "path": "/assets/items/knights-plate.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/44.png",
+      "slot": "chest"
+    },
+    {
+      "id": "item.plated-gauntlets",
+      "path": "/assets/items/plated-gauntlets.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/49.png",
+      "slot": "hands"
+    },
+    {
+      "id": "item.plate-sabatons",
+      "path": "/assets/items/plate-sabatons.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/55.png",
+      "slot": "feet"
+    },
+    {
+      "id": "item.abbey-pendant",
+      "path": "/assets/items/abbey-pendant.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/58.png",
+      "slot": "neck",
+      "note": "left half of the source (one of two objects), centred"
+    },
+    {
+      "id": "item.abbey-signet",
+      "path": "/assets/items/abbey-signet.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-02-gear/60.png",
+      "slot": "ring"
+    },
+    {
+      "id": "material.timber",
+      "path": "/assets/materials/timber.png",
+      "kind": "material",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art crafting material icons, one item per icon: bundle of seasoned timber logs; sprig of grey ashwort herb; folded raw animal hide; chunk of rusty iron ore; glowing pale soul shard crystal; ingot of tarnished abbey silver; heavy wax seal of the gravewarden with skull emblem, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-03-materials/00.png"
+    },
+    {
+      "id": "material.ashwort",
+      "path": "/assets/materials/ashwort.png",
+      "kind": "material",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art crafting material icons, one item per icon: bundle of seasoned timber logs; sprig of grey ashwort herb; folded raw animal hide; chunk of rusty iron ore; glowing pale soul shard crystal; ingot of tarnished abbey silver; heavy wax seal of the gravewarden with skull emblem, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-03-materials/09.png"
+    },
+    {
+      "id": "material.raw-hide",
+      "path": "/assets/materials/raw-hide.png",
+      "kind": "material",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art crafting material icons, one item per icon: bundle of seasoned timber logs; sprig of grey ashwort herb; folded raw animal hide; chunk of rusty iron ore; glowing pale soul shard crystal; ingot of tarnished abbey silver; heavy wax seal of the gravewarden with skull emblem, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-03-materials/16.png"
+    },
+    {
+      "id": "material.iron-ore",
+      "path": "/assets/materials/iron-ore.png",
+      "kind": "material",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art crafting material icons, one item per icon: bundle of seasoned timber logs; sprig of grey ashwort herb; folded raw animal hide; chunk of rusty iron ore; glowing pale soul shard crystal; ingot of tarnished abbey silver; heavy wax seal of the gravewarden with skull emblem, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-03-materials/25.png"
+    },
+    {
+      "id": "material.soul-shard",
+      "path": "/assets/materials/soul-shard.png",
+      "kind": "material",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art crafting material icons, one item per icon: bundle of seasoned timber logs; sprig of grey ashwort herb; folded raw animal hide; chunk of rusty iron ore; glowing pale soul shard crystal; ingot of tarnished abbey silver; heavy wax seal of the gravewarden with skull emblem, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-03-materials/36.png"
+    },
+    {
+      "id": "material.abbey-silver",
+      "path": "/assets/materials/abbey-silver.png",
+      "kind": "material",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art crafting material icons, one item per icon: bundle of seasoned timber logs; sprig of grey ashwort herb; folded raw animal hide; chunk of rusty iron ore; glowing pale soul shard crystal; ingot of tarnished abbey silver; heavy wax seal of the gravewarden with skull emblem, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-03-materials/44.png"
+    },
+    {
+      "id": "material.gravewarden-seal",
+      "path": "/assets/materials/gravewarden-seal.png",
+      "kind": "material",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art crafting material icons, one item per icon: bundle of seasoned timber logs; sprig of grey ashwort herb; folded raw animal hide; chunk of rusty iron ore; glowing pale soul shard crystal; ingot of tarnished abbey silver; heavy wax seal of the gravewarden with skull emblem, weathered materials, muted palette, transparent background",
+      "source": "art/source/pixellab/icons-batch-03-materials/51.png"
     }
   ]
 }
