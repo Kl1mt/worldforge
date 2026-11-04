@@ -18,6 +18,12 @@ const item = (name: string): SpriteAsset => ({
   height: 32,
 });
 
+const material = (name: string): SpriteAsset => ({
+  path: `/assets/materials/${name}.png`,
+  width: 32,
+  height: 32,
+});
+
 const enemy = (name: string, facing: 'front' | 'left' | 'right', size = 64): SpriteAsset => ({
   path: `/assets/enemies/${name}.png`,
   width: size,
@@ -90,11 +96,39 @@ export const ASSETS = {
   'area.blackwater': { path: '/assets/areas/blackwater.png', width: 384, height: 216 },
   'area.sunken-abbey': { path: '/assets/areas/sunken-abbey.png', width: 384, height: 216 },
   'area.nameless-crypt': { path: '/assets/areas/nameless-crypt.png', width: 384, height: 216 },
+  'item.bastard-sword': item('bastard-sword'),
+  'item.bog-oak-staff': item('bog-oak-staff'),
+  'item.crowwood-longbow': item('crowwood-longbow'),
+  'item.kite-shield': item('kite-shield'),
+  'item.barbute': item('barbute'),
+  'item.brigandine': item('brigandine'),
+  'item.ringmail-gloves': item('ringmail-gloves'),
+  'item.iron-shod-boots': item('iron-shod-boots'),
+  'item.raven-talisman': item('raven-talisman'),
+  'item.grave-gold-ring': item('grave-gold-ring'),
+  'item.knights-greatsword': item('knights-greatsword'),
+  'item.drowned-crozier': item('drowned-crozier'),
+  'item.horn-recurve': item('horn-recurve'),
+  'item.tower-shield': item('tower-shield'),
+  'item.great-helm': item('great-helm'),
+  'item.knights-plate': item('knights-plate'),
+  'item.plated-gauntlets': item('plated-gauntlets'),
+  'item.plate-sabatons': item('plate-sabatons'),
+  'item.abbey-pendant': item('abbey-pendant'),
+  'item.abbey-signet': item('abbey-signet'),
+  'material.timber': material('timber'),
+  'material.ashwort': material('ashwort'),
+  'material.raw-hide': material('raw-hide'),
+  'material.iron-ore': material('iron-ore'),
+  'material.soul-shard': material('soul-shard'),
+  'material.abbey-silver': material('abbey-silver'),
+  'material.gravewarden-seal': material('gravewarden-seal'),
 } as const satisfies Record<string, SpriteAsset>;
 
 export type AssetId = keyof typeof ASSETS;
 export type ItemAssetId = Extract<AssetId, `item.${string}`>;
 export type EnemyAssetId = Extract<AssetId, `enemy.${string}`>;
+export type MaterialAssetId = Extract<AssetId, `material.${string}`>;
 
 export function asset(id: AssetId): SpriteAsset {
   return ASSETS[id];

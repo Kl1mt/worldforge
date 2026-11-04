@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art crafting material icons, one item per icon: bundle of seasoned timber logs; sprig of grey ashwort herb; folded raw animal hide; chunk of rusty iron ore; glowing pale soul shard crystal; ingot of tarnished abbey silver; heavy wax seal of the gravewarden with skull emblem, weathered materials, muted palette, transparent background",
+  "style_image": "apps/web/public/assets/items/longsword.png",
+  "job_id": "0f4f7979-389d-4b9f-8666-65063bf86ea0",
+  "created_at": "2026-11-04T15:10:19.228782+00:00",
+  "seed": 616091480,
+  "generations": 10.0,
+  "count": 64,
+  "width": 32,
+  "height": 32
+}

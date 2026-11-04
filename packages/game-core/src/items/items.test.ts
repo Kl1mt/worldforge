@@ -42,9 +42,10 @@ describe('item bases', () => {
     expect(new Set(ITEM_BASES.map((b) => b.id)).size).toBe(ITEM_BASES.length);
   });
 
-  it('points every base at a curated icon (tiers 2–3 use placeholders until ticket A.4)', () => {
-    const icons = new Set(ITEM_ICONS.map((i) => `item.${i}`));
-    for (const b of ITEM_BASES) expect(icons.has(b.icon), b.id).toBe(true);
+  it('gives every tier 2–3 base its own icon named after the base (ticket A.4)', () => {
+    for (const b of ITEM_BASES.filter((b) => b.tier !== 1))
+      expect(b.icon, b.id).toBe(`item.${b.id}`);
+    expect(new Set(ITEM_BASES.map((b) => b.icon)).size).toBe(ITEM_BASES.length);
   });
 
   it('has a tier 2 and a tier 3 base per slot kind with art and per weapon family', () => {

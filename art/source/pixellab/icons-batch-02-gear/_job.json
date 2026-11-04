@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art item icons, one item per icon: grave-iron bastard sword; long greatsword with ornate crossguard; gnarled bog-oak staff with green glint; dark crowwood longbow with black feathers; ram-horn recurve bow; drowned bishop crozier staff with hooked top; iron-bound kite shield; tall abbey tower shield with faded crest; barbute helmet with T-slit; great helm bucket helmet; brigandine studded leather coat; ornate knight plate armour; ringmail gloves; plated gauntlets; iron-shod boots; plate sabatons; raven skull talisman on cord; silver abbey pendant with a holy symbol; grave-gold ring; silver signet ring, weathered materials, muted palette, transparent background",
+  "style_image": "apps/web/public/assets/items/longsword.png",
+  "job_id": "03381601-ed3d-4639-bc90-421e862ef9ea",
+  "created_at": "2026-11-04T15:10:19.209374+00:00",
+  "seed": 1084614233,
+  "generations": 10.0,
+  "count": 64,
+  "width": 32,
+  "height": 32
+}

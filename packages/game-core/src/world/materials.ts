@@ -43,7 +43,7 @@ export interface MaterialDefinition {
   id: MaterialId;
   name: string;
   description: string;
-  /** Asset id `material.<kebab-case id>`; the icons arrive with ticket A.4. */
+  /** Asset id `material.<kebab-case id>` (icons from ticket A.4). */
   icon: string;
   rarity: RarityId;
   source: MaterialSource;

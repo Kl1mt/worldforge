@@ -21,7 +21,7 @@ Ticket 2.1. Data and pure rules in `packages/game-core/src/world/` (areas, dunge
 The Abandoned Fields enemies keep their Phase 1 numbers. The new enemies use the same stat shape with damage tuned so that, at an area's middle level and without gear, a hit sequence costs about as much health as the Fields enemies do at level 4 (roughly 25–55 % of max health per fight, depending on class). The Gravewarden (1,600 health at level 16) is a gear check: an unequipped level-14 character cannot kill it inside the 30 s fight timeout; with common tier-appropriate gear every class can.
 
 ## Materials and professions
-`MATERIALS`: id, name, description, icon (`material.<kebab-case id>`, icons arrive with A.4), rarity, source and profession, and the areas that list it.
+`MATERIALS`: id, name, description, icon (`material.<kebab-case id>`, in `apps/web/public/assets/materials/`, A.4), rarity, source and profession, and the areas that list it.
 - `gathering`: `timber` (Woodcutting), `ashwort` (Herbalism), `rawHide` (Skinning), `ironOre` and `abbeySilver` (Mining; silver is rare).
 - `undeadDrop`: `soulShard` (listed in the Old Burial Grounds, where every enemy is undead).
 - `bossDrop`: `gravewardenSeal`.
@@ -32,7 +32,7 @@ Yields, gathering and profession levels are ticket 2.3.
 `isAreaUnlocked(areaId, character, progress)` and `isDungeonUnlocked(…)` with `character = { level }` and `progress = { gravewardenDefeated }`. `areaUnlockBlockers` / `dungeonUnlockBlockers` return the unmet conditions in a stable order (`{ kind: 'level', required }`, then `{ kind: 'gravewardenDefeated' }`) for the world map. A non-integer or < 1 level throws. The rules live in `UnlockRule` on each place (data), so new places need no code.
 
 ## Item tiers
-Every item base has a `tier` (`items/bases.ts`): tier 1 are the 17 Phase 1 bases; tiers 2 and 3 add one base per slot kind with art and per weapon family (10 each: warrior sword, mage/warlock staff, hunter bow, shield, head, chest, hands, feet, neck, ring). Tier 2 drops from item level 9–10, tier 3 from 15–16, and each beats the tier below at the same item level. The new bases point at the closest tier-1 icon until A.4 delivers their own.
+Every item base has a `tier` (`items/bases.ts`): tier 1 are the 17 Phase 1 bases; tiers 2 and 3 add one base per slot kind with art and per weapon family (10 each: warrior sword, mage/warlock staff, hunter bow, shield, head, chest, hands, feet, neck, ring). Tier 2 drops from item level 9–10, tier 3 from 15–16, and each beats the tier below at the same item level. Each new base has its own icon `item.<base id>` (A.4).
 
 ## Loot in settlement
 `settleFarming` rolls the area's loot table (`AreaDefinition.lootTableId`) instead of the global `standard` table. Tables may set an `itemLevel` range that clamps the rolled item level (a clamp, no extra RNG draw). The `standard` table is now explicitly the tier-1 bases, so `generateItem` without a table and every stored Phase 1 seed reproduce what they did before. The Abandoned Fields table has the same entries and drop chance, so Fields settlements are bit-identical to Phase 1 (pinned in `world.test.ts`; checked against `main` over 48 class/level/seed combinations).
