@@ -3,12 +3,21 @@
 Server-authoritative farming of an area (Phase 1: Abandoned Fields). Rules are pure functions in `packages/game-core/src/activity/`; persistence, locking and routes in `apps/server/src/activity/`. Endpoints: `docs/API_CONVENTIONS.md`. Table: `activities` in `docs/DATA_MODEL.md`.
 
 ## Lifecycle
-- **Start** (`POST /api/characters/:id/activity`): only the account's active character. One activity per account: starting one settles and stops the other. Same area again is a no-op; another area settles first, then switches.
+- **Start** (`POST /api/characters/:id/activity`): only the account's active character, and only an area it has unlocked (`isAreaUnlocked` with the level after settling and `characters.progress`; otherwise `409 area_locked` with the blockers). One activity per account: starting one settles and stops the other. Same area again is a no-op; another area settles first, then switches (see "Area switches").
 - **Settle** (`POST …/activity/settle`): credits elapsed server time and returns the return summary. Clients poll this during active play.
 - **Scheduled settle**: every `SETTLE_INTERVAL_SECONDS` (default 300, `0` = off), the server settles activities not settled for one interval. That keeps rewards current while the player is away. It does not count as client contact.
 - **Stop** (`POST …/activity/stop`): settles, returns the final summary, saves the farm state on the character and deletes the row.
 - **Farm state survives stop/start (ticket 1.9).** Ending an activity (stop, or starting another character) saves `seed_secret`, `cycle_index` and `health` to `characters.farm_state`; the next start restores them. Without this, stop → start healed the character to full and re-rolled its next encounter: cycling it after every kill gave a level-1 mage 0 deaths and +25 % kills. Unsettled carry time is forfeited on stop. Health does not regenerate while stopped (the first search of the next cycle regenerates as usual).
 - **Equipment changes settle first (ticket 1.9).** Equip, unequip and discard settle the running activity (with client contact) before changing anything, so the time before the change is credited with the gear and inventory that were really there: no swapping in a gold-find set just before settling, and no discarding to dodge the capacity rule retroactively.
+
+## Area switches (ticket 2.2)
+An area switch never re-simulates a cycle in another area. The server settles first (like the equipment rule), then applies game-core `requestAreaChange`:
+- **Between cycles** (`carry_ms = 0` and nothing pending): the switch takes effect at once.
+- **Mid-cycle** (`carry_ms > 0`): the switch becomes pending (`activities.pending_area_id`). The cycle in progress finishes in the old area; `settleFarming` (`switchToAreaId`) runs that one cycle there (`maxCycles: 1`) and every later cycle of the window in the new area. If the window ends first, nothing switches and the whole window is carried as usual. The settlement then sets `area_id`, clears `pending_area_id` and writes `activity.start` with `deferred: true`.
+- Choosing the current area again cancels a pending switch; choosing another area replaces the target.
+- **Stop mid-cycle → start elsewhere:** the unfinished cycle's area is saved in `farm_state.areaId`. The next start creates the activity in that area with the requested one pending, so the forfeited cycle replays from its start in the same area (same seed, index and state: the same outcome) before the hero travels. While such a bound cycle is pending, a new request only re-targets the switch, even with no time in the cycle yet.
+
+So each cycle index is simulated in exactly one area, a player cannot dodge a long or deadly fight in progress by switching (or stop/start-ing) to another area, and — because the switch point is always a settlement — a run with switches gives the same result however often the client settles. Tests: `area switches` in `packages/game-core/src/activity/activity.test.ts` (settle every 1 s / 3.3 s / 60 s / once, with three switches incl. a re-target) and `areas & unlocks (ticket 2.2)` in `apps/server/src/activity/activity.test.ts` (two clients with the same seed, one settling every 5 s, the other only at the switches: identical characters, items and activity rows); real-Postgres race of switches and settles in `concurrency.pg.test.ts`.
 
 ## Time and the offline cap
 - Credited window = `[settled_at, min(now, last_seen_at + OFFLINE_CAP_SECONDS)]`, server clock only. Later time earns nothing and is reported as `cappedMs`. `settled_at` then moves to `now`.
@@ -35,6 +44,6 @@ Each settlement runs in one transaction. It locks the `characters` row (`SELECT 
 
 ## Open points
 - Health persists between settlements and across stop/start; regeneration while stopped is not modelled.
-- Accepted residual (ticket 1.9): a change of equipment or area re-simulates the unfinished cycle with the new stats/area (same RNG stream, different outcome). Players cannot see an unfinished cycle's outcome, so this is not a usable re-roll in Phase 1 (one area); revisit when more areas arrive.
+- Accepted residual (ticket 1.9): a change of equipment re-simulates the unfinished cycle with the new stats (same RNG stream, different outcome). Players cannot see an unfinished cycle's outcome. The area half of this residual is closed by ticket 2.2 ("Area switches").
 - Item ids in the summary may refer to items discarded since (ticket 1.7).
 - Per-settlement history beyond the audit log (an `offline_settlement` table) is deferred.

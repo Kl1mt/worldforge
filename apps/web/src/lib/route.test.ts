@@ -9,9 +9,15 @@ describe('parseRoute', () => {
     expect(parseRoute('#/characters')).toBe('characters');
   });
 
-  it('falls back to the area screen', () => {
-    expect(parseRoute('')).toBe('area');
-    expect(parseRoute('#/forge')).toBe('area');
+  it('falls back to the hub', () => {
+    expect(parseRoute('')).toBe('hub');
+    expect(parseRoute('#/smithy')).toBe('hub');
+  });
+
+  it('parses the hub, the map and the buildings', () => {
+    for (const r of ['hub', 'map', 'tavern', 'forge', 'merchant'] as const) {
+      expect(parseRoute(routeHref(r))).toBe(r);
+    }
   });
 
   it('round-trips through routeHref', () => {
@@ -41,6 +47,6 @@ describe('guardRoute', () => {
   it('lets players with a character into the game and back to character select', () => {
     for (const r of GAME_ROUTES) expect(guardRoute(r, 'playing')).toBeNull();
     expect(guardRoute('characters', 'playing')).toBeNull();
-    for (const r of AUTH_ROUTES) expect(guardRoute(r, 'playing')).toBe('area');
+    for (const r of AUTH_ROUTES) expect(guardRoute(r, 'playing')).toBe('hub');
   });
 });

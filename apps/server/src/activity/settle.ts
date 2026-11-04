@@ -84,6 +84,8 @@ export async function endActivityTx(tx: Transaction, activity: Activity): Promis
     seedSecret: activity.seedSecret,
     cycleIndex: activity.cycleIndex,
     health: activity.health,
+    // A cycle was in progress: it stays bound to its area (ticket 2.2).
+    ...(activity.carryMs > 0 ? { areaId: activity.areaId } : {}),
   };
   await tx.update(characters).set({ farmState }).where(eq(characters.id, activity.characterId));
   await tx.delete(activities).where(eq(activities.characterId, activity.characterId));
@@ -171,6 +173,7 @@ export async function settleActivityTx(
         },
         equipment: equipped,
         areaId: activity.areaId,
+        ...(activity.pendingAreaId ? { switchToAreaId: activity.pendingAreaId } : {}),
         seed: activity.seedSecret,
         firstCycle: activity.cycleIndex,
         durationMs,
@@ -213,6 +216,21 @@ export async function settleActivityTx(
       carryMs: settlement.unusedMs,
       health: settlement.health,
     });
+    if (settlement.switched) {
+      // The cycle in progress finished in the old area; the character travelled on (ticket 2.2).
+      const windowStartMs = settledMs - activity.carryMs;
+      Object.assign(patch, {
+        areaId: settlement.areaId,
+        pendingAreaId: null,
+        startedAt: new Date(windowStartMs + (settlement.switchedAtMs ?? 0)),
+      });
+      await writeAudit(tx, {
+        event: 'activity.start',
+        accountId: character.accountId,
+        characterId,
+        data: { areaId: settlement.areaId, from: activity.areaId, deferred: true },
+      });
+    }
     summary.settlements += 1;
     summary.simulatedMs += settlement.simulatedMs;
     summary.kills += settlement.kills;

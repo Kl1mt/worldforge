@@ -24,6 +24,13 @@ export interface SettleFarmingInput {
   durationMs: number;
   /** Unequipped items the character already holds (for the capacity rule). */
   inventoryCount: number;
+  /**
+   * A pending area switch (ticket 2.2). The first cycle of the window — the cycle that was in
+   * progress when the switch was requested — still runs in `areaId`; every later cycle runs here.
+   * If the window ends before that first cycle completes, nothing switches (`areaId` of the result
+   * stays the old area) and the whole window is carried, as usual.
+   */
+  switchToAreaId?: AreaId;
 }
 
 export interface SettleFarmingOptions {
@@ -33,6 +40,12 @@ export interface SettleFarmingOptions {
 }
 
 export interface FarmingSettlement {
+  /** Area farmed at the end of the window (the switch target once a pending switch happened). */
+  areaId: AreaId;
+  /** Whether a pending switch (`switchToAreaId`) took effect in this window. */
+  switched: boolean;
+  /** With `switched`: ms from the window start until the switch (the first cycle's length). */
+  switchedAtMs: number | null;
   durationMs: number;
   simulatedMs: number;
   /** Time of an unfinished cycle at the end of the window; carry it into the next settlement. */
@@ -94,6 +107,67 @@ export function settleFarming(
   input: SettleFarmingInput,
   options: SettleFarmingOptions = {},
 ): FarmingSettlement {
+  const { switchToAreaId, ...rest } = input;
+  if (switchToAreaId === undefined || switchToAreaId === input.areaId) {
+    return settleSegment(rest, options);
+  }
+  // The cycle in progress finishes where it started, then the character travels.
+  const first = settleSegment(rest, options, 1);
+  if (first.encounters === 0) return first;
+  const second = settleSegment(
+    {
+      ...rest,
+      areaId: switchToAreaId,
+      character: {
+        classId: input.character.classId,
+        level: first.level,
+        xp: first.xp,
+        health: first.health,
+      },
+      firstCycle: input.firstCycle + first.encounters,
+      durationMs: first.unusedMs,
+      inventoryCount: input.inventoryCount + first.items.length,
+    },
+    options,
+  );
+  const killsByEnemy: Partial<Record<EnemyId, number>> = { ...first.killsByEnemy };
+  for (const [id, n] of Object.entries(second.killsByEnemy) as [EnemyId, number][]) {
+    killsByEnemy[id] = (killsByEnemy[id] ?? 0) + n;
+  }
+  return {
+    areaId: switchToAreaId,
+    switched: true,
+    switchedAtMs: first.simulatedMs,
+    durationMs: input.durationMs,
+    simulatedMs: first.simulatedMs + second.simulatedMs,
+    unusedMs: second.unusedMs,
+    encounters: first.encounters + second.encounters,
+    kills: first.kills + second.kills,
+    killsByEnemy,
+    deaths: first.deaths + second.deaths,
+    timeouts: first.timeouts + second.timeouts,
+    damageTaken: first.damageTaken + second.damageTaken,
+    xpGained: first.xpGained + second.xpGained,
+    startLevel: first.startLevel,
+    level: second.level,
+    xp: second.xp,
+    levelsGained: second.level - first.startLevel,
+    health: second.health,
+    maxHealth: second.maxHealth,
+    goldLooted: first.goldLooted + second.goldLooted,
+    goldSalvaged: first.goldSalvaged + second.goldSalvaged,
+    items: [...first.items, ...second.items],
+    salvaged: [...first.salvaged, ...second.salvaged],
+    goldFind: second.goldFind,
+  };
+}
+
+/** One area, at most `maxCycles` cycles. */
+function settleSegment(
+  input: Omit<SettleFarmingInput, 'switchToAreaId'>,
+  options: SettleFarmingOptions,
+  maxCycles?: number,
+): FarmingSettlement {
   const activity = options.activity ?? DEFAULT_ACTIVITY_CONFIG;
   const combat = options.combat ?? DEFAULT_COMBAT_CONFIG;
   const lootConfig = options.loot ?? DEFAULT_LOOT_CONFIG;
@@ -124,6 +198,7 @@ export function settleFarming(
       seed: input.seed,
       durationMs: input.durationMs,
       firstCycle: input.firstCycle,
+      ...(maxCycles !== undefined ? { maxCycles } : {}),
     },
     {
       config: combat,
@@ -154,6 +229,9 @@ export function settleFarming(
   );
 
   return {
+    areaId: input.areaId,
+    switched: false,
+    switchedAtMs: null,
     durationMs: input.durationMs,
     simulatedMs: r.simulatedMs,
     unusedMs: r.unusedMs,

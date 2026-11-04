@@ -1,6 +1,6 @@
 # World content (game-core)
 
-Ticket 2.1. Data and pure rules in `packages/game-core/src/world/` (areas, dungeons, enemies, materials, unlocks) and `packages/game-core/src/loot/tables.ts` (area loot tables). The ids are the Phase 2 content contract in `docs/ROADMAP.md`; art tickets name their files after them. No server or UI uses the new areas yet: ticket 2.2 adds the unlock check to the activity start and the world map.
+Ticket 2.1. Data and pure rules in `packages/game-core/src/world/` (areas, dungeons, enemies, materials, unlocks) and `packages/game-core/src/loot/tables.ts` (area loot tables). The ids are the Phase 2 content contract in `docs/ROADMAP.md`; art tickets name their files after them. Ticket 2.2 made them playable: the activity start checks `isAreaUnlocked` server-side, `GET /api/characters/:id/world` reports each place's unlock state and blockers (`characters.progress` holds `gravewardenDefeated`), and the web app has the hub, the world map and an area screen for every area (`docs/DESIGN_SYSTEM.md`). Area switches let the cycle in progress finish first (`docs/FARMING.md`, "Area switches").
 
 ## Areas and the dungeon
 | Place | Enemy levels | Unlock | Enemies (spawn weight) | Materials | Loot table (item levels) |

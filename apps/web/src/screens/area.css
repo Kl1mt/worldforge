@@ -143,6 +143,47 @@
   top: 0;
 }
 
+/* No art for this area yet: a painted dusk with a fog band, so the scene keeps its shape. */
+.scene__backdrop--missing {
+  inset: 0;
+  background:
+    linear-gradient(to bottom, transparent 58%, rgb(195 184 166 / 0.08) 66%, transparent 74%),
+    linear-gradient(to bottom, var(--ink-750) 0%, var(--wood-800) 55%, var(--ink-950) 100%);
+}
+
+/* An enemy whose art is missing: an iron-ringed silhouette plate. */
+.foe-missing {
+  display: grid;
+  place-items: end center;
+  flex: none;
+  background: radial-gradient(ellipse 30% 42% at 50% 62%, var(--ink-950) 70%, transparent 72%);
+  border-bottom: 2px solid var(--iron-600);
+  color: var(--bone-400);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+}
+
+.area__maplink {
+  color: var(--brass-400);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.area__travel {
+  grid-column: 1 / -1;
+  margin-top: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-left: 2px solid var(--brass-500);
+  background: var(--bg-sunken);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.area__travel strong {
+  color: var(--brass-300);
+  font-weight: 500;
+}
+
 /* Vignette: darkens edges so plates and HUD stay legible on the art. */
 .scene__stage::after {
   content: '';

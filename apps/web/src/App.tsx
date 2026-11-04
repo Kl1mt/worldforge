@@ -5,9 +5,12 @@ import { GameProvider } from './game/GameProvider';
 import { guardRoute, isGameRoute, routeHref, type Standing } from './lib/route';
 import { AreaScreen } from './screens/AreaScreen';
 import { AuthScreen, GateStatus } from './screens/AuthScreen';
+import { BuildingScreen } from './screens/BuildingScreen';
 import { CharacterScreen } from './screens/CharacterScreen';
 import { CharactersScreen } from './screens/CharactersScreen';
+import { HubScreen } from './screens/HubScreen';
 import { InventoryScreen } from './screens/InventoryScreen';
+import { MapScreen } from './screens/MapScreen';
 import { Shell } from './shell/Shell';
 import { useRoute } from './shell/useRoute';
 
@@ -53,7 +56,12 @@ function Routes() {
   return (
     <GameProvider key={active.id} character={active}>
       <Shell route={route}>
+        {route === 'hub' ? <HubScreen /> : null}
+        {route === 'map' ? <MapScreen /> : null}
         {route === 'area' ? <AreaScreen /> : null}
+        {route === 'tavern' || route === 'forge' || route === 'merchant' ? (
+          <BuildingScreen building={route} />
+        ) : null}
         {route === 'character' ? <CharacterScreen /> : null}
         {route === 'inventory' ? <InventoryScreen /> : null}
       </Shell>

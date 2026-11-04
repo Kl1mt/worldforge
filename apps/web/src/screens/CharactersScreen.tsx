@@ -27,7 +27,7 @@ import './characters.css';
 const resourceName = (classId: ClassId) =>
   RESOURCES.find((r) => r.id === getClass(classId).resource)?.name ?? '';
 
-const enterGame = () => window.location.assign(routeHref('area'));
+const enterGame = () => window.location.assign(routeHref('hub'));
 
 /**
  * The muster hall: character select and creation. Shown after login until a character is

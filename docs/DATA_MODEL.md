@@ -58,7 +58,8 @@ A session is valid iff `revoked_at IS NULL AND expires_at > now()` (the server c
 | level          | integer     | default 1, `CHECK (>= 1)`                        |
 | experience     | bigint      | default 0, `CHECK (>= 0)`; within the current level |
 | gold           | bigint      | default 0, `CHECK (>= 0)`                        |
-| farm_state     | jsonb?      | `{ seedSecret, cycleIndex, health }` saved when the character's activity ends and restored when it starts again (ticket 1.9), so stop → start neither heals nor re-rolls. Never sent to clients |
+| farm_state     | jsonb?      | `{ seedSecret, cycleIndex, health, areaId? }` saved when the character's activity ends and restored when it starts again (ticket 1.9), so stop → start neither heals nor re-rolls. `areaId` (ticket 2.2) is the area of a cycle left unfinished by the stop; the next start replays that cycle there before travelling on. Never sent to clients |
+| progress       | jsonb       | game-core `WorldProgress`, default `{"gravewardenDefeated": false}` (ticket 2.2). Unlock facts besides the level; written only by the server (the Gravewarden kill arrives with ticket 2.5) |
 | version        | integer     | default 0; optimistic concurrency counter for later value-changing writes |
 | created_at / updated_at | timestamptz | default `now()`                         |
 
@@ -100,7 +101,8 @@ The character's current farming activity. Settlement rules: `docs/FARMING.md`.
 | -------------- | ----------- | ------------------------------------------------------------------ |
 | character_id   | uuid PK/FK  | → `characters.id` `ON DELETE CASCADE`; one activity per character  |
 | account_id     | uuid FK     | → `accounts.id` `ON DELETE CASCADE`; **unique** (one farming character per account) |
-| area_id        | text        | game-core `AreaId`                                                 |
+| area_id        | text        | game-core `AreaId` of the cycle in progress; the server checks `isAreaUnlocked` before setting it (ticket 2.2) |
+| pending_area_id | text?      | area switch requested mid-cycle (ticket 2.2): the cycle in progress finishes in `area_id`, then the settlement moves the activity here. Null = none |
 | seed_secret    | text        | 128-bit random hex, never sent to clients; carried over in `characters.farm_state` |
 | settlement_seq | integer     | settlements that credited time, `CHECK (>= 0)` (audit only)         |
 | cycle_index    | bigint      | cycles completed with `seed_secret`, `CHECK (>= 0)`; cycle `i` uses RNG `${seed_secret}:${i}` (ticket 1.9) |
@@ -112,7 +114,7 @@ The character's current farming activity. Settlement rules: `docs/FARMING.md`.
 | summary        | jsonb       | rewards since the client last collected the return summary         |
 | updated_at     | timestamptz |                                                                    |
 
-Stopping deletes the row after saving `seed_secret`, `cycle_index` and `health` to `characters.farm_state` (the audit log keeps the history). Per-settlement history lives in the audit log (`activity.reward`) rather than an `offline_settlement` table for now.
+Stopping deletes the row after saving `seed_secret`, `cycle_index`, `health` (and the unfinished cycle's area) to `characters.farm_state` (the audit log keeps the history). Per-settlement history lives in the audit log (`activity.reward`) rather than an `offline_settlement` table for now.
 
 ### idempotency_key — not implemented (planned)
 Phase 1 endpoints are idempotent by state (see `docs/API_CONVENTIONS.md`, Idempotency); this table arrives with the first non-idempotent value operation. `(account_id, key) PK`, `request_hash`, `response jsonb`, `status_code`, `created_at` (expired after 24h). See `docs/API_CONVENTIONS.md`.

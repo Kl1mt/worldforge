@@ -1,4 +1,12 @@
-import type { AreaId, EquipmentSlotId, RarityId, StatBlock } from '@worldforge/game-core';
+import type {
+  AreaId,
+  DungeonId,
+  EquipmentSlotId,
+  RarityId,
+  StatBlock,
+  UnlockBlocker,
+  WorldProgress,
+} from '@worldforge/game-core';
 import type { Character } from '../characters/api';
 import { apiRequest, type ApiFailure, type ApiResult } from '../lib/api';
 
@@ -6,7 +14,10 @@ import { apiRequest, type ApiFailure, type ApiResult } from '../lib/api';
 
 export interface Activity {
   characterId: string;
+  /** Area of the fight in progress. */
   areaId: AreaId;
+  /** Where the hero travels once the fight in progress ends (ticket 2.2); null = staying. */
+  pendingAreaId: AreaId | null;
   startedAt: string;
   settledAt: string;
   /** Health carried between settlements; null = full. */
@@ -70,6 +81,22 @@ export interface InventoryDto {
   stats: StatBlock;
 }
 
+export interface WorldPlace<Id extends string> {
+  id: Id;
+  unlocked: boolean;
+  blockers: UnlockBlocker[];
+}
+
+/** `GET /characters/:id/world` (ticket 2.2). */
+export interface WorldState {
+  characterId: string;
+  level: number;
+  progress: WorldProgress;
+  current: { areaId: AreaId; pendingAreaId: AreaId | null } | null;
+  areas: WorldPlace<AreaId>[];
+  dungeons: (WorldPlace<DungeonId> & { available: boolean })[];
+}
+
 const c = (id: string) => `/characters/${encodeURIComponent(id)}`;
 const i = (characterId: string, itemId: string) =>
   `${c(characterId)}/items/${encodeURIComponent(itemId)}`;
@@ -85,6 +112,11 @@ export const activityApi = {
     apiRequest(`${c(id)}/activity/settle`, { method: 'POST' }, f),
   stop: (id: string, f?: typeof fetch): Promise<ApiResult<SettleResult>> =>
     apiRequest(`${c(id)}/activity/stop`, { method: 'POST' }, f),
+};
+
+export const worldApi = {
+  get: (id: string, o: Signal = {}, f?: typeof fetch): Promise<ApiResult<WorldState>> =>
+    apiRequest(`${c(id)}/world`, o, f),
 };
 
 export const inventoryApi = {
@@ -120,6 +152,8 @@ export function describeGameFailure(error: Pick<ApiFailure, 'code'>): string {
       return 'Take the item off before discarding it.';
     case 'character_not_active':
       return 'Select this character before sending it out to farm.';
+    case 'area_locked':
+      return 'Your hero is not ready for that place yet. The map shows what it takes.';
     case 'not_farming':
       return 'This character is not farming right now.';
     case 'not_found':

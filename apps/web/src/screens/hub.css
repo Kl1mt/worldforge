@@ -1,0 +1,296 @@
+/* Hub (ticket 2.2): the town picture with building hotspots; phones add a signpost list. */
+.hub__head {
+  margin-bottom: var(--space-5);
+}
+
+.hub__region {
+  color: var(--brass-500);
+}
+
+.hub__title {
+  font-size: var(--text-3xl);
+  line-height: var(--leading-tight);
+}
+
+.hub__where {
+  margin-top: var(--space-1);
+  color: var(--text-dim);
+}
+
+.hub__where a {
+  color: var(--brass-400);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.hub__where-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin-right: var(--space-2);
+  background: var(--crimson-400);
+  transform: rotate(45deg) translateY(-2px);
+}
+
+.hub__frame {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* The picture in the scene frame: thick iron border, square corners, dark vignette. */
+.hub__stage {
+  position: relative;
+  overflow: hidden;
+  max-width: 100%;
+  border: 3px solid var(--iron-700);
+  outline: 1px solid var(--outline-dark);
+  box-shadow: var(--shadow-drop);
+  background: var(--ink-950);
+}
+
+.hub__art {
+  position: absolute;
+  top: 0;
+}
+
+.hotspot {
+  position: absolute;
+  display: block;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  cursor: pointer;
+  outline: none;
+}
+
+/* Hover / focus: a brass frame around the building (two rings so it reads on any art). */
+.hotspot:hover,
+.hotspot:focus-visible {
+  box-shadow:
+    0 0 0 1px var(--outline-dark),
+    inset 0 0 0 2px var(--brass-300),
+    inset 0 0 0 3px var(--outline-dark);
+  background: rgb(226 197 142 / 0.07);
+}
+
+.hotspot--later:hover,
+.hotspot--later:focus-visible {
+  box-shadow:
+    0 0 0 1px var(--outline-dark),
+    inset 0 0 0 2px var(--iron-500),
+    inset 0 0 0 3px var(--outline-dark);
+  background: rgb(12 10 9 / 0.35);
+  cursor: not-allowed;
+}
+
+/* A small wooden plaque hanging over each building. */
+.hotspot__plaque {
+  position: absolute;
+  bottom: calc(100% - 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  white-space: nowrap;
+  background: linear-gradient(to bottom, var(--wood-600), var(--wood-800));
+  border: 1px solid var(--outline-dark);
+  box-shadow: inset 0 0 0 1px var(--brass-700);
+  color: var(--bone-100);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  line-height: 1.2;
+  text-shadow: 0 1px 0 var(--outline-dark);
+  pointer-events: none;
+}
+
+.hotspot--start .hotspot__plaque {
+  left: 4px;
+  transform: none;
+}
+
+.hotspot--end .hotspot__plaque {
+  left: auto;
+  right: 0;
+  transform: none;
+}
+
+.hotspot--later .hotspot__plaque {
+  background: linear-gradient(to bottom, var(--iron-700), var(--iron-800));
+  box-shadow: inset 0 0 0 1px var(--iron-600);
+  color: var(--bone-300);
+}
+
+.hotspot:hover .hotspot__plaque,
+.hotspot:focus-visible .hotspot__plaque {
+  box-shadow: inset 0 0 0 1px var(--brass-400);
+  color: var(--brass-300);
+}
+
+.hotspot__later {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--bone-400);
+}
+
+.hub__inscription {
+  margin-top: var(--space-3);
+  min-height: 1.5em;
+  color: var(--text-dim);
+  font-style: italic;
+  text-align: center;
+}
+
+.hub__notice {
+  min-height: 1.5em;
+  margin-top: var(--space-2);
+  color: var(--text-muted);
+  text-align: center;
+}
+
+.hub__notice:empty {
+  min-height: 0;
+  margin: 0;
+}
+
+/* ── Phones: the signpost, one wooden board per building ─────────────── */
+.signpost ul {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.signpost__board {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'name later'
+    'purpose later';
+  align-items: center;
+  width: 100%;
+  min-height: 56px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--outline-dark);
+  border-left: 3px solid var(--brass-600);
+  background: linear-gradient(to right, var(--wood-700), var(--wood-800));
+  color: var(--text);
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.signpost__board--later {
+  border-left-color: var(--iron-600);
+  background: linear-gradient(to right, var(--iron-800), var(--ink-900));
+  color: var(--text-dim);
+}
+
+.signpost__name {
+  grid-area: name;
+  font-size: var(--text-lg);
+}
+
+.signpost__purpose {
+  grid-area: purpose;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.signpost__later {
+  grid-area: later;
+  color: var(--bone-400);
+}
+
+@media (max-width: 760px) {
+  .hub__title {
+    font-size: var(--text-2xl);
+  }
+
+  .hub__stage {
+    border-width: 2px;
+  }
+
+  .hotspot__plaque {
+    display: none;
+  }
+}
+
+/* ── Building placeholders (Tavern, Forge, Merchant) ─────────────────── */
+.building {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-8);
+  align-items: center;
+  max-width: 960px;
+  margin: var(--space-6) auto 0;
+}
+
+/* The building cut from the town picture, enlarged, in an arched stone niche. */
+.building__niche {
+  overflow: hidden;
+  padding: var(--space-4) var(--space-4) 0;
+  background: linear-gradient(to bottom, var(--iron-800), var(--ink-900));
+  border: 1px solid var(--outline-dark);
+  border-radius: 50% 50% 0 0 / 22% 22% 0 0;
+  box-shadow:
+    inset 0 0 0 1px var(--iron-600),
+    inset 0 -24px 32px -16px rgb(143 55 52 / 0.25);
+}
+
+.building__art {
+  display: block;
+  background-repeat: no-repeat;
+  image-rendering: pixelated;
+}
+
+.building__plaque {
+  margin: 0 calc(-1 * var(--space-4));
+  padding: var(--space-2) var(--space-4);
+  background: linear-gradient(to bottom, var(--wood-600), var(--wood-800));
+  border-top: 1px solid var(--brass-700);
+  color: var(--bone-100);
+  font-family: var(--font-display);
+  text-align: center;
+}
+
+.building__title {
+  font-size: var(--text-3xl);
+  line-height: var(--leading-tight);
+}
+
+.building__soon {
+  margin-top: var(--space-1);
+  color: var(--brass-500);
+}
+
+.building__text {
+  max-width: 52ch;
+  margin-top: var(--space-3);
+  color: var(--text-muted);
+}
+
+.building__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+@media (max-width: 760px) {
+  .building {
+    grid-template-columns: 1fr;
+    justify-items: center;
+    gap: var(--space-5);
+    margin-top: var(--space-2);
+  }
+
+  .building__title {
+    font-size: var(--text-2xl);
+  }
+}

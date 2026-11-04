@@ -10,6 +10,7 @@ import {
   type ActivityOptions,
 } from './activity/settle.js';
 import { registerInventory } from './inventory/routes.js';
+import { registerWorld } from './world/routes.js';
 import type { Database, DatabaseHandle } from './db/types.js';
 
 declare module 'fastify' {
@@ -52,6 +53,7 @@ export function buildApp({ database, auth, activity, ...options }: AppOptions): 
       await registerCharacters(api);
       await registerActivities(api, activityOptions);
       await registerInventory(api, activityOptions);
+      await registerWorld(api);
 
       api.get('/health', async (request, reply): Promise<HealthResponse> => {
         let db: HealthResponse['db'] = 'up';

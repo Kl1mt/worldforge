@@ -200,7 +200,7 @@ GDD: §4.3, §6.2, §7.1–7.3, §11.3, §16.2. Read `docs/COMBAT.md`, `docs/LOO
 - Keep the Abandoned Fields numbers unchanged (balance is B.1).
 **Acceptance:** content validation tests (every enemy in exactly one roster, every loot-table base exists, level ranges ordered and overlapping by one step, ids match the contract); farming simulations for a mid-level character in each area complete without timeouts; no server or UI changes.
 
-### 2.2 Hub & world map (server + web) — `todo`
+### 2.2 Hub & world map (server + web) — `done (PR #TBD)`
 GDD: §3, §4.2, §4.3, §14. Needs 2.1 and A.2 merged.
 - **Server:** the activity start accepts any unlocked area (validated with `isAreaUnlocked`, server-side); character progress needed for unlocks is persisted (e.g. `characters.progress` jsonb or a table). `GET` world state for a character: areas with locked/unlocked and the reason.
 - **Web:** an illustrated hub screen (A.2 art) with clickable building hotspots: World Map, Tavern, Forge, Merchant are present; Guild Hall, Warehouse and Summoning Shrine are visibly locked ("later"). Hotspots work with keyboard and touch and have accessible labels. A world-map screen (A.2 art) with the five areas and the crypt, showing locked/unlocked/current state; choosing an area starts or switches farming. The area screen works for every area (backdrop and enemies from the assets, fallback when art is missing).

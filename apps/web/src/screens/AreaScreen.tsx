@@ -4,10 +4,12 @@ import {
   getClass,
   getEnemy,
   xpToNextLevel,
+  type AreaDefinition,
   type AreaId,
 } from '@worldforge/game-core';
 import { useActiveCharacter } from '../characters/CharactersProvider';
-import { asset, classPortrait, type EnemyAssetId } from '../content/assets';
+import { classPortrait, type SpriteAsset } from '../content/assets';
+import { findAsset } from '../content/world';
 import { ItemFrame } from '../components/ItemFrame';
 import { LabeledMeter } from '../components/Meter';
 import { PixelSprite } from '../components/PixelSprite';
@@ -20,37 +22,98 @@ import { PHONE_QUERY, pixelScale, sceneSpriteScale } from '../lib/pixel';
 import { routeHref } from '../lib/route';
 import './area.css';
 
-const AREA_ID: AreaId = 'abandonedFields';
-const AREA = getArea(AREA_ID);
-const BACKDROP = asset('area.abandoned-fields');
 /** Vertical stagger in sprite pixels so the line of foes reads as depth, not a row. */
 const LIFTS = [2, 0, 4];
-const LEVELS = `${AREA.minLevel}–${AREA.maxLevel}`;
+/** Backdrop size when an area has no art yet (the painted fallback keeps the scene's shape). */
+const BACKDROP_SIZE = { width: 384, height: 216 };
 
-const FOES = AREA.enemies.map((entry, i) => {
-  const def = getEnemy(entry.enemyId);
-  return { ...def, sprite: asset(def.assetId as EnemyAssetId), lift: LIFTS[i] ?? 0 };
-});
-const TOTAL_WEIGHT = AREA.enemies.reduce((sum, e) => sum + e.weight, 0);
+interface Foe {
+  id: string;
+  name: string;
+  sprite: SpriteAsset | null;
+  lift: number;
+  weight: number;
+}
+
+interface AreaView {
+  area: AreaDefinition;
+  levels: string;
+  backdrop: SpriteAsset | null;
+  foes: Foe[];
+  totalWeight: number;
+}
+
+const VIEWS = new Map<AreaId, AreaView>();
+
+/** Display data for an area (game-core content + art; art may be missing). */
+function areaView(areaId: AreaId): AreaView {
+  const cached = VIEWS.get(areaId);
+  if (cached) return cached;
+  const area = getArea(areaId);
+  const view: AreaView = {
+    area,
+    levels: `${area.minLevel}–${area.maxLevel}`,
+    backdrop: findAsset(area.assetId),
+    foes: area.enemies.map((entry, i) => {
+      const def = getEnemy(entry.enemyId);
+      return {
+        id: def.id,
+        name: def.name,
+        sprite: findAsset(def.assetId),
+        lift: LIFTS[i] ?? 0,
+        weight: entry.weight,
+      };
+    }),
+    totalWeight: area.enemies.reduce((sum, e) => sum + e.weight, 0),
+  };
+  VIEWS.set(areaId, view);
+  return view;
+}
 
 /** How often a foe shows up, in words, from its spawn weight in the area definition. */
-function frequency(weight: number): string {
-  const share = TOTAL_WEIGHT > 0 ? weight / TOTAL_WEIGHT : 0;
+function frequency(weight: number, total: number): string {
+  const share = total > 0 ? weight / total : 0;
   if (share >= 0.4) return 'Often seen';
   if (share >= 0.2) return 'Sometimes seen';
   return 'Rarely seen';
 }
 
-function Scene({ phone, farming }: { phone: boolean; farming: boolean }) {
+/** A foe sprite, or a framed silhouette plate while its art is missing. */
+function FoeSprite({ foe, scale, alt }: { foe: Foe; scale: number; alt: string }) {
+  if (!foe.sprite) {
+    return (
+      <span
+        className="foe-missing"
+        style={{ width: 64 * scale, height: 64 * scale }}
+        role={alt ? 'img' : undefined}
+        aria-label={alt || undefined}
+      >
+        <span aria-hidden="true">?</span>
+      </span>
+    );
+  }
+  return (
+    <PixelSprite
+      sprite={foe.sprite}
+      scale={scale}
+      alt={alt}
+      mirror={foe.sprite.facing === 'right'}
+    />
+  );
+}
+
+function Scene({ view, phone, farming }: { view: AreaView; phone: boolean; farming: boolean }) {
   const hero = useActiveCharacter();
   const { inventory, activity } = useGame();
+  const { area, backdrop, foes, levels } = view;
+  const size = backdrop ?? BACKDROP_SIZE;
   const [ref, width] = useElementWidth<HTMLDivElement>(768);
   // Backdrop at ×N (even). Sprites match it on wider screens and stay at ×N/2 on phones.
-  const scale = pixelScale(width, BACKDROP.width, { step: 2, min: 2, max: 4 });
+  const scale = pixelScale(width, size.width, { step: 2, min: 2, max: 4 });
   const spriteScale = sceneSpriteScale(scale, phone);
-  const stageWidth = Math.min(Math.floor(width), BACKDROP.width * scale);
-  const stageHeight = BACKDROP.height * scale;
-  const backdropLeft = Math.round((stageWidth - BACKDROP.width * scale) / 2);
+  const stageWidth = Math.min(Math.floor(width), size.width * scale);
+  const stageHeight = size.height * scale;
+  const backdropLeft = Math.round((stageWidth - size.width * scale) / 2);
 
   const maxHealth = inventory.kind === 'ready' ? inventory.value.stats.health : null;
   // The server carries health between settlements (null = full).
@@ -65,17 +128,21 @@ function Scene({ phone, farming }: { phone: boolean; farming: boolean }) {
         style={{ width: stageWidth || undefined, height: stageHeight }}
         aria-label={
           farming
-            ? `${AREA.name}: ${hero.name} is fighting the dead of the fields`
-            : `${AREA.name}: ${hero.name} is resting at the edge of the fields`
+            ? `${area.name}: ${hero.name} is fighting`
+            : `${area.name}: ${hero.name} is resting`
         }
       >
-        <PixelSprite
-          sprite={BACKDROP}
-          scale={scale}
-          alt=""
-          className="scene__backdrop"
-          style={{ left: backdropLeft }}
-        />
+        {backdrop ? (
+          <PixelSprite
+            sprite={backdrop}
+            scale={scale}
+            alt=""
+            className="scene__backdrop"
+            style={{ left: backdropLeft }}
+          />
+        ) : (
+          <span className="scene__backdrop scene__backdrop--missing" aria-hidden="true" />
+        )}
         <div className="scene__ground" style={{ ['--px' as string]: `${spriteScale}px` }}>
           <div className="scene__hero">
             <PixelSprite
@@ -85,24 +152,21 @@ function Scene({ phone, farming }: { phone: boolean; farming: boolean }) {
             />
           </div>
           <ul className="scene__foes" aria-label="Enemies of the area">
-            {FOES.map((foe) => (
+            {foes.map((foe) => (
               <li key={foe.id} className="foe" style={{ marginBottom: foe.lift * spriteScale }}>
                 <div
                   className="foe__plate"
                   // Wide: the plate spans the middle of the sprite so neighbours never touch.
                   style={{
-                    width: Math.round(foe.sprite.width * spriteScale * (phone ? 1 : 0.625)),
+                    width: Math.round(
+                      (foe.sprite?.width ?? 64) * spriteScale * (phone ? 1 : 0.625),
+                    ),
                   }}
                 >
                   <span className="foe__name">{foe.name}</span>
-                  <span className="foe__level">Lv {LEVELS}</span>
+                  <span className="foe__level">Lv {levels}</span>
                 </div>
-                <PixelSprite
-                  sprite={foe.sprite}
-                  scale={spriteScale}
-                  alt={`${foe.name}, level ${LEVELS}`}
-                  mirror={foe.sprite.facing === 'right'}
-                />
+                <FoeSprite foe={foe} scale={spriteScale} alt={`${foe.name}, level ${levels}`} />
               </li>
             ))}
           </ul>
@@ -168,7 +232,7 @@ function LogLine({ entry }: { entry: LogEntry }) {
   }
 }
 
-function CombatLog({ farming }: { farming: boolean }) {
+function CombatLog({ farming, areaName }: { farming: boolean; areaName: string }) {
   const { chronicle } = useGame();
   return (
     <section className="log panel-ledger" aria-labelledby="log-title">
@@ -181,8 +245,8 @@ function CombatLog({ farming }: { farming: boolean }) {
       {chronicle.length === 0 ? (
         <p className="log__empty">
           {farming
-            ? 'Steel on bone somewhere in the barley. The first report arrives within seconds.'
-            : 'The fields are quiet. Send your hero out and the Chronicle fills as the fights are settled.'}
+            ? `Steel rings somewhere in ${areaName}. The first report arrives within seconds.`
+            : 'All is quiet. Send your hero out and the Chronicle fills as the fights are settled.'}
         </p>
       ) : (
         <ol className="log__list" aria-live="polite" aria-relevant="additions">
@@ -241,9 +305,10 @@ function Spoils({ smallArt }: { smallArt: number }) {
   );
 }
 
-function FarmControl({ farming }: { farming: boolean }) {
+function FarmControl({ farming, view }: { farming: boolean; view: AreaView }) {
   const hero = useActiveCharacter();
   const { activity, farmBusy, startFarming, stopFarming, reload } = useGame();
+  const locked = hero.level < view.area.unlock.level;
   if (activity.kind === 'loading') {
     return (
       <p className="area__wait" role="status">
@@ -261,6 +326,13 @@ function FarmControl({ farming }: { farming: boolean }) {
       </div>
     );
   }
+  if (!farming && locked) {
+    return (
+      <a className="btn area__action" href={routeHref('map')}>
+        Choose an area on the map
+      </a>
+    );
+  }
   return farming ? (
     <button
       type="button"
@@ -275,19 +347,25 @@ function FarmControl({ farming }: { farming: boolean }) {
     <button
       type="button"
       className="btn btn--brass area__action"
-      onClick={() => void startFarming(AREA_ID)}
+      onClick={() => void startFarming(view.area.id)}
       disabled={farmBusy}
       aria-busy={farmBusy}
     >
-      {farmBusy ? 'Setting out…' : 'Farm the fields'}
+      {farmBusy ? 'Setting out…' : `Farm ${view.area.name}`}
     </button>
   );
 }
 
 export function AreaScreen() {
   const phone = useMediaQuery(PHONE_QUERY);
-  const { activity, tally, farmError } = useGame();
+  const { activity, tally, farmError, areaId } = useGame();
+  const view = areaView(areaId);
+  const { area, levels, foes, totalWeight } = view;
   const farming = activity.kind === 'ready' && activity.value !== null;
+  const pending =
+    activity.kind === 'ready' && activity.value?.pendingAreaId
+      ? getArea(activity.value.pendingAreaId)
+      : null;
   // Roster figures and spoils icons: ×1 on phones (approved), ×2 on wider screens.
   const smallArt = phone ? 1 : 2;
   const minutes = tally.simulatedMs / 60_000;
@@ -297,10 +375,19 @@ export function AreaScreen() {
     <div className={`area${phone ? '' : ' area--wide'}`}>
       <header className="area__head">
         <p className="area__region caps">
-          {AREA.region} <span aria-hidden="true">·</span> Levels {LEVELS}
+          {area.region} <span aria-hidden="true">·</span> Levels {levels}{' '}
+          <span aria-hidden="true">·</span>{' '}
+          <a className="area__maplink" href={routeHref('map')}>
+            World map
+          </a>
         </p>
-        <h1 className="area__title display">{AREA.name}</h1>
-        <p className="area__desc">{AREA.description}</p>
+        <h1 className="area__title display">{area.name}</h1>
+        <p className="area__desc">{area.description}</p>
+        {pending ? (
+          <p className="area__travel" role="status">
+            Travelling to <strong>{pending.name}</strong> once this fight is over.
+          </p>
+        ) : null}
         <div className="area__controls">
           <dl className="area__pace">
             <div>
@@ -320,7 +407,7 @@ export function AreaScreen() {
               <dd>{formatNumber(tally.items)}</dd>
             </div>
           </dl>
-          <FarmControl farming={farming} />
+          <FarmControl farming={farming} view={view} />
         </div>
         {farmError ? (
           <p className="area__alert area__alert--line" role="alert">
@@ -330,28 +417,23 @@ export function AreaScreen() {
       </header>
 
       <div className="area__grid">
-        <Scene phone={phone} farming={farming} />
+        <Scene view={view} phone={phone} farming={farming} />
         <div className="area__log">
-          <CombatLog farming={farming} />
+          <CombatLog farming={farming} areaName={area.name} />
         </div>
 
         <section className="roster" aria-labelledby="roster-title">
           <h2 id="roster-title" className="rule-heading">
-            Foes of the Fields
+            Foes of {area.name}
           </h2>
           <ul className="roster__list">
-            {FOES.map((foe, i) => (
+            {foes.map((foe) => (
               <li key={foe.id} className="roster__foe">
                 <span className="roster__plinth">
-                  <PixelSprite
-                    sprite={foe.sprite}
-                    scale={smallArt}
-                    alt=""
-                    mirror={foe.sprite.facing === 'right'}
-                  />
+                  <FoeSprite foe={foe} scale={smallArt} alt="" />
                 </span>
                 <span className="roster__name">{foe.name}</span>
-                <span className="roster__count">{frequency(AREA.enemies[i]!.weight)}</span>
+                <span className="roster__count">{frequency(foe.weight, totalWeight)}</span>
               </li>
             ))}
           </ul>
