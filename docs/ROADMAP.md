@@ -43,8 +43,88 @@ GDD to read: §3 (all), §4.2, §5.2, §6.2, §7.1–7.2.
 
 **Acceptance:** checks pass; screenshots are attached to the PR for the review called for in GDD §3.4.
 
-### 0.4 Visual review & polish — `todo`
-Review the 0.3 screenshots against GDD §3.2 and §3.4, fix the issues found, and record the decisions in `docs/DESIGN_SYSTEM.md`. Phase 0 exit: the app runs locally, the visual prototype is approved by the owner, and checks pass.
+### 0.4 Visual polish — `todo`
+GDD to read: §3.2, §3.4. The owner approved the visual direction of 0.3 (PR #3). Keep the direction; fix only these:
+- **Bigger pixel art on desktop.** Character, enemy and item sprites read too small at desktop widths. Scale them up by an integer step (e.g. ×3 → ×4 or more) at desktop breakpoints, on the area scene, the character portrait, the "Foes" row, and the item slots/grid. **Mobile sizes are approved; leave them unchanged.**
+- Label the health and resource bars (character card on the character screen, combatant HUD on the area screen), e.g. "Health 842 / 1,046" and "Rage 62 / 100".
+- Inventory on desktop: remove the large empty area below the grid (rebalance the layout, e.g. grid height vs. tooltip column).
+- Mobile inventory: rarity filters on one horizontally scrollable row instead of wrapping onto three rows.
+- Area screen: the Chronicle (combat log) panel should not show empty filler rows; size it to its content or fill the height with entries.
+- Area scene: show names for every enemy's health bar (not only the current target), without cluttering the scene.
+- Record the changes in `docs/DESIGN_SYSTEM.md` and re-take all screenshots (`docs/screenshots/phase-0/`, desktop 1440 and mobile 390); embed them in the PR description.
+
+**Acceptance:** checks pass; the issues above are visibly fixed in the new screenshots; mobile layout is unchanged except for the filter row. Phase 0 exit: the app runs locally, the owner has approved the visuals, and checks pass.
 
 ## Phase 1 — Core playable vertical slice
-Tickets are written by the planning session once Phase 0 is approved (GDD §15, Phase 1).
+GDD §15 Phase 1. Exit: a new player can register, create a character, farm Abandoned Fields, earn XP and loot, equip an item, leave, return later and see valid offline progress, with no duplication or reward exploits.
+
+**Owner decisions (GDD v0.3):** real account registration and login (no dev identity); offline accumulation cap is **3 hours**, server-configurable (upgradeable through progression later; not in Phase 1); **12 equipment slots** as already defined in `game-core`.
+
+Dependencies: 1.1 → 1.2 → 1.3. 1.4 and 1.5 are pure `game-core` and can run in parallel with 1.1–1.3. 1.6 needs 1.3–1.5. 1.7 needs 1.3 + 1.5. 1.8 needs 1.6 + 1.7. 1.9 is last.
+
+### 1.1 Database & persistence foundation — `todo`
+GDD: §9.3, §16. Docs: `docs/TECH_STACK.md`, `docs/DATA_MODEL.md`.
+- PostgreSQL + Drizzle ORM in `apps/server`: schema, migrations, migration script, config via env (`DATABASE_URL`), `.env.example`.
+- Local dev: `docker-compose.yml` with Postgres. Tests: real Postgres semantics without requiring Docker in the sandbox (e.g. PGlite or a CI service container); document the choice.
+- Initial tables: `accounts`, `sessions`, `audit_log` only (later tickets add their own tables and migrations).
+- Transaction helper, health check reports DB status.
+**Acceptance:** migrations apply from scratch; tests run in CI against the test DB; `docs/DATA_MODEL.md` updated.
+
+### 1.2 Accounts: registration & login — `todo`
+GDD: §2.1, §5.3, §16.3.
+- API: register (email + display name + password), login, logout, current account. Passwords hashed with argon2id (or scrypt if argon2 is unavailable); httpOnly, secure, SameSite session cookie; session expiry and revocation on logout.
+- Validation and clear error envelope (see `docs/API_CONVENTIONS.md`); rate limiting on login/register; generic error messages for failed login (no account enumeration). Audit log entries for register/login.
+- Web: register and login screens in the established visual style (GDD §3), auth-guarded routes, logout. Loading/error states.
+- Out of scope: email verification, password reset, OAuth (note them as follow-ups).
+**Acceptance:** tests for happy paths, duplicate email, bad password, rate limit, session expiry; screenshots of both screens (desktop + mobile) in the PR.
+
+### 1.3 Characters — `todo`
+GDD: §5.1–5.3.
+- `characters` table (account FK, name, class, level, xp, gold, cosmetic choice, created_at); 2 character slots per account (configurable).
+- API: list, create (name rules + uniqueness, class from `game-core`), select active character. All four classes selectable.
+- Web: character select + creation screen (class choice with identity text; a minimal cosmetic choice — use the warrior art for all classes for now, note it).
+**Acceptance:** slot limit enforced server-side; tests; screenshots.
+
+### 1.4 Combat simulation (game-core) — `todo`
+GDD: §6.1–6.3, §9.3.
+- Data-driven enemies for Abandoned Fields (Risen Farmhand, Carrion Wolf, Bone Scarecrow) and an area definition (level range, enemy weights).
+- Derived character stats from class base + level + equipment (pure function).
+- Deterministic, seeded combat resolution (tick/time-based): attack speed, physical/magic damage, crit, armor/resistance mitigation, death and respawn delay. Returns kills, XP, damage taken and a compact event log.
+- XP curve and level-ups. One basic auto-skill per class is acceptable; full skill loadouts are later.
+- A function that simulates N seconds of farming efficiently (aggregate, not per-frame) for offline settlement, producing the same distribution as the detailed sim.
+**Acceptance:** thorough unit tests (determinism with same seed, monotonic progression, no NaN/negative values); no server or UI changes.
+
+### 1.5 Loot generation (game-core) — `todo`
+GDD: §7.1–7.3.
+- Data-driven item bases matching the 17 item icons in `apps/web/public/assets/items/`, mapped to the 12 slots; class weapon restrictions.
+- Rarity roll (all six tiers defined; Legendary/Mythic effects come in Phase 3 — in Phase 1 they may only roll as stronger stat items or be disabled by config), a small affix pool (physical/magic damage, attack speed, crit chance, crit damage, health, armor, resistance, gold find), item level scaling, gold drops.
+- Deterministic with seeded RNG; drop rates in config.
+**Acceptance:** unit tests incl. statistical tests over many seeds (rarity distribution within tolerance, affixes valid for slot).
+
+### 1.6 Farming activity & offline progress (server) — `todo`
+GDD: §9.1–9.3, §14.
+- `activities` + `item_instances` tables. Start/stop farming Abandoned Fields for the active character.
+- Server-authoritative settlement: progress is computed from elapsed server time using 1.4/1.5 with a seed derived server-side; never from client input. Settle on request and on a schedule; idempotent and transaction-safe (no double-claim under concurrent requests).
+- Offline: time without client activity accrues up to the **3 h cap** (`OFFLINE_CAP_SECONDS`, config); active play may settle more efficiently (keep the rule simple and documented).
+- Return summary endpoint: XP, levels, gold, items gained while away, time capped.
+- Inventory capacity: overflow handling documented (e.g. excess items auto-salvaged to gold).
+**Acceptance:** tests for cap, idempotency, concurrent settle, determinism; audit log entries for rewards.
+
+### 1.7 Inventory & equipment (server) — `todo`
+GDD: §7.1, §14 steps 4–5.
+- API: inventory list, equip (slot + class validation), unequip, discard. Ring slots handled (ring1/ring2). Derived stats recomputed server-side.
+- Transaction-safe; an item can only be in one place; ownership checked.
+**Acceptance:** tests for invalid slot, wrong class, other account's item, double equip, concurrency.
+
+### 1.8 Connect the UI to the real game — `todo`
+GDD: §3, §9.2, §14, §18.
+- Replace mock data on the area, character and inventory screens with the API. Live combat log from settled events (polling is fine).
+- Offline return summary shown on login/return.
+- Equip/unequip from inventory with comparison tooltip. Loading, empty, error, success states.
+**Acceptance:** Playwright run of: register → create character → farm → get loot → equip; screenshots.
+
+### 1.9 Phase 1 hardening — `todo`
+GDD: §15 Phase 1 exit criteria, §16.3.
+- End-to-end test of the full exit-criteria flow including offline return (with simulated time).
+- Exploit review: duplicate requests, replay, concurrency, negative/overflow values, cap bypass. Fix what's found.
+- Update docs; Phase 1 retrospective notes in this file.
