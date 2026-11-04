@@ -265,7 +265,7 @@ GDD: §3.1, §5.1–5.2. Read `docs/ASSET_GUIDELINES.md` and `CLAUDE.md` (Art pi
 - Re-take the character select/creation screenshots.
 **Acceptance:** checks pass; a contact sheet of all four classes side by side in the PR description.
 
-### A.2 Hub, world map & area backdrops — `todo`
+### A.2 Hub, world map & area backdrops — `done (PR #22)`
 GDD: §3.1, §3.3, §4.2, §4.3. Read `docs/ASSET_GUIDELINES.md`. Match `apps/web/public/assets/areas/abandoned-fields.png` (pass it as `style_image`).
 - **Hub:** an illustrated frontier town of Graumark, side view or slight top-down, 384×216, with clearly separated building silhouettes: forge, merchant stall, tavern, guild hall, warehouse, a shrine, and a map table or signpost. Record the building hotspot rectangles (in image pixels) in the manifest for 2.2.
 - **World map:** a Graumark map, 384×216, aged parchment or a dark painted map in the same palette, with the five areas and the crypt as recognisable places. Record the area marker positions in the manifest.
