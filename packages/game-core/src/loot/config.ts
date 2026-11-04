@@ -1,6 +1,6 @@
 import type { RarityId } from '../rarity.js';
 import { ITEM_BASES } from '../items/bases.js';
-import { AREA_LOOT_TABLES } from './tables.js';
+import { AREA_LOOT_TABLES, BOSS_LOOT_TABLES } from './tables.js';
 
 export interface RarityRule {
   /**
@@ -78,6 +78,7 @@ export const STANDARD_LOOT_TABLE: LootTableDefinition = {
 export const LOOT_TABLES: readonly LootTableDefinition[] = [
   STANDARD_LOOT_TABLE,
   ...AREA_LOOT_TABLES,
+  ...BOSS_LOOT_TABLES,
 ];
 
 const LOOT_TABLES_BY_ID = new Map(LOOT_TABLES.map((t) => [t.id, t]));

@@ -533,7 +533,7 @@ describe('areas & unlocks (ticket 2.2)', () => {
       {
         id: 'namelessCrypt',
         unlocked: false,
-        available: false,
+        available: true,
         blockers: [{ kind: 'level', required: 12 }],
       },
     ]);

@@ -12,3 +12,5 @@ export * from './items/index.js';
 export * from './loot/index.js';
 export * from './activity/index.js';
 export * from './professions/index.js';
+export * from './events.js';
+export * from './dungeon/index.js';

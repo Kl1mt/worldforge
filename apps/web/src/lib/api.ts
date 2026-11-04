@@ -39,7 +39,12 @@ function readFailure(status: number, body: unknown): ApiFailure {
  */
 export async function apiRequest<T>(
   path: string,
-  init: { method?: string; body?: unknown; signal?: AbortSignal } = {},
+  init: {
+    method?: string;
+    body?: unknown;
+    signal?: AbortSignal;
+    headers?: Record<string, string>;
+  } = {},
   fetchImpl: typeof fetch = fetch,
 ): Promise<ApiResult<T>> {
   let res: Response;
@@ -47,7 +52,10 @@ export async function apiRequest<T>(
     res = await fetchImpl(`/api${path}`, {
       method: init.method ?? 'GET',
       credentials: 'same-origin',
-      headers: init.body === undefined ? {} : { 'content-type': 'application/json' },
+      headers: {
+        ...(init.body === undefined ? {} : { 'content-type': 'application/json' }),
+        ...init.headers,
+      },
       ...(init.body === undefined ? {} : { body: JSON.stringify(init.body) }),
       ...(init.signal ? { signal: init.signal } : {}),
     });

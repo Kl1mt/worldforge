@@ -27,7 +27,7 @@ export interface WorldStateResponse {
   /** Where the character is farming now (null = idle). */
   current: { areaId: AreaId; pendingAreaId: AreaId | null } | null;
   areas: WorldPlaceView<AreaId>[];
-  /** Dungeons with their unlock state. Runs are ticket 2.5; none can be entered yet. */
+  /** Dungeons with their unlock state; `available` = runs can be started (ticket 2.5). */
   dungeons: (WorldPlaceView<DungeonId> & { available: boolean })[];
 }
 
@@ -71,7 +71,7 @@ export async function registerWorld(app: FastifyInstance): Promise<void> {
         }),
         dungeons: DUNGEON_IDS.map((id) => {
           const blockers = dungeonUnlockBlockers(id, who, row.progress);
-          return { id, unlocked: blockers.length === 0, blockers, available: false };
+          return { id, unlocked: blockers.length === 0, blockers, available: true };
         }),
       };
     },

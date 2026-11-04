@@ -55,6 +55,11 @@ export interface ItemBaseDefinition {
   /** Lowest item level at which this base can drop. */
   minItemLevel: number;
   stats: readonly ItemBaseStat[];
+  /**
+   * Boss-exclusive base (ticket 2.5): only the boss loot table that names it drops it; tier-wide
+   * area tables skip it. Unique *effects* are Phase 3 (GDD §7.4).
+   */
+  unique?: boolean;
 }
 
 const ALL_CLASSES = CLASS_IDS;
@@ -489,6 +494,53 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     stats: [
       { stat: 'resistance', base: 4, perLevel: 0.9 },
       { stat: 'health', base: 6, perLevel: 1.8 },
+    ],
+  },
+  // Boss-exclusive bases (ticket 2.5): drop only from the Gravewarden's hoard. They temporarily
+  // reuse existing icons until dedicated art exists.
+  {
+    id: 'gravewardens-cowl',
+    name: 'Gravewarden’s Cowl',
+    slot: 'head',
+    icon: 'item.horned-helm',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 14,
+    unique: true,
+    stats: [
+      { stat: 'armor', base: 8, perLevel: 1.8 },
+      { stat: 'resistance', base: 6, perLevel: 1.2 },
+      { stat: 'health', base: 12, perLevel: 3 },
+    ],
+  },
+  {
+    id: 'seal-of-the-nameless',
+    name: 'Seal of the Nameless',
+    slot: 'ring',
+    icon: 'item.grave-gold-ring',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 14,
+    unique: true,
+    stats: [
+      { stat: 'armor', base: 4, perLevel: 1 },
+      { stat: 'resistance', base: 4, perLevel: 1 },
+      { stat: 'health', base: 10, perLevel: 2.4 },
+    ],
+  },
+  {
+    id: 'wardens-bone-chain',
+    name: 'Warden’s Bone Chain',
+    slot: 'neck',
+    icon: 'item.bone-amulet',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 14,
+    unique: true,
+    stats: [
+      { stat: 'armor', base: 5, perLevel: 1.2 },
+      { stat: 'resistance', base: 5, perLevel: 1.2 },
+      { stat: 'health', base: 10, perLevel: 2.6 },
     ],
   },
 ];

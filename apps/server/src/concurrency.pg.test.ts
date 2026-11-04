@@ -27,12 +27,14 @@ import {
   characterMaterials,
   characterProfessions,
   characters,
+  dungeonRuns,
   itemInstances,
 } from './db/schema.js';
 import { transactionStats, withTransaction } from './db/transaction.js';
 import type { DatabaseHandle } from './db/types.js';
 import { uuidv7 } from './db/uuid.js';
 import { createPostgresTestDatabase } from './test/db.js';
+import { makeCryptReady } from './test/dungeon.js';
 
 const url = process.env.DATABASE_URL;
 if (!url && process.env.REQUIRE_PG_TESTS === '1') {
@@ -417,6 +419,115 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
       .from(auditLog)
       .where(and(eq(auditLog.characterId, id), eq(auditLog.event, 'item.discard')));
     expect(discardAudits).toHaveLength(1);
+  });
+
+  describe('dungeon runs (ticket 2.5)', () => {
+    const claim = (p: Player, id: string, key: string) =>
+      app.inject({
+        method: 'POST',
+        url: `/api/characters/${id}/dungeon/claim`,
+        headers: { 'idempotency-key': key },
+        cookies: { [SESSION_COOKIE]: p.token },
+      });
+
+    async function finishedRun() {
+      const p = await newPlayer();
+      const id = await newCharacter(p);
+      await makeCryptReady(database.db, id, 'warrior', 16);
+      const res = await call(p, 'POST', `/api/characters/${id}/dungeon`, {
+        dungeonId: 'namelessCrypt',
+      });
+      expect(res.statusCode).toBe(201);
+      nowMs = Math.max(nowMs, Date.parse(res.json<{ run: { endsAt: string } }>().run.endsAt));
+      return { p, id };
+    }
+
+    async function granted(characterId: string) {
+      const items = await database.db
+        .select({ id: itemInstances.id })
+        .from(itemInstances)
+        .where(
+          and(
+            eq(itemInstances.characterId, characterId),
+            eq(itemInstances.source, 'dungeon:namelessCrypt'),
+          ),
+        );
+      const [seal] = await database.db
+        .select({ quantity: characterMaterials.quantity })
+        .from(characterMaterials)
+        .where(eq(characterMaterials.characterId, characterId));
+      const claims = await database.db
+        .select()
+        .from(auditLog)
+        .where(and(eq(auditLog.characterId, characterId), eq(auditLog.event, 'dungeon.claim')));
+      const [c] = await database.db.select().from(characters).where(eq(characters.id, characterId));
+      return {
+        items: items.length,
+        seal: seal?.quantity ?? 0,
+        claims: claims.length,
+        gold: c!.gold,
+      };
+    }
+
+    it('grants a run once when claims with different keys race', async () => {
+      const { p, id } = await finishedRun();
+      const results = await Promise.all(
+        Array.from({ length: N }, (_, i) => claim(p, id, `race-claim-${id}-${i}`)),
+      );
+      const ok = results.filter((r) => r.statusCode === 200);
+      expect(ok).toHaveLength(1);
+      for (const r of results.filter((x) => x.statusCode !== 200)) {
+        expect(r.json()).toMatchObject({ error: { code: 'no_dungeon_run' } });
+      }
+      const result = ok[0]!.json<{ result: { items: unknown[]; goldGained: number } }>().result;
+      expect(await granted(id)).toEqual({
+        items: result.items.length,
+        seal: 1,
+        claims: 1,
+        gold: result.goldGained,
+      });
+    });
+
+    it('replays one stored response when claims with the same key race', async () => {
+      const { p, id } = await finishedRun();
+      const results = await Promise.all(
+        Array.from({ length: N }, () => claim(p, id, `same-claim-${id}`)),
+      );
+      expect(results.map((r) => r.statusCode)).toEqual(Array(N).fill(200));
+      for (const r of results) expect(r.json()).toEqual(results[0]!.json());
+      const result = results[0]!.json<{ result: { items: unknown[]; goldGained: number } }>()
+        .result;
+      expect(await granted(id)).toEqual({
+        items: result.items.length,
+        seal: 1,
+        claims: 1,
+        gold: result.goldGained,
+      });
+    });
+
+    it('never lets a run and farming coexist when dungeon and farming starts race', async () => {
+      const p = await newPlayer();
+      const id = await newCharacter(p);
+      await makeCryptReady(database.db, id, 'warrior', 16);
+      const results = await Promise.all(
+        Array.from({ length: N }, (_, i) =>
+          i % 2 === 0
+            ? call(p, 'POST', `/api/characters/${id}/dungeon`, { dungeonId: 'namelessCrypt' })
+            : call(p, 'POST', `/api/characters/${id}/activity`, { areaId: 'abandonedFields' }),
+        ),
+      );
+      for (const r of results) expect([200, 201, 409]).toContain(r.statusCode);
+      const runs = await database.db
+        .select()
+        .from(dungeonRuns)
+        .where(eq(dungeonRuns.accountId, p.accountId));
+      expect(runs).toHaveLength(1);
+      const farming = await database.db
+        .select()
+        .from(activities)
+        .where(eq(activities.accountId, p.accountId));
+      expect(farming).toEqual([]);
+    });
   });
 
   // Runs last (tests in a file run in order). Retries keep the races correct, but each one is a

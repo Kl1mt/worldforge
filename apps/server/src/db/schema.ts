@@ -1,6 +1,7 @@
 import { sql } from 'drizzle-orm';
 import {
   bigint,
+  boolean,
   check,
   integer,
   index,
@@ -18,6 +19,7 @@ import type {
   AreaId,
   CharacterAppearance,
   ClassId,
+  DungeonId,
   EquipmentSlotId,
   MaterialId,
   ProfessionId,
@@ -307,6 +309,81 @@ export const characterProfessions = pgTable(
   ],
 );
 
+/** Character snapshot a dungeon run is played with (ticket 2.5); taken at the run's start. */
+export interface DungeonRunSnapshot {
+  classId: ClassId;
+  level: number;
+  xp: number;
+  equipment: { baseId: string; rarityId: RarityId; itemLevel: number; affixes: RolledAffix[] }[];
+}
+
+/**
+ * Dungeon runs (ticket 2.5, docs/DUNGEONS.md). A run is fully determined by `seed_secret` and
+ * `snapshot` at the start; the server reveals it as time passes and grants its result once, at the
+ * claim. At most one unclaimed run per account (it also blocks farming). Claimed rows stay as
+ * history: the boss-loot cooldown is read from them.
+ */
+export const dungeonRuns = pgTable(
+  'dungeon_runs',
+  {
+    id: uuid('id').primaryKey(),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    /** game-core `DungeonId`. */
+    dungeonId: text('dungeon_id').$type<DungeonId>().notNull(),
+    /** Random secret of this run. Never sent to clients. */
+    seedSecret: text('seed_secret').notNull(),
+    snapshot: jsonb('snapshot').$type<DungeonRunSnapshot>().notNull(),
+    /** Boss loot was off cooldown at the start (decided then, so the run is fixed). */
+    bossLootEligible: boolean('boss_loot_eligible').notNull(),
+    startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
+    /** When the result is ready (`started_at` + the run's duration). */
+    endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }),
+    /** `cleared` / `failed`, set at the claim. */
+    outcome: text('outcome').$type<'cleared' | 'failed'>(),
+    /** Whether the claim granted boss loot (drives the cooldown). */
+    bossLootGranted: boolean('boss_loot_granted').notNull().default(false),
+    /** The claim's result view, for display after the claim. */
+    result: jsonb('result').$type<Record<string, unknown>>(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('dungeon_runs_account_open_key')
+      .on(t.accountId)
+      .where(sql`${t.claimedAt} is null`),
+    index('dungeon_runs_character_id_started_at_idx').on(t.characterId, t.startedAt),
+    check('dungeon_runs_ends_at_check', sql`${t.endsAt} >= ${t.startedAt}`),
+  ],
+);
+
+/**
+ * Stored responses of `Idempotency-Key` requests (docs/API_CONVENTIONS.md, first used by ticket
+ * 2.5's claim). Written in the same transaction as the mutation; kept 24 h.
+ */
+export const idempotencyKeys = pgTable(
+  'idempotency_keys',
+  {
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    key: text('key').notNull(),
+    /** SHA-256 of method, route and body: the same key with another request is a conflict. */
+    requestHash: text('request_hash').notNull(),
+    statusCode: smallint('status_code').notNull(),
+    response: jsonb('response').$type<unknown>().notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    primaryKey({ columns: [t.accountId, t.key] }),
+    index('idempotency_keys_created_at_idx').on(t.createdAt),
+  ],
+);
+
 /** Append-only record of security-relevant and valuable events. */
 export const auditLog = pgTable(
   'audit_log',
@@ -339,3 +416,4 @@ export type CharacterMaterial = typeof characterMaterials.$inferSelect;
 export type CharacterProfession = typeof characterProfessions.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
 export type NewActivity = typeof activities.$inferInsert;
+export type DungeonRun = typeof dungeonRuns.$inferSelect;

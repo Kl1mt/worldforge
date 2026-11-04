@@ -20,6 +20,7 @@ import { withTransaction } from '../db/transaction.js';
 import { writeAudit } from '../db/audit.js';
 import { ApiError } from '../errors.js';
 import { characterView, type CharacterView } from '../characters/routes.js';
+import { assertNoOpenDungeonRun } from '../dungeon/routes.js';
 import {
   emptySummary,
   endActivityTx,
@@ -182,6 +183,8 @@ export async function registerActivities(
             'Select this character before sending it out to farm.',
           );
         }
+        // A dungeon run never stacks with farming (ticket 2.5).
+        await assertNoOpenDungeonRun(tx, accountId);
 
         const others = await tx
           .select({ characterId: activities.characterId })

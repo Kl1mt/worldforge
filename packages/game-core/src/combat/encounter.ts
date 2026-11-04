@@ -115,7 +115,7 @@ export function attackIntervalMs(attacksPerSecond: number): number {
  */
 export function rollEncounter(
   rng: Rng,
-  area: AreaDefinition,
+  area: Pick<AreaDefinition, 'enemies' | 'minLevel' | 'maxLevel'>,
   classId: ClassId,
   characterLevel: number,
   stats: StatBlock,

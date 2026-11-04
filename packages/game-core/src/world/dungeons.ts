@@ -1,5 +1,6 @@
 import type { AreaEnemyEntry } from './areas.js';
 import type { EnemyId } from './enemies.js';
+import type { RarityId } from '../rarity.js';
 import type { MaterialId } from './materials.js';
 import {
   isUnlocked,
@@ -11,11 +12,42 @@ import {
 } from './unlocks.js';
 
 /**
- * Dungeons (GDD §11.2). Data only in ticket 2.1; runs, rooms and the boss mechanic are ticket 2.5.
+ * Dungeons (GDD §11.2). Data from ticket 2.1; rooms, the boss mechanic and boss loot are ticket 2.5
+ * (rules in `src/dungeon/`).
  */
 export const DUNGEON_IDS = ['namelessCrypt'] as const;
 
 export type DungeonId = (typeof DUNGEON_IDS)[number];
+
+/** One room of a run: this many enemies from `DungeonDefinition.enemies`, fought one after another. */
+export interface DungeonRoom {
+  enemies: number;
+}
+
+/**
+ * The boss's enrage timer (ticket 2.5): from `atMs` into the fight its hits deal
+ * `damageMultiplier` × damage and come `attackSpeedMultiplier` × as often. A hero who cannot kill
+ * the boss before then rarely survives long after.
+ */
+export interface BossEnrage {
+  atMs: number;
+  damageMultiplier: number;
+  attackSpeedMultiplier: number;
+}
+
+/** What the boss drops on a kill while boss loot is off cooldown (ticket 2.5). */
+export interface DungeonBossLoot {
+  /** Loot table of the boss items (`getLootTable`). */
+  lootTableId: string;
+  /** Items rolled from it per kill. */
+  items: number;
+  /** Rarity weights for boss items (better odds than ordinary kills). */
+  rarityWeights: Readonly<Record<RarityId, number>>;
+  /** Gold range of the boss's purse. */
+  gold: { min: number; max: number };
+  /** Hours until boss loot can drop again for the same character (counted from run start). */
+  cooldownHours: number;
+}
 
 export interface DungeonDefinition {
   id: DungeonId;
@@ -30,13 +62,21 @@ export interface DungeonDefinition {
   unlock: UnlockRule;
   /** Room enemies, picked by weight. */
   enemies: readonly AreaEnemyEntry[];
+  /** Rooms before the boss, in order. */
+  rooms: readonly DungeonRoom[];
+  /** Walk into each room and into the boss chamber (out-of-combat regeneration applies). */
+  travelMs: number;
+  /** A boss fight that lasts longer is lost. */
+  bossMaxFightMs: number;
+  bossEnrage: BossEnrage;
+  bossLoot: DungeonBossLoot;
   /** The boss at the end of a run (an enemy of rank `boss`). */
   bossId: EnemyId;
   /** Boss level: the dungeon's top level. */
   bossLevel: number;
-  /** Loot table rolled for room kills (`getLootTable`); boss loot is ticket 2.5. */
+  /** Loot table rolled for room kills (`getLootTable`). */
   lootTableId: string;
-  /** Materials the boss drops. */
+  /** Materials the boss always drops (one each) while boss loot is off cooldown. */
   bossDrops: readonly MaterialId[];
 }
 
@@ -55,6 +95,24 @@ export const DUNGEONS: readonly DungeonDefinition[] = [
       { enemyId: 'cryptGhoul', weight: 55 },
       { enemyId: 'boneAcolyte', weight: 45 },
     ],
+    rooms: [{ enemies: 2 }, { enemies: 2 }, { enemies: 2 }, { enemies: 2 }],
+    travelMs: 20_000,
+    bossMaxFightMs: 150_000,
+    bossEnrage: { atMs: 60_000, damageMultiplier: 2, attackSpeedMultiplier: 1.5 },
+    bossLoot: {
+      lootTableId: 'gravewarden',
+      items: 2,
+      rarityWeights: {
+        common: 0,
+        uncommon: 3000,
+        rare: 3500,
+        epic: 1800,
+        legendary: 250,
+        mythic: 20,
+      },
+      gold: { min: 60, max: 90 },
+      cooldownHours: 20,
+    },
     bossId: 'gravewarden',
     bossLevel: 16,
     lootTableId: 'namelessCrypt',

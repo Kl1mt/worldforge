@@ -43,9 +43,10 @@ describe('item bases', () => {
   });
 
   it('gives every tier 2–3 base its own icon named after the base (ticket A.4)', () => {
-    for (const b of ITEM_BASES.filter((b) => b.tier !== 1))
-      expect(b.icon, b.id).toBe(`item.${b.id}`);
-    expect(new Set(ITEM_BASES.map((b) => b.icon)).size).toBe(ITEM_BASES.length);
+    // Boss-exclusive bases (ticket 2.5) borrow an existing icon until they get their own art.
+    const regular = ITEM_BASES.filter((b) => !b.unique);
+    for (const b of regular.filter((b) => b.tier !== 1)) expect(b.icon, b.id).toBe(`item.${b.id}`);
+    expect(new Set(regular.map((b) => b.icon)).size).toBe(regular.length);
   });
 
   it('has a tier 2 and a tier 3 base per slot kind with art and per weapon family', () => {
@@ -53,7 +54,7 @@ describe('item bases', () => {
       b.slot === 'weapon' ? `weapon:${[...b.classes].sort().join('+')}` : b.slot;
     const tier1 = new Set(ITEM_BASES.filter((b) => b.tier === 1).map(families));
     for (const tier of [2, 3] as const) {
-      const bases = ITEM_BASES.filter((b) => b.tier === tier);
+      const bases = ITEM_BASES.filter((b) => b.tier === tier && !b.unique);
       expect(new Set(bases.map(families))).toEqual(tier1);
       expect(bases.length).toBe(tier1.size);
     }
