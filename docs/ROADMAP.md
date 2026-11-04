@@ -103,7 +103,7 @@ GDD: §7.1–7.3.
 
 ### 1.6 Farming activity & offline progress (server) — `todo`
 GDD: §9.1–9.3, §14.
-- `activities` + `item_instances` tables. Start/stop farming Abandoned Fields for the active character.
+- `activities` table (your migration). The `item_instances` table already exists (`apps/server/src/db/schema.ts`, migration `0002`); grant loot by inserting rows there with `equipped_slot = null`. Ticket 1.7 runs in parallel and owns equip/unequip/discard; don't build those. Start/stop farming Abandoned Fields for the active character.
 - Server-authoritative settlement: progress is computed from elapsed server time using 1.4/1.5 with a seed derived server-side; never from client input. Settle on request and on a schedule; idempotent and transaction-safe (no double-claim under concurrent requests).
 - Offline: time without client activity accrues up to the **3 h cap** (`OFFLINE_CAP_SECONDS`, config); active play may settle more efficiently (keep the rule simple and documented).
 - Return summary endpoint: XP, levels, gold, items gained while away, time capped.
@@ -114,6 +114,7 @@ GDD: §9.1–9.3, §14.
 
 ### 1.7 Inventory & equipment (server) — `todo`
 GDD: §7.1, §14 steps 4–5.
+- Uses the existing `item_instances` table (`equipped_slot` null = in inventory; a partial unique index allows one item per slot). Avoid new migrations; ticket 1.6 adds one in parallel. If one is unavoidable, say so in the PR. Ticket 1.6 owns granting loot and the inventory capacity rule; don't build those.
 - API: inventory list, equip (slot + class validation), unequip, discard. Ring slots handled (ring1/ring2). Derived stats recomputed server-side. Bridge loot → combat in game-core: a pure function turning equipped `GeneratedItem`s into `EquipmentStatContribution` for `deriveCharacterStats` (if 1.6 hasn't already added it).
 - Transaction-safe; an item can only be in one place; ownership checked.
 **Acceptance:** tests for invalid slot, wrong class, other account's item, double equip, concurrency.
@@ -129,4 +130,15 @@ GDD: §3, §9.2, §14, §18.
 GDD: §15 Phase 1 exit criteria, §16.3.
 - End-to-end test of the full exit-criteria flow including offline return (with simulated time).
 - Exploit review: duplicate requests, replay, concurrency, negative/overflow values, cap bypass. Fix what's found.
+- Return 404 (not 403) for other accounts' resources (e.g. selecting another account's character), so resource ids can't be probed.
 - Update docs; Phase 1 retrospective notes in this file.
+
+## Art tickets (run alongside the phases)
+
+### A.1 Class portraits — `todo`
+GDD: §3.1, §5.1–5.2. Read `docs/ASSET_GUIDELINES.md` and `CLAUDE.md` (Art pipeline).
+- Generate full-body portraits for **Mage, Hunter, Warlock** at 128×128 with transparent background, matching the existing warrior (`apps/web/public/assets/characters/warrior.png`): same pixel scale, three-quarter front view, muted desaturated dark-fantasy palette, weathered gear, readable silhouette. Pass the warrior as `style_image` to `/generate-image-v2` so the style matches. Class identity: Mage = elemental/arcane robes and staff; Hunter = leather and hood, bow; Warlock = dark robes, shadow/soul motifs, skull or grimoire.
+- Budget: one job per class (4 variants each), at most one regeneration in total. Keep raw results under `art/source/pixellab/`.
+- Curate into `apps/web/public/assets/characters/{mage,hunter,warlock}.png`, update `manifest.json`, and make the web app pick the portrait by class wherever the warrior is shown for every class now (character select, creation preview, character screen). Remove the "every class wears the warrior's portrait" note.
+- Re-take the character select/creation screenshots.
+**Acceptance:** checks pass; a contact sheet of all four classes side by side in the PR description.

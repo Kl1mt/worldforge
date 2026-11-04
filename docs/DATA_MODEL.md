@@ -74,6 +74,23 @@ Append-only (the server never updates or deletes rows) for valuable or security-
 
 Indexes: `(account_id, created_at)`, `(event, created_at)`.
 
+### item_instances — implemented (shared by 1.6 / 1.7)
+One owned item, created from a game-core `GeneratedItem`. Location is a column, not a separate table: `equipped_slot` null = in the inventory, otherwise equipped in that slot.
+| Column        | Type        | Notes                                                              |
+| ------------- | ----------- | ------------------------------------------------------------------ |
+| id            | uuid PK     | UUIDv7                                                             |
+| character_id  | uuid FK     | → `characters.id` `ON DELETE CASCADE`                              |
+| base_id       | text        | game-core item base id                                             |
+| rarity_id     | text        | game-core `RarityId`                                               |
+| item_level    | integer     | check `>= 1`                                                       |
+| affixes       | jsonb       | game-core `RolledAffix[]`, default `[]`                            |
+| seed          | bigint      | generation seed (uint32), for audit and reproducibility            |
+| equipped_slot | text?       | game-core `EquipmentSlotId`; unique per character when not null    |
+| source        | text        | e.g. `farming`                                                     |
+| created_at    | timestamptz | default `now()`                                                    |
+
+Indexes: `(character_id)`; partial unique `(character_id, equipped_slot) where equipped_slot is not null`.
+
 ### idempotency_key
 `(account_id, key) PK`, `request_hash`, `response jsonb`, `status_code`, `created_at` (expired after 24h). See `docs/API_CONVENTIONS.md`.
 
@@ -82,8 +99,7 @@ Indexes: `(account_id, created_at)`, `(event, created_at)`.
 ```
 account 1─* sessions
 account 1─* character 1─1 activity
-                     1─* item ─┬─ 0..1 equipment (slot)
-                               └─ 0..1 inventory_entry (position)
+                     1─* item_instance (equipped_slot null = inventory)
                      1─* offline_settlement
                      1─* currency_ledger
 account 0..1─* audit_log
@@ -91,6 +107,6 @@ account 1─* idempotency_key
 ```
 
 ## Open questions
-- Single `item_location` table vs. separate `equipment` / `inventory_entry`.
+- ~~Single `item_location` table vs. separate `equipment` / `inventory_entry`~~ Decided: a nullable `equipped_slot` column on `item_instances`.
 - Whether partial offline settlement happens on every login or on an explicit claim (cap decided: 3 h, GDD v0.3).
 - Whether `rng_state` lives on the character or per activity (ticket 1.6).
