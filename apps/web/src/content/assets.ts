@@ -9,13 +9,20 @@ export interface SpriteAsset {
   width: number;
   height: number;
   /** Source orientation; the scene mirrors `right`-facing enemies so they face the hero. */
-  facing?: 'front' | 'right';
+  facing?: 'front' | 'left' | 'right';
 }
 
 const item = (name: string): SpriteAsset => ({
   path: `/assets/items/${name}.png`,
   width: 32,
   height: 32,
+});
+
+const enemy = (name: string, facing: 'front' | 'left' | 'right', size = 64): SpriteAsset => ({
+  path: `/assets/enemies/${name}.png`,
+  width: size,
+  height: size,
+  facing,
 });
 
 const character = (name: string): SpriteAsset => ({
@@ -56,6 +63,17 @@ export const ASSETS = {
     height: 64,
     facing: 'front',
   },
+  'enemy.bandit-cutthroat': enemy('bandit-cutthroat', 'front'),
+  'enemy.corrupted-crow': enemy('corrupted-crow', 'left'),
+  'enemy.risen-skeleton': enemy('risen-skeleton', 'front'),
+  'enemy.grave-crawler': enemy('grave-crawler', 'left'),
+  'enemy.drowned-thrall': enemy('drowned-thrall', 'left'),
+  'enemy.bog-horror': enemy('bog-horror', 'front'),
+  'enemy.fallen-knight': enemy('fallen-knight', 'front'),
+  'enemy.abbey-wraith': enemy('abbey-wraith', 'front'),
+  'enemy.crypt-ghoul': enemy('crypt-ghoul', 'left'),
+  'enemy.bone-acolyte': enemy('bone-acolyte', 'front'),
+  'enemy.gravewarden': enemy('gravewarden', 'front', 128),
   'character.warrior': character('warrior'),
   'character.mage': character('mage'),
   'character.hunter': character('hunter'),
