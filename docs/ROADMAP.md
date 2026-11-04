@@ -190,7 +190,7 @@ Professions (GDD §11.3): Woodcutting → `timber`, Herbalism → `ashwort`, Ski
 
 **Waves:** 2.1, A.2 and A.3 run in parallel. Then 2.2 and A.4. Then 2.3. Then 2.4, 2.5 and 2.6 in parallel. Then 2.7 and 2.8. B.1 runs whenever the playtest feedback is in.
 
-### 2.1 World content: areas, enemies, item tiers, loot tables (game-core) — `in progress`
+### 2.1 World content: areas, enemies, item tiers, loot tables (game-core) — `done (PR #23)`
 GDD: §4.3, §6.2, §7.1–7.3, §11.3, §16.2. Read `docs/COMBAT.md`, `docs/LOOT.md`.
 - All areas, enemies and the dungeon from the content contract as data in `packages/game-core/src/world/` (dungeon definitions can be data only here; 2.5 adds the rules). Enemy families: physical vs magic damage; undead flag (for `soulShard` drops).
 - Item tiers: extend the item bases so higher areas drop better gear (e.g. a tier 2 and tier 3 per slot with higher `minItemLevel`). Bases name an icon asset id; new bases may temporarily point at an existing icon (A.4 delivers new icons and switches them).
