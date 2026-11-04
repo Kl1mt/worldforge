@@ -22,7 +22,7 @@ afterAll(async () => {
 
 beforeEach(async () => {
   await db().execute(
-    sql`truncate audit_log, sessions, item_instances, characters, accounts cascade`,
+    sql`truncate audit_log, sessions, activities, item_instances, characters, accounts cascade`,
   );
 });
 
@@ -53,13 +53,14 @@ async function sqlState(p: Promise<unknown>): Promise<string | undefined> {
 }
 
 describe('migrations', () => {
-  it('create exactly the Phase 1 tables (1.1, 1.3 characters, item instances) from scratch', async () => {
+  it('create exactly the Phase 1 tables (1.1, 1.3 characters, item instances, 1.6 activities) from scratch', async () => {
     const rows = await queryRows<{ table_name: string }>(
       db(),
       sql`select table_name from information_schema.tables where table_schema = 'public' order by 1`,
     );
     expect(rows.map((r) => r.table_name)).toEqual([
       'accounts',
+      'activities',
       'audit_log',
       'characters',
       'item_instances',
@@ -74,7 +75,7 @@ describe('migrations', () => {
       db(),
       sql`select count(*)::int as n from drizzle.__drizzle_migrations`,
     );
-    expect(applied[0]).toEqual({ n: 3 });
+    expect(applied[0]).toEqual({ n: 4 });
     expect(await db().$count(accounts)).toBe(1);
   });
 });

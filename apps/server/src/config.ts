@@ -11,6 +11,10 @@ export interface ServerConfig {
   sessionCookieSecure: boolean;
   /** Trust `X-Forwarded-For` (behind a reverse proxy), so rate limits key on the real client IP. */
   trustProxy: boolean;
+  /** Offline progress accrues for at most this long after the last client contact (GDD §9.1). */
+  offlineCapSeconds: number;
+  /** Scheduled settlement interval; 0 disables it. */
+  settleIntervalSeconds: number;
 }
 
 function intEnv(env: NodeJS.ProcessEnv, name: string, fallback: number, min: number, max: number) {
@@ -44,6 +48,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     sessionTtlHours: intEnv(env, 'SESSION_TTL_HOURS', 720, 1, 24 * 365),
     sessionCookieSecure: boolEnv(env, 'SESSION_COOKIE_SECURE', true),
     trustProxy: boolEnv(env, 'TRUST_PROXY', false),
+    offlineCapSeconds: intEnv(env, 'OFFLINE_CAP_SECONDS', 3 * 60 * 60, 0, 7 * 24 * 60 * 60),
+    settleIntervalSeconds: intEnv(env, 'SETTLE_INTERVAL_SECONDS', 300, 0, 24 * 60 * 60),
   };
 }
 

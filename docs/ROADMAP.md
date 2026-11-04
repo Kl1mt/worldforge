@@ -101,7 +101,7 @@ GDD: §7.1–7.3.
 - Deterministic with seeded RNG; drop rates in config.
 **Acceptance:** unit tests incl. statistical tests over many seeds (rarity distribution within tolerance, affixes valid for slot).
 
-### 1.6 Farming activity & offline progress (server) — `todo`
+### 1.6 Farming activity & offline progress (server) — `done (PR #15)`
 GDD: §9.1–9.3, §14.
 - `activities` table (your migration). The `item_instances` table already exists (`apps/server/src/db/schema.ts`, migration `0002`); grant loot by inserting rows there with `equipped_slot = null`. Ticket 1.7 runs in parallel and owns equip/unequip/discard; don't build those. Start/stop farming Abandoned Fields for the active character.
 - Server-authoritative settlement: progress is computed from elapsed server time using 1.4/1.5 with a seed derived server-side; never from client input. Settle on request and on a schedule; idempotent and transaction-safe (no double-claim under concurrent requests).

@@ -10,3 +10,4 @@ export * from './combat/index.js';
 export * from './world/index.js';
 export * from './items/index.js';
 export * from './loot/index.js';
+export * from './activity/index.js';
