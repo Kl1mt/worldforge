@@ -1,6 +1,6 @@
 # API conventions
 
-Applies to every endpoint served by `apps/server`. Implemented so far: health, content, the account/auth endpoints (ticket 1.2), the 404 handler and the error handler (`apps/server/src/errors.ts`; throw `ApiError(status, code, message, details?)` for deliberate failures).
+Applies to every endpoint served by `apps/server`. Implemented so far: health, content, the account/auth endpoints (ticket 1.2), the character endpoints (ticket 1.3), the 404 handler and the error handler (`apps/server/src/errors.ts`; throw `ApiError(status, code, message, details?)` for deliberate failures).
 
 ## Basics
 - REST over HTTPS, JSON request and response bodies (`application/json; charset=utf-8`).
@@ -73,7 +73,12 @@ Every non-2xx response has this shape:
 | POST   | `/api/auth/login` | Body `{ email, password }` → `200 { account }` + session cookie. `401 invalid_credentials`, `429 rate_limited` |
 | POST   | `/api/auth/logout` | `204`, revokes the session and clears the cookie; idempotent (also `204` without a session) |
 | GET    | `/api/account` | `200 { account }` for the session's account, else `401 unauthenticated` |
+| GET    | `/api/characters` | `200 { characters, slots: { used, total }, activeCharacterId }` — the account's characters, oldest first. Not paginated: bounded by the slot count |
+| POST   | `/api/characters` | Body `{ name, classId, appearance: { banner } }` → `201 { character }`; the new character becomes active. `400 validation_failed` (`details.fields`: `name`, `classId`, `appearance.banner`), `409 character_name_taken`, `422 no_free_slot` (`details.slots`) |
+| POST   | `/api/characters/:characterId/select` | `200 { character }` and makes it the account's active character. `403 forbidden` for another account's character, `404 not_found`, `400` for a malformed id |
 
 `account` is `{ id, email, displayName, characterSlots, createdAt }`. Registration rules (`apps/server/src/auth/validation.ts`): email trimmed, `x@y.tld` shape, ≤ 254 chars, unique case-insensitively; display name trimmed, 3–20 letters/digits with single spaces, `-`, `'` or `_` inside, unique case-insensitively; password 10–128 characters and not equal to the email. Passwords are hashed with argon2id (`@node-rs/argon2`, 19 MiB, t=2, p=1).
 
-Audit events: `account.register`, `auth.login`, `auth.login_failed` (`data.reason`: `unknown_email` / `bad_password`; account id when known), `auth.logout`. No emails, IPs or passwords are written to the audit log.
+`character` is `{ id, name, classId, appearance: { banner }, level, experience, gold, createdAt }`. Clients never send level, experience or gold; unknown body fields are rejected. All character routes require a session.
+
+Audit events: `character.create` (character id, `data.classId`), `account.register`, `auth.login`, `auth.login_failed` (`data.reason`: `unknown_email` / `bad_password`; account id when known), `auth.logout`. No emails, IPs or passwords are written to the audit log.

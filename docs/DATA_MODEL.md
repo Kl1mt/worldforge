@@ -7,6 +7,7 @@ Status: **partly implemented.** Tables marked *implemented* exist in `apps/serve
 | `accounts`  | implemented (ticket 1.1) |
 | `sessions`  | implemented (ticket 1.1) |
 | `audit_log` | implemented (ticket 1.1) |
+| `characters` | implemented (ticket 1.3) |
 | others      | draft                   |
 
 ## Principles
@@ -26,7 +27,8 @@ Status: **partly implemented.** Tables marked *implemented* exist in `apps/serve
 | email           | text        | stored trimmed as entered; unique on `lower(email)`          |
 | display_name    | text        | unique on `lower(display_name)`                              |
 | password_hash   | text        | argon2id PHC string (`$argon2id$v=19$m=19456,t=2,p=1$…`), written by 1.2 |
-| character_slots | smallint    | default 2 (GDD §5.3), `CHECK (>= 0)`                         |
+| character_slots | smallint    | default 2 (GDD §5.3), `CHECK (>= 0)`; per account, so slots can be granted later |
+| active_character_id | uuid FK? | → `characters.id` `ON DELETE SET NULL`; the last selected character (ticket 1.3). Only ever set to one of the account's own characters (checked by the server) |
 | created_at      | timestamptz | default `now()`                                              |
 | updated_at      | timestamptz | default `now()`; set by the server on update                 |
 
@@ -43,59 +45,21 @@ Owner decision (GDD v0.3): real registration/login from Phase 1, no dev identity
 
 A session is valid iff `revoked_at IS NULL AND expires_at > now()` (the server compares against its own clock). Login and registration insert a row (`created_at` = issue time, `expires_at` = + `SESSION_TTL_HOURS`); logout sets `revoked_at`. Pruning expired rows is left to a later maintenance job.
 
-### character
+### characters — implemented (1.3)
 | Column         | Type        | Notes                                            |
 | -------------- | ----------- | ------------------------------------------------ |
-| id             | uuid PK     |                                                  |
-| account_id     | uuid FK     | indexed; count ≤ `account.character_slots`       |
-| name           | text        | unique                                           |
-| class_id       | text        | game-core `ClassId`, immutable after creation    |
-| appearance     | jsonb       | cosmetic choices (GDD §5.1)                      |
-| level          | integer     |                                                  |
-| experience     | bigint      | within current level                             |
-| gold           | bigint      | `CHECK (gold >= 0)`                              |
-| rng_state      | bigint      | persisted seeded-RNG state for reproducible rolls |
-| version        | integer     | optimistic concurrency counter                   |
-| created_at / updated_at | timestamptz |                                         |
+| id             | uuid PK     | UUIDv7                                           |
+| account_id     | uuid FK     | → `accounts.id` `ON DELETE CASCADE`, indexed. Count ≤ `accounts.character_slots`, enforced by the server under a `SELECT … FOR UPDATE` lock on the account row |
+| name           | text        | trimmed as entered; unique on `lower(name)` across all accounts. Rules in game-core `validateCharacterName` (3–16 ASCII letters, one `'` or `-` between parts, a few reserved names) |
+| class_id       | text        | game-core `ClassId`, validated by the server, immutable after creation. No DB `CHECK`, so adding a class needs no migration |
+| appearance     | jsonb       | game-core `CharacterAppearance`: `{ banner }` (`ash`/`ember`/`moss`/`dusk`) |
+| level          | integer     | default 1, `CHECK (>= 1)`                        |
+| experience     | bigint      | default 0, `CHECK (>= 0)`; within the current level |
+| gold           | bigint      | default 0, `CHECK (>= 0)`                        |
+| version        | integer     | default 0; optimistic concurrency counter for later value-changing writes |
+| created_at / updated_at | timestamptz | default `now()`                         |
 
-Gold is per character in Phase 1; shared/account storage is a later decision (GDD §5.3).
-
-### item (item instance)
-| Column       | Type        | Notes                                                    |
-| ------------ | ----------- | -------------------------------------------------------- |
-| id           | uuid PK     |                                                          |
-| owner_character_id | uuid FK | indexed                                              |
-| base_id      | text        | game-core item base (slot, base stats)                   |
-| rarity_id    | text        | game-core `RarityId`                                     |
-| item_level   | integer     |                                                          |
-| affixes      | jsonb       | `[{ affixId, tier, value }]`, rolled server-side only    |
-| upgrade_level| smallint    | default 0 (Phase 3)                                      |
-| seed         | bigint      | roll seed, for audit/reproduction                        |
-| source       | text        | `drop`, `offline`, `starter`, …                          |
-| created_at   | timestamptz |                                                          |
-
-### inventory_entry / equipment
-An item is in exactly one place:
-- `equipment (character_id, slot_id) PK → item_id UNIQUE` — `slot_id` is a game-core `EquipmentSlotId`.
-- `inventory_entry (character_id, position) PK → item_id UNIQUE` — grid position; capacity enforced by the server.
-
-Equip/unequip swaps rows inside one transaction, so an item can never be both equipped and in the bag (a `UNIQUE(item_id)` across both is enforced by a trigger or by a single `item_location` table — decide when implementing).
-
-### activity
-The character's current idle assignment, which drives offline progress.
-| Column        | Type        | Notes                                                |
-| ------------- | ----------- | ---------------------------------------------------- |
-| character_id  | uuid PK FK  | one active activity per character                    |
-| kind          | text        | `area_farm` in Phase 1                               |
-| area_id       | text        | game-core area id (`abandoned-fields`)               |
-| started_at    | timestamptz |                                                      |
-| settled_until | timestamptz | rewards have been granted up to this instant         |
-
-### offline_settlement
-One row per settlement of elapsed time: `id`, `character_id`, `from`, `to` (capped duration), `seed`, `summary jsonb` (kills, xp, gold, item ids), `created_at`. `UNIQUE (character_id, from)` prevents settling the same window twice. Powers the "while you were away" summary.
-
-### currency_ledger
-Append-only: `id`, `character_id`, `currency` (`gold`), `delta bigint`, `balance_after bigint`, `reason` (`offline_settlement`, `combat_reward`, `vendor_sell`, …), `ref_id`, `created_at`.
+`rng_state` from the draft is not added yet; ticket 1.6 decides whether it lives on the character or per activity. Characters cannot be deleted or renamed yet.
 
 ### audit_log — implemented (1.1)
 Append-only (the server never updates or deletes rows) for valuable or security-relevant events (auth events, item grants of epic+, deletions, rewards).
@@ -103,7 +67,7 @@ Append-only (the server never updates or deletes rows) for valuable or security-
 | ------------ | ----------- | --------------------------------------------------------------------- |
 | id           | uuid PK     | UUIDv7, so rows sort by time                                          |
 | account_id   | uuid FK?    | → `accounts.id` `ON DELETE SET NULL` (anonymous events, e.g. failed login for an unknown email; history survives account deletion) |
-| character_id | uuid?       | FK to `characters` is added by ticket 1.3                             |
+| character_id | uuid FK?    | → `characters.id` `ON DELETE SET NULL` (added by ticket 1.3)          |
 | event        | text        | dotted name, e.g. `account.register`, `auth.login`, `auth.login_failed` |
 | data         | jsonb       | default `{}`; small, non-secret context (never passwords or tokens)   |
 | created_at   | timestamptz | default `now()`                                                       |
@@ -129,4 +93,4 @@ account 1─* idempotency_key
 ## Open questions
 - Single `item_location` table vs. separate `equipment` / `inventory_entry`.
 - Whether partial offline settlement happens on every login or on an explicit claim (cap decided: 3 h, GDD v0.3).
-- Whether `rng_state` lives on the character or per activity.
+- Whether `rng_state` lives on the character or per activity (ticket 1.6).

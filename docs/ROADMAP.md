@@ -78,7 +78,7 @@ GDD: §2.1, §5.3, §16.3.
 - Out of scope: email verification, password reset, OAuth (note them as follow-ups).
 **Acceptance:** tests for happy paths, duplicate email, bad password, rate limit, session expiry; screenshots of both screens (desktop + mobile) in the PR.
 
-### 1.3 Characters — `todo`
+### 1.3 Characters — `done (PR #TBD)`
 GDD: §5.1–5.3.
 - `characters` table (account FK, name, class, level, xp, gold, cosmetic choice, created_at); 2 character slots per account (configurable).
 - API: list, create (name rules + uniqueness, class from `game-core`), select active character. All four classes selectable.

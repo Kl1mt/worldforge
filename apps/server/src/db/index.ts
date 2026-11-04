@@ -8,6 +8,7 @@ export {
   withTransaction,
   isRetryableTransactionError,
   sqlStateOf,
+  constraintOf,
   type IsolationLevel,
   type TransactionOptions,
 } from './transaction.js';

@@ -1,7 +1,7 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import { eq, sql } from 'drizzle-orm';
 import { createTestDatabase } from '../test/db.js';
-import { accounts, auditLog, sessions } from './schema.js';
+import { accounts, auditLog, characters, sessions } from './schema.js';
 import { migrateDatabase } from './migrate.js';
 import { writeAudit } from './audit.js';
 import { withTransaction } from './transaction.js';
@@ -21,7 +21,7 @@ afterAll(async () => {
 });
 
 beforeEach(async () => {
-  await db().execute(sql`truncate audit_log, sessions, accounts cascade`);
+  await db().execute(sql`truncate audit_log, sessions, characters, accounts cascade`);
 });
 
 function newAccount(overrides: Partial<typeof accounts.$inferInsert> = {}) {
@@ -51,12 +51,17 @@ async function sqlState(p: Promise<unknown>): Promise<string | undefined> {
 }
 
 describe('migrations', () => {
-  it('create exactly the Phase 1.1 tables from scratch', async () => {
+  it('create exactly the Phase 1 tables (1.1 + 1.3 characters) from scratch', async () => {
     const rows = await queryRows<{ table_name: string }>(
       db(),
       sql`select table_name from information_schema.tables where table_schema = 'public' order by 1`,
     );
-    expect(rows.map((r) => r.table_name)).toEqual(['accounts', 'audit_log', 'sessions']);
+    expect(rows.map((r) => r.table_name)).toEqual([
+      'accounts',
+      'audit_log',
+      'characters',
+      'sessions',
+    ]);
   });
 
   it('are idempotent: re-running applies nothing and keeps data', async () => {
@@ -66,7 +71,7 @@ describe('migrations', () => {
       db(),
       sql`select count(*)::int as n from drizzle.__drizzle_migrations`,
     );
-    expect(applied[0]).toEqual({ n: 1 });
+    expect(applied[0]).toEqual({ n: 2 });
     expect(await db().$count(accounts)).toBe(1);
   });
 });
@@ -220,5 +225,77 @@ describe('withTransaction', () => {
       { isolationLevel: 'serializable' },
     );
     expect(level).toBe('serializable');
+  });
+});
+
+describe('characters', () => {
+  const newCharacter = (
+    accountId: string,
+    overrides: Partial<typeof characters.$inferInsert> = {},
+  ) => {
+    const id = uuidv7();
+    return {
+      id,
+      accountId,
+      name: `Hero${id.slice(-6).replace(/[^a-z]/g, 'x')}`,
+      classId: 'warrior' as const,
+      appearance: { banner: 'ash' as const },
+      ...overrides,
+    };
+  };
+
+  it('reject negative gold or experience and a level below 1', async () => {
+    const account = newAccount();
+    await db().insert(accounts).values(account);
+    for (const bad of [{ gold: -1 }, { experience: -1 }, { level: 0 }]) {
+      expect(await sqlState(db().insert(characters).values(newCharacter(account.id, bad)))).toBe(
+        '23514',
+      );
+    }
+  });
+
+  it('have case-insensitively unique names', async () => {
+    const account = newAccount();
+    await db().insert(accounts).values(account);
+    await db()
+      .insert(characters)
+      .values(newCharacter(account.id, { name: 'Edric' }));
+    expect(
+      await sqlState(
+        db()
+          .insert(characters)
+          .values(newCharacter(account.id, { name: 'EDRIC' })),
+      ),
+    ).toBe('23505');
+  });
+
+  it('clear the active character and audit references when deleted', async () => {
+    const account = newAccount();
+    await db().insert(accounts).values(account);
+    const character = newCharacter(account.id);
+    await db().insert(characters).values(character);
+    await db()
+      .update(accounts)
+      .set({ activeCharacterId: character.id })
+      .where(eq(accounts.id, account.id));
+    await writeAudit(db(), {
+      event: 'character.create',
+      accountId: account.id,
+      characterId: character.id,
+    });
+
+    await db().delete(characters).where(eq(characters.id, character.id));
+    const [row] = await db().select().from(accounts).where(eq(accounts.id, account.id));
+    expect(row!.activeCharacterId).toBeNull();
+    const [entry] = await db().select().from(auditLog).where(eq(auditLog.accountId, account.id));
+    expect(entry!.characterId).toBeNull();
+  });
+
+  it('are deleted with their account', async () => {
+    const account = newAccount();
+    await db().insert(accounts).values(account);
+    await db().insert(characters).values(newCharacter(account.id));
+    await db().delete(accounts).where(eq(accounts.id, account.id));
+    expect(await db().select().from(characters)).toEqual([]);
   });
 });

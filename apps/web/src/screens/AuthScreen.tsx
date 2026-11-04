@@ -58,7 +58,7 @@ export function GateStatus({
   kind,
   onRetry,
 }: {
-  kind: 'checking' | 'offline';
+  kind: 'checking' | 'offline' | 'roster-error';
   onRetry?: () => void;
 }) {
   return (
@@ -76,11 +76,13 @@ export function GateStatus({
         ) : (
           <>
             <h1 id="gate-title" className="gate__title display">
-              The road is closed
+              {kind === 'offline' ? 'The road is closed' : 'The muster roll is out of reach'}
             </h1>
             <p className="gate__alert" role="alert">
-              The server cannot be reached, so we cannot check your account. Your progress is safe
-              on the server.
+              {kind === 'offline'
+                ? 'The server cannot be reached, so we cannot check your account.'
+                : 'Your characters could not be loaded.'}{' '}
+              Your progress is safe on the server.
             </p>
             <button type="button" className="btn btn--brass gate__submit" onClick={onRetry}>
               Try again

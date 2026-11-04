@@ -69,6 +69,11 @@
   --rage: #c8682a;
   --rage-back: #2e1a0d;
   --focus-ring: var(--brass-300);
+  /* Character banners (the ticket 1.3 cosmetic): dyed cloth, muted to sit behind the art. */
+  --banner-ash: #5d5650;
+  --banner-ember: #8a342f;
+  --banner-moss: #4f5a3c;
+  --banner-dusk: #4b4170;
 
   /* ── Typography ────────────────────────────────────────────────────── */
   --font-display: 'IM Fell English SC', 'Iowan Old Style', Georgia, serif;
