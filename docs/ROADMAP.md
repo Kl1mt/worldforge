@@ -108,11 +108,13 @@ GDD: §9.1–9.3, §14.
 - Offline: time without client activity accrues up to the **3 h cap** (`OFFLINE_CAP_SECONDS`, config); active play may settle more efficiently (keep the rule simple and documented).
 - Return summary endpoint: XP, levels, gold, items gained while away, time capped.
 - Inventory capacity: overflow handling documented (e.g. excess items auto-salvaged to gold).
+- Cap total gold find (and any other find/yield modifiers) when summing equipment before passing it to `rollLoot` (GDD §6.2: modifiers need caps). Put the cap in game-core config.
+- Use `unusedMs` from `simulateFarmingAggregate` as carry-over between settlements (see `docs/COMBAT.md`).
 **Acceptance:** tests for cap, idempotency, concurrent settle, determinism; audit log entries for rewards.
 
 ### 1.7 Inventory & equipment (server) — `todo`
 GDD: §7.1, §14 steps 4–5.
-- API: inventory list, equip (slot + class validation), unequip, discard. Ring slots handled (ring1/ring2). Derived stats recomputed server-side.
+- API: inventory list, equip (slot + class validation), unequip, discard. Ring slots handled (ring1/ring2). Derived stats recomputed server-side. Bridge loot → combat in game-core: a pure function turning equipped `GeneratedItem`s into `EquipmentStatContribution` for `deriveCharacterStats` (if 1.6 hasn't already added it).
 - Transaction-safe; an item can only be in one place; ownership checked.
 **Acceptance:** tests for invalid slot, wrong class, other account's item, double equip, concurrency.
 
