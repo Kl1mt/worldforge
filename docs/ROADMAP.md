@@ -85,7 +85,7 @@ GDD: §5.1–5.3.
 - Web: character select + creation screen (class choice with identity text; a minimal cosmetic choice — use the warrior art for all classes for now, note it).
 **Acceptance:** slot limit enforced server-side; tests; screenshots.
 
-### 1.4 Combat simulation (game-core) — `todo`
+### 1.4 Combat simulation (game-core) — `done (PR #7)`
 GDD: §6.1–6.3, §9.3.
 - Data-driven enemies for Abandoned Fields (Risen Farmhand, Carrion Wolf, Bone Scarecrow) and an area definition (level range, enemy weights).
 - Derived character stats from class base + level + equipment (pure function).
