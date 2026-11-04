@@ -1,5 +1,6 @@
-// Ticket 1.8 end-to-end run against the real server and UI, at desktop (1440) and mobile (390):
-// register → create character → farm → get loot → equip → leave → return summary.
+// Phase 1 exit-criteria run (tickets 1.8, 1.9) against the real server and UI, at desktop (1440)
+// and mobile (390): register → create character → farm → get loot → equip → log out → (time
+// passes) → log in → offline return summary. CI runs it on every PR (job `e2e`).
 // Saves screenshots of the live screens to docs/screenshots/phase-1/ and fails (exit 1) when a
 // step does not happen.
 //
@@ -31,6 +32,7 @@ const VIEWPORTS = [
   { name: 'mobile', width: 390, height: 844, hero: 'Isolde', className: 'Mage' },
 ];
 
+const PASSWORD = 'ashes-and-iron-42';
 const step = (vp, text) => console.log(`[${vp.name}] ${text}`);
 
 async function shoot(page, vp, name, { full = true } = {}) {
@@ -60,13 +62,14 @@ async function run(browser, vp) {
   const page = await context.newPage();
   page.on('pageerror', (err) => console.error(`! page error @ ${vp.name}: ${err.message}`));
   const stamp = `${vp.name}${Date.now()}`;
+  const email = `${stamp}@graumark.test`;
 
   // 1. Register.
   step(vp, 'register');
   await page.goto(`${baseUrl}/#/register`, { waitUntil: 'networkidle' });
-  await page.getByLabel('Email').fill(`${stamp}@graumark.test`);
+  await page.getByLabel('Email').fill(email);
   await page.getByLabel('Display name').fill(`Reeve ${String(Date.now()).slice(-6)}`);
-  await page.getByLabel('Password', { exact: true }).fill('ashes-and-iron-42');
+  await page.getByLabel('Password', { exact: true }).fill(PASSWORD);
   await page.getByRole('button', { name: 'Create account' }).click();
 
   // 2. Create a character (first hero: the guard opens creation).
@@ -127,19 +130,36 @@ async function run(browser, vp) {
   await page.getByRole('button', { name: 'Unequip' }).waitFor();
   await shoot(page, vp, 'character-equipped');
 
-  // 6. Leave and come back: the return summary.
-  step(vp, `away for ${AWAY_SECONDS}s`);
+  // 6. Leave: log out (the session is revoked server-side), then come back later and log in.
+  step(vp, 'log out');
+  await page.goto(`${baseUrl}/#/area`);
+  await page.getByRole('button', { name: 'Log out' }).click();
+  await page.getByRole('heading', { name: 'Return to the Graumark' }).waitFor();
+  const me = await context.request.get(`${baseUrl}/api/account`);
+  if (me.status() !== 401) throw new Error(`still logged in after logout: ${me.status()}`);
   await page.close();
+
+  step(vp, `away for ${AWAY_SECONDS}s`);
   await new Promise((r) => setTimeout(r, AWAY_SECONDS * 1000));
   const back = await context.newPage();
-  await back.goto(`${baseUrl}/#/area`, { waitUntil: 'networkidle' });
+  back.on('pageerror', (err) => console.error(`! page error @ ${vp.name}: ${err.message}`));
+  step(vp, 'log in');
+  await back.goto(`${baseUrl}/#/login`, { waitUntil: 'networkidle' });
+  await back.getByLabel('Email').fill(email);
+  await back.getByLabel('Password', { exact: true }).fill(PASSWORD);
+  await back.getByRole('button', { name: 'Enter', exact: true }).click();
+  await back.waitForURL(/#\/(area|characters)/);
+  if (!/#\/area/.test(back.url())) await back.goto(`${baseUrl}/#/area`);
+
+  // 7. The offline return summary: valid, capped progress from server time.
   const dialog = back.getByRole('dialog', { name: `${vp.hero} kept the fields` });
   await dialog.waitFor({ timeout: 20_000 });
   const kills = Number(
     (await dialog.locator('.return__tally dd').first().innerText()).replace(/\D/g, ''),
   );
   if (!(kills > 0)) throw new Error('return summary shows no kills');
-  step(vp, `return summary: ${kills} kills`);
+  const notes = await dialog.locator('.return__notes').innerText();
+  step(vp, `return summary: ${kills} kills; ${notes.replace(/\s+/g, ' ').trim()}`);
   await back.waitForTimeout(300);
   await shoot(back, vp, 'return-summary', { full: false });
 

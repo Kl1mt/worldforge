@@ -51,7 +51,7 @@ export function buildApp({ database, auth, activity, ...options }: AppOptions): 
       await registerAuth(api, { ...DEFAULT_AUTH_OPTIONS, ...auth });
       await registerCharacters(api);
       await registerActivities(api, activityOptions);
-      await registerInventory(api);
+      await registerInventory(api, activityOptions);
 
       api.get('/health', async (request, reply): Promise<HealthResponse> => {
         let db: HealthResponse['db'] = 'up';

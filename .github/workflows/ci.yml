@@ -61,7 +61,57 @@ jobs:
         run: pnpm --filter @worldforge/server db:migrate:prod
       - name: Re-apply migrations (must be a no-op)
         run: pnpm --filter @worldforge/server db:migrate:prod
+      - name: Concurrency tests on real PostgreSQL (ticket 1.9)
+        # PGlite runs one transaction at a time; these races need real parallel transactions.
+        # Each run creates and drops its own throwaway database next to DATABASE_URL.
+        run: pnpm --filter @worldforge/server test:pg
+        env:
+          REQUIRE_PG_TESTS: '1'
       - name: Verify schema
         run: |
           n=$(psql "$DATABASE_URL" -Atc "select count(*) from information_schema.tables where table_schema = 'public' and table_name in ('accounts', 'sessions', 'audit_log')")
           test "$n" = "3"
+
+  e2e:
+    # Phase 1 exit-criteria run in a real browser (tools/e2e/farm-loop.mjs, ~1.5 min): register →
+    # create character → farm → loot → equip → log out → log in → offline return summary, at 1440
+    # and 390 px. The server is the real buildApp() on PGlite with a scaled farming clock
+    # (apps/server/src/e2e/serve.ts); docs/TECH_STACK.md, "End-to-end run".
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install Playwright with Chromium
+        run: |
+          mkdir -p "$RUNNER_TEMP/pw"
+          npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.63.0
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Start the e2e server and the web dev server
+        run: |
+          OFFLINE_CAP_SECONDS=1800 pnpm --filter @worldforge/server e2e:serve > "$RUNNER_TEMP/server.log" 2>&1 &
+          pnpm --filter @worldforge/web dev > "$RUNNER_TEMP/web.log" 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:5173/api/health && exit 0
+            sleep 1
+          done
+          echo "servers did not come up"; cat "$RUNNER_TEMP/server.log" "$RUNNER_TEMP/web.log"; exit 1
+      - name: Exit-criteria run
+        run: node tools/e2e/farm-loop.mjs http://localhost:5173 "$RUNNER_TEMP/e2e-screenshots"
+        env:
+          PLAYWRIGHT_PATH: ${{ runner.temp }}/pw/node_modules/playwright
+      - name: Upload screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/e2e-screenshots
+            ${{ runner.temp }}/server.log
+            ${{ runner.temp }}/web.log
+          if-no-files-found: ignore

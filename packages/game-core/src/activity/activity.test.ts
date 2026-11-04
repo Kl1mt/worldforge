@@ -18,6 +18,7 @@ const input = (overrides: Partial<SettleFarmingInput> = {}): SettleFarmingInput 
   seed: 'activity-test',
   durationMs: HOUR,
   inventoryCount: 0,
+  firstCycle: 0,
   ...overrides,
 });
 
@@ -87,12 +88,13 @@ describe('settleFarming', () => {
 
   it('salvages items beyond inventory capacity into gold', () => {
     const cap = DEFAULT_ACTIVITY_CONFIG.inventory.capacity;
-    const roomy = settleFarming(input());
+    const window = { durationMs: HOUR / 2 };
+    const roomy = settleFarming(input(window));
     expect(roomy.items.length).toBeGreaterThan(2);
     expect(roomy.items.length).toBeLessThan(cap);
     expect(roomy.salvaged).toEqual([]);
-    const full = settleFarming(input({ inventoryCount: cap }));
-    const nearly = settleFarming(input({ inventoryCount: cap - 2 }));
+    const full = settleFarming(input({ ...window, inventoryCount: cap }));
+    const nearly = settleFarming(input({ ...window, inventoryCount: cap - 2 }));
     expect(full.items).toEqual([]);
     expect(full.salvaged).toEqual(roomy.items);
     expect(full.goldSalvaged).toBe(roomy.items.reduce((s, i) => s + salvageValue(i), 0));
@@ -119,6 +121,74 @@ describe('settleFarming', () => {
     expect(() => settleFarming(input({ durationMs: -1 }))).toThrow(RangeError);
     expect(() => settleFarming(input({ durationMs: 1.5 }))).toThrow(RangeError);
     expect(() => settleFarming(input({ inventoryCount: -1 }))).toThrow(RangeError);
+    expect(() => settleFarming(input({ firstCycle: -1 }))).toThrow(RangeError);
+    expect(() => settleFarming(input({ firstCycle: 0.5 }))).toThrow(RangeError);
+  });
+
+  /**
+   * Ticket 1.9 exploit regression: the unfinished cycle at a window end used to be re-rolled by the
+   * next settlement, so settling every second removed nearly all deaths (≈6.4 → 0.1 per hour) and
+   * raised kills by ~20 %. Now a span of farming gives the same result however it is split.
+   */
+  describe('settlement splitting', () => {
+    /** Settles `totalMs` in windows of `stepMs`, chaining state the way the server does. */
+    function settleInSteps(seed: string, totalMs: number, stepMs: number, inventoryCount = 0) {
+      let character: SettleFarmingInput['character'] = { classId: 'warrior', level: 1, xp: 0 };
+      let carry = 0;
+      let firstCycle = 0;
+      let held = inventoryCount;
+      const totals = { kills: 0, deaths: 0, xp: 0, gold: 0, items: [] as GeneratedItem[] };
+      for (let t = 0; t < totalMs; t += stepMs) {
+        const s = settleFarming(
+          input({
+            seed,
+            character,
+            firstCycle,
+            inventoryCount: held,
+            durationMs: carry + Math.min(stepMs, totalMs - t),
+          }),
+        );
+        carry = s.unusedMs;
+        firstCycle += s.encounters;
+        held += s.items.length;
+        totals.kills += s.kills;
+        totals.deaths += s.deaths;
+        totals.xp += s.xpGained;
+        totals.gold += s.goldLooted + s.goldSalvaged;
+        totals.items.push(...s.items);
+        character = { classId: 'warrior', level: s.level, xp: s.xp, health: s.health };
+      }
+      return { ...totals, character, carry, firstCycle };
+    }
+
+    it('gives exactly the same result for one window or many small ones', () => {
+      const total = 20 * 60 * 1000;
+      const once = settleInSteps('split', total, total);
+      expect(once.kills).toBeGreaterThan(0);
+      for (const step of [1_000, 7_000, 60_000]) {
+        expect(settleInSteps('split', total, step)).toEqual(once);
+      }
+    });
+
+    it('keeps the death rate when settling every second', () => {
+      // Level-1 warrior over an hour: deaths happen; frequent settling must not avoid them.
+      let once = 0;
+      let spam = 0;
+      for (let i = 0; i < 4; i++) {
+        once += settleInSteps(`deaths-${i}`, HOUR, HOUR).deaths;
+        spam += settleInSteps(`deaths-${i}`, HOUR, 1_000).deaths;
+      }
+      expect(once).toBeGreaterThan(0);
+      expect(spam).toBe(once);
+    });
+
+    it('applies the capacity rule identically across windows', () => {
+      const cap = DEFAULT_ACTIVITY_CONFIG.inventory.capacity;
+      const total = 30 * 60 * 1000;
+      expect(settleInSteps('cap', total, 5_000, cap - 3)).toEqual(
+        settleInSteps('cap', total, total, cap - 3),
+      );
+    });
   });
 });
 

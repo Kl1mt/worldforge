@@ -23,11 +23,6 @@ export interface InventoryConfig {
 export interface ActivityConfig {
   modifierCaps: ModifierCaps;
   inventory: InventoryConfig;
-  /**
-   * Long windows are simulated in chunks of this length. Each chunk uses the character's level at
-   * its start as the loot source level, so item levels follow level-ups within one settlement.
-   */
-  chunkMs: number;
 }
 
 export const DEFAULT_ACTIVITY_CONFIG: ActivityConfig = {
@@ -47,5 +42,4 @@ export const DEFAULT_ACTIVITY_CONFIG: ActivityConfig = {
       },
     },
   },
-  chunkMs: 15 * 60 * 1000,
 };

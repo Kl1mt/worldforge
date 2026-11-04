@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { asc, count, eq } from 'drizzle-orm';
+import { and, asc, count, eq } from 'drizzle-orm';
 import {
   BANNER_IDS,
   CLASS_IDS,
@@ -220,15 +220,15 @@ export async function registerCharacters(app: FastifyInstance): Promise<void> {
     },
     async (request) => {
       const accountId = request.auth!.account.id;
+      // Another account's character gets the same 404 as a missing one, so ids can't be probed.
       const [character] = await app.db
         .select()
         .from(characters)
-        .where(eq(characters.id, request.params.characterId))
+        .where(
+          and(eq(characters.id, request.params.characterId), eq(characters.accountId, accountId)),
+        )
         .limit(1);
       if (!character) throw new ApiError(404, 'not_found', 'No such character.');
-      if (character.accountId !== accountId) {
-        throw new ApiError(403, 'forbidden', 'This character belongs to another account.');
-      }
       // Characters never change owner, so the check above stays true for this write.
       await app.db
         .update(accounts)

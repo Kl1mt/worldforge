@@ -95,6 +95,12 @@ export const characters = pgTable(
     /** Experience within the current level. */
     experience: bigint('experience', { mode: 'number' }).notNull().default(0),
     gold: bigint('gold', { mode: 'number' }).notNull().default(0),
+    /**
+     * Farming state saved when the character's activity ends and restored when it starts again
+     * (ticket 1.9), so stop → start cannot heal the character or re-roll its next encounter.
+     * Never sent to clients (it holds the seed secret). Null until the first activity ends.
+     */
+    farmState: jsonb('farm_state').$type<FarmState>(),
     /** Optimistic-concurrency counter for later value-changing writes. */
     version: integer('version').notNull().default(0),
     ...timestamps,
@@ -151,6 +157,15 @@ export interface ActivitySummaryItem {
   itemLevel: number;
 }
 
+/** See `characters.farmState` and docs/FARMING.md. */
+export interface FarmState {
+  seedSecret: string;
+  /** Cycles completed with this secret (the next cycle's RNG index). */
+  cycleIndex: number;
+  /** Health after the last completed cycle; null = full. */
+  health: number | null;
+}
+
 /**
  * Rewards accumulated since the client last collected the summary (ticket 1.6). Scheduled
  * settlements add to it; the client's settle call returns it and starts a new one.
@@ -190,9 +205,15 @@ export const activities = pgTable(
       .references(() => accounts.id, { onDelete: 'cascade' }),
     /** game-core `AreaId`. */
     areaId: text('area_id').$type<AreaId>().notNull(),
-    /** Random per-activity secret; settlement seeds are `${seedSecret}:${settlementSeq}`. Never sent to clients. */
+    /**
+     * Random secret (per character, carried over via `characters.farm_state`). Cycle `i` draws from
+     * `${seedSecret}:${i}` (combat) and `${seedSecret}:loot:${i}` (loot). Never sent to clients.
+     */
     seedSecret: text('seed_secret').notNull(),
+    /** Settlements that credited time (audit/debugging; not part of the seed since ticket 1.9). */
     settlementSeq: integer('settlement_seq').notNull().default(0),
+    /** Cycles completed with `seedSecret`: the RNG index of the next cycle (ticket 1.9). */
+    cycleIndex: bigint('cycle_index', { mode: 'number' }).notNull().default(0),
     startedAt: timestamp('started_at', { withTimezone: true }).notNull(),
     /** Progress has been computed up to this server time. */
     settledAt: timestamp('settled_at', { withTimezone: true }).notNull(),
@@ -210,6 +231,7 @@ export const activities = pgTable(
     index('activities_settled_at_idx').on(t.settledAt),
     check('activities_carry_ms_check', sql`${t.carryMs} >= 0`),
     check('activities_settlement_seq_check', sql`${t.settlementSeq} >= 0`),
+    check('activities_cycle_index_check', sql`${t.cycleIndex} >= 0`),
   ],
 );
 

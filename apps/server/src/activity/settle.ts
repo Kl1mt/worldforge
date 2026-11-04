@@ -14,6 +14,7 @@ import {
   type Activity,
   type ActivitySummary,
   type Character,
+  type FarmState,
 } from '../db/schema.js';
 import type { Database, Transaction } from '../db/types.js';
 import { withTransaction } from '../db/transaction.js';
@@ -27,7 +28,7 @@ export interface ActivityOptions {
   settleIntervalMs: number;
   /** Server clock. Injectable for tests; never derived from client input. */
   now: () => Date;
-  /** game-core rules (inventory capacity, modifier caps, chunking). */
+  /** game-core rules (inventory capacity, modifier caps). */
   rules: ActivityConfig;
 }
 
@@ -63,6 +64,29 @@ export function emptySummary(since: Date): ActivitySummary {
 
 export function newSeedSecret(): string {
   return randomBytes(16).toString('hex');
+}
+
+/**
+ * Farming state for a new activity: the character's saved state if it farmed before (same seed
+ * secret, next cycle index, health), otherwise a fresh secret at full health. Restoring it means
+ * stop → start neither heals the character nor re-rolls its unfinished encounter (ticket 1.9).
+ */
+export function initialFarmState(character: Character): FarmState {
+  return character.farmState ?? { seedSecret: newSeedSecret(), cycleIndex: 0, health: null };
+}
+
+/**
+ * Ends an activity: saves its farming state on the character, then deletes the row. Call after
+ * settling it in the same transaction. Unsettled carry time is forfeited.
+ */
+export async function endActivityTx(tx: Transaction, activity: Activity): Promise<void> {
+  const farmState: FarmState = {
+    seedSecret: activity.seedSecret,
+    cycleIndex: activity.cycleIndex,
+    health: activity.health,
+  };
+  await tx.update(characters).set({ farmState }).where(eq(characters.id, activity.characterId));
+  await tx.delete(activities).where(eq(activities.characterId, activity.characterId));
 }
 
 export interface SettleOutcome {
@@ -147,7 +171,8 @@ export async function settleActivityTx(
         },
         equipment: equipped,
         areaId: activity.areaId,
-        seed: `${activity.seedSecret}:${seq}`,
+        seed: activity.seedSecret,
+        firstCycle: activity.cycleIndex,
         durationMs,
         inventoryCount: inventory?.n ?? 0,
       },
@@ -184,6 +209,7 @@ export async function settleActivityTx(
 
     Object.assign(patch, {
       settlementSeq: seq,
+      cycleIndex: activity.cycleIndex + settlement.encounters,
       carryMs: settlement.unusedMs,
       health: settlement.health,
     });
