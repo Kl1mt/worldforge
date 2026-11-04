@@ -38,7 +38,7 @@ import {
   type ActivityOptions,
 } from '../activity/settle.js';
 import { grantGatheringTx } from '../materials/store.js';
-import { idempotencyRequest, idempotent } from '../idempotency/index.js';
+import { idempotentTransaction } from '../idempotency/index.js';
 
 /** A run as clients see it: what has happened so far, never the seed or the future. */
 export interface DungeonRunView {
@@ -414,11 +414,15 @@ export async function registerDungeons(
     async (request, reply) => {
       const accountId = request.auth!.account.id;
       const { characterId } = request.params;
-      const idem = idempotencyRequest(request, accountId);
-      const out = await withTransaction(app.db, async (tx) => {
-        const character = await lockOwnedCharacter(tx, accountId, characterId);
-        const now = options.now();
-        return idempotent<DungeonClaimResponse>(tx, idem, now, async () => {
+      return idempotentTransaction<DungeonClaimResponse>(
+        app,
+        request,
+        reply,
+        { now: options.now },
+        async (tx) => {
+          // Character, then run row: the claim's state guard (one grant per run).
+          const character = await lockOwnedCharacter(tx, accountId, characterId);
+          const now = options.now();
           const [run] = await tx
             .select()
             .from(dungeonRuns)
@@ -528,13 +532,9 @@ export async function registerDungeons(
               questEvents: r.questEvents,
             },
           });
-          return {
-            statusCode: 200,
-            body: { result, character: characterView(written!) },
-          };
-        });
-      });
-      return reply.code(out.statusCode).send(out.body);
+          return { result, character: characterView(written!) };
+        },
+      );
     },
   );
 }

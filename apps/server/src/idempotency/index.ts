@@ -1,100 +1,148 @@
 import { createHash } from 'node:crypto';
-import type { FastifyRequest } from 'fastify';
-import { and, eq, gt, lt } from 'drizzle-orm';
+import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
+import { and, eq, lt } from 'drizzle-orm';
 import { idempotencyKeys } from '../db/schema.js';
-import type { Transaction } from '../db/types.js';
+import { withTransaction } from '../db/transaction.js';
+import type { Database, Transaction } from '../db/types.js';
 import { ApiError } from '../errors.js';
 
-/** How long a stored response is replayed (docs/API_CONVENTIONS.md). */
+/**
+ * `Idempotency-Key` support for endpoints that are not repeat-safe by state (ticket 2.6,
+ * docs/API_CONVENTIONS.md). Use `idempotentTransaction` in place of `withTransaction` in the
+ * route handler:
+ *
+ *   return idempotentTransaction(app, request, reply, { now }, async (tx) => { …; return body; });
+ *
+ * The key is claimed with an insert at the start of the mutation's own transaction, so:
+ * - a retry after the commit finds the stored response and replays it (`Idempotency-Replayed`);
+ * - a concurrent request with the same key blocks on the unique key until the first commits, then
+ *   replays (or, if the first failed and rolled back, runs itself);
+ * - a failed request (any thrown error) rolls back the claim too, so it stores nothing and the
+ *   same key may be retried;
+ * - the same key with another method, path or body is `409 idempotency_conflict`.
+ * Keys are per account and expire after `IDEMPOTENCY_TTL_MS`; an expired key is reusable.
+ */
+
+export const IDEMPOTENCY_HEADER = 'idempotency-key';
+export const IDEMPOTENCY_REPLAYED_HEADER = 'idempotency-replayed';
 export const IDEMPOTENCY_TTL_MS = 24 * 60 * 60 * 1000;
+/** Visible ASCII, 8–128 characters (a UUID fits; so do other client schemes). */
+const KEY_PATTERN = /^[\x21-\x7e]{8,128}$/;
 
-const KEY_PATTERN = /^[A-Za-z0-9_-]{8,128}$/;
-
-export interface IdempotencyRequest {
-  accountId: string;
-  key: string;
-  requestHash: string;
+/** JSON with object keys sorted, so `{a,b}` and `{b,a}` hash the same. */
+export function canonicalJson(value: unknown): string {
+  if (value === null || typeof value !== 'object') return JSON.stringify(value ?? null);
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  const entries = Object.entries(value as Record<string, unknown>)
+    .filter(([, v]) => v !== undefined)
+    .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0));
+  return `{${entries.map(([k, v]) => `${JSON.stringify(k)}:${canonicalJson(v)}`).join(',')}}`;
 }
 
-/**
- * Reads and validates the `Idempotency-Key` header and fingerprints the request (method, route
- * with its parameters, body). Throws `400 idempotency_key_required` without a usable key.
- */
-export function idempotencyRequest(request: FastifyRequest, accountId: string): IdempotencyRequest {
-  const raw = request.headers['idempotency-key'];
-  const key = Array.isArray(raw) ? raw[0] : raw;
-  if (typeof key !== 'string' || !KEY_PATTERN.test(key)) {
+export function requestHash(method: string, path: string, body: unknown): string {
+  return createHash('sha256')
+    .update(`${method.toUpperCase()} ${path}\n${canonicalJson(body)}`)
+    .digest('hex');
+}
+
+/** Reads and validates the header; throws `400` when it is missing or malformed. */
+export function readIdempotencyKey(request: FastifyRequest): string {
+  const raw = request.headers[IDEMPOTENCY_HEADER];
+  if (raw === undefined || raw === '') {
     throw new ApiError(
       400,
       'idempotency_key_required',
-      'This request needs an Idempotency-Key header (8–128 letters, digits, - or _).',
+      'This action needs an Idempotency-Key header (a fresh UUID per action).',
     );
   }
-  const requestHash = createHash('sha256')
-    .update(
-      `${request.method} ${request.url.split('?')[0]}\n${JSON.stringify(request.body ?? null)}`,
-    )
-    .digest('hex');
-  return { accountId, key, requestHash };
+  const key = Array.isArray(raw) ? raw[0] : raw;
+  if (typeof key !== 'string' || !KEY_PATTERN.test(key)) {
+    throw new ApiError(400, 'validation_failed', 'Malformed Idempotency-Key header.', {
+      fields: { 'Idempotency-Key': 'Use 8–128 visible ASCII characters, e.g. a UUID.' },
+    });
+  }
+  return key;
 }
 
-export interface IdempotentResult<T> {
-  statusCode: number;
-  body: T;
-  /** True when the stored response of an earlier request with the same key was returned. */
-  replayed: boolean;
+export interface IdempotencyOptions {
+  /** Server clock (injectable for tests). */
+  now: () => Date;
+  /** Status of a fresh success (default 200). */
+  status?: number;
+  ttlMs?: number;
 }
 
 /**
- * Runs `fn` at most once per `(account, key)`: a retry with the same key and request returns the
- * stored response; the same key with another request is `409 idempotency_conflict`. The response is
- * stored in the caller's transaction, so it commits (or rolls back) with the mutation. Errors are
- * not stored: a failed request may be retried with the same key.
- *
- * Call it **after** taking the row lock that serialises the operation (e.g. the character lock):
- * a concurrent request with the same key then waits for that lock and, under READ COMMITTED,
- * sees the first one's committed key row here. The primary key is the last line of defence.
+ * Runs `fn` in a transaction guarded by the request's `Idempotency-Key` (see the module comment)
+ * and returns the body to send. Requires `request.auth` (use after `app.requireAccount`).
  */
-export async function idempotent<T>(
-  tx: Transaction,
-  req: IdempotencyRequest,
-  now: Date,
-  fn: () => Promise<{ statusCode: number; body: T }>,
-): Promise<IdempotentResult<T>> {
-  const cutoff = new Date(now.getTime() - IDEMPOTENCY_TTL_MS);
-  const match = and(eq(idempotencyKeys.accountId, req.accountId), eq(idempotencyKeys.key, req.key));
-  const [stored] = await tx
-    .select()
-    .from(idempotencyKeys)
-    .where(and(match, gt(idempotencyKeys.createdAt, cutoff)))
-    .limit(1);
-  if (stored) {
-    if (stored.requestHash !== req.requestHash) throw conflict();
-    return { statusCode: stored.statusCode, body: stored.response as T, replayed: true };
-  }
-  await tx.delete(idempotencyKeys).where(and(match, lt(idempotencyKeys.createdAt, cutoff)));
+export async function idempotentTransaction<T>(
+  app: FastifyInstance,
+  request: FastifyRequest,
+  reply: FastifyReply,
+  options: IdempotencyOptions,
+  fn: (tx: Transaction) => Promise<T>,
+): Promise<T> {
+  const accountId = request.auth!.account.id;
+  const key = readIdempotencyKey(request);
+  const path = request.url.split('?')[0]!;
+  const hash = requestHash(request.method, path, request.body ?? null);
+  const status = options.status ?? 200;
+  const ttlMs = options.ttlMs ?? IDEMPOTENCY_TTL_MS;
 
-  const result = await fn();
-  const inserted = await tx
-    .insert(idempotencyKeys)
-    .values({
-      accountId: req.accountId,
-      key: req.key,
-      requestHash: req.requestHash,
-      statusCode: result.statusCode,
-      response: result.body,
+  const outcome = await withTransaction(app.db, async (tx) => {
+    const now = options.now();
+    const fresh = {
+      requestHash: hash,
+      statusCode: 0,
+      response: {},
       createdAt: now,
-    })
-    .onConflictDoNothing()
-    .returning({ key: idempotencyKeys.key });
-  // Another request with this key committed first (not serialised by the caller's lock).
-  if (inserted.length === 0) throw conflict();
-  return { ...result, replayed: false };
+      expiresAt: new Date(now.getTime() + ttlMs),
+    };
+    // Claim the key. A live row (committed, or in flight: the insert waits for it) wins; an
+    // expired one is taken over.
+    const claimed = await tx
+      .insert(idempotencyKeys)
+      .values({ accountId, key, ...fresh })
+      .onConflictDoUpdate({
+        target: [idempotencyKeys.accountId, idempotencyKeys.key],
+        set: fresh,
+        where: lt(idempotencyKeys.expiresAt, now),
+      })
+      .returning({ key: idempotencyKeys.key });
+    if (claimed.length === 0) {
+      const [stored] = await tx
+        .select()
+        .from(idempotencyKeys)
+        .where(and(eq(idempotencyKeys.accountId, accountId), eq(idempotencyKeys.key, key)));
+      if (!stored) throw new Error('unreachable: idempotency key conflict without a row');
+      if (stored.requestHash !== hash) {
+        throw new ApiError(
+          409,
+          'idempotency_conflict',
+          'This Idempotency-Key was already used for a different request.',
+        );
+      }
+      return { replayed: true as const, status: stored.statusCode, body: stored.response as T };
+    }
+    const body = await fn(tx);
+    await tx
+      .update(idempotencyKeys)
+      .set({ statusCode: status, response: body as unknown })
+      .where(and(eq(idempotencyKeys.accountId, accountId), eq(idempotencyKeys.key, key)));
+    return { replayed: false as const, status, body };
+  });
+
+  void reply.code(outcome.status);
+  if (outcome.replayed) void reply.header(IDEMPOTENCY_REPLAYED_HEADER, 'true');
+  return outcome.body;
 }
 
-const conflict = () =>
-  new ApiError(
-    409,
-    'idempotency_conflict',
-    'This Idempotency-Key was already used for a different request.',
-  );
+/** Deletes expired keys; returns how many. Run periodically (the settlement scheduler does). */
+export async function pruneIdempotencyKeys(db: Database, now: Date): Promise<number> {
+  const rows = await db
+    .delete(idempotencyKeys)
+    .where(lt(idempotencyKeys.expiresAt, now))
+    .returning({ key: idempotencyKeys.key });
+  return rows.length;
+}

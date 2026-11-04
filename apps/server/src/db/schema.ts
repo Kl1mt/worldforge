@@ -362,8 +362,10 @@ export const dungeonRuns = pgTable(
 );
 
 /**
- * Stored responses of `Idempotency-Key` requests (docs/API_CONVENTIONS.md, first used by ticket
- * 2.5's claim). Written in the same transaction as the mutation; kept 24 h.
+ * Stored responses of requests sent with an `Idempotency-Key` header (ticket 2.6,
+ * docs/API_CONVENTIONS.md). The row is claimed in the same transaction as the mutation, so a
+ * concurrent request with the same key waits on the unique key and then replays the response.
+ * Only successful responses are stored (a failed request changed nothing and may be retried).
  */
 export const idempotencyKeys = pgTable(
   'idempotency_keys',
@@ -371,16 +373,41 @@ export const idempotencyKeys = pgTable(
     accountId: uuid('account_id')
       .notNull()
       .references(() => accounts.id, { onDelete: 'cascade' }),
+    /** The client's key (a UUID by convention; any 8–128 visible ASCII characters). */
     key: text('key').notNull(),
-    /** SHA-256 of method, route and body: the same key with another request is a conflict. */
+    /** SHA-256 of method, path and canonical JSON body. */
     requestHash: text('request_hash').notNull(),
     statusCode: smallint('status_code').notNull(),
     response: jsonb('response').$type<unknown>().notNull(),
     ...timestamps,
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
   },
   (t) => [
     primaryKey({ columns: [t.accountId, t.key] }),
-    index('idempotency_keys_created_at_idx').on(t.createdAt),
+    index('idempotency_keys_expires_at_idx').on(t.expiresAt),
+  ],
+);
+
+/**
+ * Merchant offers a character bought (ticket 2.6). Each daily offer sells once: the primary key
+ * is the state guard that keeps a lost idempotency record from selling an offer twice.
+ */
+export const merchantPurchases = pgTable(
+  'merchant_purchases',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    /** game-core offer id `<day>.<areaId>.<index>`. */
+    offerId: text('offer_id').notNull(),
+    /** The item created by the purchase (no FK: the item may be sold or salvaged later). */
+    itemId: uuid('item_id').notNull(),
+    price: bigint('price', { mode: 'number' }).notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    primaryKey({ columns: [t.characterId, t.offerId] }),
+    check('merchant_purchases_price_check', sql`${t.price} >= 0`),
   ],
 );
 
@@ -416,4 +443,6 @@ export type CharacterMaterial = typeof characterMaterials.$inferSelect;
 export type CharacterProfession = typeof characterProfessions.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
 export type NewActivity = typeof activities.$inferInsert;
+export type IdempotencyKey = typeof idempotencyKeys.$inferSelect;
+export type MerchantPurchase = typeof merchantPurchases.$inferSelect;
 export type DungeonRun = typeof dungeonRuns.$inferSelect;

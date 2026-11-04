@@ -1,5 +1,7 @@
 import type {
   AreaId,
+  CraftBlocker,
+  ItemSlotKind,
   DungeonId,
   EquipmentSlotId,
   MaterialId,
@@ -163,6 +165,121 @@ export const inventoryApi = {
     apiRequest(i(id, itemId), { method: 'DELETE' }, f),
 };
 
+/** Merchant and forge (ticket 2.6). */
+export interface MaterialStackDto {
+  materialId: MaterialId;
+  quantity: number;
+}
+
+export interface MerchantOfferDto {
+  offerId: string;
+  areaId: AreaId;
+  item: Pick<ItemDto, 'baseId' | 'rarityId' | 'itemLevel' | 'affixes'>;
+  price: number;
+  soldOut: boolean;
+}
+
+export interface MerchantState {
+  characterId: string;
+  day: string;
+  restocksAt: string;
+  gold: number;
+  offers: MerchantOfferDto[];
+  sellPrices: { itemId: string; price: number }[];
+}
+
+export interface RecipeDto {
+  recipeId: string;
+  name: string;
+  description: string;
+  tier: number;
+  level: number;
+  gold: number;
+  materials: MaterialStackDto[];
+  slots: ItemSlotKind[];
+  blockers: CraftBlocker[];
+}
+
+export interface ForgeState {
+  characterId: string;
+  gold: number;
+  materials: MaterialStackDto[];
+  recipes: RecipeDto[];
+  salvage: { itemId: string; gold: number; materials: MaterialStackDto[] }[];
+}
+
+export interface BuyResult {
+  character: Character;
+  item: ItemDto;
+  inventory: InventoryDto;
+}
+
+export interface SellResult {
+  character: Character;
+  goldGained: number;
+  inventory: InventoryDto;
+}
+
+export interface SalvageResult {
+  character: Character;
+  salvaged: { gold: number; materials: MaterialStackDto[] };
+  inventory: InventoryDto;
+  materials: MaterialStackDto[];
+}
+
+export interface CraftResult {
+  character: Character;
+  item: ItemDto;
+  inventory: InventoryDto;
+  materials: MaterialStackDto[];
+}
+
+/** Value-moving calls carry an `Idempotency-Key` (docs/API_CONVENTIONS.md). */
+const keyed = (key: string) => ({ headers: { 'idempotency-key': key } });
+
+export const merchantApi = {
+  get: (id: string, o: Signal = {}, f?: typeof fetch): Promise<ApiResult<MerchantState>> =>
+    apiRequest(`${c(id)}/merchant`, o, f),
+  buy: (
+    id: string,
+    offerId: string,
+    key: string,
+    f?: typeof fetch,
+  ): Promise<ApiResult<BuyResult>> =>
+    apiRequest(`${c(id)}/merchant/buy`, { method: 'POST', body: { offerId }, ...keyed(key) }, f),
+  sell: (
+    id: string,
+    itemIds: string[],
+    key: string,
+    f?: typeof fetch,
+  ): Promise<ApiResult<SellResult>> =>
+    apiRequest(`${c(id)}/merchant/sell`, { method: 'POST', body: { itemIds }, ...keyed(key) }, f),
+};
+
+export const forgeApi = {
+  get: (id: string, o: Signal = {}, f?: typeof fetch): Promise<ApiResult<ForgeState>> =>
+    apiRequest(`${c(id)}/forge`, o, f),
+  salvage: (
+    id: string,
+    itemIds: string[],
+    key: string,
+    f?: typeof fetch,
+  ): Promise<ApiResult<SalvageResult>> =>
+    apiRequest(`${c(id)}/forge/salvage`, { method: 'POST', body: { itemIds }, ...keyed(key) }, f),
+  craft: (
+    id: string,
+    recipeId: string,
+    slot: ItemSlotKind,
+    key: string,
+    f?: typeof fetch,
+  ): Promise<ApiResult<CraftResult>> =>
+    apiRequest(
+      `${c(id)}/forge/craft`,
+      { method: 'POST', body: { recipeId, slot }, ...keyed(key) },
+      f,
+    ),
+};
+
 /** A short sentence for a failed game action (equip, farm, …), branching on the error code. */
 export function describeGameFailure(error: Pick<ApiFailure, 'code'>): string {
   switch (error.code) {
@@ -182,6 +299,20 @@ export function describeGameFailure(error: Pick<ApiFailure, 'code'>): string {
       return 'Your hero is in the Nameless Crypt. Finish the run and claim it first.';
     case 'not_farming':
       return 'This character is not farming right now.';
+    case 'insufficient_gold':
+      return 'Not enough gold.';
+    case 'insufficient_materials':
+      return 'Not enough materials for this recipe.';
+    case 'recipe_locked':
+      return 'Your hero is not experienced enough for this recipe yet.';
+    case 'inventory_full':
+      return 'The pack is full. Sell or salvage something first.';
+    case 'offer_sold_out':
+      return 'You already bought that today.';
+    case 'offer_expired':
+      return 'The merchant has restocked. The wares have been refreshed.';
+    case 'idempotency_conflict':
+      return 'That action clashed with an earlier one. Try again.';
     case 'not_found':
     case 'forbidden':
       return 'That is no longer available. The view has been refreshed.';

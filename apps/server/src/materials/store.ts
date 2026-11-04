@@ -1,4 +1,4 @@
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import {
   DEFAULT_PROFESSION_CONFIG,
   MATERIAL_IDS,
@@ -132,4 +132,62 @@ export async function materialsView(db: Db, characterId: string): Promise<Materi
       maxLevel,
     })),
   };
+}
+
+/** Held materials as a bundle (only positive stacks). Lock the character row first to act on it. */
+export async function loadMaterialBundle(
+  db: Db,
+  characterId: string,
+): Promise<Partial<Record<MaterialId, number>>> {
+  const rows = await db
+    .select({ materialId: characterMaterials.materialId, quantity: characterMaterials.quantity })
+    .from(characterMaterials)
+    .where(eq(characterMaterials.characterId, characterId));
+  const bundle: Partial<Record<MaterialId, number>> = {};
+  for (const r of rows)
+    if (isMaterialId(r.materialId) && r.quantity > 0) bundle[r.materialId] = r.quantity;
+  return bundle;
+}
+
+/**
+ * Adds (positive) or spends (negative) materials (ticket 2.6: forge salvage and crafting). Call
+ * under the character lock after checking the stock; the `quantity >= 0` check constraint is the
+ * database backstop against spending what is not there.
+ */
+export async function changeMaterialsTx(
+  tx: Transaction,
+  characterId: string,
+  delta: Partial<Record<MaterialId, number>>,
+  now: Date,
+): Promise<void> {
+  const entries = (Object.entries(delta) as [MaterialId, number][]).filter(([, n]) => n !== 0);
+  const gains = entries
+    .filter(([, n]) => n > 0)
+    .map(([materialId, quantity]) => ({ characterId, materialId, quantity, updatedAt: now }));
+  if (gains.length > 0) {
+    await tx
+      .insert(characterMaterials)
+      .values(gains)
+      .onConflictDoUpdate({
+        target: [characterMaterials.characterId, characterMaterials.materialId],
+        set: {
+          quantity: sql`${characterMaterials.quantity} + excluded.quantity`,
+          updatedAt: now,
+        },
+      });
+  }
+  // Spends update the existing stack (an insert would trip the CHECK before ON CONFLICT).
+  for (const [materialId, n] of entries.filter(([, n]) => n < 0)) {
+    const spent = await tx
+      .update(characterMaterials)
+      .set({ quantity: sql`${characterMaterials.quantity} + ${n}`, updatedAt: now })
+      .where(
+        and(
+          eq(characterMaterials.characterId, characterId),
+          eq(characterMaterials.materialId, materialId),
+        ),
+      )
+      .returning({ quantity: characterMaterials.quantity });
+    if (spent.length === 0) throw new Error(`spending ${materialId} that is not held`);
+  }
 }
