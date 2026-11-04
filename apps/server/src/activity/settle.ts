@@ -117,7 +117,7 @@ export async function settleActivityTx(
     .select()
     .from(characters)
     .where(eq(characters.id, characterId))
-    .for('update');
+    .for('no key update');
   if (!character) return null;
   const [activity] = await tx
     .select()

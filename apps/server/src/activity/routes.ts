@@ -152,7 +152,7 @@ export async function registerActivities(
           .select({ activeCharacterId: accounts.activeCharacterId })
           .from(accounts)
           .where(eq(accounts.id, accountId))
-          .for('update');
+          .for('no key update');
         await ownedCharacter(tx, accountId, characterId);
         if (account?.activeCharacterId !== characterId) {
           throw new ApiError(

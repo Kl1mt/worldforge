@@ -159,7 +159,7 @@ export async function registerCharacters(app: FastifyInstance): Promise<void> {
             .select({ slots: accounts.characterSlots })
             .from(accounts)
             .where(eq(accounts.id, accountId))
-            .for('update');
+            .for('no key update');
           const [used] = await tx
             .select({ n: count() })
             .from(characters)

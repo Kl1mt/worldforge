@@ -21,7 +21,7 @@ import { buildApp } from './app.js';
 import { SESSION_COOKIE } from './auth/index.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from './activity/settle.js';
 import { accounts, activities, auditLog, characters, itemInstances } from './db/schema.js';
-import { withTransaction } from './db/transaction.js';
+import { transactionStats, withTransaction } from './db/transaction.js';
 import type { DatabaseHandle } from './db/types.js';
 import { uuidv7 } from './db/uuid.js';
 import { createPostgresTestDatabase } from './test/db.js';
@@ -332,5 +332,13 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
       .from(auditLog)
       .where(and(eq(auditLog.characterId, id), eq(auditLog.event, 'item.discard')));
     expect(discardAudits).toHaveLength(1);
+  });
+
+  // Runs last (tests in a file run in order). Retries keep the races correct, but each one is a
+  // deadlock: before ticket 1.9 used `FOR NO KEY UPDATE` for the account/character locks, the
+  // foreign-key checks of audit and activity inserts (`FOR KEY SHARE`) deadlocked against them
+  // (start: account → character; stop/settle: character → account), about 4 per run.
+  it('the races above ran without a single deadlock or serialization retry', () => {
+    expect(transactionStats.retries).toBe(0);
   });
 });

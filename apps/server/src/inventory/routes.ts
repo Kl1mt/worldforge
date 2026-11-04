@@ -173,7 +173,7 @@ async function lockOwnedCharacter(
     .select()
     .from(characters)
     .where(and(eq(characters.id, characterId), eq(characters.accountId, accountId)))
-    .for('update');
+    .for('no key update');
   if (!character) throw characterNotFound();
   const settled = await settleActivityTx(tx, characterId, activity, { touch: true });
   return settled?.character ?? character;
