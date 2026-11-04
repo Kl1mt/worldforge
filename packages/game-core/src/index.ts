@@ -4,3 +4,5 @@ export * from './rarity.js';
 export * from './rng.js';
 export * from './slots.js';
 export * from './stats.js';
+export * from './items/index.js';
+export * from './loot/index.js';
