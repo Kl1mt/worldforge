@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, full body, side view, enemies of the Sunken Abbey: a fallen knight in corroded dented plate armour and torn surcoat with a notched greatsword; an abbey wraith, a hooded spectral nun-like phantom in tattered grey robes floating, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+  "style_image": "apps/web/public/assets/enemies/undead-farmer.png",
+  "job_id": "ba53b54c-313b-4a16-a56c-7a3a88381bc7",
+  "created_at": "2026-11-04T14:30:28.826928+00:00",
+  "seed": 446883037,
+  "generations": 10.0,
+  "count": 16,
+  "width": 64,
+  "height": 64
+}

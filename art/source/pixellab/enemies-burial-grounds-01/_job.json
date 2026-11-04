@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, full body, side view, enemies of the Old Burial Grounds: a risen skeleton warrior with a rusted sword and cracked round shield; a grave crawler, a pale bloated many-limbed corpse creature crawling low on all fours, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+  "style_image": "apps/web/public/assets/enemies/undead-farmer.png",
+  "job_id": "3c79997e-c3e2-42b2-bac8-89c068e271ca",
+  "created_at": "2026-11-04T14:28:55.880272+00:00",
+  "seed": 316756989,
+  "generations": 10.0,
+  "count": 16,
+  "width": 64,
+  "height": 64
+}

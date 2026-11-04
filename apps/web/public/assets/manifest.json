@@ -242,6 +242,138 @@
       "facing": "front"
     },
     {
+      "id": "enemy.bandit-cutthroat",
+      "path": "/assets/enemies/bandit-cutthroat.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view, enemies of the Crowwood: a hooded bandit cutthroat with a rusty curved dagger and ragged leather cloak; a large corrupted crow with tattered black feathers, bone-bare wing patches and pale dead eyes, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-crowwood-01/02.png",
+      "facing": "front"
+    },
+    {
+      "id": "enemy.corrupted-crow",
+      "path": "/assets/enemies/corrupted-crow.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view, enemies of the Crowwood: a hooded bandit cutthroat with a rusty curved dagger and ragged leather cloak; a large corrupted crow with tattered black feathers, bone-bare wing patches and pale dead eyes, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-crowwood-01/15.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.risen-skeleton",
+      "path": "/assets/enemies/risen-skeleton.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view, enemies of the Old Burial Grounds: a risen skeleton warrior with a rusted sword and cracked round shield; a grave crawler, a pale bloated many-limbed corpse creature crawling low on all fours, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-burial-grounds-01/00.png",
+      "facing": "front"
+    },
+    {
+      "id": "enemy.grave-crawler",
+      "path": "/assets/enemies/grave-crawler.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view, enemies of the Old Burial Grounds: a risen skeleton warrior with a rusted sword and cracked round shield; a grave crawler, a pale bloated many-limbed corpse creature crawling low on all fours, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-burial-grounds-01/13.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.drowned-thrall",
+      "path": "/assets/enemies/drowned-thrall.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view, enemies of the Blackwater marsh: a drowned thrall, a waterlogged rotting corpse draped in black weeds and chains; a bog horror, a hulking mass of mud, roots and bones with hollow eyes, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-blackwater-01/02.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.bog-horror",
+      "path": "/assets/enemies/bog-horror.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view, enemies of the Blackwater marsh: a drowned thrall, a waterlogged rotting corpse draped in black weeds and chains; a bog horror, a hulking mass of mud, roots and bones with hollow eyes, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-blackwater-01/14.png",
+      "facing": "front"
+    },
+    {
+      "id": "enemy.fallen-knight",
+      "path": "/assets/enemies/fallen-knight.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view, enemies of the Sunken Abbey: a fallen knight in corroded dented plate armour and torn surcoat with a notched greatsword; an abbey wraith, a hooded spectral nun-like phantom in tattered grey robes floating, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-sunken-abbey-01/00.png",
+      "facing": "front"
+    },
+    {
+      "id": "enemy.abbey-wraith",
+      "path": "/assets/enemies/abbey-wraith.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view, enemies of the Sunken Abbey: a fallen knight in corroded dented plate armour and torn surcoat with a notched greatsword; an abbey wraith, a hooded spectral nun-like phantom in tattered grey robes floating, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-sunken-abbey-01/12.png",
+      "facing": "front"
+    },
+    {
+      "id": "enemy.crypt-ghoul",
+      "path": "/assets/enemies/crypt-ghoul.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view, enemies of the Nameless Crypt: a crypt ghoul, a gaunt hunched grey-skinned ghoul with long claws; a bone acolyte, a skeletal cultist priest in a dark hooded robe holding a bone censer, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-crypt-01/04.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.bone-acolyte",
+      "path": "/assets/enemies/bone-acolyte.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view, enemies of the Nameless Crypt: a crypt ghoul, a gaunt hunched grey-skinned ghoul with long claws; a bone acolyte, a skeletal cultist priest in a dark hooded robe holding a bone censer, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-crypt-01/08.png",
+      "facing": "front"
+    },
+    {
+      "id": "enemy.gravewarden",
+      "path": "/assets/enemies/gravewarden.png",
+      "kind": "enemy",
+      "size": {
+        "width": 128,
+        "height": 128
+      },
+      "prompt": "dark fantasy pixel art, full body, side view, boss: the Gravewarden, an imposing towering armoured undead warden of the crypt, ornate corroded black iron plate with aged brass trim, horned great helm with a skull face, holding a huge tower shield and a hanging iron lantern, a ring of crypt keys on the belt, tattered dark crimson cloak, massive silhouette, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/boss-gravewarden-01/02.png",
+      "facing": "front"
+    },
+    {
       "id": "character.warrior",
       "path": "/assets/characters/warrior.png",
       "kind": "character",

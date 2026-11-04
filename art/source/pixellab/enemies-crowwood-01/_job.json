@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, full body, side view, enemies of the Crowwood: a hooded bandit cutthroat with a rusty curved dagger and ragged leather cloak; a large corrupted crow with tattered black feathers, bone-bare wing patches and pale dead eyes, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+  "style_image": "apps/web/public/assets/enemies/undead-farmer.png",
+  "job_id": "831ae625-be2d-457e-aefc-13f8cc9a3e02",
+  "created_at": "2026-11-04T14:28:55.862448+00:00",
+  "seed": 947721614,
+  "generations": 10.0,
+  "count": 16,
+  "width": 64,
+  "height": 64
+}
