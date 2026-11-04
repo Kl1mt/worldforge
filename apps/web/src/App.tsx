@@ -6,6 +6,7 @@ import { guardRoute, isGameRoute, routeHref, type Standing } from './lib/route';
 import { AreaScreen } from './screens/AreaScreen';
 import { AuthScreen, GateStatus } from './screens/AuthScreen';
 import { BuildingScreen } from './screens/BuildingScreen';
+import { TavernScreen } from './screens/TavernScreen';
 import { CharacterScreen } from './screens/CharacterScreen';
 import { CharactersScreen } from './screens/CharactersScreen';
 import { HubScreen } from './screens/HubScreen';
@@ -59,9 +60,8 @@ function Routes() {
         {route === 'hub' ? <HubScreen /> : null}
         {route === 'map' ? <MapScreen /> : null}
         {route === 'area' ? <AreaScreen /> : null}
-        {route === 'tavern' || route === 'forge' || route === 'merchant' ? (
-          <BuildingScreen building={route} />
-        ) : null}
+        {route === 'tavern' ? <TavernScreen /> : null}
+        {route === 'forge' || route === 'merchant' ? <BuildingScreen building={route} /> : null}
         {route === 'character' ? <CharacterScreen /> : null}
         {route === 'inventory' ? <InventoryScreen /> : null}
       </Shell>

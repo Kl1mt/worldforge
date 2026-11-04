@@ -21,6 +21,8 @@ import type {
   EquipmentSlotId,
   MaterialId,
   ProfessionId,
+  QuestObjective,
+  QuestReward,
   RarityId,
   RolledAffix,
   WorldProgress,
@@ -307,6 +309,85 @@ export const characterProfessions = pgTable(
   ],
 );
 
+/** Quest kinds (ticket 2.4): the story chain or a repeatable daily contract. */
+export type QuestKind = 'story' | 'contract';
+/** `active` until turned in; completion is derived from `progress` vs the objectives. */
+export type QuestStatus = 'active' | 'turnedIn';
+
+/**
+ * Quests a character accepted (ticket 2.4, docs/QUESTS.md). Objectives and rewards are copied from
+ * game-core at acceptance, so a content change never alters an accepted quest. Progress is written
+ * only by the server from settlement and dungeon events, under the character lock.
+ */
+export const characterQuests = pgTable(
+  'character_quests',
+  {
+    id: uuid('id').primaryKey(),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    kind: text('kind').$type<QuestKind>().notNull(),
+    /** game-core `StoryQuestId`, or the `ContractTemplate` id for contracts. */
+    questId: text('quest_id').notNull(),
+    /** Contracts: the UTC day (`YYYY-MM-DD`) and board slot they were posted in. */
+    contractDay: text('contract_day'),
+    contractSlot: smallint('contract_slot'),
+    objectives: jsonb('objectives').$type<QuestObjective[]>().notNull(),
+    /** Progress per objective (same order), capped at each target. */
+    progress: jsonb('progress').$type<number[]>().notNull(),
+    reward: jsonb('reward').$type<QuestReward>().notNull(),
+    status: text('status').$type<QuestStatus>().notNull().default('active'),
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }).notNull(),
+    turnedInAt: timestamp('turned_in_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('character_quests_character_id_status_idx').on(t.characterId, t.status),
+    // A story quest can be accepted once per character.
+    uniqueIndex('character_quests_story_key')
+      .on(t.characterId, t.questId)
+      .where(sql`${t.kind} = 'story'`),
+    // A contract slot can be accepted once per day.
+    uniqueIndex('character_quests_contract_slot_key')
+      .on(t.characterId, t.contractDay, t.contractSlot)
+      .where(sql`${t.kind} = 'contract'`),
+    check('character_quests_kind_check', sql`${t.kind} in ('story', 'contract')`),
+    check('character_quests_status_check', sql`${t.status} in ('active', 'turnedIn')`),
+    check(
+      'character_quests_turned_in_check',
+      sql`(${t.status} = 'turnedIn') = (${t.turnedInAt} is not null)`,
+    ),
+    check(
+      'character_quests_contract_check',
+      sql`(${t.kind} = 'contract') = (${t.contractDay} is not null and ${t.contractSlot} is not null)`,
+    ),
+  ],
+);
+
+/**
+ * Stored results of requests sent with an `Idempotency-Key` header (ticket 2.4,
+ * docs/API_CONVENTIONS.md). Written in the same transaction as the mutation; a retry with the same
+ * key and body gets the stored response. Rows older than the retention window are ignored and
+ * reused.
+ */
+export const idempotencyKeys = pgTable(
+  'idempotency_keys',
+  {
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    key: text('key').notNull(),
+    /** SHA-256 of method, route and body: the same key with another request is a conflict. */
+    requestHash: text('request_hash').notNull(),
+    statusCode: smallint('status_code').notNull(),
+    response: jsonb('response').$type<unknown>().notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    primaryKey({ columns: [t.accountId, t.key] }),
+    index('idempotency_keys_created_at_idx').on(t.createdAt),
+  ],
+);
+
 /** Append-only record of security-relevant and valuable events. */
 export const auditLog = pgTable(
   'audit_log',
@@ -337,5 +418,6 @@ export type ItemInstance = typeof itemInstances.$inferSelect;
 export type NewItemInstance = typeof itemInstances.$inferInsert;
 export type CharacterMaterial = typeof characterMaterials.$inferSelect;
 export type CharacterProfession = typeof characterProfessions.$inferSelect;
+export type CharacterQuest = typeof characterQuests.$inferSelect;
 export type Activity = typeof activities.$inferSelect;
 export type NewActivity = typeof activities.$inferInsert;

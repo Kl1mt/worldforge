@@ -26,6 +26,7 @@ import {
   auditLog,
   characterMaterials,
   characterProfessions,
+  characterQuests,
   characters,
   itemInstances,
 } from './db/schema.js';
@@ -33,6 +34,7 @@ import { transactionStats, withTransaction } from './db/transaction.js';
 import type { DatabaseHandle } from './db/types.js';
 import { uuidv7 } from './db/uuid.js';
 import { createPostgresTestDatabase } from './test/db.js';
+import { recordQuestEventsTx } from './quests/store.js';
 
 const url = process.env.DATABASE_URL;
 if (!url && process.env.REQUIRE_PG_TESTS === '1') {
@@ -423,6 +425,102 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
   // deadlock: before ticket 1.9 used `FOR NO KEY UPDATE` for the account/character locks, the
   // foreign-key checks of audit and activity inserts (`FOR KEY SHARE`) deadlocked against them
   // (start: account → character; stop/settle: character → account), about 4 per run.
+  describe('quest turn-in (ticket 2.4)', () => {
+    const turnIn = (p: Player, id: string, questRowId: string, key: string) =>
+      app.inject({
+        method: 'POST',
+        url: `/api/characters/${id}/quests/${questRowId}/turn-in`,
+        headers: { 'idempotency-key': key },
+        cookies: { [SESSION_COOKIE]: p.token },
+      });
+    const turnInAudits = (characterId: string) =>
+      database.db
+        .select()
+        .from(auditLog)
+        .where(and(eq(auditLog.characterId, characterId), eq(auditLog.event, 'quest.turn_in')));
+
+    /** A character with the first story quest accepted and complete (not farming). */
+    async function readyQuest() {
+      const p = await newPlayer();
+      const id = await newCharacter(p);
+      const res = await call(p, 'POST', `/api/characters/${id}/quests`, {
+        kind: 'story',
+        questId: 'furrowsOfTheDead',
+      });
+      expect(res.statusCode).toBe(201);
+      const [quest] = await database.db
+        .select()
+        .from(characterQuests)
+        .where(eq(characterQuests.characterId, id));
+      await withTransaction(database.db, (tx) =>
+        recordQuestEventsTx(tx, id, [{ type: 'enemyKilled', enemyId: 'risenFarmhand', count: 12 }]),
+      );
+      return { p, id, questRowId: quest!.id };
+    }
+
+    it('grants a quest reward once under concurrent turn-ins (same and different keys)', async () => {
+      const { p, id, questRowId } = await readyQuest();
+      const keys = Array.from({ length: N }, (_, i) =>
+        i % 2 === 0 ? 'shared-key-0001' : `own-key-${i}-xyz`,
+      );
+      const results = await Promise.all(keys.map((k) => turnIn(p, id, questRowId, k)));
+      const shared = results.filter((_, i) => keys[i] === 'shared-key-0001');
+      const own = results.filter((_, i) => keys[i] !== 'shared-key-0001');
+      const winners = results.filter(
+        (r) => r.statusCode === 200 && r.headers['idempotent-replayed'] !== 'true',
+      );
+      expect(winners).toHaveLength(1);
+      // Every request with the shared key gets the same answer: all the stored success, or all
+      // refused because another key won.
+      const sharedCodes = new Set(shared.map((r) => r.statusCode));
+      expect(sharedCodes.size).toBe(1);
+      if (sharedCodes.has(200)) {
+        // Equal as JSON (jsonb may store the replayed object with its keys in another order).
+        for (const r of shared) expect(r.json()).toEqual(shared[0]!.json());
+        expect(own.every((r) => r.statusCode === 409)).toBe(true);
+      } else {
+        expect(own.filter((r) => r.statusCode === 200)).toHaveLength(1);
+      }
+      expect(await turnInAudits(id)).toHaveLength(1);
+      const [c] = await database.db.select().from(characters).where(eq(characters.id, id));
+      expect(c!.gold).toBe(40);
+      const [q] = await database.db
+        .select()
+        .from(characterQuests)
+        .where(eq(characterQuests.id, questRowId));
+      expect(q!.status).toBe('turnedIn');
+    });
+
+    it('settles racing turn-ins credit kills to the quest once and grant once', async () => {
+      const { p, id } = await farmer();
+      const accepted = await call(p, 'POST', `/api/characters/${id}/quests`, {
+        kind: 'story',
+        questId: 'furrowsOfTheDead',
+      });
+      expect(accepted.statusCode).toBe(201);
+      const [quest] = await database.db
+        .select()
+        .from(characterQuests)
+        .where(eq(characterQuests.characterId, id));
+      advance(HOUR);
+      const results = await Promise.all(
+        Array.from({ length: N }, (_, i) =>
+          i % 2 === 0
+            ? call(p, 'POST', `/api/characters/${id}/activity/settle`)
+            : turnIn(p, id, quest!.id, `mixed-key-${i}-abc`),
+        ),
+      );
+      expect(results.every((r) => r.statusCode === 200 || r.statusCode === 409)).toBe(true);
+      expect(results.filter((r) => r.statusCode === 200 && r.json().reward)).toHaveLength(1);
+      expect(await turnInAudits(id)).toHaveLength(1);
+      // Gold = what the audited settlements granted + the quest's 40, once.
+      const sums = await audited(id);
+      const [c] = await database.db.select().from(characters).where(eq(characters.id, id));
+      expect(c!.gold).toBe(sums.gold + 40);
+      expect(sums.creditedMs).toBe(HOUR);
+    });
+  });
+
   it('the races above ran without a single deadlock or serialization retry', () => {
     expect(transactionStats.retries).toBe(0);
   });
