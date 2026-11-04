@@ -11,3 +11,4 @@ export * from './world/index.js';
 export * from './items/index.js';
 export * from './loot/index.js';
 export * from './activity/index.js';
+export * from './professions/index.js';

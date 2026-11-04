@@ -5,6 +5,15 @@ import { rollLoot, type GeneratedItem } from '../loot/generate.js';
 import { createRng } from '../rng.js';
 import { getArea, type AreaId } from '../world/areas.js';
 import type { EnemyId } from '../world/enemies.js';
+import { getMaterial, type MaterialId, type ProfessionId } from '../world/materials.js';
+import { DEFAULT_PROFESSION_CONFIG, type ProfessionConfig } from '../professions/config.js';
+import { rollGathering } from '../professions/gathering.js';
+import {
+  applyProfessionXp,
+  normalizeProfessions,
+  type ProfessionLevels,
+  type ProfessionState,
+} from '../professions/progression.js';
 import { DEFAULT_ACTIVITY_CONFIG, type ActivityConfig, type InventoryConfig } from './config.js';
 import { equipmentModifiers } from './equipment.js';
 
@@ -31,12 +40,15 @@ export interface SettleFarmingInput {
    * stays the old area) and the whole window is carried, as usual.
    */
   switchToAreaId?: AreaId;
+  /** Profession levels at the window start (ticket 2.3); missing professions are level 1. */
+  professions?: Partial<Record<ProfessionId, ProfessionState>>;
 }
 
 export interface SettleFarmingOptions {
   activity?: ActivityConfig;
   combat?: CombatConfig;
   loot?: LootConfig;
+  professions?: ProfessionConfig;
 }
 
 export interface FarmingSettlement {
@@ -73,6 +85,21 @@ export interface FarmingSettlement {
   salvaged: GeneratedItem[];
   /** Gold find used for the drops (already capped). */
   goldFind: number;
+  /** Materials gathered or dropped (ticket 2.3); only ids with a positive quantity. */
+  materials: Partial<Record<MaterialId, number>>;
+  /** Profession levels at the window end. */
+  professions: ProfessionLevels;
+  /** Profession XP earned in the window (before the cap discards any). */
+  professionXpGained: Partial<Record<ProfessionId, number>>;
+}
+
+function addCounts<K extends string>(
+  a: Partial<Record<K, number>>,
+  b: Partial<Record<K, number>>,
+): Partial<Record<K, number>> {
+  const out: Partial<Record<K, number>> = { ...a };
+  for (const [k, n] of Object.entries(b) as [K, number][]) out[k] = (out[k] ?? 0) + n;
+  return out;
 }
 
 /** Gold an overflow item is salvaged for. */
@@ -99,6 +126,11 @@ export function salvageValue(
  * one settlement at the end gives (ticket 1.9; before, each window re-rolled the unfinished cycle,
  * which favoured short cycles and let frequent settling avoid deaths).
  *
+ * Gathering (ticket 2.3): every committed cycle the hero survives rolls the area's material yields
+ * from `${seed}:gather:${index}` with the profession levels at the start of that cycle; profession
+ * XP is applied per cycle, so later cycles of the same window use the new levels. Like loot, it is
+ * split-invariant: the unfinished cycle gathers nothing until it is committed.
+ *
  * Kills roll the area's loot table (`AreaDefinition.lootTableId`, ticket 2.1). The loot source
  * level is the character's level at the start of the killing cycle, clamped to the area's enemy
  * levels.
@@ -124,16 +156,14 @@ export function settleFarming(
         xp: first.xp,
         health: first.health,
       },
+      professions: first.professions,
       firstCycle: input.firstCycle + first.encounters,
       durationMs: first.unusedMs,
       inventoryCount: input.inventoryCount + first.items.length,
     },
     options,
   );
-  const killsByEnemy: Partial<Record<EnemyId, number>> = { ...first.killsByEnemy };
-  for (const [id, n] of Object.entries(second.killsByEnemy) as [EnemyId, number][]) {
-    killsByEnemy[id] = (killsByEnemy[id] ?? 0) + n;
-  }
+  const killsByEnemy = addCounts(first.killsByEnemy, second.killsByEnemy);
   return {
     areaId: switchToAreaId,
     switched: true,
@@ -159,6 +189,9 @@ export function settleFarming(
     items: [...first.items, ...second.items],
     salvaged: [...first.salvaged, ...second.salvaged],
     goldFind: second.goldFind,
+    materials: addCounts(first.materials, second.materials),
+    professions: second.professions,
+    professionXpGained: addCounts(first.professionXpGained, second.professionXpGained),
   };
 }
 
@@ -171,6 +204,7 @@ function settleSegment(
   const activity = options.activity ?? DEFAULT_ACTIVITY_CONFIG;
   const combat = options.combat ?? DEFAULT_COMBAT_CONFIG;
   const lootConfig = options.loot ?? DEFAULT_LOOT_CONFIG;
+  const professionConfig = options.professions ?? DEFAULT_PROFESSION_CONFIG;
   if (!Number.isInteger(input.durationMs) || input.durationMs < 0) {
     throw new RangeError(`Invalid duration: ${input.durationMs}`);
   }
@@ -189,6 +223,9 @@ function settleSegment(
   let goldLooted = 0;
   let goldSalvaged = 0;
   let free = Math.max(0, activity.inventory.capacity - input.inventoryCount);
+  const professions = normalizeProfessions(input.professions, professionConfig);
+  const materials: Partial<Record<MaterialId, number>> = {};
+  const professionXpGained: Partial<Record<ProfessionId, number>> = {};
 
   const r = simulateFarmingAggregate(
     {
@@ -203,6 +240,23 @@ function settleSegment(
     {
       config: combat,
       onCycle: (cycle) => {
+        const finds = rollGathering(
+          { areaId: input.areaId, outcome: cycle.outcome, enemyId: cycle.enemyId },
+          professions,
+          createRng(`${input.seed}:gather:${cycle.index}`),
+          professionConfig,
+        );
+        for (const f of finds) {
+          materials[f.materialId] = (materials[f.materialId] ?? 0) + f.quantity;
+          if (!f.professionId) continue;
+          const xp = f.quantity * professionConfig.xpPerUnit[getMaterial(f.materialId).rarity];
+          professionXpGained[f.professionId] = (professionXpGained[f.professionId] ?? 0) + xp;
+          professions[f.professionId] = applyProfessionXp(
+            professions[f.professionId],
+            xp,
+            professionConfig,
+          );
+        }
         if (cycle.outcome !== 'kill') return;
         const sourceLevel = Math.min(area.maxLevel, Math.max(area.minLevel, cycle.level));
         const drop = rollLoot(
@@ -253,5 +307,8 @@ function settleSegment(
     items,
     salvaged,
     goldFind: modifiers.goldFind,
+    materials,
+    professions,
+    professionXpGained,
   };
 }

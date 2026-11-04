@@ -1,0 +1,98 @@
+/* Materials tab: a ledger of stacks, socket on the left, tally on the right. */
+.mats {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.mats__list {
+  display: grid;
+  border: var(--border-hair);
+  background: var(--bg-sunken);
+}
+
+.mats__row {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+}
+
+.mats__row + .mats__row {
+  border-top: var(--border-hair);
+}
+
+.mats__text {
+  min-width: 0;
+}
+
+.mats__name {
+  color: var(--rarity);
+  font-weight: 700;
+}
+
+.mats__meta {
+  margin-top: 2px;
+  color: var(--text-faint);
+}
+
+.mats__desc {
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.mats__qty {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.mats__qty-num {
+  font-size: var(--text-xl);
+  font-weight: 700;
+  color: var(--bone-100);
+  font-variant-numeric: tabular-nums;
+}
+
+.mats__missing h2 {
+  color: var(--brass-500);
+}
+
+.mats__missing ul {
+  display: grid;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.mats__missing li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  opacity: 0.75;
+}
+
+.mats__hint {
+  color: var(--text-faint);
+}
+
+.mats__foot {
+  font-size: var(--text-sm);
+  color: var(--text-faint);
+}
+
+@media (max-width: 760px) {
+  .mats__row {
+    grid-template-columns: auto 1fr;
+  }
+
+  .mats__qty {
+    grid-column: 2;
+    text-align: left;
+  }
+
+  .mats__desc {
+    display: none;
+  }
+}

@@ -33,6 +33,15 @@ So each cycle index is simulated in exactly one area, a player cannot dodge a lo
 - **Equipment → stats:** `itemContribution` / `equipmentModifiers` sum implicit stats and affixes. Core stats go to `deriveCharacterStats`. **Gold find is summed, then capped** at `modifierCaps.goldFind` (default +100 %) before `rollLoot` (GDD §6.2).
 - **Seed:** `seed_secret` (128 random bits, never sent to clients) plus `cycle_index`. Same secret, index, state and window give the same result (tests pin this). `settlement_seq` is kept for the audit log only.
 
+## Gathering & professions (ticket 2.3)
+Gathering is part of the per-cycle settlement; rules in `packages/game-core/src/professions/`, persistence in `apps/server/src/materials/`.
+- **Per cycle.** Every committed cycle the hero survives (kill or timeout; not a death) rolls each of the area's yields (`DEFAULT_PROFESSION_CONFIG.areas`) from its own stream `${seed}:gather:${i}`. Undead kills also roll the area's undead drops (`soulShard` in the Old Burial Grounds, 25 %; no profession). Each yield always consumes the same draws, so one node never shifts another's roll.
+- **Profession level raises yield, not the find rate:** a find gives `1 + 0.02 · (level − 1)` units (the fraction is a chance of one more), so level 50 roughly doubles it. Profession XP per unit by rarity (common 10, uncommon 15, rare 40); `xpToNext(l) = round(20 · l^1.5)`, cap 50. XP is applied per cycle, so later cycles of the same window use the new level.
+- **Split- and switch-invariant.** Like loot, the unfinished cycle gathers nothing until it is committed, and the profession state is carried from settlement to settlement, so settling every second gives exactly what one settlement gives, also across area switches (game-core `settlement splitting` and `area switches` tests include materials and professions; server: `materials & professions (ticket 2.3)` and the 2.2 switch invariance test compare the stored rows).
+- **Persistence.** The settlement transaction reads `character_professions` (under the character lock), runs `settleFarming` with those levels, then adds materials to `character_materials` (`quantity = quantity + n`) and writes the changed professions, together with XP, gold, items, the activity row and the `activity.reward` audit entry (which now lists `materials`). The real-Postgres race test checks that eight parallel settles grant exactly what one settlement of the same seed grants.
+- **Summary.** `summary.materials` (`{ materialId: n }`) and `summary.professions` (`{ professionId: { xpGained, levelsGained } }`); missing in summaries written before 2.3.
+- First-pass numbers (B.1 tunes them): commons at 25–35 % per cycle, abbey silver 4 %. A mid-level hero runs several hundred cycles in the 3 h cap, so a common stack grows by a few hundred per cap.
+
 ## Inventory capacity
 `inventory.capacity` (default 60 unequipped items). Drops beyond the free space are **auto-salvaged to gold**: `round((2 + 0.5 · itemLevel) · rarity)`, rarity × 1/2/4/8/16/32 from common to mythic. The summary reports `itemsSalvaged` and `goldSalvaged`. All values are in `DEFAULT_ACTIVITY_CONFIG`.
 

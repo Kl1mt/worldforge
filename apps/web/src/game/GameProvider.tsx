@@ -17,9 +17,11 @@ import {
   activityApi,
   describeGameFailure,
   inventoryApi,
+  materialsApi,
   worldApi,
   type Activity,
   type InventoryDto,
+  type MaterialsState,
   type ReturnSummary,
   type SettleResult,
   type WorldState,
@@ -63,6 +65,8 @@ interface GameContextValue {
    */
   areaId: AreaId;
   inventory: Load<Inventory>;
+  /** Materials and professions (ticket 2.3), refreshed when a settlement gathers something. */
+  materials: Load<MaterialsState>;
   chronicle: LogEntry[];
   tally: SessionTally;
   /** The summary to show in the return dialog, until dismissed. */
@@ -112,6 +116,7 @@ export function GameProvider({
   const [activity, setActivity] = useState<Load<Activity | null>>({ kind: 'loading' });
   const [inventory, setInventory] = useState<Load<Inventory>>({ kind: 'loading' });
   const [world, setWorld] = useState<Load<WorldState>>({ kind: 'loading' });
+  const [materials, setMaterials] = useState<Load<MaterialsState>>({ kind: 'loading' });
   const [lastAreaId, setLastAreaId] = useState<AreaId>('abandonedFields');
   const [chronicle, setChronicle] = useState<LogEntry[]>([]);
   const [tally, setTally] = useState<SessionTally>(EMPTY_TALLY);
@@ -147,6 +152,22 @@ export function GameProvider({
     else setInventory({ kind: 'error', message: failed(res.error) });
   }, [characterId, failed]);
 
+  const loadMaterials = useCallback(
+    async (signal?: AbortSignal) => {
+      const res = await materialsApi.get(characterId, signal ? { signal } : {});
+      if (!alive.current) return;
+      setMaterials((prev) =>
+        res.ok
+          ? { kind: 'ready', value: res.value }
+          : // A failed refresh keeps the shown numbers; only a first load shows the error.
+            prev.kind === 'ready'
+            ? prev
+            : { kind: 'error', message: failed(res.error) },
+      );
+    },
+    [characterId, failed],
+  );
+
   /** Records a settled summary: Chronicle, tally, character, and inventory if loot arrived. */
   const absorb = useCallback(
     (result: SettleResult, asReturn: boolean) => {
@@ -162,8 +183,9 @@ export function GameProvider({
       updateCharacter(result.character);
       if (asReturn && isWorthAReturnDialog(summary)) setReturnSummary(summary);
       if (summary.itemsGained > 0 || summary.levelsGained > 0) void loadInventory();
+      if (Object.keys(summary.materials ?? {}).length > 0) void loadMaterials();
     },
-    [loadInventory, updateCharacter],
+    [loadInventory, loadMaterials, updateCharacter],
   );
 
   const settle = useCallback(
@@ -216,6 +238,9 @@ export function GameProvider({
         /* aborted */
       },
     );
+    loadMaterials(signal).catch(() => {
+      /* aborted */
+    });
     activityApi.get(characterId, { signal }).then(
       (res) => {
         if (!res.ok) {
@@ -230,7 +255,7 @@ export function GameProvider({
       },
     );
     return () => controller.abort();
-  }, [attempt, characterId, settle, failed]);
+  }, [attempt, characterId, settle, failed, loadMaterials]);
 
   // World state: on load, and again whenever the level changes (unlocks follow the level).
   const level = character.level;
@@ -387,6 +412,7 @@ export function GameProvider({
     setActivity({ kind: 'loading' });
     setWorld({ kind: 'loading' });
     setInventory({ kind: 'loading' });
+    setMaterials({ kind: 'loading' });
     setAttempt((n) => n + 1);
   }, []);
   const dismissReturn = useCallback(() => setReturnSummary(null), []);
@@ -397,6 +423,7 @@ export function GameProvider({
       world,
       areaId,
       inventory,
+      materials,
       chronicle,
       tally,
       returnSummary,
@@ -415,6 +442,7 @@ export function GameProvider({
       world,
       areaId,
       inventory,
+      materials,
       chronicle,
       tally,
       returnSummary,

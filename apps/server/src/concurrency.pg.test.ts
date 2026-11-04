@@ -20,7 +20,15 @@ import { generateItem } from '@worldforge/game-core';
 import { buildApp } from './app.js';
 import { SESSION_COOKIE } from './auth/index.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from './activity/settle.js';
-import { accounts, activities, auditLog, characters, itemInstances } from './db/schema.js';
+import {
+  accounts,
+  activities,
+  auditLog,
+  characterMaterials,
+  characterProfessions,
+  characters,
+  itemInstances,
+} from './db/schema.js';
 import { transactionStats, withTransaction } from './db/transaction.js';
 import type { DatabaseHandle } from './db/types.js';
 import { uuidv7 } from './db/uuid.js';
@@ -184,6 +192,58 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
       .from(itemInstances)
       .where(eq(itemInstances.characterId, id));
     expect(items).toHaveLength(sums.items);
+  });
+
+  it('grants materials and profession XP once under concurrent settles (ticket 2.3)', async () => {
+    const racer = await farmer();
+    const twin = await farmer();
+    await database.db
+      .update(activities)
+      .set({ seedSecret: 'pg-gather-race' })
+      .where(sql`${activities.characterId} in (${racer.id}, ${twin.id})`);
+    advance(2 * HOUR);
+    const results = await Promise.all(
+      Array.from({ length: N }, () =>
+        call(racer.p, 'POST', `/api/characters/${racer.id}/activity/settle`),
+      ),
+    );
+    expect(results.map((r) => r.statusCode)).toEqual(Array(N).fill(200));
+    const withMaterials = results.filter(
+      (r) => Object.keys(r.json().summary.materials ?? {}).length > 0,
+    );
+    expect(withMaterials).toHaveLength(1);
+    expect(
+      (await call(twin.p, 'POST', `/api/characters/${twin.id}/activity/settle`)).statusCode,
+    ).toBe(200);
+
+    const held = async (id: string) => ({
+      materials: await database.db
+        .select({
+          materialId: characterMaterials.materialId,
+          quantity: characterMaterials.quantity,
+        })
+        .from(characterMaterials)
+        .where(eq(characterMaterials.characterId, id))
+        .orderBy(characterMaterials.materialId),
+      professions: await database.db
+        .select({
+          professionId: characterProfessions.professionId,
+          level: characterProfessions.level,
+          experience: characterProfessions.experience,
+        })
+        .from(characterProfessions)
+        .where(eq(characterProfessions.characterId, id))
+        .orderBy(characterProfessions.professionId),
+    });
+    const [raced, serial] = [await held(racer.id), await held(twin.id)];
+    expect(raced.materials.length).toBeGreaterThan(0);
+    // Same seed, same window: the race granted exactly what one settlement grants.
+    expect(raced).toEqual(serial);
+    const audits = await rewardAudits(racer.id);
+    expect(audits).toHaveLength(1);
+    expect(Object.fromEntries(raced.materials.map((m) => [m.materialId, m.quantity]))).toEqual(
+      (audits[0]!.data as { materials: unknown }).materials,
+    );
   });
 
   it('never credits time twice when settle, stop and start race', async () => {

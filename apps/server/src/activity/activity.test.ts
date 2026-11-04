@@ -4,13 +4,21 @@ import { and, count, eq, inArray, isNull } from 'drizzle-orm';
 import { DEFAULT_ACTIVITY_CONFIG } from '@worldforge/game-core';
 import { buildApp } from '../app.js';
 import { SESSION_COOKIE } from '../auth/index.js';
-import { activities, auditLog, characters, itemInstances } from '../db/schema.js';
+import {
+  activities,
+  auditLog,
+  characterMaterials,
+  characterProfessions,
+  characters,
+  itemInstances,
+} from '../db/schema.js';
 import type { DatabaseHandle } from '../db/types.js';
 import { uuidv7 } from '../db/uuid.js';
 import { createTestDatabase } from '../test/db.js';
 import { DEFAULT_ACTIVITY_OPTIONS, settleDueActivities, type ActivityOptions } from './settle.js';
 import type { ActivityStateResponse, SettleResponse } from './routes.js';
 import type { WorldStateResponse } from '../world/routes.js';
+import type { MaterialsResponse } from '../materials/store.js';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -119,6 +127,24 @@ async function inventoryCount(id: string) {
     .from(itemInstances)
     .where(and(eq(itemInstances.characterId, id), isNull(itemInstances.equippedSlot)));
   return r!.n;
+}
+
+async function materialRows(id: string) {
+  const materials = await database.db
+    .select({ materialId: characterMaterials.materialId, quantity: characterMaterials.quantity })
+    .from(characterMaterials)
+    .where(eq(characterMaterials.characterId, id))
+    .orderBy(characterMaterials.materialId);
+  const professions = await database.db
+    .select({
+      professionId: characterProfessions.professionId,
+      level: characterProfessions.level,
+      experience: characterProfessions.experience,
+    })
+    .from(characterProfessions)
+    .where(eq(characterProfessions.characterId, id))
+    .orderBy(characterProfessions.professionId);
+  return { materials, professions };
 }
 
 async function rewardAudits(id: string) {
@@ -615,6 +641,7 @@ describe('areas & unlocks (ticket 2.2)', () => {
         experience: c.experience,
         gold: c.gold,
         items,
+        gathered: await materialRows(id),
         activity: {
           areaId: a.areaId,
           pendingAreaId: a.pendingAreaId,
@@ -626,6 +653,117 @@ describe('areas & unlocks (ticket 2.2)', () => {
     };
     const [a, b] = [await pick(ids[0]!), await pick(ids[1]!)];
     expect(a.experience + a.gold).toBeGreaterThan(0);
+    // Gathering is part of it (ticket 2.3): Crowwood timber/hide, and Fields after the switch.
+    expect(a.gathered.materials.map((m) => m.materialId)).toEqual(
+      expect.arrayContaining(['rawHide', 'timber']),
+    );
+    expect(a.gathered.professions.length).toBeGreaterThan(0);
     expect(a).toEqual(b);
+  });
+});
+
+describe('materials & professions (ticket 2.3)', () => {
+  const materials = async (p: Player | null, id: string) =>
+    call(p, 'GET', `/api/characters/${id}/materials`);
+
+  it('starts empty, with every profession at level 1', async () => {
+    const p = await newPlayer();
+    const id = await newCharacter(p);
+    const res = await materials(p, id);
+    expect(res.statusCode).toBe(200);
+    const body = res.json<MaterialsResponse>();
+    expect(body.materials).toEqual([]);
+    expect(body.professions.map((x) => x.professionId)).toEqual([
+      'mining',
+      'woodcutting',
+      'herbalism',
+      'skinning',
+    ]);
+    for (const x of body.professions) {
+      expect(x).toMatchObject({ level: 1, xp: 0, maxLevel: 50 });
+      expect(x.xpToNext).toBeGreaterThan(0);
+    }
+  });
+
+  it('is private: no session is 401, another account’s character is 404', async () => {
+    const { id } = await farmer();
+    expect((await materials(null, id)).statusCode).toBe(401);
+    expect((await materials(await newPlayer(), id)).statusCode).toBe(404);
+    expect((await materials(await newPlayer(), 'not-a-uuid')).statusCode).toBe(400);
+  });
+
+  it('settlement grants materials and profession XP with the rest of the rewards', async () => {
+    const { p, id } = await farmer();
+    advance(HOUR);
+    const settled = (await settle(p, id)).json<SettleResponse>();
+    const { materials: summaryMaterials, professions } = settled.summary;
+    expect(summaryMaterials?.timber).toBeGreaterThan(0);
+    expect(summaryMaterials?.ashwort).toBeGreaterThan(0);
+    expect(professions?.woodcutting?.xpGained).toBeGreaterThan(0);
+    expect(professions?.mining).toBeUndefined();
+
+    const rows = await materialRows(id);
+    expect(Object.fromEntries(rows.materials.map((m) => [m.materialId, m.quantity]))).toEqual(
+      summaryMaterials,
+    );
+    const view = (await materials(p, id)).json<MaterialsResponse>();
+    expect(view.materials).toEqual([
+      { materialId: 'timber', quantity: summaryMaterials!.timber },
+      { materialId: 'ashwort', quantity: summaryMaterials!.ashwort },
+    ]);
+    const wood = view.professions.find((x) => x.professionId === 'woodcutting')!;
+    expect(wood.level).toBe(1 + professions!.woodcutting!.levelsGained);
+    expect(wood.level).toBeGreaterThan(1);
+
+    const [audit] = (await rewardAudits(id)).slice(-1);
+    expect((audit!.data as { materials: unknown }).materials).toEqual(summaryMaterials);
+
+    // Stacks grow across settlements; the next summary starts empty.
+    advance(HOUR);
+    const next = (await settle(p, id)).json<SettleResponse>();
+    const after = (await materials(p, id)).json<MaterialsResponse>();
+    expect(after.materials.find((m) => m.materialId === 'timber')!.quantity).toBe(
+      summaryMaterials!.timber! + (next.summary.materials?.timber ?? 0),
+    );
+    const settledAgain = (await settle(p, id)).json<SettleResponse>();
+    expect(settledAgain.summary.materials).toEqual({});
+  });
+
+  it('gives the same materials and professions however often the client settles', async () => {
+    const spam = await newPlayer();
+    const lazy = await newPlayer();
+    const ids = [await newCharacter(spam), await newCharacter(lazy)];
+    expect((await start(spam, ids[0]!)).statusCode).toBe(201);
+    expect((await start(lazy, ids[1]!)).statusCode).toBe(201);
+    await database.db
+      .update(activities)
+      .set({ seedSecret: 'gather-invariance' })
+      .where(inArray(activities.characterId, ids));
+    for (let step = 0; step < 120; step++) {
+      advance(10_000);
+      await settle(spam, ids[0]!);
+    }
+    await settle(lazy, ids[1]!);
+    const [a, b] = [await materialRows(ids[0]!), await materialRows(ids[1]!)];
+    expect(a.materials.length).toBeGreaterThan(0);
+    expect(a).toEqual(b);
+  });
+
+  it('a stored profession level raises the yield', async () => {
+    const low = await farmer();
+    const high = await farmer();
+    await database.db
+      .update(activities)
+      .set({ seedSecret: 'gather-level' })
+      .where(inArray(activities.characterId, [low.id, high.id]));
+    await database.db
+      .insert(characterProfessions)
+      .values([{ characterId: high.id, professionId: 'woodcutting', level: 45, experience: 0 }]);
+    advance(HOUR);
+    const a = (await settle(low.p, low.id)).json<SettleResponse>();
+    const b = (await settle(high.p, high.id)).json<SettleResponse>();
+    expect(b.summary.kills).toBe(a.summary.kills);
+    expect(b.summary.materials!.ashwort).toBe(a.summary.materials!.ashwort);
+    expect(b.summary.materials!.timber!).toBeGreaterThan(a.summary.materials!.timber! * 1.5);
   });
 });

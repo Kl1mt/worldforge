@@ -2,6 +2,8 @@ import type {
   AreaId,
   DungeonId,
   EquipmentSlotId,
+  MaterialId,
+  ProfessionId,
   RarityId,
   StatBlock,
   UnlockBlocker,
@@ -47,6 +49,10 @@ export interface ReturnSummary {
   itemsGained: number;
   itemsSalvaged: number;
   items: SummaryItem[];
+  /** Materials gathered (ticket 2.3). Missing in summaries from before 2.3. */
+  materials?: Partial<Record<MaterialId, number>>;
+  /** Profession XP and level-ups (ticket 2.3). */
+  professions?: Partial<Record<ProfessionId, { xpGained: number; levelsGained: number }>>;
 }
 
 export interface ActivityState {
@@ -97,6 +103,19 @@ export interface WorldState {
   dungeons: (WorldPlace<DungeonId> & { available: boolean })[];
 }
 
+/** `GET /characters/:id/materials` (ticket 2.3). */
+export interface MaterialsState {
+  characterId: string;
+  materials: { materialId: MaterialId; quantity: number }[];
+  professions: {
+    professionId: ProfessionId;
+    level: number;
+    xp: number;
+    xpToNext: number;
+    maxLevel: number;
+  }[];
+}
+
 const c = (id: string) => `/characters/${encodeURIComponent(id)}`;
 const i = (characterId: string, itemId: string) =>
   `${c(characterId)}/items/${encodeURIComponent(itemId)}`;
@@ -117,6 +136,11 @@ export const activityApi = {
 export const worldApi = {
   get: (id: string, o: Signal = {}, f?: typeof fetch): Promise<ApiResult<WorldState>> =>
     apiRequest(`${c(id)}/world`, o, f),
+};
+
+export const materialsApi = {
+  get: (id: string, o: Signal = {}, f?: typeof fetch): Promise<ApiResult<MaterialsState>> =>
+    apiRequest(`${c(id)}/materials`, o, f),
 };
 
 export const inventoryApi = {

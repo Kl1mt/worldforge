@@ -25,6 +25,10 @@ const input = (overrides: Partial<SettleFarmingInput> = {}): SettleFarmingInput 
   ...overrides,
 });
 
+function addMaterials(into: Record<string, number>, add: Partial<Record<string, number>>) {
+  for (const [id, n] of Object.entries(add)) into[id] = (into[id] ?? 0) + (n ?? 0);
+}
+
 const goldRing = (value: number): GeneratedItem => ({
   seed: 1,
   baseId: 'iron-ring',
@@ -140,7 +144,15 @@ describe('settleFarming', () => {
       let carry = 0;
       let firstCycle = 0;
       let held = inventoryCount;
-      const totals = { kills: 0, deaths: 0, xp: 0, gold: 0, items: [] as GeneratedItem[] };
+      let professions: SettleFarmingInput['professions'] = undefined;
+      const totals = {
+        kills: 0,
+        deaths: 0,
+        xp: 0,
+        gold: 0,
+        items: [] as GeneratedItem[],
+        materials: {} as Record<string, number>,
+      };
       for (let t = 0; t < totalMs; t += stepMs) {
         const s = settleFarming(
           input({
@@ -149,6 +161,7 @@ describe('settleFarming', () => {
             firstCycle,
             inventoryCount: held,
             durationMs: carry + Math.min(stepMs, totalMs - t),
+            ...(professions ? { professions } : {}),
           }),
         );
         carry = s.unusedMs;
@@ -159,15 +172,20 @@ describe('settleFarming', () => {
         totals.xp += s.xpGained;
         totals.gold += s.goldLooted + s.goldSalvaged;
         totals.items.push(...s.items);
+        addMaterials(totals.materials, s.materials);
+        professions = s.professions;
         character = { classId: 'warrior', level: s.level, xp: s.xp, health: s.health };
       }
-      return { ...totals, character, carry, firstCycle };
+      return { ...totals, character, carry, firstCycle, professions };
     }
 
     it('gives exactly the same result for one window or many small ones', () => {
       const total = 20 * 60 * 1000;
       const once = settleInSteps('split', total, total);
       expect(once.kills).toBeGreaterThan(0);
+      // Gathering is part of the invariant (ticket 2.3).
+      expect(once.materials.timber).toBeGreaterThan(0);
+      expect(once.professions!.woodcutting!.xp).toBeGreaterThan(0);
       for (const step of [1_000, 7_000, 60_000]) {
         expect(settleInSteps('split', total, step)).toEqual(once);
       }
@@ -203,7 +221,14 @@ describe('settleFarming', () => {
  */
 describe('area switches', () => {
   const MIN = 60 * 1000;
-  type Totals = { kills: number; deaths: number; xp: number; gold: number; items: GeneratedItem[] };
+  type Totals = {
+    kills: number;
+    deaths: number;
+    xp: number;
+    gold: number;
+    items: GeneratedItem[];
+    materials: Record<string, number>;
+  };
 
   /**
    * Plays the server's sequence: settle at every time in `settleAt`; at `switchAt` settle, then
@@ -220,7 +245,8 @@ describe('area switches', () => {
     let firstCycle = 0;
     let held = 0;
     let last = 0;
-    const totals: Totals = { kills: 0, deaths: 0, xp: 0, gold: 0, items: [] };
+    let professions: SettleFarmingInput['professions'] = undefined;
+    const totals: Totals = { kills: 0, deaths: 0, xp: 0, gold: 0, items: [], materials: {} };
     const settle = (t: number) => {
       const s = settleFarming(
         input({
@@ -231,6 +257,7 @@ describe('area switches', () => {
           firstCycle,
           inventoryCount: held,
           durationMs: area.carryMs + (t - last),
+          ...(professions ? { professions } : {}),
         }),
       );
       last = t;
@@ -246,6 +273,8 @@ describe('area switches', () => {
       totals.xp += s.xpGained;
       totals.gold += s.goldLooted + s.goldSalvaged;
       totals.items.push(...s.items);
+      addMaterials(totals.materials, s.materials);
+      professions = s.professions;
       character = { classId: 'mage', level: s.level, xp: s.xp, health: s.health };
     };
     const events = [
@@ -260,7 +289,7 @@ describe('area switches', () => {
       settle(e.t);
       if (e.to) area = requestAreaChange(area, e.to);
     }
-    return { ...totals, character, area, firstCycle };
+    return { ...totals, character, area, firstCycle, professions };
   }
 
   it('gives the same result however often the client settles around switches', () => {
@@ -272,6 +301,9 @@ describe('area switches', () => {
       ];
       const once = run({ seed, endMs: 20 * MIN, settleEveryMs: 20 * MIN, switches });
       expect(once.kills).toBeGreaterThan(0);
+      // Materials from several areas (Crowwood hide, Fields ashwort), split-invariant too.
+      expect(once.materials.rawHide).toBeGreaterThan(0);
+      expect(once.materials.ashwort).toBeGreaterThan(0);
       for (const step of [1_000, 3_333, 60_000]) {
         expect(run({ seed, endMs: 20 * MIN, settleEveryMs: step, switches })).toEqual(once);
       }
