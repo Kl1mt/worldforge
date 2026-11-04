@@ -155,6 +155,17 @@ GDD: §15 Phase 1 exit criteria, §16.3.
 - Balance is untouched: casters die about once a minute at levels 1–3, and every class reaches the Fields' top level within one 3 h cap (`docs/COMBAT.md`, baseline). Phase 2's world structure needs a balancing pass with these numbers.
 - Carry-overs: per-account rate limits on game routes (requests are reward-neutral now, but cost DB time); per-account login throttling; area/equipment changes re-simulating the unfinished cycle (harmless with one area); email verification, password reset, session pruning (ticket 1.2 follow-ups).
 
+## Playtest
+
+### P.1 Local playtest setup — `done (PR #19)`
+Goal: the owner playtests Phase 1 on their own machine (OS unknown; not necessarily a developer), from a fresh clone to playing as easily as possible.
+- `docs/PLAYTEST.md`: step-by-step guide. Prerequisites per OS (Windows, macOS, Linux) with exact commands or links: Git; Node 22 (fnm or nvm; nvm-windows on Windows); pnpm via corepack; Docker Desktop or the no-Docker path. Clone, install, run, open. What to try (register, create a character, farm, inventory and equip, log out, come back, offline summary). Troubleshooting: ports 3000/5173 in use, Docker not running, wrong Node version, migration errors, cookies over http://localhost. Reset all game data; stop everything.
+- No-Docker local playtest server: PGlite persisted to a git-ignored local data directory (`.playtest-data/`), so progress survives restarts; reuses the e2e/test server patterns. A separate, clearly named entry point excluded from the production build; refuses `NODE_ENV=production`; normal auth.
+- Optional "fast time" flag: speeds up the server-side farming clock so offline progress and the 3 h cap show in minutes. Server-side only, off by default, documented in PLAYTEST.md.
+- One-command root scripts: `pnpm playtest` (server + web, no Docker), `pnpm playtest:reset`, and a doctor script (Node version, pnpm, free ports, optionally Docker; clear next steps). pnpm has a built-in `pnpm doctor`, so the script runs as `pnpm run doctor`.
+- `docs/PLAYTEST_FEEDBACK.md`: feedback template (first impressions, confusing moments, bugs, balance feel per class, UI notes) for Phase 2 planning. Link PLAYTEST.md from the README.
+- Verified in the sandbox: `pnpm playtest` starts; registration and farming work in a browser (Playwright); data survives a restart; `playtest:reset` clears it. Game rules unchanged.
+
 ## Art tickets (run alongside the phases)
 
 ### A.1 Class portraits — `done (PR #14)`
