@@ -127,3 +127,10 @@ Each class has a 128×128 full-body portrait at `/assets/characters/<classId>.pn
 ## Known gaps (Phase 0)
 
 - There are no icons yet for the `shoulders`, `legs` or `relic` slots. Generate them in a later icons batch when those slots appear in the UI.
+
+## Enemies & bosses (Phase 2, ticket A.3)
+
+- Each content-contract enemy has a 64×64 sprite at `/assets/enemies/<kebab-id>.png` (manifest id `enemy.<kebab-id>`, e.g. `banditCutthroat` → `enemy.bandit-cutthroat`). They were generated per area (two enemies per job) with `undead-farmer.png` as `style_image`.
+- Bosses are **128×128** at the same pixel scale (`enemy.gravewarden`, generated with the warrior as `style_image`). At the scene's sprite scale, a boss is drawn as tall as the hero and twice the size of a normal enemy.
+- `facing` may also be `left`. A left-facing sprite already faces the hero, so like `front`, it is not mirrored. Only `right` is mirrored.
+- Preview: `art/preview-enemies-phase-2.png` (all new enemies next to the three existing ones, plus the boss, at ×3).

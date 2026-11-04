@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, full body, side view, enemies of the Nameless Crypt: a crypt ghoul, a gaunt hunched grey-skinned ghoul with long claws; a bone acolyte, a skeletal cultist priest in a dark hooded robe holding a bone censer, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+  "style_image": "apps/web/public/assets/enemies/undead-farmer.png",
+  "job_id": "5d8680a4-07a1-479f-b8d7-43845c4ee61d",
+  "created_at": "2026-11-04T14:30:33.573555+00:00",
+  "seed": 2038657479,
+  "generations": 10.0,
+  "count": 16,
+  "width": 64,
+  "height": 64
+}

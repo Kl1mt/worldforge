@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, full body, side view, boss: the Gravewarden, an imposing towering armoured undead warden of the crypt, ornate corroded black iron plate with aged brass trim, horned great helm with a skull face, holding a huge tower shield and a hanging iron lantern, a ring of crypt keys on the belt, tattered dark crimson cloak, massive silhouette, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+  "style_image": "apps/web/public/assets/characters/warrior.png",
+  "job_id": "c67ae292-4fc1-488e-8032-ae3666580f17",
+  "created_at": "2026-11-04T14:28:55.849134+00:00",
+  "seed": 1380334083,
+  "generations": 10.0,
+  "count": 4,
+  "width": 128,
+  "height": 128
+}
