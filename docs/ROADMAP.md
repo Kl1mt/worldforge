@@ -112,7 +112,7 @@ GDD: §9.1–9.3, §14.
 - Use `unusedMs` from `simulateFarmingAggregate` as carry-over between settlements (see `docs/COMBAT.md`).
 **Acceptance:** tests for cap, idempotency, concurrent settle, determinism; audit log entries for rewards.
 
-### 1.7 Inventory & equipment (server) — `todo`
+### 1.7 Inventory & equipment (server) — `done (PR #13)`
 GDD: §7.1, §14 steps 4–5.
 - Uses the existing `item_instances` table (`equipped_slot` null = in inventory; a partial unique index allows one item per slot). Avoid new migrations; ticket 1.6 adds one in parallel. If one is unavoidable, say so in the PR. Ticket 1.6 owns granting loot and the inventory capacity rule; don't build those.
 - API: inventory list, equip (slot + class validation), unequip, discard. Ring slots handled (ring1/ring2). Derived stats recomputed server-side. Bridge loot → combat in game-core: a pure function turning equipped `GeneratedItem`s into `EquipmentStatContribution` for `deriveCharacterStats` (if 1.6 hasn't already added it).
