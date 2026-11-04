@@ -12,6 +12,7 @@ import {
 import { registerInventory } from './inventory/routes.js';
 import { registerWorld } from './world/routes.js';
 import { registerMaterials } from './materials/routes.js';
+import { registerDungeons } from './dungeon/routes.js';
 import { registerMerchant } from './merchant/routes.js';
 import { registerForge } from './forge/routes.js';
 import { pruneIdempotencyKeys } from './idempotency/index.js';
@@ -60,6 +61,7 @@ export function buildApp({ database, auth, activity, ...options }: AppOptions): 
       await registerInventory(api, activityOptions);
       await registerWorld(api);
       await registerMaterials(api);
+      await registerDungeons(api, activityOptions);
       await registerMerchant(api, activityOptions);
       await registerForge(api, activityOptions);
       await registerQuests(api, activityOptions);

@@ -1,0 +1,350 @@
+/*
+ * The Nameless Crypt (ticket 2.5). Shares the area scene's stage and log (area.css) but reads
+ * colder: wet stone, a stair of chambers carved down the side, crimson only for the enrage.
+ */
+.crypt__head {
+  margin-bottom: var(--space-6);
+}
+
+.crypt__region {
+  color: var(--arcane-blue);
+}
+
+.crypt__title {
+  font-size: var(--text-3xl);
+  color: var(--bone-100);
+  text-shadow: 0 2px 0 var(--outline-dark);
+}
+
+.crypt__desc {
+  max-width: 60ch;
+  margin-top: var(--space-1);
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.crypt__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 768px) minmax(300px, 1fr);
+  grid-template-areas:
+    'scene side'
+    'log side';
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.crypt__side {
+  grid-area: side;
+  display: grid;
+  gap: var(--space-5);
+}
+
+.crypt-log {
+  grid-area: log;
+  /* The area log is pinned beside a scene; here it sits below the stage in the flow. */
+  position: static;
+  max-height: 360px;
+}
+
+/* ── Stage ─────────────────────────────────────────────────────────────── */
+.crypt-scene .scene__stage {
+  box-shadow:
+    0 0 0 1px var(--outline-dark),
+    0 0 0 3px var(--iron-800),
+    0 0 0 4px var(--outline-dark),
+    var(--shadow-drop);
+}
+
+/* Before the descent the warden is only a shape in the dark. */
+.crypt-scene--waiting .crypt-foe {
+  filter: brightness(0.35) saturate(0.4);
+}
+
+.crypt-foe {
+  display: flex;
+  align-items: flex-end;
+}
+
+.crypt-foe--boss {
+  margin-bottom: calc(var(--px) * -4);
+}
+
+/* The enrage is the one event that earns an effect: a slow crimson pulse at the stage edge. */
+.crypt-scene--enraged::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  box-shadow: inset 0 0 48px rgb(184 73 63 / 0.55);
+  animation: crypt-enrage 1.6s ease-in-out infinite alternate;
+}
+
+@keyframes crypt-enrage {
+  from {
+    opacity: 0.45;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .crypt-scene--enraged::before {
+    animation: none;
+  }
+}
+
+.crypt-hud {
+  width: 220px;
+}
+
+.crypt-hud__foe {
+  margin-top: var(--space-1);
+}
+
+.crypt-hud__enraged {
+  justify-self: start;
+  padding: 1px var(--space-2);
+  color: var(--bone-100);
+  background: var(--crimson-700);
+  border: 1px solid var(--crimson-400);
+}
+
+.crypt-hud__time {
+  color: var(--text-faint);
+}
+
+/* ── The descent: a stair of chambers, each step set further in ────────── */
+.descent {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.descent__step {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--ink-900);
+  border-left: 2px solid var(--iron-700);
+  color: var(--text-dim);
+}
+
+.descent__step:nth-child(2) {
+  margin-left: 10px;
+}
+.descent__step:nth-child(3) {
+  margin-left: 20px;
+}
+.descent__step:nth-child(4) {
+  margin-left: 30px;
+}
+.descent__step:nth-child(5) {
+  margin-left: 40px;
+}
+.descent__step:nth-child(6) {
+  margin-left: 50px;
+}
+
+.descent__mark {
+  width: 10px;
+  height: 10px;
+  border: 1px solid var(--iron-500);
+  transform: rotate(45deg);
+}
+
+.descent__label {
+  font-family: var(--font-display);
+  color: var(--text-muted);
+}
+
+.descent__note {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.descent__step--done {
+  border-left-color: var(--moss-400);
+}
+.descent__step--done .descent__mark {
+  background: var(--moss-400);
+  border-color: var(--moss-400);
+}
+.descent__step--done .descent__note {
+  color: var(--moss-400);
+}
+
+.descent__step--here {
+  background: var(--ink-800);
+  border-left-color: var(--brass-400);
+}
+.descent__step--here .descent__mark {
+  background: var(--brass-400);
+  border-color: var(--brass-300);
+}
+.descent__step--here .descent__label,
+.descent__step--here .descent__note {
+  color: var(--accent-strong);
+}
+
+.descent__step--fell {
+  border-left-color: var(--crimson-400);
+}
+.descent__step--fell .descent__mark {
+  background: var(--crimson-500);
+  border-color: var(--crimson-400);
+}
+.descent__step--fell .descent__note {
+  color: var(--crimson-400);
+}
+
+/* ── Door panel ────────────────────────────────────────────────────────── */
+.crypt-door {
+  display: grid;
+  gap: var(--space-4);
+  justify-items: start;
+}
+
+.crypt-door__line {
+  color: var(--text-muted);
+}
+
+.crypt-door__facts {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-4);
+  color: var(--text-muted);
+}
+
+.crypt-door__facts li::marker {
+  color: var(--brass-500);
+}
+
+.crypt-door__facts strong {
+  color: var(--crimson-400);
+  font-weight: 600;
+}
+
+/* ── Log tones ─────────────────────────────────────────────────────────── */
+.crypt-log__hit {
+  color: var(--text-muted);
+}
+.crypt-log__kill {
+  color: var(--bone-100);
+}
+.crypt-log__level {
+  color: var(--accent-strong);
+}
+.crypt-log__boss {
+  color: var(--arcane-violet);
+  font-weight: 600;
+}
+.crypt-log__fall {
+  color: var(--crimson-400);
+}
+.crypt-log__note {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* ── Reckoning (result) ────────────────────────────────────────────────── */
+.reckoning {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.reckoning__title {
+  font-size: var(--text-2xl);
+  color: var(--bone-200);
+}
+
+.reckoning--won .reckoning__title {
+  color: var(--accent-strong);
+}
+
+.reckoning__line {
+  color: var(--text-muted);
+}
+
+.reckoning__line--dim {
+  color: var(--text-faint);
+  font-size: var(--text-sm);
+}
+
+.reckoning__unlock {
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--arcane-violet);
+  background: rgb(122 104 166 / 0.12);
+  color: var(--text);
+}
+
+.reckoning__tally {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.reckoning__tally div {
+  padding: var(--space-2) var(--space-3);
+  background: var(--ink-900);
+  border-top: 1px solid var(--iron-600);
+}
+
+.reckoning__tally dd {
+  margin: 2px 0 0;
+  font-size: var(--text-lg);
+  font-variant-numeric: tabular-nums;
+  color: var(--bone-100);
+}
+
+.reckoning__spoils {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.reckoning__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+@media (max-width: 1100px) {
+  .crypt__grid {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'scene'
+      'side'
+      'log';
+  }
+}
+
+@media (max-width: 760px) {
+  .crypt__title {
+    font-size: var(--text-2xl);
+  }
+
+  .crypt__desc {
+    font-size: var(--text-sm);
+  }
+
+  .crypt-hud {
+    width: 188px;
+  }
+
+  .descent__step:nth-child(n) {
+    margin-left: 0;
+  }
+}

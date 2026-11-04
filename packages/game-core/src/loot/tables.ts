@@ -4,7 +4,7 @@ import type { LootTableDefinition, LootTableEntry } from './config.js';
 /** Every base of the tiers given, weighted per tier (a tier left out never drops). */
 function tierEntries(weights: Partial<Record<ItemTier, number>>): LootTableEntry[] {
   return ITEM_BASES.flatMap((b) => {
-    const weight = weights[b.tier];
+    const weight = b.unique ? undefined : weights[b.tier];
     return weight ? [{ baseId: b.id, weight }] : [];
   });
 }
@@ -52,5 +52,23 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
     itemDropChance: 0.18,
     itemLevel: { min: 11, max: 17 },
     entries: tierEntries({ 2: 2, 3: 1 }),
+  },
+];
+
+/**
+ * The Gravewarden's hoard (ticket 2.5): the three boss-exclusive bases weigh as much as all
+ * tier-3 bases together. Rolled with `DungeonBossLoot.rarityWeights` (better odds than kills).
+ */
+export const BOSS_LOOT_TABLES: readonly LootTableDefinition[] = [
+  {
+    id: 'gravewarden',
+    itemDropChance: 1,
+    itemLevel: { min: 15, max: 17 },
+    entries: [
+      ...tierEntries({ 3: 1 }),
+      { baseId: 'gravewardens-cowl', weight: 4 },
+      { baseId: 'seal-of-the-nameless', weight: 4 },
+      { baseId: 'wardens-bone-chain', weight: 4 },
+    ],
   },
 ];

@@ -68,7 +68,10 @@ function places(world: WorldState | null, current: AreaId | null, pending: AreaI
     let state: PlaceState = 'unknown';
     if (p.id === current) state = 'current';
     else if (p.id === pending) state = 'next';
-    else if (w) state = !w.unlocked ? 'locked' : p.kind === 'dungeon' ? 'sealed' : 'open';
+    else if (w) {
+      const sealed = p.kind === 'dungeon' && !(w as { available?: boolean }).available;
+      state = !w.unlocked ? 'locked' : sealed ? 'sealed' : 'open';
+    }
     return { ...p, state, blockers: w?.blockers ?? [] };
   });
 }
@@ -193,6 +196,12 @@ export function MapScreen() {
             ? `Travel to ${selected.name}`
             : `Farm ${selected.name}`}
       </button>
+    );
+  } else if (selected.state === 'open' && selected.kind === 'dungeon') {
+    action = (
+      <a className="btn btn--brass" href={routeHref('crypt')}>
+        Go to the crypt door
+      </a>
     );
   } else if (selected.state === 'sealed') {
     action = <p className="ledger__why">The crypt door is sealed for now. Delving comes later.</p>;

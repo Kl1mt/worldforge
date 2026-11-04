@@ -295,6 +295,8 @@ export function describeGameFailure(error: Pick<ApiFailure, 'code'>): string {
       return 'Select this character before sending it out to farm.';
     case 'area_locked':
       return 'Your hero is not ready for that place yet. The map shows what it takes.';
+    case 'in_dungeon':
+      return 'Your hero is in the Nameless Crypt. Finish the run and claim it first.';
     case 'not_farming':
       return 'This character is not farming right now.';
     case 'insufficient_gold':

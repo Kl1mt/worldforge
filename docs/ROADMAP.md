@@ -221,7 +221,7 @@ GDD: §6.4, §11.1, §4.2. Needs 2.3.
 - **Web:** a Tavern screen (notice board), quest tracker on the area screen, turn-in flow.
 **Acceptance:** progress-from-events tests; double turn-in grants once (PGlite and PG); screenshots.
 
-### 2.5 The Nameless Crypt & the Gravewarden (vertical) — `todo`
+### 2.5 The Nameless Crypt & the Gravewarden (vertical) — `done (PR #29)`
 GDD: §6.4, §11.2, §4.3. Needs 2.3 and A.3.
 - **Rules:** a dungeon run is a sequence of encounters (e.g. 4 rooms) and the Gravewarden boss with its own mechanic (e.g. an enrage timer or a shield phase), resolved by the deterministic combat engine with a seed derived server-side. The run takes real time (minutes), so it is an active-play goal; it must not stack with farming (the character leaves the fields while in the crypt). Failure keeps nothing from the boss but never removes progress. The boss loot table has a guaranteed `gravewardenSeal`, better rarity odds and unique items.
 - **Server:** start run, settle and claim result (claim with `Idempotency-Key`); one run at a time per character; a daily or cooldown limit on boss loot. Defeating the Gravewarden sets `gravewardenDefeated` (unlocks Sunken Abbey).

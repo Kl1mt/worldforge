@@ -139,6 +139,25 @@ Gathering profession progress (game-core `ProfessionState`). A missing row means
 
 Written by settlement only, read before `settleFarming` and written back in the same transaction.
 
+### dungeon_runs — implemented (2.5)
+One dungeon run (`docs/DUNGEONS.md`). Claimed rows stay as history (the boss-loot cooldown reads them).
+| Column             | Type        | Notes                                                                 |
+| ------------------ | ----------- | --------------------------------------------------------------------- |
+| id                 | uuid PK     | uuidv7                                                                |
+| character_id       | uuid FK     | → `characters.id` `ON DELETE CASCADE`                                 |
+| account_id         | uuid FK     | → `accounts.id` `ON DELETE CASCADE`; partial unique where `claimed_at is null` (one open run per account) |
+| dungeon_id         | text        | game-core `DungeonId`                                                 |
+| seed_secret        | text        | 128 random bits; never sent to clients                                |
+| snapshot           | jsonb       | `{ classId, level, xp, equipment: [{ baseId, rarityId, itemLevel, affixes }] }` at the start |
+| boss_loot_eligible | boolean     | off cooldown at the start                                             |
+| started_at, ends_at | timestamptz | `CHECK (ends_at >= started_at)`; result claimable from `ends_at`     |
+| claimed_at         | timestamptz | null = open                                                           |
+| outcome            | text        | `cleared` / `failed`, set at the claim                                |
+| boss_loot_granted  | boolean     | drives the cooldown                                                   |
+| result             | jsonb       | the claim's result view                                               |
+| created_at         | timestamptz |                                                                       |
+Index `(character_id, started_at)`.
+
 ### character_quests — implemented (2.4)
 Quests a character accepted (story chain and daily contracts, `docs/QUESTS.md`).
 | Column        | Type        | Notes                                                                   |
@@ -189,6 +208,7 @@ The primary key is the state guard behind the idempotency key: even without the 
 ```
 account 1─* sessions
 account 1─* character 1─1 activity
+                     1─* dungeon_runs (≤ 1 unclaimed per account)
                      1─* item_instance (equipped_slot null = inventory)
                      1─* character_materials, 1─* character_professions
                      1─* character_quests

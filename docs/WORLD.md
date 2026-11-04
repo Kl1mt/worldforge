@@ -13,7 +13,7 @@ Ticket 2.1. Data and pure rules in `packages/game-core/src/world/` (areas, dunge
 | Dungeon `namelessCrypt` | 12–16 | level 12 | rooms: `cryptGhoul` 55, `boneAcolyte` 45; boss `gravewarden` (level 16) | boss drop `gravewardenSeal` | tier 2 ×2, tier 3 ×1 (11–17), 18 % item chance |
 
 - Each area overlaps the next by one level step (`next.minLevel = prev.maxLevel − 1`); the area's unlock level is its minimum enemy level.
-- `DungeonDefinition` is data only. Rooms, run timing, the boss mechanic and the boss loot table are ticket 2.5.
+- Rooms, run timing, the boss enrage and the boss loot (`gravewarden` table, boss-exclusive bases, cooldown) are data on `DungeonDefinition` since ticket 2.5; rules in `docs/DUNGEONS.md`.
 
 ## Enemies
 `EnemyDefinition` adds `undead` (undead drop `soulShard`, ticket 2.3) and `rank` (`normal` or `boss`) to the Phase 1 fields; `damageType` is the damage family (physical → armor, magic → resistance). Each enemy is in exactly one roster. Asset ids are `enemy.<kebab-case id>` (the three Phase 1 enemies keep their existing ids).

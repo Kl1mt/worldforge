@@ -3,6 +3,7 @@ export const GAME_ROUTES = [
   'hub',
   'map',
   'area',
+  'crypt',
   'character',
   'inventory',
   'tavern',
