@@ -10,6 +10,7 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | `apps/web/public/assets/{items,enemies,characters,areas}/` | Curated picks at **native resolution**, kebab-case names (`iron-helm.png`). |
 | `apps/web/public/assets/manifest.json` | One entry per curated asset (see below). |
 | `art/preview-phase-0.png` | Combined preview of all curated Phase 0 assets. |
+| `art/preview-class-portraits.png` | The four class portraits side by side at ×3. |
 | `tools/art/pixellab_gen.py` | Generate/collect/contact-sheet helper. |
 
 Curated files are byte-for-byte copies of a raw variant. Do not hand-edit them in place. If an asset needs fixing, save the edit as a new file and record it in the manifest `source`.
@@ -80,6 +81,12 @@ python3 tools/art/pixellab_gen.py generate --width 64 --height 64 \
   --prompt "dark fantasy pixel art, full body, bandit with hooded cloak, muted desaturated palette, transparent background" \
   --out art/source/pixellab/enemies-crowwood-01
 
+# Match an existing sprite's pixel scale, palette, outline and shading (sent as `style_image`)
+python3 tools/art/pixellab_gen.py generate --width 128 --height 128 \
+  --style-image apps/web/public/assets/characters/warrior.png \
+  --prompt "dark fantasy pixel art, full body, mage in frayed hooded arcane robes, ..." \
+  --out art/source/pixellab/character-mage-01
+
 # Collect a job that was already submitted (free)
 python3 tools/art/pixellab_gen.py collect --job <uuid> --prompt "<prompt used>" --out art/source/pixellab/<batch>
 
@@ -113,7 +120,10 @@ It uses only the async flow: it POSTs, then polls `GET /background-jobs/{id}` ev
 - The optional fields are `slot` (items, using the GDD §7.1 slot family: `weapon`, `offhand`, `head`, `chest`, `hands`, `feet`, `neck`, `ring`) and `facing` (sprites).
 - Content definitions (items, enemies) should reference art by manifest `id`, not by path.
 
+## Class portraits
+
+Each class has a 128×128 full-body portrait at `/assets/characters/<classId>.png` (manifest id `character.<classId>`). Mage, Hunter and Warlock were generated with the warrior as `style_image`, so they share its pixel scale and palette. The web app picks the portrait with `classPortrait(classId)` (`apps/web/src/content/assets.ts`). A test checks that every class in `CLASS_IDS` has one.
+
 ## Known gaps (Phase 0)
 
 - There are no icons yet for the `shoulders`, `legs` or `relic` slots. Generate them in a later icons batch when those slots appear in the UI.
-- There is only one character class illustration (Warrior). Mage, Hunter and Warlock art is not needed until class selection is built.

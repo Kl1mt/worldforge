@@ -1,6 +1,6 @@
 import { getClass } from '@worldforge/game-core';
 import { useActiveCharacter } from '../characters/CharactersProvider';
-import { asset } from '../content/assets';
+import { asset, classPortrait } from '../content/assets';
 import { ItemFrame } from '../components/ItemFrame';
 import { LabeledMeter, Meter } from '../components/Meter';
 import { PixelSprite } from '../components/PixelSprite';
@@ -13,7 +13,6 @@ import { AREA, COMBAT_LOG, ENEMIES, RECENT_DROPS, ROSTER, type LogEntry } from '
 import './area.css';
 
 const BACKDROP = asset('area.abandoned-fields');
-const HERO = asset('character.warrior');
 
 function Scene({ phone }: { phone: boolean }) {
   const hero = useActiveCharacter();
@@ -43,7 +42,7 @@ function Scene({ phone }: { phone: boolean }) {
         <div className="scene__ground" style={{ ['--px' as string]: `${spriteScale}px` }}>
           <div className="scene__hero">
             <PixelSprite
-              sprite={HERO}
+              sprite={classPortrait(hero.classId)}
               scale={spriteScale}
               alt={`${hero.name}, ${getClass(hero.classId).name.toLowerCase()}`}
             />

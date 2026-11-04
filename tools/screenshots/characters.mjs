@@ -1,5 +1,6 @@
 // Captures the ticket 1.3 character screens (first-hero creation, its error state, the roster
 // with a free slot, and the full roster) at desktop (1440) and mobile (390) widths.
+// Re-taken in ticket A.1 to show the class portraits.
 // Needs `pnpm dev` with a migrated database. Each viewport registers a new account; the
 // character names are fixed, so run it against a database where they are still free.
 //   node tools/screenshots/characters.mjs [baseUrl] [outDir]
@@ -18,8 +19,22 @@ try {
 const baseUrl = process.argv[2] ?? 'http://localhost:5173';
 const outDir = resolve(process.argv[3] ?? 'docs/screenshots/phase-1');
 const VIEWPORTS = [
-  { name: 'desktop', width: 1440, height: 900, heroes: ['Edric', 'Isolde'] },
-  { name: 'mobile', width: 390, height: 844, heroes: ['Maelis', 'Corvin'] },
+  // Desktop forges a warrior and a mage, mobile a hunter and a warlock, so every class portrait
+  // appears in the set.
+  {
+    name: 'desktop',
+    width: 1440,
+    height: 900,
+    heroes: ['Edric', 'Isolde'],
+    classes: ['Warrior', 'Mage'],
+  },
+  {
+    name: 'mobile',
+    width: 390,
+    height: 844,
+    heroes: ['Maelis', 'Corvin'],
+    classes: ['Hunter', 'Warlock'],
+  },
 ];
 
 async function shoot(page, vp, name) {
@@ -67,7 +82,7 @@ try {
     // No characters yet: the guard lands on character creation.
     await page.goto(`${baseUrl}/#/area`, { waitUntil: 'networkidle' });
     await page.getByRole('heading', { name: 'Forge your first hero' }).waitFor();
-    await forge(page, vp.heroes[0], 'Warrior', 'Ember');
+    await forge(page, vp.heroes[0], vp.classes[0], 'Ember');
     await page.getByLabel('Name', { exact: true }).fill('');
     await shoot(page, vp, 'character-create');
 
@@ -76,7 +91,7 @@ try {
     await page.locator('.field__error').waitFor();
     await shoot(page, vp, 'character-create-error');
 
-    await forge(page, vp.heroes[0], 'Warrior', 'Ember');
+    await forge(page, vp.heroes[0], vp.classes[0], 'Ember');
     await page.getByRole('button', { name: 'Forge hero' }).click();
     await page.waitForURL(/#\/area/);
     await page.locator('.purse__gold').waitFor();
@@ -86,7 +101,7 @@ try {
     await shoot(page, vp, 'character-select');
 
     await page.getByRole('button', { name: 'Forge a hero' }).click();
-    await forge(page, vp.heroes[1], 'Mage', 'Dusk');
+    await forge(page, vp.heroes[1], vp.classes[1], 'Dusk');
     await shoot(page, vp, 'character-create-second');
     await page.getByRole('button', { name: 'Forge hero' }).click();
     await page.waitForURL(/#\/area/);

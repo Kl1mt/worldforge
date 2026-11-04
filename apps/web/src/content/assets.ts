@@ -1,3 +1,5 @@
+import type { ClassId } from '@worldforge/game-core';
+
 /**
  * Typed registry of the curated Phase 0 art. Mirrors apps/web/public/assets/manifest.json
  * (a test keeps the two in sync), so components get paths and native sizes without a fetch.
@@ -14,6 +16,13 @@ const item = (name: string): SpriteAsset => ({
   path: `/assets/items/${name}.png`,
   width: 32,
   height: 32,
+});
+
+const character = (name: string): SpriteAsset => ({
+  path: `/assets/characters/${name}.png`,
+  width: 128,
+  height: 128,
+  facing: 'front',
 });
 
 export const ASSETS = {
@@ -47,12 +56,10 @@ export const ASSETS = {
     height: 64,
     facing: 'front',
   },
-  'character.warrior': {
-    path: '/assets/characters/warrior.png',
-    width: 128,
-    height: 128,
-    facing: 'front',
-  },
+  'character.warrior': character('warrior'),
+  'character.mage': character('mage'),
+  'character.hunter': character('hunter'),
+  'character.warlock': character('warlock'),
   'area.abandoned-fields': { path: '/assets/areas/abandoned-fields.png', width: 384, height: 216 },
 } as const satisfies Record<string, SpriteAsset>;
 
@@ -62,4 +69,9 @@ export type EnemyAssetId = Extract<AssetId, `enemy.${string}`>;
 
 export function asset(id: AssetId): SpriteAsset {
   return ASSETS[id];
+}
+
+/** The full-body portrait for a class (`character.<classId>`), used wherever a hero is drawn. */
+export function classPortrait(classId: ClassId): SpriteAsset {
+  return ASSETS[`character.${classId}`];
 }
