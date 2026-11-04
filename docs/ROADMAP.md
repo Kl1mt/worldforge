@@ -33,7 +33,7 @@ If a job has expired or failed, regenerate it once. Budget: at most 2 new jobs. 
 If 0.1 hasn't merged yet, create only the paths listed above; don't scaffold the app.
 **Acceptance:** assets and manifest are committed; one combined preview sheet is included in the PR description or the repo.
 
-### 0.3 Design system & visual prototype — `in progress`
+### 0.3 Design system & visual prototype — `done (PR #3)`
 GDD to read: §3 (all), §4.2, §5.2, §6.2, §7.1–7.2.
 - Design tokens (CSS custom properties): color (palette + rarity colors), typography (a display face used sparingly plus a highly readable body/numeric face), spacing, borders, panel treatments. Document them in `docs/DESIGN_SYSTEM.md`.
 - Static prototype screens driven by mock data and `game-core` definitions: navigation shell; the Abandoned Fields area screen (backdrop, enemies, a mock combat log); a character panel (warrior art, stats, equipment slots); an inventory grid; an item tooltip (rarity, affixes, comparison).
