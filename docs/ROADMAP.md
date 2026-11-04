@@ -70,7 +70,7 @@ GDD: §9.3, §16. Docs: `docs/TECH_STACK.md`, `docs/DATA_MODEL.md`.
 - Transaction helper, health check reports DB status.
 **Acceptance:** migrations apply from scratch; tests run in CI against the test DB; `docs/DATA_MODEL.md` updated.
 
-### 1.2 Accounts: registration & login — `todo`
+### 1.2 Accounts: registration & login — `done (PR #10)`
 GDD: §2.1, §5.3, §16.3.
 - API: register (email + display name + password), login, logout, current account. Passwords hashed with argon2id (or scrypt if argon2 is unavailable); httpOnly, secure, SameSite session cookie; session expiry and revocation on logout.
 - Validation and clear error envelope (see `docs/API_CONVENTIONS.md`); rate limiting on login/register; generic error messages for failed login (no account enumeration). Audit log entries for register/login.
