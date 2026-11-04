@@ -1,19 +1,32 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { getClass } from '@worldforge/game-core';
+import { getArea, getClass } from '@worldforge/game-core';
 import { formatNumber } from '../lib/format';
 import { useAuth } from '../auth/AuthProvider';
 import { routeHref, type GameRoute } from '../lib/route';
 import { useActiveCharacter } from '../characters/CharactersProvider';
 import { ReturnSummaryDialog } from '../game/ReturnSummary';
+import { useGame } from '../game/GameProvider';
 import { HealthLine } from './HealthLine';
 import { useLogout } from './useLogout';
 import './shell.css';
 
-const NAV: { route: GameRoute; label: string; hint: string }[] = [
-  { route: 'area', label: 'Fields', hint: 'Abandoned Fields' },
-  { route: 'character', label: 'Character', hint: 'Equipment & stats' },
-  { route: 'inventory', label: 'Pack', hint: 'Inventory' },
-];
+interface NavEntry {
+  route: GameRoute;
+  label: string;
+  hint: string;
+  /** Other routes that light this entry up (the town's buildings belong to the town). */
+  also?: GameRoute[];
+}
+
+function navEntries(areaName: string): NavEntry[] {
+  return [
+    { route: 'hub', label: 'Town', hint: 'Graumark', also: ['tavern', 'forge', 'merchant'] },
+    { route: 'map', label: 'Map', hint: 'Choose an area' },
+    { route: 'area', label: 'Area', hint: areaName },
+    { route: 'character', label: 'Character', hint: 'Equipment & stats' },
+    { route: 'inventory', label: 'Pack', hint: 'Inventory' },
+  ];
+}
 
 export function Shell({ route, children }: { route: GameRoute; children: ReactNode }) {
   const auth = useAuth();
@@ -21,6 +34,8 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
   const character = useActiveCharacter();
   const { leaving, error: logoutError, logout } = useLogout();
   const cls = getClass(character.classId);
+  const { areaId } = useGame();
+  const NAV = navEntries(getArea(areaId).name);
   const mainRef = useRef<HTMLElement>(null);
   const first = useRef(true);
 
@@ -40,7 +55,7 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
           <a
             href={routeHref(n.route)}
             className="nav__link"
-            aria-current={route === n.route ? 'page' : undefined}
+            aria-current={route === n.route || n.also?.includes(route) ? 'page' : undefined}
           >
             <span className="nav__label">{n.label}</span>
             {variant === 'top' ? <span className="nav__hint">{n.hint}</span> : null}
@@ -57,7 +72,7 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
       </a>
       <header className="topbar">
         <div className="topbar__inner">
-          <a className="wordmark display" href={routeHref('area')}>
+          <a className="wordmark display" href={routeHref('hub')}>
             Worldforge
           </a>
           <nav className="topbar__nav" aria-label="Main">

@@ -78,8 +78,10 @@ async function run(browser, vp) {
   await page.getByLabel('Name', { exact: true }).fill(vp.hero);
   await page.getByRole('radio', { name: new RegExp(`^${vp.className}`) }).check({ force: true });
   await page.getByRole('button', { name: 'Forge hero' }).click();
-  await page.waitForURL(/#\/area/);
-  await page.getByRole('button', { name: 'Farm the fields' }).waitFor();
+  // The hub is home (ticket 2.2); the area screen shows the Abandoned Fields until the hero travels.
+  await page.waitForURL(/#\/hub/);
+  await page.goto(`${baseUrl}/#/area`);
+  await page.getByRole('button', { name: 'Farm Abandoned Fields' }).waitFor();
   await shoot(page, vp, 'area-idle');
 
   await page.goto(`${baseUrl}/#/inventory`);
@@ -89,7 +91,7 @@ async function run(browser, vp) {
   // 3. Farm.
   step(vp, 'farm');
   await page.goto(`${baseUrl}/#/area`);
-  await page.getByRole('button', { name: 'Farm the fields' }).click();
+  await page.getByRole('button', { name: 'Farm Abandoned Fields' }).click();
   await page.getByRole('button', { name: new RegExp(`^Call ${vp.hero} back`) }).waitFor();
 
   // 4. Loot arrives through the settle poll (server time only).
@@ -148,7 +150,7 @@ async function run(browser, vp) {
   await back.getByLabel('Email').fill(email);
   await back.getByLabel('Password', { exact: true }).fill(PASSWORD);
   await back.getByRole('button', { name: 'Enter', exact: true }).click();
-  await back.waitForURL(/#\/(area|characters)/);
+  await back.waitForURL(/#\/(hub|area|characters)/);
   if (!/#\/area/.test(back.url())) await back.goto(`${baseUrl}/#/area`);
 
   // 7. The offline return summary: valid, capped progress from server time.

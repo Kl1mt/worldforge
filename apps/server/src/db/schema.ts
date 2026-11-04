@@ -20,6 +20,7 @@ import type {
   EquipmentSlotId,
   RarityId,
   RolledAffix,
+  WorldProgress,
 } from '@worldforge/game-core';
 
 /**
@@ -101,6 +102,14 @@ export const characters = pgTable(
      * Never sent to clients (it holds the seed secret). Null until the first activity ends.
      */
     farmState: jsonb('farm_state').$type<FarmState>(),
+    /**
+     * World progress that unlocks depend on besides the level (ticket 2.2, game-core
+     * `WorldProgress`). Written only by the server (the Gravewarden kill: ticket 2.5).
+     */
+    progress: jsonb('progress')
+      .$type<WorldProgress>()
+      .notNull()
+      .default({ gravewardenDefeated: false }),
     /** Optimistic-concurrency counter for later value-changing writes. */
     version: integer('version').notNull().default(0),
     ...timestamps,
@@ -164,6 +173,12 @@ export interface FarmState {
   cycleIndex: number;
   /** Health after the last completed cycle; null = full. */
   health: number | null;
+  /**
+   * Area of the cycle that was in progress when the activity ended (ticket 2.2). The next start
+   * replays that cycle there before travelling on, so stop → start elsewhere cannot re-roll it.
+   * Absent when the activity ended between cycles.
+   */
+  areaId?: AreaId;
 }
 
 /**
@@ -205,6 +220,11 @@ export const activities = pgTable(
       .references(() => accounts.id, { onDelete: 'cascade' }),
     /** game-core `AreaId`. */
     areaId: text('area_id').$type<AreaId>().notNull(),
+    /**
+     * Area switch requested while a cycle was in progress (ticket 2.2): that cycle finishes in
+     * `area_id`, then the settlement moves the activity here. Null = none.
+     */
+    pendingAreaId: text('pending_area_id').$type<AreaId>(),
     /**
      * Random secret (per character, carried over via `characters.farm_state`). Cycle `i` draws from
      * `${seedSecret}:${i}` (combat) and `${seedSecret}:loot:${i}` (loot). Never sent to clients.

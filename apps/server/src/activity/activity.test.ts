@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { and, count, eq, isNull } from 'drizzle-orm';
+import { and, count, eq, inArray, isNull } from 'drizzle-orm';
 import { DEFAULT_ACTIVITY_CONFIG } from '@worldforge/game-core';
 import { buildApp } from '../app.js';
 import { SESSION_COOKIE } from '../auth/index.js';
@@ -9,7 +9,8 @@ import type { DatabaseHandle } from '../db/types.js';
 import { uuidv7 } from '../db/uuid.js';
 import { createTestDatabase } from '../test/db.js';
 import { DEFAULT_ACTIVITY_OPTIONS, settleDueActivities, type ActivityOptions } from './settle.js';
-import type { SettleResponse } from './routes.js';
+import type { ActivityStateResponse, SettleResponse } from './routes.js';
+import type { WorldStateResponse } from '../world/routes.js';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -368,6 +369,8 @@ describe('hardening (ticket 1.9)', () => {
       seedSecret: before!.seedSecret,
       cycleIndex: before!.cycleIndex,
       health: before!.health,
+      // Stopped mid-cycle: that cycle stays bound to its area (ticket 2.2).
+      ...(before!.carryMs > 0 ? { areaId: 'abandonedFields' } : {}),
     });
     expect((await start(p, id)).statusCode).toBe(201);
     const [after] = await database.db
@@ -429,5 +432,200 @@ describe('hardening (ticket 1.9)', () => {
       expect(row!.settledAt.getTime()).toBe(nowMs);
       expect(row!.lastSeenAt.getTime()).toBe(nowMs);
     }
+  });
+});
+
+describe('areas & unlocks (ticket 2.2)', () => {
+  async function setLevel(id: string, level: number) {
+    await database.db.update(characters).set({ level, experience: 0 }).where(eq(characters.id, id));
+  }
+  async function activityRow(id: string) {
+    const [a] = await database.db.select().from(activities).where(eq(activities.characterId, id));
+    return a;
+  }
+  const world = async (p: Player, id: string) =>
+    (await call(p, 'GET', `/api/characters/${id}/world`)).json<WorldStateResponse>();
+
+  it('refuses a level-gated area with the blockers, and opens it at the level', async () => {
+    const p = await newPlayer();
+    const id = await newCharacter(p);
+    const res = await start(p, id, 'crowwood');
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error).toMatchObject({
+      code: 'area_locked',
+      details: { areaId: 'crowwood', blockers: [{ kind: 'level', required: 5 }] },
+    });
+    expect(await activityRow(id)).toBeUndefined();
+    await setLevel(id, 5);
+    expect((await start(p, id, 'crowwood')).statusCode).toBe(201);
+  });
+
+  it('refuses a locked area as a switch target too, keeping the current activity', async () => {
+    const { p, id } = await farmer();
+    advance(MIN);
+    const res = await start(p, id, 'blackwater');
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error.code).toBe('area_locked');
+    expect(await activityRow(id)).toMatchObject({ areaId: 'abandonedFields', pendingAreaId: null });
+  });
+
+  it('gates the Sunken Abbey on the Gravewarden, not only the level', async () => {
+    const p = await newPlayer();
+    const id = await newCharacter(p);
+    await setLevel(id, 20);
+    const res = await start(p, id, 'sunkenAbbey');
+    expect(res.statusCode).toBe(409);
+    expect(res.json().error.details.blockers).toEqual([{ kind: 'gravewardenDefeated' }]);
+    await database.db
+      .update(characters)
+      .set({ progress: { gravewardenDefeated: true } })
+      .where(eq(characters.id, id));
+    expect((await start(p, id, 'sunkenAbbey')).statusCode).toBe(201);
+  });
+
+  it('reports world state: locked places with reasons, and the current area', async () => {
+    const { p, id } = await farmer();
+    const w = await world(p, id);
+    expect(w).toMatchObject({
+      characterId: id,
+      level: 1,
+      progress: { gravewardenDefeated: false },
+      current: { areaId: 'abandonedFields', pendingAreaId: null },
+    });
+    expect(w.areas.map((a) => [a.id, a.unlocked])).toEqual([
+      ['abandonedFields', true],
+      ['crowwood', false],
+      ['oldBurialGrounds', false],
+      ['blackwater', false],
+      ['sunkenAbbey', false],
+    ]);
+    expect(w.areas[4]!.blockers).toEqual([
+      { kind: 'level', required: 17 },
+      { kind: 'gravewardenDefeated' },
+    ]);
+    expect(w.dungeons).toEqual([
+      {
+        id: 'namelessCrypt',
+        unlocked: false,
+        available: false,
+        blockers: [{ kind: 'level', required: 12 }],
+      },
+    ]);
+    expect((await call(await newPlayer(), 'GET', `/api/characters/${id}/world`)).statusCode).toBe(
+      404,
+    );
+    expect((await call(null, 'GET', `/api/characters/${id}/world`)).statusCode).toBe(401);
+  });
+
+  it('finishes the cycle in progress in the old area before switching', async () => {
+    const p = await newPlayer();
+    const id = await newCharacter(p);
+    await setLevel(id, 9);
+    expect((await start(p, id)).statusCode).toBe(201);
+    advance(5 * MIN + 1_234);
+    await settle(p, id);
+    const before = (await activityRow(id))!;
+    expect(before.carryMs).toBeGreaterThan(0); // mid-cycle
+    const res = await start(p, id, 'crowwood');
+    expect(res.statusCode).toBe(200);
+    expect(res.json<ActivityStateResponse>().activity).toMatchObject({
+      areaId: 'abandonedFields',
+      pendingAreaId: 'crowwood',
+    });
+    // Choosing the current area again cancels; choosing another replaces the target.
+    await start(p, id, 'abandonedFields');
+    expect((await activityRow(id))!.pendingAreaId).toBeNull();
+    await start(p, id, 'oldBurialGrounds');
+    expect((await activityRow(id))!.pendingAreaId).toBe('oldBurialGrounds');
+    expect((await activityRow(id))!.carryMs).toBe(before.carryMs);
+    advance(2 * MIN);
+    await settle(p, id);
+    const after = (await activityRow(id))!;
+    expect(after).toMatchObject({ areaId: 'oldBurialGrounds', pendingAreaId: null });
+    expect(after.cycleIndex).toBeGreaterThan(before.cycleIndex);
+    expect((await world(p, id)).current).toEqual({
+      areaId: 'oldBurialGrounds',
+      pendingAreaId: null,
+    });
+  });
+
+  it('a stop mid-cycle binds that cycle to its area for the next start', async () => {
+    const p = await newPlayer();
+    const id = await newCharacter(p);
+    await setLevel(id, 9);
+    await start(p, id);
+    advance(5 * MIN + 777);
+    await settle(p, id);
+    expect((await activityRow(id))!.carryMs).toBeGreaterThan(0);
+    await stop(p, id);
+    expect((await characterRow(id)).farmState?.areaId).toBe('abandonedFields');
+    const res = await start(p, id, 'crowwood');
+    expect(res.statusCode).toBe(201);
+    expect(res.json<ActivityStateResponse>().activity).toMatchObject({
+      areaId: 'abandonedFields',
+      pendingAreaId: 'crowwood',
+    });
+    // Re-targeting right away (no time in the cycle yet) cannot unbind it either.
+    await start(p, id, 'oldBurialGrounds');
+    expect(await activityRow(id)).toMatchObject({
+      areaId: 'abandonedFields',
+      pendingAreaId: 'oldBurialGrounds',
+    });
+  });
+
+  it('a switch gives the same result however often the client settles (invariance)', async () => {
+    // Same seed secret, class and level; one client settles every 5 s, the other only when it
+    // switches and at the end. Their characters and activities must end up identical.
+    const spam = await newPlayer();
+    const lazy = await newPlayer();
+    const ids = [await newCharacter(spam, 'mage'), await newCharacter(lazy, 'mage')];
+    for (const id of ids) await setLevel(id, 10);
+    expect((await start(spam, ids[0]!, 'crowwood')).statusCode).toBe(201);
+    expect((await start(lazy, ids[1]!, 'crowwood')).statusCode).toBe(201);
+    await database.db
+      .update(activities)
+      .set({ seedSecret: 'switch-invariance' })
+      .where(inArray(activities.characterId, ids));
+    const switches = new Map([
+      [84, 'oldBurialGrounds'], // 7 min
+      [85, 'abandonedFields'], // re-target while pending
+      [157, 'crowwood'], // 13 min 5 s
+    ]);
+    for (let step = 1; step <= 240; step++) {
+      advance(5_000);
+      const to = switches.get(step);
+      await settle(spam, ids[0]!);
+      if (to) {
+        await start(spam, ids[0]!, to);
+        await start(lazy, ids[1]!, to);
+      }
+    }
+    await settle(lazy, ids[1]!);
+    await settle(spam, ids[0]!);
+    const pick = async (id: string) => {
+      const c = await characterRow(id);
+      const a = (await activityRow(id))!;
+      const items = await database.db
+        .select({ baseId: itemInstances.baseId, seed: itemInstances.seed })
+        .from(itemInstances)
+        .where(eq(itemInstances.characterId, id))
+        .orderBy(itemInstances.seed);
+      return {
+        level: c.level,
+        experience: c.experience,
+        gold: c.gold,
+        items,
+        activity: {
+          areaId: a.areaId,
+          pendingAreaId: a.pendingAreaId,
+          cycleIndex: a.cycleIndex,
+          carryMs: a.carryMs,
+          health: a.health,
+        },
+      };
+    };
+    const [a, b] = [await pick(ids[0]!), await pick(ids[1]!)];
+    expect(a.experience + a.gold).toBeGreaterThan(0);
+    expect(a).toEqual(b);
   });
 });

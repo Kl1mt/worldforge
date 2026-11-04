@@ -282,13 +282,18 @@ a.purse__who:hover .purse__class {
 
   .nav--bottom {
     display: grid;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(5, 1fr);
   }
 
   .nav--bottom .nav__link {
     align-items: center;
     min-height: 56px;
     padding: 0;
+  }
+
+  /* Five tabs since ticket 2.2: one size down so "Character" keeps clear of its neighbours. */
+  .nav--bottom .nav__label {
+    font-size: var(--text-md);
   }
 
   .nav--bottom .nav__link[aria-current='page'] {

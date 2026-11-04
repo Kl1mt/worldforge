@@ -1,0 +1,322 @@
+/* World map (ticket 2.2): the parchment map with place markers, and the ledger of places. */
+.map__head {
+  margin-bottom: var(--space-5);
+}
+
+.map__region {
+  color: var(--brass-500);
+}
+
+.map__title {
+  font-size: var(--text-3xl);
+  line-height: var(--leading-tight);
+}
+
+.map__travel {
+  display: inline-block;
+  margin-top: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-left: 2px solid var(--brass-500);
+  background: var(--bg-sunken);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.map__travel strong {
+  color: var(--brass-300);
+  font-weight: 500;
+}
+
+.map__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px; /* set inline from the measured map width */
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.map__frame {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+}
+
+/* The map is pinned on dark wood: a wood border and a drop shadow, no iron. */
+.map__stage {
+  position: relative;
+  overflow: hidden;
+  max-width: 100%;
+  border: 6px solid var(--wood-700);
+  outline: 1px solid var(--outline-dark);
+  box-shadow:
+    inset 0 0 0 1px var(--wood-600),
+    var(--shadow-drop);
+  background: var(--ink-950);
+}
+
+.map__art {
+  position: absolute;
+  top: 0;
+}
+
+/* ── Markers: a wax-seal diamond with an ink label under it ──────────── */
+.marker {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 0;
+  border: 0;
+  background: none;
+  transform: translate(-50%, -7px);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+/* Pointer target at least 44 px, centred on the pin. */
+.marker::before {
+  content: '';
+  position: absolute;
+  top: -15px;
+  left: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translateX(-50%);
+}
+
+.marker__pin {
+  width: 14px;
+  height: 14px;
+  transform: rotate(45deg);
+  border: 2px solid var(--outline-dark);
+  background: var(--brass-400);
+  box-shadow: inset 0 0 0 2px var(--brass-600);
+}
+
+.marker__label {
+  padding: 1px var(--space-2);
+  background: rgb(12 10 9 / 0.78);
+  border: 1px solid var(--outline-dark);
+  color: var(--bone-100);
+  font-family: var(--font-display);
+  font-size: var(--text-sm);
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.marker--town .marker__pin {
+  background: var(--bone-200);
+  box-shadow: inset 0 0 0 2px var(--bone-400);
+}
+
+.marker--current .marker__pin {
+  width: 18px;
+  height: 18px;
+  background: var(--crimson-400);
+  box-shadow:
+    inset 0 0 0 2px var(--crimson-700),
+    0 0 0 2px var(--brass-300);
+}
+
+.marker--current .marker__label {
+  border-color: var(--crimson-500);
+  color: var(--bone-100);
+}
+
+.marker--next .marker__pin {
+  background: var(--brass-300);
+  box-shadow:
+    inset 0 0 0 2px var(--brass-500),
+    0 0 0 2px var(--crimson-400);
+}
+
+.marker--locked .marker__pin,
+.marker--sealed .marker__pin,
+.marker--unknown .marker__pin {
+  background: var(--iron-600);
+  box-shadow: inset 0 0 0 2px var(--iron-800);
+}
+
+.marker--locked .marker__label,
+.marker--unknown .marker__label {
+  color: var(--bone-300);
+}
+
+.marker--selected .marker__label {
+  border-color: var(--brass-400);
+  color: var(--brass-300);
+}
+
+.marker:hover .marker__label {
+  border-color: var(--brass-500);
+}
+
+/* ── Ledger ──────────────────────────────────────────────────────────── */
+.ledger__note {
+  margin-top: var(--space-3);
+  color: var(--text-dim);
+}
+
+.ledger__list {
+  display: grid;
+  gap: 2px;
+  margin: var(--space-3) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ledger__row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  grid-template-areas:
+    'name state'
+    'levels state';
+  align-items: center;
+  width: 100%;
+  min-height: 48px;
+  padding: var(--space-1) var(--space-3);
+  border: 0;
+  border-left: 3px solid transparent;
+  background: var(--bg-sunken);
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ledger__row:hover {
+  background: var(--ink-800);
+}
+
+.ledger__row[aria-pressed='true'] {
+  border-left-color: var(--brass-400);
+  background: var(--ink-750);
+}
+
+.ledger__row--locked .ledger__name,
+.ledger__row--sealed .ledger__name {
+  color: var(--text-dim);
+}
+
+.ledger__name {
+  grid-area: name;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+}
+
+.ledger__levels {
+  grid-area: levels;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.ledger__state {
+  grid-area: state;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.ledger__state--current {
+  color: var(--crimson-400);
+}
+
+.ledger__state--next,
+.ledger__state--open {
+  color: var(--brass-400);
+}
+
+.ledger__state--locked::before {
+  content: '';
+  display: inline-block;
+  width: 7px;
+  height: 6px;
+  margin-right: 5px;
+  border: 1px solid currentcolor;
+  border-top-width: 3px;
+}
+
+.ledger__detail {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.ledger__title {
+  font-size: var(--text-xl);
+  color: var(--accent-strong);
+}
+
+.ledger__desc {
+  margin-top: var(--space-1);
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.ledger__foes {
+  margin-top: var(--space-2);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.ledger__foes .caps {
+  margin-right: var(--space-2);
+}
+
+.ledger__action {
+  margin-top: var(--space-4);
+}
+
+.ledger__action .btn {
+  width: 100%;
+  justify-content: center;
+  min-height: 44px;
+}
+
+.ledger__why {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--iron-500);
+  background: var(--bg-sunken);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  list-style: none;
+}
+
+.ledger__alert {
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--crimson-400);
+  background: var(--crimson-800);
+  color: var(--bone-100);
+  font-size: var(--text-sm);
+}
+
+.ledger__alert .btn {
+  margin-top: var(--space-2);
+}
+
+@media (max-width: 1080px) {
+  .map__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .map__title {
+    font-size: var(--text-2xl);
+  }
+
+  .map__stage {
+    border-width: 3px;
+  }
+
+  .marker__pin {
+    width: 10px;
+    height: 10px;
+  }
+
+  .marker--current .marker__pin {
+    width: 12px;
+    height: 12px;
+  }
+}

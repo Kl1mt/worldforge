@@ -1,6 +1,12 @@
 import type { FastifyInstance } from 'fastify';
 import { and, eq, ne } from 'drizzle-orm';
-import { AREA_IDS, isAreaId, type AreaId } from '@worldforge/game-core';
+import {
+  AREA_IDS,
+  areaUnlockBlockers,
+  isAreaId,
+  requestAreaChange,
+  type AreaId,
+} from '@worldforge/game-core';
 import {
   accounts,
   activities,
@@ -26,7 +32,10 @@ import {
 /** Public activity shape. The seed secret and settlement counter never leave the server. */
 export interface ActivityView {
   characterId: string;
+  /** Area of the cycle in progress. */
   areaId: AreaId;
+  /** Area the character travels to once the cycle in progress completes (ticket 2.2); null = none. */
+  pendingAreaId: AreaId | null;
   startedAt: string;
   settledAt: string;
   /** Health carried between settlements (after the last simulated fight); null = full. */
@@ -37,6 +46,7 @@ export function activityView(a: Activity): ActivityView {
   return {
     characterId: a.characterId,
     areaId: a.areaId,
+    pendingAreaId: a.pendingAreaId,
     startedAt: a.startedAt.toISOString(),
     settledAt: a.settledAt.toISOString(),
     health: a.health,
@@ -88,6 +98,17 @@ async function ownedCharacter(
     .limit(1);
   if (!c) throw notFound();
   return c;
+}
+
+/** Refuses an area the character has not unlocked (server-side; never trust the client). */
+function assertAreaUnlocked(character: Character, areaId: AreaId): void {
+  const blockers = areaUnlockBlockers(areaId, { level: character.level }, character.progress);
+  if (blockers.length > 0) {
+    throw new ApiError(409, 'area_locked', 'This area is not open to this character yet.', {
+      areaId,
+      blockers,
+    });
+  }
 }
 
 /** Drains the summary: returns it and starts a fresh one at the settlement time. */
@@ -179,32 +200,54 @@ export async function registerActivities(
 
         const existing = await settleActivityTx(tx, characterId, options, { touch: true });
         if (existing) {
-          let activity = existing.activity;
-          if (activity.areaId !== areaId) {
-            const [switched] = await tx
+          // Unlocks use the level after settling: time before the request counts.
+          assertAreaUnlocked(existing.character, areaId);
+          const before = existing.activity;
+          const next = requestAreaChange(
+            { areaId: before.areaId, pendingAreaId: before.pendingAreaId, carryMs: before.carryMs },
+            areaId,
+          );
+          let activity = before;
+          if (next.areaId !== before.areaId || next.pendingAreaId !== before.pendingAreaId) {
+            const switchedNow = next.areaId !== before.areaId;
+            const [updated] = await tx
               .update(activities)
-              .set({ areaId, startedAt: activity.settledAt, carryMs: 0, updatedAt: options.now() })
+              .set({
+                areaId: next.areaId,
+                pendingAreaId: next.pendingAreaId,
+                ...(switchedNow ? { startedAt: before.settledAt } : {}),
+                updatedAt: options.now(),
+              })
               .where(eq(activities.characterId, characterId))
               .returning();
-            activity = switched!;
+            activity = updated!;
             await writeAudit(tx, {
               event: 'activity.start',
               accountId,
               characterId,
-              data: { areaId, from: existing.activity.areaId },
+              data: {
+                areaId,
+                from: before.areaId,
+                ...(switchedNow ? {} : { pending: next.pendingAreaId !== null }),
+              },
             });
           }
           return { created: false, activity, character: existing.character };
         }
 
         const now = options.now();
-        const farmState = initialFarmState(await ownedCharacter(tx, accountId, characterId));
+        const owned = await ownedCharacter(tx, accountId, characterId);
+        assertAreaUnlocked(owned, areaId);
+        const farmState = initialFarmState(owned);
+        // A cycle left unfinished by the last stop replays in its own area first (ticket 2.2).
+        const cycleArea = farmState.areaId ?? areaId;
         const [activity] = await tx
           .insert(activities)
           .values({
             characterId,
             accountId,
-            areaId,
+            areaId: cycleArea,
+            pendingAreaId: cycleArea === areaId ? null : areaId,
             seedSecret: farmState.seedSecret,
             cycleIndex: farmState.cycleIndex,
             settlementSeq: 0,

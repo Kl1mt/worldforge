@@ -8,7 +8,7 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { AreaId, EquipmentSlotId, StatBlock } from '@worldforge/game-core';
+import { getArea, type AreaId, type EquipmentSlotId, type StatBlock } from '@worldforge/game-core';
 import { useAuth } from '../auth/AuthProvider';
 import { useCharacters } from '../characters/CharactersProvider';
 import type { Character } from '../characters/api';
@@ -17,10 +17,12 @@ import {
   activityApi,
   describeGameFailure,
   inventoryApi,
+  worldApi,
   type Activity,
   type InventoryDto,
   type ReturnSummary,
   type SettleResult,
+  type WorldState,
 } from './api';
 import {
   appendChronicle,
@@ -53,6 +55,13 @@ export interface SessionTally {
 
 interface GameContextValue {
   activity: Load<Activity | null>;
+  /** Which places are open to the character (server-checked unlocks, ticket 2.2). */
+  world: Load<WorldState>;
+  /**
+   * The area the Area screen shows: the fight in progress, else the last area farmed this
+   * visit, else the Abandoned Fields.
+   */
+  areaId: AreaId;
   inventory: Load<Inventory>;
   chronicle: LogEntry[];
   tally: SessionTally;
@@ -62,7 +71,8 @@ interface GameContextValue {
   /** Start/stop in flight, and the last start/stop/settle failure to show. */
   farmBusy: boolean;
   farmError: string | null;
-  startFarming: (areaId: AreaId) => Promise<void>;
+  /** Resolves to whether the server accepted the start or switch. */
+  startFarming: (areaId: AreaId) => Promise<boolean>;
   stopFarming: () => Promise<void>;
   /** Item actions resolve to `null` on success or a sentence to show. */
   equip: (itemId: string, slot?: EquipmentSlotId) => Promise<string | null>;
@@ -101,12 +111,16 @@ export function GameProvider({
   const [attempt, setAttempt] = useState(0);
   const [activity, setActivity] = useState<Load<Activity | null>>({ kind: 'loading' });
   const [inventory, setInventory] = useState<Load<Inventory>>({ kind: 'loading' });
+  const [world, setWorld] = useState<Load<WorldState>>({ kind: 'loading' });
+  const [lastAreaId, setLastAreaId] = useState<AreaId>('abandonedFields');
   const [chronicle, setChronicle] = useState<LogEntry[]>([]);
   const [tally, setTally] = useState<SessionTally>(EMPTY_TALLY);
   const [returnSummary, setReturnSummary] = useState<ReturnSummary | null>(null);
   const [farmBusy, setFarmBusy] = useState(false);
   const [farmError, setFarmError] = useState<string | null>(null);
   const seq = useRef(0);
+  /** Area of the activity as last rendered, to notice a deferred switch arriving in a settle. */
+  const shownArea = useRef<AreaId | null>(null);
   const settling = useRef(false);
   const alive = useRef(true);
 
@@ -160,6 +174,17 @@ export function GameProvider({
         const res = await activityApi.settle(characterId);
         if (!alive.current) return;
         if (res.ok) {
+          const arrived = res.value.activity?.areaId;
+          if (arrived && shownArea.current && arrived !== shownArea.current) {
+            seq.current += 1;
+            const note: LogEntry = {
+              id: `${seq.current}:arrive`,
+              at: res.value.summary.until,
+              kind: 'note',
+              text: `${res.value.character.name} arrives in ${getArea(arrived).name}.`,
+            };
+            setChronicle((log) => appendChronicle(log, [note]));
+          }
           setActivity({ kind: 'ready', value: res.value.activity });
           setFarmError(null);
           absorb(res.value, asReturn);
@@ -207,7 +232,33 @@ export function GameProvider({
     return () => controller.abort();
   }, [attempt, characterId, settle, failed]);
 
+  // World state: on load, and again whenever the level changes (unlocks follow the level).
+  const level = character.level;
+  useEffect(() => {
+    const controller = new AbortController();
+    worldApi.get(characterId, { signal: controller.signal }).then(
+      (res) =>
+        setWorld((prev) =>
+          res.ok
+            ? { kind: 'ready', value: res.value }
+            : // Keep a good map on a failed refresh; only a first load shows the error.
+              prev.kind === 'ready'
+              ? prev
+              : { kind: 'error', message: failed(res.error) },
+        ),
+      () => {
+        /* aborted */
+      },
+    );
+    return () => controller.abort();
+  }, [attempt, characterId, level, failed]);
+
   const farming = activity.kind === 'ready' && activity.value !== null;
+  const currentAreaId = activity.kind === 'ready' ? activity.value?.areaId : undefined;
+  const areaId = currentAreaId ?? lastAreaId;
+  useEffect(() => {
+    shownArea.current = currentAreaId ?? null;
+  }, [currentAreaId]);
 
   // Poll while farming and visible; a long hidden spell counts as a return.
   useEffect(() => {
@@ -237,27 +288,43 @@ export function GameProvider({
       setFarmBusy(true);
       setFarmError(null);
       const res = await activityApi.start(characterId, areaId);
-      if (!alive.current) return;
+      if (!alive.current) return false;
       setFarmBusy(false);
       if (!res.ok) {
         setFarmError(failed(res.error));
-        return;
+        return false;
       }
-      setActivity({ kind: 'ready', value: res.value.activity });
+      const before = activity.kind === 'ready' ? activity.value : null;
+      const next = res.value.activity;
+      setActivity({ kind: 'ready', value: next });
       updateCharacter(res.value.character);
+      const name = res.value.character.name;
+      const target = getArea(areaId).name;
+      let text: string | null;
+      if (next?.pendingAreaId) {
+        text = `${name} will set out for ${target} once this fight is over.`;
+      } else if (before?.pendingAreaId && next?.areaId === before.areaId) {
+        text = `${name} stays in ${getArea(next.areaId).name}.`;
+      } else if (before?.areaId === next?.areaId) {
+        text = null; // Already there.
+      } else {
+        text = before ? `${name} travels to ${target}.` : `${name} sets out for ${target}.`;
+      }
+      if (text === null) return true;
       seq.current += 1;
       setChronicle((log) =>
         appendChronicle(log, [
           {
             id: `${seq.current}:start`,
-            at: res.value.activity?.startedAt ?? new Date().toISOString(),
+            at: new Date().toISOString(),
             kind: 'note',
-            text: `${res.value.character.name} walks into the fields.`,
+            text,
           },
         ]),
       );
+      return true;
     },
-    [characterId, failed, updateCharacter],
+    [activity, characterId, failed, updateCharacter],
   );
 
   const stopFarming = useCallback(async () => {
@@ -272,6 +339,7 @@ export function GameProvider({
       return;
     }
     absorb(res.value, false);
+    setLastAreaId(areaId);
     setActivity({ kind: 'ready', value: null });
     seq.current += 1;
     setChronicle((log) =>
@@ -280,11 +348,11 @@ export function GameProvider({
           id: `${seq.current}:stop`,
           at: res.value.summary.until,
           kind: 'note',
-          text: `${res.value.character.name} leaves the fields to rest.`,
+          text: `${res.value.character.name} leaves ${getArea(areaId).name} to rest.`,
         },
       ]),
     );
-  }, [characterId, absorb, failed]);
+  }, [characterId, absorb, failed, areaId]);
 
   const itemAction = useCallback(
     async (run: () => Promise<ApiResult<InventoryDto>>): Promise<string | null> => {
@@ -317,6 +385,7 @@ export function GameProvider({
 
   const reload = useCallback(() => {
     setActivity({ kind: 'loading' });
+    setWorld({ kind: 'loading' });
     setInventory({ kind: 'loading' });
     setAttempt((n) => n + 1);
   }, []);
@@ -325,6 +394,8 @@ export function GameProvider({
   const value = useMemo<GameContextValue>(
     () => ({
       activity,
+      world,
+      areaId,
       inventory,
       chronicle,
       tally,
@@ -341,6 +412,8 @@ export function GameProvider({
     }),
     [
       activity,
+      world,
+      areaId,
       inventory,
       chronicle,
       tally,

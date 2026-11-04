@@ -1,5 +1,14 @@
 /** Game screens; they need a logged-in account with an active character. */
-export const GAME_ROUTES = ['area', 'character', 'inventory'] as const;
+export const GAME_ROUTES = [
+  'hub',
+  'map',
+  'area',
+  'character',
+  'inventory',
+  'tavern',
+  'forge',
+  'merchant',
+] as const;
 /** The gate: only shown to visitors without a session. */
 export const AUTH_ROUTES = ['login', 'register'] as const;
 /** Character select and creation: needs an account, but not an active character. */
@@ -10,7 +19,8 @@ export type GameRoute = (typeof GAME_ROUTES)[number];
 export type AuthRoute = (typeof AUTH_ROUTES)[number];
 export type Route = (typeof ROUTES)[number];
 
-export const DEFAULT_ROUTE: GameRoute = 'area';
+/** The hub is home (ticket 2.2). */
+export const DEFAULT_ROUTE: GameRoute = 'hub';
 export const LOGIN_ROUTE: AuthRoute = 'login';
 
 /** Parses `#/character` style hashes. Unknown or empty hashes fall back to the default route. */

@@ -203,6 +203,31 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
     expect(rows.length).toBeLessThanOrEqual(1);
   });
 
+  it('never credits time twice when area switches and settles race (ticket 2.2)', async () => {
+    const { p, id } = await farmer();
+    await database.db.update(characters).set({ level: 10 }).where(eq(characters.id, id));
+    advance(HOUR + 1_234);
+    const base = `/api/characters/${id}/activity`;
+    const targets = ['crowwood', 'oldBurialGrounds', 'abandonedFields', 'crowwood'] as const;
+    const results = await Promise.all([
+      ...targets.map((areaId) => call(p, 'POST', base, { areaId })),
+      call(p, 'POST', `${base}/settle`),
+      call(p, 'POST', `${base}/settle`),
+    ]);
+    expect(results.map((r) => r.statusCode)).toEqual(Array(results.length).fill(200));
+    const sums = await audited(id);
+    expect(sums.creditedMs).toBe(HOUR + 1_234);
+    const rows = await database.db.select().from(activities).where(eq(activities.characterId, id));
+    expect(rows).toHaveLength(1);
+    const row = rows[0]!;
+    // Either the switch happened between cycles, or it is pending behind the cycle in progress.
+    expect(['abandonedFields', 'crowwood', 'oldBurialGrounds']).toContain(row.areaId);
+    if (row.pendingAreaId !== null) {
+      expect(row.carryMs).toBeGreaterThan(0);
+      expect(row.pendingAreaId).not.toBe(row.areaId);
+    }
+  });
+
   it('keeps one activity per account when starts race', async () => {
     const p = await newPlayer();
     const id = await newCharacter(p);

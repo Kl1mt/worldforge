@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activityApi, describeGameFailure, inventoryApi } from './api';
+import { activityApi, describeGameFailure, inventoryApi, worldApi } from './api';
 
 function recorder() {
   const calls: { url: string; method: string; body: unknown }[] = [];
@@ -42,9 +42,11 @@ describe('game api', () => {
     const { calls, f } = recorder();
     await activityApi.get(C, {}, f);
     await inventoryApi.get(C, {}, f);
+    await worldApi.get(C, {}, f);
     expect(calls.map((c) => `${c.method} ${c.url}`)).toEqual([
       `GET /api/characters/${C}/activity`,
       `GET /api/characters/${C}/inventory`,
+      `GET /api/characters/${C}/world`,
     ]);
   });
 });
@@ -53,6 +55,7 @@ describe('describeGameFailure', () => {
   it('maps server codes to player-facing text', () => {
     expect(describeGameFailure({ code: 'wrong_class' })).toMatch(/class cannot use/);
     expect(describeGameFailure({ code: 'item_equipped' })).toMatch(/Take the item off/);
+    expect(describeGameFailure({ code: 'area_locked' })).toMatch(/not ready/);
     expect(describeGameFailure({ code: 'network' })).toMatch(/cannot be reached/);
     expect(describeGameFailure({ code: 'something_new' })).toMatch(/on our side/);
   });

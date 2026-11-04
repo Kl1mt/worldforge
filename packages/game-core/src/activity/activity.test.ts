@@ -4,8 +4,11 @@ import {
   equipmentModifiers,
   generateItem,
   itemContribution,
+  requestAreaChange,
   salvageValue,
   settleFarming,
+  type ActivityAreaState,
+  type AreaId,
   type GeneratedItem,
   type SettleFarmingInput,
 } from '../index.js';
@@ -188,6 +191,160 @@ describe('settleFarming', () => {
       expect(settleInSteps('cap', total, 5_000, cap - 3)).toEqual(
         settleInSteps('cap', total, total, cap - 3),
       );
+    });
+  });
+});
+
+/**
+ * Area switches mid-cycle (ticket 2.2, closes the accepted risk of PR #18). The cycle in progress
+ * finishes in the area where it started; the switch applies at its end. A run with a switch must
+ * not depend on how often the client settles, and the switch target must not change the cycle that
+ * was already running.
+ */
+describe('area switches', () => {
+  const MIN = 60 * 1000;
+  type Totals = { kills: number; deaths: number; xp: number; gold: number; items: GeneratedItem[] };
+
+  /**
+   * Plays the server's sequence: settle at every time in `settleAt`; at `switchAt` settle, then
+   * `requestAreaChange(target)`. Returns the totals and the state at `endMs`.
+   */
+  function run(opts: {
+    seed: string;
+    endMs: number;
+    settleEveryMs: number;
+    switches: { atMs: number; to: AreaId }[];
+  }) {
+    let character: SettleFarmingInput['character'] = { classId: 'mage', level: 10, xp: 0 };
+    let area: ActivityAreaState = { areaId: 'crowwood', pendingAreaId: null, carryMs: 0 };
+    let firstCycle = 0;
+    let held = 0;
+    let last = 0;
+    const totals: Totals = { kills: 0, deaths: 0, xp: 0, gold: 0, items: [] };
+    const settle = (t: number) => {
+      const s = settleFarming(
+        input({
+          seed: opts.seed,
+          character,
+          areaId: area.areaId,
+          ...(area.pendingAreaId ? { switchToAreaId: area.pendingAreaId } : {}),
+          firstCycle,
+          inventoryCount: held,
+          durationMs: area.carryMs + (t - last),
+        }),
+      );
+      last = t;
+      area = {
+        areaId: s.areaId,
+        pendingAreaId: s.switched ? null : area.pendingAreaId,
+        carryMs: s.unusedMs,
+      };
+      firstCycle += s.encounters;
+      held += s.items.length;
+      totals.kills += s.kills;
+      totals.deaths += s.deaths;
+      totals.xp += s.xpGained;
+      totals.gold += s.goldLooted + s.goldSalvaged;
+      totals.items.push(...s.items);
+      character = { classId: 'mage', level: s.level, xp: s.xp, health: s.health };
+    };
+    const events = [
+      ...opts.switches.map((sw) => ({ t: sw.atMs, to: sw.to as AreaId | null })),
+      ...Array.from({ length: Math.floor(opts.endMs / opts.settleEveryMs) }, (_, i) => ({
+        t: (i + 1) * opts.settleEveryMs,
+        to: null as AreaId | null,
+      })),
+      { t: opts.endMs, to: null },
+    ].sort((a, b) => a.t - b.t || (a.to === null ? -1 : 1));
+    for (const e of events) {
+      settle(e.t);
+      if (e.to) area = requestAreaChange(area, e.to);
+    }
+    return { ...totals, character, area, firstCycle };
+  }
+
+  it('gives the same result however often the client settles around switches', () => {
+    for (const seed of ['sw-1', 'sw-2', 'sw-3']) {
+      const switches = [
+        { atMs: 7 * MIN + 1_234, to: 'oldBurialGrounds' as const },
+        { atMs: 7 * MIN + 1_500, to: 'abandonedFields' as const }, // re-targets while pending
+        { atMs: 13 * MIN + 77, to: 'crowwood' as const },
+      ];
+      const once = run({ seed, endMs: 20 * MIN, settleEveryMs: 20 * MIN, switches });
+      expect(once.kills).toBeGreaterThan(0);
+      for (const step of [1_000, 3_333, 60_000]) {
+        expect(run({ seed, endMs: 20 * MIN, settleEveryMs: step, switches })).toEqual(once);
+      }
+    }
+  });
+
+  it('does not let the switch target change the cycle in progress', () => {
+    const base = input({ character: { classId: 'mage', level: 10, xp: 0 }, areaId: 'crowwood' });
+    // A window that ends mid-cycle: the switch would become pending here.
+    const partial = settleFarming({ ...base, durationMs: 4 * MIN + 500 });
+    expect(partial.unusedMs).toBeGreaterThan(0);
+    const next = { ...base, firstCycle: partial.encounters, durationMs: 10 * MIN };
+    next.character = {
+      classId: 'mage',
+      level: partial.level,
+      xp: partial.xp,
+      health: partial.health,
+    };
+    const toGrave = settleFarming({ ...next, switchToAreaId: 'oldBurialGrounds' });
+    const toFields = settleFarming({ ...next, switchToAreaId: 'abandonedFields' });
+    expect(toGrave.switched).toBe(true);
+    expect(toGrave.switchedAtMs).toBe(toFields.switchedAtMs);
+    // Settling exactly the first cycle: identical to staying in Crowwood.
+    const firstOnly = { ...next, durationMs: toGrave.switchedAtMs! };
+    const stay = settleFarming(firstOnly);
+    // Everything but the area bookkeeping (and the per-roster kill map) must match.
+    const core = (r: ReturnType<typeof settleFarming>) => {
+      const copy: Partial<typeof r> = { ...r };
+      delete copy.areaId;
+      delete copy.killsByEnemy;
+      delete copy.switched;
+      delete copy.switchedAtMs;
+      return copy;
+    };
+    for (const target of ['oldBurialGrounds', 'abandonedFields'] as const) {
+      const r = settleFarming({ ...firstOnly, switchToAreaId: target });
+      expect(r.areaId).toBe(target);
+      expect(core(r)).toEqual(core(stay));
+    }
+  });
+
+  it('does not switch until the cycle in progress completes', () => {
+    const r = settleFarming(input({ switchToAreaId: 'crowwood', durationMs: 1_000 }));
+    expect(r).toMatchObject({ areaId: 'abandonedFields', switched: false, encounters: 0 });
+    expect(r.unusedMs).toBe(1_000);
+  });
+
+  describe('requestAreaChange', () => {
+    const state = (carryMs: number, pendingAreaId: AreaId | null = null): ActivityAreaState => ({
+      areaId: 'abandonedFields',
+      pendingAreaId,
+      carryMs,
+    });
+    it('switches at once between cycles', () => {
+      expect(requestAreaChange(state(0), 'crowwood')).toEqual({
+        areaId: 'crowwood',
+        pendingAreaId: null,
+        carryMs: 0,
+      });
+    });
+    it('defers the switch while a cycle is in progress', () => {
+      expect(requestAreaChange(state(5), 'crowwood').pendingAreaId).toBe('crowwood');
+      expect(requestAreaChange(state(5, 'crowwood'), 'blackwater').pendingAreaId).toBe(
+        'blackwater',
+      );
+      // A bound cycle with no time in it yet (restart after a mid-cycle stop) stays bound.
+      expect(requestAreaChange(state(0, 'crowwood'), 'blackwater')).toEqual(state(0, 'blackwater'));
+    });
+    it('cancels a pending switch when the current area is chosen again', () => {
+      expect(requestAreaChange(state(5, 'crowwood'), 'abandonedFields')).toEqual(state(5));
+    });
+    it('rejects an invalid carry', () => {
+      expect(() => requestAreaChange(state(-1), 'crowwood')).toThrow(RangeError);
     });
   });
 });

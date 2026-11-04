@@ -43,6 +43,11 @@ export interface FarmingInput {
    * unfinished cycle (ticket 1.9). Offline settlement always sets it.
    */
   firstCycle?: number;
+  /**
+   * Stop after this many committed cycles (ticket 2.2: an area switch lets the cycle in progress
+   * finish in the old area first). The rest of the window comes back as `unusedMs`.
+   */
+  maxCycles?: number;
 }
 
 /** A committed cycle, reported to `SimulationOptions.onCycle`. */
@@ -147,6 +152,12 @@ function validateInput(input: FarmingInput, config: CombatConfig): void {
   if (!Number.isInteger(durationMs) || durationMs < 0 || durationMs > config.maxDurationMs) {
     throw new RangeError(`Invalid duration: ${durationMs}`);
   }
+  if (
+    input.maxCycles !== undefined &&
+    (!Number.isInteger(input.maxCycles) || input.maxCycles < 0)
+  ) {
+    throw new RangeError(`Invalid maxCycles: ${input.maxCycles}`);
+  }
 }
 
 /**
@@ -189,7 +200,9 @@ function runFarming(
   let damageTaken = 0;
   let xpGained = 0;
 
+  const maxCycles = input.maxCycles ?? Infinity;
   for (;;) {
+    if (encounters >= maxCycles) break;
     const cycleStart = now;
     if (buffer) buffer.length = 0;
 
