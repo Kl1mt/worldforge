@@ -847,6 +847,42 @@
       "slot": "ring"
     },
     {
+      "id": "item.gravewardens-cowl",
+      "path": "/assets/items/gravewardens-cowl.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, crypt warden boss loot: hooded grave-warden cowl helm of dark iron with a grave-gold crypt key emblem on the brow; heavy grave-gold signet ring with a dark wax-black seal stone engraved with a sealed crypt door; necklace chain of linked bones and vertebrae with a small grave-gold key pendant, weathered aged brass and old bone, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-boss-uniques-01/06.png",
+      "slot": "head"
+    },
+    {
+      "id": "item.seal-of-the-nameless",
+      "path": "/assets/items/seal-of-the-nameless.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, crypt warden boss loot: a single heavy signet ring seen from the front, large flat grave-gold seal face engraved with a keyhole and skull, deep crimson wax on the seal, only one ring; necklace of linked pale bone segments and small vertebrae on dark iron links, an old iron crypt key hanging as the pendant, weathered aged brass and old yellowed bone, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-boss-uniques-02/08.png",
+      "slot": "ring"
+    },
+    {
+      "id": "item.wardens-bone-chain",
+      "path": "/assets/items/wardens-bone-chain.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, crypt warden boss loot: hooded grave-warden cowl helm of dark iron with a grave-gold crypt key emblem on the brow; heavy grave-gold signet ring with a dark wax-black seal stone engraved with a sealed crypt door; necklace chain of linked bones and vertebrae with a small grave-gold key pendant, weathered aged brass and old bone, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-boss-uniques-01/23.png",
+      "slot": "neck"
+    },
+    {
       "id": "material.timber",
       "path": "/assets/materials/timber.png",
       "kind": "material",
