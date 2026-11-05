@@ -472,6 +472,7 @@ describe('set pieces (ticket 3.3)', () => {
       effectRoll: null,
       mythicId: null,
       setId: 'drowned-vigil',
+      variant: null,
     });
     const id = uuidv7();
     await database.db.insert(itemInstances).values({

@@ -489,6 +489,45 @@ describe('the Nameless Crypt (ticket 2.5)', () => {
     expect(replayRun(run!)).toEqual(upgraded);
   });
 
+  it('snapshots the Void variant at the start; older snapshots replay without it (ticket 3.5)', async () => {
+    const { p, id } = await hero('warrior', 16);
+    // The hero's gear as Void Legendaries (Void applies only on Legendary and Mythic items).
+    await database.db
+      .update(itemInstances)
+      .set({ rarityId: 'legendary', variant: 'void' })
+      .where(and(eq(itemInstances.characterId, id), isNotNull(itemInstances.equippedSlot)));
+    expect((await enter(p, id)).statusCode).toBe(201);
+    await pinSeed(id, 'void-pinned');
+    const [run] = await database.db
+      .select()
+      .from(dungeonRuns)
+      .where(and(eq(dungeonRuns.characterId, id), isNull(dungeonRuns.claimedAt)));
+    expect(run!.snapshot.equipment.length).toBeGreaterThan(0);
+    expect(run!.snapshot.equipment.every((e) => e.variant === 'void')).toBe(true);
+    const withVoid = replayRun(run!);
+    const plain = replayRun({
+      ...run!,
+      snapshot: {
+        ...run!.snapshot,
+        equipment: run!.snapshot.equipment.map((e) => ({ ...e, variant: null })),
+      },
+    });
+    expect(withVoid.events).not.toEqual(plain.events);
+    const legacy = replayRun({
+      ...run!,
+      snapshot: {
+        ...run!.snapshot,
+        equipment: run!.snapshot.equipment.map(({ variant: _, ...e }) => e),
+      },
+    });
+    expect(legacy).toEqual(plain);
+    await database.db
+      .update(itemInstances)
+      .set({ variant: null })
+      .where(eq(itemInstances.characterId, id));
+    expect(replayRun(run!)).toEqual(withVoid);
+  });
+
   it('parallel claims grant once (same key: one result; other keys: refused)', async () => {
     const { p, id } = await hero();
     const run = (await enter(p, id)).json<{ run: DungeonRunView }>().run;

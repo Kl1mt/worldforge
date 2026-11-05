@@ -200,6 +200,14 @@ function Scene({ view, phone, farming }: { view: AreaView; phone: boolean; farmi
   );
 }
 
+/** "A Legendary find", "A Void set piece surfaces", … (tickets 3.2, 3.3, 3.5). */
+function chaseHeadline(entry: { rarity: string; set: string | null; variant: string | null }) {
+  const v = entry.variant ? `${entry.variant} ` : '';
+  if (entry.rarity === 'mythic') return `A ${v}Mythic surfaces`;
+  if (entry.set) return `A ${v}set piece surfaces`;
+  return `A ${v}Legendary find`;
+}
+
 function LogLine({ entry }: { entry: LogEntry }) {
   switch (entry.kind) {
     case 'kill':
@@ -220,14 +228,7 @@ function LogLine({ entry }: { entry: LogEntry }) {
     case 'chase':
       return (
         <>
-          <span className={`log__chase rarity-${entry.rarity}`}>
-            {entry.rarity === 'mythic'
-              ? 'A Mythic surfaces'
-              : entry.set
-                ? 'A set piece surfaces'
-                : 'A Legendary find'}
-            :
-          </span>{' '}
+          <span className={`log__chase rarity-${entry.rarity}`}>{chaseHeadline(entry)}:</span>{' '}
           <span className={`log__loot rarity-${entry.rarity}`}>[{entry.item}]</span>
           {entry.effect ? <span className="log__dim"> · {entry.effect}</span> : null}
           {entry.set ? <span className="log__dim"> · {entry.set}</span> : null}

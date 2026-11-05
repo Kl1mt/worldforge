@@ -28,6 +28,10 @@ import {
  * Ticket 3.4 runs them once more with every kit item at +0 carrying forge state: an explicit
  * `upgradeLevel: 0`, pity and reroll counters, and affixes marked `improvements: 0` /
  * `rerolled: true`. Only the upgrade level changes stats, and +0 must change nothing.
+ *
+ * Ticket 3.5 runs them again with an explicit `variant: null` on every kit item, and with a stray
+ * `variant: 'void'` on the epic and rare kits (Void exists only on Legendaries and Mythics, so it
+ * must do nothing there). Void Legendary and Mythic drops fall under the drop exclusion above.
  */
 const BEFORE_EFFECTS: Record<string, string> = {
   'settle:warrior:abandonedFields': '1273120753d9015e',
@@ -116,10 +120,19 @@ const forgedAtPlusZero = (items: GeneratedItem[]) =>
     affixes: item.affixes.map((a, j) => ({ ...a, improvements: 0, rerolled: (i + j) % 2 === 0 })),
   }));
 
+/** Ticket 3.5: no variant, stated explicitly (the column's null). */
+const noVariant = (items: GeneratedItem[]) => items.map((item) => ({ ...item, variant: null }));
+
+/** Ticket 3.5: a Void flag on items that cannot be Void (epic and rare kits) does nothing. */
+const strayVoid = (items: GeneratedItem[]) =>
+  items.map((item) => ({ ...item, variant: 'void' as const }));
+
 describe.each([
   ['no effects equipped (ticket 3.2)', (items: GeneratedItem[]) => items],
   ['set ids that cannot count (ticket 3.3)', forgedSetIds],
   ['+0 items with forge state (ticket 3.4)', forgedAtPlusZero],
+  ['no variant (ticket 3.5)', noVariant],
+  ['a Void flag on items that cannot be Void (ticket 3.5)', strayVoid],
 ])('%s', (_, dress) => {
   it('farming, detailed simulation and the crypt give exactly the pre-3.2 results', () => {
     const kit = (classId: ClassId, itemLevel: number, rarityId: RarityId) => {
@@ -190,4 +203,20 @@ it('the +0 check can fail: the same kit at +5 changes the settlement (ticket 3.4
       }),
     );
   expect(run(5)).not.toBe(run(0));
+});
+
+it('the Void check can fail: the same kit as Void Legendaries changes the settlement (ticket 3.5)', () => {
+  const run = (variant: 'void' | null) =>
+    hash(
+      settleFarming({
+        character: { classId: 'warrior', level: 19, xp: 0 },
+        equipment: plainKit('warrior', 18, 'legendary').map((i) => ({ ...i, variant })),
+        areaId: 'sunkenAbbey',
+        seed: 'fp:warrior',
+        firstCycle: 0,
+        durationMs: 3_600_000,
+        inventoryCount: 0,
+      }),
+    );
+  expect(run('void')).not.toBe(run(null));
 });

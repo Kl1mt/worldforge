@@ -3,6 +3,7 @@ import { affixPossibleOn, findAffix } from '../items/affixes.js';
 import { findItemBase, type ItemBaseDefinition } from '../items/bases.js';
 import { findMythic, mythicForBase } from '../items/mythics.js';
 import { findSet, setForBase } from '../items/sets.js';
+import { findItemVariant } from '../items/variants.js';
 import { findEffect } from '../effects/registry.js';
 import { EFFECT_ROLL_STEPS, legendaryEffectPossibleOn } from '../effects/resolve.js';
 import { DEFAULT_LOOT_CONFIG, type LootConfig } from './config.js';
@@ -81,16 +82,28 @@ export function validateItem(
       );
     }
   }
+  errors.push(...variantErrors(item));
   errors.push(...setErrors(item, base));
   if (item.setId !== undefined) return errors;
   errors.push(...effectErrors(item, base));
   return errors;
 }
 
+/** Ticket 3.5: a variant must be known and allowed on the item's rarity (Void: Legendary, Mythic). */
+function variantErrors(item: GeneratedItem): string[] {
+  const id: unknown = item.variant;
+  if (id === undefined || id === null) return [];
+  const variant = findItemVariant(id);
+  if (!variant) return [`unknown variant ${String(id)}`];
+  return variant.rarities.includes(item.rarityId)
+    ? []
+    : [`variant ${variant.id} on a ${item.rarityId} item`];
+}
+
 /**
  * Ticket 3.3: a set base must carry its set, and a set piece is a Legendary on one of its set's
  * bases, without an effect of its own. (Void, ticket 3.5, is a column of its own and changes none
- * of this.)
+ * of this: a Void piece is the same piece.)
  */
 function setErrors(item: GeneratedItem, base: ItemBaseDefinition): string[] {
   const errors: string[] = [];

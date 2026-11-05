@@ -1,4 +1,4 @@
-# Unique effects: Legendaries, Mythics (ticket 3.2), set bonuses (ticket 3.3)
+# Unique effects: Legendaries, Mythics (ticket 3.2), set bonuses (ticket 3.3), Void (ticket 3.5)
 
 One data-driven effect system in `packages/game-core/src/effects/`. Legendary effects and Mythic signatures (3.2), set bonuses (3.3) and the rare Void modification of a Legendary (3.5) all go through it. Both combat simulations read the same combined numbers, so the detailed/aggregate equivalence and split-invariance hold with effects.
 
@@ -84,6 +84,28 @@ Every piece is named "<Piece> of <Set>", e.g. "Helm of the Drowned Vigil". The s
 Sets move the cliff more than single effects: a full Vigil or Choir turns the level-12 entry into a certain win for every class, the 4-piece Vigil does so for warrior and hunter (fortitude at 70 % on top of thorns), and the hunter again sits closest (Choir 4: 88 %). The farming set (Bloodmoon) doesn't move it. In practice the pieces need item level 14 and drop only in late-game sources, so a hero holding four or six of them is past the entry anyway; the cliff itself is for 3.6/B.2.
 
 **Known limits.** The Ashen Choir is a crit and boss set: on low-crit kits its 2- and 4-piece bonuses barely register while farming. The hunter's perfect Legendary build (Ambush + stacked Unbroken) beats every set build at everything; that is the 3.2 Ambush note, for B.2.
+
+## Void variants (`items/variants.ts`, ticket 3.5)
+GDD §7.5. A variant is layered on an item's rarity and identity; it is not a rarity tier. **Only Void** exists in Phase 3 (Prismatic is deferred) and an item has at most one variant (no stacking; the `variant` column holds one value).
+
+- **Where:** only on Legendary and Mythic items, set pieces included (they are Legendary-rarity). Data: `ITEM_VARIANTS` (`rarities`, `implicitBonus`, `effectStrength`). `activeVariant(item)` is the one rule every reader uses: a Void flag on any other rarity (never generated; `validateItem` rejects it) does nothing.
+- **Bonus (small):** + **10 %** implicit (base) stats, added to the upgrade bonus (`getImplicitStats`: a +10 Void item has +60 % base values), and **× 1.1** on the magnitudes of the item's own effect (a Legendary effect or a Mythic signature), passed as `EffectInstance.strength` by `itemEffectInstances`. The registry's rule holds: strength never scales thresholds, stack counts or decay, and combined effects stay under `DEFAULT_EFFECT_CAPS`. Affixes are untouched. Without an active variant the instance carries no `strength` field, so every number is the pre-3.5 one.
+- **Set pieces:** a Void piece counts as the same piece (`wornSets` never reads the variant; tested with generated Void pieces too). Set pieces have no effect of their own, so Void gives them the stat bonus only; the set bonus is the set's and does not change.
+- **Drops:** the Void roll is the **last draw** of `generateItem`, made only for a Legendary or Mythic (set piece included) rolled from a table with `voidChance`, so everything else about every item rolls as before (tested item by item). Tables: the Sunken Abbey, the Nameless Crypt's chambers and the Gravewarden's hoard, `VOID_CHANCE` = **10 %**, clamped to `DEFAULT_LOOT_CONFIG.maxVoidChance` = **15 %** (the hard cap for any table, and for a discovery-progression hook if one is ever added). Requested bases (Forge crafts, quest rewards, the merchant) are never Void. No account-bound discovery hook was built (optional in the ticket); it would raise the chance within the cap.
+- **Expected rates** (measured, `settleFarming` and `simulateDungeonRun` over many seeds; the same setup as the set rates above): a geared level-20 hero in the **Sunken Abbey** finds ≈ 0.196 Legendary/Mythic/set items an hour (0.084 Legendary, 0.093 set pieces, 0.018 Mythics), so **≈ 0.020 Void items an hour — one per ~50 h** (≈ 0.010 Void Legendaries, 0.009 Void set pieces, 0.0013 Void Mythics: one per ~750 h). A **crypt run** at 15 with boss loot yields ≈ 0.0073 Void items (one per ~140 such runs; boss loot comes at most once per 20 h per character, so this is a slow trickle on top of farming); the chambers alone give ≈ 0.001 per run. Nowhere else drops Void.
+- **Forge (3.4):** forge work never adds or removes a variant. Upgrades, rerolls and improvements patch their own columns only (tested: a Void and a plain Legendary each upgraded, rerolled and improved keep their variant). Void and upgrades stack additively on base values. Sell and salvage prices ignore the variant (like the upgrade level). `docs/ECONOMY.md`.
+- **No Void items:** every number is identical. `noEffects.test.ts` runs the pinned pre-3.2 hashes again with an explicit `variant: null` on every kit item and with a stray `variant: 'void'` on the epic and rare kits; a second test shows the check can fail (the same Legendary kit as Void changes the settlement). Void drops are Legendary/Mythic drops, already outside the settlement hash.
+
+### Void balance (asserted in `balance.test.ts`)
+Abbey 19 and 22, every class, against the same kit without Void: deaths ≤ 2/h, damage share < 21 % and never higher, kills × 0.99–1.1, and even Void Legendaries at +10 stay under × 2 a rare kit. A Void Mythic in its slot stays in the Mythic band (× < 1.3 a rare kit). The Gravewarden (geared at 15) is never more than 10 % faster per fight with a full Void Legendary kit than without; a naked hero still never wins. Measured kill-rate factors of Void over the same kit:
+
+| Kit | Warrior | Mage | Hunter | Warlock |
+|---|---|---|---|---|
+| Legendaries in every slot (19 · 22) | × 1.009 · 1.005 | × 1.034 · 1.019 | × 1.034 · 1.011 | × 1.066 · 1.040 |
+| Drowned Vigil 6 + Legendaries | × 1.017 · 1.007 | × 1.027 · 1.041 | × 1.042 · 1.002 | × 1.021 · 1.024 |
+| Legendaries at +10 | × 1.035 · 1.067 | × 1.046 · 1.005 | × 1.000 · 1.005 | × 1.008 · 1.005 |
+
+Void is a chase for completionists, not a new power tier: a few percent, mostly safety (base armor and health) and slightly stronger effects.
 
 ## Combat rules
 - **One pricing function.** `attackHit(setup, attack, prevCrit, heroHealth, enemyHealth)` prices every hero attack in both simulations. Without effects the setup carries no `effects` field and it returns the old `auto`/`skill` profiles unchanged.

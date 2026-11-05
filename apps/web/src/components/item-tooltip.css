@@ -81,6 +81,17 @@
   font-style: normal;
 }
 
+/* Void (ticket 3.5): the word before the rarity and its note, in cold voidlight, not a rarity
+   colour. */
+.tooltip__variant {
+  color: var(--void-light);
+  font-weight: 700;
+}
+
+.tooltip__unique--void .caps {
+  color: var(--void-light);
+}
+
 /* Legendary effect / Mythic signature (ticket 3.2): a rarity rule and the effect in plain words. */
 .tooltip__effect {
   margin-top: var(--space-3);

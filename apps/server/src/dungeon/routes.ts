@@ -12,6 +12,7 @@ import {
   type DungeonId,
   type DungeonRunProgress,
   type DungeonRunResult,
+  type ItemVariantId,
   type MaterialId,
   type QuestEvent,
   type UnlockBlocker,
@@ -77,6 +78,14 @@ export interface DungeonResultItem {
   baseId: string;
   rarityId: string;
   itemLevel: number;
+  /**
+   * Ticket 3.5: what the drop moment shows (as in the return summary); absent on plain items and
+   * in results stored before it.
+   */
+  effectId?: string;
+  mythicId?: string;
+  setId?: string;
+  variant?: ItemVariantId;
 }
 
 /** What a claim granted. Stored on the run and replayed for a retried claim. */
@@ -340,6 +349,7 @@ export async function registerDungeons(
             effectRoll: itemInstances.effectRoll,
             setId: itemInstances.setId,
             upgradeLevel: itemInstances.upgradeLevel,
+            variant: itemInstances.variant,
           })
           .from(itemInstances)
           .where(
@@ -511,6 +521,10 @@ export async function registerDungeons(
               baseId: x.baseId,
               rarityId: x.rarityId,
               itemLevel: x.itemLevel,
+              ...(x.effectId ? { effectId: x.effectId } : {}),
+              ...(x.mythicId ? { mythicId: x.mythicId } : {}),
+              ...(x.setId ? { setId: x.setId } : {}),
+              ...(x.variant ? { variant: x.variant } : {}),
             })),
             itemsSalvaged: r.salvaged.length,
             materials: r.materials,

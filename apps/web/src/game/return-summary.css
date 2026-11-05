@@ -216,3 +216,8 @@
     justify-content: center;
   }
 }
+
+/* Ticket 3.5: a Void find names its variant in voidlight before the item name. */
+.return__chase-variant {
+  color: var(--void-light);
+}

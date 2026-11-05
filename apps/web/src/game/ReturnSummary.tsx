@@ -92,16 +92,23 @@ export function ReturnSummaryDialog({ heroName }: { heroName: string }) {
             <h3 id="return-chase" className="caps">
               {chase.some((i) => i.rarity === 'mythic')
                 ? 'A Mythic surfaced'
-                : chase.every((i) => i.setName)
-                  ? 'Set piece found'
-                  : 'Legendary find'}
+                : chase.some((i) => i.variant)
+                  ? 'Touched by the void'
+                  : chase.every((i) => i.setName)
+                    ? 'Set piece found'
+                    : 'Legendary find'}
             </h3>
             <ul>
               {chase.map((item) => (
                 <li key={item.id} className={`rarity-${item.rarity}`}>
                   <ItemFrame item={item} scale={2} context="Found" />
                   <span className="return__chase-text">
-                    <span className="return__chase-name">{item.name}</span>
+                    <span className="return__chase-name">
+                      {item.variant ? (
+                        <span className="return__chase-variant">{item.variant.name} </span>
+                      ) : null}
+                      {item.name}
+                    </span>
                     {item.effectName ? (
                       <span className="return__chase-effect">{item.effectName}</span>
                     ) : null}

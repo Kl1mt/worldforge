@@ -206,6 +206,8 @@ Variants are modifiers layered on top of an item's rarity and identity, not sepa
 - Variant discovery chance may improve through long-term gameplay progression, with strict caps to preserve rarity.
 - Direct paid boosts to competitive drop chances are not part of the design.
 
+**Decided (ticket 3.5):** only Void, on Legendary and Mythic items (set pieces included), one variant per item. Bonus: +10 % base values and × 1.1 on the item's own effect magnitudes. It drops only in late-game sources (Sunken Abbey, Nameless Crypt, Gravewarden), 10 % of their Legendary/Mythic/set rolls, hard-capped at 15 % in config: about one Void item per 50 h of Abbey farming. Forge work never adds or removes it. Visual: a drained, voidlight-edged overlay on the existing icon. No discovery-progression hook yet. Details: `docs/EFFECTS.md`.
+
 Long-term combinations such as a Void-Prismatic Legendary weapon are possible aspirational drops, but stacking rules and probability need explicit balancing before implementation.
 
 ## 8. Item Improvement and Crafting
@@ -502,7 +504,7 @@ Track aggregate metrics such as session frequency, offline return rates, area ef
 | Offline accumulation cap | **Decided (v0.3):** 3 hours to start, server-configurable; to be upgradeable through progression later (upgrade path open). |
 | Combat timing and formulas | Open; prototype and test in Phase 1. |
 | Drop rates and affix ranges | Open; data-driven and tuned through telemetry. |
-| Variant stacking rules | Open; define before implementing multiple variant combinations. |
+| Variant stacking rules | Open; define before implementing multiple variant combinations. **Ticket 3.5:** no stacking; one variant (Void) per item until Prismatic. |
 | Item Awakening | Optional late-game feature; not an early commitment. |
 | Leaderboard formula | Open; define and publish understandable metrics before release. |
 | PvP format and normalization | Open; prototype asynchronous 1v1 first. |

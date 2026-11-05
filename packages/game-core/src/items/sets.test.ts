@@ -34,8 +34,8 @@ const piece = (baseId: string, seed = 1): GeneratedItem =>
   generateItem({ seed, itemLevel: 18, baseId, classId: 'warrior' })!;
 
 /**
- * A synthetic Void copy (ticket 3.5 adds the column to game-core items; the database already has
- * it). Counting must never read it.
+ * A synthetic Void copy (game-core items carry `variant` since ticket 3.5; generated Void pieces are
+ * tested in `variants.test.ts`). Counting must never read it.
  */
 const voidCopy = (item: GeneratedItem) => ({ ...item, variant: 'void' as const });
 

@@ -61,6 +61,11 @@ export interface LootTableDefinition {
    * instead. Only late-game sources set it. Default 0.
    */
   setShare?: number;
+  /**
+   * Ticket 3.5: the chance (0…1) that a Legendary or Mythic here (set pieces included) is Void,
+   * clamped to `LootConfig.maxVoidChance`. Only late-game sources set it. Default 0.
+   */
+  voidChance?: number;
 }
 
 export interface LootConfig {
@@ -69,6 +74,11 @@ export interface LootConfig {
   /** Item level = source level ± this, clamped to [1, maxItemLevel]. */
   itemLevelVariance: number;
   maxItemLevel: number;
+  /**
+   * Ticket 3.5: the hard cap on any table's `voidChance` (GDD §7.5: variant discovery stays
+   * strictly capped, also once a progression hook raises it).
+   */
+  maxVoidChance: number;
 }
 
 /**
@@ -124,6 +134,7 @@ export const DEFAULT_LOOT_CONFIG: LootConfig = {
   gold: { dropChance: 0.2, min: 1, max: 3, growthPerLevel: 0.1 },
   itemLevelVariance: 1,
   maxItemLevel: 60,
+  maxVoidChance: 0.15,
 };
 
 /**

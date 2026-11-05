@@ -38,6 +38,8 @@ Semantic aliases (`--bg-page`, `--text`, `--text-dim`, `--accent`, `--line`, …
 
 All six pass WCAG AA as text on `--ink-850` (4.8:1 or better). Use them through the classes `.rarity-<id>`, which set `--rarity`. Components then read `var(--rarity)`. The rarity ids come from `game-core` (`RARITIES`).
 
+**Void (ticket 3.5).** A variant, not a rarity, so it never takes a rarity colour or the rarity's place. Tokens `--void-light` (`#b9c3e0`, a cold voidlight, 10.3:1 on `--ink-850`) and `--void-rift` (`#07060d`). On the `ItemFrame` (`.item-frame--void`) it is the one treatment that touches the art: the icon is drained (`saturate(0.4)`) and edged with one art pixel of voidlight at 70 % (a hard pixel outline via `drop-shadow`, not a glow), it sits in a dark rift instead of the rarity wash, a voidlight hairline runs inside the rarity ring, and a hollow diamond ◇ marks the lower left corner. It keeps the rarity's border, notch and (Legendary/Mythic) outer glow, so a Void Legendary still reads Legendary first. In text: "Void" in voidlight before the rarity word in the tooltip, a "◇ Void" note with the bonus, the accessible label "…, Void legendary", and the drop moment ("A Void Legendary find", the item name prefixed "Void"). No new art, no animation.
+
 Rarity is shown four ways: the frame border, a corner notch, the name colour, and the rarity word in the tooltip. Colour is never the only cue. Only Legendary and Mythic frames get a soft outer glow (GDD §3.2: effects for meaningful events). The Mythic red is deliberately brighter and warmer than the crimson accent, so a Mythic drop never reads as a UI error.
 
 ## Typography

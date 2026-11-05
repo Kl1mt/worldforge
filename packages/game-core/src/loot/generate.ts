@@ -6,7 +6,8 @@ import { affixPoolFor, tiersForItemLevel, type AffixDefinition } from '../items/
 import { findItemBase, getItemBase, type ItemBaseDefinition } from '../items/bases.js';
 import { mythicForBase, mythicPool, type MythicItemDefinition } from '../items/mythics.js';
 import { setForBase, setPiecePool, type SetDefinition } from '../items/sets.js';
-import { upgradeImplicitBonus } from '../items/model.js';
+import { upgradeImplicitBonus, type ItemVariantId } from '../items/model.js';
+import { activeVariant } from '../items/variants.js';
 import { EFFECT_ROLL_STEPS, legendaryEffectPool } from '../effects/resolve.js';
 import {
   DEFAULT_LOOT_CONFIG,
@@ -49,6 +50,11 @@ export interface GeneratedItem {
    * set's fixed base, without an effect of its own. Absent on every other item.
    */
   setId?: string;
+  /**
+   * Ticket 3.5: the item's variant (`ITEM_VARIANTS`; only `void`). Rolled last, only on a
+   * Legendary or Mythic (set pieces included) from a table with `voidChance`. Absent otherwise.
+   */
+  variant?: ItemVariantId;
 }
 
 export interface LootDrop {
@@ -246,7 +252,27 @@ export function generateItem(
       item.effectRoll = rng.int(0, EFFECT_ROLL_STEPS) / EFFECT_ROLL_STEPS;
     }
   }
+  // Void (ticket 3.5): the last draw, only for a Legendary or Mythic rolled from a table with a
+  // Void chance, so every item rolls exactly as before and only those few items draw once more.
+  // Requested bases (forge, quests, merchant) never become Void.
+  const voidChance = params.baseId === undefined ? effectiveVoidChance(table, config) : 0;
+  if (voidChance > 0 && activeVariant({ rarityId, variant: 'void' }) && rng.chance(voidChance)) {
+    item.variant = 'void';
+  }
   return item;
+}
+
+/**
+ * Ticket 3.5: the chance that a Legendary or Mythic (set pieces included) from this table is
+ * Void: the table's `voidChance`, never above the config's `maxVoidChance`.
+ */
+export function effectiveVoidChance(
+  table: LootTableDefinition,
+  config: LootConfig = DEFAULT_LOOT_CONFIG,
+): number {
+  const chance = table.voidChance ?? 0;
+  if (!Number.isFinite(chance) || chance <= 0) return 0;
+  return Math.min(chance, Math.max(0, config.maxVoidChance ?? 0));
 }
 
 export interface RollLootParams {
@@ -326,7 +352,8 @@ export function getImplicitStats(
 ): ItemStatValue[] {
   const base = getItemBase(item.baseId);
   const mult = config.rarities[item.rarityId].statMultiplier;
-  const bonus = upgradeImplicitBonus(item.upgradeLevel);
+  // Upgrade (3.4) and Void (3.5) bonuses add up; both are 0 on a plain item.
+  const bonus = upgradeImplicitBonus(item.upgradeLevel) + (activeVariant(item)?.implicitBonus ?? 0);
   return base.stats.map((s) => {
     const raw = (s.base + s.perLevel * (item.itemLevel - 1)) * mult;
     // +0 keeps the exact pre-3.4 expression (no extra float operation), so every number holds.
@@ -336,8 +363,10 @@ export function getImplicitStats(
 
 /**
  * Ticket 3.4: the item's upgrade level (`item_instances.upgrade_level`). Optional on everything
- * that prices an item's stats; absent or null = +0.
+ * that prices an item's stats; absent or null = +0. Ticket 3.5 adds the `variant` column: a Void
+ * Legendary or Mythic gets its variant's implicit bonus; absent or null = none.
  */
 export interface UpgradeLevelField {
   upgradeLevel?: number | null;
+  variant?: ItemVariantId | null;
 }

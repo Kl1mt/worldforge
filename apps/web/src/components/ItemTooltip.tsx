@@ -78,6 +78,7 @@ export function ItemTooltip({ item, compareTo, caption, note, children, id }: It
             ) : null}
           </h3>
           <p className="tooltip__type">
+            {item.variant ? <span className="tooltip__variant">{item.variant.name} </span> : null}
             <span className="tooltip__rarity">{set ? `${rarity} set piece` : rarity}</span>{' '}
             {item.slot ? slotName(item.slot) : 'Relic of a lost age'}
           </p>
@@ -100,6 +101,16 @@ export function ItemTooltip({ item, compareTo, caption, note, children, id }: It
           {set ? (
             <p className="tooltip__unique">
               <span className="caps">Set piece</span> Found in {SET_SOURCES}.
+            </p>
+          ) : null}
+          {item.variant ? (
+            <p className="tooltip__unique tooltip__unique--void">
+              <span className="caps">◇ {item.variant.name}</span> Touched by the void: base values +
+              {Math.round(item.variant.implicitBonus * 100)} %
+              {item.variant.effectBonus > 0
+                ? `, ${item.effect?.kind === 'mythic' ? 'signature' : 'effect'} +${Math.round(item.variant.effectBonus * 100)} %`
+                : ''}
+              {set ? '. Still counts as the same set piece.' : '.'}
             </p>
           ) : null}
           {note ? <p className="tooltip__note">{note}</p> : null}

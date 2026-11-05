@@ -62,6 +62,64 @@ describe('Legendary and Mythic display (ticket 3.2)', () => {
   });
 });
 
+describe('Void display (ticket 3.5)', () => {
+  it('names the variant, scales base values and the effect, and is null where Void cannot be', () => {
+    const plain = toItemView(
+      dto({ baseId: 'iron-ring', rarityId: 'legendary', effectId: 'tyrants-bane', effectRoll: 0 }),
+    );
+    const v = toItemView(
+      dto({
+        baseId: 'iron-ring',
+        rarityId: 'legendary',
+        effectId: 'tyrants-bane',
+        effectRoll: 0,
+        variant: 'void',
+      }),
+    );
+    expect(plain.variant).toBeNull();
+    expect(v.variant).toEqual({ id: 'void', name: 'Void', implicitBonus: 0.1, effectBonus: 0.1 });
+    expect(v.effect?.text).toBe('Deal 11 % more damage to bosses.');
+    for (const [i, line] of v.base.entries()) {
+      expect(line.value).toBeGreaterThanOrEqual(plain.base[i]!.value);
+    }
+    // A stray Void flag on an epic does nothing (game-core `activeVariant`).
+    const epic = toItemView(dto({ baseId: 'iron-ring', rarityId: 'epic', variant: 'void' }));
+    expect(epic.variant).toBeNull();
+    expect(epic.base).toEqual(toItemView(dto({ baseId: 'iron-ring', rarityId: 'epic' })).base);
+  });
+
+  it('a Void set piece has no effect bonus and is still the same piece', () => {
+    const v = toItemView(
+      dto({
+        baseId: 'vigil-gauntlets',
+        rarityId: 'legendary',
+        setId: 'drowned-vigil',
+        variant: 'void',
+      }),
+    );
+    expect(v.variant?.effectBonus).toBe(0);
+    expect(v.setId).toBe('drowned-vigil');
+  });
+
+  it('summaries carry the variant for the drop moment', () => {
+    expect(
+      summaryItemView({
+        id: 's',
+        baseId: 'widowmaker',
+        rarityId: 'mythic',
+        itemLevel: 18,
+        effectId: 'widows-kiss',
+        mythicId: 'widowmaker',
+        variant: 'void',
+      }).variant?.name,
+    ).toBe('Void');
+    expect(
+      summaryItemView({ id: 's', baseId: 'iron-ring', rarityId: 'legendary', itemLevel: 18 })
+        .variant,
+    ).toBeNull();
+  });
+});
+
 describe('toItemView', () => {
   it('names, icons and implicit stats come from game-core content', () => {
     const item = toItemView(

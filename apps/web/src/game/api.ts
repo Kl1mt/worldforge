@@ -39,6 +39,8 @@ export interface SummaryItem {
   mythicId?: string;
   /** The set of a set piece (ticket 3.3); absent on other items. */
   setId?: string;
+  /** Ticket 3.5: a Void item's variant; absent on other items. */
+  variant?: ItemVariantId;
 }
 
 /** Everything earned since the client last collected a summary (docs/FARMING.md). */
