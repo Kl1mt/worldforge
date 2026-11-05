@@ -1,0 +1,134 @@
+/* Set tracker (ticket 3.3): brass, not the rarity colour. Pips for pieces, lit lines for active
+   bonuses; inactive bonuses stay readable but faint. */
+.set {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.set__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.set__name {
+  color: var(--brass-300);
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.set--compact .set__name {
+  font-size: var(--text-md);
+}
+
+.set__count {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.04em;
+}
+
+.set__pips {
+  display: inline-flex;
+  gap: 3px;
+}
+
+/* A lozenge per piece: hollow = not found, dim fill = in the pack, brass = worn. */
+.set__pip {
+  width: 7px;
+  height: 7px;
+  border: 1px solid var(--brass-600);
+  transform: rotate(45deg);
+}
+
+.set__pip.is-owned {
+  background: var(--brass-700);
+}
+
+.set__pip.is-worn {
+  border-color: var(--brass-300);
+  background: var(--brass-400);
+}
+
+.set__theme {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+  font-style: italic;
+}
+
+.set__pieces {
+  display: grid;
+  gap: 1px;
+  font-size: var(--text-sm);
+}
+
+.set__piece {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  color: var(--text-faint);
+}
+
+.set__piece.is-equipped {
+  color: var(--text);
+}
+
+.set__piece.is-inPack {
+  color: var(--text-dim);
+}
+
+.set__piece.is-current .set__piece-name {
+  text-decoration: underline;
+  text-decoration-color: var(--brass-500);
+  text-underline-offset: 3px;
+}
+
+.set__piece-state {
+  flex-shrink: 0;
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+}
+
+.set__piece.is-equipped .set__piece-state {
+  color: var(--brass-400);
+}
+
+.set__bonuses {
+  display: grid;
+  gap: var(--space-1);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--line);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.set__bonus {
+  display: grid;
+  grid-template-columns: 2.2em 1fr;
+  gap: var(--space-1);
+  color: var(--text-faint);
+}
+
+.set__bonus-count {
+  font-variant-numeric: tabular-nums;
+}
+
+.set__bonus-name {
+  font-weight: 700;
+}
+
+.set__bonus.is-active {
+  color: var(--text-muted);
+}
+
+.set__bonus.is-active .set__bonus-count,
+.set__bonus.is-active .set__bonus-name {
+  color: var(--brass-300);
+}

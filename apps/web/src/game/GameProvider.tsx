@@ -93,6 +93,14 @@ interface GameContextValue {
 
 const GameContext = createContext<GameContextValue | null>(null);
 
+/**
+ * The game state when inside a `GameProvider`, else null: for components that are also shown
+ * outside one (the item tooltip reads the pack for its set tracker, ticket 3.3).
+ */
+export function useOptionalGame(): GameContextValue | null {
+  return useContext(GameContext);
+}
+
 function toInventory(dto: InventoryDto): Inventory {
   return {
     equipped: dto.equipped.map(toItemView),

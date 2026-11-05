@@ -2,12 +2,16 @@ import type { ReactNode } from 'react';
 import { RARITIES } from '@worldforge/game-core';
 import {
   MYTHIC_SOURCES,
+  SET_SOURCES,
   STAT_GROUP_NAMES,
   compareItems,
   groupAffixes,
+  setTracker,
   slotName,
   type ItemView,
 } from '../game/items';
+import { useOptionalGame } from '../game/GameProvider';
+import { SetTracker } from './SetTracker';
 import { formatStatDelta, formatStatValue, statDefinition } from '../lib/format';
 import './item-tooltip.css';
 
@@ -32,6 +36,10 @@ interface ItemTooltipProps {
 export function ItemTooltip({ item, compareTo, caption, note, children, id }: ItemTooltipProps) {
   const deltas = compareTo !== undefined ? compareItems(item, compareTo ?? undefined) : null;
   const rarity = RARITY_NAME.get(item.rarity) ?? item.rarity;
+  // Set pieces (ticket 3.3): progress from the character's pack when the tooltip has one.
+  const game = useOptionalGame();
+  const pack = game?.inventory.kind === 'ready' ? game.inventory.value : null;
+  const set = item.setId ? setTracker(item.setId, pack?.equipped ?? [], pack?.items ?? []) : null;
 
   return (
     <article
@@ -44,7 +52,7 @@ export function ItemTooltip({ item, compareTo, caption, note, children, id }: It
         <header className="tooltip__head">
           <h3 className="tooltip__name">{item.name}</h3>
           <p className="tooltip__type">
-            <span className="tooltip__rarity">{rarity}</span>{' '}
+            <span className="tooltip__rarity">{set ? `${rarity} set piece` : rarity}</span>{' '}
             {item.slot ? slotName(item.slot) : 'Relic of a lost age'}
           </p>
           <p className="tooltip__meta">Item level {item.itemLevel}</p>
@@ -56,6 +64,11 @@ export function ItemTooltip({ item, compareTo, caption, note, children, id }: It
           {item.effect?.kind === 'mythic' ? (
             <p className="tooltip__unique">
               <span className="caps">Mythic</span> One of a handful, found only in {MYTHIC_SOURCES}.
+            </p>
+          ) : null}
+          {set ? (
+            <p className="tooltip__unique">
+              <span className="caps">Set piece</span> Found in {SET_SOURCES}.
             </p>
           ) : null}
           {note ? <p className="tooltip__note">{note}</p> : null}
@@ -105,6 +118,12 @@ export function ItemTooltip({ item, compareTo, caption, note, children, id }: It
             <p className="tooltip__effect-name">{item.effect.name}</p>
             <p className="tooltip__effect-text">{item.effect.text}</p>
           </section>
+        ) : null}
+
+        {set ? (
+          <div className="tooltip__set">
+            <SetTracker set={set} current={item.baseId} compact headingLevel={4} />
+          </div>
         ) : null}
 
         {deltas ? (

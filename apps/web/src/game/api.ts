@@ -37,6 +37,8 @@ export interface SummaryItem {
   /** Legendary effect / Mythic signature and named Mythic (ticket 3.2); absent on other items. */
   effectId?: string;
   mythicId?: string;
+  /** The set of a set piece (ticket 3.3); absent on other items. */
+  setId?: string;
 }
 
 /** Everything earned since the client last collected a summary (docs/FARMING.md). */

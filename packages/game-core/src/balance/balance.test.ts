@@ -4,6 +4,7 @@ import {
   AFFIXES,
   CLASS_IDS,
   EFFECTS,
+  ITEM_SETS,
   MYTHIC_ITEMS,
   DEFAULT_ACTIVITY_CONFIG,
   DEFAULT_ECONOMY_CONFIG,
@@ -18,6 +19,7 @@ import {
   getDungeon,
   getItemBase,
   getMaterial,
+  legendaryEffectPool,
   settleFarming,
   simulateDungeonRun,
   type AreaDefinition,
@@ -587,6 +589,235 @@ describe('balance (ticket B.1)', () => {
             expect(boss.endMs - boss.startMs, `${c} ${e.id}`).toBeGreaterThan(
               crypt.bossEnrage.atMs * 0.6,
             );
+          }
+        }
+      }
+    });
+  });
+  describe('set bonuses (ticket 3.3)', () => {
+    /** A set's first `n` pieces as the generator makes them (Legendary rarity, fixed bases). */
+    const pieces = (setId: string, n: number, itemLevel: number, classId: ClassId) =>
+      ITEM_SETS.find((x) => x.id === setId)!
+        .pieces.slice(0, n)
+        .map((id, i) => generateItem({ seed: 100 + i, itemLevel, baseId: id, classId })!);
+    /** Puts items into the kit's slots of the same kind (the first free ring slot first). */
+    const wear = (gear: GeneratedItem[], items: GeneratedItem[]) => {
+      const out = [...gear];
+      const used = new Set<number>();
+      for (const item of items) {
+        const slot = getItemBase(item.baseId).slot;
+        const i = out.findIndex((g, j) => !used.has(j) && getItemBase(g.baseId).slot === slot);
+        if (i < 0) throw new Error(`no ${slot} in the kit`);
+        out[i] = item;
+        used.add(i);
+      }
+      return out;
+    };
+    /** The regular base a Legendary of a slot uses: the best tier the class can wear. */
+    const legendaryBase = (c: ClassId, slot: string, itemLevel: number) =>
+      ITEM_BASES.filter(
+        (b) => !b.unique && b.slot === slot && b.minItemLevel <= itemLevel && canClassUseItem(b, c),
+      ).sort((a, b) => b.tier - a.tier || b.minItemLevel - a.minItemLevel)[0]!;
+    /** Legendaries on the given slots, with the given effects at the median roll. */
+    const withLegendaries = (
+      c: ClassId,
+      slots: readonly string[],
+      effects: readonly string[],
+      itemLevel: number,
+      gear: GeneratedItem[],
+    ) =>
+      wear(
+        gear,
+        slots.map((slot, i) => ({
+          ...generateItem({
+            seed: 100 + i,
+            itemLevel,
+            baseId: legendaryBase(c, slot, itemLevel).id,
+            rarityId: 'legendary',
+            classId: c,
+          })!,
+          effectId: effects[i]!,
+          effectRoll: 0.5,
+        })),
+      );
+    /**
+     * The effects of the best Legendary build on the given slots: each slot's regular base as a
+     * Legendary at the median roll, its effect picked greedily for farming speed in the Abbey. A
+     * strong, lucky build: every piece carries the best effect for its slot.
+     */
+    const bestLegendaryEffects = (
+      c: ClassId,
+      slots: readonly string[],
+      level: number,
+      gear: GeneratedItem[],
+    ): string[] => {
+      const chosen: string[] = [];
+      for (const slot of slots) {
+        const base = legendaryBase(c, slot, level - 1);
+        let best = '';
+        let bestKills = -1;
+        for (const e of legendaryEffectPool(base, c)) {
+          const effects = [...chosen, e.id];
+          const worn = withLegendaries(c, slots.slice(0, effects.length), effects, level - 1, gear);
+          const k = farm(c, level, 'sunkenAbbey', worn).killsPerMin;
+          if (k > bestKills) [best, bestKills] = [e.id, k];
+        }
+        chosen.push(best);
+      }
+      return chosen;
+    };
+    const bossRuns = (c: ClassId, equipment: GeneratedItem[], n = 6) =>
+      Array.from({ length: n }, (_, i) =>
+        simulateDungeonRun({
+          dungeonId: 'namelessCrypt',
+          character: { classId: c, level: 15, xp: 0 },
+          equipment,
+          seed: `crypt-effects:${i}`,
+          bossLootEligible: false,
+          inventoryCount: 0,
+        }),
+      );
+    /** Mean boss fight time (a loss counts as the whole enrage window twice). */
+    const bossTime = (c: ClassId, equipment: GeneratedItem[]) => {
+      const runs = bossRuns(c, equipment);
+      return (
+        runs.reduce((t, r) => {
+          const b = r.encounters.at(-1)!;
+          return t + (r.bossDefeated ? b.endMs - b.startMs : 90_000);
+        }, 0) / runs.length
+      );
+    };
+    /** A synthetic ring carrying one effect (as in the 3.2 tests): the bonus without the stats. */
+    const bonusRing = (effectId: string): GeneratedItem => ({
+      seed: 1,
+      baseId: 'iron-ring',
+      rarityId: 'legendary',
+      itemLevel: 1,
+      affixes: [],
+      effectId,
+      effectRoll: 1,
+    });
+    const SIX_SLOTS = ['head', 'chest', 'hands', 'feet', 'neck', 'ring'];
+
+    it('no set at any bonus breaks the death or kill bands', () => {
+      for (const c of CLASS_IDS) {
+        for (const level of [19, 22]) {
+          const gear = kit(c, level - 1, 'rare');
+          const plain = farm(c, level, 'sunkenAbbey', gear);
+          for (const set of ITEM_SETS) {
+            let previous = plain.killsPerMin;
+            for (const { pieces: n } of set.bonuses) {
+              const s = farm(c, level, 'sunkenAbbey', wear(gear, pieces(set.id, n, level - 1, c)));
+              const label = `${c} L${level} ${set.id} ${n}`;
+              expect(s.deathsPerHour, label).toBeLessThanOrEqual(2);
+              expect(s.damageShare, label).toBeLessThan(0.21);
+              // Each threshold helps (the first pieces' stats may trade a rare item's affixes for a
+              // little less speed), but a full set (6 slots of Legendary-rarity gear) stays below
+              // +50 % kills.
+              expect(s.killsPerMin / previous, label).toBeGreaterThan(0.97);
+              expect(s.killsPerMin / plain.killsPerMin, label).toBeLessThan(1.5);
+              previous = s.killsPerMin;
+            }
+          }
+        }
+      }
+    });
+
+    it.each(CLASS_IDS)(
+      'sets compete with Legendary builds rather than replacing them (%s)',
+      (c) => {
+        const level = 19;
+        {
+          const gear = kit(c, level - 1, 'rare');
+          const crypt = kit(c, 14);
+          /** A build in the Abbey at 19 and its twin (item level 14) on a crypt kit for the boss. */
+          const build = (name: string, setId: string | null, n: number, slots: string[]) => {
+            const farmGear = setId ? wear(gear, pieces(setId, n, level - 1, c)) : gear;
+            const bossGear = setId ? wear(crypt, pieces(setId, n, 14, c)) : crypt;
+            const effects = slots.length > 0 ? bestLegendaryEffects(c, slots, level, farmGear) : [];
+            return {
+              name,
+              farm: withLegendaries(c, slots, effects, level - 1, farmGear),
+              boss: withLegendaries(c, slots, effects, 14, bossGear),
+            };
+          };
+          const builds = [
+            ...ITEM_SETS.map((set) => build(set.id, set.id, 6, [])),
+            build('legendary', null, 0, SIX_SLOTS),
+            // A set's 4-piece bonus next to two Legendaries in the slots it leaves free.
+            build('drowned-vigil 4 + legendary 2', 'drowned-vigil', 4, ['neck', 'ring']),
+            build('ashen-choir 4 + legendary 2', 'ashen-choir', 4, ['neck', 'ring']),
+            build('bloodmoon-hunt 4 + legendary 2', 'bloodmoon-hunt', 4, ['head', 'chest']),
+          ];
+          const scores = builds.map((b) => ({
+            name: b.name,
+            kills: farm(c, level, 'sunkenAbbey', b.farm).killsPerMin,
+            boss: bossTime(c, b.boss),
+          }));
+          const pure = scores.filter((x) => ITEM_SETS.some((set) => set.id === x.name));
+          const legendary = scores.find((x) => x.name === 'legendary')!;
+          const mixed = scores.filter((x) => x.name.includes(' + '));
+          const label = `${c}: ${scores.map((x) => `${x.name} ${x.kills.toFixed(2)}/${(x.boss / 1000).toFixed(0)}s`).join(', ')}`;
+          // Not replacing: a full Legendary build out-farms every pure set ...
+          for (const x of pure) expect(legendary.kills, label).toBeGreaterThan(x.kills);
+          // ... and the best farming build always carries Legendaries.
+          const fastest = scores.reduce((a, b) => (b.kills > a.kills ? b : a));
+          expect(fastest.name === 'legendary' || fastest.name.includes(' + '), label).toBe(true);
+          // Competing: a set bonus is part of a build within a quarter of the fastest ...
+          const bestWithSet = Math.max(...[...pure, ...mixed].map((x) => x.kills));
+          expect(bestWithSet / fastest.kills, label).toBeGreaterThan(0.75);
+          // ... set + Legendary mixes out-farm every pure set (they combine) ...
+          for (const x of pure) {
+            expect(Math.max(...mixed.map((m) => m.kills)), label).toBeGreaterThan(x.kills);
+          }
+          // ... and for the boss, the best build with a set is close to the Legendary build or
+          // better (casters: a pure set is the fastest boss build; warrior and hunter: a set +
+          // Legendary mix is within a third of the perfect Legendary build).
+          const bossWithSet = Math.min(...[...pure, ...mixed].map((x) => x.boss));
+          expect(bossWithSet / legendary.boss, label).toBeLessThan(1.35);
+        }
+      },
+      30_000,
+    );
+
+    it('no set is the best choice for everything', () => {
+      // Three jobs, as for effects: farming speed, safety (damage share) and the boss. For every
+      // class, the best full set for one job is not the best for all three.
+      for (const c of CLASS_IDS) {
+        const scores = ITEM_SETS.map((set) => {
+          const bonus = set.bonuses.map((b) => bonusRing(b.effectId));
+          const s = farm(c, 15, 'blackwater', [...kit(c, 14), ...bonus]);
+          return {
+            id: set.id,
+            kills: s.killsPerMin,
+            safety: -s.damageShare,
+            boss: -bossTime(c, [...kit(c, 14), ...bonus]),
+          };
+        });
+        const best = (key: 'kills' | 'safety' | 'boss') =>
+          scores.reduce((a, b) => (b[key] > a[key] ? b : a)).id;
+        const winners = new Set([best('kills'), best('safety'), best('boss')]);
+        expect(winners.size, `${c}: ${JSON.stringify(scores)}`).toBeGreaterThan(1);
+      }
+    });
+
+    it('full set bonuses move the crypt but do not trivialise the Gravewarden', () => {
+      const crypt = getDungeon('namelessCrypt');
+      for (const c of CLASS_IDS) {
+        for (const set of ITEM_SETS) {
+          const bonus = set.bonuses.map((b) => bonusRing(b.effectId));
+          const label = `${c} ${set.id}`;
+          // A naked hero never wins, whatever bonuses it has.
+          expect(
+            bossRuns(c, bonus, 4).some((r) => r.bossDefeated),
+            `${label} naked`,
+          ).toBe(false);
+          // Geared at 15 it still wins, and the boss still takes 45 % of the pre-enrage window
+          // (three bonuses at once; a single effect keeps 60 %, see above).
+          for (const r of bossRuns(c, [...kit(c, 14), ...bonus])) {
+            expect(r.bossDefeated, label).toBe(true);
+            const boss = r.encounters.at(-1)!;
+            expect(boss.endMs - boss.startMs, label).toBeGreaterThan(crypt.bossEnrage.atMs * 0.45);
           }
         }
       }

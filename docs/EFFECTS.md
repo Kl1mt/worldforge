@@ -1,4 +1,4 @@
-# Unique effects: Legendaries, Mythics (ticket 3.2)
+# Unique effects: Legendaries, Mythics (ticket 3.2), set bonuses (ticket 3.3)
 
 One data-driven effect system in `packages/game-core/src/effects/`. Legendary effects and Mythic signatures (3.2), set bonuses (3.3) and the rare Void modification of a Legendary (3.5) all go through it. Both combat simulations read the same combined numbers, so the detailed/aggregate equivalence and split-invariance hold with effects.
 
@@ -37,6 +37,53 @@ Six named items, each on its own `unique` tier-3 base with stronger implicit sta
 | Widowmaker | weapon, hunter | Widow’s Kiss: crit burn 50 %; +30 % below 30 % health | `item.crowwood-longbow` |
 | Heart of the Abyss | weapon, warlock | Abyssal Rot: rot 3.5 %; +10 % to bosses | `item.skull-staff` |
 | Ring of Endless Hunger | ring, all | Endless Hunger: bloodrush 3 % × 6; kills heal 6 % | `item.iron-ring` |
+
+## Sets (`items/sets.ts`, ticket 3.3)
+Three sets of named pieces, each on its own `unique` base (stats like the tier-3 base of its slot, tilted to the set's theme), all wearable by every class, on the slots that have art. A piece is a **Legendary-rarity** item (four Legendary affixes) with `setId` and **no effect of its own**: its power is the set bonus. Bonuses are `kind: 'set'` registry entries with fixed values, active at 2, 4 and 6 **distinct** pieces worn.
+
+| Set | Pieces (slot · placeholder icon; A.6 draws the real ones) | Bonuses |
+|---|---|---|
+| **The Drowned Vigil** (martial) | Helm (head · `item.barbute`), Hauberk (chest · `item.chainmail`), Gauntlets (hands · `item.plated-gauntlets`), Sabatons (feet · `item.plate-sabatons`), Oath-Chain (neck · `item.abbey-pendant`), Seal (ring · `item.abbey-signet`) | (2) Tidebound: thorns 25 % · (4) Hold the Line: +25 % damage at or above 70 % health · (6) Undertow: +60 % below 35 % enemy health, kills heal 8 % |
+| **The Ashen Choir** (arcane) | Cowl (head · `item.iron-helm`), Vestments (chest · `item.leather-jerkin`), Wraps (hands · `item.leather-gloves`), Slippers (feet · `item.leather-boots`), Censer-Chain (neck · `item.raven-talisman`), Band (ring · `item.brass-ring`) | (2) Kindled: crit burn 30 % · (4) Hymn of Cinders: a crit turns the next attack into the class skill at 90 % · (6) Last Rite: +15 % to bosses, the class skill rots 2 % of remaining health |
+| **The Bloodmoon Hunt** (hybrid) | Grips (hands · `item.ringmail-gloves`), Treads (feet · `item.iron-shod-boots`), Fang (neck · `item.bone-amulet`), Loop (ring · `item.grave-gold-ring`) | (2) Scent of Blood: bloodrush 2 % × 5 · (4) The Long Hunt: every fight opens with the class skill +10 %, kills heal 5 % |
+
+Every piece is named "<Piece> of <Set>", e.g. "Helm of the Drowned Vigil". The sets share slots on purpose: a full Vigil or Choir leaves the second ring, weapon and off-hand for Legendaries and Mythics; 4 + 2 mixes trade a bonus for two Legendary effects.
+
+- **Counting** (`wornSets`, `setBonusInstances`): an equipped item counts when its `setId` names a set **and** its base is one of that set's pieces; each piece once (two copies of one ring are one piece). The variant is never read, so a Void piece (3.5) is the same piece (tested with a synthetic Void item). Settlement and the crypt run pass the active bonuses as `equipmentModifiers(…, { extraEffects: setBonusInstances(equipment) })`; combining and caps are the registry's. One piece gives no bonus.
+- **Drops:** in tables with `setShare` (Sunken Abbey, Nameless Crypt, Gravewarden's hoard; 0.5), half of the Legendary rolls at item level 14+ become a random set piece (the extra draw happens only then, so nothing else changes). Measured with a geared level-20 warrior: the Abbey drops ~42 items/h, 0.226 % of them set pieces, **≈ 0.095 pieces/h (one per ~10 h; a given piece ≈ 170 h)**; Legendaries there fall from ≈ 0.17/h to ≈ 0.084/h. A crypt run at 15 yields ≈ 0.036 pieces (boss loot eligible). Elsewhere no set pieces drop.
+- **No set pieces equipped:** every number is identical. `noEffects.test.ts` runs the pinned pre-3.2 hashes again with every kit item carrying a set id it is not a piece of; set pieces are Legendary drops, already outside the settlement hash.
+- **Equivalence:** per fight with each full set on every class, and per 15-minute window with a full set next to an item effect (warrior Vigil, mage Choir, hunter Bloodmoon).
+
+### Set balance (asserted in `balance.test.ts`)
+- **Bands:** every set at 2, 4 and 6 pieces (generated pieces replacing a rare kit, Abbey 19 and 22): deaths ≤ 2/h, damage share < 21 %, each threshold ≥ 0.97 × the previous, kills < × 1.5 of the kit (the 4-piece Bloodmoon on a warrior is the highest, ≈ × 1.42–1.47).
+- **Compete, not replace** (Abbey 19, rare kit; boss at 15 on a common kit). Legendary build = six Legendaries on the set slots at the **median** roll, each with the effect that farms fastest (a lucky, perfect build):
+
+| Class | Vigil 6 kills · boss | Choir 6 | Bloodmoon 4 | Legendary 6 | Bloodmoon 4 + Legendary 2 | Vigil 4 + Legendary 2 |
+|---|---|---|---|---|---|---|
+| Warrior | × 1.26 · 29 s | × 1.15 · 32 s | × 1.42 · 37 s | × 1.56 · **19 s** | **× 1.82** · 25 s | × 1.35 · 27 s |
+| Mage | × 1.19 · **25 s** | × 1.19 · 26 s | × 1.21 · 39 s | × 1.33 · 27 s | **× 1.46** · 27 s | × 1.24 · 26 s |
+| Hunter | × 1.22 · 25 s | × 1.13 · 23 s | × 1.29 · 32 s | **× 1.95 · 16 s** | × 1.55 · 21 s | × 1.53 · 24 s |
+| Warlock | × 1.21 · **24 s** | × 1.21 · 27 s | × 1.22 · 41 s | × 1.34 · 25 s | **× 1.42** · 28 s | × 1.25 · 25 s |
+
+  Asserted: a Legendary build out-farms every pure set; the fastest farming build always carries Legendaries; the best build with a set is within × 0.75 of the fastest; set + Legendary mixes beat every pure set; the best set build's boss time is within × 1.35 of the Legendary build's (casters: a pure set is the fastest boss build). For every class the best set for farming speed, safety and the boss is not the same set (bonus only, Blackwater 15). With all of a set's bonuses a naked level-16 hero never beats the Gravewarden; a geared level-15 hero always does, and the boss still takes > 45 % of the pre-enrage window.
+
+**Crypt entry (the cliff, not retuned).** Bonuses only (on effect rings, like the 3.2 table): win rate of a level-12 hero in item-level-11 commons (16 seeds), and the kill-rate factor in Blackwater at 15:
+
+| Set (pieces) | Warrior | Mage | Hunter | Warlock |
+|---|---|---|---|---|
+| none | 0 % | 0 % | 0 % | 0 % |
+| Drowned Vigil (2) | 0 % · ×1.09 | 0 % · ×1.03 | 6 % · ×1.05 | 0 % · ×1.06 |
+| Drowned Vigil (4) | 100 % · ×1.13 | 0 % · ×1.22 | 100 % · ×1.16 | 0 % · ×1.22 |
+| Drowned Vigil (6) | 100 % · ×1.14 | 100 % · ×1.22 | 100 % · ×1.17 | 100 % · ×1.22 |
+| Ashen Choir (2) | 0 % · ×1.00 | 0 % · ×1.01 | 19 % · ×1.03 | 0 % · ×1.01 |
+| Ashen Choir (4) | 6 % · ×1.01 | 0 % · ×1.01 | 88 % · ×1.04 | 0 % · ×1.02 |
+| Ashen Choir (6) | 100 % · ×1.02 | 100 % · ×1.01 | 100 % · ×1.04 | 100 % · ×1.02 |
+| Bloodmoon Hunt (2) | 0 % · ×1.07 | 0 % · ×1.07 | 0 % · ×1.07 | 0 % · ×1.07 |
+| Bloodmoon Hunt (4) | 0 % · ×1.21 | 0 % · ×1.27 | 0 % · ×1.17 | 0 % · ×1.20 |
+
+Sets move the cliff more than single effects: a full Vigil or Choir turns the level-12 entry into a certain win for every class, the 4-piece Vigil does so for warrior and hunter (fortitude at 70 % on top of thorns), and the hunter again sits closest (Choir 4: 88 %). The farming set (Bloodmoon) doesn't move it. In practice the pieces need item level 14 and drop only in late-game sources, so a hero holding four or six of them is past the entry anyway; the cliff itself is for 3.6/B.2.
+
+**Known limits.** The Ashen Choir is a crit and boss set: on low-crit kits its 2- and 4-piece bonuses barely register while farming. The hunter's perfect Legendary build (Ambush + stacked Unbroken) beats every set build at everything; that is the 3.2 Ambush note, for B.2.
 
 ## Combat rules
 - **One pricing function.** `attackHit(setup, attack, prevCrit, heroHealth, enemyHealth)` prices every hero attack in both simulations. Without effects the setup carries no `effects` field and it returns the old `auto`/`skill` profiles unchanged.

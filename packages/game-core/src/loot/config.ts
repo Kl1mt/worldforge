@@ -56,6 +56,11 @@ export interface LootTableDefinition {
    * sources set it; elsewhere a Mythic roll becomes a Legendary.
    */
   mythics?: boolean;
+  /**
+   * Ticket 3.3: the share (0…1) of Legendary rolls here that become a set piece (`ITEM_SETS`)
+   * instead. Only late-game sources set it. Default 0.
+   */
+  setShare?: number;
 }
 
 export interface LootConfig {

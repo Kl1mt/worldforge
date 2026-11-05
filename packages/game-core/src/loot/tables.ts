@@ -10,6 +10,12 @@ function tierEntries(weights: Partial<Record<ItemTier, number>>): LootTableEntry
 }
 
 /**
+ * Ticket 3.3: in the late-game sources (the Sunken Abbey, the Nameless Crypt and the Gravewarden's
+ * hoard) half of the Legendary rolls at item level 14+ become a set piece (`ITEM_SETS`).
+ */
+export const SET_SHARE = 0.5;
+
+/**
  * Loot tables of the Phase 2 areas and dungeon (ticket 2.1). Higher areas shift the weight to
  * higher tiers; each base is still gated by its `minItemLevel`. The item-level range is the
  * area's enemy levels ± `itemLevelVariance` (1).
@@ -52,6 +58,7 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
     id: 'sunkenAbbey',
     affixTierBias: 0.6,
     mythics: true,
+    setShare: SET_SHARE,
     itemDropChance: 0.06,
     itemLevel: { min: 16, max: 23 },
     entries: tierEntries({ 2: 1, 3: 2 }),
@@ -59,6 +66,7 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
   {
     id: 'namelessCrypt',
     affixTierBias: 0.6,
+    setShare: SET_SHARE,
     itemDropChance: 0.18,
     itemLevel: { min: 11, max: 17 },
     entries: tierEntries({ 2: 2, 3: 1 }),
@@ -74,6 +82,7 @@ export const BOSS_LOOT_TABLES: readonly LootTableDefinition[] = [
     id: 'gravewarden',
     affixTierBias: 1,
     mythics: true,
+    setShare: SET_SHARE,
     itemDropChance: 1,
     itemLevel: { min: 15, max: 17 },
     entries: [

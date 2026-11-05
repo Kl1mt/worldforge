@@ -56,8 +56,9 @@ export interface ItemBaseDefinition {
   minItemLevel: number;
   stats: readonly ItemBaseStat[];
   /**
-   * Boss-exclusive or Mythic base (tickets 2.5, 3.2): only the loot table that names it (or the
-   * Mythic roll, `MYTHIC_ITEMS`) drops it; tier-wide area tables skip it.
+   * Boss-exclusive, Mythic or set piece base (tickets 2.5, 3.2, 3.3): only the loot table that
+   * names it (or the Mythic roll, `MYTHIC_ITEMS`, or the set roll, `ITEM_SETS`) drops it; tier-wide
+   * area tables skip it.
    */
   unique?: boolean;
 }
@@ -618,6 +619,238 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     stats: [
       { stat: 'resistance', base: 5, perLevel: 1 },
       { stat: 'health', base: 8, perLevel: 2.2 },
+    ],
+  },
+
+  // Set piece bases (ticket 3.3, `ITEM_SETS`): only a set roll in a late-game table drops them.
+  // Stats like the tier-3 base of their slot, tilted to the set's theme. They borrow existing
+  // icons as placeholders until ticket A.6 draws their art.
+  {
+    id: 'vigil-helm',
+    name: 'Helm of the Drowned Vigil',
+    slot: 'head',
+    icon: 'item.barbute',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 14,
+    unique: true,
+    stats: [
+      { stat: 'armor', base: 7, perLevel: 1.6 },
+      { stat: 'health', base: 8, perLevel: 2.6 },
+    ],
+  },
+  {
+    id: 'vigil-hauberk',
+    name: 'Hauberk of the Drowned Vigil',
+    slot: 'chest',
+    icon: 'item.chainmail',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 14,
+    unique: true,
+    stats: [
+      { stat: 'armor', base: 13, perLevel: 3.2 },
+      { stat: 'health', base: 10, perLevel: 2.8 },
+    ],
+  },
+  {
+    id: 'vigil-gauntlets',
+    name: 'Gauntlets of the Drowned Vigil',
+    slot: 'hands',
+    icon: 'item.plated-gauntlets',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 14,
+    unique: true,
+    stats: [
+      { stat: 'armor', base: 5, perLevel: 1.5 },
+      { stat: 'resistance', base: 2, perLevel: 0.4 },
+    ],
+  },
+  {
+    id: 'vigil-sabatons',
+    name: 'Sabatons of the Drowned Vigil',
+    slot: 'feet',
+    icon: 'item.plate-sabatons',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 14,
+    unique: true,
+    stats: [
+      { stat: 'armor', base: 5, perLevel: 1.5 },
+      { stat: 'health', base: 4, perLevel: 1.5 },
+    ],
+  },
+  {
+    id: 'vigil-oath-chain',
+    name: 'Oath-Chain of the Drowned Vigil',
+    slot: 'neck',
+    icon: 'item.abbey-pendant',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 14,
+    unique: true,
+    stats: [
+      { stat: 'resistance', base: 4, perLevel: 0.9 },
+      { stat: 'health', base: 8, perLevel: 2.2 },
+    ],
+  },
+  {
+    id: 'vigil-seal',
+    name: 'Seal of the Drowned Vigil',
+    slot: 'ring',
+    icon: 'item.abbey-signet',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 14,
+    unique: true,
+    stats: [
+      { stat: 'resistance', base: 4, perLevel: 0.9 },
+      { stat: 'health', base: 6, perLevel: 1.8 },
+    ],
+  },
+  {
+    id: 'choir-cowl',
+    name: 'Cowl of the Ashen Choir',
+    slot: 'head',
+    icon: 'item.iron-helm',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 14,
+    unique: true,
+    stats: [
+      { stat: 'armor', base: 4, perLevel: 1 },
+      { stat: 'resistance', base: 4, perLevel: 0.9 },
+      { stat: 'health', base: 8, perLevel: 2.6 },
+    ],
+  },
+  {
+    id: 'choir-vestments',
+    name: 'Vestments of the Ashen Choir',
+    slot: 'chest',
+    icon: 'item.leather-jerkin',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 14,
+    unique: true,
+    stats: [
+      { stat: 'armor', base: 8, perLevel: 2 },
+      { stat: 'resistance', base: 5, perLevel: 1.2 },
+      { stat: 'health', base: 10, perLevel: 2.8 },
+    ],
+  },
+  {
+    id: 'choir-wraps',
+    name: 'Wraps of the Ashen Choir',
+    slot: 'hands',
+    icon: 'item.leather-gloves',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 14,
+    unique: true,
+    stats: [
+      { stat: 'armor', base: 3, perLevel: 0.9 },
+      { stat: 'resistance', base: 3, perLevel: 0.8 },
+    ],
+  },
+  {
+    id: 'choir-slippers',
+    name: 'Slippers of the Ashen Choir',
+    slot: 'feet',
+    icon: 'item.leather-boots',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 14,
+    unique: true,
+    stats: [
+      { stat: 'armor', base: 3, perLevel: 0.9 },
+      { stat: 'resistance', base: 2, perLevel: 0.5 },
+      { stat: 'health', base: 4, perLevel: 1.5 },
+    ],
+  },
+  {
+    id: 'choir-censer-chain',
+    name: 'Censer-Chain of the Ashen Choir',
+    slot: 'neck',
+    icon: 'item.raven-talisman',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 14,
+    unique: true,
+    stats: [
+      { stat: 'resistance', base: 4, perLevel: 0.9 },
+      { stat: 'health', base: 8, perLevel: 2.2 },
+    ],
+  },
+  {
+    id: 'choir-band',
+    name: 'Band of the Ashen Choir',
+    slot: 'ring',
+    icon: 'item.brass-ring',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 14,
+    unique: true,
+    stats: [
+      { stat: 'resistance', base: 4, perLevel: 0.9 },
+      { stat: 'health', base: 6, perLevel: 1.8 },
+    ],
+  },
+  {
+    id: 'bloodmoon-grips',
+    name: 'Grips of the Bloodmoon Hunt',
+    slot: 'hands',
+    icon: 'item.ringmail-gloves',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 14,
+    unique: true,
+    stats: [
+      { stat: 'armor', base: 4, perLevel: 1.2 },
+      { stat: 'resistance', base: 2, perLevel: 0.5 },
+      { stat: 'health', base: 3, perLevel: 1 },
+    ],
+  },
+  {
+    id: 'bloodmoon-treads',
+    name: 'Treads of the Bloodmoon Hunt',
+    slot: 'feet',
+    icon: 'item.iron-shod-boots',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 14,
+    unique: true,
+    stats: [
+      { stat: 'armor', base: 4, perLevel: 1.2 },
+      { stat: 'health', base: 5, perLevel: 1.6 },
+    ],
+  },
+  {
+    id: 'bloodmoon-fang',
+    name: 'Fang of the Bloodmoon Hunt',
+    slot: 'neck',
+    icon: 'item.bone-amulet',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 14,
+    unique: true,
+    stats: [
+      { stat: 'resistance', base: 4, perLevel: 0.9 },
+      { stat: 'health', base: 8, perLevel: 2.2 },
+    ],
+  },
+  {
+    id: 'bloodmoon-loop',
+    name: 'Loop of the Bloodmoon Hunt',
+    slot: 'ring',
+    icon: 'item.grave-gold-ring',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 14,
+    unique: true,
+    stats: [
+      { stat: 'resistance', base: 4, perLevel: 0.9 },
+      { stat: 'health', base: 6, perLevel: 1.8 },
     ],
   },
 ];

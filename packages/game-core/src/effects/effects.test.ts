@@ -6,6 +6,7 @@ import {
   DEFAULT_LOOT_CONFIG,
   EFFECTS,
   ITEM_BASES,
+  ITEM_SETS,
   MYTHIC_ITEMS,
   attackHit,
   buildEncounter,
@@ -272,7 +273,8 @@ describe('Legendary and Mythic generation', () => {
         )!;
         expect(item.rarityId, tableId).toBe('legendary');
         expect(item.mythicId).toBeUndefined();
-        expect(item.effectId).toBeDefined();
+        // The crypt turns some of those Legendaries into set pieces (ticket 3.3), without effect.
+        expect(item.effectId !== undefined || item.setId !== undefined, tableId).toBe(true);
       }
     }
     for (const classId of CLASS_IDS) {
@@ -438,6 +440,10 @@ const EFFECT_CASES: [string, ClassId][] = EFFECTS.filter((e) => e.kind !== 'set'
   (e.classId ? [e.classId] : CLASS_IDS).map((c) => [e.id, c] as [string, ClassId]),
 );
 
+const SET_CASES: [string, ClassId][] = ITEM_SETS.flatMap((x) =>
+  CLASS_IDS.map((c) => [x.id, c] as [string, ClassId]),
+);
+
 describe('sampled fights match detailed fights with effects', () => {
   const trials = 12_000;
   const fights: [EnemyId, number, number][] = [
@@ -445,9 +451,9 @@ describe('sampled fights match detailed fights with effects', () => {
     ['fallenKnight', 18, 0.6],
   ];
 
-  it.each(EFFECT_CASES)('%s (%s)', (effectId, classId) => {
+  const checkFights = (effectId: string, classId: ClassId, fx: CombatEffects) => {
     for (const [enemyId, level, healthShare] of fights) {
-      const setup = setupWith(classId, level, enemyId, effectsOf(classId, effectId), 3);
+      const setup = setupWith(classId, level, enemyId, fx, 3);
       const health = Math.max(
         1,
         Math.floor(deriveCharacterStats(classId, level).health * healthShare),
@@ -475,6 +481,16 @@ describe('sampled fights match detailed fights with effects', () => {
       expect(Math.abs(a.offset - b.offset) / Math.max(1, a.offset), label).toBeLessThan(0.02);
       expect(Math.abs(a.hits - b.hits) / Math.max(1, a.hits), label).toBeLessThan(0.03);
     }
+  };
+
+  it.each(EFFECT_CASES)('%s (%s)', (effectId, classId) => {
+    checkFights(effectId, classId, effectsOf(classId, effectId));
+  });
+
+  // Ticket 3.3: a full set (all its bonuses at once), the way `setBonusInstances` passes them.
+  it.each(SET_CASES)('full set %s (%s)', (setId, classId) => {
+    const set = ITEM_SETS.find((x) => x.id === setId)!;
+    checkFights(setId, classId, effectsOf(classId, ...set.bonuses.map((b) => b.effectId)));
   });
 
   it('agrees exactly when nothing is random (thorns kills included)', () => {
@@ -532,9 +548,13 @@ describe('farming windows with effects', () => {
     ['warlock', 'soul-rot', 'bramblemail'],
     ['warrior', 'endless-hunger', 'headsmans-due'],
     ['mage', 'starfall', 'emberbrand'],
+    // Ticket 3.3: full sets (every bonus) next to an item effect.
+    ['warrior', 'vigil-tidebound,vigil-hold-the-line,vigil-undertow', 'rage-fuelled-strikes'],
+    ['mage', 'choir-kindled,choir-hymn-of-cinders,choir-last-rite', 'emberbrand'],
+    ['hunter', 'bloodmoon-scent,bloodmoon-long-hunt', 'carrion-feast'],
   ] as const)('%s with %s + %s: aggregate matches detailed', (classId, a, b) => {
     const seeds = 150;
-    const effects = effectsOf(classId, a, b);
+    const effects = effectsOf(classId, ...a.split(','), b);
     const detailed: FarmingResult[] = [];
     const aggregate: FarmingResult[] = [];
     for (let s = 0; s < seeds; s++) {

@@ -22,6 +22,8 @@ export type EquippedItem = Pick<GeneratedItem, 'baseId' | 'rarityId' | 'itemLeve
   effectId?: string | null;
   effectRoll?: number | null;
   mythicId?: string | null;
+  /** Ticket 3.3: the set of a set piece (`set_id`). Counted by `setBonusInstances`. */
+  setId?: string | null;
 };
 
 /** What one item adds to the character: core stats for combat plus secondary modifiers. */
@@ -60,7 +62,7 @@ export interface EquipmentModifiers extends SecondaryModifiers {
 export interface EquipmentEffectOptions {
   /** The wearer's class: class effects only count for it. Without it no effect is combined. */
   classId?: ClassId;
-  /** Effects from outside single items, e.g. set bonuses (ticket 3.3). */
+  /** Effects from outside single items: the set bonuses (ticket 3.3, `setBonusInstances`). */
   extraEffects?: readonly EffectInstance[];
   effectCaps?: EffectCaps;
 }

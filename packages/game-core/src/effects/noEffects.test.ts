@@ -8,6 +8,7 @@ import {
   settleFarming,
   simulateDungeonRun,
   simulateFarming,
+  setBonusInstances,
   type ClassId,
   type GeneratedItem,
   type RarityId,
@@ -19,6 +20,10 @@ import {
  * one-hour settlements with epic kits in three areas, detailed simulations and crypt runs, for
  * every class. Legendary and Mythic drops are left out of the settlement hash: since 3.2 they
  * carry an effect (and a Mythic roll outside late-game tables becomes a Legendary).
+ *
+ * Ticket 3.3 runs the same pinned hashes again: set pieces (Legendary rolls in late-game tables)
+ * fall under the same exclusion, and kits whose items all carry set ids that cannot count (ids of
+ * sets they are no piece of) still give exactly the pre-3.2 numbers.
  */
 const BEFORE_EFFECTS: Record<string, string> = {
   'settle:warrior:abandonedFields': '1273120753d9015e',
@@ -51,7 +56,7 @@ const BEFORE_EFFECTS: Record<string, string> = {
   'crypt:warlock': 'a4a07c152bed8038',
 };
 
-function kit(classId: ClassId, itemLevel: number, rarityId: RarityId): GeneratedItem[] {
+function plainKit(classId: ClassId, itemLevel: number, rarityId: RarityId): GeneratedItem[] {
   const rng = createRng(`fp:${classId}:${itemLevel}:${rarityId}`);
   const bases = ITEM_BASES.filter(
     (b) => !b.unique && b.minItemLevel <= itemLevel && canClassUseItem(b, classId),
@@ -90,8 +95,23 @@ const hash = (v: unknown) => {
   return a.toString(16).padStart(8, '0') + b.toString(16).padStart(8, '0');
 };
 
-describe('no effects equipped (ticket 3.2)', () => {
+/** Ticket 3.3: every kit item claims a set it is not a piece of; none of it may count. */
+const forgedSetIds = (items: GeneratedItem[]) =>
+  items.map((item, i) => ({
+    ...item,
+    setId: ['drowned-vigil', 'ashen-choir', 'bloodmoon-hunt'][i % 3]!,
+  }));
+
+describe.each([
+  ['no effects equipped (ticket 3.2)', (items: GeneratedItem[]) => items],
+  ['set ids that cannot count (ticket 3.3)', forgedSetIds],
+])('%s', (_, dress) => {
   it('farming, detailed simulation and the crypt give exactly the pre-3.2 results', () => {
+    const kit = (classId: ClassId, itemLevel: number, rarityId: RarityId) => {
+      const items = dress(plainKit(classId, itemLevel, rarityId));
+      expect(setBonusInstances(items)).toEqual([]);
+      return items;
+    };
     const out: Record<string, string> = {};
     for (const c of CLASS_IDS) {
       for (const [area, level] of [

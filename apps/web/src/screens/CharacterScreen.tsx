@@ -11,10 +11,17 @@ import {
   type EquipmentSlotId,
 } from '@worldforge/game-core';
 import { useGame } from '../game/GameProvider';
-import { equippedBySlot, type EquippedMap, type ItemView } from '../game/items';
+import {
+  SET_SOURCES,
+  equippedBySlot,
+  setTrackers,
+  type EquippedMap,
+  type ItemView,
+} from '../game/items';
 import { classPortrait } from '../content/assets';
 import { ItemFrame } from '../components/ItemFrame';
 import { ItemTooltip } from '../components/ItemTooltip';
+import { SetTracker } from '../components/SetTracker';
 import { LabeledMeter, Meter } from '../components/Meter';
 import { ProfessionsPanel } from './ProfessionsPanel';
 import { PixelSprite } from '../components/PixelSprite';
@@ -96,6 +103,7 @@ export function CharacterScreen() {
   const ready = inventory.kind === 'ready' ? inventory.value : null;
   const equipped: EquippedMap = ready ? equippedBySlot(ready.equipped) : {};
   const selectedItem = equipped[selected];
+  const sets = ready ? setTrackers(ready.equipped, ready.items) : [];
   const statName = new Map(CORE_STATS.map((s) => [s.id, s.name]));
   const maxHealth = ready?.stats.health ?? 0;
   const carried = activity.kind === 'ready' ? (activity.value?.health ?? null) : null;
@@ -239,6 +247,29 @@ export function CharacterScreen() {
                   </dl>
                 </div>
               ))}
+          </section>
+
+          <section className="sets panel-iron" aria-labelledby="sets-title">
+            <h2 id="sets-title" className="rule-heading">
+              Sets
+            </h2>
+            {inventory.kind === 'loading' ? (
+              <p className="ledger__state" role="status">
+                Counting set pieces…
+              </p>
+            ) : null}
+            {inventory.kind === 'error' ? (
+              <p className="ledger__state">Set pieces show once the pack loads.</p>
+            ) : null}
+            {ready && sets.length === 0 ? (
+              <p className="sets__empty">
+                No set pieces yet. They are rare finds in {SET_SOURCES}; two pieces of one set wake
+                its first bonus.
+              </p>
+            ) : null}
+            {sets.map((set) => (
+              <SetTracker key={set.id} set={set} />
+            ))}
           </section>
 
           <ProfessionsPanel />

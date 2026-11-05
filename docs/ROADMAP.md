@@ -331,7 +331,7 @@ GDD: §7.2, §7.4. Needs 3.1.
 - **UI:** effect text in tooltips, a distinct Legendary/Mythic frame treatment (restrained; the GDD reserves effects for meaningful events), and a drop moment for Legendary/Mythic in the chronicle and the return summary.
 **Acceptance:** an equivalence test with effects; a balance test per effect (no effect alone breaks the death or kill bands); screenshots.
 
-### 3.3 Set items & set bonuses (vertical) — `todo`
+### 3.3 Set items & set bonuses (vertical) — `done (PR #37)`
 GDD: §7.4. Needs 3.2.
 - 2–3 sets (e.g. one martial and one arcane-leaning, and an optional third for hybrids), 4–6 pieces each, as named items with fixed bases. Bonuses at 2, 4 and 6 pieces through the 3.2 effect registry.
 - Late-game sources: Sunken Abbey and the crypt (and 3.6's activity once it exists).

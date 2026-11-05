@@ -461,3 +461,37 @@ describe('Legendary and Mythic items (ticket 3.2)', () => {
     });
   });
 });
+
+describe('set pieces (ticket 3.3)', () => {
+  it('stores the set id of a set piece and shows it in the item view', async () => {
+    const p = await newPlayer();
+    const piece = generateItem({ seed: 13, itemLevel: 18, baseId: 'vigil-helm' })!;
+    expect(piece.setId).toBe('drowned-vigil');
+    expect(itemEffectColumns(piece)).toEqual({
+      effectId: null,
+      effectRoll: null,
+      mythicId: null,
+      setId: 'drowned-vigil',
+    });
+    const id = uuidv7();
+    await database.db.insert(itemInstances).values({
+      id,
+      characterId: p.characterId,
+      baseId: piece.baseId,
+      rarityId: piece.rarityId,
+      itemLevel: piece.itemLevel,
+      affixes: piece.affixes,
+      seed: piece.seed,
+      source: 'test',
+      ...itemEffectColumns(piece),
+    });
+    const view = (await inventory(p)).json<InventoryView>().inventory;
+    expect(view.find((i) => i.id === id)).toMatchObject({
+      baseId: 'vigil-helm',
+      rarityId: 'legendary',
+      setId: 'drowned-vigil',
+      effectId: null,
+      variant: null,
+    });
+  });
+});

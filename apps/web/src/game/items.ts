@@ -3,7 +3,11 @@ import {
   DUNGEONS,
   describeEffect,
   findEffect,
+  findSet,
   mythicForBase,
+  setForBase,
+  ITEM_SETS,
+  wornSets,
   getEnemy,
   CORE_STAT_IDS,
   EQUIPMENT_SLOTS,
@@ -90,6 +94,11 @@ export interface ItemView {
   uniqueSource: string | null;
   /** The Legendary effect or Mythic signature (ticket 3.2), with its rolled numbers. */
   effect: ItemEffectView | null;
+  /**
+   * The set of a set piece (ticket 3.3): its `setId`, when it names the set this base belongs to
+   * (the server's counting rule). Null for every other item.
+   */
+  setId: string | null;
 }
 
 /** An item's unique effect, as the tooltip shows it. */
@@ -99,6 +108,9 @@ export interface ItemEffectView {
   /** The effect text with the rolled values, e.g. "Deal 60 % more damage to bosses." */
   text: string;
 }
+
+/** Where set pieces come from (game-core loot tables with `setShare`), for the tooltip. */
+export const SET_SOURCES = 'the Sunken Abbey, the Nameless Crypt and the Gravewarden’s hoard';
 
 /** Where Mythics come from (game-core loot tables with `mythics`), for the tooltip. */
 export const MYTHIC_SOURCES = 'the depths of the Sunken Abbey and the Gravewarden’s hoard';
@@ -120,7 +132,7 @@ export function effectView(
 /** Where a boss-exclusive base drops, from the boss loot tables and dungeon content. */
 export function uniqueSourceOf(baseId: string): string | null {
   const base = findItemBase(baseId);
-  if (!base?.unique || mythicForBase(baseId)) return null;
+  if (!base?.unique || mythicForBase(baseId) || setForBase(baseId)) return null;
   const table = BOSS_LOOT_TABLES.find((t) => t.entries.some((e) => e.baseId === baseId));
   const dungeon = table && DUNGEONS.find((d) => d.bossLoot.lootTableId === table.id);
   return dungeon ? `${getEnemy(dungeon.bossId).name} of ${dungeon.name}` : 'a boss';
@@ -135,7 +147,12 @@ export type ItemDisplaySource = Pick<
   ItemDto,
   'id' | 'baseId' | 'rarityId' | 'itemLevel' | 'affixes' | 'equippedSlot' | 'source' | 'createdAt'
 > &
-  Partial<Pick<ItemDto, 'effectId' | 'effectRoll'>>;
+  Partial<Pick<ItemDto, 'effectId' | 'effectRoll' | 'setId'>>;
+
+/** The set id of an item, if it really is a piece of that set (game-core `wornSets` rule). */
+function setIdOf(baseId: string, setId: string | null | undefined): string | null {
+  return setId && setForBase(baseId)?.id === setId ? setId : null;
+}
 
 export function toItemView(dto: ItemDisplaySource): ItemView {
   const base = findItemBase(dto.baseId);
@@ -164,27 +181,120 @@ export function toItemView(dto: ItemDisplaySource): ItemView {
     createdAt: dto.createdAt,
     uniqueSource: uniqueSourceOf(dto.baseId),
     effect: effectView(dto.effectId, dto.effectRoll),
+    setId: setIdOf(dto.baseId, dto.setId),
   };
+}
+
+/** One piece of a set as the tracker shows it. */
+export interface SetPieceView {
+  baseId: string;
+  name: string;
+  slot: ItemSlotKind;
+  /** Worn now (counts toward the bonuses). */
+  equipped: boolean;
+  /** In the pack (not worn). */
+  inPack: boolean;
+}
+
+/** One set bonus as the tracker shows it. */
+export interface SetBonusView {
+  pieces: number;
+  name: string;
+  text: string;
+  active: boolean;
+}
+
+/** A set's progress for the character: pieces owned and worn, bonuses active (ticket 3.3). */
+export interface SetTrackerView {
+  id: string;
+  name: string;
+  theme: string;
+  /** Distinct pieces worn, as the server counts them. */
+  worn: number;
+  pieces: SetPieceView[];
+  bonuses: SetBonusView[];
+}
+
+/**
+ * The tracker of one set from the character's equipped items and pack. Counting is game-core's
+ * (`wornSets`): each piece once, by set id and base, never by variant.
+ */
+export function setTracker(
+  setId: string,
+  equipped: readonly ItemView[],
+  pack: readonly ItemView[],
+): SetTrackerView | null {
+  const set = findSet(setId);
+  if (!set) return null;
+  const worn = wornSets(equipped.map((i) => ({ baseId: i.baseId, setId: i.setId }))).find(
+    (w) => w.set.id === setId,
+  );
+  const wornIds = new Set(worn?.pieces ?? []);
+  const packIds = new Set(pack.filter((i) => i.setId === setId).map((i) => i.baseId));
+  return {
+    id: set.id,
+    name: set.name,
+    theme: set.theme,
+    worn: wornIds.size,
+    pieces: set.pieces.map((baseId) => {
+      const base = findItemBase(baseId);
+      return {
+        baseId,
+        name: base?.name ?? baseId,
+        slot: base?.slot ?? 'ring',
+        equipped: wornIds.has(baseId),
+        inPack: !wornIds.has(baseId) && packIds.has(baseId),
+      };
+    }),
+    bonuses: set.bonuses.map((b) => ({
+      pieces: b.pieces,
+      name: findEffect(b.effectId)?.name ?? b.effectId,
+      text: describeEffect({ effectId: b.effectId, roll: 1 }),
+      active: wornIds.size >= b.pieces,
+    })),
+  };
+}
+
+/** Trackers of every set the character owns at least one piece of, in content order. */
+export function setTrackers(
+  equipped: readonly ItemView[],
+  pack: readonly ItemView[],
+): SetTrackerView[] {
+  const owned = new Set([...equipped, ...pack].map((i) => i.setId).filter((id) => id !== null));
+  return ITEM_SETS.filter((s) => owned.has(s.id)).flatMap((s) => {
+    const view = setTracker(s.id, equipped, pack);
+    return view ? [view] : [];
+  });
 }
 
 /**
  * A gained item from a return summary (no affixes there): name, icon, rarity and, for a Legendary
- * or Mythic, the effect's name (the roll is not in the summary; the pack shows the full text).
+ * or Mythic, the effect's name (the roll is not in the summary; the pack shows the full text); for
+ * a set piece (ticket 3.3), its set's name.
  */
-export function summaryItemView(
-  item: SummaryItem,
-): Pick<ItemView, 'id' | 'icon' | 'name' | 'rarity'> & { effectName: string | null } {
+export function summaryItemView(item: SummaryItem): Pick<
+  ItemView,
+  'id' | 'icon' | 'name' | 'rarity'
+> & {
+  effectName: string | null;
+  setName: string | null;
+} {
   const base = findItemBase(item.baseId);
+  const setId = setIdOf(item.baseId, item.setId);
   return {
     id: item.id,
     icon: iconOf(base?.icon),
     name: base?.name ?? 'Unknown relic',
     rarity: item.rarityId,
     effectName: item.effectId ? (findEffect(item.effectId)?.name ?? null) : null,
+    setName: setId ? (findSet(setId)?.name ?? null) : null,
   };
 }
 
-/** Whether a drop deserves its own moment (ticket 3.2): Legendary and Mythic finds. */
+/**
+ * Whether a drop deserves its own moment (ticket 3.2): Legendary and Mythic finds (set pieces are
+ * Legendary-rarity, ticket 3.3).
+ */
 export function isChaseDrop(rarity: RarityId): boolean {
   return rarity === 'legendary' || rarity === 'mythic';
 }

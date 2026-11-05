@@ -225,6 +225,8 @@ export interface ActivitySummaryItem {
   /** Legendary effect / Mythic signature and named Mythic (ticket 3.2); absent on others. */
   effectId?: string;
   mythicId?: string;
+  /** The set of a set piece (ticket 3.3); absent on others. */
+  setId?: string;
 }
 
 /** See `characters.farmState` and docs/FARMING.md. */
@@ -490,6 +492,8 @@ export interface DungeonRunSnapshot {
     /** Ticket 3.2; absent in snapshots taken before it (those runs replay without effects). */
     effectId?: string | null;
     effectRoll?: number | null;
+    /** Ticket 3.3; absent in snapshots taken before it (those runs replay without set bonuses). */
+    setId?: string | null;
   }[];
 }
 

@@ -292,6 +292,7 @@ export async function settleActivityTx(
         itemLevel: r.itemLevel,
         ...(r.effectId ? { effectId: r.effectId } : {}),
         ...(r.mythicId ? { mythicId: r.mythicId } : {}),
+        ...(r.setId ? { setId: r.setId } : {}),
       })),
     );
     summary.items = summary.items.slice(-SUMMARY_ITEM_LIMIT);

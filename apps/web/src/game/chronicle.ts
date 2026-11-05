@@ -19,6 +19,8 @@ export type LogEntry =
       item: string;
       rarity: RarityId;
       effect: string | null;
+      /** The set of a set piece (ticket 3.3). */
+      set: string | null;
     }
   | { id: string; at: string; kind: 'gold'; amount: number }
   | { id: string; at: string; kind: 'level'; levels: number }
@@ -85,6 +87,7 @@ export function chronicleEntries(summary: ReturnSummary, seq: number): LogEntry[
       item: view.name,
       rarity: view.rarity,
       effect: view.effectName,
+      set: view.setName,
     });
   }
   const unlisted = summary.itemsGained - shown.length - chase.length;
