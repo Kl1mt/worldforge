@@ -920,8 +920,11 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
         keyed(p, `${base}/quests/${questRowId}/turn-in`, {}),
         keyed(p, `${base}/dungeon/claim`, {}),
       ]);
-      // Every action succeeds once; the second claim finds the run claimed.
-      expect(results.map((r) => r.statusCode)).toEqual([200, 200, 200, 200, 200, 200, 200, 409]);
+      // Every other action succeeds; exactly one of the two racing claims wins (either
+      // may reach the row lock first) and the other finds the run claimed.
+      const codes = results.map((r) => r.statusCode);
+      expect(codes.slice(1, 7)).toEqual([200, 200, 200, 200, 200, 200]);
+      expect([codes[0], codes[7]].sort()).toEqual([200, 409]);
       const after = await holdings(id);
       const audit = await ledger(id);
       expect(after.gold - before.gold).toBe(audit.gold);
