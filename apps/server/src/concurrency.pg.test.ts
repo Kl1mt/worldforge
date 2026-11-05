@@ -676,7 +676,7 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
     const id = await newCharacter(p);
     await setGold(id, 1_000);
     await database.db.insert(characterMaterials).values([
-      { characterId: id, materialId: 'timber', quantity: 25 },
+      { characterId: id, materialId: 'timber', quantity: 65 },
       { characterId: id, materialId: 'ashwort', quantity: 100 },
     ]);
     const results = await Promise.all(
@@ -698,9 +698,9 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
       .where(eq(characterMaterials.characterId, id));
     expect(Object.fromEntries(mats.map((m) => [m.materialId, m.quantity]))).toEqual({
       timber: 5,
-      ashwort: 90,
+      ashwort: 70,
     });
-    expect(await goldOf(id)).toBe(950);
+    expect(await goldOf(id)).toBe(940);
     const items = await database.db
       .select()
       .from(itemInstances)

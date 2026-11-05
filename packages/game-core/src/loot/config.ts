@@ -60,7 +60,7 @@ export const DEFAULT_LOOT_CONFIG: LootConfig = {
     legendary: { weight: 45, affixCount: 4, statMultiplier: 1.5 },
     mythic: { weight: 5, affixCount: 5, statMultiplier: 1.7 },
   },
-  gold: { dropChance: 0.6, min: 1, max: 4, growthPerLevel: 0.15 },
+  gold: { dropChance: 0.2, min: 1, max: 3, growthPerLevel: 0.1 },
   itemLevelVariance: 1,
   maxItemLevel: 60,
 };

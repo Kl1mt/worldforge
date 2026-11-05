@@ -277,7 +277,7 @@ describe('progress and turn-in', () => {
       character: { gold: number };
       quests: QuestBoardResponse;
     }>();
-    expect(body.reward).toMatchObject({ xp: 120, gold: 40, item: null });
+    expect(body.reward).toMatchObject({ xp: 600, gold: 40, item: null });
     expect(body.quests.story.completed).toEqual(['furrowsOfTheDead']);
     expect(body.quests.quests).toEqual([]);
     const after = await characterRow(p.id);

@@ -98,7 +98,7 @@ export const DUNGEONS: readonly DungeonDefinition[] = [
     rooms: [{ enemies: 2 }, { enemies: 2 }, { enemies: 2 }, { enemies: 2 }],
     travelMs: 20_000,
     bossMaxFightMs: 150_000,
-    bossEnrage: { atMs: 60_000, damageMultiplier: 2, attackSpeedMultiplier: 1.5 },
+    bossEnrage: { atMs: 45_000, damageMultiplier: 1.8, attackSpeedMultiplier: 1.4 },
     bossLoot: {
       lootTableId: 'gravewarden',
       items: 2,
@@ -110,7 +110,7 @@ export const DUNGEONS: readonly DungeonDefinition[] = [
         legendary: 250,
         mythic: 20,
       },
-      gold: { min: 60, max: 90 },
+      gold: { min: 120, max: 180 },
       cooldownHours: 20,
     },
     bossId: 'gravewarden',

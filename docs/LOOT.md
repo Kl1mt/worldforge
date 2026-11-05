@@ -26,4 +26,4 @@ Pure, deterministic rules in `@worldforge/game-core`. Content lives in `packages
 | Legendary | 45 | 0.45 % | 4 | 1.5 |
 | Mythic | 5 | 0.05 % | 5 | 1.7 |
 
-Item drop chance per kill 12 % (`standard` table: the tier-1 bases, used when no table is given). Settlement rolls the area's table (`loot/tables.ts`, ticket 2.1): per-area tier weights and an item-level range that clamps the rolled level; the Abandoned Fields table equals `standard`. See `docs/WORLD.md`. Gold: 60 % chance, 1–4 at level 1, +15 % per level, × (1 + gold find).
+Item drop chance per kill 12 % in the `standard` table (the tier-1 bases, used when no table is given). Settlement rolls the area's table (`loot/tables.ts`, ticket 2.1): per-area tier weights, an item-level range that clamps the rolled level, and a 6 % item chance (ticket B.1; the crypt's chambers 18 %); the Abandoned Fields table has the `standard` bases. See `docs/WORLD.md`. Gold (ticket B.1): 20 % chance, 1–3 at level 1, +10 % per level, × (1 + gold find).

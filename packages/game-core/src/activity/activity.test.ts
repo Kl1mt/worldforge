@@ -297,15 +297,16 @@ describe('area switches', () => {
       const switches = [
         { atMs: 7 * MIN + 1_234, to: 'oldBurialGrounds' as const },
         { atMs: 7 * MIN + 1_500, to: 'abandonedFields' as const }, // re-targets while pending
-        { atMs: 13 * MIN + 77, to: 'crowwood' as const },
+        { atMs: 22 * MIN + 77, to: 'crowwood' as const },
       ];
-      const once = run({ seed, endMs: 20 * MIN, settleEveryMs: 20 * MIN, switches });
+      // Long enough segments that both areas gather something at the B.1 yields.
+      const once = run({ seed, endMs: 40 * MIN, settleEveryMs: 40 * MIN, switches });
       expect(once.kills).toBeGreaterThan(0);
       // Materials from several areas (Crowwood hide, Fields ashwort), split-invariant too.
       expect(once.materials.rawHide).toBeGreaterThan(0);
       expect(once.materials.ashwort).toBeGreaterThan(0);
       for (const step of [1_000, 3_333, 60_000]) {
-        expect(run({ seed, endMs: 20 * MIN, settleEveryMs: step, switches })).toEqual(once);
+        expect(run({ seed, endMs: 40 * MIN, settleEveryMs: step, switches })).toEqual(once);
       }
     }
   });

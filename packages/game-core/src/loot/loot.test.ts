@@ -247,9 +247,9 @@ describe('gold', () => {
   });
 
   it('applies gold find and ignores negative or invalid bonuses', () => {
-    // Level 10, roll r: round(r × 2.35 × (1 + goldFind)).
+    // Level 10, roll r: round(r × 1.9 × (1 + goldFind)) (growth 0.1 per level, ticket B.1).
     const r = createRng(5).int(DEFAULT_LOOT_CONFIG.gold.min, DEFAULT_LOOT_CONFIG.gold.max);
-    expect(rollGoldAmount(10, createRng(5), DEFAULT_LOOT_CONFIG, 1)).toBe(Math.round(r * 2.35 * 2));
+    expect(rollGoldAmount(10, createRng(5), DEFAULT_LOOT_CONFIG, 1)).toBe(Math.round(r * 1.9 * 2));
     expect(rollGoldAmount(10, createRng(5), DEFAULT_LOOT_CONFIG, -5)).toBe(
       rollGoldAmount(10, createRng(5)),
     );

@@ -248,7 +248,7 @@ GDD: §15 Phase 2 exit criteria, §16.3.
 - An exploit review of all Phase 2 endpoints (timing invariance, idempotency, concurrency on real Postgres, client-trusted values); fix what's found.
 - Phase 2 retrospective in this file.
 
-### B.1 Balance pass (from playtest feedback) — `todo`
+### B.1 Balance pass (from playtest feedback) — `done (PR #31)`
 GDD: §2, §6, §9, §18. Starts when the owner's playtest feedback is in (`docs/PLAYTEST_FEEDBACK.md`).
 - Phase 1 baseline (1.9): deaths per 30 min at level 1 with no gear were warrior 6.5, hunter 19, warlock 25, mage 29. Casters die far too often.
 - Tune the class profiles, enemy stats and XP curve in game-core so that every class can farm the Abandoned Fields with a similar, low death rate, and later areas feel like a step up. Address the owner's feedback.
