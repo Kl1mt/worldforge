@@ -808,6 +808,187 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
     });
   });
 
+  // Ticket 2.8: races across features on one character. Every value endpoint locks the character
+  // row first, so they serialise; these check that no combination loses or doubles gold, items or
+  // materials, by reconciling the rows with the audit log.
+  describe('cross-feature races (ticket 2.8)', () => {
+    /** Gold, item and material deltas the audit log records for a character. */
+    async function ledger(characterId: string) {
+      const rows = await database.db
+        .select()
+        .from(auditLog)
+        .where(eq(auditLog.characterId, characterId));
+      let gold = 0;
+      let items = 0;
+      const materials: Record<string, number> = {};
+      const add = (bundle: unknown, sign = 1) => {
+        for (const [k, n] of Object.entries((bundle ?? {}) as Record<string, number>)) {
+          materials[k] = (materials[k] ?? 0) + sign * n;
+        }
+      };
+      for (const { event, data } of rows) {
+        const d = data as Record<string, unknown> & { gold: number };
+        if (event === 'activity.reward' || event === 'dungeon.claim') {
+          gold += d.gold;
+          items += d.items as number;
+          add(d.materials);
+        } else if (event === 'merchant.buy') {
+          gold -= d.price as number;
+          items += 1;
+        } else if (event === 'merchant.sell') {
+          gold += d.gold;
+          items -= (d.items as unknown[]).length;
+        } else if (event === 'forge.salvage') {
+          gold += d.gold;
+          items -= (d.items as unknown[]).length;
+          add(d.materials);
+        } else if (event === 'forge.craft') {
+          gold -= d.gold;
+          items += 1;
+          add(d.materials, -1);
+        } else if (event === 'quest.turn_in') {
+          gold += d.gold;
+          items += d.item ? 1 : 0;
+          add(d.materials);
+        }
+      }
+      return { gold, items, materials };
+    }
+
+    async function holdings(characterId: string) {
+      const [c] = await database.db.select().from(characters).where(eq(characters.id, characterId));
+      const items = await database.db
+        .select({ id: itemInstances.id })
+        .from(itemInstances)
+        .where(eq(itemInstances.characterId, characterId));
+      const mats = await database.db
+        .select()
+        .from(characterMaterials)
+        .where(eq(characterMaterials.characterId, characterId));
+      return {
+        gold: c!.gold,
+        items: items.length,
+        materials: Object.fromEntries(
+          mats.filter((m) => m.quantity > 0).map((m) => [m.materialId, m.quantity]),
+        ),
+      };
+    }
+
+    /** A complete, active quest worth 50 gold (inserted: the races are about the turn-in). */
+    async function readyQuestRow(characterId: string): Promise<string> {
+      const id = uuidv7();
+      await database.db.insert(characterQuests).values({
+        id,
+        characterId,
+        kind: 'story',
+        questId: 'furrowsOfTheDead',
+        objectives: [{ kind: 'kill', enemyId: 'risenFarmhand', count: 1 }],
+        progress: [1],
+        reward: { xp: 10, gold: 50, materials: { timber: 2 }, item: null },
+        acceptedAt: new Date(nowMs),
+      });
+      return id;
+    }
+
+    const STARTING_GOLD = 10_000;
+
+    it('a crypt claim racing sells, salvages, a buy and a turn-in: everything reconciles', async () => {
+      const p = await newPlayer();
+      const id = await newCharacter(p);
+      await makeCryptReady(database.db, id, 'warrior', 16);
+      const loose = [];
+      for (let i = 0; i < 4; i++) loose.push(await grant(id, 'iron-helm', 100 + i));
+      const questRowId = await readyQuestRow(id);
+      await setGold(id, STARTING_GOLD);
+      const before = await holdings(id);
+      const stock = await call(p, 'GET', `/api/characters/${id}/merchant`);
+      const offer = stock.json<{ offers: { offerId: string }[] }>().offers[0]!;
+      const entered = await call(p, 'POST', `/api/characters/${id}/dungeon`, {
+        dungeonId: 'namelessCrypt',
+      });
+      expect(entered.statusCode).toBe(201);
+      nowMs = Math.max(nowMs, Date.parse(entered.json<{ run: { endsAt: string } }>().run.endsAt));
+
+      const base = `/api/characters/${id}`;
+      const results = await Promise.all([
+        keyed(p, `${base}/dungeon/claim`, {}),
+        keyed(p, `${base}/merchant/sell`, { itemIds: [loose[0]] }),
+        keyed(p, `${base}/merchant/sell`, { itemIds: [loose[1]] }),
+        keyed(p, `${base}/forge/salvage`, { itemIds: [loose[2]] }),
+        keyed(p, `${base}/forge/salvage`, { itemIds: [loose[3]] }),
+        keyed(p, `${base}/merchant/buy`, { offerId: offer.offerId }),
+        keyed(p, `${base}/quests/${questRowId}/turn-in`, {}),
+        keyed(p, `${base}/dungeon/claim`, {}),
+      ]);
+      // Every action succeeds once; the second claim finds the run claimed.
+      expect(results.map((r) => r.statusCode)).toEqual([200, 200, 200, 200, 200, 200, 200, 409]);
+      const after = await holdings(id);
+      const audit = await ledger(id);
+      expect(after.gold - before.gold).toBe(audit.gold);
+      expect(after.items - before.items).toBe(audit.items);
+      expect(after.materials).toEqual(audit.materials);
+      expect(await eventsOf(id, 'dungeon.claim')).toHaveLength(1);
+    });
+
+    it('a crypt entry racing settles, a sell, a buy, a craft and a turn-in on a farming hero', async () => {
+      const p = await newPlayer();
+      const id = await newCharacter(p);
+      await makeCryptReady(database.db, id, 'warrior', 16);
+      const start = await call(p, 'POST', `/api/characters/${id}/activity`, {
+        areaId: 'blackwater',
+      });
+      expect(start.statusCode).toBe(201);
+      const loose = await grant(id, 'iron-helm', 7);
+      const questRowId = await readyQuestRow(id);
+      await setGold(id, STARTING_GOLD);
+      await database.db
+        .insert(characterMaterials)
+        .values([
+          { characterId: id, materialId: 'timber', quantity: 30 },
+          { characterId: id, materialId: 'ashwort', quantity: 15 },
+        ])
+        .onConflictDoUpdate({
+          target: [characterMaterials.characterId, characterMaterials.materialId],
+          set: { quantity: sql`excluded.quantity` },
+        });
+      const before = await holdings(id);
+      const stock = await call(p, 'GET', `/api/characters/${id}/merchant`);
+      const offer = stock.json<{ offers: { offerId: string }[] }>().offers[0]!;
+      advance(HOUR);
+
+      const base = `/api/characters/${id}`;
+      const results = await Promise.all([
+        call(p, 'POST', `${base}/dungeon`, { dungeonId: 'namelessCrypt' }),
+        call(p, 'POST', `${base}/activity/settle`),
+        call(p, 'POST', `${base}/activity/settle`),
+        keyed(p, `${base}/merchant/sell`, { itemIds: [loose] }),
+        keyed(p, `${base}/merchant/buy`, { offerId: offer.offerId }),
+        keyed(p, `${base}/forge/craft`, { recipeId: 'fieldsmithWork', slot: 'ring' }),
+        keyed(p, `${base}/quests/${questRowId}/turn-in`, {}),
+      ]);
+      expect(results[0]!.statusCode).toBe(201);
+      // A settle after the entry finds no activity (409); one before it settles normally.
+      for (const r of results.slice(1, 3)) expect([200, 409]).toContain(r.statusCode);
+      expect(results.slice(3).map((r) => r.statusCode)).toEqual([200, 200, 200, 200]);
+
+      const after = await holdings(id);
+      const audit = await ledger(id);
+      expect(after.gold - before.gold).toBe(audit.gold);
+      expect(after.items - before.items).toBe(audit.items);
+      for (const [k, n] of Object.entries(audit.materials)) {
+        expect((after.materials[k] ?? 0) - (before.materials[k] ?? 0)).toBe(n);
+      }
+      // The hour of farming was credited exactly once, and farming has ended.
+      const sums = await audited(id);
+      expect(sums.creditedMs).toBe(HOUR);
+      const farming = await database.db
+        .select()
+        .from(activities)
+        .where(eq(activities.characterId, id));
+      expect(farming).toEqual([]);
+    });
+  });
+
   it('the races above ran without a single deadlock or serialization retry', () => {
     expect(transactionStats.retries).toBe(0);
   });

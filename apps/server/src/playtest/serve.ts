@@ -21,12 +21,11 @@
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { sql } from 'drizzle-orm';
 import { buildApp } from '../app.js';
 import { loadConfig } from '../config.js';
-import { activities } from '../db/schema.js';
 import { createPgliteDatabase } from '../test/db.js';
 import { playtestClock, startOffsetMs } from './clock.js';
+import { latestStoredTimeMs } from './stored-time.js';
 
 if (process.env.NODE_ENV === 'production') {
   console.error(
@@ -88,14 +87,7 @@ try {
 }
 
 const database = await createPgliteDatabase(join(dataDir, 'db'));
-const [latest] = await database.db
-  .select({
-    ms: sql<
-      number | null
-    >`(extract(epoch from max(greatest(${activities.settledAt}, ${activities.lastSeenAt}))) * 1000)::float8`,
-  })
-  .from(activities);
-const latestStoredMs = latest?.ms ?? null;
+const latestStoredMs = await latestStoredTimeMs(database.db);
 const clock = playtestClock({
   scale: timeScale,
   offsetMs: startOffsetMs(savedOffsetMs, latestStoredMs, Date.now()),

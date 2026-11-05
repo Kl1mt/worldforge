@@ -83,12 +83,20 @@ Coming back another day: open a terminal, go to the folder (`cd worldforge`) and
 
 1. **Register.** Choose *Create account* and enter an email (it is never checked or sent anywhere; `me@test.local` is fine), a display name and a password of at least 10 characters.
 2. **Create a character.** Pick a name and one of the four classes (Warrior, Mage, Hunter, Warlock). You get two character slots, so you can try a second class later.
-3. **Farm.** On *Abandoned Fields*, press **Farm the fields**. Your hero fights on their own; the *Chronicle* shows kills, XP, gold and drops. At real time a kill takes a few seconds and loot takes a few minutes.
-4. **Inventory and equipment.** Open *Inventory*, click an item to see its tooltip and the comparison with what you wear, then **Equip** it. *Equipment & stats* shows the change in your stats.
+3. **Farm.** On *Abandoned Fields* (Area), press **Farm Abandoned Fields**. Your hero fights on their own; the *Chronicle* shows kills, XP, gold and drops. At real time a kill takes a few seconds and loot takes a few minutes.
+4. **Inventory and equipment.** Open *Pack*, click an item to see its tooltip and the comparison with what you wear, then **Equip** it. *Equipment & stats* shows the change in your stats.
 5. **Log out** (top right) or simply close the browser tab.
 6. **Come back later** and log in. A **"While you were away"** summary shows what your hero earned. Offline progress stops after **3 hours**; the summary says how much time earned nothing.
 
-To see step 6 without waiting hours, use fast time (next section).
+The rest of Graumark (Phase 2; it takes about 30 hours of farming at real time to see it all, so use fast time):
+
+7. **Town and map.** The town is home. On the *World Map*, new areas open as your hero levels (Crowwood at 5, Old Burial Grounds at 9, Blackwater at 13); pick one to travel there.
+8. **Tavern.** Take the story quest and up to three contracts a day; they fill while you farm, even offline. Turn them in for XP, gold and sometimes an item.
+9. **Materials and professions.** Farming gathers timber, herbs, hides and ore; see them under *Pack → Materials* and the professions on the *Character* screen.
+10. **Merchant and Forge.** Sell what you don't wear, buy from the daily stock, salvage items into materials and commission gear at the Forge.
+11. **The Nameless Crypt** (level 12+, from the map). A run takes a few minutes and can't be stopped; claim the spoils at the end. Defeating the Gravewarden (and reaching level 17) opens the **Sunken Abbey**.
+
+To see step 6 and the later steps without waiting hours, use fast time (next section).
 
 ---
 
@@ -104,6 +112,7 @@ This speeds up the **game's farming clock** on your local server 60 times: one r
 - It only changes how fast farming time passes. Logins and sessions use real time, and the game rules are unchanged.
 - Time never runs backwards: after a fast session, the game clock stays ahead of the real one (that's why times in the Chronicle may look like "the future"). Switching back to `pnpm playtest` continues at normal speed from there.
 - Balance feels very different at ×60 (lots of loot quickly). Judge balance at real time.
+- Fast time also speeds up crypt runs and the game day: merchant stock and Tavern contracts renew every game day (24 real minutes at ×60). The merchant's "Restocks in …" countdown is measured against your computer's clock, so it looks too long under fast time.
 
 ---
 
@@ -172,6 +181,6 @@ Fill in [`docs/PLAYTEST_FEEDBACK.md`](PLAYTEST_FEEDBACK.md) as you play (make a 
 
 - `pnpm playtest` runs `tools/playtest/run.mjs`, which checks Node, dependencies and ports, then starts `apps/server/src/playtest/serve.ts` and the Vite dev server as plain Node processes (no shell, so Windows behaves like macOS/Linux) and waits for both before printing the address. Options: `--fast[=N]`, `--server-port=N`, `--web-port=N`; env: `PLAYTEST_DATA_DIR`, `LOG_LEVEL` (default `warn`), `OFFLINE_CAP_SECONDS`.
 - `serve.ts` is the real `buildApp()` on PGlite persisted to `PLAYTEST_DATA_DIR` (default `.playtest-data/`, git-ignored), migrated on every start. Like the e2e server it is excluded from the production build and refuses `NODE_ENV=production`. Auth, validation, rate limits and game rules are unchanged. Differences: `SESSION_COOKIE_SECURE` defaults to `0` (plain http on this machine only; Safari), scheduled settlement every `PLAYTEST_SETTLE_INTERVAL_SECONDS` (default 30), and `PLAYTEST_TIME_SCALE` (default 1).
-- Fast time is a server-side clock (`apps/server/src/playtest/clock.ts`) injected as `activity.now`; its offset from real time is saved in `.playtest-data/clock.json` and floored by the newest stored farming timestamp, so it never runs backwards across restarts.
+- Fast time is a server-side clock (`apps/server/src/playtest/clock.ts`) injected as `activity.now`; its offset from real time is saved in `.playtest-data/clock.json` and floored by the newest game timestamp stored (farming, crypt runs, quests, purchases, items: `playtest/stored-time.ts`, ticket 2.8), so it never runs backwards across restarts, even with a hero in the crypt.
 - A `server.lock` file (pid) prevents two servers from opening the same PGlite files; `pnpm playtest:reset` refuses while that pid runs and only deletes a folder containing playtest files.
 - `pnpm run doctor` (`tools/doctor.mjs`) needs no dependencies, so `node tools/doctor.mjs` works before `pnpm install`.

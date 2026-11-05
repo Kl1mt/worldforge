@@ -242,11 +242,42 @@ GDD: §1.3, §3, §18. Needs 2.2–2.6. Take the owner's playtest feedback into 
 - Navigation polish for the bigger world (hub ↔ map ↔ area).
 **Acceptance:** Playwright run of the first-session flow; screenshots.
 
-### 2.8 Phase 2 hardening & exit — `todo`
+### 2.8 Phase 2 hardening & exit — `done (PR #32)`
 GDD: §15 Phase 2 exit criteria, §16.3.
 - An exit-criteria e2e test (server with simulated clock, plus the browser run): progress through several areas, complete quests, gather resources, clear the crypt and the Gravewarden, unlock the Sunken Abbey.
 - An exploit review of all Phase 2 endpoints (timing invariance, idempotency, concurrency on real Postgres, client-trusted values); fix what's found.
 - Phase 2 retrospective in this file.
+
+### Phase 2 retrospective (ticket 2.8)
+**Exit criteria (GDD §15 Phase 2): met.** Checked end to end twice, with no database shortcuts: through the HTTP API with a simulated clock (`apps/server/src/e2e/phase2-exit-criteria.test.ts`) and in a real browser (`tools/e2e/phase2-exit.mjs`, CI job `e2e-phase2`). A fresh hero farms the Abandoned Fields, moves through Crowwood, the Old Burial Grounds and Blackwater as levels come, equips better drops, gathers materials (best profession 10–14), turns in all five story quests and several contracts, buys, sells, salvages and crafts, clears the Nameless Crypt and the Gravewarden, sees the Sunken Abbey open and farms it. Every gold piece, item and material held at the end matches the audit log. All four classes pass the API run (`E2E_CLASS`).
+
+**Numbers from the runs (record only; no balance changes in this ticket).**
+- Level 17 and the Abbey after 30–32 game hours for every class (B.1's farming-only estimate: 33.5–38 h; quest and contract XP make up the difference). 3–10 deaths in the whole run.
+- The crypt fell at level 13 in 6 of 7 API runs and in the browser run (one mage failed at 13 and won at 14). B.1's target is "geared level 12 never wins, geared level 15 ≥ 90 %", measured with uncommon tier-3 kits; heroes who farmed their gear (rares, quest jewellery) are ahead of that kit. The crypt is easier than the target for a normal player; worth a look in the next balance pass.
+- Gold piles up: 25–30k by level 17, with few sinks (merchant offers cost 20–240, recipes 30–400). Phase 3's upgrades will need to be the sink.
+- The 60-slot pack fills within about two game hours at mid levels, so after any 3 h absence it is full and new drops are auto-salvaged. Working as designed, but players will see "pack full" constantly; consider it with Phase 3's warehouse.
+
+**What the exploit review found.** Every Phase 2 endpoint (world/area switch, materials, quests and contracts, crypt runs, merchant, forge, idempotency, onboarding guide) was checked for timing invariance, `Idempotency-Key` semantics, real-Postgres concurrency (including cross-feature races), client-trusted values, ownership, and negative or overflowing values. The locking held up: every value endpoint locks the character row first (after claiming its idempotency key; then the activity, then items or quests), so even cross-feature races serialise. The new real-Postgres races (a crypt claim against sells, salvages, a buy and a turn-in; a crypt entry against settles, a sell, a buy, a craft and a turn-in) reconcile exactly with the audit log, with no deadlock or retry. The sweep test `apps/server/src/exploit-review.test.ts` keeps the rest covered: `404` on all 20 Phase 2 routes for another account's character, foreign item and quest ids, unknown body fields refused, ranges and forged offer ids, malformed keys. Two things were fixed:
+- **Fixed: crypt kills counted for quests taken after the run.** A run's outcome is fixed at its start, but its quest events were applied at the claim to every active quest. Taking "The Nameless Crypt" step after a won run had ended (but before claiming) completed it without fighting for it. Now only quests accepted at or before the run's start count its events (`recordQuestEventsTx(…, { acceptedBy })`), the rule farming already had. Test in `dungeon.test.ts`.
+- **Fixed: the playtest clock could restart behind a crypt run.** The playtest server floors its clock by the newest stored timestamp in case `clock.json` is lost or stale, but looked only at farming activities, and a hero in the crypt has none. The clock then restarted at real time, behind the run (with `--fast`, days behind), so the run stayed "in progress". It now uses every table that stamps the game clock (`playtest/stored-time.ts`, with a test); verified by restarting `pnpm playtest -- --fast=1200` mid-run with `clock.json` deleted.
+
+**Accepted risks** (reviewed, left as they are):
+- A run's `endsAt` is visible at the start, and a failed run ends sooner, so the outcome can be guessed early. There is no way to abandon a run, so nothing can be re-rolled.
+- Auto-salvage of crypt drops depends on the pack at claim time, so a player can make room first. Same rule as farming settlement.
+- An `Idempotency-Key` expires after 24 h; a retry after that runs fresh. Every value route is also guarded by state except crafting, where a late retry crafts (and pays) again. A key reused on a differently spelled path (e.g. an upper-case UUID) answers `409`, not a replay.
+- Bodyless value routes (claim, turn-in, settle, stop) ignore a JSON body instead of refusing it; nothing in it is read.
+- The guide's steps are the client's word (it grants nothing). Contract offers for untaken slots change on level-up (documented). Boss loot cooldown and contracts are per character, so a second character doubles them, at the cost of farming it up.
+- Phase 1 carry-overs still open: per-account rate limits on game routes; login throttling per account; an equipment change re-simulates the unfinished cycle with the new gear.
+- Fast time only: the merchant's "Restocks in …" countdown uses the browser's clock, so it is wrong under `pnpm playtest:fast` and in the e2e servers (cosmetic; noted in `docs/PLAYTEST.md`).
+
+**What went well.** The ground rules from the Phase 1 retrospective worked. Every time-based system shipped with an invariance test, every mutating endpoint with a real-Postgres race test, and the `Idempotency-Key` helper was built once (2.6) and reused by 2.4 and 2.5. Server-authoritative, seeded rules made a 32-hour playthrough an ordinary 5-second test. Vertical slices kept each ticket playable, and parallel tickets merged with little friction thanks to the fixed content ids.
+
+**What to do differently in Phase 3.**
+- When an event can happen before the thing that should count it (a quest, an achievement, a leaderboard window), store the window explicitly and test the "taken in between" case. The crypt bug was in the seam between two correct features.
+- Every table that stamps the game clock must be part of the playtest clock floor; add new ones to `latestStoredTimeMs`.
+- Add per-account rate limits before trading or leaderboards: requests are reward-neutral today, but they still cost database time.
+- Run a balance pass with the numbers above (crypt difficulty for farmed gear, gold sinks, pack pressure) before content that builds on them.
+- Keep the two exit-criteria runs current: the API run is cheap and catches regressions in the whole loop; extend it rather than writing new one-off flows.
 
 ### B.1 Balance pass (from playtest feedback) — `done (PR #31)`
 GDD: §2, §6, §9, §18. Starts when the owner's playtest feedback is in (`docs/PLAYTEST_FEEDBACK.md`).
@@ -286,3 +317,8 @@ GDD: §3.1, §7. Needs 2.1 merged (it defines the new item bases). Match the exi
 - Icons for the new item bases from 2.1 (use one 32px job for gear: 64 variants for 10 generations; one more for materials).
 - Switch the new bases from their placeholder icons to the new ones; update the manifest.
 **Acceptance:** a contact sheet of all new icons next to the existing ones in the PR.
+
+### A.5 Boss-unique item icons — `todo`
+GDD: §3.1, §7. Follow-up from ticket 2.8. The three Gravewarden uniques borrow existing icons (`packages/game-core/src/items/bases.ts`): Gravewarden’s Cowl uses `item.horned-helm`, Seal of the Nameless uses `item.grave-gold-ring`, Warden’s Bone Chain uses `item.bone-amulet`. They should look unique.
+- One 32px job (matching `apps/web/public/assets/items/`, an existing icon as `style_image`) for the three icons; switch the bases and the manifest.
+**Acceptance:** a contact sheet of the three next to the icons they replace.

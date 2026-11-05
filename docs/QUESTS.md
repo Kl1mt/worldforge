@@ -33,7 +33,7 @@ First-pass numbers; tune in B.1.
 ```
 
 - **Farming:** `settleActivityTx` turns each settlement into events (`questEventsFromSettlement`: `areaReached` once a cycle there is committed, kills from `killsByEnemy`, materials) and applies them with `recordQuestEventsTx` in the settlement transaction, under the character lock.
-- **Dungeons (ticket 2.5):** the run claim calls `recordQuestEventsTx(tx, characterId, [{ type: 'bossDefeated', bossId: 'gravewarden' }])` inside its transaction, after locking the character row. Only `bossDefeated` advances `defeatBoss`; an `enemyKilled` of the boss does not.
+- **Dungeons (ticket 2.5):** the run claim calls `recordQuestEventsTx(tx, characterId, [{ type: 'bossDefeated', bossId: 'gravewarden' }])` inside its transaction, after locking the character row. Only `bossDefeated` advances `defeatBoss`; an `enemyKilled` of the boss does not. Only quests accepted at or before the run's start count its events (`acceptedBy: run.startedAt`, ticket 2.8): the run was fought then, so taking the step after the run has ended but before claiming it does not complete it.
 - Only **active** (accepted, not turned in) quests advance. Accepting settles the running activity first, so time farmed before the acceptance never counts.
 - **Invariance:** `applyQuestEvents` only adds and caps at the target, and settlement results are split-invariant (ticket 1.9), so quest progress is the same however often the client settles (tested in `quests.test.ts`).
 

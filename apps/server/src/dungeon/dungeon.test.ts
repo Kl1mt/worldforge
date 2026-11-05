@@ -376,7 +376,7 @@ describe('the Nameless Crypt (ticket 2.5)', () => {
 
   describe('quests (ticket 2.4)', () => {
     /** Turns in the story chain before the crypt step and accepts "The Nameless Crypt". */
-    async function onTheCryptStep(p: Player, id: string) {
+    async function onTheCryptStep(p: Player, id: string, { accept = true } = {}) {
       const before = STORY_QUEST_IDS.slice(0, STORY_QUEST_IDS.indexOf('theNamelessCrypt'));
       for (const questId of before) {
         await database.db.insert(characterQuests).values({
@@ -392,12 +392,13 @@ describe('the Nameless Crypt (ticket 2.5)', () => {
           turnedInAt: new Date(nowMs),
         });
       }
-      const res = await call(p, 'POST', `/api/characters/${id}/quests`, {
+      if (accept) expect((await acceptCryptStep(p, id)).statusCode).toBe(201);
+    }
+    const acceptCryptStep = (p: Player, id: string) =>
+      call(p, 'POST', `/api/characters/${id}/quests`, {
         kind: 'story',
         questId: 'theNamelessCrypt',
       });
-      expect(res.statusCode).toBe(201);
-    }
     const cryptQuest = async (p: Player, id: string) => {
       const b = (await call(p, 'GET', `/api/characters/${id}/quests`)).json<QuestBoardResponse>();
       return b.quests.find((q) => q.questId === 'theNamelessCrypt')!;
@@ -436,6 +437,28 @@ describe('the Nameless Crypt (ticket 2.5)', () => {
         await call(p, 'GET', `/api/characters/${id}/quests`)
       ).json<QuestBoardResponse>();
       expect(board.story.completed).toContain('theNamelessCrypt');
+    });
+
+    it('a step taken after the run started does not count that run (ticket 2.8)', async () => {
+      // Exploit review: the run's outcome is fixed at its start and its events are applied at the
+      // claim. Taking the quest between the end of a won run and its claim completed the step
+      // without fighting for it.
+      const { p, id } = await hero();
+      await onTheCryptStep(p, id, { accept: false });
+      const run = (await enter(p, id)).json<{ run: DungeonRunView }>().run;
+      nowMs = Date.parse(run.endsAt);
+      expect((await acceptCryptStep(p, id)).statusCode).toBe(201);
+      const { result } = (await claim(p, id)).json<DungeonClaimResponse>();
+      expect(result.bossDefeated).toBe(true);
+      expect(await cryptQuest(p, id)).toMatchObject({ status: 'active', progress: [0] });
+
+      // The next run, entered with the step taken, counts.
+      advance(HOUR);
+      const next = (await enter(p, id)).json<{ run: DungeonRunView }>().run;
+      nowMs = Date.parse(next.endsAt);
+      const again = (await claim(p, id)).json<DungeonClaimResponse>().result;
+      expect(again.bossDefeated).toBe(true);
+      expect(await cryptQuest(p, id)).toMatchObject({ status: 'ready', progress: [1] });
     });
 
     it('a failed run does not advance the step', async () => {

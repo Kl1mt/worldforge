@@ -46,12 +46,15 @@ type Db = Database | Transaction;
  * progress. Call inside the transaction that produced the events, after locking the character row
  * (settlement: `settleActivityTx`; dungeon runs: ticket 2.5 with
  * `{ type: 'bossDefeated', bossId: 'gravewarden' }`), so progress is granted exactly once.
+ * `acceptedBy` limits the events to quests accepted at or before that time: a dungeon run's events
+ * happened during the run, so quests taken after it started do not count them (ticket 2.8).
  * Returns the quests whose progress changed.
  */
 export async function recordQuestEventsTx(
   tx: Transaction,
   characterId: string,
   events: readonly QuestEvent[],
+  { acceptedBy }: { acceptedBy?: Date } = {},
 ): Promise<CharacterQuest[]> {
   if (events.length === 0) return [];
   const active = await tx
@@ -61,6 +64,8 @@ export async function recordQuestEventsTx(
     .for('update');
   const changed: CharacterQuest[] = [];
   for (const quest of active) {
+    // Events of something that began before the quest was taken (a dungeon run) never count.
+    if (acceptedBy && quest.acceptedAt.getTime() > acceptedBy.getTime()) continue;
     const progress = applyQuestEvents(quest.objectives, quest.progress, events);
     if (progress.every((p, i) => p === quest.progress[i])) continue;
     await tx.update(characterQuests).set({ progress }).where(eq(characterQuests.id, quest.id));
