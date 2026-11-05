@@ -51,6 +51,7 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
   {
     id: 'sunkenAbbey',
     affixTierBias: 0.6,
+    mythics: true,
     itemDropChance: 0.06,
     itemLevel: { min: 16, max: 23 },
     entries: tierEntries({ 2: 1, 3: 2 }),
@@ -72,6 +73,7 @@ export const BOSS_LOOT_TABLES: readonly LootTableDefinition[] = [
   {
     id: 'gravewarden',
     affixTierBias: 1,
+    mythics: true,
     itemDropChance: 1,
     itemLevel: { min: 15, max: 17 },
     entries: [

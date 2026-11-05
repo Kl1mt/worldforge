@@ -33,8 +33,11 @@ Both run the same cycle loop (`runFarming`); only the fight resolution differs.
 
 Both are deterministic for a given seed. They consume the RNG differently, so the same seed gives different (but equally distributed) results. Tests compare them per fight (20,000 trials) and per farming window (300 seeds, means within 4 standard errors). A 3-hour window settles in about 10 ms with either function at Phase 1 numbers.
 
+## Unique effects (ticket 3.2)
+Legendary effects and Mythic signatures act in both simulations through one pricing function (`attackHit`), an extended exact distribution (`killDistribution`) and the shared cycle loop (life on kill, bloodrush stacks carried as `momentum`). With no effect equipped every number is unchanged (pinned test). Details, numbers and the balance results: `docs/EFFECTS.md`.
+
 ## Results
-`FarmingResult`: kills (total and per enemy of the area's roster), deaths, timeouts, encounters, XP gained, start/end level and XP, levels gained, damage taken, final and max health, `simulatedMs` / `unusedMs`, and the event log.
+`FarmingResult`: kills (total and per enemy of the area's roster), deaths, timeouts, encounters, XP gained, start/end level and XP, levels gained, damage taken, final and max health, bloodrush `momentum` (3.2), `simulatedMs` / `unusedMs`, and the event log.
 
 ## Balance (ticket B.1)
 Every number below is data or config in `packages/game-core` (no rule changed). `src/balance/balance.test.ts` simulates every class in every area and fails if a value leaves its band, so new content cannot silently break the pacing (runs in ~3 s; it fails 13 of its 15 checks against the pre-B.1 numbers). Gold, prices and materials: `docs/ECONOMY.md`.

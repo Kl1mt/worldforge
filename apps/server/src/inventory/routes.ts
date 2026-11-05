@@ -43,6 +43,8 @@ export interface ItemView {
   upgradeLevel: number;
   variant: ItemVariantId | null;
   effectId: string | null;
+  /** The Legendary effect's rolled strength, 0…1 (ticket 3.2; null for Mythics and others). */
+  effectRoll: number | null;
   setId: string | null;
   mythicId: string | null;
   locked: boolean;
@@ -70,6 +72,7 @@ export function itemView(i: ItemInstance): ItemView {
     upgradeLevel: i.upgradeLevel,
     variant: i.variant ?? null,
     effectId: i.effectId ?? null,
+    effectRoll: i.effectRoll ?? null,
     setId: i.setId ?? null,
     mythicId: i.mythicId ?? null,
     locked: i.locked,
@@ -105,6 +108,7 @@ export const itemSchema = {
     'upgradeLevel',
     'variant',
     'effectId',
+    'effectRoll',
     'setId',
     'mythicId',
     'locked',
@@ -134,6 +138,7 @@ export const itemSchema = {
     upgradeLevel: { type: 'integer' },
     variant: { type: ['string', 'null'] },
     effectId: { type: ['string', 'null'] },
+    effectRoll: { type: ['number', 'null'] },
     setId: { type: ['string', 'null'] },
     mythicId: { type: ['string', 'null'] },
     locked: { type: 'boolean' },

@@ -313,7 +313,7 @@ GDD: §7.1–7.3, §6.2. Read `docs/LOOT.md`, `docs/DATA_MODEL.md`.
 - **UI:** the tooltip shows the new affixes clearly, grouped (offence, defence, utility). Comparison handles the new stats.
 **Acceptance:** generation tests (valid affixes per slot and class, caps); the balance test still passes; screenshots of tooltips.
 
-### 3.2 Legendary effects & Mythic items (vertical) — `todo`
+### 3.2 Legendary effects & Mythic items (vertical) — `done (PR #36)`
 GDD: §7.2, §7.4. Needs 3.1.
 - **Effect registry** (game-core): data-driven effect types with parameters, e.g.
   - on-crit bonus damage;

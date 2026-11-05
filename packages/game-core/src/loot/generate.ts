@@ -4,6 +4,8 @@ import { createRng, type Rng } from '../rng.js';
 import type { CoreStatId } from '../stats.js';
 import { affixPoolFor, tiersForItemLevel, type AffixDefinition } from '../items/affixes.js';
 import { findItemBase, getItemBase, type ItemBaseDefinition } from '../items/bases.js';
+import { mythicForBase, mythicPool, type MythicItemDefinition } from '../items/mythics.js';
+import { EFFECT_ROLL_STEPS, legendaryEffectPool } from '../effects/resolve.js';
 import {
   DEFAULT_LOOT_CONFIG,
   STANDARD_LOOT_TABLE,
@@ -32,6 +34,14 @@ export interface GeneratedItem {
   rarityId: RarityId;
   itemLevel: number;
   affixes: RolledAffix[];
+  /**
+   * Ticket 3.2: the Legendary effect or Mythic signature (effect registry id), the Legendary's
+   * rolled strength as a position in its ranges (0…1 on a 0.05 grid; absent on Mythics, whose
+   * signature is fixed) and the named Mythic. Absent on every other item.
+   */
+  effectId?: string;
+  effectRoll?: number;
+  mythicId?: string;
 }
 
 export interface LootDrop {
@@ -154,17 +164,33 @@ export function generateItem(
   const seed = params.seed >>> 0;
   const itemLevel = Math.min(config.maxItemLevel, params.itemLevel);
   const rng = createRng(seed);
+  const table = params.lootTable ?? STANDARD_LOOT_TABLE;
 
   let base: ItemBaseDefinition;
   if (params.baseId !== undefined) {
     base = getItemBase(params.baseId);
   } else {
-    const candidates = eligibleBases(params.lootTable ?? STANDARD_LOOT_TABLE, itemLevel);
+    const candidates = eligibleBases(table, itemLevel);
     if (candidates.length === 0) return null;
     base = rng.weighted(candidates, (c) => c.weight).base;
   }
 
-  const rarityId = params.rarityId ?? rollRarity(rng, config);
+  let rarityId = params.rarityId ?? rollRarity(rng, config);
+  // Mythics (ticket 3.2) are named items. A Mythic base is always its Mythic; a Mythic roll picks
+  // a named Mythic in a late-game table and becomes a Legendary anywhere else. An explicitly
+  // requested Mythic rarity without a named Mythic stays a stat-only Mythic (the Phase 1 rule).
+  let mythic: MythicItemDefinition | undefined = mythicForBase(base.id);
+  if (mythic) {
+    rarityId = 'mythic';
+  } else if (rarityId === 'mythic' && params.baseId === undefined) {
+    const pool = table.mythics ? mythicPool(itemLevel, params.classId) : [];
+    if (pool.length > 0) {
+      mythic = rng.weighted(pool, (m) => m.weight);
+      base = getItemBase(mythic.baseId);
+    } else if (params.rarityId === undefined) {
+      rarityId = 'legendary';
+    }
+  }
   const rarity = config.rarities[rarityId];
   const bias = rarity.affixTierBias + (params.lootTable?.affixTierBias ?? 0);
 
@@ -177,7 +203,19 @@ export function generateItem(
     affixes.push(rollAffixValue(affix, itemLevel, rarity.affixLevelBonus, bias, rng));
   }
 
-  return { seed, baseId: base.id, rarityId, itemLevel, affixes };
+  const item: GeneratedItem = { seed, baseId: base.id, rarityId, itemLevel, affixes };
+  if (mythic) {
+    item.effectId = mythic.effectId;
+    item.mythicId = mythic.id;
+  } else if (rarityId === 'legendary') {
+    // Drawn after everything else, so the rest of the item rolls exactly as before ticket 3.2.
+    const effects = legendaryEffectPool(base, params.classId);
+    if (effects.length > 0) {
+      item.effectId = rng.weighted(effects, (e) => e.weight ?? 0).id;
+      item.effectRoll = rng.int(0, EFFECT_ROLL_STEPS) / EFFECT_ROLL_STEPS;
+    }
+  }
+  return item;
 }
 
 export interface RollLootParams {

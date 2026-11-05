@@ -56,8 +56,8 @@ export interface ItemBaseDefinition {
   minItemLevel: number;
   stats: readonly ItemBaseStat[];
   /**
-   * Boss-exclusive base (ticket 2.5): only the boss loot table that names it drops it; tier-wide
-   * area tables skip it. Unique *effects* are Phase 3 (GDD §7.4).
+   * Boss-exclusive or Mythic base (tickets 2.5, 3.2): only the loot table that names it (or the
+   * Mythic roll, `MYTHIC_ITEMS`) drops it; tier-wide area tables skip it.
    */
   unique?: boolean;
 }
@@ -496,8 +496,8 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
       { stat: 'health', base: 6, perLevel: 1.8 },
     ],
   },
-  // Boss-exclusive bases (ticket 2.5): drop only from the Gravewarden's hoard. They temporarily
-  // reuse existing icons until dedicated art exists.
+  // Boss-exclusive bases (ticket 2.5): drop only from the Gravewarden's hoard. Each has its own
+  // icon (ticket A.5).
   {
     id: 'gravewardens-cowl',
     name: 'Gravewarden’s Cowl',
@@ -541,6 +541,83 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
       { stat: 'armor', base: 5, perLevel: 1.2 },
       { stat: 'resistance', base: 5, perLevel: 1.2 },
       { stat: 'health', base: 10, perLevel: 2.6 },
+    ],
+  },
+
+  // Named Mythic bases (ticket 3.2, `MYTHIC_ITEMS`): only a Mythic roll in a late-game table
+  // drops them. Stronger implicit stats than tier 3. They borrow existing icons as placeholders
+  // until ticket A.6 draws their art.
+  {
+    id: 'crown-of-the-hollow-king',
+    name: 'Crown of the Hollow King',
+    slot: 'head',
+    icon: 'item.horned-helm',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 15,
+    unique: true,
+    stats: [
+      { stat: 'armor', base: 9, perLevel: 2 },
+      { stat: 'resistance', base: 6, perLevel: 1.3 },
+      { stat: 'health', base: 12, perLevel: 3.2 },
+    ],
+  },
+  {
+    id: 'gravecallers-edge',
+    name: 'Gravecaller’s Edge',
+    slot: 'weapon',
+    icon: 'item.bastard-sword',
+    classes: ['warrior'],
+    tier: 3,
+    minItemLevel: 15,
+    unique: true,
+    stats: [{ stat: 'physicalDamage', base: 15, perLevel: 2.3 }],
+  },
+  {
+    id: 'starfall-sceptre',
+    name: 'Starfall Sceptre',
+    slot: 'weapon',
+    icon: 'item.bog-oak-staff',
+    classes: ['mage'],
+    tier: 3,
+    minItemLevel: 15,
+    unique: true,
+    stats: [{ stat: 'magicDamage', base: 14, perLevel: 2.3 }],
+  },
+  {
+    id: 'widowmaker',
+    name: 'Widowmaker',
+    slot: 'weapon',
+    icon: 'item.crowwood-longbow',
+    classes: ['hunter'],
+    tier: 3,
+    minItemLevel: 15,
+    unique: true,
+    stats: [{ stat: 'physicalDamage', base: 14, perLevel: 2.25 }],
+  },
+  {
+    id: 'heart-of-the-abyss',
+    name: 'Heart of the Abyss',
+    slot: 'weapon',
+    icon: 'item.skull-staff',
+    classes: ['warlock'],
+    tier: 3,
+    minItemLevel: 15,
+    unique: true,
+    stats: [{ stat: 'magicDamage', base: 14, perLevel: 2.3 }],
+  },
+  {
+    id: 'ring-of-endless-hunger',
+    name: 'Ring of Endless Hunger',
+    slot: 'ring',
+    icon: 'item.iron-ring',
+    classes: ALL_CLASSES,
+    tier: 3,
+    minItemLevel: 15,
+    unique: true,
+    stats: [
+      { stat: 'resistance', base: 5, perLevel: 1 },
+      { stat: 'health', base: 8, perLevel: 2.2 },
     ],
   },
 ];

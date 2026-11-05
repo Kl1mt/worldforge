@@ -85,6 +85,13 @@
       "when": 1793869938749,
       "tag": "0011_item_model_v2",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793876458248,
+      "tag": "0012_activity_momentum",
+      "breakpoints": true
     }
   ]
 }

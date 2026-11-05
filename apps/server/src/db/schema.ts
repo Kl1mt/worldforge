@@ -222,6 +222,9 @@ export interface ActivitySummaryItem {
   baseId: string;
   rarityId: RarityId;
   itemLevel: number;
+  /** Legendary effect / Mythic signature and named Mythic (ticket 3.2); absent on others. */
+  effectId?: string;
+  mythicId?: string;
 }
 
 /** See `characters.farmState` and docs/FARMING.md. */
@@ -231,6 +234,8 @@ export interface FarmState {
   cycleIndex: number;
   /** Health after the last completed cycle; null = full. */
   health: number | null;
+  /** Bloodrush stacks after the last completed cycle (ticket 3.2); absent = 0. */
+  momentum?: number;
   /**
    * Area of the cycle that was in progress when the activity ended (ticket 2.2). The next start
    * replays that cycle there before travelling on, so stop → start elsewhere cannot re-roll it.
@@ -305,6 +310,11 @@ export const activities = pgTable(
     carryMs: integer('carry_ms').notNull().default(0),
     /** Current health between settlements; null = full. */
     health: integer('health'),
+    /**
+     * Bloodrush stacks after the last completed cycle (ticket 3.2): a kill streak carries across
+     * settlements like health, so how often the client settles cannot change it.
+     */
+    momentum: integer('momentum').notNull().default(0),
     summary: jsonb('summary').$type<ActivitySummary>().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -314,6 +324,7 @@ export const activities = pgTable(
     check('activities_carry_ms_check', sql`${t.carryMs} >= 0`),
     check('activities_settlement_seq_check', sql`${t.settlementSeq} >= 0`),
     check('activities_cycle_index_check', sql`${t.cycleIndex} >= 0`),
+    check('activities_momentum_check', sql`${t.momentum} >= 0`),
   ],
 );
 
@@ -471,7 +482,15 @@ export interface DungeonRunSnapshot {
   classId: ClassId;
   level: number;
   xp: number;
-  equipment: { baseId: string; rarityId: RarityId; itemLevel: number; affixes: RolledAffix[] }[];
+  equipment: {
+    baseId: string;
+    rarityId: RarityId;
+    itemLevel: number;
+    affixes: RolledAffix[];
+    /** Ticket 3.2; absent in snapshots taken before it (those runs replay without effects). */
+    effectId?: string | null;
+    effectRoll?: number | null;
+  }[];
 }
 
 /**

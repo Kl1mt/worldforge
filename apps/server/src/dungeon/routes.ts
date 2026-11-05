@@ -25,6 +25,7 @@ import {
   type Character,
   type DungeonRun,
 } from '../db/schema.js';
+import { itemEffectColumns } from '../inventory/columns.js';
 import type { Executor, Transaction } from '../db/types.js';
 import { withTransaction, constraintOf } from '../db/transaction.js';
 import { writeAudit } from '../db/audit.js';
@@ -335,6 +336,8 @@ export async function registerDungeons(
             rarityId: itemInstances.rarityId,
             itemLevel: itemInstances.itemLevel,
             affixes: itemInstances.affixes,
+            effectId: itemInstances.effectId,
+            effectRoll: itemInstances.effectRoll,
           })
           .from(itemInstances)
           .where(
@@ -457,6 +460,7 @@ export async function registerDungeons(
             itemLevel: item.itemLevel,
             affixes: item.affixes,
             seed: item.seed,
+            ...itemEffectColumns(item),
             equippedSlot: null,
             source: `dungeon:${run.dungeonId}`,
             createdAt: now,

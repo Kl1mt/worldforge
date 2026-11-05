@@ -51,6 +51,11 @@ export interface LootTableDefinition {
    * `affixTierBias`. Default 0.
    */
   affixTierBias?: number;
+  /**
+   * Ticket 3.2: a Mythic rarity roll here picks a named Mythic (`MYTHIC_ITEMS`). Only late-game
+   * sources set it; elsewhere a Mythic roll becomes a Legendary.
+   */
+  mythics?: boolean;
 }
 
 export interface LootConfig {
@@ -62,9 +67,9 @@ export interface LootConfig {
 }
 
 /**
- * Phase 1 drop rates. Legendary and Mythic are enabled but have no unique effects yet
- * (GDD §7.4 is Phase 3): they roll as stronger stat items — more affixes and a higher
- * implicit multiplier. Set a weight to 0 to disable a rarity.
+ * Drop rates. Legendaries roll one effect from the registry (ticket 3.2); a Mythic roll is a
+ * named Mythic in a table with `mythics` and a Legendary elsewhere. Set a weight to 0 to disable a
+ * rarity.
  */
 export const DEFAULT_LOOT_CONFIG: LootConfig = {
   rarities: {

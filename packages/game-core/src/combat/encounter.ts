@@ -2,8 +2,10 @@ import { getClass, type ClassId } from '../classes.js';
 import type { AreaDefinition } from '../world/areas.js';
 import { getEnemy, type EnemyDefinition, type EnemyId } from '../world/enemies.js';
 import type { Rng } from '../rng.js';
-import type { StatBlock } from './characterStats.js';
+import { STAT_LIMITS, type StatBlock } from './characterStats.js';
 import { AUTO_SKILLS } from './skills.js';
+import { hasCombatEffects } from '../effects/resolve.js';
+import type { CombatEffects } from '../effects/types.js';
 
 /** Tunables shared by the detailed and the aggregate simulation. */
 export interface CombatConfig {
@@ -100,6 +102,103 @@ export interface EncounterSetup {
   skillEvery: number;
   xpReward: number;
   maxFightMs: number;
+  /**
+   * In-fight effects (ticket 3.2). Absent when none is active: then every hit is `auto` or
+   * `skill`, exactly as before effects existed. Read hits through `attackHit`.
+   */
+  effects?: SetupEffects;
+}
+
+/**
+ * The numbers `attackHit` needs to price a hit under effects. Health thresholds are absolute
+ * (whole health points), so both simulations compare the same integers.
+ */
+export interface SetupEffects {
+  /** Damage of a 1× hit after mitigation, before rounding (boss bonuses included). */
+  dealt: number;
+  /** The same before mitigation (crit burn ignores defences). */
+  raw: number;
+  critDamage: number;
+  critChance: number;
+  /** The class skill's damage multiplier (skill-damage affix included) and bonus crit chance. */
+  skillMultiplier: number;
+  skillBonusCrit: number;
+  /** The hero's max health. */
+  maxHealth: number;
+  critBurn: number;
+  /** Execute applies while the enemy has at most this much health left (0 = off). */
+  executeHealth: number;
+  executeBonus: number;
+  /** Fortitude applies while the hero has at least this much health (0 = off). */
+  fortitudeHealth: number;
+  fortitudeBonus: number;
+  skillRage: number;
+  skillSurge: number;
+  skillOpener: number;
+  skillRot: number;
+  /** Thorns damage per enemy hit (0 = off); `thornsRaw` before rounding, for enraged hits. */
+  thornsDamage: number;
+  thornsRaw: number;
+}
+
+/** What the hero's `attack`-th attack (1-based) of a fight deals. */
+export interface AttackHit extends HitProfile {
+  skill: boolean;
+}
+
+/**
+ * Prices one hero attack: the class skill on every `skillEvery`-th attack, otherwise a basic
+ * attack, with the effects that apply in this moment. Both simulations price every attack here.
+ * - `prevCrit`: the previous attack of this fight crit (Mana Surge);
+ * - `heroHealth`: the hero's health when the attack lands (fortitude, rage);
+ * - `enemyHealth`: the enemy's remaining health (execute, rot).
+ */
+export function attackHit(
+  setup: EncounterSetup,
+  attack: number,
+  prevCrit: boolean,
+  heroHealth: number,
+  enemyHealth: number,
+): AttackHit {
+  const scheduled = attack % setup.skillEvery === 0;
+  const fx = setup.effects;
+  if (!fx) return { ...(scheduled ? setup.skill : setup.auto), skill: scheduled };
+  const opener = attack === 1 && fx.skillOpener > 0;
+  const surged = !scheduled && !opener && prevCrit && fx.skillSurge > 0;
+  const skill = scheduled || opener || surged;
+  let multiplier = skill ? fx.skillMultiplier : 1;
+  if (surged) multiplier *= fx.skillSurge;
+  if (opener) multiplier *= 1 + fx.skillOpener;
+  if (skill && fx.skillRage > 0) {
+    const missingDeciles = Math.floor((10 * (fx.maxHealth - heroHealth)) / fx.maxHealth);
+    multiplier *= 1 + fx.skillRage * Math.max(0, missingDeciles);
+  }
+  if (fx.executeHealth > 0 && enemyHealth <= fx.executeHealth) multiplier *= 1 + fx.executeBonus;
+  if (fx.fortitudeHealth > 0 && heroHealth >= fx.fortitudeHealth) {
+    multiplier *= 1 + fx.fortitudeBonus;
+  }
+  const hit = fx.dealt * multiplier;
+  const rot = skill && fx.skillRot > 0 ? Math.min(hit, fx.skillRot * enemyHealth) : 0;
+  return {
+    skill,
+    normal: hitDamage(hit + rot),
+    crit: hitDamage(hit * fx.critDamage + fx.raw * multiplier * fx.critBurn + rot),
+    critChance: Math.min(1, Math.max(0, fx.critChance + (skill ? fx.skillBonusCrit : 0))),
+  };
+}
+
+/** Thorns damage of one enemy hit (`damageMultiplier` > 1 for enraged hits); 0 without thorns. */
+export function thornsDamage(setup: EncounterSetup, damageMultiplier = 1): number {
+  const fx = setup.effects;
+  if (!fx || fx.thornsDamage <= 0) return 0;
+  return damageMultiplier === 1 ? fx.thornsDamage : hitDamage(fx.thornsRaw * damageMultiplier);
+}
+
+/** Effects input of an encounter (ticket 3.2). */
+export interface EncounterEffectContext {
+  effects: CombatEffects;
+  /** Bloodrush stacks the hero brings into this fight. */
+  momentum?: number;
 }
 
 const hitDamage = (raw: number): number => Math.max(1, Math.round(raw));
@@ -137,6 +236,7 @@ export function rollEncounter(
   stats: StatBlock,
   config: CombatConfig,
   modifiers?: EncounterModifiers,
+  effects?: EncounterEffectContext,
 ): EncounterSetup {
   const entry = rng.weighted(area.enemies, (e) => e.weight);
   const spread = config.enemyLevelSpread;
@@ -150,6 +250,7 @@ export function rollEncounter(
     stats,
     config,
     modifiers,
+    effects,
   );
 }
 
@@ -161,14 +262,18 @@ export function buildEncounter(
   stats: StatBlock,
   config: CombatConfig,
   modifiers?: EncounterModifiers,
+  context?: EncounterEffectContext,
 ): EncounterSetup {
   const e = enemyStatsAtLevel(enemy, enemyLevel);
+  const fx = context && hasCombatEffects(context.effects) ? context.effects : undefined;
   const cls = getClass(classId);
   const skillDef = AUTO_SKILLS[classId];
 
   const playerRaw = cls.primaryDamage === 'physical' ? stats.physicalDamage : stats.magicDamage;
   const enemyDefense = cls.primaryDamage === 'physical' ? e.armor : e.resistance;
-  const bossBonus = enemy.rank === 'boss' ? 1 + bonusOf(modifiers?.bossDamage) : 1;
+  // Boss slayer (ticket 3.2) adds to the boss-damage affix; + 0 leaves the number unchanged.
+  const bossBonus =
+    enemy.rank === 'boss' ? 1 + bonusOf(modifiers?.bossDamage) + (fx?.bossSlayer ?? 0) : 1;
   const dealt = playerRaw * (1 - mitigation(enemyDefense, characterLevel, config)) * bossBonus;
 
   const playerDefense = enemy.damageType === 'physical' ? stats.armor : stats.resistance;
@@ -180,24 +285,78 @@ export function buildEncounter(
     critChance: Math.min(1, Math.max(0, stats.critChance + bonusCrit)),
   });
 
-  return {
+  const skillMultiplier = skillDef.damageMultiplier * (1 + bonusOf(modifiers?.skillDamage));
+  // Bloodrush (ticket 3.2): each stack adds attack speed for this fight.
+  const momentum = fx && fx.bloodrush.perStack > 0 ? Math.max(0, context?.momentum ?? 0) : 0;
+  const attackSpeed =
+    momentum > 0
+      ? Math.min(
+          STAT_LIMITS.attackSpeed.max,
+          stats.attackSpeed * (1 + fx!.bloodrush.perStack * momentum),
+        )
+      : stats.attackSpeed;
+
+  const setup: EncounterSetup = {
     enemyId: enemy.id,
     enemyLevel,
     enemyHealth: e.health,
     enemyHit: hitDamage(taken),
     enemyIntervalMs: attackIntervalMs(enemy.attackSpeed),
-    playerIntervalMs: attackIntervalMs(stats.attackSpeed),
+    playerIntervalMs: attackIntervalMs(attackSpeed),
     auto: profile(1, 0),
-    skill: profile(
-      skillDef.damageMultiplier * (1 + bonusOf(modifiers?.skillDamage)),
-      skillDef.bonusCritChance,
-    ),
+    skill: profile(skillMultiplier, skillDef.bonusCritChance),
     skillEvery: skillDef.everyNthAttack,
     xpReward: Math.round(
       e.xp * xpLevelFactor(characterLevel, enemyLevel, config) * (1 + bonusOf(modifiers?.xpGain)),
     ),
     maxFightMs: config.maxFightMs,
   };
+  if (fx && hasFightEffects(fx)) {
+    const raw = playerRaw * bossBonus;
+    const thornsRaw = fx.thorns * e.damage;
+    setup.effects = {
+      dealt,
+      raw,
+      critDamage: stats.critDamage,
+      critChance: stats.critChance,
+      skillMultiplier,
+      skillBonusCrit: skillDef.bonusCritChance,
+      maxHealth: stats.health,
+      critBurn: fx.critBurn,
+      executeHealth: fx.execute.bonus > 0 ? Math.floor(fx.execute.threshold * e.health) : 0,
+      executeBonus: fx.execute.bonus,
+      fortitudeHealth:
+        fx.fortitude.bonus > 0 ? Math.max(1, Math.ceil(fx.fortitude.threshold * stats.health)) : 0,
+      fortitudeBonus: fx.fortitude.bonus,
+      skillRage: fx.skillRage,
+      skillSurge: fx.skillSurge,
+      skillOpener: fx.skillOpener,
+      skillRot: fx.skillRot,
+      thornsDamage: fx.thorns > 0 ? hitDamage(thornsRaw) : 0,
+      thornsRaw,
+    };
+  }
+  return setup;
+}
+
+/** Effects that act inside a fight (boss slayer, life on kill and bloodrush act around it). */
+function hasFightEffects(fx: CombatEffects): boolean {
+  return (
+    fx.critBurn > 0 ||
+    fx.execute.bonus > 0 ||
+    fx.fortitude.bonus > 0 ||
+    fx.skillRage > 0 ||
+    fx.skillSurge > 0 ||
+    fx.skillOpener > 0 ||
+    fx.skillRot > 0 ||
+    fx.thorns > 0
+  );
+}
+
+/** Whether the fight's hits depend on the hero's health (the distribution then depends on it). */
+export function dependsOnHeroHealth(setup: EncounterSetup): boolean {
+  const fx = setup.effects;
+  return fx !== undefined && (fx.fortitudeHealth > 0 || fx.skillRage > 0);
 }
 
 /**

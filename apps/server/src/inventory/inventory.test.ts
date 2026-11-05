@@ -11,6 +11,7 @@ import { buildApp } from '../app.js';
 import { SESSION_COOKIE } from '../auth/index.js';
 import { auditLog, itemInstances } from '../db/schema.js';
 import type { DatabaseHandle } from '../db/types.js';
+import { itemEffectColumns } from './columns.js';
 import { uuidv7 } from '../db/uuid.js';
 import { createTestDatabase } from '../test/db.js';
 import type { InventoryView } from './routes.js';
@@ -376,6 +377,7 @@ describe('item model v2 (ticket 3.1)', () => {
       upgradeLevel: 0,
       variant: null,
       effectId: null,
+      effectRoll: null,
       setId: null,
       mythicId: null,
       locked: false,
@@ -413,5 +415,49 @@ describe('item model v2 (ticket 3.1)', () => {
     await expect(set({ rerollCount: -1 })).rejects.toThrow();
     await expect(set({ variant: 'prismatic' as 'void' })).rejects.toThrow();
     await expect(set({ effectRoll: 1.5 })).rejects.toThrow();
+  });
+});
+
+describe('Legendary and Mythic items (ticket 3.2)', () => {
+  it('stores the rolled effect and named Mythic and shows them in the item view', async () => {
+    const p = await newPlayer();
+    const legendary = generateItem({
+      seed: 11,
+      itemLevel: 18,
+      rarityId: 'legendary',
+      classId: 'warrior',
+    })!;
+    const mythic = generateItem({ seed: 12, itemLevel: 18, baseId: 'gravecallers-edge' })!;
+    expect(legendary.effectId).toBeDefined();
+    expect(mythic.mythicId).toBe('gravecallers-edge');
+    const ids: string[] = [];
+    for (const item of [legendary, mythic]) {
+      const id = uuidv7();
+      ids.push(id);
+      await database.db.insert(itemInstances).values({
+        id,
+        characterId: p.characterId,
+        baseId: item.baseId,
+        rarityId: item.rarityId,
+        itemLevel: item.itemLevel,
+        affixes: item.affixes,
+        seed: item.seed,
+        source: 'test',
+        ...itemEffectColumns(item),
+      });
+    }
+    const view = (await inventory(p)).json<InventoryView>().inventory;
+    expect(view.find((i) => i.id === ids[0])).toMatchObject({
+      rarityId: 'legendary',
+      effectId: legendary.effectId,
+      effectRoll: legendary.effectRoll,
+      mythicId: null,
+    });
+    expect(view.find((i) => i.id === ids[1])).toMatchObject({
+      rarityId: 'mythic',
+      effectId: 'gravecallers-hunger',
+      effectRoll: null,
+      mythicId: 'gravecallers-edge',
+    });
   });
 });

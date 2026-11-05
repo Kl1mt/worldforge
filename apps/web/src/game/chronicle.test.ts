@@ -88,6 +88,48 @@ describe('chronicleEntries', () => {
 });
 
 describe('appendChronicle', () => {
+  it('gives every Legendary and Mythic find its own line, even beyond the listed items (3.2)', () => {
+    const common = (n: number) => ({
+      id: `c${n}`,
+      baseId: 'iron-ring',
+      rarityId: 'common' as const,
+      itemLevel: 5,
+    });
+    const lines = chronicleEntries(
+      summary({
+        itemsGained: 10,
+        items: [
+          {
+            id: 'm',
+            baseId: 'widowmaker',
+            rarityId: 'mythic',
+            itemLevel: 18,
+            effectId: 'widows-kiss',
+            mythicId: 'widowmaker',
+          },
+          {
+            id: 'l',
+            baseId: 'iron-ring',
+            rarityId: 'legendary',
+            itemLevel: 18,
+            effectId: 'bloodrush',
+          },
+          ...Array.from({ length: 8 }, (_, n) => common(n)),
+        ],
+      }),
+      1,
+    );
+    const chase = lines.filter((l) => l.kind === 'chase');
+    expect(chase).toEqual([
+      expect.objectContaining({ item: 'Iron Ring', rarity: 'legendary', effect: 'Bloodrush' }),
+      expect.objectContaining({ item: 'Widowmaker', rarity: 'mythic', effect: 'Widow’s Kiss' }),
+    ]);
+    expect(lines.filter((l) => l.kind === 'loot')).toHaveLength(6);
+    expect(lines.find((l) => l.kind === 'note')).toMatchObject({
+      text: '2 more items went to your pack.',
+    });
+  });
+
   it('prepends and trims', () => {
     const old = Array.from({ length: CHRONICLE_LIMIT }, (_, i) => ({
       id: `o${i}`,

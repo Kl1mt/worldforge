@@ -1,7 +1,7 @@
 import type { RarityId } from '@worldforge/game-core';
 import { formatDuration } from '../lib/format';
 import type { ReturnSummary } from './api';
-import { summaryItemView } from './items';
+import { isChaseDrop, summaryItemView } from './items';
 import { materialCounts, professionName } from './materials';
 
 /**
@@ -11,6 +11,15 @@ import { materialCounts, professionName } from './materials';
 export type LogEntry =
   | { id: string; at: string; kind: 'kill'; kills: number; xp: number }
   | { id: string; at: string; kind: 'loot'; item: string; rarity: RarityId }
+  /** A Legendary or Mythic find (ticket 3.2): its own line, never folded into "more items". */
+  | {
+      id: string;
+      at: string;
+      kind: 'chase';
+      item: string;
+      rarity: RarityId;
+      effect: string | null;
+    }
   | { id: string; at: string; kind: 'gold'; amount: number }
   | { id: string; at: string; kind: 'level'; levels: number }
   | {
@@ -47,7 +56,9 @@ export function chronicleEntries(summary: ReturnSummary, seq: number): LogEntry[
   const lootGold = summary.goldGained - summary.goldSalvaged;
   if (lootGold > 0) out.push({ id: id('gold'), at, kind: 'gold', amount: lootGold });
   // The summary lists the most recent items newest last; show at most a handful per settlement.
-  const shown = summary.items.slice(-6);
+  // Legendary and Mythic finds always get their own line (ticket 3.2).
+  const chase = summary.items.filter((item) => isChaseDrop(item.rarityId));
+  const shown = summary.items.filter((item) => !isChaseDrop(item.rarityId)).slice(-6);
   for (const item of shown) {
     const view = summaryItemView(item);
     out.push({ id: id(`loot:${item.id}`), at, kind: 'loot', item: view.name, rarity: view.rarity });
@@ -65,7 +76,18 @@ export function chronicleEntries(summary: ReturnSummary, seq: number): LogEntry[
       })),
     });
   }
-  const unlisted = summary.itemsGained - shown.length;
+  for (const item of chase) {
+    const view = summaryItemView(item);
+    out.push({
+      id: id(`chase:${item.id}`),
+      at,
+      kind: 'chase',
+      item: view.name,
+      rarity: view.rarity,
+      effect: view.effectName,
+    });
+  }
+  const unlisted = summary.itemsGained - shown.length - chase.length;
   if (unlisted > 0) {
     out.push({
       id: id('more'),

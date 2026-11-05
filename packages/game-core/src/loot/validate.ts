@@ -1,6 +1,9 @@
 import { isRarityId } from '../rarity.js';
 import { affixPossibleOn, findAffix } from '../items/affixes.js';
-import { findItemBase } from '../items/bases.js';
+import { findItemBase, type ItemBaseDefinition } from '../items/bases.js';
+import { findMythic, mythicForBase } from '../items/mythics.js';
+import { findEffect } from '../effects/registry.js';
+import { EFFECT_ROLL_STEPS, legendaryEffectPossibleOn } from '../effects/resolve.js';
 import { DEFAULT_LOOT_CONFIG, type LootConfig } from './config.js';
 import { affixCountFor, type GeneratedItem } from './generate.js';
 
@@ -76,6 +79,52 @@ export function validateItem(
         `affix ${affix.id} value ${v} outside tier ${tier.tier} [${tier.min}, ${tier.max}]`,
       );
     }
+  }
+  errors.push(...effectErrors(item, base));
+  return errors;
+}
+
+/**
+ * Ticket 3.2: a Legendary's effect must be a Legendary effect possible on its base with a roll on
+ * the grid; a Mythic base must carry its named Mythic and signature. Legendaries and Mythics from
+ * before 3.2 have no effect and stay valid (stat-only).
+ */
+function effectErrors(item: GeneratedItem, base: ItemBaseDefinition): string[] {
+  const errors: string[] = [];
+  const mythic = item.mythicId !== undefined ? findMythic(item.mythicId) : undefined;
+  const baseMythic = mythicForBase(base.id);
+  if (item.mythicId !== undefined && !mythic) errors.push(`unknown mythic ${item.mythicId}`);
+  if (baseMythic && item.mythicId !== baseMythic.id) {
+    errors.push(`mythic base ${base.id} without its mythic ${baseMythic.id}`);
+  }
+  if (mythic) {
+    if (item.rarityId !== 'mythic') errors.push(`mythic ${mythic.id} is ${item.rarityId}`);
+    if (mythic.baseId !== base.id) errors.push(`mythic ${mythic.id} on base ${base.id}`);
+    if (item.effectId !== mythic.effectId) {
+      errors.push(`mythic ${mythic.id} needs effect ${mythic.effectId}`);
+    }
+    if (item.effectRoll !== undefined) errors.push(`mythic ${mythic.id} has an effect roll`);
+    return errors;
+  }
+  if (item.effectId === undefined) {
+    if (item.effectRoll !== undefined) errors.push('effect roll without an effect');
+    return errors;
+  }
+  const effect = findEffect(item.effectId);
+  if (!effect) return [...errors, `unknown effect ${item.effectId}`];
+  if (item.rarityId !== 'legendary') errors.push(`effect ${effect.id} on a ${item.rarityId} item`);
+  if (!legendaryEffectPossibleOn(effect, base)) {
+    errors.push(`effect ${effect.id} not allowed on ${base.id}`);
+  }
+  const roll = item.effectRoll;
+  if (
+    roll === undefined ||
+    !Number.isFinite(roll) ||
+    roll < 0 ||
+    roll > 1 ||
+    Math.abs(roll * EFFECT_ROLL_STEPS - Math.round(roll * EFFECT_ROLL_STEPS)) > 1e-6
+  ) {
+    errors.push(`effect ${effect.id} has invalid roll ${String(roll)}`);
   }
   return errors;
 }

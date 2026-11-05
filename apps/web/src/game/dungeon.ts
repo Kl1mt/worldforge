@@ -182,6 +182,17 @@ export function cryptLogLine(e: DungeonEvent, ctx: CryptLogContext): CryptLogLin
     }
     case 'enemyAttack':
       return null;
+    case 'thorns':
+      // Ticket 3.2: only the blow that finishes the foe is worth a line.
+      return e.enemyHealth > 0
+        ? null
+        : {
+            t: e.t,
+            tone: 'hit',
+            text: `Your thorns finish ${ctx.foe ? foeObject(ctx.foe) : 'the foe'}.`,
+          };
+    case 'heal':
+      return { t: e.t, tone: 'note', text: `The kill restores ${formatNumber(e.amount)} health.` };
     case 'enrage':
       return {
         t: e.t,

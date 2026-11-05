@@ -56,3 +56,6 @@ Each settlement runs in one transaction. It locks the `characters` row (`SELECT 
 - Accepted residual (ticket 1.9): a change of equipment re-simulates the unfinished cycle with the new stats (same RNG stream, different outcome). Players cannot see an unfinished cycle's outcome. The area half of this residual is closed by ticket 2.2 ("Area switches").
 - Item ids in the summary may refer to items discarded since (ticket 1.7).
 - Per-settlement history beyond the audit log (an `offline_settlement` table) is deferred.
+
+## Bloodrush momentum (ticket 3.2)
+A kill streak from the Bloodrush effect is carried between cycles like health: `activities.momentum` after each settlement, `farm_state.momentum` across stop → start. Only committed cycles change it, so settlement splitting stays invariant (tested in game-core and the server).

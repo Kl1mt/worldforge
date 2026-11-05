@@ -76,6 +76,51 @@
   font-weight: 700;
 }
 
+/* Legendary / Mythic finds (ticket 3.2): named, framed and set apart, without fanfare. */
+.return__chase {
+  margin-top: var(--space-4);
+  padding: var(--space-3);
+  border: var(--border-hair);
+  border-left: 2px solid var(--rarity-legendary);
+  background: color-mix(in srgb, var(--rarity-legendary) 6%, transparent);
+}
+
+.return__chase:has(.rarity-mythic) {
+  border-left-color: var(--rarity-mythic);
+  background: color-mix(in srgb, var(--rarity-mythic) 6%, transparent);
+}
+
+.return__chase h3 {
+  color: var(--brass-300);
+}
+
+.return__chase ul {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.return__chase li {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.return__chase-text {
+  display: grid;
+}
+
+.return__chase-name {
+  color: var(--rarity);
+  font-weight: 700;
+}
+
+.return__chase-effect {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  font-style: italic;
+}
+
 .return__items {
   margin-top: var(--space-4);
 }

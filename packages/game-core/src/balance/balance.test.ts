@@ -3,6 +3,8 @@ import {
   AREAS,
   AFFIXES,
   CLASS_IDS,
+  EFFECTS,
+  MYTHIC_ITEMS,
   DEFAULT_ACTIVITY_CONFIG,
   DEFAULT_ECONOMY_CONFIG,
   DEFAULT_PROFESSION_CONFIG,
@@ -14,6 +16,7 @@ import {
   generateItem,
   getArea,
   getDungeon,
+  getItemBase,
   getMaterial,
   settleFarming,
   simulateDungeonRun,
@@ -459,6 +462,132 @@ describe('balance (ticket B.1)', () => {
           const boss = r.encounters.at(-1)!;
           // Still most of the pre-enrage window (geared without modifiers: ~1.0–1.2×).
           expect(boss.endMs - boss.startMs, c).toBeGreaterThan(crypt.bossEnrage.atMs * 0.6);
+        }
+      }
+    });
+  });
+
+  describe('unique effects (ticket 3.2)', () => {
+    /** A synthetic ring carrying one effect at its strongest roll (equipment is not validated). */
+    const effectRing = (effectId: string): GeneratedItem => ({
+      seed: 1,
+      baseId: 'iron-ring',
+      rarityId: 'legendary',
+      itemLevel: 1,
+      affixes: [],
+      effectId,
+      effectRoll: 1,
+    });
+    const legendaries = EFFECTS.filter((e) => e.kind === 'legendary');
+    const forClass = (c: ClassId) => legendaries.filter((e) => !e.classId || e.classId === c);
+    const areas: [AreaId, number][] = [
+      ['crowwood', 7],
+      ['blackwater', 15],
+      ['sunkenAbbey', 19],
+    ];
+    const withEffect = (c: ClassId, level: number, areaId: AreaId, effectId: string) =>
+      farm(c, level, areaId, [...kit(c, level - 1), effectRing(effectId)]);
+    const cryptRuns = (c: ClassId, level: number, equipment: GeneratedItem[], n = 8) =>
+      Array.from({ length: n }, (_, i) =>
+        simulateDungeonRun({
+          dungeonId: 'namelessCrypt',
+          character: { classId: c, level, xp: 0 },
+          equipment,
+          seed: `crypt-effects:${i}`,
+          bossLootEligible: false,
+          inventoryCount: 0,
+        }),
+      );
+
+    it('no Legendary effect alone breaks the death or kill bands', () => {
+      for (const c of CLASS_IDS) {
+        for (const [areaId, level] of areas) {
+          const plain = geared(c, level, areaId);
+          for (const e of forClass(c)) {
+            const s = withEffect(c, level, areaId, e.id);
+            const label = `${c} ${areaId} ${e.id}`;
+            expect(s.deathsPerHour, label).toBeLessThanOrEqual(2);
+            expect(s.damageShare, label).toBeLessThan(0.21);
+            // An effect helps or is neutral, but never more than a fifth more kills.
+            expect(s.killsPerMin / plain.killsPerMin, label).toBeGreaterThan(0.99);
+            expect(s.killsPerMin / plain.killsPerMin, label).toBeLessThan(1.2);
+          }
+        }
+      }
+    });
+
+    it('a Mythic in its slot is a big upgrade that still keeps the bands', () => {
+      for (const c of CLASS_IDS) {
+        for (const level of [19, 22]) {
+          // Against a rare kit: a Mythic is a late-game find, worn next to other good items.
+          const gear = kit(c, level - 1, 'rare');
+          const plain = farm(c, level, 'sunkenAbbey', gear);
+          for (const m of MYTHIC_ITEMS) {
+            const base = getItemBase(m.baseId);
+            if (!canClassUseItem(base, c)) continue;
+            const mythic = generateItem({
+              seed: 3,
+              itemLevel: level - 1,
+              baseId: base.id,
+              rarityId: 'mythic',
+              classId: c,
+            })!;
+            // Replace the kit's item of that slot (one ring of two).
+            const slotIndex = gear.findIndex((i) => getItemBase(i.baseId).slot === base.slot);
+            const worn = gear.map((item, i) => (i === slotIndex ? mythic : item));
+            const s = farm(c, level, 'sunkenAbbey', worn);
+            const label = `${c} L${level} ${m.id}`;
+            expect(s.deathsPerHour, label).toBeLessThanOrEqual(2);
+            expect(s.damageShare, label).toBeLessThan(0.21);
+            expect(s.killsPerMin / plain.killsPerMin, label).toBeGreaterThan(1);
+            expect(s.killsPerMin / plain.killsPerMin, label).toBeLessThan(1.3);
+          }
+        }
+      }
+    });
+
+    it('no single effect is the best choice for everything', () => {
+      // Three jobs: farming speed, safety (damage share) and the boss. For every class, the
+      // best effect for one job is not the best for all three.
+      for (const c of CLASS_IDS) {
+        const scores = forClass(c).map((e) => {
+          const s = withEffect(c, 15, 'blackwater', e.id);
+          const boss = cryptRuns(c, 15, [...kit(c, 14), effectRing(e.id)], 4).map((r) => {
+            const b = r.encounters.at(-1)!;
+            return r.bossDefeated ? b.endMs - b.startMs : Infinity;
+          });
+          return {
+            id: e.id,
+            kills: s.killsPerMin,
+            safety: -s.damageShare,
+            boss: -boss.reduce((a, b) => a + b, 0),
+          };
+        });
+        const best = (key: 'kills' | 'safety' | 'boss') =>
+          scores.reduce((a, b) => (b[key] > a[key] ? b : a)).id;
+        const winners = new Set([best('kills'), best('safety'), best('boss')]);
+        expect(winners.size, `${c}: ${[...winners].join(', ')}`).toBeGreaterThan(1);
+      }
+    });
+
+    it('effects move the crypt but do not trivialise the Gravewarden', () => {
+      const crypt = getDungeon('namelessCrypt');
+      const unique = [...legendaries, ...EFFECTS.filter((e) => e.kind === 'mythic')];
+      for (const c of CLASS_IDS) {
+        for (const e of unique.filter((x) => !x.classId || x.classId === c)) {
+          // A naked hero still never wins, whatever it wears in one slot.
+          expect(
+            cryptRuns(c, crypt.maxLevel, [effectRing(e.id)], 4).some((r) => r.bossDefeated),
+            `${c} ${e.id} naked`,
+          ).toBe(false);
+          // Geared at 15 it still wins, and the boss still takes most of the pre-enrage window.
+          for (const r of cryptRuns(c, 15, [...kit(c, 14), effectRing(e.id)], 6)) {
+            expect(r.bossDefeated, `${c} ${e.id}`).toBe(true);
+            const boss = r.encounters.at(-1)!;
+            expect(boss.endMs - boss.startMs, `${c} ${e.id}`).toBeGreaterThan(
+              crypt.bossEnrage.atMs * 0.6,
+            );
+          }
         }
       }
     });
