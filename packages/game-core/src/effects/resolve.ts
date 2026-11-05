@@ -1,5 +1,8 @@
 import type { ClassId } from '../classes.js';
 import { canClassUseItem, type ItemBaseDefinition } from '../items/bases.js';
+import type { ItemVariantId } from '../items/model.js';
+import { activeVariant } from '../items/variants.js';
+import type { RarityId } from '../rarity.js';
 import { DEFAULT_EFFECT_CAPS, EFFECTS, findEffect } from './registry.js';
 import type {
   CombatEffects,
@@ -169,16 +172,35 @@ export function hasCombatEffects(fx: CombatEffects | undefined): fx is CombatEff
   );
 }
 
-/** Item fields that carry an effect (`effect_id`, `effect_roll` columns). */
+/**
+ * Item fields that carry an effect (`effect_id`, `effect_roll` columns) and, since ticket 3.5, the
+ * `variant` (with the rarity it must be valid on) that scales it.
+ */
 export interface EffectCarrier {
   effectId?: string | null;
   effectRoll?: number | null;
+  rarityId?: RarityId;
+  variant?: ItemVariantId | null;
 }
 
-/** The effect instance an item carries, or none (unknown ids are ignored). */
+/**
+ * The effect instance an item carries, or none (unknown ids are ignored). A Void item (ticket 3.5)
+ * passes its variant's `effectStrength`; without an active variant the instance is exactly the
+ * pre-3.5 one (no `strength` field).
+ */
 export function itemEffectInstances(item: EffectCarrier): EffectInstance[] {
   if (!item.effectId || !findEffect(item.effectId)) return [];
-  return [{ effectId: item.effectId, roll: item.effectRoll ?? 1 }];
+  const variant =
+    item.rarityId !== undefined
+      ? activeVariant({ rarityId: item.rarityId, variant: item.variant ?? null })
+      : undefined;
+  return [
+    {
+      effectId: item.effectId,
+      roll: item.effectRoll ?? 1,
+      ...(variant && variant.effectStrength !== 1 ? { strength: variant.effectStrength } : {}),
+    },
+  ];
 }
 
 /** Legendary effects that can roll on a base (slot, and class effects only for their class). */

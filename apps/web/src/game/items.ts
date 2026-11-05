@@ -20,6 +20,8 @@ import {
   findAffix,
   findItemBase,
   getImplicitStats,
+  activeVariant,
+  type ItemVariantDefinition,
   type ClassId,
   type CoreStatId,
   type EquipmentSlotId,
@@ -104,6 +106,36 @@ export interface ItemView {
    * (the server's counting rule). Null for every other item.
    */
   setId: string | null;
+  /**
+   * Ticket 3.5: the item's variant (Void) when it applies (a Legendary or Mythic, game-core
+   * `activeVariant`); null otherwise. Its bonuses are already in `base` and `effect`.
+   */
+  variant: VariantView | null;
+}
+
+/** A variant as the frame and tooltip show it (ticket 3.5). */
+export interface VariantView {
+  id: ItemVariantDefinition['id'];
+  name: string;
+  /** "+10 %" on base values. */
+  implicitBonus: number;
+  /** "+10 %" on the item's own effect magnitudes; 0 when the item has no effect. */
+  effectBonus: number;
+}
+
+function variantView(
+  rarityId: RarityId,
+  variant: ItemDto['variant'] | undefined,
+  hasEffect: boolean,
+): VariantView | null {
+  const v = activeVariant({ rarityId, variant: variant ?? null });
+  if (!v) return null;
+  return {
+    id: v.id,
+    name: v.name,
+    implicitBonus: v.implicitBonus,
+    effectBonus: hasEffect ? Math.round((v.effectStrength - 1) * 1000) / 1000 : 0,
+  };
 }
 
 /** An item's unique effect, as the tooltip shows it. */
@@ -124,13 +156,19 @@ export const MYTHIC_SOURCES = 'the depths of the Sunken Abbey and the Gravewarde
 export function effectView(
   effectId: string | null | undefined,
   effectRoll: number | null | undefined,
+  /** Ticket 3.5: a Void item's effect strength (magnitudes only, as combat applies it). */
+  strength = 1,
 ): ItemEffectView | null {
   const effect = effectId ? findEffect(effectId) : undefined;
   if (!effect || effect.kind === 'set') return null;
   return {
     kind: effect.kind,
     name: effect.name,
-    text: describeEffect({ effectId: effect.id, roll: effectRoll ?? 1 }),
+    text: describeEffect({
+      effectId: effect.id,
+      roll: effectRoll ?? 1,
+      ...(strength !== 1 ? { strength } : {}),
+    }),
   };
 }
 
@@ -152,7 +190,7 @@ export type ItemDisplaySource = Pick<
   ItemDto,
   'id' | 'baseId' | 'rarityId' | 'itemLevel' | 'affixes' | 'equippedSlot' | 'source' | 'createdAt'
 > &
-  Partial<Pick<ItemDto, 'effectId' | 'effectRoll' | 'setId' | 'upgradeLevel'>>;
+  Partial<Pick<ItemDto, 'effectId' | 'effectRoll' | 'setId' | 'upgradeLevel' | 'variant'>>;
 
 /** The set id of an item, if it really is a piece of that set (game-core `wornSets` rule). */
 function setIdOf(baseId: string, setId: string | null | undefined): string | null {
@@ -186,8 +224,17 @@ export function toItemView(dto: ItemDisplaySource): ItemView {
     equippedSlot: dto.equippedSlot,
     createdAt: dto.createdAt,
     uniqueSource: uniqueSourceOf(dto.baseId),
-    effect: effectView(dto.effectId, dto.effectRoll),
+    effect: effectView(
+      dto.effectId,
+      dto.effectRoll,
+      activeVariant({ rarityId: dto.rarityId, variant: dto.variant ?? null })?.effectStrength,
+    ),
     setId: setIdOf(dto.baseId, dto.setId),
+    variant: variantView(
+      dto.rarityId,
+      dto.variant,
+      Boolean(dto.effectId && findEffect(dto.effectId)),
+    ),
   };
 }
 
@@ -280,7 +327,7 @@ export function setTrackers(
  */
 export function summaryItemView(item: SummaryItem): Pick<
   ItemView,
-  'id' | 'icon' | 'name' | 'rarity'
+  'id' | 'icon' | 'name' | 'rarity' | 'variant'
 > & {
   effectName: string | null;
   setName: string | null;
@@ -294,6 +341,7 @@ export function summaryItemView(item: SummaryItem): Pick<
     rarity: item.rarityId,
     effectName: item.effectId ? (findEffect(item.effectId)?.name ?? null) : null,
     setName: setId ? (findSet(setId)?.name ?? null) : null,
+    variant: variantView(item.rarityId, item.variant, Boolean(item.effectId)),
   };
 }
 

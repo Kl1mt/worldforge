@@ -16,6 +16,12 @@ function tierEntries(weights: Partial<Record<ItemTier, number>>): LootTableEntry
 export const SET_SHARE = 0.5;
 
 /**
+ * Ticket 3.5: in the same late-game sources, a Legendary or Mythic (set pieces included) is Void
+ * this often (capped by `DEFAULT_LOOT_CONFIG.maxVoidChance`). See docs/EFFECTS.md for the rates.
+ */
+export const VOID_CHANCE = 0.1;
+
+/**
  * Loot tables of the Phase 2 areas and dungeon (ticket 2.1). Higher areas shift the weight to
  * higher tiers; each base is still gated by its `minItemLevel`. The item-level range is the
  * area's enemy levels ± `itemLevelVariance` (1).
@@ -59,6 +65,7 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
     affixTierBias: 0.6,
     mythics: true,
     setShare: SET_SHARE,
+    voidChance: VOID_CHANCE,
     itemDropChance: 0.06,
     itemLevel: { min: 16, max: 23 },
     entries: tierEntries({ 2: 1, 3: 2 }),
@@ -67,6 +74,7 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
     id: 'namelessCrypt',
     affixTierBias: 0.6,
     setShare: SET_SHARE,
+    voidChance: VOID_CHANCE,
     itemDropChance: 0.18,
     itemLevel: { min: 11, max: 17 },
     entries: tierEntries({ 2: 2, 3: 1 }),
@@ -83,6 +91,7 @@ export const BOSS_LOOT_TABLES: readonly LootTableDefinition[] = [
     affixTierBias: 1,
     mythics: true,
     setShare: SET_SHARE,
+    voidChance: VOID_CHANCE,
     itemDropChance: 1,
     itemLevel: { min: 15, max: 17 },
     entries: [

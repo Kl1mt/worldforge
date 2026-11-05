@@ -416,3 +416,49 @@ describe('affix reroll and improvement (ticket 3.4)', () => {
     expect(done).toBeLessThanOrEqual(3);
   });
 });
+
+describe('Void items (ticket 3.5)', () => {
+  it('the inventory shows the variant and its stats; forge work never adds or removes it', async () => {
+    const p = await newPlayer();
+    const voidId = await grant(
+      p,
+      { rarityId: 'legendary', seed: 11 },
+      { equippedSlot: 'head', variant: 'void' },
+    );
+    const plainId = await grant(p, { rarityId: 'legendary', seed: 11 });
+    const inventory = async () =>
+      (
+        await app.inject({
+          method: 'GET',
+          url: `/api/characters/${p.id}/inventory`,
+          cookies: { [SESSION_COOKIE]: p.token },
+        })
+      ).json<{
+        stats: { armor: number };
+        equipped: { id: string; variant: string | null }[];
+        inventory: { id: string; variant: string | null }[];
+      }>();
+    const before = await inventory();
+    expect(before.equipped.find((i) => i.id === voidId)!.variant).toBe('void');
+    expect(before.inventory.find((i) => i.id === plainId)!.variant).toBeNull();
+    // The same Legendary without Void: the base values are 10 % lower.
+    await setItem(voidId, { variant: null });
+    const armorPlain = (await inventory()).stats.armor;
+    expect(before.stats.armor).toBeGreaterThan(armorPlain);
+    await setItem(voidId, { variant: 'void' });
+
+    for (const id of [voidId, plainId]) {
+      const variant = (await row(id)).variant;
+      await setItem(id, { upgradePity: 9 });
+      expect((await post(p, 'upgrade', { itemId: id })).statusCode).toBe(200);
+      expect((await post(p, 'reroll', { itemId: id, affixIndex: 0 })).statusCode).toBe(200);
+      const improved = await post(p, 'improve', { itemId: id, affixIndex: 1 });
+      expect([200, 422]).toContain(improved.statusCode);
+      const after = await row(id);
+      expect(after.forgeCounter).toBeGreaterThanOrEqual(2);
+      expect(after.variant, id).toBe(variant);
+    }
+    const res = await post(p, 'upgrade', { itemId: voidId });
+    expect(res.json<ForgeActionResponse>().item.variant).toBe('void');
+  });
+});

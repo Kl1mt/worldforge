@@ -74,6 +74,49 @@
   background: linear-gradient(315deg, var(--rarity) 50%, transparent 50%);
 }
 
+/* Ticket 3.5: Void, layered on the rarity (never a rarity of its own). Distinct from the Legendary
+   glow (outside the frame) and the Mythic second notch: the art itself is drained of colour and
+   edged with one art pixel of cold voidlight, it sits in a dark rift instead of the rarity wash,
+   a voidlight hairline runs inside the rarity ring, and a hollow diamond marks the lower left
+   corner. No glow, no animation. */
+.item-frame--void {
+  background:
+    radial-gradient(circle at 50% 55%, var(--void-rift) 0 38%, transparent 72%),
+    radial-gradient(
+      circle at 50% 60%,
+      color-mix(in srgb, var(--rarity) 10%, transparent),
+      transparent 70%
+    ),
+    var(--ink-950);
+}
+
+.item-frame.item-frame--void {
+  box-shadow:
+    inset 0 0 0 1px var(--rarity),
+    inset 0 0 0 2px var(--ink-950),
+    inset 0 0 0 3px color-mix(in srgb, var(--void-light) 55%, transparent),
+    0 0 10px -2px color-mix(in srgb, var(--rarity) 60%, transparent);
+}
+
+.item-frame--void > img {
+  --void-edge: color-mix(in srgb, var(--void-light) 70%, transparent);
+  filter: saturate(0.4) brightness(0.9) drop-shadow(var(--px, 1px) 0 0 var(--void-edge))
+    drop-shadow(calc(var(--px, 1px) * -1) 0 0 var(--void-edge))
+    drop-shadow(0 var(--px, 1px) 0 var(--void-edge))
+    drop-shadow(0 calc(var(--px, 1px) * -1) 0 var(--void-edge));
+}
+
+.item-frame__variant {
+  position: absolute;
+  left: 3px;
+  bottom: 1px;
+  color: var(--void-light);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 12px;
+  pointer-events: none;
+}
+
 .item-frame--interactive {
   cursor: pointer;
   transition: transform var(--dur-fast) var(--ease);

@@ -227,6 +227,8 @@ export interface ActivitySummaryItem {
   mythicId?: string;
   /** The set of a set piece (ticket 3.3); absent on others. */
   setId?: string;
+  /** Ticket 3.5: the variant of a Void item; absent on others. */
+  variant?: ItemVariantId;
 }
 
 /** See `characters.farmState` and docs/FARMING.md. */
@@ -496,6 +498,8 @@ export interface DungeonRunSnapshot {
     setId?: string | null;
     /** Ticket 3.4; absent in snapshots taken before it (those runs replay at +0). */
     upgradeLevel?: number;
+    /** Ticket 3.5; absent in snapshots taken before it (those runs replay without Void). */
+    variant?: ItemVariantId | null;
   }[];
 }
 

@@ -825,6 +825,118 @@ describe('balance (ticket B.1)', () => {
     });
   });
 
+  describe('Void variants (ticket 3.5)', () => {
+    /** Every kit slot as a Legendary of its base, effect rolled for the class (a full late kit). */
+    const legendaryKit = (c: ClassId, itemLevel: number): GeneratedItem[] =>
+      kit(c, itemLevel, 'legendary').map((item) =>
+        generateItem({
+          seed: item.seed,
+          itemLevel,
+          baseId: item.baseId,
+          rarityId: 'legendary',
+          classId: c,
+        })!,
+      );
+    /** The Drowned Vigil's six pieces in their slots, Legendaries elsewhere. */
+    const vigilKit = (c: ClassId, itemLevel: number): GeneratedItem[] => {
+      const out = legendaryKit(c, itemLevel);
+      const vigil = ITEM_SETS.find((x) => x.id === 'drowned-vigil')!;
+      const used = new Set<number>();
+      vigil.pieces.forEach((id, i) => {
+        const slot = getItemBase(id).slot;
+        const at = out.findIndex((g, j) => !used.has(j) && getItemBase(g.baseId).slot === slot);
+        out[at] = generateItem({ seed: 100 + i, itemLevel, baseId: id, classId: c })!;
+        used.add(at);
+      });
+      return out;
+    };
+    const asVoid = (items: GeneratedItem[]) =>
+      items.map((i) => ({ ...i, variant: 'void' as const }));
+    const atPlus10 = (items: GeneratedItem[]) => items.map((i) => ({ ...i, upgradeLevel: 10 }));
+    const bossTimes = (c: ClassId, equipment: GeneratedItem[]) =>
+      Array.from({ length: 6 }, (_, i) => {
+        const r = simulateDungeonRun({
+          dungeonId: 'namelessCrypt',
+          character: { classId: c, level: 15, xp: 0 },
+          equipment,
+          seed: `crypt-effects:${i}`,
+          bossLootEligible: false,
+          inventoryCount: 0,
+        });
+        const b = r.encounters.at(-1)!;
+        return r.bossDefeated ? b.endMs - b.startMs : Infinity;
+      });
+
+    it('a full Void kit stays within the bands and is a small step over the same kit', () => {
+      // Measured (docs/EFFECTS.md): Void adds 0.5–7 % kills to a full Legendary or Vigil kit.
+      for (const c of CLASS_IDS) {
+        for (const level of [19, 22]) {
+          const rare = farm(c, level, 'sunkenAbbey', kit(c, level - 1, 'rare'));
+          for (const [name, gear] of [
+            ['legendary', legendaryKit(c, level - 1)],
+            ['vigil 6 + legendary', vigilKit(c, level - 1)],
+            ['legendary +10', atPlus10(legendaryKit(c, level - 1))],
+          ] as const) {
+            const plain = farm(c, level, 'sunkenAbbey', gear);
+            const s = farm(c, level, 'sunkenAbbey', asVoid(gear));
+            const label = `${c} L${level} ${name}`;
+            expect(s.deathsPerHour, label).toBeLessThanOrEqual(2);
+            expect(s.damageShare, label).toBeLessThan(0.21);
+            expect(s.damageShare, label).toBeLessThanOrEqual(plain.damageShare);
+            // A small bonus: never worse, at most a tenth more kills than the same kit.
+            expect(s.killsPerMin / plain.killsPerMin, label).toBeGreaterThanOrEqual(0.99);
+            expect(s.killsPerMin / plain.killsPerMin, label).toBeLessThan(1.1);
+            // Everything at once (Void Legendaries at +10) stays under twice a rare kit.
+            expect(s.killsPerMin / rare.killsPerMin, label).toBeLessThan(2);
+          }
+        }
+      }
+    });
+
+    it('a Void Mythic in its slot keeps the Mythic band', () => {
+      for (const c of CLASS_IDS) {
+        for (const level of [19, 22]) {
+          const gear = kit(c, level - 1, 'rare');
+          const plain = farm(c, level, 'sunkenAbbey', gear);
+          for (const m of MYTHIC_ITEMS) {
+            const base = getItemBase(m.baseId);
+            if (!canClassUseItem(base, c)) continue;
+            const mythic = generateItem({ seed: 3, itemLevel: level - 1, baseId: base.id })!;
+            const at = gear.findIndex((i) => getItemBase(i.baseId).slot === base.slot);
+            const s = farm(
+              c,
+              level,
+              'sunkenAbbey',
+              gear.map((item, i) => (i === at ? { ...mythic, variant: 'void' as const } : item)),
+            );
+            const label = `${c} L${level} void ${m.id}`;
+            expect(s.deathsPerHour, label).toBeLessThanOrEqual(2);
+            expect(s.damageShare, label).toBeLessThan(0.21);
+            expect(s.killsPerMin / plain.killsPerMin, label).toBeLessThan(1.3);
+          }
+        }
+      }
+    });
+
+    it('Void barely moves the Gravewarden fight', () => {
+      for (const c of CLASS_IDS) {
+        const gear = legendaryKit(c, 14);
+        const plain = bossTimes(c, gear);
+        const voided = bossTimes(c, asVoid(gear));
+        voided.forEach((t, i) => {
+          expect(t, c).toBeLessThan(Infinity);
+          // At most a tenth faster than the same Legendary kit, fight by fight.
+          expect(t / plain[i]!, c).toBeGreaterThan(0.9);
+        });
+        // A naked hero gains nothing from Void (it is on items).
+        expect(
+          bossTimes(c, []).every((t) => t === Infinity),
+          c,
+        ).toBe(true);
+      }
+    });
+  });
+
   describe('forge upgrades (ticket 3.4)', () => {
     const upgraded = (items: GeneratedItem[], upgradeLevel: number) =>
       items.map((i) => ({ ...i, upgradeLevel }));

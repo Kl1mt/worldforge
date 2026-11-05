@@ -106,6 +106,7 @@ describe('appendChronicle', () => {
             itemLevel: 18,
             effectId: 'widows-kiss',
             mythicId: 'widowmaker',
+            variant: 'void',
           },
           {
             id: 'l',
@@ -121,8 +122,18 @@ describe('appendChronicle', () => {
     );
     const chase = lines.filter((l) => l.kind === 'chase');
     expect(chase).toEqual([
-      expect.objectContaining({ item: 'Iron Ring', rarity: 'legendary', effect: 'Bloodrush' }),
-      expect.objectContaining({ item: 'Widowmaker', rarity: 'mythic', effect: 'Widow’s Kiss' }),
+      expect.objectContaining({
+        item: 'Iron Ring',
+        rarity: 'legendary',
+        effect: 'Bloodrush',
+        variant: null,
+      }),
+      expect.objectContaining({
+        item: 'Widowmaker',
+        rarity: 'mythic',
+        effect: 'Widow’s Kiss',
+        variant: 'Void',
+      }),
     ]);
     expect(lines.filter((l) => l.kind === 'loot')).toHaveLength(6);
     expect(lines.find((l) => l.kind === 'note')).toMatchObject({

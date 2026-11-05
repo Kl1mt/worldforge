@@ -293,6 +293,7 @@ export async function settleActivityTx(
         ...(r.effectId ? { effectId: r.effectId } : {}),
         ...(r.mythicId ? { mythicId: r.mythicId } : {}),
         ...(r.setId ? { setId: r.setId } : {}),
+        ...(r.variant ? { variant: r.variant } : {}),
       })),
     );
     summary.items = summary.items.slice(-SUMMARY_ITEM_LIMIT);

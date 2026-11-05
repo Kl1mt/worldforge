@@ -48,6 +48,9 @@
   --rarity-epic: #a46cd6;
   --rarity-legendary: #e38b2f;
   --rarity-mythic: #ec4a3c;
+  /* Ticket 3.5: the Void variant. A cold voidlight (not a rarity colour) and the rift it sits in. */
+  --void-light: #b9c3e0;
+  --void-rift: #07060d;
 
   /* ── Semantic aliases ──────────────────────────────────────────────── */
   --bg-page: var(--ink-950);

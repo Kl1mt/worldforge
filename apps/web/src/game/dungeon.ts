@@ -5,13 +5,13 @@ import type {
   EnemyId,
   MaterialId,
   QuestEvent,
-  RarityId,
   UnlockBlocker,
 } from '@worldforge/game-core';
 import { AUTO_SKILLS, getEnemy, type ClassId } from '@worldforge/game-core';
 import type { Character } from '../characters/api';
 import { formatNumber } from '../lib/format';
 import { apiRequest, type ApiFailure, type ApiResult } from '../lib/api';
+import type { SummaryItem } from './api';
 
 /** Server shapes of the dungeon endpoints (ticket 2.5, docs/API_CONVENTIONS.md). */
 
@@ -53,7 +53,8 @@ export interface DungeonResult {
   levelsGained: number;
   goldGained: number;
   goldSalvaged: number;
-  items: { id: string; baseId: string; rarityId: RarityId; itemLevel: number }[];
+  /** Since ticket 3.5 with effect, set and variant (older stored results have none). */
+  items: SummaryItem[];
   itemsSalvaged: number;
   materials: Partial<Record<MaterialId, number>>;
   bossDefeated: boolean;

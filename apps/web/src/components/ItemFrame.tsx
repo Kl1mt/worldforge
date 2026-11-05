@@ -1,10 +1,17 @@
+import type { CSSProperties } from 'react';
 import { asset } from '../content/assets';
 import type { ItemView } from '../game/items';
 import { PixelSprite } from './PixelSprite';
 import './item-frame.css';
 
 interface ItemFrameProps {
-  item: (Pick<ItemView, 'icon' | 'name' | 'rarity'> & { upgradeLevel?: number }) | undefined;
+  item:
+    | (Pick<ItemView, 'icon' | 'name' | 'rarity'> & {
+        upgradeLevel?: number;
+        /** Ticket 3.5: a Void item gets the void overlay (only when the variant applies). */
+        variant?: ItemView['variant'];
+      })
+    | undefined;
   /** Icon scale (icons are 32 px native). */
   scale?: number;
   /** Shown in an empty frame, e.g. the slot name. */
@@ -19,7 +26,9 @@ interface ItemFrameProps {
 
 /**
  * A square socket for one item. Rarity shows on the frame (border, corner notch, faint
- * wash) and never on the art itself. Interactive when `onSelect` is given.
+ * wash) and never on the art itself. Interactive when `onSelect` is given. A Void item (ticket
+ * 3.5) is the one exception: its art is drained and edged in voidlight, inside a dark rift, with a
+ * hollow diamond in the lower left corner (docs/DESIGN_SYSTEM.md).
  */
 export function ItemFrame({
   item,
@@ -31,18 +40,22 @@ export function ItemFrame({
   isNew,
 }: ItemFrameProps) {
   const size = 32 * scale;
+  // One art pixel in CSS pixels, for the Void edge (`--px`).
+  const px = { '--px': `${Math.max(1, Math.floor(scale))}px` } as CSSProperties;
   const classes = [
     'item-frame',
     item ? `rarity-${item.rarity}` : 'item-frame--empty',
     selected ? 'item-frame--selected' : '',
     onSelect ? 'item-frame--interactive' : '',
     item && isNew ? 'item-frame--new' : '',
+    item?.variant ? `item-frame--${item.variant.id}` : '',
   ]
     .filter(Boolean)
     .join(' ');
   const upgrade = item?.upgradeLevel ?? 0;
+  const variant = item?.variant ? `${item.variant.name} ` : '';
   const label = item
-    ? `${context ? `${context}: ` : ''}${item.name}${upgrade > 0 ? ` +${upgrade}` : ''}, ${item.rarity}${isNew ? ', new' : ''}`
+    ? `${context ? `${context}: ` : ''}${item.name}${upgrade > 0 ? ` +${upgrade}` : ''}, ${variant}${item.rarity}${isNew ? ', new' : ''}`
     : `${context ?? 'Empty slot'}${emptyLabel && !context ? `: ${emptyLabel}` : ''}, empty`;
 
   const tag =
@@ -70,11 +83,18 @@ export function ItemFrame({
         +{upgrade}
       </span>
     ) : null;
+  // Ticket 3.5: the Void mark, a hollow diamond (shape, not only colour).
+  const voidMark = item?.variant ? (
+    <span className="item-frame__variant" aria-hidden="true">
+      ◇
+    </span>
+  ) : null;
   const inner = (
     <>
       {art}
       {tag}
       {mark}
+      {voidMark}
     </>
   );
 
@@ -86,13 +106,14 @@ export function ItemFrame({
         aria-label={label}
         aria-pressed={selected ?? false}
         onClick={onSelect}
+        style={px}
       >
         {inner}
       </button>
     );
   }
   return (
-    <span className={classes} role="img" aria-label={label}>
+    <span className={classes} role="img" aria-label={label} style={px}>
       {inner}
     </span>
   );

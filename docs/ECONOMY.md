@@ -86,6 +86,8 @@ GDD §8.1, §8.3. Rules and numbers in `packages/game-core/src/economy/forgeActi
 | +8→+9 | 25 % | 6 | 1,050 | 15 | 3 | 3.47 | 7 |
 | +9→+10 | 20 % | 7 | 1,400 | 18 | 4 | 4.16 | 8 |
 
+**Void items (ticket 3.5).** Forge work never adds or removes a variant: upgrades, rerolls and improvements keep a Void item Void and a plain item plain, at the same prices (Void is not a cost factor). Void's +10 % base values add to the upgrade bonus (+10 Void = +60 %). Sell and salvage prices ignore the variant.
+
 **Affix reroll.** The player picks one affix; it is replaced by an affix from the base's pool for the owner's class (slot, content tier and class gates as in generation), never one the item keeps and never the same affix again (unless nothing else is left). Its tier and value are rolled as generation does for the item's level and rarity (rarity tier bias, no loot-table bias); the new affix is marked `rerolled` and starts without improvements. Price at il 20: 200 gold × (1 + 0.5 × earlier rerolls of this item), 3 tier units, 2 soul shards + 1 per earlier reroll (at most 12).
 
 **Affix improvement.** Raises one affix by a rolled 15–35 % of its tier's range (on the step grid, at least one step), never above the tier's maximum; at most **3** improvements per affix. Price at il 20: 150 gold × (1 + improvements so far), 4 × (1 + so far) tier units, 1 + so far soul shards. Refused at the cap (`improvement_cap`) or at the maximum (`affix_at_max`).

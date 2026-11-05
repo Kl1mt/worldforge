@@ -21,6 +21,8 @@ export type LogEntry =
       effect: string | null;
       /** The set of a set piece (ticket 3.3). */
       set: string | null;
+      /** The variant's name of a Void find (ticket 3.5). */
+      variant: string | null;
     }
   | { id: string; at: string; kind: 'gold'; amount: number }
   | { id: string; at: string; kind: 'level'; levels: number }
@@ -88,6 +90,7 @@ export function chronicleEntries(summary: ReturnSummary, seq: number): LogEntry[
       rarity: view.rarity,
       effect: view.effectName,
       set: view.setName,
+      variant: view.variant?.name ?? null,
     });
   }
   const unlisted = summary.itemsGained - shown.length - chase.length;

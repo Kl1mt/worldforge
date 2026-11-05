@@ -348,7 +348,7 @@ GDD: §8.1, §8.3. Needs 3.1. Can run in parallel with 3.3 (different files; mig
 - **UI:** a Forge tab with an upgrade track (success chance, pity progress, cost), reroll (pick an affix, see the possible range) and improvement (current vs cap).
 **Acceptance:** PG race tests (double upgrade, upgrade vs sell or salvage); no-re-roll tests; a gold-sink measurement recorded in `docs/ECONOMY.md`; screenshots.
 
-### 3.5 Void variants (vertical) — `todo`
+### 3.5 Void variants (vertical) — `done (PR #42)`
 GDD: §7.5. Needs 3.2 and 3.3.
 - Void can roll only on Legendary, Mythic and Set items, with a small stat bonus. The chance is strictly capped in config. A long-term progression hook that improves discovery (capped) is optional; if implemented, keep it account-bound and measurable.
 - Void set pieces count for their set (3.3's rule).
