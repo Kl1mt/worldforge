@@ -286,6 +286,117 @@ GDD: §2, §6, §9, §18. Starts when the owner's playtest feedback is in (`docs
 - Add a simulation-based balance test (per class and area: deaths, kills/min, XP/hour within target bands), so future content can't silently break balance.
 - Record the targets and the results in `docs/COMBAT.md`.
 
+## Phase 3 — Loot depth & build progression
+GDD §15 Phase 3, §7, §8. **Exit:** different item combinations create meaningful build choices; crafting costs and drop rates are measurable; no single item or affix dominates all builds.
+
+**Ground rules for Phase 3** (the Phase 1 and 2 rules still apply: vertical slices, invariance tests, real-PG concurrency tests, `Idempotency-Key` on value endpoints, the migration rule)
+- **One item model.** 3.1 adds every Phase 3 item column in one migration (upgrade level, variant, unique effect, set, lock flag), so the later tickets don't collide on `item_instances`.
+- **One effect system.** Legendary effects, Mythic signatures and set bonuses are all data-driven entries in one game-core effect registry (3.2), resolved by **both** combat simulations. The detailed/aggregate equivalence tests (1.4) must keep passing, now with effects.
+- **No save-scumming.** Every random forge outcome (upgrade success, reroll result, improvement roll) comes from a per-item, server-side seed stream with a counter that advances on use. Retrying, replaying or racing a request can never re-roll a result. Test each one.
+- **Window rule** (Phase 2 retrospective): when an event can happen before the thing that counts it (telemetry windows, quests), store the window explicitly and test the "taken in between" case.
+- **Playtest clock:** every new table that stamps game time joins `latestStoredTimeMs`.
+- **Balance guardrails:** extend `src/balance/balance.test.ts` with each power source (effects, sets, upgrades, Void). B.2 adds the build-diversity check that makes "no single item or affix dominates" testable.
+
+**Defaults the owner can override** (GDD §17 open items; recorded in the GDD when the ticket lands):
+- **Upgrades:** +0 to +10. The success chance falls with the level; a failure consumes the materials and gold but never destroys or downgrades the item; a pity counter guarantees success after N failures.
+- **Variants:** only **Void** in Phase 3, on Legendary, Mythic and Set items, with a small stat bonus. **Prismatic is deferred** (the GDD allows it only once the variant pipeline and balance are stable). No variant stacking yet.
+- Item Awakening, trading and the warehouse stay out of Phase 3.
+
+**Order** (one session at a time to respect the usage limit, unless noted): 3.1 → 3.2 → 3.3 and 3.4 (may run in parallel) → 3.5 → 3.6 → 3.7 → 3.8 → B.2 → 3.9. Art: A.5 any time; A.6 after 3.3.
+
+### 3.1 Item model v2 & affix depth (vertical) — `todo`
+GDD: §7.1–7.3, §6.2. Read `docs/LOOT.md`, `docs/DATA_MODEL.md`.
+- **Affix pool expansion:** boss damage, XP gain, item find, resource yield, plus a few class-flavoured affixes (e.g. resource generation per class). Affixes are gated by slot, class compatibility, item level and content tier. Find and yield modifiers get caps or diminishing returns in config (like the gold-find cap).
+- **Generation rules:** tiers per affix scale with item level, and higher rarities can roll higher tiers. Higher-tier areas and the crypt roll better affixes.
+- **Migration** (one for all of Phase 3): `item_instances` gains `upgrade_level` (0–10), `variant` (null | `void`), `effect_id`, `set_id`, `locked` (bool). These are unused until their tickets, apart from the defaults and the view.
+- **New affixes do something:** wire them into the existing systems (XP gain into settlement XP, item find into drop chance, resource yield into gathering, boss damage into the crypt boss fight), keeping the invariance tests green.
+- **UI:** the tooltip shows the new affixes clearly, grouped (offence, defence, utility). Comparison handles the new stats.
+**Acceptance:** generation tests (valid affixes per slot and class, caps); the balance test still passes; screenshots of tooltips.
+
+### 3.2 Legendary effects & Mythic items (vertical) — `todo`
+GDD: §7.2, §7.4. Needs 3.1.
+- **Effect registry** (game-core): data-driven effect types with parameters, e.g.
+  - on-crit bonus damage;
+  - execute (more damage vs low-health enemies);
+  - boss slayer;
+  - life on kill;
+  - attack speed after a kill (stacks, decays);
+  - thorns;
+  - damage while above X % health;
+  - a class-specific effect per class (e.g. Rage-fuelled strikes, Mana surge).
+  Effects must **change play patterns**, not only add numbers (GDD §7.4).
+- **Both simulations:** the detailed simulation applies effects; the aggregate simulation must stay distributionally equivalent (extend the equivalence tests), or document precisely where it falls back.
+- **Legendary:** a Legendary roll gets one effect from a pool filtered by slot and class.
+- **Mythic:** about 6 named Mythic items with fixed signature effects and stronger stats, extremely rare, from late-game sources only.
+- **UI:** effect text in tooltips, a distinct Legendary/Mythic frame treatment (restrained; the GDD reserves effects for meaningful events), and a drop moment for Legendary/Mythic in the chronicle and the return summary.
+**Acceptance:** an equivalence test with effects; a balance test per effect (no effect alone breaks the death or kill bands); screenshots.
+
+### 3.3 Set items & set bonuses (vertical) — `todo`
+GDD: §7.4. Needs 3.2.
+- 2–3 sets (e.g. one martial and one arcane-leaning, and an optional third for hybrids), 4–6 pieces each, as named items with fixed bases. Bonuses at 2, 4 and 6 pieces through the 3.2 effect registry.
+- Late-game sources: Sunken Abbey and the crypt (and 3.6's activity once it exists).
+- A Void version of a piece counts as the same piece (GDD §7.4; implement the counting rule now, Void arrives in 3.5).
+- **UI:** a set tracker in the character screen and the tooltip (pieces owned and equipped, active bonuses).
+**Acceptance:** set counting tests (including Void equivalence with a synthetic Void item); a balance test; screenshots.
+
+### 3.4 Forge: upgrades, reroll, affix improvement (vertical) — `todo`
+GDD: §8.1, §8.3. Needs 3.1. Can run in parallel with 3.3 (different files; migration rule).
+- **Upgrade +0…+10:** raises base values. The success chance falls with the level, with a pity guarantee. Failure never destroys or downgrades. The cost (gold + materials) rises steeply; this is the main **gold sink** (Phase 2 retrospective: 25–30k gold by level 17).
+- **Affix reroll:** the player picks one affix; it is replaced from the slot's pool while the others are kept. The cost rises with each reroll of the same item.
+- **Affix improvement:** raises one affix toward its tier's maximum in steps, within a cap.
+- **No save-scumming:** a per-item seed stream with a counter. Results are revealed only after paying; replay and race tests.
+- **UI:** a Forge tab with an upgrade track (success chance, pity progress, cost), reroll (pick an affix, see the possible range) and improvement (current vs cap).
+**Acceptance:** PG race tests (double upgrade, upgrade vs sell or salvage); no-re-roll tests; a gold-sink measurement recorded in `docs/ECONOMY.md`; screenshots.
+
+### 3.5 Void variants (vertical) — `todo`
+GDD: §7.5. Needs 3.2 and 3.3.
+- Void can roll only on Legendary, Mythic and Set items, with a small stat bonus. The chance is strictly capped in config. A long-term progression hook that improves discovery (capped) is optional; if implemented, keep it account-bound and measurable.
+- Void set pieces count for their set (3.3's rule).
+- **Visual:** a reusable overlay or palette treatment on the base item art (CSS filter or blend plus an optional PixelLab-generated texture), with no new per-item art (GDD §7.5). Restrained, not a glow on everything.
+**Acceptance:** rarity and variant distribution tests; screenshots of Void items in the grid, tooltip and drop moment.
+
+### 3.6 Late-game activity & targeted loot (vertical) — `todo`
+GDD: §6.4, §11.2, §15 Phase 3 ("late-game activities and more targeted loot tables"). Needs 3.2 and 3.3.
+- **Deeper Nameless Crypt tiers:** Tier II and III scale enemies, the Gravewarden and rewards to levels 18–22+, unlocked by clearing the previous tier. They reuse the existing art and rules; each tier is data.
+- **Targeted loot:** each tier or boss has a declared loot focus (e.g. specific set pieces, a slot group or an effect family). Abbey contracts can offer a targeted reward (a choice of slot). The player can plan toward a build instead of farming blind.
+- Also address the Phase 2 note that the crypt is easier than its target for heroes with farmed gear (tune tier I here or in B.2; record which).
+**Acceptance:** determinism and invariance tests; a claim race test; a balance test per tier; screenshots.
+
+### 3.7 Loot filter & pack management (vertical) — `todo`
+GDD: §1.3, §14 (steps 4–5); Phase 2 retrospective (the pack fills in about two game hours). Needs 3.1.
+- **Loot filter rules per character:** auto-salvage or auto-sell drops below a chosen rarity, or without chosen affixes or effects. Applied server-side at settlement and claim, and audited.
+- **Item lock:** locked items can't be sold, salvaged or discarded (the `locked` column from 3.1).
+- Bulk actions in the Pack; a clearer "pack full" state with what happened to overflow.
+- The warehouse stays out (GDD: later); note it as a follow-up.
+**Acceptance:** filter determinism and invariance; PG races (settle vs filter change, sell vs lock); screenshots.
+
+### 3.8 Loot & economy telemetry — `todo`
+GDD: §16.4, §15 Phase 3 ("telemetry for drop rates, item usage and build distribution").
+- Privacy-conscious, server-side aggregates only. No client tracking and no personal data:
+  - drop counts by rarity, variant, effect and area;
+  - equipped-item usage by base, effect and set;
+  - build distribution per class (top affix and effect combinations);
+  - forge spending (gold and materials by action);
+  - gold sources and sinks.
+- Aggregation into daily rollup tables inside the existing transactions, or from the audit log, with no extra writes on hot paths beyond counters.
+- A report command (`pnpm report:telemetry`) printing a readable summary, for balance work. No admin UI yet (no roles exist); document how it would be exposed later.
+**Acceptance:** rollup correctness tests (PG); report output in the PR.
+
+### B.2 Balance pass: loot depth & economy — `todo`
+GDD: §7, §8.3, §15 Phase 3 exit. Needs 3.1–3.8.
+- **Build diversity check** (makes the exit criterion testable): simulate the best builds per class from the item pool (affixes, effects, sets, upgrades, Void). Assert several distinct builds within a few percent of the best, and that no single item, effect or affix appears in all top builds.
+- **Economy:** forge costs vs gold income (the sink works without making upgrades a grind wall); material demand vs gathering; drop rates for Legendary, Mythic, Set and Void measured with 3.8's telemetry, and documented.
+- Crypt tier difficulty for farmed gear (the Phase 2 note) if 3.6 didn't settle it.
+- Address the owner's playtest feedback if it has arrived.
+**Acceptance:** the extended balance test is green and fast; before/after tables in `docs/COMBAT.md` and `docs/ECONOMY.md`.
+
+### 3.9 Phase 3 hardening & exit — `todo`
+GDD: §15 Phase 3 exit, §16.3.
+- **Exit-criteria e2e:** extend the API and browser runs: find a Legendary and a set piece, upgrade, reroll and improve, use the loot filter, run a deeper crypt tier, and reconcile everything with the audit log.
+- **Exploit review of all Phase 3 endpoints:** no re-roll by retry, race or replay; upgrade and pity integrity; filter and lock races; cross-feature races; client-trusted values; ownership.
+- **Per-account rate limits** on game routes (Phase 1–2 carry-over), before trading and leaderboards arrive.
+- Phase 3 retrospective in this file.
+
 ## Art tickets (run alongside the phases)
 
 ### A.1 Class portraits — `done (PR #14)`
@@ -322,3 +433,9 @@ GDD: §3.1, §7. Needs 2.1 merged (it defines the new item bases). Match the exi
 GDD: §3.1, §7. Follow-up from ticket 2.8. The three Gravewarden uniques borrow existing icons (`packages/game-core/src/items/bases.ts`): Gravewarden’s Cowl uses `item.horned-helm`, Seal of the Nameless uses `item.grave-gold-ring`, Warden’s Bone Chain uses `item.bone-amulet`. They should look unique.
 - One 32px job (matching `apps/web/public/assets/items/`, an existing icon as `style_image`) for the three icons; switch the bases and the manifest.
 **Acceptance:** a contact sheet of the three next to the icons they replace.
+
+### A.6 Legendary, Mythic & Set item icons — `todo`
+GDD: §3.1, §7. Needs 3.2 and 3.3 merged (they define the named items). Match the 32×32 item icons (`docs/ASSET_GUIDELINES.md`).
+- Icons for the named Mythic items and every set piece (about 20–25), visibly more ornate than tier-3 gear but in the same palette. Legendary items (non-named) keep their base icons; their frame treatment comes from 3.2.
+- Budget: one or two 32px jobs (64 variants each); at most one regeneration. Switch the items from placeholder icons and update the manifest and `assets.ts` (they must match, in order).
+**Acceptance:** a contact sheet next to tier-3 gear in the PR.
