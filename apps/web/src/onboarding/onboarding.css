@@ -325,7 +325,7 @@
     padding-left: 0;
   }
 
-  /* Phones: only the newest notice shows, so the stack never covers the screen. */
+  /* Phones: only the last slip shows (the most important, see Notices.tsx), so the stack never covers the screen. */
   .notices__list > :not(:last-child) {
     display: none;
   }
