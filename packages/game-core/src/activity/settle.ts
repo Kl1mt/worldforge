@@ -15,12 +15,12 @@ import {
   type ProfessionState,
 } from '../professions/progression.js';
 import { DEFAULT_ACTIVITY_CONFIG, type ActivityConfig, type InventoryConfig } from './config.js';
-import { equipmentModifiers } from './equipment.js';
+import { equipmentModifiers, type EquippedItem } from './equipment.js';
 
 export interface SettleFarmingInput {
   character: FarmingCharacter;
-  /** The equipped items (persisted `GeneratedItem` columns). */
-  equipment?: readonly Pick<GeneratedItem, 'baseId' | 'rarityId' | 'itemLevel' | 'affixes'>[];
+  /** The equipped items (persisted `GeneratedItem` columns, effect columns included). */
+  equipment?: readonly EquippedItem[];
   areaId: AreaId;
   /** Server-derived seed, constant for the activity. Never accept a seed from the client. */
   seed: string;
@@ -75,6 +75,8 @@ export interface FarmingSettlement {
   levelsGained: number;
   health: number;
   maxHealth: number;
+  /** Bloodrush stacks at the window end (ticket 3.2); carry it into the next settlement. */
+  momentum: number;
   /** Gold dropped by kills (after gold find). */
   goldLooted: number;
   /** Gold from items salvaged because the inventory was full. */
@@ -155,6 +157,7 @@ export function settleFarming(
         level: first.level,
         xp: first.xp,
         health: first.health,
+        momentum: first.momentum,
       },
       professions: first.professions,
       firstCycle: input.firstCycle + first.encounters,
@@ -184,6 +187,7 @@ export function settleFarming(
     levelsGained: second.level - first.startLevel,
     health: second.health,
     maxHealth: second.maxHealth,
+    momentum: second.momentum,
     goldLooted: first.goldLooted + second.goldLooted,
     goldSalvaged: first.goldSalvaged + second.goldSalvaged,
     items: [...first.items, ...second.items],
@@ -217,7 +221,9 @@ function settleSegment(
 
   const area = getArea(input.areaId);
   const lootTable = getLootTable(area.lootTableId);
-  const modifiers = equipmentModifiers(input.equipment ?? [], activity.modifierCaps, lootConfig);
+  const modifiers = equipmentModifiers(input.equipment ?? [], activity.modifierCaps, lootConfig, {
+    classId: input.character.classId,
+  });
   const items: GeneratedItem[] = [];
   const salvaged: GeneratedItem[] = [];
   let goldLooted = 0;
@@ -236,6 +242,7 @@ function settleSegment(
         skillDamage: modifiers.skillDamage,
         bossDamage: modifiers.bossDamage,
       },
+      effects: modifiers.effects,
       areaId: input.areaId,
       seed: input.seed,
       durationMs: input.durationMs,
@@ -310,6 +317,7 @@ function settleSegment(
     levelsGained: r.levelsGained,
     health: r.health,
     maxHealth: r.maxHealth,
+    momentum: r.momentum,
     goldLooted,
     goldSalvaged,
     items,

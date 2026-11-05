@@ -9,14 +9,23 @@ import {
 } from './characterStats.js';
 import {
   DEFAULT_COMBAT_CONFIG,
+  attackHit,
   rollEncounter,
+  thornsDamage,
   type CombatConfig,
   type EncounterModifiers,
   type EncounterSetup,
   type FightOutcome,
 } from './encounter.js';
-import { distributionKey, hitsToKillDistribution, sampleFight } from './fightDistribution.js';
+import {
+  distributionKey,
+  killDistribution,
+  sampleFight,
+  type KillEvent,
+} from './fightDistribution.js';
 import { MAX_LEVEL, applyXp, xpToNextLevel } from './progression.js';
+import { hasCombatEffects } from '../effects/resolve.js';
+import type { CombatEffects } from '../effects/types.js';
 
 export interface FarmingCharacter {
   classId: ClassId;
@@ -25,6 +34,28 @@ export interface FarmingCharacter {
   xp: number;
   /** Current health; defaults to full. Clamped to [1, max health]. */
   health?: number;
+  /** Bloodrush stacks after the last committed cycle (ticket 3.2); default 0. */
+  momentum?: number;
+}
+
+/**
+ * Bloodrush stacks the hero brings into a fight after `idleMs` out of combat: one stack fades for
+ * every full `decayMs`. Zero when bloodrush is not active.
+ */
+export function momentumAfterIdle(
+  stacks: number,
+  idleMs: number,
+  effects: CombatEffects | undefined,
+): number {
+  if (!effects || effects.bloodrush.perStack <= 0) return 0;
+  const { maxStacks, decayMs } = effects.bloodrush;
+  const faded = decayMs > 0 ? Math.floor(idleMs / decayMs) : 0;
+  return Math.min(maxStacks, Math.max(0, Math.floor(stacks) - faded));
+}
+
+/** Health a kill restores (life on kill, ticket 3.2). */
+export function lifeOnKillHeal(maxHealth: number, effects: CombatEffects | undefined): number {
+  return effects && effects.lifeOnKill > 0 ? Math.floor(maxHealth * effects.lifeOnKill) : 0;
 }
 
 export interface FarmingInput {
@@ -33,6 +64,8 @@ export interface FarmingInput {
   equipment?: readonly EquipmentStatContribution[];
   /** Capped secondary modifiers of the equipped items (XP gain, skill and boss damage; ticket 3.1). */
   modifiers?: EncounterModifiers;
+  /** Combined effects of the equipped items (ticket 3.2, `combineEffects`). */
+  effects?: CombatEffects;
   areaId: AreaId;
   /** Server-derived seed. Never accept a seed from the client. */
   seed: number | string;
@@ -97,6 +130,8 @@ export interface FarmingResult {
   levelsGained: number;
   health: number;
   maxHealth: number;
+  /** Bloodrush stacks after the last committed cycle; carry it into the next window. */
+  momentum: number;
   /** Most recent events (detailed simulation only; empty for the aggregate one). */
   events: CombatEvent[];
   /** Older events dropped to respect `maxEvents`. */
@@ -147,6 +182,12 @@ function validateInput(input: FarmingInput, config: CombatConfig): void {
     throw new RangeError(`Invalid health: ${character.health}`);
   }
   if (
+    character.momentum !== undefined &&
+    (!Number.isInteger(character.momentum) || character.momentum < 0)
+  ) {
+    throw new RangeError(`Invalid momentum: ${character.momentum}`);
+  }
+  if (
     input.firstCycle !== undefined &&
     (!Number.isSafeInteger(input.firstCycle) || input.firstCycle < 0)
   ) {
@@ -182,6 +223,8 @@ function runFarming(
   const area = getArea(input.areaId);
   const { classId } = input.character;
   const equipment = input.equipment ?? [];
+  const effects = hasCombatEffects(input.effects) ? input.effects : undefined;
+  const healOnKill = (max: number) => lifeOnKillHeal(max, effects);
 
   let level = input.character.level;
   let xp = input.character.xp;
@@ -202,6 +245,9 @@ function runFarming(
   let timeouts = 0;
   let damageTaken = 0;
   let xpGained = 0;
+  // Bloodrush stacks after the last committed cycle (ticket 3.2). Only committed cycles change it,
+  // so a window cut short leaves it as it was and the next settlement replays the same fight.
+  let momentum = effects ? Math.max(0, input.character.momentum ?? 0) : 0;
 
   const maxCycles = input.maxCycles ?? Infinity;
   for (;;) {
@@ -217,7 +263,17 @@ function runFarming(
     const healthAtFight = Math.min(stats.health, health + regen);
     if (perCycle) rng = createRng(`${input.seed}:${firstCycle + encounters}`);
 
-    const setup = rollEncounter(rng, area, classId, level, stats, config, input.modifiers);
+    const fightMomentum = momentumAfterIdle(momentum, config.searchMs, effects);
+    const setup = rollEncounter(
+      rng,
+      area,
+      classId,
+      level,
+      stats,
+      config,
+      input.modifiers,
+      effects ? { effects, momentum: fightMomentum } : undefined,
+    );
     buffer?.push({
       t: fightStart,
       type: 'spawn',
@@ -240,7 +296,11 @@ function runFarming(
     const lost = Math.min(healthAtFight, outcome.enemyHits * setup.enemyHit);
     damageTaken += lost;
     health = healthAtFight - lost;
+    if (effects)
+      momentum =
+        outcome.kind === 'kill' ? Math.min(effects.bloodrush.maxStacks, fightMomentum + 1) : 0;
     if (outcome.kind === 'kill') {
+      health = Math.min(stats.health, health + healOnKill(stats.health));
       kills++;
       killsByEnemy[setup.enemyId] = (killsByEnemy[setup.enemyId] ?? 0) + 1;
       xpGained += setup.xpReward;
@@ -285,6 +345,7 @@ function runFarming(
     levelsGained: level - input.character.level,
     health,
     maxHealth: stats.health,
+    momentum,
     events: [],
     eventsDropped: 0,
   };
@@ -306,16 +367,18 @@ export function resolveFightDetailed(
   let attack = 1;
   let enemyAttack = 1;
   let enemyHits = 0;
+  let prevCrit = false;
+  const thorns = thornsDamage(setup);
   for (;;) {
     const p = attack * setup.playerIntervalMs;
     const e = enemyAttack * setup.enemyIntervalMs;
     if (p <= setup.maxFightMs && p <= e) {
-      const skill = attack % setup.skillEvery === 0;
-      const hit = skill ? setup.skill : setup.auto;
+      const hit = attackHit(setup, attack, prevCrit, hp, enemyHealth);
       const crit = rng.chance(hit.critChance);
+      prevCrit = crit;
       const damage = crit ? hit.crit : hit.normal;
       enemyHealth -= damage;
-      log?.push({ t: startMs + p, type: 'attack', damage, crit, skill });
+      log?.push({ t: startMs + p, type: 'attack', damage, crit, skill: hit.skill });
       if (enemyHealth <= 0) return { kind: 'kill', offsetMs: p, enemyHits };
       attack++;
     } else if (e <= setup.maxFightMs) {
@@ -324,6 +387,11 @@ export function resolveFightDetailed(
       enemyHits++;
       log?.push({ t: startMs + e, type: 'enemyAttack', damage });
       if (hp <= 0) return { kind: 'death', offsetMs: e, enemyHits };
+      if (thorns > 0) {
+        // Thorns (ticket 3.2): the attacker takes its share of the blow once it has landed.
+        enemyHealth -= thorns;
+        if (enemyHealth <= 0) return { kind: 'kill', offsetMs: e, enemyHits };
+      }
       enemyAttack++;
     } else {
       return { kind: 'timeout', offsetMs: setup.maxFightMs, enemyHits };
@@ -377,12 +445,12 @@ export function simulateFarmingAggregate(
   options: SimulationOptions = {},
 ): FarmingResult {
   const config = options.config ?? DEFAULT_COMBAT_CONFIG;
-  const cache = new Map<string, Float64Array>();
+  const cache = new Map<string, KillEvent[]>();
   const resolver: FightResolver = (setup, health, rng) => {
-    const key = distributionKey(setup);
+    const key = distributionKey(setup, health);
     let distribution = cache.get(key);
     if (!distribution) {
-      distribution = hitsToKillDistribution(setup);
+      distribution = killDistribution(setup, health);
       cache.set(key, distribution);
     }
     return sampleFight(setup, health, rng, distribution);

@@ -16,3 +16,4 @@ export * from './dungeon/index.js';
 export * from './economy/index.js';
 export * from './quests/index.js';
 export * from './onboarding/index.js';
+export * from './effects/index.js';

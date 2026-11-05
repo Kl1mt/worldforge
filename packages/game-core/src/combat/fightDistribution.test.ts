@@ -6,6 +6,7 @@ import {
   createRng,
   deriveCharacterStats,
   hitsToKillDistribution,
+  killDistribution,
   resolveFightDetailed,
   sampleFight,
   type ClassId,
@@ -68,7 +69,7 @@ describe('hitsToKillDistribution', () => {
       skill: { normal: 1, crit: 2, critChance: 0.5 },
     };
     expect(sum(hitsToKillDistribution(s))).toBe(0);
-    const outcome = sampleFight(s, 1_000_000, createRng(1), hitsToKillDistribution(s));
+    const outcome = sampleFight(s, 1_000_000, createRng(1), killDistribution(s, 1_000_000));
     expect(outcome.kind).toBe('timeout');
     expect(outcome.offsetMs).toBe(s.maxFightMs);
     expect(outcome.enemyHits).toBe(Math.floor(s.maxFightMs / s.enemyIntervalMs));
@@ -81,7 +82,7 @@ describe('sampled fights match detailed fights', () => {
   const compare = (setup: EncounterSetup, health: number) => {
     const detailedRng = createRng(`detailed:${health}`);
     const sampledRng = createRng(`sampled:${health}`);
-    const distribution = hitsToKillDistribution(setup);
+    const distribution = killDistribution(setup, health);
     const tally = () => ({ kill: 0, death: 0, timeout: 0, hits: 0, offset: 0 });
     const a = tally();
     const b = tally();
@@ -121,7 +122,7 @@ describe('sampled fights match detailed fights', () => {
       skill: { ...base.skill, critChance: 0 },
     };
     for (const health of [1, 5, 10, 20, 40, 140]) {
-      expect(sampleFight(s, health, createRng(1), hitsToKillDistribution(s))).toEqual(
+      expect(sampleFight(s, health, createRng(1), killDistribution(s, health))).toEqual(
         resolveFightDetailed(s, health, createRng(1)),
       );
     }

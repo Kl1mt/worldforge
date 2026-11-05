@@ -12,6 +12,7 @@ import {
   getItemBase,
   isCoreStatId,
   itemFitsSlot,
+  mythicForBase,
 } from '../index.js';
 
 /** The curated icons in apps/web/public/assets/items/ (ticket 0.2). */
@@ -43,7 +44,7 @@ describe('item bases', () => {
   });
 
   it('gives every tier 2–3 base its own icon named after the base (ticket A.4)', () => {
-    // Boss-exclusive bases (ticket 2.5) borrow an existing icon until they get their own art.
+    // Unique bases: boss-exclusive ones have their own icons (A.5); Mythics borrow one until A.6.
     const regular = ITEM_BASES.filter((b) => !b.unique);
     for (const b of regular.filter((b) => b.tier !== 1)) expect(b.icon, b.id).toBe(`item.${b.id}`);
     expect(new Set(regular.map((b) => b.icon)).size).toBe(regular.length);
@@ -66,7 +67,8 @@ describe('item bases', () => {
     const total = (b: (typeof ITEM_BASES)[number], level: number) =>
       b.stats.reduce((s, x) => s + x.base + x.perLevel * (level - 1), 0);
     for (const tier of [2, 3] as const) {
-      for (const b of ITEM_BASES.filter((x) => x.tier === tier)) {
+      // Mythic bases (ticket 3.2) are their own families, checked in effects.test.ts.
+      for (const b of ITEM_BASES.filter((x) => x.tier === tier && !mythicForBase(x.id))) {
         const lower = ITEM_BASES.filter((x) => x.tier === tier - 1 && family(x) === family(b));
         expect(lower.length, b.id).toBeGreaterThan(0);
         for (const l of lower) {

@@ -42,6 +42,7 @@ import {
   type AreaId,
   type ClassId,
   type GeneratedItem,
+  MYTHIC_ITEMS,
 } from '../index.js';
 
 /** The Phase 2 content contract (`docs/ROADMAP.md`), verbatim. */
@@ -291,8 +292,11 @@ describe('loot tables', () => {
     const means = AREAS.map((a) => meanTier(a.lootTableId, a.maxLevel));
     for (let i = 1; i < means.length; i++) expect(means[i]).toBeGreaterThan(means[i - 1]!);
     expect(meanTier('abandonedFields', 7)).toBe(1);
-    // Every tier-2/3 base can drop somewhere.
-    const dropping = new Set(LOOT_TABLES.flatMap((t) => t.entries.map((e) => e.baseId)));
+    // Every base can drop somewhere (Mythic bases through the Mythic roll, ticket 3.2).
+    const dropping = new Set([
+      ...LOOT_TABLES.flatMap((t) => t.entries.map((e) => e.baseId)),
+      ...MYTHIC_ITEMS.map((m) => m.baseId),
+    ]);
     for (const b of ITEM_BASES) expect(dropping.has(b.id), b.id).toBe(true);
   });
 

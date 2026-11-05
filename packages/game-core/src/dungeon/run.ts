@@ -1,12 +1,16 @@
 import { isClassId, type ClassId } from '../classes.js';
 import { DEFAULT_ACTIVITY_CONFIG, type ActivityConfig } from '../activity/config.js';
-import { equipmentModifiers } from '../activity/equipment.js';
+import { equipmentModifiers, type EquippedItem } from '../activity/equipment.js';
+import { lifeOnKillHeal, momentumAfterIdle } from '../combat/farming.js';
+import { hasCombatEffects } from '../effects/resolve.js';
 import { salvageValue } from '../activity/settle.js';
 import { deriveCharacterStats, type StatBlock } from '../combat/characterStats.js';
 import {
   DEFAULT_COMBAT_CONFIG,
+  attackHit,
   buildEncounter,
   rollEncounter,
+  thornsDamage,
   type CombatConfig,
   type EncounterSetup,
 } from '../combat/encounter.js';
@@ -56,6 +60,10 @@ export type DungeonEvent =
       enemyHealth: number;
     }
   | { t: number; type: 'enemyAttack'; damage: number; health: number }
+  /** Thorns (ticket 3.2): the enemy took `damage` from its own blow. */
+  | { t: number; type: 'thorns'; damage: number; enemyHealth: number }
+  /** Life on kill (ticket 3.2): the hero healed `amount` after a kill. */
+  | { t: number; type: 'heal'; amount: number; health: number }
   | { t: number; type: 'enrage' }
   | { t: number; type: 'kill'; enemyId: EnemyId; xp: number }
   | { t: number; type: 'levelUp'; level: number; health: number; maxHealth: number }
@@ -83,8 +91,8 @@ export interface DungeonRunInput {
   dungeonId: DungeonId;
   /** Snapshot at the start of the run; the run always starts at full health. */
   character: { classId: ClassId; level: number; xp: number };
-  /** Equipped items at the start of the run (persisted `GeneratedItem` columns). */
-  equipment?: readonly Pick<GeneratedItem, 'baseId' | 'rarityId' | 'itemLevel' | 'affixes'>[];
+  /** Equipped items at the start of the run (persisted `GeneratedItem` columns incl. effects). */
+  equipment?: readonly EquippedItem[];
   /** Server-generated secret of this run. Never accept a seed from the client. */
   seed: string;
   /** Whether a boss kill drops boss loot (the cooldown is checked by the server at run start). */
@@ -170,6 +178,7 @@ export function resolveDungeonFight(
   let attack = 1;
   let nextEnemy = setup.enemyIntervalMs;
   let enraged = false;
+  let prevCrit = false;
   const enragedInterval = enrage
     ? Math.max(1, Math.round(setup.enemyIntervalMs / enrage.attackSpeedMultiplier))
     : setup.enemyIntervalMs;
@@ -182,12 +191,12 @@ export function resolveDungeonFight(
       log.push({ t: startMs + enrage.atMs, type: 'enrage' });
     }
     if (p <= setup.maxFightMs && p <= e) {
-      const skill = attack % setup.skillEvery === 0;
-      const hit = skill ? setup.skill : setup.auto;
+      const hit = attackHit(setup, attack, prevCrit, hp, enemyHealth);
       const crit = rng.chance(hit.critChance);
+      prevCrit = crit;
       const damage = crit ? hit.crit : hit.normal;
       enemyHealth = Math.max(0, enemyHealth - damage);
-      log.push({ t: startMs + p, type: 'attack', damage, crit, skill, enemyHealth });
+      log.push({ t: startMs + p, type: 'attack', damage, crit, skill: hit.skill, enemyHealth });
       if (enemyHealth <= 0) return { kind: 'kill', offsetMs: p, health: hp };
       attack++;
     } else if (e <= setup.maxFightMs) {
@@ -199,6 +208,12 @@ export function resolveDungeonFight(
       hp -= damage;
       log.push({ t: startMs + e, type: 'enemyAttack', damage, health: hp });
       if (hp <= 0) return { kind: 'death', offsetMs: e, health: 0 };
+      const thorns = thornsDamage(setup, strong ? enrage.damageMultiplier : 1);
+      if (thorns > 0) {
+        enemyHealth = Math.max(0, enemyHealth - thorns);
+        log.push({ t: startMs + e, type: 'thorns', damage: thorns, enemyHealth });
+        if (enemyHealth <= 0) return { kind: 'kill', offsetMs: e, health: hp };
+      }
       nextEnemy = e + (strong ? enragedInterval : setup.enemyIntervalMs);
     } else {
       return { kind: 'timeout', offsetMs: setup.maxFightMs, health: hp };
@@ -229,7 +244,15 @@ export function simulateDungeonRun(
   const dungeon: DungeonDefinition = getDungeon(input.dungeonId);
   const roomTable = getLootTable(dungeon.lootTableId);
   const { classId } = input.character;
-  const modifiers = equipmentModifiers(input.equipment ?? [], activity.modifierCaps, lootConfig);
+  const modifiers = equipmentModifiers(input.equipment ?? [], activity.modifierCaps, lootConfig, {
+    classId,
+  });
+  const effects = hasCombatEffects(modifiers.effects) ? modifiers.effects : undefined;
+  // Bloodrush stacks (ticket 3.2): a run starts without a streak; walking between rooms lets
+  // stacks fade (one per `decayMs` out of combat).
+  let momentum = 0;
+  const effectContext = (idleMs: number) =>
+    effects ? { effects, momentum: momentumAfterIdle(momentum, idleMs, effects) } : undefined;
   const encounterModifiers = {
     xpGain: modifiers.xpGain,
     skillDamage: modifiers.skillDamage,
@@ -263,6 +286,7 @@ export function simulateDungeonRun(
     setup: EncounterSetup,
     rng: Rng,
     room: number | null,
+    fightMomentum: number,
     enrage?: BossEnrage,
   ): boolean => {
     const startMs = now;
@@ -301,6 +325,14 @@ export function simulateDungeonRun(
     killsByEnemy[setup.enemyId] = (killsByEnemy[setup.enemyId] ?? 0) + 1;
     xpGained += setup.xpReward;
     events.push({ t: now, type: 'kill', enemyId: setup.enemyId, xp: setup.xpReward });
+    if (effects) {
+      momentum = Math.min(effects.bloodrush.maxStacks, fightMomentum + 1);
+      const heal = Math.min(stats.health - health, lifeOnKillHeal(stats.health, effects));
+      if (heal > 0) {
+        health += heal;
+        events.push({ t: now, type: 'heal', amount: heal, health });
+      }
+    }
     const after = applyXp({ level, xp }, setup.xpReward);
     if (after.level !== level) {
       stats = deriveCharacterStats(classId, after.level, modifiers.stats);
@@ -325,6 +357,7 @@ export function simulateDungeonRun(
       }
       const rng = createRng(`${input.seed}:room:${r}:${k}`);
       const characterLevel = level;
+      const context = effectContext(k > 0 ? combat.searchMs : dungeon.travelMs);
       const setup = rollEncounter(
         rng,
         dungeon,
@@ -333,8 +366,9 @@ export function simulateDungeonRun(
         stats,
         combat,
         encounterModifiers,
+        context,
       );
-      if (!fight(setup, rng, r)) {
+      if (!fight(setup, rng, r, context?.momentum ?? 0)) {
         alive = false;
         break;
       }
@@ -361,6 +395,7 @@ export function simulateDungeonRun(
     events.push({ t: now, type: 'enter', room: null });
     now += dungeon.travelMs;
     regen(dungeon.travelMs);
+    const context = effectContext(dungeon.travelMs);
     const setup: EncounterSetup = {
       ...buildEncounter(
         getEnemy(dungeon.bossId),
@@ -370,10 +405,17 @@ export function simulateDungeonRun(
         stats,
         combat,
         encounterModifiers,
+        context,
       ),
       maxFightMs: dungeon.bossMaxFightMs,
     };
-    bossDefeated = fight(setup, createRng(`${input.seed}:boss`), null, dungeon.bossEnrage);
+    bossDefeated = fight(
+      setup,
+      createRng(`${input.seed}:boss`),
+      null,
+      context?.momentum ?? 0,
+      dungeon.bossEnrage,
+    );
     if (bossDefeated) {
       questEvents.push({ type: 'bossDefeated', bossId: dungeon.bossId });
       if (input.bossLootEligible) {
@@ -535,9 +577,11 @@ export function dungeonRunProgress(
         enraged = false;
         break;
       case 'attack':
+      case 'thorns':
         if (foe) foe = { ...foe, health: e.enemyHealth };
         break;
       case 'enemyAttack':
+      case 'heal':
         health = e.health;
         break;
       case 'enrage':
