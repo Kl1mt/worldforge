@@ -34,6 +34,7 @@ import {
 } from '../inventory/routes.js';
 import { changeMaterialsTx, loadMaterialBundle } from '../materials/store.js';
 import { idempotentTransaction } from '../idempotency/index.js';
+import { registerForgeWork } from './work.js';
 import {
   changeGold,
   characterSchema,
@@ -47,9 +48,9 @@ import {
 } from '../economy/shared.js';
 
 /**
- * The Forge, Phase 2 scope (ticket 2.6, GDD §8): salvage items into materials and a little gold,
- * and craft tier-appropriate gear in a chosen slot from materials. Upgrades, rerolls and affix
- * improvement are Phase 3. Salvage and craft need an `Idempotency-Key`, lock the character row,
+ * The Forge (ticket 2.6, GDD §8): salvage items into materials and a little gold, and craft
+ * tier-appropriate gear in a chosen slot from materials. Upgrades, rerolls and affix improvement
+ * (ticket 3.4) live in `./work.ts`. Salvage and craft need an `Idempotency-Key`, lock the character row,
  * settle its activity first, and are audited.
  */
 
@@ -196,6 +197,8 @@ export async function registerForge(
   activity: ActivityOptions,
 ): Promise<void> {
   const capacity = activity.rules.inventory.capacity;
+  // Ticket 3.4: upgrades, rerolls and affix improvement (`./work.ts`).
+  await registerForgeWork(app, activity);
 
   app.get<{ Params: { characterId: string } }>(
     '/characters/:characterId/forge',

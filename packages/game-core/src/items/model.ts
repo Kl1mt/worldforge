@@ -7,6 +7,24 @@
 /** Highest upgrade level (ticket 3.4; GDD §8.1, +0 to +10). */
 export const MAX_UPGRADE_LEVEL = 10;
 
+/**
+ * Ticket 3.4: the bonus an upgrade level adds to the item's implicit (base) stats, as a fraction,
+ * indexed by level (`[0]` = +0 = none). Cumulative: a +10 item has +50 % base values. Affixes and
+ * effects are untouched; upgrades raise base values only (GDD §8.1).
+ */
+export const UPGRADE_IMPLICIT_BONUS: readonly number[] = [
+  0, 0.04, 0.08, 0.12, 0.16, 0.21, 0.26, 0.31, 0.37, 0.43, 0.5,
+];
+
+/**
+ * The implicit-stat bonus of an upgrade level. Missing, null, 0 or out-of-range values give 0
+ * (stored rows are checked to 0…10; older crypt snapshots carry no level).
+ */
+export function upgradeImplicitBonus(upgradeLevel: number | null | undefined): number {
+  if (!upgradeLevel || !Number.isInteger(upgradeLevel) || upgradeLevel < 0) return 0;
+  return UPGRADE_IMPLICIT_BONUS[Math.min(upgradeLevel, MAX_UPGRADE_LEVEL)] ?? 0;
+}
+
 /** Item variants (GDD §7.5). Only Void in Phase 3 (ticket 3.5); Prismatic is deferred. */
 export const ITEM_VARIANT_IDS = ['void'] as const;
 

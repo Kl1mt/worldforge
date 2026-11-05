@@ -4,7 +4,7 @@ import { PixelSprite } from './PixelSprite';
 import './item-frame.css';
 
 interface ItemFrameProps {
-  item: Pick<ItemView, 'icon' | 'name' | 'rarity'> | undefined;
+  item: (Pick<ItemView, 'icon' | 'name' | 'rarity'> & { upgradeLevel?: number }) | undefined;
   /** Icon scale (icons are 32 px native). */
   scale?: number;
   /** Shown in an empty frame, e.g. the slot name. */
@@ -40,8 +40,9 @@ export function ItemFrame({
   ]
     .filter(Boolean)
     .join(' ');
+  const upgrade = item?.upgradeLevel ?? 0;
   const label = item
-    ? `${context ? `${context}: ` : ''}${item.name}, ${item.rarity}${isNew ? ', new' : ''}`
+    ? `${context ? `${context}: ` : ''}${item.name}${upgrade > 0 ? ` +${upgrade}` : ''}, ${item.rarity}${isNew ? ', new' : ''}`
     : `${context ?? 'Empty slot'}${emptyLabel && !context ? `: ${emptyLabel}` : ''}, empty`;
 
   const tag =
@@ -62,10 +63,18 @@ export function ItemFrame({
       {emptyLabel}
     </span>
   );
+  // Ticket 3.4: the upgrade level, engraved in the socket's corner.
+  const mark =
+    upgrade > 0 ? (
+      <span className="item-frame__upgrade" aria-hidden="true">
+        +{upgrade}
+      </span>
+    ) : null;
   const inner = (
     <>
       {art}
       {tag}
+      {mark}
     </>
   );
 

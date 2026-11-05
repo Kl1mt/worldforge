@@ -339,6 +339,7 @@ export async function registerDungeons(
             effectId: itemInstances.effectId,
             effectRoll: itemInstances.effectRoll,
             setId: itemInstances.setId,
+            upgradeLevel: itemInstances.upgradeLevel,
           })
           .from(itemInstances)
           .where(

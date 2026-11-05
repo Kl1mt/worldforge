@@ -450,6 +450,45 @@ describe('the Nameless Crypt (ticket 2.5)', () => {
     expect(replayRun(run!)).toEqual(withSet);
   });
 
+  it('snapshots upgrade levels at the start; older snapshots replay at +0 (ticket 3.4)', async () => {
+    const { p, id } = await hero('warrior', 16);
+    await database.db
+      .update(itemInstances)
+      .set({ upgradeLevel: 10 })
+      .where(and(eq(itemInstances.characterId, id), isNotNull(itemInstances.equippedSlot)));
+    expect((await enter(p, id)).statusCode).toBe(201);
+    await pinSeed(id, 'upgrades-pinned');
+    const [run] = await database.db
+      .select()
+      .from(dungeonRuns)
+      .where(and(eq(dungeonRuns.characterId, id), isNull(dungeonRuns.claimedAt)));
+    expect(run!.snapshot.equipment.length).toBeGreaterThan(0);
+    expect(run!.snapshot.equipment.every((e) => e.upgradeLevel === 10)).toBe(true);
+    const upgraded = replayRun(run!);
+    const plain = replayRun({
+      ...run!,
+      snapshot: {
+        ...run!.snapshot,
+        equipment: run!.snapshot.equipment.map((e) => ({ ...e, upgradeLevel: 0 })),
+      },
+    });
+    expect(upgraded.events).not.toEqual(plain.events);
+    const legacy = replayRun({
+      ...run!,
+      snapshot: {
+        ...run!.snapshot,
+        equipment: run!.snapshot.equipment.map(({ upgradeLevel: _, ...e }) => e),
+      },
+    });
+    expect(legacy).toEqual(plain);
+    // Upgrading (or losing) gear after the start cannot change the run.
+    await database.db
+      .update(itemInstances)
+      .set({ upgradeLevel: 0 })
+      .where(eq(itemInstances.characterId, id));
+    expect(replayRun(run!)).toEqual(upgraded);
+  });
+
   it('parallel claims grant once (same key: one result; other keys: refused)', async () => {
     const { p, id } = await hero();
     const run = (await enter(p, id)).json<{ run: DungeonRunView }>().run;

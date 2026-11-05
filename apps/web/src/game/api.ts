@@ -254,6 +254,84 @@ export interface CraftResult {
   materials: MaterialStackDto[];
 }
 
+/** Gold and materials of a forge action (ticket 3.4). */
+export interface ForgeCostDto {
+  gold: number;
+  materials: MaterialStackDto[];
+}
+
+export type ForgeBlockerDto =
+  | { kind: 'gold'; required: number; held: number }
+  | { kind: 'material'; materialId: MaterialId; required: number; held: number };
+
+/** The Forge's view of one item (ticket 3.4): the next upgrade, reroll options, improvements. */
+export interface ForgeItemDto {
+  itemId: string;
+  upgradeLevel: number;
+  upgradePity: number;
+  rerollCount: number;
+  upgrade: {
+    fromLevel: number;
+    toLevel: number;
+    chance: number;
+    pity: number;
+    pityThreshold: number;
+    guaranteed: boolean;
+    bonusNow: number;
+    bonusNext: number;
+    cost: ForgeCostDto;
+    blockers: ForgeBlockerDto[];
+  } | null;
+  reroll: {
+    cost: ForgeCostDto;
+    blockers: ForgeBlockerDto[];
+    options: { affixId: string; tiers: { tier: number; min: number; max: number }[] }[][];
+  } | null;
+  improve: {
+    index: number;
+    affixId: string;
+    tier: number;
+    value: number;
+    min: number;
+    max: number;
+    improvements: number;
+    maxImprovements: number;
+    refusal: 'improvement_cap' | 'affix_at_max' | 'unknown_affix' | null;
+    next: { low: number; high: number } | null;
+    cost: ForgeCostDto | null;
+    blockers: ForgeBlockerDto[];
+  }[];
+}
+
+export interface ForgeItemState {
+  characterId: string;
+  gold: number;
+  materials: MaterialStackDto[];
+  item: ItemDto;
+  forge: ForgeItemDto;
+}
+
+export type ForgeOutcomeDto =
+  | {
+      action: 'upgrade';
+      success: boolean;
+      guaranteed: boolean;
+      fromLevel: number;
+      upgradeLevel: number;
+      upgradePity: number;
+    }
+  | { action: 'reroll' | 'improve'; affixIndex: number; before: ItemAffix; after: ItemAffix };
+
+export interface ForgeActionResult {
+  character: Character;
+  item: ItemDto;
+  forge: ForgeItemDto;
+  outcome: ForgeOutcomeDto;
+  paid: ForgeCostDto;
+  inventory: InventoryDto;
+  materials: MaterialStackDto[];
+}
+
 /** Value-moving calls carry an `Idempotency-Key` (docs/API_CONVENTIONS.md). */
 const keyed = (key: string) => ({ headers: { 'idempotency-key': key } });
 
@@ -298,6 +376,44 @@ export const forgeApi = {
       { method: 'POST', body: { recipeId, slot }, ...keyed(key) },
       f,
     ),
+  /** Ticket 3.4: the Forge's view of one item. */
+  item: (
+    id: string,
+    itemId: string,
+    o: Signal = {},
+    f?: typeof fetch,
+  ): Promise<ApiResult<ForgeItemState>> => apiRequest(`${c(id)}/forge/items/${itemId}`, o, f),
+  upgrade: (
+    id: string,
+    itemId: string,
+    key: string,
+    f?: typeof fetch,
+  ): Promise<ApiResult<ForgeActionResult>> =>
+    apiRequest(`${c(id)}/forge/upgrade`, { method: 'POST', body: { itemId }, ...keyed(key) }, f),
+  reroll: (
+    id: string,
+    itemId: string,
+    affixIndex: number,
+    key: string,
+    f?: typeof fetch,
+  ): Promise<ApiResult<ForgeActionResult>> =>
+    apiRequest(
+      `${c(id)}/forge/reroll`,
+      { method: 'POST', body: { itemId, affixIndex }, ...keyed(key) },
+      f,
+    ),
+  improve: (
+    id: string,
+    itemId: string,
+    affixIndex: number,
+    key: string,
+    f?: typeof fetch,
+  ): Promise<ApiResult<ForgeActionResult>> =>
+    apiRequest(
+      `${c(id)}/forge/improve`,
+      { method: 'POST', body: { itemId, affixIndex }, ...keyed(key) },
+      f,
+    ),
 };
 
 /** A short sentence for a failed game action (equip, farm, …), branching on the error code. */
@@ -322,7 +438,16 @@ export function describeGameFailure(error: Pick<ApiFailure, 'code'>): string {
     case 'insufficient_gold':
       return 'Not enough gold.';
     case 'insufficient_materials':
-      return 'Not enough materials for this recipe.';
+      return 'Not enough materials.';
+    case 'max_upgrade':
+      return 'This item is already at +10.';
+    case 'improvement_cap':
+      return 'This affix has been improved as far as it goes.';
+    case 'affix_at_max':
+      return 'This affix is already at the top of its range.';
+    case 'no_such_affix':
+    case 'item_unforgeable':
+      return 'The smith cannot work this item. The view has been refreshed.';
     case 'recipe_locked':
       return 'Your hero is not experienced enough for this recipe yet.';
     case 'inventory_full':

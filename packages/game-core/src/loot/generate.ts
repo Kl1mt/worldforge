@@ -6,6 +6,7 @@ import { affixPoolFor, tiersForItemLevel, type AffixDefinition } from '../items/
 import { findItemBase, getItemBase, type ItemBaseDefinition } from '../items/bases.js';
 import { mythicForBase, mythicPool, type MythicItemDefinition } from '../items/mythics.js';
 import { setForBase, setPiecePool, type SetDefinition } from '../items/sets.js';
+import { upgradeImplicitBonus } from '../items/model.js';
 import { EFFECT_ROLL_STEPS, legendaryEffectPool } from '../effects/resolve.js';
 import {
   DEFAULT_LOOT_CONFIG,
@@ -64,7 +65,7 @@ function assertLevel(level: number, name: string): void {
 }
 
 /** Rounds to the affix step without float noise (e.g. 0.035, not 0.035000000000000003). */
-function roundToStep(value: number, step: number): number {
+export function roundToStep(value: number, step: number): number {
   const decimals = Math.max(0, Math.ceil(-Math.log10(step) - 1e-9));
   return Number((Math.round(value / step) * step).toFixed(decimals));
 }
@@ -128,7 +129,11 @@ export function affixTierWeights(
   }));
 }
 
-function rollAffixValue(
+/**
+ * Rolls one affix: a tier from the unlocked tiers' weights, then a value on the step grid inside
+ * it. Generation and the Forge's reroll (ticket 3.4) share it.
+ */
+export function rollAffixValue(
   affix: AffixDefinition,
   itemLevel: number,
   levelBonus: number,
@@ -316,13 +321,23 @@ export interface ItemStatValue {
 
 /** Implicit stats of an item: the base's stats scaled by item level and rarity. */
 export function getImplicitStats(
-  item: Pick<GeneratedItem, 'baseId' | 'rarityId' | 'itemLevel'>,
+  item: Pick<GeneratedItem, 'baseId' | 'rarityId' | 'itemLevel'> & UpgradeLevelField,
   config: LootConfig = DEFAULT_LOOT_CONFIG,
 ): ItemStatValue[] {
   const base = getItemBase(item.baseId);
   const mult = config.rarities[item.rarityId].statMultiplier;
-  return base.stats.map((s) => ({
-    stat: s.stat,
-    value: Math.round((s.base + s.perLevel * (item.itemLevel - 1)) * mult),
-  }));
+  const bonus = upgradeImplicitBonus(item.upgradeLevel);
+  return base.stats.map((s) => {
+    const raw = (s.base + s.perLevel * (item.itemLevel - 1)) * mult;
+    // +0 keeps the exact pre-3.4 expression (no extra float operation), so every number holds.
+    return { stat: s.stat, value: Math.round(bonus === 0 ? raw : raw * (1 + bonus)) };
+  });
+}
+
+/**
+ * Ticket 3.4: the item's upgrade level (`item_instances.upgrade_level`). Optional on everything
+ * that prices an item's stats; absent or null = +0.
+ */
+export interface UpgradeLevelField {
+  upgradeLevel?: number | null;
 }

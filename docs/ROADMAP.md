@@ -339,7 +339,7 @@ GDD: §7.4. Needs 3.2.
 - **UI:** a set tracker in the character screen and the tooltip (pieces owned and equipped, active bonuses).
 **Acceptance:** set counting tests (including Void equivalence with a synthetic Void item); a balance test; screenshots.
 
-### 3.4 Forge: upgrades, reroll, affix improvement (vertical) — `todo`
+### 3.4 Forge: upgrades, reroll, affix improvement (vertical) — `done (PR #40)`
 GDD: §8.1, §8.3. Needs 3.1. Can run in parallel with 3.3 (different files; migration rule).
 - **Upgrade +0…+10:** raises base values. The success chance falls with the level, with a pity guarantee. Failure never destroys or downgrades. The cost (gold + materials) rises steeply; this is the main **gold sink** (Phase 2 retrospective: 25–30k gold by level 17).
 - **Affix reroll:** the player picks one affix; it is replaced from the slot's pool while the others are kept. The cost rises with each reroll of the same item.

@@ -45,6 +45,9 @@ export interface StatLine {
    * damage" (stat `skillDamage`).
    */
   label?: string;
+  /** Forge marks of an affix (ticket 3.4): improvement steps applied, and a reroll put it there. */
+  improvements?: number;
+  rerolled?: boolean;
 }
 
 /** Affix lines grouped for the tooltip (ticket 3.1), in offence → defence → utility order. */
@@ -81,8 +84,10 @@ export interface ItemView {
   /** Null for a base that no longer exists in content. */
   slot: ItemSlotKind | null;
   itemLevel: number;
-  /** Implicit stats of the base, scaled by item level and rarity. */
+  /** Implicit stats of the base, scaled by item level, rarity and upgrade level. */
   base: StatLine[];
+  /** Forge upgrade level, 0…10 (ticket 3.4). */
+  upgradeLevel: number;
   affixes: StatLine[];
   classes: readonly ClassId[];
   equippedSlot: EquipmentSlotId | null;
@@ -147,7 +152,7 @@ export type ItemDisplaySource = Pick<
   ItemDto,
   'id' | 'baseId' | 'rarityId' | 'itemLevel' | 'affixes' | 'equippedSlot' | 'source' | 'createdAt'
 > &
-  Partial<Pick<ItemDto, 'effectId' | 'effectRoll' | 'setId'>>;
+  Partial<Pick<ItemDto, 'effectId' | 'effectRoll' | 'setId' | 'upgradeLevel'>>;
 
 /** The set id of an item, if it really is a piece of that set (game-core `wornSets` rule). */
 function setIdOf(baseId: string, setId: string | null | undefined): string | null {
@@ -160,11 +165,11 @@ export function toItemView(dto: ItemDisplaySource): ItemView {
   for (const rolled of dto.affixes) {
     const def = findAffix(rolled.affixId);
     if (!def) continue;
-    affixes.push(
-      def.classes
-        ? { stat: def.stat, value: rolled.value, label: affixName(def.label) }
-        : { stat: def.stat, value: rolled.value },
-    );
+    const line: StatLine = { stat: def.stat, value: rolled.value };
+    if (def.classes) line.label = affixName(def.label);
+    if (rolled.improvements) line.improvements = rolled.improvements;
+    if (rolled.rerolled) line.rerolled = true;
+    affixes.push(line);
   }
   return {
     id: dto.id,
@@ -175,6 +180,7 @@ export function toItemView(dto: ItemDisplaySource): ItemView {
     slot: base?.slot ?? null,
     itemLevel: dto.itemLevel,
     base: base ? getImplicitStats(dto) : [],
+    upgradeLevel: dto.upgradeLevel ?? 0,
     affixes,
     classes: base?.classes ?? [],
     equippedSlot: dto.equippedSlot,

@@ -219,3 +219,15 @@
   padding-top: var(--space-3);
   border-top: 1px solid var(--iron-700);
 }
+
+/* Ticket 3.4: forge work. The upgrade level reads like engraved brass, not a glow. */
+.tooltip__upgrade {
+  color: var(--brass-300);
+  font-variant-numeric: tabular-nums;
+}
+.tooltip__forge {
+  margin-left: 0.35em;
+  color: var(--brass-500);
+  font-size: 0.85em;
+  letter-spacing: 0.05em;
+}

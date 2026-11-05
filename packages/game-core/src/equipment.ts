@@ -14,7 +14,7 @@ import {
   itemFitsSlot,
 } from './items/bases.js';
 import { DEFAULT_LOOT_CONFIG, type LootConfig } from './loot/config.js';
-import { getImplicitStats, type GeneratedItem } from './loot/generate.js';
+import { getImplicitStats, type GeneratedItem, type UpgradeLevelField } from './loot/generate.js';
 import {
   deriveCharacterStats,
   type EquipmentStatContribution,
@@ -28,13 +28,13 @@ import {
 
 /**
  * What one item adds to the character's core stats: its implicit stats (base scaled by item
- * level and rarity) plus every affix that modifies a core stat. Affix values are already in the
+ * level, rarity and upgrade level, ticket 3.4) plus every affix that modifies a core stat. Affix values are already in the
  * `StatBlock` unit (see `AffixDefinition.step`). Secondary modifiers such as `goldFind` are not
  * part of the stat block and are left out; see `itemSecondaryModifiers`.
  * Throws on an unknown base; unknown affixes are ignored (validate stored items with `validateItem`).
  */
 export function itemStatContribution(
-  item: Pick<GeneratedItem, 'baseId' | 'rarityId' | 'itemLevel' | 'affixes'>,
+  item: Pick<GeneratedItem, 'baseId' | 'rarityId' | 'itemLevel' | 'affixes'> & UpgradeLevelField,
   config: LootConfig = DEFAULT_LOOT_CONFIG,
 ): EquipmentStatContribution {
   const out: EquipmentStatContribution = {};
@@ -74,7 +74,8 @@ export function itemSecondaryModifiers(item: Pick<GeneratedItem, 'affixes'>): Se
 export function deriveEquippedStats(
   classId: ClassId,
   level: number,
-  equipped: readonly Pick<GeneratedItem, 'baseId' | 'rarityId' | 'itemLevel' | 'affixes'>[],
+  equipped: readonly (Pick<GeneratedItem, 'baseId' | 'rarityId' | 'itemLevel' | 'affixes'> &
+    UpgradeLevelField)[],
   config: LootConfig = DEFAULT_LOOT_CONFIG,
 ): StatBlock {
   return deriveCharacterStats(
