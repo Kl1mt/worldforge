@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art item icons, one item per icon, two armour sets. Drowned Vigil set, barnacled verdigris-green tarnished iron with seaweed and tidal wave engravings: knight helm, chainmail hauberk, plated gauntlets, plate sabatons, chain necklace with an anchor pendant, signet ring with a wave seal. Ashen Choir set, soot-grey and ash-white cloth with aged brass censers and hymn scroll motifs: hooded cowl, long priest vestments robe, cloth hand wraps, soft cloth slippers, necklace chain with a small smoking brass censer, brass ring engraved with hymn notes, weathered, muted desaturated palette, transparent background",
+  "style_image": "apps/web/public/assets/items/knights-plate.png",
+  "job_id": "0b28c7fa-19a6-47e4-bee0-d9048b9cd6cc",
+  "created_at": "2026-11-05T12:52:30.600503+00:00",
+  "seed": 939361036,
+  "generations": 10.0,
+  "count": 64,
+  "width": 32,
+  "height": 32
+}

@@ -434,7 +434,7 @@ GDD: §3.1, §7. Follow-up from ticket 2.8. The three Gravewarden uniques borrow
 - One 32px job (matching `apps/web/public/assets/items/`, an existing icon as `style_image`) for the three icons; switch the bases and the manifest.
 **Acceptance:** a contact sheet of the three next to the icons they replace.
 
-### A.6 Legendary, Mythic & Set item icons — `todo`
+### A.6 Legendary, Mythic & Set item icons — `done (PR #39)`
 GDD: §3.1, §7. Needs 3.2 and 3.3 merged (they define the named items). Match the 32×32 item icons (`docs/ASSET_GUIDELINES.md`).
 - Icons for the named Mythic items and every set piece (about 20–25), visibly more ornate than tier-3 gear but in the same palette. Legendary items (non-named) keep their base icons; their frame treatment comes from 3.2.
 - Budget: one or two 32px jobs (64 variants each); at most one regeneration. Switch the items from placeholder icons and update the manifest and `assets.ts` (they must match, in order).
