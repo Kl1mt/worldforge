@@ -883,6 +883,270 @@
       "slot": "neck"
     },
     {
+      "id": "item.crown-of-the-hollow-king",
+      "path": "/assets/items/crown-of-the-hollow-king.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, ornate mythic relics and blood-moon hunter gear: hollow king's crown of blackened iron with tall jagged spikes and an empty dark centre; ornate warrior greatsword with a skull crossguard and grave-gold filigree; mage sceptre of dark wood topped with a caged fallen-star meteor shard; ornate black recurve longbow with barbed limbs and crimson string; warlock staff holding a dark abyssal heart in twisted black iron claws; ring of a fanged maw biting its own tail; hunter grips of dark leather with crimson moon emblem; hunter boots of dark leather with red crescent moon buckle; necklace with a large wolf fang and a blood-red moon bead; iron ring set with a blood-red moon stone, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-mythic-bloodmoon-01/02.png",
+      "slot": "head"
+    },
+    {
+      "id": "item.gravecallers-edge",
+      "path": "/assets/items/gravecallers-edge.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, ornate mythic relics and blood-moon hunter gear: hollow king's crown of blackened iron with tall jagged spikes and an empty dark centre; ornate warrior greatsword with a skull crossguard and grave-gold filigree; mage sceptre of dark wood topped with a caged fallen-star meteor shard; ornate black recurve longbow with barbed limbs and crimson string; warlock staff holding a dark abyssal heart in twisted black iron claws; ring of a fanged maw biting its own tail; hunter grips of dark leather with crimson moon emblem; hunter boots of dark leather with red crescent moon buckle; necklace with a large wolf fang and a blood-red moon bead; iron ring set with a blood-red moon stone, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-mythic-bloodmoon-01/08.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.starfall-sceptre",
+      "path": "/assets/items/starfall-sceptre.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, ornate mythic relics and blood-moon hunter gear: hollow king's crown of blackened iron with tall jagged spikes and an empty dark centre; ornate warrior greatsword with a skull crossguard and grave-gold filigree; mage sceptre of dark wood topped with a caged fallen-star meteor shard; ornate black recurve longbow with barbed limbs and crimson string; warlock staff holding a dark abyssal heart in twisted black iron claws; ring of a fanged maw biting its own tail; hunter grips of dark leather with crimson moon emblem; hunter boots of dark leather with red crescent moon buckle; necklace with a large wolf fang and a blood-red moon bead; iron ring set with a blood-red moon stone, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-mythic-bloodmoon-01/18.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.widowmaker",
+      "path": "/assets/items/widowmaker.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, ornate mythic relics and blood-moon hunter gear: hollow king's crown of blackened iron with tall jagged spikes and an empty dark centre; ornate warrior greatsword with a skull crossguard and grave-gold filigree; mage sceptre of dark wood topped with a caged fallen-star meteor shard; ornate black recurve longbow with barbed limbs and crimson string; warlock staff holding a dark abyssal heart in twisted black iron claws; ring of a fanged maw biting its own tail; hunter grips of dark leather with crimson moon emblem; hunter boots of dark leather with red crescent moon buckle; necklace with a large wolf fang and a blood-red moon bead; iron ring set with a blood-red moon stone, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-mythic-bloodmoon-01/24.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.heart-of-the-abyss",
+      "path": "/assets/items/heart-of-the-abyss.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, ornate mythic relics and blood-moon hunter gear: hollow king's crown of blackened iron with tall jagged spikes and an empty dark centre; ornate warrior greatsword with a skull crossguard and grave-gold filigree; mage sceptre of dark wood topped with a caged fallen-star meteor shard; ornate black recurve longbow with barbed limbs and crimson string; warlock staff holding a dark abyssal heart in twisted black iron claws; ring of a fanged maw biting its own tail; hunter grips of dark leather with crimson moon emblem; hunter boots of dark leather with red crescent moon buckle; necklace with a large wolf fang and a blood-red moon bead; iron ring set with a blood-red moon stone, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-mythic-bloodmoon-01/23.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.ring-of-endless-hunger",
+      "path": "/assets/items/ring-of-endless-hunger.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, ornate mythic relics and blood-moon hunter gear: hollow king's crown of blackened iron with tall jagged spikes and an empty dark centre; ornate warrior greatsword with a skull crossguard and grave-gold filigree; mage sceptre of dark wood topped with a caged fallen-star meteor shard; ornate black recurve longbow with barbed limbs and crimson string; warlock staff holding a dark abyssal heart in twisted black iron claws; ring of a fanged maw biting its own tail; hunter grips of dark leather with crimson moon emblem; hunter boots of dark leather with red crescent moon buckle; necklace with a large wolf fang and a blood-red moon bead; iron ring set with a blood-red moon stone, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-mythic-bloodmoon-01/41.png",
+      "slot": "ring"
+    },
+    {
+      "id": "item.vigil-helm",
+      "path": "/assets/items/vigil-helm.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, two armour sets. Drowned Vigil set, barnacled verdigris-green tarnished iron with seaweed and tidal wave engravings: knight helm, chainmail hauberk, plated gauntlets, plate sabatons, chain necklace with an anchor pendant, signet ring with a wave seal. Ashen Choir set, soot-grey and ash-white cloth with aged brass censers and hymn scroll motifs: hooded cowl, long priest vestments robe, cloth hand wraps, soft cloth slippers, necklace chain with a small smoking brass censer, brass ring engraved with hymn notes, weathered, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-sets-vigil-choir-01/03.png",
+      "slot": "head"
+    },
+    {
+      "id": "item.vigil-hauberk",
+      "path": "/assets/items/vigil-hauberk.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, two armour sets. Drowned Vigil set, barnacled verdigris-green tarnished iron with seaweed and tidal wave engravings: knight helm, chainmail hauberk, plated gauntlets, plate sabatons, chain necklace with an anchor pendant, signet ring with a wave seal. Ashen Choir set, soot-grey and ash-white cloth with aged brass censers and hymn scroll motifs: hooded cowl, long priest vestments robe, cloth hand wraps, soft cloth slippers, necklace chain with a small smoking brass censer, brass ring engraved with hymn notes, weathered, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-sets-vigil-choir-01/12.png",
+      "slot": "chest"
+    },
+    {
+      "id": "item.vigil-gauntlets",
+      "path": "/assets/items/vigil-gauntlets.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, two armour sets. Drowned Vigil set, barnacled verdigris-green tarnished iron with seaweed and tidal wave engravings: knight helm, chainmail hauberk, plated gauntlets, plate sabatons, chain necklace with an anchor pendant, signet ring with a wave seal. Ashen Choir set, soot-grey and ash-white cloth with aged brass censers and hymn scroll motifs: hooded cowl, long priest vestments robe, cloth hand wraps, soft cloth slippers, necklace chain with a small smoking brass censer, brass ring engraved with hymn notes, weathered, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-sets-vigil-choir-01/21.png",
+      "slot": "hands"
+    },
+    {
+      "id": "item.vigil-sabatons",
+      "path": "/assets/items/vigil-sabatons.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, two armour sets. Drowned Vigil set, barnacled verdigris-green tarnished iron with seaweed and tidal wave engravings: knight helm, chainmail hauberk, plated gauntlets, plate sabatons, chain necklace with an anchor pendant, signet ring with a wave seal. Ashen Choir set, soot-grey and ash-white cloth with aged brass censers and hymn scroll motifs: hooded cowl, long priest vestments robe, cloth hand wraps, soft cloth slippers, necklace chain with a small smoking brass censer, brass ring engraved with hymn notes, weathered, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-sets-vigil-choir-01/24.png",
+      "slot": "feet"
+    },
+    {
+      "id": "item.vigil-oath-chain",
+      "path": "/assets/items/vigil-oath-chain.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, two armour sets. Drowned Vigil set, barnacled verdigris-green tarnished iron with seaweed and tidal wave engravings: knight helm, chainmail hauberk, plated gauntlets, plate sabatons, chain necklace with an anchor pendant, signet ring with a wave seal. Ashen Choir set, soot-grey and ash-white cloth with aged brass censers and hymn scroll motifs: hooded cowl, long priest vestments robe, cloth hand wraps, soft cloth slippers, necklace chain with a small smoking brass censer, brass ring engraved with hymn notes, weathered, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-sets-vigil-choir-01/28.png",
+      "slot": "neck"
+    },
+    {
+      "id": "item.vigil-seal",
+      "path": "/assets/items/vigil-seal.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, two armour sets. Drowned Vigil set, barnacled verdigris-green tarnished iron with seaweed and tidal wave engravings: knight helm, chainmail hauberk, plated gauntlets, plate sabatons, chain necklace with an anchor pendant, signet ring with a wave seal. Ashen Choir set, soot-grey and ash-white cloth with aged brass censers and hymn scroll motifs: hooded cowl, long priest vestments robe, cloth hand wraps, soft cloth slippers, necklace chain with a small smoking brass censer, brass ring engraved with hymn notes, weathered, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-sets-vigil-choir-01/30.png",
+      "slot": "ring"
+    },
+    {
+      "id": "item.choir-cowl",
+      "path": "/assets/items/choir-cowl.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, two armour sets. Drowned Vigil set, barnacled verdigris-green tarnished iron with seaweed and tidal wave engravings: knight helm, chainmail hauberk, plated gauntlets, plate sabatons, chain necklace with an anchor pendant, signet ring with a wave seal. Ashen Choir set, soot-grey and ash-white cloth with aged brass censers and hymn scroll motifs: hooded cowl, long priest vestments robe, cloth hand wraps, soft cloth slippers, necklace chain with a small smoking brass censer, brass ring engraved with hymn notes, weathered, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-sets-vigil-choir-01/33.png",
+      "slot": "head"
+    },
+    {
+      "id": "item.choir-vestments",
+      "path": "/assets/items/choir-vestments.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, two armour sets. Drowned Vigil set, barnacled verdigris-green tarnished iron with seaweed and tidal wave engravings: knight helm, chainmail hauberk, plated gauntlets, plate sabatons, chain necklace with an anchor pendant, signet ring with a wave seal. Ashen Choir set, soot-grey and ash-white cloth with aged brass censers and hymn scroll motifs: hooded cowl, long priest vestments robe, cloth hand wraps, soft cloth slippers, necklace chain with a small smoking brass censer, brass ring engraved with hymn notes, weathered, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-sets-vigil-choir-01/40.png",
+      "slot": "chest"
+    },
+    {
+      "id": "item.choir-wraps",
+      "path": "/assets/items/choir-wraps.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, two armour sets. Drowned Vigil set, barnacled verdigris-green tarnished iron with seaweed and tidal wave engravings: knight helm, chainmail hauberk, plated gauntlets, plate sabatons, chain necklace with an anchor pendant, signet ring with a wave seal. Ashen Choir set, soot-grey and ash-white cloth with aged brass censers and hymn scroll motifs: hooded cowl, long priest vestments robe, cloth hand wraps, soft cloth slippers, necklace chain with a small smoking brass censer, brass ring engraved with hymn notes, weathered, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-sets-vigil-choir-01/48.png",
+      "slot": "hands"
+    },
+    {
+      "id": "item.choir-slippers",
+      "path": "/assets/items/choir-slippers.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, two armour sets. Drowned Vigil set, barnacled verdigris-green tarnished iron with seaweed and tidal wave engravings: knight helm, chainmail hauberk, plated gauntlets, plate sabatons, chain necklace with an anchor pendant, signet ring with a wave seal. Ashen Choir set, soot-grey and ash-white cloth with aged brass censers and hymn scroll motifs: hooded cowl, long priest vestments robe, cloth hand wraps, soft cloth slippers, necklace chain with a small smoking brass censer, brass ring engraved with hymn notes, weathered, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-sets-vigil-choir-01/49.png",
+      "slot": "feet"
+    },
+    {
+      "id": "item.choir-censer-chain",
+      "path": "/assets/items/choir-censer-chain.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, two armour sets. Drowned Vigil set, barnacled verdigris-green tarnished iron with seaweed and tidal wave engravings: knight helm, chainmail hauberk, plated gauntlets, plate sabatons, chain necklace with an anchor pendant, signet ring with a wave seal. Ashen Choir set, soot-grey and ash-white cloth with aged brass censers and hymn scroll motifs: hooded cowl, long priest vestments robe, cloth hand wraps, soft cloth slippers, necklace chain with a small smoking brass censer, brass ring engraved with hymn notes, weathered, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-sets-vigil-choir-01/56.png",
+      "slot": "neck"
+    },
+    {
+      "id": "item.choir-band",
+      "path": "/assets/items/choir-band.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, two armour sets. Drowned Vigil set, barnacled verdigris-green tarnished iron with seaweed and tidal wave engravings: knight helm, chainmail hauberk, plated gauntlets, plate sabatons, chain necklace with an anchor pendant, signet ring with a wave seal. Ashen Choir set, soot-grey and ash-white cloth with aged brass censers and hymn scroll motifs: hooded cowl, long priest vestments robe, cloth hand wraps, soft cloth slippers, necklace chain with a small smoking brass censer, brass ring engraved with hymn notes, weathered, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-sets-vigil-choir-01/59.png",
+      "slot": "ring"
+    },
+    {
+      "id": "item.bloodmoon-grips",
+      "path": "/assets/items/bloodmoon-grips.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, ornate mythic relics and blood-moon hunter gear: hollow king's crown of blackened iron with tall jagged spikes and an empty dark centre; ornate warrior greatsword with a skull crossguard and grave-gold filigree; mage sceptre of dark wood topped with a caged fallen-star meteor shard; ornate black recurve longbow with barbed limbs and crimson string; warlock staff holding a dark abyssal heart in twisted black iron claws; ring of a fanged maw biting its own tail; hunter grips of dark leather with crimson moon emblem; hunter boots of dark leather with red crescent moon buckle; necklace with a large wolf fang and a blood-red moon bead; iron ring set with a blood-red moon stone, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-mythic-bloodmoon-01/49.png",
+      "slot": "hands"
+    },
+    {
+      "id": "item.bloodmoon-treads",
+      "path": "/assets/items/bloodmoon-treads.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, ornate mythic relics and blood-moon hunter gear: hollow king's crown of blackened iron with tall jagged spikes and an empty dark centre; ornate warrior greatsword with a skull crossguard and grave-gold filigree; mage sceptre of dark wood topped with a caged fallen-star meteor shard; ornate black recurve longbow with barbed limbs and crimson string; warlock staff holding a dark abyssal heart in twisted black iron claws; ring of a fanged maw biting its own tail; hunter grips of dark leather with crimson moon emblem; hunter boots of dark leather with red crescent moon buckle; necklace with a large wolf fang and a blood-red moon bead; iron ring set with a blood-red moon stone, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-mythic-bloodmoon-01/51.png",
+      "slot": "feet"
+    },
+    {
+      "id": "item.bloodmoon-fang",
+      "path": "/assets/items/bloodmoon-fang.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, ornate mythic relics and blood-moon hunter gear: hollow king's crown of blackened iron with tall jagged spikes and an empty dark centre; ornate warrior greatsword with a skull crossguard and grave-gold filigree; mage sceptre of dark wood topped with a caged fallen-star meteor shard; ornate black recurve longbow with barbed limbs and crimson string; warlock staff holding a dark abyssal heart in twisted black iron claws; ring of a fanged maw biting its own tail; hunter grips of dark leather with crimson moon emblem; hunter boots of dark leather with red crescent moon buckle; necklace with a large wolf fang and a blood-red moon bead; iron ring set with a blood-red moon stone, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-mythic-bloodmoon-01/46.png",
+      "slot": "neck"
+    },
+    {
+      "id": "item.bloodmoon-loop",
+      "path": "/assets/items/bloodmoon-loop.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, ornate mythic relics and blood-moon hunter gear: hollow king's crown of blackened iron with tall jagged spikes and an empty dark centre; ornate warrior greatsword with a skull crossguard and grave-gold filigree; mage sceptre of dark wood topped with a caged fallen-star meteor shard; ornate black recurve longbow with barbed limbs and crimson string; warlock staff holding a dark abyssal heart in twisted black iron claws; ring of a fanged maw biting its own tail; hunter grips of dark leather with crimson moon emblem; hunter boots of dark leather with red crescent moon buckle; necklace with a large wolf fang and a blood-red moon bead; iron ring set with a blood-red moon stone, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-mythic-bloodmoon-01/42.png",
+      "slot": "ring"
+    },
+    {
       "id": "material.timber",
       "path": "/assets/materials/timber.png",
       "kind": "material",
