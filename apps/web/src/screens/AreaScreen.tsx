@@ -20,7 +20,10 @@ import type { LogEntry } from '../game/chronicle';
 import { formatClock, formatDuration, formatNumber } from '../lib/format';
 import { PHONE_QUERY, pixelScale, sceneSpriteScale } from '../lib/pixel';
 import { routeHref } from '../lib/route';
+import { OfflineNote } from '../onboarding/OfflineNote';
+import { useOnboarding } from '../onboarding/OnboardingProvider';
 import { QuestTracker } from '../quests/QuestTracker';
+import { Trail } from '../shell/Trail';
 import './area.css';
 
 /** Vertical stagger in sprite pixels so the line of foes reads as depth, not a row. */
@@ -289,6 +292,7 @@ function CombatLog({ farming, areaName }: { farming: boolean; areaName: string }
 
 function Spoils({ smallArt }: { smallArt: number }) {
   const { inventory } = useGame();
+  const { newItems } = useOnboarding();
   let body;
   if (inventory.kind === 'loading') {
     body = <p className="spoils__note">Counting the spoils…</p>;
@@ -305,7 +309,12 @@ function Spoils({ smallArt }: { smallArt: number }) {
         <ul className="spoils__list">
           {recent.map((item) => (
             <li key={item.id}>
-              <ItemFrame item={item} scale={smallArt} context="Recent drop" />
+              <ItemFrame
+                item={item}
+                scale={smallArt}
+                context="Recent drop"
+                isNew={newItems.has(item.id)}
+              />
             </li>
           ))}
         </ul>
@@ -380,7 +389,6 @@ function FarmControl({ farming, view }: { farming: boolean; view: AreaView }) {
 export function AreaScreen() {
   const phone = useMediaQuery(PHONE_QUERY);
   const { activity, tally, farmError, areaId } = useGame();
-  const { id: characterId } = useActiveCharacter();
   const view = areaView(areaId);
   const { area, levels, foes, totalWeight } = view;
   const farming = activity.kind === 'ready' && activity.value !== null;
@@ -396,13 +404,18 @@ export function AreaScreen() {
   return (
     <div className={`area${phone ? '' : ' area--wide'}`}>
       <header className="area__head">
-        <p className="area__region caps">
-          {area.region} <span aria-hidden="true">·</span> Levels {levels}{' '}
-          <span aria-hidden="true">·</span>{' '}
-          <a className="area__maplink" href={routeHref('map')}>
-            World map
-          </a>
-        </p>
+        <div className="area__region">
+          <Trail
+            steps={[
+              { label: 'Town', route: 'hub' },
+              { label: 'World map', route: 'map' },
+              { label: area.name },
+            ]}
+          />
+          <p className="caps area__levels">
+            {area.region} <span aria-hidden="true">·</span> Levels {levels}
+          </p>
+        </div>
         <h1 className="area__title display">{area.name}</h1>
         <p className="area__desc">{area.description}</p>
         {pending ? (
@@ -436,7 +449,8 @@ export function AreaScreen() {
             {farmError}
           </p>
         ) : null}
-        <QuestTracker characterId={characterId} />
+        <QuestTracker />
+        <OfflineNote />
       </header>
 
       <div className="area__grid">

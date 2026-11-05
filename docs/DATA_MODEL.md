@@ -31,6 +31,7 @@ Status: **partly implemented.** Tables marked *implemented* exist in `apps/serve
 | password_hash   | text        | argon2id PHC string (`$argon2id$v=19$m=19456,t=2,p=1$…`), written by 1.2 |
 | character_slots | smallint    | default 2 (GDD §5.3), `CHECK (>= 0)`; per account, so slots can be granted later |
 | active_character_id | uuid FK? | → `characters.id` `ON DELETE SET NULL`; the last selected character (ticket 1.3). Only ever set to one of the account's own characters (checked by the server) |
+| guide           | jsonb       | default `{"steps":[],"dismissed":false}`; first-session guide (ticket 2.7): game-core `GuideState` (steps seen done, in guide order, and whether it was closed). UI state only, grants nothing; per account so it follows the player across devices |
 | created_at      | timestamptz | default `now()`                                              |
 | updated_at      | timestamptz | default `now()`; set by the server on update                 |
 

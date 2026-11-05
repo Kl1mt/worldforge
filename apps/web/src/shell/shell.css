@@ -302,3 +302,50 @@ a.purse__who:hover .purse__class {
     background: linear-gradient(to bottom, rgb(163 130 74 / 0.14), transparent 80%);
   }
 }
+
+/* ── Trail: Town › World map › place (ticket 2.7) ────────────────────────────── */
+.trail ol {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trail li {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.trail li + li::before {
+  content: '';
+  width: 5px;
+  height: 5px;
+  transform: rotate(45deg);
+  border-top: 1px solid var(--brass-700);
+  border-right: 1px solid var(--brass-700);
+}
+
+.trail a {
+  color: var(--brass-400);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.trail a:hover {
+  color: var(--accent-strong);
+}
+
+.trail [aria-current] {
+  color: var(--brass-500);
+}
+
+@media (max-width: 760px) {
+  /* Bigger tap targets on phones. */
+  .trail a {
+    display: inline-block;
+    padding: var(--space-2) 0;
+  }
+}

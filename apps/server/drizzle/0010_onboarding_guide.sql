@@ -1,0 +1,1 @@
+ALTER TABLE "accounts" ADD COLUMN "guide" jsonb DEFAULT '{"steps":[],"dismissed":false}'::jsonb NOT NULL;

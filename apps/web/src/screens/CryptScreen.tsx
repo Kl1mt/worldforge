@@ -19,7 +19,7 @@ import { useMediaQuery } from '../components/useMediaQuery';
 import { useGame } from '../game/GameProvider';
 import {
   claimKey,
-  cryptLogLine,
+  cryptLog,
   describeDungeonFailure,
   dungeonApi,
   type DungeonResult,
@@ -30,6 +30,7 @@ import { materialCounts } from '../game/materials';
 import { formatDuration, formatNumber } from '../lib/format';
 import { PHONE_QUERY, pixelScale, sceneSpriteScale } from '../lib/pixel';
 import { routeHref } from '../lib/route';
+import { Trail } from '../shell/Trail';
 import './area.css';
 import './crypt.css';
 
@@ -220,10 +221,8 @@ function Descent({ progress }: { progress: DungeonRunProgress | null }) {
 }
 
 function CryptLog({ progress }: { progress: DungeonRunProgress }) {
-  const lines = progress.events
-    .map((e) => cryptLogLine(e, progress.totalRooms))
-    .filter((l) => l !== null)
-    .reverse();
+  const { classId } = useActiveCharacter();
+  const lines = cryptLog(progress.events, progress.totalRooms, classId).reverse();
   return (
     <section className="log panel-ledger crypt-log" aria-labelledby="crypt-log-title">
       <header className="log__head">
@@ -426,12 +425,14 @@ export function CryptScreen() {
 
   const head = (
     <header className="crypt__head">
-      <p className="caps crypt__region">
-        Graumark ·{' '}
-        <a className="area__maplink" href={routeHref('map')}>
-          World Map
-        </a>
-      </p>
+      <Trail
+        className="crypt__region"
+        steps={[
+          { label: 'Town', route: 'hub' },
+          { label: 'World map', route: 'map' },
+          { label: CRYPT.name },
+        ]}
+      />
       <h1 className="display crypt__title">{CRYPT.name}</h1>
       <p className="crypt__desc">{CRYPT.description}</p>
     </header>

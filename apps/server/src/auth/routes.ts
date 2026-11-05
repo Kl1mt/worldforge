@@ -1,7 +1,14 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import fastifyCookie from '@fastify/cookie';
 import fastifyRateLimit from '@fastify/rate-limit';
-import { sql } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
+import {
+  GUIDE_STEP_IDS,
+  normalizeGuide,
+  withGuideStep,
+  type GuideState,
+  type GuideStepId,
+} from '@worldforge/game-core';
 import { accounts, type Account } from '../db/schema.js';
 import { constraintOf, sqlStateOf, withTransaction } from '../db/transaction.js';
 import { writeAudit } from '../db/audit.js';
@@ -72,6 +79,8 @@ export interface AccountView {
   displayName: string;
   characterSlots: number;
   createdAt: string;
+  /** First-session guide (ticket 2.7). */
+  guide: GuideState;
 }
 
 export function accountView(a: Account): AccountView {
@@ -81,6 +90,7 @@ export function accountView(a: Account): AccountView {
     displayName: a.displayName,
     characterSlots: a.characterSlots,
     createdAt: a.createdAt.toISOString(),
+    guide: normalizeGuide(a.guide),
   };
 }
 
@@ -90,13 +100,21 @@ const accountResponseSchema = {
   properties: {
     account: {
       type: 'object',
-      required: ['id', 'email', 'displayName', 'characterSlots', 'createdAt'],
+      required: ['id', 'email', 'displayName', 'characterSlots', 'createdAt', 'guide'],
       properties: {
         id: { type: 'string' },
         email: { type: 'string' },
         displayName: { type: 'string' },
         characterSlots: { type: 'integer' },
         createdAt: { type: 'string' },
+        guide: {
+          type: 'object',
+          required: ['steps', 'dismissed'],
+          properties: {
+            steps: { type: 'array', items: { type: 'string' } },
+            dismissed: { type: 'boolean' },
+          },
+        },
       },
     },
   },
@@ -293,4 +311,48 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
     { preHandler: app.requireAccount, schema: { response: { 200: accountResponseSchema } } },
     async (request) => ({ account: accountView(request.auth!.account) }),
   );
+
+  // First-session guide (ticket 2.7): mark a step done and/or dismiss or reopen the guide.
+  // UI state only (it grants nothing), so reporting a step is the client's word. Locked row,
+  // so two tabs marking different steps never lose one.
+  app.post(
+    '/account/guide',
+    {
+      preHandler: app.requireAccount,
+      schema: { body: guideBodySchema, response: { 200: accountResponseSchema } },
+    },
+    async (request) => {
+      const body = request.body as { step?: GuideStepId; dismissed?: boolean };
+      if (body.step === undefined && body.dismissed === undefined) {
+        throw new ApiError(400, 'validation_failed', 'Send a step or dismissed.');
+      }
+      const accountId = request.auth!.account.id;
+      const account = await withTransaction(app.db, async (tx) => {
+        const [row] = await tx
+          .select({ guide: accounts.guide })
+          .from(accounts)
+          .where(eq(accounts.id, accountId))
+          .for('update');
+        let guide = normalizeGuide(row?.guide);
+        if (body.step !== undefined) guide = withGuideStep(guide, body.step);
+        if (body.dismissed !== undefined) guide = { ...guide, dismissed: body.dismissed };
+        const [updated] = await tx
+          .update(accounts)
+          .set({ guide, updatedAt: sql`now()` })
+          .where(eq(accounts.id, accountId))
+          .returning();
+        return updated!;
+      });
+      return { account: accountView(account) };
+    },
+  );
 }
+
+const guideBodySchema = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    step: { type: 'string', enum: [...GUIDE_STEP_IDS] },
+    dismissed: { type: 'boolean' },
+  },
+} as const;

@@ -1,4 +1,13 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  createContext,
+  createElement,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 import { useCharacters } from '../characters/CharactersProvider';
 import { ActionKeys } from '../game/economy';
 import { useGame, type Load } from '../game/GameProvider';
@@ -28,7 +37,7 @@ export interface QuestsState {
  * (progress only changes in settlements), so the tracker follows the fight. The client never
  * computes progress or rewards; it shows what the server returns.
  */
-export function useQuests(characterId: string): QuestsState {
+function useQuestsState(characterId: string): QuestsState {
   const { activity, reload: reloadGame } = useGame();
   const { updateCharacter } = useCharacters();
   const [board, setBoard] = useState<Load<QuestBoard>>({ kind: 'loading' });
@@ -116,4 +125,27 @@ export function useQuests(characterId: string): QuestsState {
   const dismissReward = useCallback(() => setLastReward(null), []);
 
   return { board, busy, error, lastReward, accept, turnIn, dismissReward, reload };
+}
+
+const QuestsContext = createContext<QuestsState | null>(null);
+
+/**
+ * One quest board per active character for the whole shell (ticket 2.7), so the Tavern, the
+ * area tracker and the quest-complete notices share one fetch per settlement.
+ */
+export function QuestsProvider({
+  characterId,
+  children,
+}: {
+  characterId: string;
+  children: ReactNode;
+}) {
+  const state = useQuestsState(characterId);
+  return createElement(QuestsContext.Provider, { value: state }, children);
+}
+
+export function useQuests(): QuestsState {
+  const ctx = useContext(QuestsContext);
+  if (!ctx) throw new Error('useQuests must be used inside <QuestsProvider>');
+  return ctx;
 }

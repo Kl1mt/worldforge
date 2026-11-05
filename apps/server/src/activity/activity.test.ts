@@ -183,6 +183,8 @@ describe('start / stop', () => {
       health: null, // full until the first settlement
     });
     expect(state.body).not.toContain('seed');
+    // The configured offline cap, for the client's "what continues offline" note (ticket 2.7).
+    expect(state.json().offlineCapMs).toBe(CAP);
   });
 
   it('stop settles, returns the summary and removes the activity', async () => {

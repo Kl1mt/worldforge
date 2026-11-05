@@ -1,0 +1,354 @@
+/* Onboarding & progression feedback (ticket 2.7). See docs/DESIGN_SYSTEM.md, "Waymarker",
+   "Herald slips" and "Away note". */
+
+/* ── Waymarker: the first-session guide, a slim sunken strip with a brass edge ─────────── */
+.guide {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--space-2) var(--space-5);
+  margin: 0 0 var(--space-6);
+  padding: var(--space-2) var(--space-3) var(--space-2) var(--space-4);
+  border-left: 3px solid var(--brass-400);
+  background:
+    var(--texture-grain),
+    linear-gradient(
+      to right,
+      color-mix(in srgb, var(--brass-700) 22%, var(--ink-900)),
+      var(--ink-900) 40%
+    );
+  box-shadow:
+    inset 0 1px 0 var(--outline-dark),
+    inset 0 -1px 0 var(--iron-700);
+}
+
+.guide__head {
+  display: grid;
+  gap: 6px;
+}
+
+.guide__title {
+  margin: 0;
+  color: var(--accent);
+  white-space: nowrap;
+}
+
+/* Five diamonds on a thread: brass = done, brass ring = next, iron = later. */
+.guide__track {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  background: linear-gradient(var(--iron-700), var(--iron-700)) center / 100% 1px no-repeat;
+}
+
+.guide__pip {
+  width: 9px;
+  height: 9px;
+  transform: rotate(45deg);
+  border: 1px solid var(--iron-500);
+  background: var(--ink-900);
+}
+
+.guide__pip--done {
+  border-color: var(--brass-300);
+  background: var(--brass-400);
+}
+
+.guide__pip--now {
+  border-color: var(--brass-300);
+  box-shadow:
+    0 0 0 2px var(--ink-900),
+    0 0 0 3px var(--brass-700);
+}
+
+.guide__step {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+}
+
+.guide__name {
+  color: var(--text);
+  font-size: var(--text-lg);
+  font-weight: 400;
+}
+
+.guide__text {
+  color: var(--text-dim);
+}
+
+.guide__go {
+  min-height: 32px;
+  padding: 0 var(--space-3);
+  font-size: var(--text-sm);
+}
+
+.guide__close,
+.statusbar__link {
+  min-height: 32px;
+  padding: 0 var(--space-2);
+  border: 0;
+  background: none;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: var(--text-xs);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.guide__close:hover,
+.statusbar__link:hover {
+  color: var(--text);
+}
+
+.statusbar__link {
+  min-height: 0;
+  padding: 0;
+}
+
+/* ── Herald slips: progression notices under the top bar ───────────────────────────── */
+.notices {
+  position: fixed;
+  /* Bottom right, above the status bar: clear of screen titles, tooltips and primary actions. */
+  bottom: var(--space-12);
+  right: var(--space-6);
+  z-index: 15;
+  width: min(340px, calc(100vw - 2 * var(--gutter)));
+  pointer-events: none;
+}
+
+.notices__list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.notice {
+  --herald: var(--brass-400);
+  position: relative;
+  padding: var(--space-3) var(--space-8) var(--space-3) var(--space-4);
+  border-left: 3px solid var(--herald);
+  background: var(--texture-grain), var(--ink-850);
+  box-shadow:
+    0 0 0 1px var(--outline-dark),
+    inset 0 0 0 1px var(--iron-700),
+    0 8px 18px rgb(0 0 0 / 0.55);
+  pointer-events: auto;
+  animation: notice-in 180ms ease-out;
+}
+
+.notice--unlock {
+  --herald: var(--moss-400);
+}
+
+.notice--quest {
+  --herald: var(--brass-300);
+}
+
+.notice__kind {
+  margin: 0;
+  color: var(--herald);
+}
+
+.notice__title {
+  margin: 2px 0 0;
+  font-size: var(--text-xl);
+  line-height: 1.15;
+}
+
+.notice__text {
+  margin: var(--space-1) 0 0;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.notice__link {
+  display: inline-block;
+  margin-top: var(--space-2);
+  color: var(--accent-strong);
+  font-size: var(--text-sm);
+}
+
+.notice__close {
+  position: absolute;
+  top: var(--space-1);
+  right: var(--space-1);
+  width: 32px;
+  height: 32px;
+  border: 0;
+  background: none;
+  color: var(--text-faint);
+  font-size: var(--text-xl);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.notice__close:hover {
+  color: var(--text);
+}
+
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+
+/* ── Away note: what continues offline (GDD §9.2) ──────────────────────────────────── */
+.offline {
+  margin-top: var(--space-3);
+  border-top: 1px solid var(--line);
+  padding-top: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.offline__summary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  color: var(--text-dim);
+  cursor: pointer;
+  list-style: none;
+}
+
+.offline__summary::-webkit-details-marker {
+  display: none;
+}
+
+.offline__summary::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  transform: rotate(45deg);
+  border: 1px solid var(--brass-400);
+}
+
+.offline[open] .offline__summary::before {
+  background: var(--brass-400);
+}
+
+.offline__body {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2) var(--space-6);
+  padding: var(--space-2) 0 var(--space-1) var(--space-4);
+}
+
+.offline__body ul {
+  margin: var(--space-1) 0 0;
+  padding-left: var(--space-4);
+  color: var(--text-dim);
+}
+
+.offline__body li + li {
+  margin-top: 2px;
+}
+
+.offline__head {
+  margin: 0;
+}
+
+.offline__head--on {
+  color: var(--moss-400);
+}
+
+.offline__head--off {
+  color: var(--brass-400);
+}
+
+/* ── "New" tag for text rows (quests, contracts) ───────────────────────────────────── */
+.new-tag {
+  display: inline-block;
+  padding: 0 5px;
+  border: 1px solid var(--outline-dark);
+  background: var(--brass-400);
+  color: var(--ink-950);
+  font-family: var(--font-body);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 14px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+/* A count on a nav entry ("Pack 2 new"). */
+.nav__new {
+  margin-left: var(--space-1);
+}
+
+@media (max-width: 760px) {
+  .guide {
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-4);
+    padding: var(--space-2) var(--space-2) var(--space-3) var(--space-3);
+  }
+
+  .guide__head {
+    grid-column: 1;
+  }
+
+  .guide__close {
+    grid-column: 2;
+    grid-row: 1;
+    min-height: 40px;
+  }
+
+  .guide__step {
+    grid-column: 1 / -1;
+  }
+
+  .guide__go {
+    min-height: 40px;
+  }
+
+  .notices {
+    /* Above the bottom navigation bar. */
+    bottom: calc(64px + var(--space-3) + env(safe-area-inset-bottom));
+    right: var(--gutter);
+    left: var(--gutter);
+    width: auto;
+  }
+
+  .offline__body {
+    grid-template-columns: minmax(0, 1fr);
+    padding-left: 0;
+  }
+
+  /* Phones: only the newest notice shows, so the stack never covers the screen. */
+  .notices__list > :not(:last-child) {
+    display: none;
+  }
+
+  /* Bottom bar: the tag hangs above the label instead of widening it. */
+  .nav--bottom .nav__link {
+    position: relative;
+  }
+
+  .nav--bottom .nav__new {
+    position: absolute;
+    top: 4px;
+    left: 50%;
+    margin-left: 0;
+    transform: translateX(-50%);
+    padding: 0 3px;
+    font-size: 9px;
+    line-height: 11px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .notice {
+    animation: none;
+  }
+}

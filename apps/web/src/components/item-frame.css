@@ -81,3 +81,22 @@
   outline: 2px solid var(--focus-ring);
   outline-offset: 2px;
 }
+
+/* "New" tag (ticket 2.7): a small brass tab hung on the socket's top edge. Text, not a dot,
+   so it never relies on colour alone. */
+.item-frame__new {
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 0 4px;
+  border: 1px solid var(--outline-dark);
+  background: var(--brass-400);
+  color: var(--ink-950);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 12px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  pointer-events: none;
+}

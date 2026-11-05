@@ -36,6 +36,15 @@ describe('toItemView', () => {
     expect(canUse(item, 'mage')).toBe(false);
   });
 
+  it('marks the boss-exclusive bases as unique boss drops', () => {
+    for (const baseId of ['gravewardens-cowl', 'seal-of-the-nameless', 'wardens-bone-chain']) {
+      expect(toItemView(dto({ baseId, itemLevel: 15 })).uniqueSource).toBe(
+        'The Gravewarden of The Nameless Crypt',
+      );
+    }
+    expect(toItemView(dto({})).uniqueSource).toBeNull();
+  });
+
   it('degrades gracefully for a base or affix that left the content', () => {
     const item = toItemView(
       dto({ baseId: 'gone', affixes: [{ affixId: 'gone', tier: 1, value: 3 }] }),

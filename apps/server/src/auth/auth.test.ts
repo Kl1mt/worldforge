@@ -82,7 +82,7 @@ describe('POST /api/auth/register', () => {
       characterSlots: 2,
     });
     expect(Object.keys(account).sort()).toEqual(
-      ['characterSlots', 'createdAt', 'displayName', 'email', 'id'].sort(),
+      ['characterSlots', 'createdAt', 'displayName', 'email', 'guide', 'id'].sort(),
     );
 
     const cookie = sessionCookie(res)!;
@@ -316,5 +316,53 @@ describe('rate limiting', () => {
     expect((await from('10.0.0.1')).statusCode).toBe(401);
     expect((await from('10.0.0.1')).statusCode).toBe(429);
     expect((await from('10.0.0.2')).statusCode).toBe(401);
+  });
+});
+
+describe('POST /api/account/guide (ticket 2.7)', () => {
+  const guide = (token: string | undefined, payload: object) =>
+    app.inject({
+      method: 'POST',
+      url: '/api/account/guide',
+      cookies: token ? { [SESSION_COOKIE]: token } : {},
+      payload,
+    });
+
+  it('starts empty, records steps once in guide order, and remembers a dismissal', async () => {
+    const reg = await register(app, newIdentity());
+    const token = tokenOf(reg);
+    expect(reg.json<{ account: AccountView }>().account.guide).toEqual({
+      steps: [],
+      dismissed: false,
+    });
+
+    await guide(token, { step: 'equip' });
+    await guide(token, { step: 'character' });
+    const again = await guide(token, { step: 'equip' });
+    expect(again.statusCode).toBe(200);
+    expect(again.json<{ account: AccountView }>().account.guide.steps).toEqual([
+      'character',
+      'equip',
+    ]);
+
+    await guide(token, { dismissed: true });
+    // Remembered per account: a new login sees it dismissed.
+    const id = reg.json<{ account: AccountView }>().account;
+    const current = await me(app, token);
+    expect(current.json<{ account: AccountView }>().account).toMatchObject({
+      id: id.id,
+      guide: { steps: ['character', 'equip'], dismissed: true },
+    });
+
+    const reopened = await guide(token, { dismissed: false });
+    expect(reopened.json<{ account: AccountView }>().account.guide.dismissed).toBe(false);
+  });
+
+  it('refuses unknown steps, empty bodies and anonymous calls', async () => {
+    const token = tokenOf(await register(app, newIdentity()));
+    expect((await guide(token, { step: 'slayDragon' })).statusCode).toBe(400);
+    expect((await guide(token, {})).statusCode).toBe(400);
+    expect((await guide(token, { step: 'farm', gold: 999 })).statusCode).toBe(400);
+    expect((await guide(undefined, { step: 'farm' })).statusCode).toBe(401);
   });
 });

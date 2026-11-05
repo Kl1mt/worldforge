@@ -130,7 +130,7 @@ export async function registerActivities(
   app.get<IdParams>(
     '/characters/:characterId/activity',
     { preHandler: app.requireAccount, schema: { params: idParamsSchema } },
-    async (request): Promise<ActivityStateResponse> => {
+    async (request): Promise<ActivityStateResponse & { offlineCapMs: number }> => {
       const accountId = request.auth!.account.id;
       const [row] = await app.db
         .select({ character: characters, activity: activities })
@@ -144,6 +144,9 @@ export async function registerActivities(
       return {
         activity: row.activity ? activityView(row.activity) : null,
         character: characterView(row.character),
+        // How long farming keeps counting without the client (GDD §9.1), for the "what
+        // continues offline" note (ticket 2.7).
+        offlineCapMs: options.offlineCapMs,
       };
     },
   );

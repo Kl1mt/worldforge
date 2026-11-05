@@ -67,6 +67,14 @@ pnpm --filter @worldforge/web dev
 node tools/e2e/farm-loop.mjs
 ```
 
+The first-session flow (ticket 2.7) has its own browser run, CI job `e2e-first-session`: `tools/e2e/first-session.mjs` registers, forges a hero and follows the guide's own links (fields → first drop → Pack → equip → Tavern), checks the "what continues offline" note shows the server's cap, waits for the level-up, quest-complete and area-unlocked notices, closes the guide and checks it stays closed after a reload and a fresh login, and checks the world map list's state labels sit on the name row. On phones it also hides and reopens the guide from the status bar. It needs a faster clock so the notices arrive within minutes; screenshots go to `docs/screenshots/phase-2/`.
+
+```
+E2E_TIME_SCALE=600 OFFLINE_CAP_SECONDS=36000 pnpm --filter @worldforge/server e2e:serve
+pnpm --filter @worldforge/web dev
+node tools/e2e/first-session.mjs
+```
+
 ### Local playtest without Docker (ticket P.1)
 `pnpm playtest` runs `apps/server/src/playtest/serve.ts`: the real `buildApp()` on a PGlite database persisted to `.playtest-data/` (git-ignored), plus the web dev server, for playtesting on a machine without Docker or PostgreSQL. Like the e2e server it is excluded from the production build and refuses `NODE_ENV=production`; auth and rules are unchanged. Optional fast time (`pnpm playtest:fast`, `PLAYTEST_TIME_SCALE`) speeds up only the server's farming clock and never runs it backwards across restarts. User guide and details: `docs/PLAYTEST.md`.
 

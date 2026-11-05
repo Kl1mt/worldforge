@@ -21,6 +21,7 @@ import type {
   ClassId,
   DungeonId,
   EquipmentSlotId,
+  GuideState,
   MaterialId,
   ProfessionId,
   QuestObjective,
@@ -57,6 +58,14 @@ export const accounts = pgTable(
     activeCharacterId: uuid('active_character_id').references((): AnyPgColumn => characters.id, {
       onDelete: 'set null',
     }),
+    /**
+     * First-session guide (ticket 2.7): steps seen done and whether it was dismissed. Per account
+     * so it follows the player across devices; it grants nothing (UI state only).
+     */
+    guide: jsonb('guide')
+      .$type<GuideState>()
+      .notNull()
+      .default(sql`'{"steps":[],"dismissed":false}'::jsonb`),
     ...timestamps,
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },

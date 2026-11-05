@@ -14,6 +14,8 @@ import { HubScreen } from './screens/HubScreen';
 import { InventoryScreen } from './screens/InventoryScreen';
 import { MapScreen } from './screens/MapScreen';
 import { MerchantScreen } from './screens/MerchantScreen';
+import { OnboardingProvider } from './onboarding/OnboardingProvider';
+import { QuestsProvider } from './quests/useQuests';
 import { Shell } from './shell/Shell';
 import { useRoute } from './shell/useRoute';
 
@@ -58,17 +60,21 @@ function Routes() {
   const active = roster.active!;
   return (
     <GameProvider key={active.id} character={active}>
-      <Shell route={route}>
-        {route === 'hub' ? <HubScreen /> : null}
-        {route === 'map' ? <MapScreen /> : null}
-        {route === 'area' ? <AreaScreen /> : null}
-        {route === 'crypt' ? <CryptScreen /> : null}
-        {route === 'tavern' ? <TavernScreen /> : null}
-        {route === 'forge' ? <ForgeScreen /> : null}
-        {route === 'merchant' ? <MerchantScreen /> : null}
-        {route === 'character' ? <CharacterScreen /> : null}
-        {route === 'inventory' ? <InventoryScreen /> : null}
-      </Shell>
+      <QuestsProvider characterId={active.id}>
+        <OnboardingProvider route={route}>
+          <Shell route={route}>
+            {route === 'hub' ? <HubScreen /> : null}
+            {route === 'map' ? <MapScreen /> : null}
+            {route === 'area' ? <AreaScreen /> : null}
+            {route === 'crypt' ? <CryptScreen /> : null}
+            {route === 'tavern' ? <TavernScreen /> : null}
+            {route === 'forge' ? <ForgeScreen /> : null}
+            {route === 'merchant' ? <MerchantScreen /> : null}
+            {route === 'character' ? <CharacterScreen /> : null}
+            {route === 'inventory' ? <InventoryScreen /> : null}
+          </Shell>
+        </OnboardingProvider>
+      </QuestsProvider>
     </GameProvider>
   );
 }

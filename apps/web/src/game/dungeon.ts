@@ -8,8 +8,9 @@ import type {
   RarityId,
   UnlockBlocker,
 } from '@worldforge/game-core';
-import { getEnemy } from '@worldforge/game-core';
+import { AUTO_SKILLS, getEnemy, type ClassId } from '@worldforge/game-core';
 import type { Character } from '../characters/api';
+import { formatNumber } from '../lib/format';
 import { apiRequest, type ApiFailure, type ApiResult } from '../lib/api';
 
 /** Server shapes of the dungeon endpoints (ticket 2.5, docs/API_CONVENTIONS.md). */
@@ -118,7 +119,41 @@ export interface CryptLogLine {
 
 const name = (id: EnemyId) => getEnemy(id).name;
 
-export function cryptLogLine(e: DungeonEvent, totalRooms: number): CryptLogLine | null {
+/** The foe as the object of a sentence: "the Crypt Ghoul", "the Gravewarden". */
+export function foeObject(id: EnemyId): string {
+  const n = name(id);
+  return n.startsWith('The ') ? `the ${n.slice(4)}` : `the ${n}`;
+}
+
+/** Who the hero is fighting and with what, for the hit lines (the events carry neither). */
+export interface CryptLogContext {
+  totalRooms: number;
+  classId: ClassId;
+  /** The foe of the current encounter (from the last `spawn`). */
+  foe: EnemyId | null;
+}
+
+/**
+ * The combat log of a run, oldest first: hit lines name the class skill (or "Your strike") and
+ * the foe, like the area Chronicle ("Heavy Strike hits the Gravewarden for 156").
+ */
+export function cryptLog(
+  events: readonly DungeonEvent[],
+  totalRooms: number,
+  classId: ClassId,
+): CryptLogLine[] {
+  const ctx: CryptLogContext = { totalRooms, classId, foe: null };
+  const lines: CryptLogLine[] = [];
+  for (const e of events) {
+    if (e.type === 'spawn') ctx.foe = e.enemyId;
+    const line = cryptLogLine(e, ctx);
+    if (line) lines.push(line);
+  }
+  return lines;
+}
+
+export function cryptLogLine(e: DungeonEvent, ctx: CryptLogContext): CryptLogLine | null {
+  const { totalRooms } = ctx;
   switch (e.type) {
     case 'enter':
       return e.room === null
@@ -134,14 +169,17 @@ export function cryptLogLine(e: DungeonEvent, totalRooms: number): CryptLogLine 
         tone: 'note',
         text: `${name(e.enemyId)} (Lv ${e.enemyLevel}) blocks the way.`,
       };
-    case 'attack':
-      return e.crit || e.skill
-        ? {
-            t: e.t,
-            tone: 'hit',
-            text: `${e.skill ? 'Skill' : 'Strike'} for ${e.damage}${e.crit ? ' — critical!' : ''}`,
-          }
-        : null;
+    case 'attack': {
+      if (!e.crit && !e.skill) return null;
+      const subject = e.skill ? AUTO_SKILLS[ctx.classId].name : 'Your strike';
+      const target = ctx.foe ? foeObject(ctx.foe) : 'the foe';
+      const verb = e.crit ? 'crits' : 'hits';
+      return {
+        t: e.t,
+        tone: 'hit',
+        text: `${subject} ${verb} ${target} for ${formatNumber(e.damage)}${e.crit ? '!' : '.'}`,
+      };
+    }
     case 'enemyAttack':
       return null;
     case 'enrage':

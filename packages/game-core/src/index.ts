@@ -15,3 +15,4 @@ export * from './professions/index.js';
 export * from './dungeon/index.js';
 export * from './economy/index.js';
 export * from './quests/index.js';
+export * from './onboarding/index.js';

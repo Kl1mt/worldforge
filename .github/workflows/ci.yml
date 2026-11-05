@@ -115,3 +115,47 @@ jobs:
             ${{ runner.temp }}/server.log
             ${{ runner.temp }}/web.log
           if-no-files-found: ignore
+
+  e2e-first-session:
+    # First-session flow (ticket 2.7, tools/e2e/first-session.mjs): register → forge a hero →
+    # the guide → farm → first drop ("new" markers, notices) → equip → Tavern → guide closed and
+    # remembered across a reload and a new login, at 1440 and 390 px. Faster farming clock (×600)
+    # so the level-up, area-unlocked and quest-complete notices come within minutes.
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Install Playwright with Chromium
+        run: |
+          mkdir -p "$RUNNER_TEMP/pw"
+          npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.63.0
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Start the e2e server and the web dev server
+        run: |
+          E2E_TIME_SCALE=600 OFFLINE_CAP_SECONDS=36000 pnpm --filter @worldforge/server e2e:serve > "$RUNNER_TEMP/server.log" 2>&1 &
+          pnpm --filter @worldforge/web dev > "$RUNNER_TEMP/web.log" 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:5173/api/health && exit 0
+            sleep 1
+          done
+          echo "servers did not come up"; cat "$RUNNER_TEMP/server.log" "$RUNNER_TEMP/web.log"; exit 1
+      - name: First-session run
+        run: node tools/e2e/first-session.mjs http://localhost:5173 "$RUNNER_TEMP/e2e-screenshots"
+        env:
+          PLAYWRIGHT_PATH: ${{ runner.temp }}/pw/node_modules/playwright
+      - name: Upload screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-first-session-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/e2e-screenshots
+            ${{ runner.temp }}/server.log
+            ${{ runner.temp }}/web.log
+          if-no-files-found: ignore

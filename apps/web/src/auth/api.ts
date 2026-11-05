@@ -1,3 +1,4 @@
+import type { GuideState, GuideStepId } from '@worldforge/game-core';
 import { apiRequest, type ApiResult } from '../lib/api';
 
 /** The public account shape returned by the server (`AccountView` in apps/server). */
@@ -7,7 +8,11 @@ export interface Account {
   displayName: string;
   characterSlots: number;
   createdAt: string;
+  /** First-session guide (ticket 2.7). */
+  guide: GuideState;
 }
+
+export type GuideUpdate = { step: GuideStepId } | { dismissed: boolean };
 
 export interface LoginInput {
   email: string;
@@ -27,6 +32,8 @@ export const authApi = {
     apiRequest('/auth/login', { method: 'POST', body: input }, f),
   register: (input: RegisterInput, f?: typeof fetch): Promise<AccountResult> =>
     apiRequest('/auth/register', { method: 'POST', body: input }, f),
+  guide: (update: GuideUpdate, f?: typeof fetch): Promise<AccountResult> =>
+    apiRequest('/account/guide', { method: 'POST', body: update }, f),
   logout: (f?: typeof fetch): Promise<ApiResult<void>> =>
     apiRequest('/auth/logout', { method: 'POST' }, f),
 };
