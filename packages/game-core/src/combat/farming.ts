@@ -11,6 +11,7 @@ import {
   DEFAULT_COMBAT_CONFIG,
   rollEncounter,
   type CombatConfig,
+  type EncounterModifiers,
   type EncounterSetup,
   type FightOutcome,
 } from './encounter.js';
@@ -30,6 +31,8 @@ export interface FarmingInput {
   character: FarmingCharacter;
   /** Stat contributions of the equipped items. */
   equipment?: readonly EquipmentStatContribution[];
+  /** Capped secondary modifiers of the equipped items (XP gain, skill and boss damage; ticket 3.1). */
+  modifiers?: EncounterModifiers;
   areaId: AreaId;
   /** Server-derived seed. Never accept a seed from the client. */
   seed: number | string;
@@ -214,7 +217,7 @@ function runFarming(
     const healthAtFight = Math.min(stats.health, health + regen);
     if (perCycle) rng = createRng(`${input.seed}:${firstCycle + encounters}`);
 
-    const setup = rollEncounter(rng, area, classId, level, stats, config);
+    const setup = rollEncounter(rng, area, classId, level, stats, config, input.modifiers);
     buffer?.push({
       t: fightStart,
       type: 'spawn',

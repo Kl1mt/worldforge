@@ -4,6 +4,7 @@ import type {
   ItemSlotKind,
   DungeonId,
   EquipmentSlotId,
+  ItemVariantId,
   MaterialId,
   ProfessionId,
   RarityId,
@@ -72,6 +73,9 @@ export interface ItemAffix {
   affixId: string;
   tier: number;
   value: number;
+  /** Forge state (ticket 3.4 onward); absent on fresh affixes. */
+  improvements?: number;
+  rerolled?: boolean;
 }
 
 export interface ItemDto {
@@ -83,6 +87,13 @@ export interface ItemDto {
   equippedSlot: EquipmentSlotId | null;
   source: string;
   createdAt: string;
+  /** Item model v2 (ticket 3.1); defaults until the Phase 3 ticket that writes each field. */
+  upgradeLevel: number;
+  variant: ItemVariantId | null;
+  effectId: string | null;
+  setId: string | null;
+  mythicId: string | null;
+  locked: boolean;
 }
 
 export interface InventoryDto {

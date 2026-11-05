@@ -1,5 +1,5 @@
 import { isRarityId } from '../rarity.js';
-import { findAffix } from '../items/affixes.js';
+import { affixPossibleOn, findAffix } from '../items/affixes.js';
 import { findItemBase } from '../items/bases.js';
 import { DEFAULT_LOOT_CONFIG, type LootConfig } from './config.js';
 import { affixCountFor, type GeneratedItem } from './generate.js';
@@ -8,8 +8,9 @@ const EPSILON = 1e-9;
 
 /**
  * Checks that an item could have been produced by the generator under `config`
- * (valid base, rarity, item level, affix count, affixes allowed for the slot, tier
- * unlocked at the item level, value in range and on the step grid). Returns a list of
+ * (valid base, rarity, item level, affix count, affixes allowed for the slot, content tier and
+ * some class that can use the base, tier unlocked at the item level plus the rarity's
+ * `affixLevelBonus`, value in range and on the step grid). Returns a list of
  * problems; an empty list means the item is valid. Use it on anything not freshly rolled.
  */
 export function validateItem(
@@ -50,14 +51,23 @@ export function validateItem(
     seen.add(affix.id);
     if (!affix.slots.includes(base.slot)) {
       errors.push(`affix ${affix.id} not allowed on ${base.slot}`);
+    } else if (!affixPossibleOn(affix, base)) {
+      errors.push(`affix ${affix.id} not allowed on ${base.id} (class or content tier)`);
     }
     const tier = affix.tiers.find((t) => t.tier === rolled.tier);
     if (!tier) {
       errors.push(`affix ${affix.id} has no tier ${rolled.tier}`);
       continue;
     }
-    if (tier.minItemLevel > item.itemLevel) {
+    const levelBonus = config.rarities[item.rarityId].affixLevelBonus;
+    if (tier.minItemLevel > item.itemLevel + levelBonus) {
       errors.push(`affix ${affix.id} tier ${tier.tier} needs item level ${tier.minItemLevel}`);
+    }
+    if (
+      rolled.improvements !== undefined &&
+      (!Number.isInteger(rolled.improvements) || rolled.improvements < 0)
+    ) {
+      errors.push(`affix ${affix.id} has invalid improvements ${rolled.improvements}`);
     }
     const v = rolled.value;
     const offGrid = Math.abs((v - tier.min) / affix.step - Math.round((v - tier.min) / affix.step));

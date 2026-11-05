@@ -8,7 +8,7 @@ Status: **partly implemented.** Tables marked *implemented* exist in `apps/serve
 | `sessions`  | implemented (ticket 1.1) |
 | `audit_log` | implemented (ticket 1.1) |
 | `characters` | implemented (ticket 1.3) |
-| `item_instances` | implemented (tickets 1.6 / 1.7) |
+| `item_instances` | implemented (tickets 1.6 / 1.7; item model v2 in 3.1) |
 | `activities` | implemented (ticket 1.6) |
 | others      | draft                   |
 
@@ -79,7 +79,7 @@ Append-only (the server never updates or deletes rows) for valuable or security-
 
 Indexes: `(account_id, created_at)`, `(event, created_at)`.
 
-### item_instances — implemented (shared by 1.6 / 1.7)
+### item_instances — implemented (1.6 / 1.7; item model v2 in 3.1)
 One owned item, created from a game-core `GeneratedItem`. Location is a column, not a separate table: `equipped_slot` null = in the inventory, otherwise equipped in that slot.
 | Column        | Type        | Notes                                                              |
 | ------------- | ----------- | ------------------------------------------------------------------ |
@@ -88,13 +88,35 @@ One owned item, created from a game-core `GeneratedItem`. Location is a column, 
 | base_id       | text        | game-core item base id                                             |
 | rarity_id     | text        | game-core `RarityId`                                               |
 | item_level    | integer     | check `>= 1`                                                       |
-| affixes       | jsonb       | game-core `RolledAffix[]`, default `[]`                            |
+| affixes       | jsonb       | game-core `RolledAffix[]`, default `[]` (shape below)              |
 | seed          | bigint      | generation seed (uint32), for audit and reproducibility            |
 | equipped_slot | text?       | game-core `EquipmentSlotId`; unique per character when not null    |
 | source        | text        | e.g. `farming`                                                     |
 | created_at    | timestamptz | default `now()`                                                    |
+| upgrade_level | integer     | 3.1 (used by 3.4). `0…10`, default 0, check                        |
+| upgrade_pity  | integer     | 3.1 (3.4). Failed upgrades since the last success; default 0, `>= 0` |
+| forge_secret  | uuid        | 3.1 (3.4). Server-only secret of the item's forge seed stream; default `gen_random_uuid()` |
+| forge_counter | integer     | 3.1 (3.4). Draws taken from the item's forge seed stream; default 0, `>= 0` |
+| reroll_count  | integer     | 3.1 (3.4). Affix rerolls done on the item; default 0, `>= 0`       |
+| variant       | text?       | 3.1 (3.5). Null or game-core `ItemVariantId`; check `in ('void')`  |
+| effect_id     | text?       | 3.1 (3.2). Legendary effect or Mythic signature in the effect registry |
+| effect_roll   | double?     | 3.1 (3.2). The effect's rolled strength as a position in its range, check `0…1` |
+| set_id        | text?       | 3.1 (3.3). Set id of a set piece                                   |
+| mythic_id     | text?       | 3.1 (3.2). Named Mythic item id                                    |
+| locked        | boolean     | 3.1 (3.7). Locked items can't be sold, salvaged or discarded; default false |
 
-Indexes: `(character_id)`; partial unique `(character_id, equipped_slot) where equipped_slot is not null`.
+Indexes: `(character_id)`; partial unique `(character_id, equipped_slot) where equipped_slot is not null`. Checks: `item_level >= 1`, `upgrade_level` 0–10, the three counters `>= 0`, `variant`, `effect_roll`.
+
+**`affixes` element** (`RolledAffix`): `{ affixId, tier, value }` plus two optional forge fields, absent on fresh affixes: `improvements` (integer ≥ 0, affix-improvement steps applied; the value stays inside its tier's `[min, max]`, so `validateItem` still holds) and `rerolled` (`true` when a reroll put this affix there). The API schema already serialises both.
+
+#### Item model v2 (ticket 3.1): how Phase 3 builds on it
+3.1 added every Phase 3 item column in one migration (`0011_item_model_v2`). **Tickets 3.2–3.7 add no item columns**; they write these, and the API item view (`ItemView`) already returns `upgradeLevel`, `variant`, `effectId`, `setId`, `mythicId` and `locked` (the pity, forge and reroll counters and `effect_roll` stay server-side until the forge UI needs them; `forge_secret` never leaves the server). Game-core holds the matching types and constants (`items/model.ts`: `MAX_UPGRADE_LEVEL`, `ITEM_VARIANT_IDS`, `ItemProgressState`, `DEFAULT_ITEM_PROGRESS`).
+- **3.2 Legendary / Mythic:** a Legendary drop stores its effect in `effect_id` and the rolled strength in `effect_roll` (the registry maps 0…1 to the effect's range, so retuning a range needs no data migration). A Mythic stores its named item in `mythic_id` and its fixed signature in `effect_id`. Generation stays in game-core; persist the rolled result, not only the seed.
+- **3.3 Sets:** `set_id` marks a set piece. Counting uses `set_id` (and the base), never `variant`, so a Void piece counts as the same piece.
+- **3.4 Forge:** `upgrade_level` 0–10 raises base values; `upgrade_pity` counts failures since the last success and resets on success; `reroll_count` prices rerolls; affix state lives in the `affixes` elements (`improvements`, `rerolled`). **No save-scumming:** every random forge outcome draws from ``createRng(`${forge_secret}:${forge_counter}`)``, and the same transaction that applies the result increments `forge_counter`. Lock the character row, then the item row, as every value endpoint does; a replayed or raced request sees the advanced counter and can never re-roll. The secret is a column of its own because the generation `seed` is not secret enough: merchant stock seeds derive from public inputs (character id and day), so a stream keyed on them could be predicted, and a player could spend a cheap action to skip a known failure. Never send `forge_secret` to clients.
+- **3.5 Void:** `variant = 'void'`, only on Legendary, Mythic and Set items (enforced in game-core). Prismatic is deferred; adding it later means widening the `variant` check.
+- **3.7 Lock:** sell, salvage, discard and the loot filter refuse `locked` items.
+- None of these columns stamps game time, so `latestStoredTimeMs` (playtest clock) is unchanged.
 
 ### activities — implemented (1.6)
 The character's current farming activity. Settlement rules: `docs/FARMING.md`.

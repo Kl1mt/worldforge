@@ -112,18 +112,23 @@ describe('item bases', () => {
 });
 
 describe('affixes', () => {
-  it('covers the Phase 1 affix pool', () => {
-    expect(AFFIXES.map((a) => a.stat).sort()).toEqual(
+  it('covers the Phase 1 affix pool plus the ticket 3.1 modifiers', () => {
+    expect([...new Set(AFFIXES.map((a) => a.stat))].sort()).toEqual(
       [
         'armor',
         'attackSpeed',
+        'bossDamage',
         'critChance',
         'critDamage',
         'goldFind',
         'health',
+        'itemFind',
         'magicDamage',
         'physicalDamage',
         'resistance',
+        'resourceYield',
+        'skillDamage',
+        'xpGain',
       ].sort(),
     );
   });

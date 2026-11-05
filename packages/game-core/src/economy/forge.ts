@@ -125,5 +125,11 @@ export function craftItem(params: CraftParams): GeneratedItem | null {
   const itemLevel = Math.min(DEFAULT_LOOT_CONFIG.maxItemLevel, Math.max(params.level, lowest));
   const eligible: ItemBaseDefinition[] = bases.filter((b) => b.minItemLevel <= itemLevel);
   const base = rng.pick(eligible);
-  return generateItem({ seed: rng.int(0, 0xffffffff), itemLevel, baseId: base.id, rarityId });
+  return generateItem({
+    seed: rng.int(0, 0xffffffff),
+    itemLevel,
+    baseId: base.id,
+    rarityId,
+    classId,
+  });
 }

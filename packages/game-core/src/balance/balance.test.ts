@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   AREAS,
+  AFFIXES,
   CLASS_IDS,
+  DEFAULT_ACTIVITY_CONFIG,
   DEFAULT_ECONOMY_CONFIG,
   DEFAULT_PROFESSION_CONFIG,
   FORGE_RECIPES,
@@ -403,6 +405,61 @@ describe('balance (ticket B.1)', () => {
         const farming = geared(c, 15, 'blackwater').xpPerHour;
         expect(xpPerHour / farming, c).toBeGreaterThan(1);
         expect(xpPerHour / farming, c).toBeLessThan(2.2);
+      }
+    });
+  });
+
+  describe('secondary modifiers at their caps (ticket 3.1)', () => {
+    const caps = DEFAULT_ACTIVITY_CONFIG.modifierCaps;
+    /** A synthetic ring carrying every listed affix far above its cap (equipment is not validated). */
+    const overCap = (...affixIds: string[]): GeneratedItem => ({
+      seed: 1,
+      baseId: 'iron-ring',
+      rarityId: 'common',
+      itemLevel: 1,
+      affixes: affixIds.map((affixId) => ({ affixId, tier: 1, value: 5 })),
+    });
+    const skillAffix = (c: ClassId) => AFFIXES.find((a) => a.classes?.includes(c))!.id;
+
+    it('XP gain, item find and resource yield are bounded by their caps while farming', () => {
+      for (const c of CLASS_IDS) {
+        const level = mid(getArea('oldBurialGrounds'));
+        const gear = kit(c, level - 1);
+        const plain = farm(c, level, 'oldBurialGrounds', gear);
+        const boosted = farm(c, level, 'oldBurialGrounds', [
+          ...gear,
+          overCap('xp-gain', 'item-find', 'resource-yield'),
+        ]);
+        expect(boosted.deathsPerHour, c).toBeLessThanOrEqual(plain.deathsPerHour + 0.5);
+        expect(boosted.xpPerHour / plain.xpPerHour, c).toBeLessThanOrEqual(1 + caps.xpGain + 0.05);
+        expect(boosted.xpPerHour / plain.xpPerHour, c).toBeGreaterThan(1 + caps.xpGain - 0.05);
+        for (const [id, n] of Object.entries(plain.materialsPerHour) as [MaterialId, number][]) {
+          if (getMaterial(id).profession === null || n < 5) continue;
+          expect(boosted.materialsPerHour[id]! / n, `${c} ${id}`).toBeLessThanOrEqual(
+            1 + caps.resourceYield + 0.15,
+          );
+        }
+      }
+    });
+
+    it('capped boss and skill damage speed up the Gravewarden without trivialising it', () => {
+      const crypt = getDungeon('namelessCrypt');
+      for (const c of CLASS_IDS) {
+        const gear = [...kit(c, 14), overCap('boss-damage', skillAffix(c))];
+        for (let i = 0; i < 8; i++) {
+          const r = simulateDungeonRun({
+            dungeonId: 'namelessCrypt',
+            character: { classId: c, level: 15, xp: 0 },
+            equipment: gear,
+            seed: `crypt-caps:${i}`,
+            bossLootEligible: false,
+            inventoryCount: 0,
+          });
+          expect(r.bossDefeated, c).toBe(true);
+          const boss = r.encounters.at(-1)!;
+          // Still most of the pre-enrage window (geared without modifiers: ~1.0–1.2×).
+          expect(boss.endMs - boss.startMs, c).toBeGreaterThan(crypt.bossEnrage.atMs * 0.6);
+        }
       }
     });
   });

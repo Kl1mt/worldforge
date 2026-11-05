@@ -104,6 +104,22 @@ export interface EncounterSetup {
 
 const hitDamage = (raw: number): number => Math.max(1, Math.round(raw));
 
+/**
+ * Secondary modifiers that change an encounter (ticket 3.1), as already-capped fractions from
+ * `equipmentModifiers`. Both simulations build encounters here, so they stay equivalent.
+ * - `xpGain`: XP reward × (1 + xpGain);
+ * - `skillDamage`: the auto-skill's damage multiplier × (1 + skillDamage);
+ * - `bossDamage`: damage dealt × (1 + bossDamage) against `boss`-rank enemies.
+ */
+export interface EncounterModifiers {
+  xpGain?: number;
+  skillDamage?: number;
+  bossDamage?: number;
+}
+
+const bonusOf = (value: number | undefined): number =>
+  value !== undefined && Number.isFinite(value) && value > 0 ? value : 0;
+
 /** Interval in whole milliseconds for an attack rate (attacks per second). */
 export function attackIntervalMs(attacksPerSecond: number): number {
   return Math.max(1, Math.round(1000 / attacksPerSecond));
@@ -120,6 +136,7 @@ export function rollEncounter(
   characterLevel: number,
   stats: StatBlock,
   config: CombatConfig,
+  modifiers?: EncounterModifiers,
 ): EncounterSetup {
   const entry = rng.weighted(area.enemies, (e) => e.weight);
   const spread = config.enemyLevelSpread;
@@ -132,6 +149,7 @@ export function rollEncounter(
     characterLevel,
     stats,
     config,
+    modifiers,
   );
 }
 
@@ -142,6 +160,7 @@ export function buildEncounter(
   characterLevel: number,
   stats: StatBlock,
   config: CombatConfig,
+  modifiers?: EncounterModifiers,
 ): EncounterSetup {
   const e = enemyStatsAtLevel(enemy, enemyLevel);
   const cls = getClass(classId);
@@ -149,7 +168,8 @@ export function buildEncounter(
 
   const playerRaw = cls.primaryDamage === 'physical' ? stats.physicalDamage : stats.magicDamage;
   const enemyDefense = cls.primaryDamage === 'physical' ? e.armor : e.resistance;
-  const dealt = playerRaw * (1 - mitigation(enemyDefense, characterLevel, config));
+  const bossBonus = enemy.rank === 'boss' ? 1 + bonusOf(modifiers?.bossDamage) : 1;
+  const dealt = playerRaw * (1 - mitigation(enemyDefense, characterLevel, config)) * bossBonus;
 
   const playerDefense = enemy.damageType === 'physical' ? stats.armor : stats.resistance;
   const taken = e.damage * (1 - mitigation(playerDefense, enemyLevel, config));
@@ -168,9 +188,14 @@ export function buildEncounter(
     enemyIntervalMs: attackIntervalMs(enemy.attackSpeed),
     playerIntervalMs: attackIntervalMs(stats.attackSpeed),
     auto: profile(1, 0),
-    skill: profile(skillDef.damageMultiplier, skillDef.bonusCritChance),
+    skill: profile(
+      skillDef.damageMultiplier * (1 + bonusOf(modifiers?.skillDamage)),
+      skillDef.bonusCritChance,
+    ),
     skillEvery: skillDef.everyNthAttack,
-    xpReward: Math.round(e.xp * xpLevelFactor(characterLevel, enemyLevel, config)),
+    xpReward: Math.round(
+      e.xp * xpLevelFactor(characterLevel, enemyLevel, config) * (1 + bonusOf(modifiers?.xpGain)),
+    ),
     maxFightMs: config.maxFightMs,
   };
 }

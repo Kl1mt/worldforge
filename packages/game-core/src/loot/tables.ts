@@ -14,6 +14,9 @@ function tierEntries(weights: Partial<Record<ItemTier, number>>): LootTableEntry
  * higher tiers; each base is still gated by its `minItemLevel`. The item-level range is the
  * area's enemy levels ± `itemLevelVariance` (1).
  *
+ * Affix tiers (ticket 3.1): each area after the first adds `affixTierBias`, so the same item level
+ * rolls better affixes in harder content; the crypt and its boss roll the best.
+ *
  * Area kills drop an item 6 % of the time (ticket B.1; the Phase 1 `standard` table keeps 12 %):
  * about 35 items an hour, enough to stay geared without flooding the pack and the gold economy.
  */
@@ -26,30 +29,35 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
   },
   {
     id: 'crowwood',
+    affixTierBias: 0.15,
     itemDropChance: 0.06,
     itemLevel: { min: 4, max: 11 },
     entries: tierEntries({ 1: 2, 2: 1 }),
   },
   {
     id: 'oldBurialGrounds',
+    affixTierBias: 0.3,
     itemDropChance: 0.06,
     itemLevel: { min: 8, max: 15 },
     entries: tierEntries({ 1: 1, 2: 2 }),
   },
   {
     id: 'blackwater',
+    affixTierBias: 0.45,
     itemDropChance: 0.06,
     itemLevel: { min: 12, max: 19 },
     entries: tierEntries({ 1: 1, 2: 2, 3: 1 }),
   },
   {
     id: 'sunkenAbbey',
+    affixTierBias: 0.6,
     itemDropChance: 0.06,
     itemLevel: { min: 16, max: 23 },
     entries: tierEntries({ 2: 1, 3: 2 }),
   },
   {
     id: 'namelessCrypt',
+    affixTierBias: 0.6,
     itemDropChance: 0.18,
     itemLevel: { min: 11, max: 17 },
     entries: tierEntries({ 2: 2, 3: 1 }),
@@ -63,6 +71,7 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
 export const BOSS_LOOT_TABLES: readonly LootTableDefinition[] = [
   {
     id: 'gravewarden',
+    affixTierBias: 1,
     itemDropChance: 1,
     itemLevel: { min: 15, max: 17 },
     entries: [

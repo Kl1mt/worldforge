@@ -9,6 +9,7 @@ import {
   itemFitsSlot,
   findItemBase,
   type EquipmentSlotId,
+  type ItemVariantId,
   type RarityId,
   type RolledAffix,
   type StatBlock,
@@ -38,6 +39,13 @@ export interface ItemView {
   equippedSlot: EquipmentSlotId | null;
   source: string;
   createdAt: string;
+  /** Item model v2 (ticket 3.1): Phase 3 state, at its defaults until the owning ticket. */
+  upgradeLevel: number;
+  variant: ItemVariantId | null;
+  effectId: string | null;
+  setId: string | null;
+  mythicId: string | null;
+  locked: boolean;
 }
 
 export interface InventoryView {
@@ -59,6 +67,12 @@ export function itemView(i: ItemInstance): ItemView {
     equippedSlot: i.equippedSlot ?? null,
     source: i.source,
     createdAt: i.createdAt.toISOString(),
+    upgradeLevel: i.upgradeLevel,
+    variant: i.variant ?? null,
+    effectId: i.effectId ?? null,
+    setId: i.setId ?? null,
+    mythicId: i.mythicId ?? null,
+    locked: i.locked,
   };
 }
 
@@ -88,6 +102,12 @@ export const itemSchema = {
     'equippedSlot',
     'source',
     'createdAt',
+    'upgradeLevel',
+    'variant',
+    'effectId',
+    'setId',
+    'mythicId',
+    'locked',
   ],
   properties: {
     id: { type: 'string' },
@@ -103,12 +123,20 @@ export const itemSchema = {
           affixId: { type: 'string' },
           tier: { type: 'integer' },
           value: { type: 'number' },
+          improvements: { type: 'integer' },
+          rerolled: { type: 'boolean' },
         },
       },
     },
     equippedSlot: { type: ['string', 'null'] },
     source: { type: 'string' },
     createdAt: { type: 'string' },
+    upgradeLevel: { type: 'integer' },
+    variant: { type: ['string', 'null'] },
+    effectId: { type: ['string', 'null'] },
+    setId: { type: ['string', 'null'] },
+    mythicId: { type: ['string', 'null'] },
+    locked: { type: 'boolean' },
   },
 } as const;
 

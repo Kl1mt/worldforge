@@ -3,6 +3,7 @@ import {
   bigint,
   boolean,
   check,
+  doublePrecision,
   integer,
   index,
   jsonb,
@@ -19,6 +20,7 @@ import type {
   AreaId,
   CharacterAppearance,
   ClassId,
+  ItemVariantId,
   DungeonId,
   EquipmentSlotId,
   GuideState,
@@ -163,6 +165,33 @@ export const itemInstances = pgTable(
     equippedSlot: text('equipped_slot').$type<EquipmentSlotId>(),
     /** Where the item came from, e.g. `farming`. */
     source: text('source').notNull(),
+    // Item model v2 (ticket 3.1): every Phase 3 column, unused until its ticket. See DATA_MODEL.md.
+    /** Upgrade level +0…+10 (ticket 3.4). */
+    upgradeLevel: integer('upgrade_level').notNull().default(0),
+    /** Failed upgrades since the last success; the pity guarantee reads it (ticket 3.4). */
+    upgradePity: integer('upgrade_pity').notNull().default(0),
+    /**
+     * Server-only secret of this item's forge seed stream (ticket 3.4). Random per row, never sent
+     * to clients; the generation seed alone is not secret enough (merchant seeds derive from
+     * public inputs).
+     */
+    forgeSecret: uuid('forge_secret').notNull().defaultRandom(),
+    /** Draws taken from this item's forge seed stream; advances on every random forge outcome. */
+    forgeCounter: integer('forge_counter').notNull().default(0),
+    /** Affix rerolls done on this item; the reroll cost rises with it (ticket 3.4). */
+    rerollCount: integer('reroll_count').notNull().default(0),
+    /** Null or a game-core `ItemVariantId` (ticket 3.5; only `void` in Phase 3). */
+    variant: text('variant').$type<ItemVariantId>(),
+    /** Legendary effect / Mythic signature id in the effect registry (ticket 3.2). */
+    effectId: text('effect_id'),
+    /** The effect's rolled strength as a position in its range, 0…1 (ticket 3.2). */
+    effectRoll: doublePrecision('effect_roll'),
+    /** Set id for set pieces (ticket 3.3). */
+    setId: text('set_id'),
+    /** Named Mythic item id (ticket 3.2). */
+    mythicId: text('mythic_id'),
+    /** Locked items can't be sold, salvaged or discarded (ticket 3.7). */
+    locked: boolean('locked').notNull().default(false),
     ...timestamps,
   },
   (t) => [
@@ -171,6 +200,19 @@ export const itemInstances = pgTable(
       .on(t.characterId, t.equippedSlot)
       .where(sql`${t.equippedSlot} is not null`),
     check('item_instances_item_level_check', sql`${t.itemLevel} >= 1`),
+    check(
+      'item_instances_upgrade_level_check',
+      sql`${t.upgradeLevel} >= 0 and ${t.upgradeLevel} <= 10`,
+    ),
+    check(
+      'item_instances_forge_counters_check',
+      sql`${t.upgradePity} >= 0 and ${t.forgeCounter} >= 0 and ${t.rerollCount} >= 0`,
+    ),
+    check('item_instances_variant_check', sql`${t.variant} is null or ${t.variant} in ('void')`),
+    check(
+      'item_instances_effect_roll_check',
+      sql`${t.effectRoll} is null or (${t.effectRoll} >= 0 and ${t.effectRoll} <= 1)`,
+    ),
   ],
 );
 

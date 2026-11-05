@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  emptySecondaryModifiers,
   CLASS_IDS,
   EQUIPMENT_SLOT_IDS,
   ITEM_BASES,
@@ -32,7 +33,7 @@ describe('itemStatContribution', () => {
     const implicit = getImplicitStats(sword)[0]!;
     expect(implicit.stat).toBe('physicalDamage');
     expect(itemStatContribution(sword)).toEqual({ physicalDamage: implicit.value + 6 });
-    expect(itemSecondaryModifiers(sword)).toEqual({ goldFind: 0.05 });
+    expect(itemSecondaryModifiers(sword)).toEqual({ ...emptySecondaryModifiers(), goldFind: 0.05 });
   });
 
   it('ignores unknown affixes and throws on unknown bases', () => {

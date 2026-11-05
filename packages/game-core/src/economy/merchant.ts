@@ -87,7 +87,7 @@ export function areaStock(
     const seed = rng.int(0, 0xffffffff);
     if (candidates.length === 0) continue;
     const baseId = rng.weighted(candidates, (e) => e.weight).baseId;
-    const item = generateItem({ seed, itemLevel, baseId, rarityId });
+    const item = generateItem({ seed, itemLevel, baseId, rarityId, classId });
     if (!item) continue;
     offers.push({
       offerId: `${day}.${areaId}.${index}`,

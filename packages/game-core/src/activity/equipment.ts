@@ -1,13 +1,19 @@
 import type { EquipmentStatContribution } from '../combat/characterStats.js';
 import { DEFAULT_LOOT_CONFIG, type LootConfig } from '../loot/config.js';
 import type { GeneratedItem } from '../loot/generate.js';
-import { itemSecondaryModifiers, itemStatContribution } from '../equipment.js';
+import {
+  emptySecondaryModifiers,
+  itemSecondaryModifiers,
+  itemStatContribution,
+  type SecondaryModifiers,
+} from '../equipment.js';
+import { SECONDARY_STAT_IDS } from '../stats.js';
 import { DEFAULT_ACTIVITY_CONFIG, type ModifierCaps } from './config.js';
 
 /** What one item adds to the character: core stats for combat plus secondary modifiers. */
 export interface ItemContribution {
   stats: EquipmentStatContribution;
-  goldFind: number;
+  secondary: SecondaryModifiers;
 }
 
 /** Sums an item's implicit stats and affixes (all additive, in the stat's own unit). */
@@ -18,16 +24,17 @@ export function itemContribution(
   // One source of truth for item → stats: the equipment bridge (ticket 1.7).
   return {
     stats: itemStatContribution(item, config),
-    goldFind: itemSecondaryModifiers(item).goldFind,
+    secondary: itemSecondaryModifiers(item),
   };
 }
 
-export interface EquipmentModifiers {
+/** Equipped secondary modifiers, each clamped to `[0, cap]` (ticket 3.1). */
+export interface EquipmentModifiers extends SecondaryModifiers {
   /** One contribution per item, ready for `deriveCharacterStats` / `simulateFarmingAggregate`. */
   stats: EquipmentStatContribution[];
-  /** Total gold find, clamped to `[0, caps.goldFind]`. */
-  goldFind: number;
-  /** Gold find before the cap, for display. */
+  /** The sums before the caps, for display. */
+  uncapped: SecondaryModifiers;
+  /** Gold find before the cap, for display (same as `uncapped.goldFind`). */
   goldFindUncapped: number;
 }
 
@@ -38,15 +45,25 @@ export function equipmentModifiers(
   config: LootConfig = DEFAULT_LOOT_CONFIG,
 ): EquipmentModifiers {
   const stats: EquipmentStatContribution[] = [];
-  let goldFind = 0;
+  const uncapped = emptySecondaryModifiers();
   for (const item of items) {
     const c = itemContribution(item, config);
     stats.push(c.stats);
-    goldFind += c.goldFind;
+    for (const id of SECONDARY_STAT_IDS) uncapped[id] += c.secondary[id];
   }
-  return {
-    stats,
-    goldFind: Math.min(caps.goldFind, Math.max(0, goldFind)),
-    goldFindUncapped: goldFind,
-  };
+  const capped = capSecondaryModifiers(uncapped, caps);
+  return { ...capped, stats, uncapped, goldFindUncapped: uncapped.goldFind };
+}
+
+/** Clamps every secondary modifier to `[0, cap]`. */
+export function capSecondaryModifiers(
+  values: SecondaryModifiers,
+  caps: ModifierCaps = DEFAULT_ACTIVITY_CONFIG.modifierCaps,
+): SecondaryModifiers {
+  const out = emptySecondaryModifiers();
+  for (const id of SECONDARY_STAT_IDS) {
+    const v = Number.isFinite(values[id]) ? values[id] : 0;
+    out[id] = Math.min(caps[id], Math.max(0, v));
+  }
+  return out;
 }

@@ -1,0 +1,43 @@
+/**
+ * Item model v2 (ticket 3.1, docs/DATA_MODEL.md `item_instances`): the Phase 3 per-item state that
+ * sits next to the generated item. Every field defaults to "untouched" on a fresh drop; the ticket
+ * named next to each field is the first one that writes it.
+ */
+
+/** Highest upgrade level (ticket 3.4; GDD §8.1, +0 to +10). */
+export const MAX_UPGRADE_LEVEL = 10;
+
+/** Item variants (GDD §7.5). Only Void in Phase 3 (ticket 3.5); Prismatic is deferred. */
+export const ITEM_VARIANT_IDS = ['void'] as const;
+
+export type ItemVariantId = (typeof ITEM_VARIANT_IDS)[number];
+
+export function isItemVariantId(value: unknown): value is ItemVariantId {
+  return typeof value === 'string' && (ITEM_VARIANT_IDS as readonly string[]).includes(value);
+}
+
+/** Phase 3 item state as the API shows it. */
+export interface ItemProgressState {
+  /** 0…`MAX_UPGRADE_LEVEL` (ticket 3.4). */
+  upgradeLevel: number;
+  /** Null or a variant (ticket 3.5). */
+  variant: ItemVariantId | null;
+  /** Legendary effect or Mythic signature effect id in the effect registry (ticket 3.2). */
+  effectId: string | null;
+  /** Set id (ticket 3.3). */
+  setId: string | null;
+  /** Named Mythic item id (ticket 3.2). */
+  mythicId: string | null;
+  /** Locked items can't be sold, salvaged or discarded (ticket 3.7). */
+  locked: boolean;
+}
+
+/** The state of a freshly generated item. */
+export const DEFAULT_ITEM_PROGRESS: Readonly<ItemProgressState> = {
+  upgradeLevel: 0,
+  variant: null,
+  effectId: null,
+  setId: null,
+  mythicId: null,
+  locked: false,
+};

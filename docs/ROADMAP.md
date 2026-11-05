@@ -304,7 +304,7 @@ GDD §15 Phase 3, §7, §8. **Exit:** different item combinations create meaning
 
 **Order** (one session at a time to respect the usage limit, unless noted): 3.1 → 3.2 → 3.3 and 3.4 (may run in parallel) → 3.5 → 3.6 → 3.7 → 3.8 → B.2 → 3.9. Art: A.5 any time; A.6 after 3.3.
 
-### 3.1 Item model v2 & affix depth (vertical) — `todo`
+### 3.1 Item model v2 & affix depth (vertical) — `in review`
 GDD: §7.1–7.3, §6.2. Read `docs/LOOT.md`, `docs/DATA_MODEL.md`.
 - **Affix pool expansion:** boss damage, XP gain, item find, resource yield, plus a few class-flavoured affixes (e.g. resource generation per class). Affixes are gated by slot, class compatibility, item level and content tier. Find and yield modifiers get caps or diminishing returns in config (like the gold-find cap).
 - **Generation rules:** tiers per affix scale with item level, and higher rarities can roll higher tiers. Higher-tier areas and the crypt roll better affixes.
