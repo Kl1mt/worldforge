@@ -30,8 +30,8 @@ export const DEFAULT_ACTIVITY_CONFIG: ActivityConfig = {
   inventory: {
     capacity: 60,
     salvage: {
-      base: 2,
-      perItemLevel: 0.5,
+      base: 0.5,
+      perItemLevel: 0.15,
       rarityMultiplier: {
         common: 1,
         uncommon: 2,

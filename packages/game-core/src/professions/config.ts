@@ -39,46 +39,47 @@ export interface ProfessionConfig {
 }
 
 /**
- * First-pass numbers (ticket 2.3; tune in B.1). A cycle is one search + fight; a level-1 hero runs
- * a few hundred cycles in the 3 h offline cap, so a common node at 0.3 yields roughly a hundred
- * units per cap.
+ * Ticket B.1 numbers (targets and reasoning: `docs/ECONOMY.md`). A cycle is one search + fight, about
+ * 550–600 an hour, so a common node at 0.06 yields ~35 units an hour — a Forge recipe's worth in
+ * roughly an hour. The flat XP curve makes every profession level cost 0.5–2.5 h: a 3 h window
+ * gives +3–4 levels from 1; level 10 takes ~10–15 h in a matching area, 25 ~45–60 h, 50 ~110–150 h.
  */
 export const DEFAULT_PROFESSION_CONFIG: ProfessionConfig = {
   maxLevel: 50,
-  xpBase: 20,
-  xpExponent: 1.5,
-  xpPerUnit: { common: 10, uncommon: 15, rare: 40, epic: 80, legendary: 160, mythic: 320 },
+  xpBase: 230,
+  xpExponent: 0.7,
+  xpPerUnit: { common: 15, uncommon: 20, rare: 50, epic: 100, legendary: 200, mythic: 400 },
   bonusUnitsPerLevel: 0.02,
   areas: {
     abandonedFields: {
       yields: [
-        { materialId: 'timber', chance: 0.3 },
-        { materialId: 'ashwort', chance: 0.25 },
+        { materialId: 'timber', chance: 0.06 },
+        { materialId: 'ashwort', chance: 0.05 },
       ],
       undeadDrops: [],
     },
     crowwood: {
       yields: [
-        { materialId: 'timber', chance: 0.35 },
-        { materialId: 'rawHide', chance: 0.3 },
+        { materialId: 'timber', chance: 0.06 },
+        { materialId: 'rawHide', chance: 0.05 },
       ],
       undeadDrops: [],
     },
     oldBurialGrounds: {
       yields: [],
-      undeadDrops: [{ materialId: 'soulShard', chance: 0.25 }],
+      undeadDrops: [{ materialId: 'soulShard', chance: 0.03 }],
     },
     blackwater: {
       yields: [
-        { materialId: 'ashwort', chance: 0.35 },
-        { materialId: 'ironOre', chance: 0.25 },
+        { materialId: 'ashwort', chance: 0.06 },
+        { materialId: 'ironOre', chance: 0.05 },
       ],
       undeadDrops: [],
     },
     sunkenAbbey: {
       yields: [
-        { materialId: 'ironOre', chance: 0.3 },
-        { materialId: 'abbeySilver', chance: 0.04 },
+        { materialId: 'ironOre', chance: 0.06 },
+        { materialId: 'abbeySilver', chance: 0.008 },
       ],
       undeadDrops: [],
     },

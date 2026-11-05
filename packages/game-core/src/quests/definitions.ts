@@ -45,8 +45,8 @@ export interface StoryQuestDefinition {
 }
 
 /**
- * The Graumark story chain: from the fields to the crypt (first-pass numbers; tune in B.1). XP
- * rewards are a fraction of a level at the quest's level (`xpToNextLevel`: 80 · level^1.6).
+ * The Graumark story chain: from the fields to the crypt (rewards rescaled in ticket B.1). XP
+ * rewards are a fraction of a level at the quest's level (`xpToNextLevel`: 700 · level², ticket B.1).
  */
 export const STORY_QUESTS: readonly StoryQuestDefinition[] = [
   {
@@ -58,7 +58,7 @@ export const STORY_QUESTS: readonly StoryQuestDefinition[] = [
     level: 1,
     after: null,
     objectives: [{ kind: 'kill', enemyId: 'risenFarmhand', count: 12 }],
-    reward: { xp: 120, gold: 40, materials: {}, item: null },
+    reward: { xp: 600, gold: 40, materials: {}, item: null },
   },
   {
     id: 'wolvesAtTheFence',
@@ -72,7 +72,7 @@ export const STORY_QUESTS: readonly StoryQuestDefinition[] = [
       { kind: 'kill', enemyId: 'carrionWolf', count: 10 },
       { kind: 'gather', materialId: 'timber', count: 15 },
     ],
-    reward: { xp: 300, gold: 70, materials: { ashwort: 5 }, item: null },
+    reward: { xp: 1800, gold: 70, materials: { ashwort: 5 }, item: null },
   },
   {
     id: 'theCrowwoodRoad',
@@ -86,7 +86,7 @@ export const STORY_QUESTS: readonly StoryQuestDefinition[] = [
       { kind: 'reach', areaId: 'crowwood' },
       { kind: 'kill', enemyId: 'banditCutthroat', count: 15 },
     ],
-    reward: { xp: 800, gold: 160, materials: { rawHide: 6 }, item: null },
+    reward: { xp: 10000, gold: 160, materials: { rawHide: 6 }, item: null },
   },
   {
     id: 'whatTheCrowsGuard',
@@ -102,7 +102,7 @@ export const STORY_QUESTS: readonly StoryQuestDefinition[] = [
       { kind: 'gather', materialId: 'soulShard', count: 8 },
     ],
     reward: {
-      xp: 1800,
+      xp: 30000,
       gold: 320,
       materials: {},
       item: { baseId: 'grave-gold-ring', rarityId: 'rare', itemLevel: 11 },
@@ -118,7 +118,7 @@ export const STORY_QUESTS: readonly StoryQuestDefinition[] = [
     after: 'whatTheCrowsGuard',
     objectives: [{ kind: 'defeatBoss', bossId: 'gravewarden' }],
     reward: {
-      xp: 4500,
+      xp: 60000,
       gold: 900,
       materials: { soulShard: 10 },
       item: { baseId: 'raven-talisman', rarityId: 'epic', itemLevel: 16 },

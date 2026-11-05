@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AREA_LOOT_TABLES,
   AREAS,
   AREA_IDS,
   CLASS_IDS,
@@ -168,17 +169,17 @@ describe('enemies', () => {
     expect(getEnemy('carrionWolf').undead).toBe(false);
   });
 
-  it('keeps the Abandoned Fields enemies at their Phase 1 numbers', () => {
+  it('keeps the Abandoned Fields enemies at their B.1 numbers', () => {
     expect(getEnemy('risenFarmhand')).toMatchObject({
       attackSpeed: 0.8,
       health: { base: 60, perLevel: 14 },
-      damage: { base: 6, perLevel: 1.6 },
+      damage: { base: 5.3, perLevel: 1.45 },
       armor: { base: 10, perLevel: 2 },
       resistance: { base: 5, perLevel: 1 },
       xp: { base: 12, perLevel: 3 },
     });
     expect(getEnemy('carrionWolf').health).toEqual({ base: 45, perLevel: 10 });
-    expect(getEnemy('boneScarecrow').damage).toEqual({ base: 8, perLevel: 2 });
+    expect(getEnemy('boneScarecrow').damage).toEqual({ base: 7, perLevel: 1.8 });
   });
 
   it('looks up and guards ids', () => {
@@ -295,12 +296,20 @@ describe('loot tables', () => {
     for (const b of ITEM_BASES) expect(dropping.has(b.id), b.id).toBe(true);
   });
 
-  it('keeps the Abandoned Fields table identical to the Phase 1 standard table', () => {
+  it('keeps the Abandoned Fields bases equal to the Phase 1 standard table, at half its drop rate', () => {
     const fields = getLootTable('abandonedFields');
     expect(fields.entries).toEqual(STANDARD_LOOT_TABLE.entries);
-    expect(fields.itemDropChance).toBe(STANDARD_LOOT_TABLE.itemDropChance);
+    // Ticket B.1: area kills drop an item 6 % of the time (the standard table keeps 12 %).
+    expect(fields.itemDropChance).toBe(0.06);
+    for (const t of AREA_LOOT_TABLES.filter((x) => x.id !== 'namelessCrypt')) {
+      expect(t.itemDropChance, t.id).toBe(0.06);
+    }
     for (let level = 1; level <= 6; level++) {
-      const a = rollLoot({ rng: createRng(`f${level}`), sourceLevel: level, lootTable: fields });
+      const a = rollLoot({
+        rng: createRng(`f${level}`),
+        sourceLevel: level,
+        lootTable: { ...fields, itemDropChance: STANDARD_LOOT_TABLE.itemDropChance },
+      });
       const b = rollLoot({ rng: createRng(`f${level}`), sourceLevel: level });
       expect(a).toEqual(b);
     }
@@ -454,7 +463,13 @@ describe('farming every area', () => {
   it('crypt enemies die within the fight timeout; the Gravewarden needs gear', () => {
     const crypt = getDungeon('namelessCrypt');
     const level = Math.round((crypt.minLevel + crypt.maxLevel) / 2);
-    const killChance = (enemyId: string, enemyLevel: number, classId: ClassId, gear: boolean) => {
+    const killChance = (
+      enemyId: string,
+      enemyLevel: number,
+      classId: ClassId,
+      gear: boolean,
+      maxFightMs = DEFAULT_COMBAT_CONFIG.maxFightMs,
+    ) => {
       const items = gear ? commonKit(classId, crypt.lootTableId, enemyLevel) : [];
       const stats = deriveEquippedStats(classId, level, items);
       const setup = buildEncounter(
@@ -465,7 +480,7 @@ describe('farming every area', () => {
         stats,
         DEFAULT_COMBAT_CONFIG,
       );
-      return hitsToKillDistribution(setup).reduce((s, p) => s + p, 0);
+      return hitsToKillDistribution({ ...setup, maxFightMs }).reduce((s, p) => s + p, 0);
     };
     for (const classId of CLASS_IDS) {
       for (const e of crypt.enemies) {
@@ -474,12 +489,18 @@ describe('farming every area', () => {
           `${classId} ${e.enemyId}`,
         ).toBeGreaterThan(0.999);
       }
-      expect(killChance(crypt.bossId, crypt.bossLevel, classId, false)).toBeLessThan(0.5);
-      expect(killChance(crypt.bossId, crypt.bossLevel, classId, true)).toBeGreaterThan(0.999);
+      // Ticket B.1: the boss outlasts its enrage unless the hero is geared (the run outcome
+      // itself is covered by the balance test).
+      expect(
+        killChance(crypt.bossId, crypt.bossLevel, classId, false, crypt.bossEnrage.atMs),
+      ).toBeLessThan(0.5);
+      expect(
+        killChance(crypt.bossId, crypt.bossLevel, classId, true, crypt.bossMaxFightMs),
+      ).toBeGreaterThan(0.999);
     }
   });
 
-  it('keeps an Abandoned Fields settlement pinned to its Phase 1 result', () => {
+  it('keeps an Abandoned Fields settlement pinned to its B.1 result', () => {
     const r = settleFarming({
       character: { classId: 'mage', level: 2, xp: 0 },
       areaId: 'abandonedFields',
@@ -497,17 +518,17 @@ describe('farming every area', () => {
       firstItems: r.items.slice(0, 4).map((i) => `${i.baseId}@${i.itemLevel}:${i.rarityId}`),
     }).toMatchInlineSnapshot(`
       {
-        "deaths": 50,
+        "deaths": 2,
         "firstItems": [
-          "brass-ring@2:common",
           "leather-jerkin@2:common",
-          "longsword-notched@2:common",
-          "bone-amulet@3:common",
+          "skull-staff@1:common",
+          "bone-amulet@3:uncommon",
+          "chainmail@3:common",
         ],
-        "gold": 880,
-        "items": 53,
-        "kills": 363,
-        "xpGained": 9331,
+        "gold": 197,
+        "items": 27,
+        "kills": 448,
+        "xpGained": 7996,
       }
     `);
   });

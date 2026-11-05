@@ -3,12 +3,13 @@ export const MAX_LEVEL = 60;
 
 /**
  * Experience needed to advance from `level` to `level + 1`.
- * Grows polynomially (≈ 80 · level^1.6); 0 at the level cap.
+ * Grows quadratically (`700 · level²`, ticket B.1); 0 at the level cap. Never lower a level's
+ * requirement below an earlier curve's (Phase 1: `80 · level^1.6`): stored XP must stay below it.
  */
 export function xpToNextLevel(level: number): number {
   if (!Number.isInteger(level) || level < 1) throw new RangeError(`Invalid level: ${level}`);
   if (level >= MAX_LEVEL) return 0;
-  return Math.round(80 * Math.pow(level, 1.6));
+  return 700 * level * level;
 }
 
 /** Total experience needed to reach `level` from level 1 with 0 XP. */

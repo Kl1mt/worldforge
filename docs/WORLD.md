@@ -18,7 +18,7 @@ Ticket 2.1. Data and pure rules in `packages/game-core/src/world/` (areas, dunge
 ## Enemies
 `EnemyDefinition` adds `undead` (undead drop `soulShard`, ticket 2.3) and `rank` (`normal` or `boss`) to the Phase 1 fields; `damageType` is the damage family (physical → armor, magic → resistance). Each enemy is in exactly one roster. Asset ids are `enemy.<kebab-case id>` (the three Phase 1 enemies keep their existing ids).
 
-The Abandoned Fields enemies keep their Phase 1 numbers. The new enemies use the same stat shape with damage tuned so that, at an area's middle level and without gear, a hit sequence costs about as much health as the Fields enemies do at level 4 (roughly 25–55 % of max health per fight, depending on class). The Gravewarden (1,600 health at level 16) is a gear check: an unequipped level-14 character cannot kill it inside the 30 s fight timeout; with common tier-appropriate gear every class can.
+Enemy damage was retuned in ticket B.1 (`docs/COMBAT.md`): each later area hits harder than the previous one at the same level, so a geared hero loses 15–19 % of its health per fight on entering an area and 10–15 % at its top. The Gravewarden (3,520 health at level 16) is a gear check against its enrage timer (`docs/DUNGEONS.md`).
 
 ## Materials and professions
 `MATERIALS`: id, name, description, icon (`material.<kebab-case id>`, in `apps/web/public/assets/materials/`, A.4), rarity, source and profession, and the areas that list it.
@@ -39,7 +39,7 @@ Every item base has a `tier` (`items/bases.ts`): tier 1 are the 17 Phase 1 bases
 
 `FarmingResult.killsByEnemy` is now `Partial<Record<EnemyId, number>>` holding the area's roster only (each present, possibly 0).
 
-## Balance baseline (ticket 2.1, not tuned)
+## Balance baseline (ticket 2.1, before B.1)
 One-hour `settleFarming` window, mean of 6 seeds, character at the area's middle level with 0 XP. "Kit" is one common item at the character's level of the best base per slot the area table drops (two rings).
 
 | Area (level) | Bare: kills / deaths per h (warrior · mage · hunter · warlock) | Kit: deaths per h |

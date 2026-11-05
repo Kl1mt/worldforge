@@ -3,7 +3,7 @@ import type { ItemTier } from '../items/bases.js';
 import type { MaterialId } from '../world/materials.js';
 
 /**
- * Merchant and forge numbers (ticket 2.6, GDD §4.2, §8). First pass; tune in B.1. All prices
+ * Merchant and forge numbers (ticket 2.6, GDD §4.2, §8). Tuned in ticket B.1 (`docs/ECONOMY.md`). All prices
  * are integer gold. Invariants (checked in tests): buying is always dearer than selling, and
  * salvaging always pays less gold than selling, so no buy → sell / salvage loop makes gold.
  */
@@ -34,12 +34,12 @@ export interface EconomyConfig {
 }
 
 export const DEFAULT_ECONOMY_CONFIG: EconomyConfig = {
-  sellBase: 3,
-  sellPerItemLevel: 1,
+  sellBase: 1,
+  sellPerItemLevel: 0.4,
   rarityMultiplier: { common: 1, uncommon: 2, rare: 4, epic: 8, legendary: 16, mythic: 32 },
   merchant: {
     offersPerArea: 2,
-    buyMarkup: 5,
+    buyMarkup: 20,
     stockRarities: { common: 3, uncommon: 1 },
   },
   salvage: {
@@ -85,10 +85,10 @@ export const FORGE_RECIPES: readonly ForgeRecipe[] = [
     description: 'Plain gear hammered from field timber and bound with ashwort fibre.',
     tier: 1,
     level: 1,
-    gold: 25,
+    gold: 30,
     materials: [
-      { materialId: 'timber', quantity: 10 },
-      { materialId: 'ashwort', quantity: 5 },
+      { materialId: 'timber', quantity: 30 },
+      { materialId: 'ashwort', quantity: 15 },
     ],
     rarities: CRAFT_RARITIES,
   },
@@ -98,11 +98,11 @@ export const FORGE_RECIPES: readonly ForgeRecipe[] = [
     description: 'Hide-wrapped kit for the woods and the graves, quenched with a soul shard.',
     tier: 2,
     level: 9,
-    gold: 120,
+    gold: 150,
     materials: [
-      { materialId: 'rawHide', quantity: 8 },
-      { materialId: 'timber', quantity: 8 },
-      { materialId: 'soulShard', quantity: 2 },
+      { materialId: 'rawHide', quantity: 25 },
+      { materialId: 'timber', quantity: 25 },
+      { materialId: 'soulShard', quantity: 4 },
     ],
     rarities: CRAFT_RARITIES,
   },
@@ -114,9 +114,9 @@ export const FORGE_RECIPES: readonly ForgeRecipe[] = [
     level: 15,
     gold: 400,
     materials: [
-      { materialId: 'ironOre', quantity: 10 },
-      { materialId: 'soulShard', quantity: 5 },
-      { materialId: 'ashwort', quantity: 6 },
+      { materialId: 'ironOre', quantity: 30 },
+      { materialId: 'soulShard', quantity: 8 },
+      { materialId: 'ashwort', quantity: 20 },
     ],
     rarities: CRAFT_RARITIES,
   },

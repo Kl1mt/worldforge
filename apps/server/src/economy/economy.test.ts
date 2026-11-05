@@ -356,8 +356,8 @@ describe('forge', () => {
   it('crafts gear in the chosen slot, spending materials and gold', async () => {
     const p = await newPlayer(100, 'mage');
     await database.db.insert(characterMaterials).values([
-      { characterId: p.id, materialId: 'timber', quantity: 12 },
-      { characterId: p.id, materialId: 'ashwort', quantity: 5 },
+      { characterId: p.id, materialId: 'timber', quantity: 32 },
+      { characterId: p.id, materialId: 'ashwort', quantity: 15 },
     ]);
     const view = (await call(p, 'GET', '/forge')).json<ForgeResponse>();
     const t1 = view.recipes.find((r) => r.recipeId === 'fieldsmithWork')!;
@@ -380,7 +380,7 @@ describe('forge', () => {
     const { item, character } = res.json();
     expect(item).toMatchObject({ baseId: 'skull-staff', source: 'forge' });
     expect(item.rarityId).not.toBe('common');
-    expect(character.gold).toBe(75);
+    expect(character.gold).toBe(70);
     expect(await materialsOf(p)).toEqual({ timber: 2 });
     const again = await call(p, 'POST', '/forge/craft', {
       recipeId: 'fieldsmithWork',
@@ -391,7 +391,7 @@ describe('forge', () => {
     expect(again.json().error.details.blockers).toContainEqual({
       kind: 'material',
       materialId: 'timber',
-      required: 10,
+      required: 30,
       held: 2,
     });
     expect(await itemsOf(p)).toHaveLength(1);
@@ -409,8 +409,8 @@ describe('forge', () => {
     const second = await call(p, 'POST', '/forge/craft', body, key);
     expect(second.json()).toEqual(first.json());
     expect(await itemsOf(p)).toHaveLength(1);
-    expect(await goldOf(p)).toBe(975);
-    expect(await materialsOf(p)).toEqual({ timber: 90, ashwort: 95 });
+    expect(await goldOf(p)).toBe(970);
+    expect(await materialsOf(p)).toEqual({ timber: 70, ashwort: 85 });
   });
 
   it('refuses recipes above the level and unknown recipes', async () => {

@@ -5,7 +5,7 @@ import type { DamageType } from '../classes.js';
  * (`docs/ROADMAP.md`, Phase 2 content contract). Stats scale linearly with enemy level.
  */
 export const ENEMY_IDS = [
-  // Abandoned Fields (Phase 1 numbers, unchanged).
+  // Abandoned Fields.
   'risenFarmhand',
   'carrionWolf',
   'boneScarecrow',
@@ -58,7 +58,8 @@ export interface EnemyDefinition {
 }
 
 export const ENEMIES: readonly EnemyDefinition[] = [
-  // — Abandoned Fields (levels 1–6). Numbers unchanged from Phase 1; balance is ticket B.1.
+  // — Abandoned Fields (levels 1–6). Damage tuned in ticket B.1 (targets: `docs/COMBAT.md`); each later
+  // area hits harder than the previous one at the same level.
   {
     id: 'risenFarmhand',
     name: 'Risen Farmhand',
@@ -68,7 +69,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     rank: 'normal',
     attackSpeed: 0.8,
     health: { base: 60, perLevel: 14 },
-    damage: { base: 6, perLevel: 1.6 },
+    damage: { base: 5.3, perLevel: 1.45 },
     armor: { base: 10, perLevel: 2 },
     resistance: { base: 5, perLevel: 1 },
     xp: { base: 12, perLevel: 3 },
@@ -82,7 +83,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     rank: 'normal',
     attackSpeed: 1.3,
     health: { base: 45, perLevel: 10 },
-    damage: { base: 5, perLevel: 1.3 },
+    damage: { base: 4.4, perLevel: 1.15 },
     armor: { base: 6, perLevel: 1 },
     resistance: { base: 6, perLevel: 1 },
     xp: { base: 11, perLevel: 3 },
@@ -96,7 +97,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     rank: 'normal',
     attackSpeed: 0.6,
     health: { base: 85, perLevel: 18 },
-    damage: { base: 8, perLevel: 2 },
+    damage: { base: 7, perLevel: 1.8 },
     armor: { base: 14, perLevel: 2.5 },
     resistance: { base: 14, perLevel: 1.5 },
     xp: { base: 18, perLevel: 4 },
@@ -111,7 +112,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     rank: 'normal',
     attackSpeed: 1.1,
     health: { base: 60, perLevel: 14 },
-    damage: { base: 4.5, perLevel: 1.15 },
+    damage: { base: 5.5, perLevel: 1.4 },
     armor: { base: 10, perLevel: 2.2 },
     resistance: { base: 6, perLevel: 1.2 },
     xp: { base: 13, perLevel: 3.2 },
@@ -125,7 +126,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     rank: 'normal',
     attackSpeed: 1.4,
     health: { base: 40, perLevel: 10 },
-    damage: { base: 4, perLevel: 1.2 },
+    damage: { base: 4.9, perLevel: 1.46 },
     armor: { base: 5, perLevel: 1 },
     resistance: { base: 10, perLevel: 1.6 },
     xp: { base: 12, perLevel: 3 },
@@ -140,7 +141,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     rank: 'normal',
     attackSpeed: 0.9,
     health: { base: 65, perLevel: 15 },
-    damage: { base: 4, perLevel: 1.15 },
+    damage: { base: 7.6, perLevel: 2.18 },
     armor: { base: 12, perLevel: 2.6 },
     resistance: { base: 6, perLevel: 1.2 },
     xp: { base: 14, perLevel: 3.4 },
@@ -154,7 +155,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     rank: 'normal',
     attackSpeed: 1.2,
     health: { base: 55, perLevel: 13 },
-    damage: { base: 3.4, perLevel: 0.95 },
+    damage: { base: 6.5, perLevel: 1.8 },
     armor: { base: 8, perLevel: 1.6 },
     resistance: { base: 8, perLevel: 1.6 },
     xp: { base: 13, perLevel: 3.2 },
@@ -169,7 +170,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     rank: 'normal',
     attackSpeed: 0.8,
     health: { base: 75, perLevel: 16 },
-    damage: { base: 5, perLevel: 1.3 },
+    damage: { base: 8.5, perLevel: 2.21 },
     armor: { base: 10, perLevel: 2.2 },
     resistance: { base: 8, perLevel: 1.5 },
     xp: { base: 15, perLevel: 3.6 },
@@ -183,7 +184,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     rank: 'normal',
     attackSpeed: 0.7,
     health: { base: 85, perLevel: 17 },
-    damage: { base: 6.2, perLevel: 1.55 },
+    damage: { base: 10.5, perLevel: 2.63 },
     armor: { base: 12, perLevel: 2.4 },
     resistance: { base: 12, perLevel: 2 },
     xp: { base: 18, perLevel: 4 },
@@ -198,7 +199,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     rank: 'normal',
     attackSpeed: 0.8,
     health: { base: 80, perLevel: 17 },
-    damage: { base: 4.5, perLevel: 1.2 },
+    damage: { base: 10.1, perLevel: 2.7 },
     armor: { base: 16, perLevel: 3 },
     resistance: { base: 8, perLevel: 1.6 },
     xp: { base: 17, perLevel: 3.8 },
@@ -212,7 +213,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     rank: 'normal',
     attackSpeed: 0.9,
     health: { base: 60, perLevel: 14 },
-    damage: { base: 5.3, perLevel: 1.35 },
+    damage: { base: 11.9, perLevel: 3.04 },
     armor: { base: 6, perLevel: 1.2 },
     resistance: { base: 14, perLevel: 2.4 },
     xp: { base: 16, perLevel: 3.8 },
@@ -227,7 +228,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     rank: 'normal',
     attackSpeed: 1.1,
     health: { base: 70, perLevel: 15 },
-    damage: { base: 3.8, perLevel: 1.05 },
+    damage: { base: 7.2, perLevel: 2 },
     armor: { base: 9, perLevel: 2 },
     resistance: { base: 8, perLevel: 1.5 },
     xp: { base: 16, perLevel: 3.6 },
@@ -241,7 +242,7 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     rank: 'normal',
     attackSpeed: 0.7,
     health: { base: 65, perLevel: 14 },
-    damage: { base: 8, perLevel: 2 },
+    damage: { base: 10.4, perLevel: 2.6 },
     armor: { base: 8, perLevel: 1.6 },
     resistance: { base: 14, perLevel: 2.2 },
     xp: { base: 17, perLevel: 3.8 },
@@ -254,11 +255,11 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     undead: true,
     rank: 'boss',
     attackSpeed: 0.6,
-    health: { base: 400, perLevel: 80 },
-    damage: { base: 12, perLevel: 2.6 },
+    health: { base: 880, perLevel: 176 },
+    damage: { base: 4, perLevel: 0.86 },
     armor: { base: 20, perLevel: 3.5 },
     resistance: { base: 14, perLevel: 2.5 },
-    xp: { base: 120, perLevel: 25 },
+    xp: { base: 600, perLevel: 160 },
   },
 ];
 

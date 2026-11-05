@@ -9,11 +9,11 @@ Ticket 2.4 (GDD §6.4, §11.1, §4.2). The Tavern's notice board offers a short 
 
 | Quest | Level | Objectives | Reward |
 |---|---|---|---|
-| The Furrows of the Dead | 1 | 12 Risen Farmhands | 120 XP, 40 gold |
-| Wolves at the Fence | 2 | 10 Carrion Wolves, 15 Timber | 300 XP, 70 gold, 5 Ashwort |
-| The Crowwood Road | 5 | fight in Crowwood, 15 Bandit Cutthroats | 800 XP, 160 gold, 6 Raw Hide |
-| What the Crows Guard | 9 | fight in the Old Burial Grounds, 15 Risen Skeletons, 8 Soul Shards | 1,800 XP, 320 gold, rare Grave-Gold Ring (ilvl 11) |
-| The Nameless Crypt | 12 | defeat the Gravewarden | 4,500 XP, 900 gold, 10 Soul Shards, epic Raven Talisman (ilvl 16) |
+| The Furrows of the Dead | 1 | 12 Risen Farmhands | 600 XP, 40 gold |
+| Wolves at the Fence | 2 | 10 Carrion Wolves, 15 Timber | 1,800 XP, 70 gold, 5 Ashwort |
+| The Crowwood Road | 5 | fight in Crowwood, 15 Bandit Cutthroats | 10,000 XP, 160 gold, 6 Raw Hide |
+| What the Crows Guard | 9 | fight in the Old Burial Grounds, 15 Risen Skeletons, 8 Soul Shards | 30,000 XP, 320 gold, rare Grave-Gold Ring (ilvl 11) |
+| The Nameless Crypt | 12 | defeat the Gravewarden | 60,000 XP, 900 gold, 10 Soul Shards, epic Raven Talisman (ilvl 16) |
 
 - **Contracts** (`CONTRACT_TEMPLATES`, derived from the area content): one bounty per area enemy (25 kills) and one gathering contract per material at the first area that yields it (20 units; Soul Shards 10, Abbey Silver 3). Reward at acceptance: `round(xpToNextLevel(level) · 0.3 · scale)` XP and `round((20 + 6 · level) · scale)` gold.
 

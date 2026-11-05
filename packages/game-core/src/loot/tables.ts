@@ -14,36 +14,37 @@ function tierEntries(weights: Partial<Record<ItemTier, number>>): LootTableEntry
  * higher tiers; each base is still gated by its `minItemLevel`. The item-level range is the
  * area's enemy levels ± `itemLevelVariance` (1).
  *
- * The Abandoned Fields table equals the Phase 1 `standard` table (balance is ticket B.1).
+ * Area kills drop an item 6 % of the time (ticket B.1; the Phase 1 `standard` table keeps 12 %):
+ * about 35 items an hour, enough to stay geared without flooding the pack and the gold economy.
  */
 export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
   {
     id: 'abandonedFields',
-    itemDropChance: 0.12,
+    itemDropChance: 0.06,
     itemLevel: { min: 1, max: 7 },
     entries: tierEntries({ 1: 1 }),
   },
   {
     id: 'crowwood',
-    itemDropChance: 0.12,
+    itemDropChance: 0.06,
     itemLevel: { min: 4, max: 11 },
     entries: tierEntries({ 1: 2, 2: 1 }),
   },
   {
     id: 'oldBurialGrounds',
-    itemDropChance: 0.12,
+    itemDropChance: 0.06,
     itemLevel: { min: 8, max: 15 },
     entries: tierEntries({ 1: 1, 2: 2 }),
   },
   {
     id: 'blackwater',
-    itemDropChance: 0.12,
+    itemDropChance: 0.06,
     itemLevel: { min: 12, max: 19 },
     entries: tierEntries({ 1: 1, 2: 2, 3: 1 }),
   },
   {
     id: 'sunkenAbbey',
-    itemDropChance: 0.12,
+    itemDropChance: 0.06,
     itemLevel: { min: 16, max: 23 },
     entries: tierEntries({ 2: 1, 3: 2 }),
   },

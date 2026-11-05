@@ -105,7 +105,7 @@ describe('merchant stock', () => {
 describe('salvage', () => {
   it('gives tier materials by rarity, plus soul shards from rare up', () => {
     expect(salvageYield({ baseId: 'iron-helm', rarityId: 'common', itemLevel: 5 })).toEqual({
-      gold: 2,
+      gold: 1,
       materials: { timber: 1 },
     });
     expect(salvageYield({ baseId: 'barbute', rarityId: 'rare', itemLevel: 10 }).materials).toEqual({
@@ -179,12 +179,13 @@ describe('forge recipes', () => {
     const t2 = findForgeRecipe('marchwardenWork')!;
     expect(craftBlockers(t2, { level: 3, gold: 10 }, { timber: 20, rawHide: 1 })).toEqual([
       { kind: 'level', required: 9 },
-      { kind: 'gold', required: 120, held: 10 },
-      { kind: 'material', materialId: 'rawHide', required: 8, held: 1 },
-      { kind: 'material', materialId: 'soulShard', required: 2, held: 0 },
+      { kind: 'gold', required: 150, held: 10 },
+      { kind: 'material', materialId: 'rawHide', required: 25, held: 1 },
+      { kind: 'material', materialId: 'timber', required: 25, held: 20 },
+      { kind: 'material', materialId: 'soulShard', required: 4, held: 0 },
     ]);
     expect(
-      craftBlockers(t2, { level: 9, gold: 120 }, { timber: 8, rawHide: 8, soulShard: 2 }),
+      craftBlockers(t2, { level: 9, gold: 150 }, { timber: 25, rawHide: 25, soulShard: 4 }),
     ).toEqual([]);
   });
 });

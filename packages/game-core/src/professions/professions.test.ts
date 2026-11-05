@@ -58,15 +58,15 @@ describe('profession content', () => {
 
 describe('profession levels', () => {
   it('has a growing XP curve with a cap at 50', () => {
-    expect(professionXpToNext(1)).toBe(20);
+    expect(professionXpToNext(1)).toBe(230);
     expect(professionXpToNext(10)).toBeGreaterThan(professionXpToNext(9));
     expect(professionXpToNext(50)).toBe(0);
     expect(() => professionXpToNext(0)).toThrow(RangeError);
   });
 
   it('applies level-ups and discards XP beyond the cap', () => {
-    expect(applyProfessionXp({ level: 1, xp: 0 }, 19)).toEqual({ level: 1, xp: 19 });
-    expect(applyProfessionXp({ level: 1, xp: 0 }, 20)).toEqual({ level: 2, xp: 0 });
+    expect(applyProfessionXp({ level: 1, xp: 0 }, 229)).toEqual({ level: 1, xp: 229 });
+    expect(applyProfessionXp({ level: 1, xp: 0 }, 230)).toEqual({ level: 2, xp: 0 });
     expect(applyProfessionXp({ level: 49, xp: 0 }, 1e9)).toEqual({ level: 50, xp: 0 });
     expect(applyProfessionXp({ level: 50, xp: 0 }, 100)).toEqual({ level: 50, xp: 0 });
     expect(() => applyProfessionXp({ level: 1, xp: 0 }, -1)).toThrow(RangeError);
@@ -100,7 +100,8 @@ describe('rollGathering', () => {
 
   it('drops soul shards only from undead kills where the area lists them', () => {
     let shards = 0;
-    for (let i = 0; i < 400; i++) {
+    const n = 4000;
+    for (let i = 0; i < n; i++) {
       const p = initialProfessions();
       const undead = rollGathering(
         { areaId: 'oldBurialGrounds', outcome: 'kill', enemyId: 'risenSkeleton' },
@@ -124,8 +125,9 @@ describe('rollGathering', () => {
       );
       expect(fields.some((f) => f.materialId === 'soulShard')).toBe(false);
     }
-    expect(shards / 400).toBeGreaterThan(0.18);
-    expect(shards / 400).toBeLessThan(0.32);
+    const chance = DEFAULT_PROFESSION_CONFIG.areas.oldBurialGrounds!.undeadDrops[0]!.chance;
+    expect(shards / n).toBeGreaterThan(chance * 0.75);
+    expect(shards / n).toBeLessThan(chance * 1.25);
   });
 
   it('a higher profession level raises yield, not the find rate', () => {
