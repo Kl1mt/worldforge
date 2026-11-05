@@ -1,0 +1,2 @@
+ALTER TABLE "activities" ADD COLUMN "momentum" integer DEFAULT 0 NOT NULL;--> statement-breakpoint
+ALTER TABLE "activities" ADD CONSTRAINT "activities_momentum_check" CHECK ("activities"."momentum" >= 0);

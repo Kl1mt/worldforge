@@ -397,6 +397,7 @@ describe('hardening (ticket 1.9)', () => {
       seedSecret: before!.seedSecret,
       cycleIndex: before!.cycleIndex,
       health: before!.health,
+      momentum: before!.momentum,
       // Stopped mid-cycle: that cycle stays bound to its area (ticket 2.2).
       ...(before!.carryMs > 0 ? { areaId: 'abandonedFields' } : {}),
     });
@@ -437,6 +438,36 @@ describe('hardening (ticket 1.9)', () => {
     });
     return id;
   }
+
+  it('a Bloodrush streak carries across settlements and stop → start (ticket 3.2)', async () => {
+    const { p, id } = await farmer('warrior');
+    // Equip a Legendary ring with Bloodrush directly (the equip route is covered elsewhere).
+    await database.db.insert(itemInstances).values({
+      id: uuidv7(),
+      characterId: id,
+      baseId: 'iron-ring',
+      rarityId: 'legendary',
+      itemLevel: 1,
+      seed: 1,
+      source: 'test',
+      equippedSlot: 'ring1',
+      effectId: 'bloodrush',
+      effectRoll: 1,
+    });
+    advance(10 * MIN);
+    await settle(p, id);
+    const [row] = await database.db.select().from(activities).where(eq(activities.characterId, id));
+    expect(row!.momentum).toBeGreaterThan(0);
+    // The same span settled as one window gives the same streak (game-core split invariance).
+    expect((await stop(p, id)).statusCode).toBe(200);
+    expect((await characterRow(id)).farmState?.momentum).toBe(row!.momentum);
+    expect((await start(p, id)).statusCode).toBe(201);
+    const [after] = await database.db
+      .select()
+      .from(activities)
+      .where(eq(activities.characterId, id));
+    expect(after!.momentum).toBe(row!.momentum);
+  });
 
   it('equip, unequip and discard settle the running activity first (no retroactive gear)', async () => {
     const { p, id } = await farmer();

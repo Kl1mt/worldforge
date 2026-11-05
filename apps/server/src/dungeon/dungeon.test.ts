@@ -358,6 +358,47 @@ describe('the Nameless Crypt (ticket 2.5)', () => {
     expect(pick(await owned(a.id))).toEqual(pick(await owned(b.id)));
   });
 
+  it('snapshots equipped effects at the start; the run replays with them (ticket 3.2)', async () => {
+    const { p, id } = await hero('warrior', 16);
+    const [ring] = await database.db
+      .select()
+      .from(itemInstances)
+      .where(and(eq(itemInstances.characterId, id), eq(itemInstances.equippedSlot, 'ring1')));
+    await database.db
+      .update(itemInstances)
+      .set({ rarityId: 'legendary', effectId: 'tyrants-bane', effectRoll: 1 })
+      .where(eq(itemInstances.id, ring!.id));
+    expect((await enter(p, id)).statusCode).toBe(201);
+    await pinSeed(id, 'effects-pinned');
+    const [run] = await database.db
+      .select()
+      .from(dungeonRuns)
+      .where(and(eq(dungeonRuns.characterId, id), isNull(dungeonRuns.claimedAt)));
+    const worn = run!.snapshot.equipment.find((e) => e.effectId === 'tyrants-bane');
+    expect(worn).toMatchObject({ effectRoll: 1 });
+    // Boss slayer makes the boss fight shorter than the same run without the effect.
+    const withEffect = replayRun(run!);
+    const without = replayRun({
+      ...run!,
+      snapshot: {
+        ...run!.snapshot,
+        equipment: run!.snapshot.equipment.map((e) => ({ ...e, effectId: null, effectRoll: null })),
+      },
+    });
+    const bossTime = (r: typeof withEffect) => {
+      const b = r.encounters.at(-1)!;
+      return b.endMs - b.startMs;
+    };
+    expect(withEffect.bossDefeated).toBe(true);
+    expect(bossTime(withEffect)).toBeLessThan(bossTime(without));
+    // Changing gear after the start cannot change the run: it replays from the snapshot.
+    await database.db
+      .update(itemInstances)
+      .set({ effectId: null, effectRoll: null })
+      .where(eq(itemInstances.id, ring!.id));
+    expect(replayRun(run!)).toEqual(withEffect);
+  });
+
   it('parallel claims grant once (same key: one result; other keys: refused)', async () => {
     const { p, id } = await hero();
     const run = (await enter(p, id)).json<{ run: DungeonRunView }>().run;

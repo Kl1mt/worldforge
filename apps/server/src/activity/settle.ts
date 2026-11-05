@@ -19,6 +19,7 @@ import {
   type Character,
   type FarmState,
 } from '../db/schema.js';
+import { itemEffectColumns } from '../inventory/columns.js';
 import type { Database, Transaction } from '../db/types.js';
 import { withTransaction } from '../db/transaction.js';
 import { writeAudit } from '../db/audit.js';
@@ -91,6 +92,7 @@ export async function endActivityTx(tx: Transaction, activity: Activity): Promis
     seedSecret: activity.seedSecret,
     cycleIndex: activity.cycleIndex,
     health: activity.health,
+    momentum: activity.momentum,
     // A cycle was in progress: it stays bound to its area (ticket 2.2).
     ...(activity.carryMs > 0 ? { areaId: activity.areaId } : {}),
   };
@@ -186,6 +188,7 @@ export async function settleActivityTx(
           level: character.level,
           xp: character.experience,
           ...(activity.health !== null ? { health: activity.health } : {}),
+          momentum: activity.momentum,
         },
         equipment: equipped,
         areaId: activity.areaId,
@@ -208,6 +211,7 @@ export async function settleActivityTx(
       itemLevel: item.itemLevel,
       affixes: item.affixes,
       seed: item.seed,
+      ...itemEffectColumns(item),
       equippedSlot: null,
       source: 'farming',
       createdAt: now,
@@ -253,6 +257,7 @@ export async function settleActivityTx(
       cycleIndex: activity.cycleIndex + settlement.encounters,
       carryMs: settlement.unusedMs,
       health: settlement.health,
+      momentum: settlement.momentum,
     });
     if (settlement.switched) {
       // The cycle in progress finished in the old area; the character travelled on (ticket 2.2).

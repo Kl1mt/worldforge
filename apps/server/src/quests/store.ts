@@ -32,6 +32,7 @@ import {
   type CharacterQuest,
   type QuestKind,
 } from '../db/schema.js';
+import { itemEffectColumns } from '../inventory/columns.js';
 import type { Database, Transaction } from '../db/types.js';
 import { writeAudit } from '../db/audit.js';
 import { uuidv7 } from '../db/uuid.js';
@@ -363,6 +364,7 @@ export async function turnInQuestTx(
         itemLevel: generated.itemLevel,
         affixes: generated.affixes,
         seed: generated.seed,
+        ...itemEffectColumns(generated),
         equippedSlot: null,
         source: 'quest',
         createdAt: now,

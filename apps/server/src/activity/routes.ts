@@ -262,6 +262,7 @@ export async function registerActivities(
             lastSeenAt: now,
             carryMs: 0,
             health: farmState.health,
+            momentum: farmState.momentum ?? 0,
             summary: emptySummary(now),
             updatedAt: now,
           })
