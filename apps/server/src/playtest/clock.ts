@@ -5,7 +5,7 @@
  *
  * Unlike the e2e clock (`src/e2e/clock.ts`), the playtest database survives restarts, so the clock
  * must never run backwards across them: the offset it has built up is saved (`offsetMs()`) and
- * passed back in on the next start, and `startOffsetMs` clamps it to the newest farming timestamp
+ * passed back in on the next start, and `startOffsetMs` clamps it to the newest game timestamp
  * already stored. It is a server-side setting; nothing a client sends can move it.
  */
 export interface PlaytestClock {
@@ -40,7 +40,8 @@ export function playtestClock({
 
 /**
  * The offset to start with: the saved one, raised if the database already holds farming times
- * ahead of `realNowMs` (e.g. the saved offset was lost after a crash), so time never goes back.
+ * ahead of `realNowMs` (`latestStoredTimeMs`; e.g. the saved offset was lost after a crash), so time
+ * never goes back.
  */
 export function startOffsetMs(
   savedOffsetMs: number | undefined,

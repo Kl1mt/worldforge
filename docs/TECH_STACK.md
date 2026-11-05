@@ -75,6 +75,15 @@ pnpm --filter @worldforge/web dev
 node tools/e2e/first-session.mjs
 ```
 
+The Phase 2 exit criteria (ticket 2.8) are covered the same two ways. `apps/server/src/e2e/phase2-exit-criteria.test.ts` plays a warrior through the HTTP API with a simulated clock and no database shortcuts (≈32 game hours, ~5 s): Fields → every area as levels come, equipping better drops → materials and a profession → all five story quests and contracts → buy, sell, salvage, craft → crypt runs until the Gravewarden falls → the Sunken Abbey opens and is farmed; then every gold piece, item and material held is reconciled with the audit log. `E2E_CLASS=mage` (etc.) plays another class. The browser run, CI job `e2e-phase2` (~3 min), is `tools/e2e/phase2-exit.mjs`: one desktop session uses the UI for the first use of each feature (map, Pack, Tavern, Merchant, Forge, crypt) and drives the grind in between from the page with its own session through the same public API; a mobile context of the same account captures the map and the Abbey. It imports the item bases from the built game-core.
+
+```
+E2E_TIME_SCALE=1200 OFFLINE_CAP_SECONDS=360000 pnpm --filter @worldforge/server e2e:serve
+pnpm --filter @worldforge/web dev
+pnpm --filter @worldforge/game-core build
+node tools/e2e/phase2-exit.mjs
+```
+
 ### Local playtest without Docker (ticket P.1)
 `pnpm playtest` runs `apps/server/src/playtest/serve.ts`: the real `buildApp()` on a PGlite database persisted to `.playtest-data/` (git-ignored), plus the web dev server, for playtesting on a machine without Docker or PostgreSQL. Like the e2e server it is excluded from the production build and refuses `NODE_ENV=production`; auth and rules are unchanged. Optional fast time (`pnpm playtest:fast`, `PLAYTEST_TIME_SCALE`) speeds up only the server's farming clock and never runs it backwards across restarts. User guide and details: `docs/PLAYTEST.md`.
 

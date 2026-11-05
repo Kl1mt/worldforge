@@ -466,8 +466,10 @@ export async function registerDungeons(
           await grantGatheringTx(tx, characterId, r.materials, none, none, now);
 
           // Quests (ticket 2.4): a Gravewarden kill completes the story's last step. The character
-          // row is locked above, as recordQuestEventsTx requires (docs/QUESTS.md).
-          await recordQuestEventsTx(tx, characterId, r.questEvents);
+          // row is locked above, as recordQuestEventsTx requires (docs/QUESTS.md). Only quests
+          // taken before the run started count it (ticket 2.8): the run was fought then, so
+          // accepting the step after the run has ended but before claiming does not complete it.
+          await recordQuestEventsTx(tx, characterId, r.questEvents, { acceptedBy: run.startedAt });
 
           const gold = r.goldLooted + r.goldSalvaged;
           const firstBossKill = r.bossDefeated && !character.progress.gravewardenDefeated;
