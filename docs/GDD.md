@@ -218,6 +218,8 @@ The intended starting direction is a moderate system, not a full crafting simula
 
 Upgrade failure must not destroy an item. Avoid punitive systems that erase long-term player investment.
 
+**Decided (ticket 3.4, owner-confirmed defaults):** upgrades run +0 to +10 and raise base values only (+50 % at +10). The success chance falls with the level (100 % → 20 %). A failure consumes that attempt's gold and materials but never destroys or downgrades the item, and a pity counter guarantees success after a set number of failures per step. Rerolls replace one picked affix from the slot's pool and cost more with each reroll of the same item. Improvement raises one affix toward its tier's maximum, at most three times. Every random forge outcome is fixed server-side per item (no save-scumming). Numbers: `docs/ECONOMY.md`.
+
 ### 8.2 Late-Game Item Awakening (Optional)
 Item Awakening is a candidate endgame feature, not an MVP requirement. It could allow exceptionally valuable items to unlock an additional affix slot or a special effect after a demanding resource investment. Its purpose is to create a rare long-term project, not to make every item mandatory to awaken.
 

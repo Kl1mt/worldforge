@@ -1,6 +1,6 @@
 import type { EquipmentStatContribution } from '../combat/characterStats.js';
 import { DEFAULT_LOOT_CONFIG, type LootConfig } from '../loot/config.js';
-import type { GeneratedItem } from '../loot/generate.js';
+import type { GeneratedItem, UpgradeLevelField } from '../loot/generate.js';
 import {
   emptySecondaryModifiers,
   itemSecondaryModifiers,
@@ -18,13 +18,14 @@ import type { CombatEffects, EffectCaps, EffectInstance } from '../effects/types
  * An equipped item as the rules read it: the persisted `GeneratedItem` columns, plus the effect
  * columns (ticket 3.2; null or absent = none). Database rows fit as they are.
  */
-export type EquippedItem = Pick<GeneratedItem, 'baseId' | 'rarityId' | 'itemLevel' | 'affixes'> & {
-  effectId?: string | null;
-  effectRoll?: number | null;
-  mythicId?: string | null;
-  /** Ticket 3.3: the set of a set piece (`set_id`). Counted by `setBonusInstances`. */
-  setId?: string | null;
-};
+export type EquippedItem = Pick<GeneratedItem, 'baseId' | 'rarityId' | 'itemLevel' | 'affixes'> &
+  UpgradeLevelField & {
+    effectId?: string | null;
+    effectRoll?: number | null;
+    mythicId?: string | null;
+    /** Ticket 3.3: the set of a set piece (`set_id`). Counted by `setBonusInstances`. */
+    setId?: string | null;
+  };
 
 /** What one item adds to the character: core stats for combat plus secondary modifiers. */
 export interface ItemContribution {
@@ -34,7 +35,7 @@ export interface ItemContribution {
 
 /** Sums an item's implicit stats and affixes (all additive, in the stat's own unit). */
 export function itemContribution(
-  item: Pick<GeneratedItem, 'baseId' | 'rarityId' | 'itemLevel' | 'affixes'>,
+  item: Pick<GeneratedItem, 'baseId' | 'rarityId' | 'itemLevel' | 'affixes'> & UpgradeLevelField,
   config: LootConfig = DEFAULT_LOOT_CONFIG,
 ): ItemContribution {
   // One source of truth for item → stats: the equipment bridge (ticket 1.7).

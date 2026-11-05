@@ -24,6 +24,10 @@ import {
  * Ticket 3.3 runs the same pinned hashes again: set pieces (Legendary rolls in late-game tables)
  * fall under the same exclusion, and kits whose items all carry set ids that cannot count (ids of
  * sets they are no piece of) still give exactly the pre-3.2 numbers.
+ *
+ * Ticket 3.4 runs them once more with every kit item at +0 carrying forge state: an explicit
+ * `upgradeLevel: 0`, pity and reroll counters, and affixes marked `improvements: 0` /
+ * `rerolled: true`. Only the upgrade level changes stats, and +0 must change nothing.
  */
 const BEFORE_EFFECTS: Record<string, string> = {
   'settle:warrior:abandonedFields': '1273120753d9015e',
@@ -102,9 +106,20 @@ const forgedSetIds = (items: GeneratedItem[]) =>
     setId: ['drowned-vigil', 'ashen-choir', 'bloodmoon-hunt'][i % 3]!,
   }));
 
+/** Ticket 3.4: +0 items with forge history (counters and affix marks, no upgrade level). */
+const forgedAtPlusZero = (items: GeneratedItem[]) =>
+  items.map((item, i) => ({
+    ...item,
+    upgradeLevel: 0,
+    upgradePity: i % 4,
+    rerollCount: i % 3,
+    affixes: item.affixes.map((a, j) => ({ ...a, improvements: 0, rerolled: (i + j) % 2 === 0 })),
+  }));
+
 describe.each([
   ['no effects equipped (ticket 3.2)', (items: GeneratedItem[]) => items],
   ['set ids that cannot count (ticket 3.3)', forgedSetIds],
+  ['+0 items with forge state (ticket 3.4)', forgedAtPlusZero],
 ])('%s', (_, dress) => {
   it('farming, detailed simulation and the crypt give exactly the pre-3.2 results', () => {
     const kit = (classId: ClassId, itemLevel: number, rarityId: RarityId) => {
@@ -159,4 +174,20 @@ describe.each([
     }
     expect(out).toEqual(BEFORE_EFFECTS);
   });
+});
+
+it('the +0 check can fail: the same kit at +5 changes the settlement (ticket 3.4)', () => {
+  const run = (upgradeLevel: number) =>
+    hash(
+      settleFarming({
+        character: { classId: 'warrior', level: 19, xp: 0 },
+        equipment: plainKit('warrior', 18, 'epic').map((i) => ({ ...i, upgradeLevel })),
+        areaId: 'sunkenAbbey',
+        seed: 'fp:warrior',
+        firstCycle: 0,
+        durationMs: 3_600_000,
+        inventoryCount: 0,
+      }),
+    );
+  expect(run(5)).not.toBe(run(0));
 });

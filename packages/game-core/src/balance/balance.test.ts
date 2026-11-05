@@ -31,6 +31,7 @@ import {
   type ProfessionId,
   type ProfessionState,
   type RarityId,
+  upgradePathCost,
 } from '../index.js';
 
 /**
@@ -821,6 +822,160 @@ describe('balance (ticket B.1)', () => {
           }
         }
       }
+    });
+  });
+
+  describe('forge upgrades (ticket 3.4)', () => {
+    const upgraded = (items: GeneratedItem[], upgradeLevel: number) =>
+      items.map((i) => ({ ...i, upgradeLevel }));
+    const crypt = getDungeon('namelessCrypt');
+    const winRate = (rs: { bossDefeated: boolean }[]) =>
+      rs.filter((r) => r.bossDefeated).length / rs.length;
+    const cryptRuns = (classId: ClassId, level: number, equipment: GeneratedItem[], n = 16) =>
+      Array.from({ length: n }, (_, i) =>
+        simulateDungeonRun({
+          dungeonId: 'namelessCrypt',
+          character: { classId, level, xp: 0 },
+          equipment,
+          seed: `crypt-balance:${i}`,
+          bossLootEligible: true,
+          inventoryCount: 0,
+        }),
+      );
+
+    it('a +10 kit stays within the death and kill bands everywhere', () => {
+      for (const a of AREAS) {
+        for (const level of [mid(a), a.maxLevel]) {
+          for (const c of CLASS_IDS) {
+            const gear = kit(c, level - 1);
+            const plain = farm(c, level, a.id, gear);
+            let previous = plain;
+            for (const u of [5, 10]) {
+              const s = farm(c, level, a.id, upgraded(gear, u));
+              const label = `${c} ${a.id} L${level} +${u}`;
+              expect(s.deathsPerHour, label).toBeLessThanOrEqual(2);
+              expect(s.damageShare, label).toBeLessThan(0.21);
+              // Each level helps a little (safety first: base armour and health)…
+              expect(s.killsPerMin, label).toBeGreaterThanOrEqual(previous.killsPerMin * 0.99);
+              expect(s.damageShare, label).toBeLessThanOrEqual(previous.damageShare);
+              // …but a whole +10 kit is a moderate edge, not a new tier of power (GDD §8.1, §8.3).
+              expect(s.killsPerMin / plain.killsPerMin, label).toBeLessThan(1.25);
+              previous = s;
+            }
+          }
+        }
+      }
+    });
+
+    it('a +10 rare kit in the Sunken Abbey stays within the bands', () => {
+      for (const c of CLASS_IDS) {
+        for (const level of [19, 22]) {
+          const gear = kit(c, level - 1, 'rare');
+          const plain = farm(c, level, 'sunkenAbbey', gear);
+          const s = farm(c, level, 'sunkenAbbey', upgraded(gear, 10));
+          const label = `${c} L${level}`;
+          expect(s.deathsPerHour, label).toBeLessThanOrEqual(2);
+          expect(s.damageShare, label).toBeLessThan(0.21);
+          expect(s.killsPerMin / plain.killsPerMin, label).toBeLessThan(1.25);
+        }
+      }
+    });
+
+    it('upgrades move the crypt entry, but never let a naked hero or trivialise the Gravewarden', () => {
+      for (const c of CLASS_IDS) {
+        // The 3.1 cliff, not retuned: +0 commons at level 12 never win (docs/ECONOMY.md reports
+        // how upgrades move it: +7 commons win most entries).
+        expect(winRate(cryptRuns(c, 12, kit(c, 11))), `${c} +0 entry`).toBe(0);
+        expect(winRate(cryptRuns(c, 12, upgraded(kit(c, 11), 3))), `${c} +3 entry`).toBeLessThan(
+          0.25,
+        );
+        // A geared +10 hero at 15 always wins, but the boss still takes most of the window.
+        for (const r of cryptRuns(c, 15, upgraded(kit(c, 14), 10), 8)) {
+          expect(r.bossDefeated, c).toBe(true);
+          const boss = r.encounters.at(-1)!;
+          expect(boss.endMs - boss.startMs, c).toBeGreaterThan(crypt.bossEnrage.atMs * 0.7);
+        }
+      }
+    });
+
+    describe('the gold sink', () => {
+      // A kit item at the area's middle level, and the classes' mean farming gold there.
+      const sample = (a: AreaDefinition) => {
+        const level = mid(a);
+        const gear = kit('warrior', level - 1);
+        const goldPerHour = stats(a.id, level).reduce((s, x) => s + x.goldPerHour, 0) / 4;
+        return { gear, item: gear[0]!, goldPerHour };
+      };
+      const bestMaterialsPerHour = () => {
+        const best: Partial<Record<MaterialId, number>> = {};
+        for (const b of AREAS) {
+          const s = geared('warrior', mid(b), b.id);
+          for (const [id, n] of Object.entries(s.materialsPerHour) as [MaterialId, number][])
+            best[id] = Math.max(best[id] ?? 0, n);
+        }
+        return best;
+      };
+
+      it('the first steps are cheap, the last ones a real project', () => {
+        for (const a of AREAS) {
+          const { item, goldPerHour } = sample(a);
+          const hours = (from: number, to: number) =>
+            upgradePathCost(item, from, to).expected.gold / goldPerHour;
+          expect(hours(0, 1) * 60, `${a.id} first attempt (min)`).toBeLessThan(10);
+          expect(hours(0, 5), `${a.id} +0 → +5`).toBeGreaterThan(0.5);
+          expect(hours(0, 5), `${a.id} +0 → +5`).toBeLessThan(3);
+          expect(hours(5, 10), `${a.id} +5 → +10`).toBeGreaterThan(8);
+          expect(hours(5, 10), `${a.id} +5 → +10`).toBeLessThan(30);
+        }
+      });
+
+      it('a whole kit to +10 is a long-term sink that a full purse cannot buy outright', () => {
+        for (const a of AREAS) {
+          const { gear, goldPerHour } = sample(a);
+          const kitTo = (to: number) =>
+            gear.reduce((s, g) => s + upgradePathCost(g, 0, to).expected.gold, 0);
+          expect(kitTo(5) / goldPerHour, `${a.id} kit +5 (h)`).toBeLessThan(20);
+          expect(kitTo(10) / goldPerHour, `${a.id} kit +10 (h)`).toBeGreaterThan(100);
+        }
+        // The Phase 2 purse (25–30k gold by level 17) buys a kit to +5 and a few items to +10.
+        const gear17 = kit('warrior', 16);
+        const kit5 = gear17.reduce((s, g) => s + upgradePathCost(g, 0, 5).expected.gold, 0);
+        const item10 = upgradePathCost(gear17[0]!, 0, 10).expected.gold;
+        expect(kit5).toBeLessThan(10_000);
+        expect(kit5 + item10).toBeLessThan(25_000);
+        expect(kit5 + 3 * item10).toBeGreaterThan(30_000);
+      });
+
+      it('failure is never punishing: pity caps the bad luck of a whole track at about twice the mean', () => {
+        for (const a of AREAS) {
+          const { item } = sample(a);
+          for (let n = 0; n < 10; n++) {
+            const c = upgradePathCost(item, n, n + 1);
+            // A step's worst case (every attempt fails until the pity) is at most 3× its mean.
+            expect(c.worst.gold / c.expected.gold, `${a.id} +${n}`).toBeLessThanOrEqual(3);
+          }
+          const all = upgradePathCost(item, 0, 10);
+          expect(all.worst.gold / all.expected.gold, a.id).toBeLessThan(2.2);
+        }
+      });
+
+      it('materials: +5 takes about an hour of gathering, +10 a few evenings', () => {
+        const best = bestMaterialsPerHour();
+        for (const a of AREAS) {
+          const { item } = sample(a);
+          const hours = (to: number) => {
+            const m = upgradePathCost(item, 0, to).expected.materials;
+            return Math.max(
+              ...(Object.entries(m) as [MaterialId, number][])
+                .filter(([id]) => id !== 'soulShard')
+                .map(([id, n]) => n / best[id]!),
+            );
+          };
+          expect(hours(5), `${a.id} +5`).toBeLessThan(2);
+          expect(hours(10), `${a.id} +10`).toBeGreaterThan(4);
+          expect(hours(10), `${a.id} +10`).toBeLessThan(15);
+        }
+      });
     });
   });
 });

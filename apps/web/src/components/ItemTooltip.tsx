@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { RARITIES } from '@worldforge/game-core';
+import { RARITIES, UPGRADE_IMPLICIT_BONUS } from '@worldforge/game-core';
 import {
   MYTHIC_SOURCES,
   SET_SOURCES,
@@ -9,6 +9,7 @@ import {
   setTracker,
   slotName,
   type ItemView,
+  type StatLine,
 } from '../game/items';
 import { useOptionalGame } from '../game/GameProvider';
 import { SetTracker } from './SetTracker';
@@ -33,6 +34,26 @@ interface ItemTooltipProps {
   id?: string;
 }
 
+/** Small marks for forge work on an affix (ticket 3.4): improvement pips and a reroll sign. */
+function ForgeMarks({ line }: { line: StatLine }) {
+  if (!line.improvements && !line.rerolled) return null;
+  const said = [
+    line.improvements ? `improved ${line.improvements}×` : null,
+    line.rerolled ? 'reworked at the forge' : null,
+  ]
+    .filter(Boolean)
+    .join(', ');
+  return (
+    <span className="tooltip__forge" title={said}>
+      <span aria-hidden="true">
+        {line.rerolled ? '↻' : ''}
+        {'▴'.repeat(line.improvements ?? 0)}
+      </span>
+      <span className="visually-hidden">({said})</span>
+    </span>
+  );
+}
+
 export function ItemTooltip({ item, compareTo, caption, note, children, id }: ItemTooltipProps) {
   const deltas = compareTo !== undefined ? compareItems(item, compareTo ?? undefined) : null;
   const rarity = RARITY_NAME.get(item.rarity) ?? item.rarity;
@@ -50,12 +71,22 @@ export function ItemTooltip({ item, compareTo, caption, note, children, id }: It
       <div className="tooltip__body">
         {caption ? <p className="tooltip__caption caps">{caption}</p> : null}
         <header className="tooltip__head">
-          <h3 className="tooltip__name">{item.name}</h3>
+          <h3 className="tooltip__name">
+            {item.name}
+            {item.upgradeLevel > 0 ? (
+              <span className="tooltip__upgrade"> +{item.upgradeLevel}</span>
+            ) : null}
+          </h3>
           <p className="tooltip__type">
             <span className="tooltip__rarity">{set ? `${rarity} set piece` : rarity}</span>{' '}
             {item.slot ? slotName(item.slot) : 'Relic of a lost age'}
           </p>
-          <p className="tooltip__meta">Item level {item.itemLevel}</p>
+          <p className="tooltip__meta">
+            Item level {item.itemLevel}
+            {item.upgradeLevel > 0 ? (
+              <> · base values +{Math.round(UPGRADE_IMPLICIT_BONUS[item.upgradeLevel]! * 100)} %</>
+            ) : null}
+          </p>
           {item.uniqueSource ? (
             <p className="tooltip__unique">
               <span className="caps">Unique boss drop</span> Only {item.uniqueSource} drops this.
@@ -97,6 +128,7 @@ export function ItemTooltip({ item, compareTo, caption, note, children, id }: It
                         {formatStatDelta(line.stat, line.value)}
                       </span>{' '}
                       {line.label ?? statDefinition(line.stat).name}
+                      <ForgeMarks line={line} />
                     </li>
                   ))}
                 </ul>

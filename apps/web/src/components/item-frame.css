@@ -112,3 +112,18 @@
   text-transform: uppercase;
   pointer-events: none;
 }
+
+/* Ticket 3.4: an upgraded item's level, small and engraved, in the lower right corner. */
+.item-frame__upgrade {
+  position: absolute;
+  right: 2px;
+  bottom: 1px;
+  padding: 0 2px;
+  background: rgb(10 9 8 / 0.75);
+  color: var(--brass-300);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 12px;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+}

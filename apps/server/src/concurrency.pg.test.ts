@@ -17,7 +17,15 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { and, eq, isNotNull, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
-import { generateItem, salvageYield, sellPrice } from '@worldforge/game-core';
+import {
+  attemptUpgrade,
+  createRng,
+  generateItem,
+  improveAffix,
+  rerollAffix,
+  salvageYield,
+  sellPrice,
+} from '@worldforge/game-core';
 import { buildApp } from './app.js';
 import { SESSION_COOKIE } from './auth/index.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from './activity/settle.js';
@@ -989,6 +997,265 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
         .from(activities)
         .where(eq(activities.characterId, id));
       expect(farming).toEqual([]);
+    });
+  });
+
+  describe('forge work (ticket 3.4)', () => {
+    type Outcome = { success?: boolean; upgradeLevel?: number; upgradePity?: number };
+    /** A forge audit row's data (`forge.upgrade` / `forge.reroll` / `forge.improve`). */
+    interface Audited {
+      event: string;
+      forgeCounter: number;
+      gold: number;
+      materials: Record<string, number>;
+      affixIndex?: number;
+      success?: boolean;
+      toLevel?: number;
+    }
+    const stock = async (id: string, gold = 1_000_000) => {
+      await setGold(id, gold);
+      await database.db.insert(characterMaterials).values(
+        (['timber', 'rawHide', 'ironOre', 'soulShard'] as const).map((materialId) => ({
+          characterId: id,
+          materialId,
+          quantity: 100_000,
+        })),
+      );
+    };
+    async function forgeable(
+      characterId: string,
+      extra: Partial<typeof itemInstances.$inferInsert> = {},
+    ): Promise<string> {
+      const item = generateItem({
+        seed: 77,
+        itemLevel: 14,
+        baseId: 'barbute',
+        rarityId: 'epic',
+        classId: 'warrior',
+      })!;
+      const id = uuidv7();
+      await database.db
+        .insert(itemInstances)
+        .values({ id, characterId, ...item, source: 'test', ...extra });
+      return id;
+    }
+    const itemRow = async (id: string) =>
+      (await database.db.select().from(itemInstances).where(eq(itemInstances.id, id)))[0];
+    const materialsOf = async (id: string) =>
+      Object.fromEntries(
+        (
+          await database.db
+            .select()
+            .from(characterMaterials)
+            .where(eq(characterMaterials.characterId, id))
+        ).map((m) => [m.materialId, m.quantity]),
+      );
+    const forgeAudits = async (id: string) =>
+      (
+        await database.db
+          .select()
+          .from(auditLog)
+          .where(
+            and(
+              eq(auditLog.characterId, id),
+              sql`${auditLog.event} in ('forge.upgrade', 'forge.reroll', 'forge.improve')`,
+            ),
+          )
+      )
+        .map((a) => ({ event: a.event, ...(a.data as Record<string, unknown>) }) as Audited)
+        .sort((a, b) => (a.forgeCounter as number) - (b.forgeCounter as number));
+    /** Spending recorded in the audit log, to reconcile with the character row. */
+    const spent = (rows: Awaited<ReturnType<typeof forgeAudits>>) => {
+      const materials: Record<string, number> = {};
+      let gold = 0;
+      for (const r of rows) {
+        gold += r.gold as number;
+        for (const [k, n] of Object.entries(r.materials as Record<string, number>))
+          materials[k] = (materials[k] ?? 0) + n;
+      }
+      return { gold, materials };
+    };
+    /**
+     * Replays the audited actions in counter order through game-core from the item's starting
+     * state: the stored item must be exactly that (one draw per counter value, none repeated).
+     */
+    function replay(
+      start: NonNullable<Awaited<ReturnType<typeof itemRow>>>,
+      rows: Awaited<ReturnType<typeof forgeAudits>>,
+    ) {
+      let item = { ...start };
+      rows.forEach((r, i) => {
+        expect(r.forgeCounter, 'counters are consecutive').toBe(start.forgeCounter + i);
+        const rng = createRng(`${start.forgeSecret}:${r.forgeCounter as number}`);
+        if (r.event === 'forge.upgrade') {
+          const out = attemptUpgrade(item, rng);
+          expect(r).toMatchObject({ success: out.success, toLevel: out.upgradeLevel });
+          item = { ...item, upgradeLevel: out.upgradeLevel, upgradePity: out.upgradePity };
+        } else if (r.event === 'forge.reroll') {
+          const out = rerollAffix(item, r.affixIndex as number, 'warrior', rng);
+          if (!out.ok) throw new Error(out.reason);
+          item = { ...item, affixes: out.value, rerollCount: item.rerollCount + 1 };
+        } else {
+          const out = improveAffix(item, r.affixIndex as number, rng);
+          if (!out.ok) throw new Error(out.reason);
+          item = { ...item, affixes: out.value };
+        }
+      });
+      return { ...item, forgeCounter: start.forgeCounter + rows.length };
+    }
+
+    it('racing upgrades of one item (different keys): each draw used once, all paid once', async () => {
+      const p = await newPlayer();
+      const id = await newCharacter(p);
+      await stock(id);
+      const item = await forgeable(id, { upgradeLevel: 5 });
+      const start = (await itemRow(item))!;
+      const results = await Promise.all(
+        Array.from({ length: N }, () =>
+          keyed(p, `/api/characters/${id}/forge/upgrade`, { itemId: item }),
+        ),
+      );
+      const ok = results.filter((r) => r.statusCode === 200);
+      for (const r of results.filter((r) => r.statusCode !== 200)) {
+        expect(r.json().error.code).toBe('max_upgrade');
+      }
+      const rows = await forgeAudits(id);
+      expect(rows).toHaveLength(ok.length);
+      const after = (await itemRow(item))!;
+      const expected = replay(start, rows);
+      expect(after).toMatchObject({
+        upgradeLevel: expected.upgradeLevel,
+        upgradePity: expected.upgradePity,
+        forgeCounter: start.forgeCounter + ok.length,
+      });
+      // Every response reports a distinct draw; together they are the audit log.
+      const outcomes = ok.map((r) => r.json<{ outcome: Outcome }>().outcome);
+      expect(outcomes.filter((o) => o.success).length).toBe(rows.filter((r) => r.success).length);
+      const paid = spent(rows);
+      expect(await goldOf(id)).toBe(1_000_000 - paid.gold);
+      const mats = await materialsOf(id);
+      for (const [k, n] of Object.entries(paid.materials)) expect(mats[k]).toBe(100_000 - n);
+    });
+
+    it('the same key raced: one attempt, the rest replay its outcome', async () => {
+      const p = await newPlayer();
+      const id = await newCharacter(p);
+      await stock(id);
+      const item = await forgeable(id, { upgradeLevel: 8 });
+      const key = randomUUID();
+      const results = await Promise.all(
+        Array.from({ length: N }, () =>
+          keyed(p, `/api/characters/${id}/forge/upgrade`, { itemId: item }, key),
+        ),
+      );
+      expect(results.map((r) => r.statusCode)).toEqual(Array(N).fill(200));
+      expect(results.filter((r) => r.headers['idempotency-replayed'] === 'true')).toHaveLength(
+        N - 1,
+      );
+      for (const r of results) expect(r.json()).toEqual(results[0]!.json());
+      expect((await itemRow(item))!.forgeCounter).toBe(1);
+      expect(await forgeAudits(id)).toHaveLength(1);
+    });
+
+    it('upgrades, rerolls and improvements racing on one item reconcile with a sequential replay', async () => {
+      const p = await newPlayer();
+      const id = await newCharacter(p);
+      await stock(id);
+      const item = await forgeable(id, { upgradeLevel: 2 });
+      const start = (await itemRow(item))!;
+      const base = `/api/characters/${id}/forge`;
+      const results = await Promise.all([
+        keyed(p, `${base}/upgrade`, { itemId: item }),
+        keyed(p, `${base}/reroll`, { itemId: item, affixIndex: 0 }),
+        keyed(p, `${base}/improve`, { itemId: item, affixIndex: 1 }),
+        keyed(p, `${base}/upgrade`, { itemId: item }),
+        keyed(p, `${base}/reroll`, { itemId: item, affixIndex: 2 }),
+        keyed(p, `${base}/improve`, { itemId: item, affixIndex: 1 }),
+        keyed(p, `${base}/upgrade`, { itemId: item }),
+        keyed(p, `${base}/improve`, { itemId: item, affixIndex: 3 }),
+      ]);
+      for (const r of results) expect([200, 422]).toContain(r.statusCode);
+      const rows = await forgeAudits(id);
+      expect(rows).toHaveLength(results.filter((r) => r.statusCode === 200).length);
+      const after = (await itemRow(item))!;
+      const expected = replay(start, rows);
+      expect(after.affixes).toEqual(expected.affixes);
+      expect(after).toMatchObject({
+        upgradeLevel: expected.upgradeLevel,
+        upgradePity: expected.upgradePity,
+        rerollCount: expected.rerollCount,
+        forgeCounter: expected.forgeCounter,
+      });
+      expect(await goldOf(id)).toBe(1_000_000 - spent(rows).gold);
+    });
+
+    it('a forge action racing a sell and a salvage of the same item: one order wins, all reconciles', async () => {
+      for (let round = 0; round < 4; round++) {
+        const p = await newPlayer();
+        const id = await newCharacter(p);
+        await stock(id, 100_000);
+        const item = await forgeable(id, { upgradeLevel: 3 });
+        const before = (await itemRow(item))!;
+        const c = `/api/characters/${id}`;
+        const results = await Promise.all([
+          keyed(p, `${c}/forge/upgrade`, { itemId: item }),
+          keyed(p, `${c}/forge/reroll`, { itemId: item, affixIndex: 0 }),
+          keyed(p, `${c}/merchant/sell`, { itemIds: [item] }),
+          keyed(p, `${c}/forge/salvage`, { itemIds: [item] }),
+          keyed(p, `${c}/forge/improve`, { itemId: item, affixIndex: 1 }),
+          keyed(p, `${c}/forge/upgrade`, { itemId: item }),
+        ]);
+        const sold = await eventsOf(id, 'merchant.sell');
+        const salvaged = await eventsOf(id, 'forge.salvage');
+        expect(sold.length + salvaged.length, `round ${round}`).toBe(1);
+        expect(await itemRow(item)).toBeUndefined();
+        const rows = await forgeAudits(id);
+        // A forge action after the item left finds no item (404); one before it may still be
+        // refused by the rules (this item's second affix sits at its tier maximum). Neither pays.
+        const forged = [0, 1, 4, 5].map((i) => results[i]!);
+        expect(forged.filter((r) => r.statusCode === 200)).toHaveLength(rows.length);
+        for (const r of forged.filter((r) => r.statusCode !== 200)) {
+          expect([
+            '404 not_found',
+            '422 affix_at_max',
+            '422 improvement_cap',
+            '422 max_upgrade',
+          ]).toContain(`${r.statusCode} ${r.json().error.code}`);
+        }
+        // Sale and salvage price the item as it was (upgrades are a sink, not refunded).
+        const gain = sold.length ? sellPrice(before) : salvageYield(before).gold;
+        expect(await goldOf(id)).toBe(100_000 - spent(rows).gold + gain);
+      }
+    });
+
+    it('a forge action on an equipped item racing settles: settled once, forged once each', async () => {
+      const { p, id } = await farmer();
+      await stock(id, 100_000);
+      const item = await forgeable(id, { upgradeLevel: 4, equippedSlot: 'head' });
+      const start = (await itemRow(item))!;
+      advance(20 * MIN);
+      const c = `/api/characters/${id}`;
+      const results = await Promise.all([
+        call(p, 'POST', `${c}/activity/settle`),
+        keyed(p, `${c}/forge/upgrade`, { itemId: item }),
+        call(p, 'POST', `${c}/activity/settle`),
+        keyed(p, `${c}/forge/improve`, { itemId: item, affixIndex: 0 }),
+        call(p, 'POST', `${c}/activity/settle`),
+        keyed(p, `${c}/forge/upgrade`, { itemId: item }),
+      ]);
+      for (const r of results) expect([200, 422]).toContain(r.statusCode);
+      const rewards = await audited(id);
+      // Started 0 min ago + 20 min: exactly 20 minutes credited, whoever settled.
+      expect(rewards.creditedMs).toBe(20 * MIN);
+      const rows = await forgeAudits(id);
+      const after = (await itemRow(item))!;
+      const expected = replay(start, rows);
+      expect(after).toMatchObject({
+        upgradeLevel: expected.upgradeLevel,
+        forgeCounter: expected.forgeCounter,
+      });
+      expect(after.affixes).toEqual(expected.affixes);
+      expect(await goldOf(id)).toBe(100_000 + rewards.gold - spent(rows).gold);
     });
   });
 

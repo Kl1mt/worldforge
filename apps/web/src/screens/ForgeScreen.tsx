@@ -16,6 +16,7 @@ import { ActionKeys, isUncertain, itemsAction } from '../game/economy';
 import { slotName, toItemView, type ItemView } from '../game/items';
 import { materialView } from '../game/materials';
 import { ItemPicker } from './economy/ItemPicker';
+import { ForgeWork } from './economy/ForgeWork';
 import { Gold, NoticeLine, ShopHeader, type Notice } from './economy/ShopHeader';
 import './economy/shop.css';
 
@@ -26,8 +27,8 @@ function addStacks(into: Map<MaterialId, number>, stacks: readonly MaterialStack
 }
 
 /**
- * The Forge, Phase 2 scope (ticket 2.6): salvage pack items into materials and a little gold, and
- * craft gear of a tier in a chosen slot. Upgrades and rerolls arrive in Phase 3.
+ * The Forge (ticket 2.6): salvage pack items into materials and a little gold, and craft gear of a
+ * tier in a chosen slot. Ticket 3.4 adds the anvil: upgrades, affix rerolls and improvements.
  */
 export function ForgeScreen() {
   const hero = useActiveCharacter();
@@ -246,10 +247,41 @@ export function ForgeScreen() {
   return (
     <div className="shop">
       <ShopHeader building="forge" title="The Forge">
-        The smith breaks down what you no longer need and works your materials into new gear.
-        Upgrading and reworking affixes will come later.
+        The smith breaks down what you no longer need, works your materials into new gear, and
+        tempers the gear you keep: upgrades, reworked and honed affixes.
       </ShopHeader>
       <NoticeLine notice={notice} />
+
+      <section className="shop__panel panel-iron" aria-labelledby="anvil-title">
+        <header className="shop__panel-head">
+          <h2 id="anvil-title" className="display shop__panel-title">
+            The Anvil
+          </h2>
+          <p className="shop__panel-note">
+            The smith decides each strike before you pay; asking again never changes it.
+          </p>
+        </header>
+        {inventory.kind === 'ready' ? (
+          <ForgeWork
+            heroId={hero.id}
+            gold={hero.gold}
+            equipped={inventory.value.equipped}
+            pack={items}
+            materials={ready?.materials ?? []}
+            onApplied={(r) => {
+              updateCharacter(r.character);
+              applyInventory(r.inventory);
+              refreshMaterials();
+              load();
+            }}
+            onNotice={setNotice}
+          />
+        ) : (
+          <div className="shop__empty" role="status">
+            <p className="display">Opening the pack…</p>
+          </div>
+        )}
+      </section>
 
       <div className="shop__cols">
         <section className="shop__panel panel-iron" aria-labelledby="craft-title">

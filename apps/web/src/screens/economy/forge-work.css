@@ -1,0 +1,279 @@
+/* The Forge's improvement paths (ticket 3.4). Built from the shop panel and recipe pieces. */
+.forge-work {
+  display: grid;
+  grid-template-columns: minmax(200px, 0.7fr) minmax(0, 2fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.forge-work__pick {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.forge-work__group {
+  color: var(--brass-500);
+}
+
+.forge-work__detail {
+  display: grid;
+  grid-template-columns: minmax(240px, 320px) minmax(0, 1fr);
+  grid-template-areas:
+    'item upgrade'
+    'item affixes';
+  gap: var(--space-4) var(--space-5);
+  align-items: start;
+  min-width: 0;
+}
+
+.forge-work__item {
+  grid-area: item;
+}
+
+.forge-step {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-sunken);
+  border-top: 2px solid var(--brass-600);
+  box-shadow: inset 0 0 0 1px var(--iron-700);
+  min-width: 0;
+}
+
+.forge-step:nth-of-type(1) {
+  grid-area: upgrade;
+}
+
+.forge-step:nth-of-type(2) {
+  grid-area: affixes;
+}
+
+.forge-step__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-1) var(--space-3);
+}
+
+.forge-step__title {
+  font-size: var(--text-lg);
+}
+
+.forge-step__note {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.forge-step__go {
+  justify-self: start;
+}
+
+.forge-step__done {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+/* Ten notches; done ones are struck brass, the next one outlined. */
+.forge-track {
+  display: grid;
+  grid-template-columns: repeat(10, minmax(0, 1fr));
+  gap: 3px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.forge-track li {
+  display: grid;
+  place-items: center;
+  height: 22px;
+  background: var(--ink-900);
+  box-shadow: inset 0 0 0 1px var(--iron-700);
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.forge-track li.is-done {
+  background: linear-gradient(to bottom, var(--brass-500), var(--brass-700));
+  color: var(--ink-950);
+  font-weight: 700;
+}
+
+.forge-track li.is-next {
+  box-shadow: inset 0 0 0 1px var(--brass-400);
+  color: var(--brass-300);
+}
+
+.forge-facts {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+.forge-facts > div {
+  display: grid;
+  grid-template-columns: 9rem minmax(0, 1fr);
+  gap: var(--space-2);
+}
+
+.forge-facts dt {
+  color: var(--text-dim);
+}
+
+.forge-facts dd {
+  margin: 0;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Pity: one small socket per failure the smith tolerates. */
+.forge-pity {
+  display: inline-flex;
+  gap: 3px;
+  vertical-align: middle;
+}
+
+.forge-pity > span {
+  width: 8px;
+  height: 8px;
+  background: var(--ink-900);
+  box-shadow: inset 0 0 0 1px var(--iron-600);
+}
+
+.forge-pity > span.is-spent {
+  background: var(--rage);
+  box-shadow: none;
+}
+
+.forge-cost {
+  gap: var(--space-2) var(--space-3);
+}
+
+.forge-reroll-price {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.forge-reroll-price .caps {
+  color: var(--text-dim);
+}
+
+.forge-affixes {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.forge-affix {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  background: var(--ink-900);
+  box-shadow: inset 0 0 0 1px var(--iron-700);
+}
+
+.forge-affix__line {
+  color: var(--text);
+}
+
+.forge-affix__mark {
+  margin-left: 0.4em;
+  color: var(--brass-500);
+}
+
+.forge-affix__range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.forge-range {
+  position: relative;
+  width: 96px;
+  height: 6px;
+  background: var(--ink-950);
+  box-shadow: inset 0 0 0 1px var(--iron-700);
+}
+
+.forge-range__fill {
+  position: absolute;
+  inset: 1px auto 1px 1px;
+  max-width: calc(100% - 2px);
+  background: var(--brass-500);
+}
+
+.forge-affix__nums,
+.forge-affix__next {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.forge-affix__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-3);
+}
+
+.forge-reroll {
+  display: grid;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px dashed var(--iron-600);
+}
+
+.forge-reroll__lead {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.forge-reroll__options {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(14rem, 1fr));
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.forge-reroll__span {
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.forge-reroll .btn {
+  justify-self: start;
+}
+
+@media (max-width: 1180px) {
+  .forge-work__detail {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      'item'
+      'upgrade'
+      'affixes';
+  }
+}
+
+@media (max-width: 760px) {
+  .forge-work {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  /* The anvil's sockets stay full size (the shop pickers shrink theirs). */
+  .forge-work .picker__grid {
+    grid-template-columns: repeat(auto-fill, 72px);
+  }
+
+  .forge-facts > div {
+    grid-template-columns: 6.5rem minmax(0, 1fr);
+  }
+}

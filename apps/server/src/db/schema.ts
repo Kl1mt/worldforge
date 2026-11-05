@@ -494,6 +494,8 @@ export interface DungeonRunSnapshot {
     effectRoll?: number | null;
     /** Ticket 3.3; absent in snapshots taken before it (those runs replay without set bonuses). */
     setId?: string | null;
+    /** Ticket 3.4; absent in snapshots taken before it (those runs replay at +0). */
+    upgradeLevel?: number;
   }[];
 }
 
