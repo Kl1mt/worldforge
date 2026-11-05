@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NOTICE_MS, useOnboarding } from './OnboardingProvider';
-import type { Notice } from './notices';
+import { orderNotices, type Notice } from './notices';
 import './onboarding.css';
 
 const KIND_LABEL: Record<Notice['kind'], string> = {
@@ -16,7 +16,7 @@ export function Notices() {
     <section className="notices" aria-label="Notices" aria-live="polite">
       {notices.length > 0 ? (
         <ul className="notices__list">
-          {notices.map((n) => (
+          {orderNotices(notices).map((n) => (
             <NoticeSlip key={n.id} notice={n} dismiss={dismissNotice} />
           ))}
         </ul>

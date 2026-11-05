@@ -15,6 +15,17 @@ export interface Notice {
   linkLabel?: string;
 }
 
+/**
+ * Render order, least important first. Phones show only the last slip (onboarding.css), so a
+ * quest completing in the same update as a level-up must not be hidden behind it.
+ */
+const KIND_RANK: Record<Notice['kind'], number> = { level: 0, unlock: 1, quest: 2 };
+
+/** Notices in render order: by importance, then by arrival (`sort` is stable). */
+export function orderNotices(notices: readonly Notice[]): Notice[] {
+  return [...notices].sort((a, b) => KIND_RANK[a.kind] - KIND_RANK[b.kind]);
+}
+
 export function levelNotice(characterId: string, level: number): Notice {
   return {
     id: `level:${characterId}:${level}`,
