@@ -4,6 +4,10 @@ import {
   getEnemy,
   CORE_STAT_IDS,
   EQUIPMENT_SLOTS,
+  SECONDARY_STAT_IDS,
+  STAT_GROUP_IDS,
+  isCoreStatId,
+  statGroup,
   defaultEquipSlot,
   equipmentSlotsForKind,
   findAffix,
@@ -15,6 +19,8 @@ import {
   type ItemSlotKind,
   type ItemStatId,
   type RarityId,
+  type SecondaryStatId,
+  type StatGroupId,
 } from '@worldforge/game-core';
 import { ASSETS, type ItemAssetId } from '../content/assets';
 import type { ItemDto, SummaryItem } from './api';
@@ -27,6 +33,35 @@ import type { ItemDto, SummaryItem } from './api';
 export interface StatLine {
   stat: ItemStatId;
   value: number;
+  /**
+   * Display name when it differs from the stat's, e.g. a class affix "Rage-fuelled Heavy Strike
+   * damage" (stat `skillDamage`).
+   */
+  label?: string;
+}
+
+/** Affix lines grouped for the tooltip (ticket 3.1), in offence → defence → utility order. */
+export interface AffixGroup {
+  group: StatGroupId;
+  lines: StatLine[];
+}
+
+export const STAT_GROUP_NAMES: Readonly<Record<StatGroupId, string>> = {
+  offence: 'Offence',
+  defence: 'Defence',
+  utility: 'Utility',
+};
+
+export function groupAffixes(lines: readonly StatLine[]): AffixGroup[] {
+  return STAT_GROUP_IDS.map((group) => ({
+    group,
+    lines: lines.filter((l) => statGroup(l.stat) === group),
+  })).filter((g) => g.lines.length > 0);
+}
+
+/** "+{value} Rage-fuelled Heavy Strike damage" → "Rage-fuelled Heavy Strike damage". */
+function affixName(label: string): string {
+  return label.replace(/^\+?\{value\}\s*/, '');
 }
 
 export interface ItemView {
@@ -65,12 +100,23 @@ function iconOf(id: string | undefined): ItemAssetId | null {
   return id && id.startsWith('item.') && id in ASSETS ? (id as ItemAssetId) : null;
 }
 
-export function toItemView(dto: ItemDto): ItemView {
+/** The fields of a server item that the display model reads (merchant offers have no row yet). */
+export type ItemDisplaySource = Pick<
+  ItemDto,
+  'id' | 'baseId' | 'rarityId' | 'itemLevel' | 'affixes' | 'equippedSlot' | 'source' | 'createdAt'
+>;
+
+export function toItemView(dto: ItemDisplaySource): ItemView {
   const base = findItemBase(dto.baseId);
   const affixes: StatLine[] = [];
   for (const rolled of dto.affixes) {
     const def = findAffix(rolled.affixId);
-    if (def) affixes.push({ stat: def.stat, value: rolled.value });
+    if (!def) continue;
+    affixes.push(
+      def.classes
+        ? { stat: def.stat, value: rolled.value, label: affixName(def.label) }
+        : { stat: def.stat, value: rolled.value },
+    );
   }
   return {
     id: dto.id,
@@ -129,20 +175,31 @@ export function targetSlot(item: ItemView, equipped: EquippedMap): EquipmentSlot
   return defaultEquipSlot(item.baseId, occupied) ?? equipmentSlotsForKind(item.slot)[0];
 }
 
-/** Sums an item's core-stat lines (implicit + affixes) per stat. Gold find is not a combat stat. */
+/** Sums an item's core-stat lines (implicit + affixes) per stat. Secondary modifiers are left out. */
 export function itemTotals(item: Pick<ItemView, 'base' | 'affixes'>): Map<CoreStatId, number> {
   const totals = new Map<CoreStatId, number>();
   for (const line of [...item.base, ...item.affixes]) {
-    if (line.stat === 'goldFind') continue;
+    if (!isCoreStatId(line.stat)) continue;
+    totals.set(line.stat, (totals.get(line.stat) ?? 0) + line.value);
+  }
+  return totals;
+}
+
+/** Sums an item's secondary-modifier affixes (gold find, item find, XP gain, …) per stat. */
+export function itemSecondaryTotals(item: Pick<ItemView, 'affixes'>): Map<SecondaryStatId, number> {
+  const totals = new Map<SecondaryStatId, number>();
+  for (const line of item.affixes) {
+    if (isCoreStatId(line.stat)) continue;
     totals.set(line.stat, (totals.get(line.stat) ?? 0) + line.value);
   }
   return totals;
 }
 
 /**
- * Per-stat difference if `candidate` replaced `equipped` (candidate − equipped), in canonical
- * order, zeroes dropped. With nothing equipped the candidate's totals are the gain.
- * Gold find is compared separately at the end, since it is not a core stat.
+ * Per-stat difference if `candidate` replaced `equipped` (candidate − equipped), zeroes dropped:
+ * the core stats in canonical order, then the secondary modifiers (ticket 3.1) in their order.
+ * With nothing equipped the candidate's totals are the gain. Item-level only: the server caps
+ * the character's summed modifiers.
  */
 export function compareItems(
   candidate: Pick<ItemView, 'base' | 'affixes'>,
@@ -155,13 +212,13 @@ export function compareItems(
     const value = round((a.get(stat) ?? 0) - (b.get(stat) ?? 0));
     if (value !== 0) deltas.push({ stat, value });
   }
-  const gold = round(goldFind(candidate) - (equipped ? goldFind(equipped) : 0));
-  if (gold !== 0) deltas.push({ stat: 'goldFind', value: gold });
+  const sa = itemSecondaryTotals(candidate);
+  const sb = equipped ? itemSecondaryTotals(equipped) : new Map<SecondaryStatId, number>();
+  for (const stat of SECONDARY_STAT_IDS) {
+    const value = round((sa.get(stat) ?? 0) - (sb.get(stat) ?? 0));
+    if (value !== 0) deltas.push({ stat, value });
+  }
   return deltas;
-}
-
-function goldFind(item: Pick<ItemView, 'affixes'>): number {
-  return item.affixes.reduce((sum, l) => (l.stat === 'goldFind' ? sum + l.value : sum), 0);
 }
 
 function round(n: number) {

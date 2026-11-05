@@ -114,6 +114,21 @@
   color: #93acd0;
 }
 
+/* Affix groups (ticket 3.1): a faint label per group, not boxes or dividers. */
+.tooltip__group ul {
+  display: grid;
+  gap: 2px;
+}
+
+.tooltip__group + .tooltip__group {
+  margin-top: var(--space-2);
+}
+
+.tooltip__group-name {
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+}
+
 .tooltip__affix-value {
   font-weight: 700;
 }

@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { ItemDto } from './api';
-import { canUse, compareItems, equippedBySlot, targetSlot, toItemView } from './items';
+import {
+  canUse,
+  compareItems,
+  equippedBySlot,
+  groupAffixes,
+  targetSlot,
+  toItemView,
+} from './items';
 
 const dto = (over: Partial<ItemDto>): ItemDto => ({
   id: 'i1',
@@ -11,6 +18,12 @@ const dto = (over: Partial<ItemDto>): ItemDto => ({
   equippedSlot: null,
   source: 'farming',
   createdAt: '2026-11-04T12:00:00.000Z',
+  upgradeLevel: 0,
+  variant: null,
+  effectId: null,
+  setId: null,
+  mythicId: null,
+  locked: false,
   ...over,
 });
 
@@ -87,6 +100,52 @@ describe('compareItems', () => {
     const b = { base: [{ stat: 'attackSpeed' as const, value: 1.2 }], affixes: [] };
     expect(compareItems(a, b)).toEqual([{ stat: 'attackSpeed', value: 0.1 }]);
     expect(compareItems(b, undefined)).toEqual([{ stat: 'attackSpeed', value: 1.2 }]);
+  });
+});
+
+describe('ticket 3.1 affixes', () => {
+  it('groups affixes into offence, defence and utility, in that order', () => {
+    const item = toItemView(
+      dto({
+        baseId: 'iron-ring',
+        rarityId: 'epic',
+        itemLevel: 12,
+        affixes: [
+          { affixId: 'xp-gain', tier: 1, value: 0.03 },
+          { affixId: 'health', tier: 1, value: 10 },
+          { affixId: 'crit-chance', tier: 1, value: 0.01 },
+        ],
+      }),
+    );
+    expect(groupAffixes(item.affixes).map((g) => [g.group, g.lines.map((l) => l.stat)])).toEqual([
+      ['offence', ['critChance']],
+      ['defence', ['health']],
+      ['utility', ['xpGain']],
+    ]);
+  });
+
+  it('names class affixes by their own label', () => {
+    const item = toItemView(
+      dto({ affixes: [{ affixId: 'rage-heavy-strike', tier: 1, value: 0.08 }] }),
+    );
+    expect(item.affixes).toEqual([
+      { stat: 'skillDamage', value: 0.08, label: 'Rage-fuelled Heavy Strike damage' },
+    ]);
+  });
+
+  it('compares the new secondary modifiers after the core stats', () => {
+    const candidate = {
+      base: [],
+      affixes: [
+        { stat: 'itemFind' as const, value: 0.05 },
+        { stat: 'bossDamage' as const, value: 0.07 },
+      ],
+    };
+    const equipped = { base: [], affixes: [{ stat: 'itemFind' as const, value: 0.08 }] };
+    expect(compareItems(candidate, equipped)).toEqual([
+      { stat: 'itemFind', value: -0.03 },
+      { stat: 'bossDamage', value: 0.07 },
+    ]);
   });
 });
 

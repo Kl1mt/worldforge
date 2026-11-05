@@ -1,6 +1,12 @@
 import type { ReactNode } from 'react';
 import { RARITIES } from '@worldforge/game-core';
-import { compareItems, slotName, type ItemView } from '../game/items';
+import {
+  STAT_GROUP_NAMES,
+  compareItems,
+  groupAffixes,
+  slotName,
+  type ItemView,
+} from '../game/items';
 import { formatStatDelta, formatStatValue, statDefinition } from '../lib/format';
 import './item-tooltip.css';
 
@@ -61,16 +67,23 @@ export function ItemTooltip({ item, compareTo, caption, note, children, id }: It
         ) : null}
 
         {item.affixes.length > 0 ? (
-          <ul className="tooltip__affixes" aria-label="Affixes">
-            {item.affixes.map((line, i) => (
-              <li key={`${line.stat}-${i}`}>
-                <span className="tooltip__affix-value">
-                  {formatStatDelta(line.stat, line.value)}
-                </span>{' '}
-                {statDefinition(line.stat).name}
-              </li>
+          <div className="tooltip__affixes" aria-label="Affixes">
+            {groupAffixes(item.affixes).map(({ group, lines }) => (
+              <section key={group} className="tooltip__group" aria-label={STAT_GROUP_NAMES[group]}>
+                <p className="tooltip__group-name caps">{STAT_GROUP_NAMES[group]}</p>
+                <ul>
+                  {lines.map((line, i) => (
+                    <li key={`${line.stat}-${i}`}>
+                      <span className="tooltip__affix-value">
+                        {formatStatDelta(line.stat, line.value)}
+                      </span>{' '}
+                      {line.label ?? statDefinition(line.stat).name}
+                    </li>
+                  ))}
+                </ul>
+              </section>
             ))}
-          </ul>
+          </div>
         ) : (
           <p className="tooltip__plain">No affixes.</p>
         )}

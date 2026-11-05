@@ -1,5 +1,10 @@
 import type { ClassId } from './classes.js';
-import { isCoreStatId } from './stats.js';
+import {
+  SECONDARY_STAT_IDS,
+  isCoreStatId,
+  isSecondaryStatId,
+  type SecondaryStatId,
+} from './stats.js';
 import type { EquipmentSlotId } from './slots.js';
 import { findAffix } from './items/affixes.js';
 import {
@@ -25,7 +30,7 @@ import {
  * What one item adds to the character's core stats: its implicit stats (base scaled by item
  * level and rarity) plus every affix that modifies a core stat. Affix values are already in the
  * `StatBlock` unit (see `AffixDefinition.step`). Secondary modifiers such as `goldFind` are not
- * combat stats and are left out; see `itemSecondaryModifiers`.
+ * part of the stat block and are left out; see `itemSecondaryModifiers`.
  * Throws on an unknown base; unknown affixes are ignored (validate stored items with `validateItem`).
  */
 export function itemStatContribution(
@@ -44,17 +49,25 @@ export function itemStatContribution(
   return out;
 }
 
-/** Non-combat modifiers of one item (currently only gold find, as a fraction). Uncapped. */
-export function itemSecondaryModifiers(item: Pick<GeneratedItem, 'affixes'>): {
-  goldFind: number;
-} {
-  let goldFind = 0;
+/** Secondary modifiers as fractions (see `SECONDARY_STAT_IDS`). */
+export type SecondaryModifiers = Record<SecondaryStatId, number>;
+
+/** All secondary modifiers at zero. */
+export function emptySecondaryModifiers(): SecondaryModifiers {
+  return Object.fromEntries(SECONDARY_STAT_IDS.map((id) => [id, 0])) as SecondaryModifiers;
+}
+
+/**
+ * Secondary modifiers of one item (gold find, item find, XP gain, resource yield, boss damage,
+ * skill damage), summed from its affixes. Uncapped; `equipmentModifiers` applies the caps.
+ */
+export function itemSecondaryModifiers(item: Pick<GeneratedItem, 'affixes'>): SecondaryModifiers {
+  const out = emptySecondaryModifiers();
   for (const rolled of item.affixes) {
-    if (findAffix(rolled.affixId)?.stat === 'goldFind' && Number.isFinite(rolled.value)) {
-      goldFind += rolled.value;
-    }
+    const stat = findAffix(rolled.affixId)?.stat;
+    if (isSecondaryStatId(stat) && Number.isFinite(rolled.value)) out[stat] += rolled.value;
   }
-  return { goldFind };
+  return out;
 }
 
 /** A character's effective stats with the given items equipped. */

@@ -5,6 +5,7 @@ import {
   ITEM_BASES,
   RARITY_IDS,
   STANDARD_LOOT_TABLE,
+  affixPossibleOn,
   createRng,
   generateItem,
   getImplicitStats,
@@ -68,8 +69,8 @@ describe('determinism', () => {
           },
           {
             "affixId": "health",
-            "tier": 2,
-            "value": 20,
+            "tier": 3,
+            "value": 36,
           },
           {
             "affixId": "physical-damage",
@@ -155,15 +156,24 @@ describe('generated items', () => {
     );
   });
 
-  it('every affix eventually appears on every slot it allows', () => {
+  it('every affix eventually appears on every base it is allowed on', () => {
+    // Per base and class (ticket 3.1 gates affixes by content tier and class).
     const seen = new Set<string>();
-    for (const item of sampleItems(20_000, 30, 'coverage')) {
-      const slot = getItemBase(item.baseId).slot;
-      for (const a of item.affixes) seen.add(`${a.affixId}@${slot}`);
-    }
-    for (const slot of new Set(ITEM_BASES.map((b) => b.slot))) {
+    const rng = createRng('coverage');
+    for (const base of ITEM_BASES) {
+      for (let i = 0; i < 400; i++) {
+        const classId = base.classes[i % base.classes.length]!;
+        const item = generateItem({
+          seed: rng.int(0, 0xffffffff),
+          itemLevel: 30,
+          baseId: base.id,
+          rarityId: 'mythic',
+          classId,
+        })!;
+        for (const a of item.affixes) seen.add(`${a.affixId}@${base.id}`);
+      }
       for (const affix of AFFIXES) {
-        if (affix.slots.includes(slot)) expect(seen).toContain(`${affix.id}@${slot}`);
+        if (affixPossibleOn(affix, base)) expect(seen).toContain(`${affix.id}@${base.id}`);
       }
     }
   });

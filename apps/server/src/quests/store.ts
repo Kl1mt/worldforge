@@ -37,7 +37,7 @@ import { writeAudit } from '../db/audit.js';
 import { uuidv7 } from '../db/uuid.js';
 import { ApiError } from '../errors.js';
 // Type-only: a value import would close a cycle (settlement → quests → inventory → settlement).
-import type { ItemView } from '../inventory/routes.js';
+import { itemView, type ItemView } from '../inventory/routes.js';
 
 type Db = Database | Transaction;
 
@@ -350,6 +350,7 @@ export async function turnInQuestTx(
       itemLevel: reward.item.itemLevel,
       baseId: reward.item.baseId,
       rarityId: reward.item.rarityId,
+      classId: character.classId,
     });
     if (!generated) throw new Error(`quest reward item cannot be generated: ${reward.item.baseId}`);
     const [row] = await tx
@@ -367,16 +368,7 @@ export async function turnInQuestTx(
         createdAt: now,
       })
       .returning();
-    item = {
-      id: row!.id,
-      baseId: row!.baseId,
-      rarityId: row!.rarityId,
-      itemLevel: row!.itemLevel,
-      affixes: row!.affixes,
-      equippedSlot: null,
-      source: row!.source,
-      createdAt: row!.createdAt.toISOString(),
-    };
+    item = itemView(row!);
     itemSeed = generated.seed;
   }
 

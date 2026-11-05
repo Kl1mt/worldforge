@@ -1,11 +1,16 @@
-import { CORE_STATS, type ItemStatId, type StatDefinition } from '@worldforge/game-core';
+import {
+  CORE_STATS,
+  SECONDARY_STATS,
+  type ItemStatId,
+  type StatDefinition,
+} from '@worldforge/game-core';
 
 type StatInfo = Pick<StatDefinition, 'name' | 'format'>;
 
-/** Core stats from game-core, plus the secondary modifiers items can roll (gold find). */
+/** Core stats and the secondary modifiers items can roll (gold find, item find, …), from game-core. */
 const STAT_BY_ID = new Map<ItemStatId, StatInfo>([
   ...CORE_STATS.map((s): [ItemStatId, StatInfo] => [s.id, s]),
-  ['goldFind', { name: 'Gold Find', format: 'percent' }],
+  ...SECONDARY_STATS.map((s): [ItemStatId, StatInfo] => [s.id, s]),
 ]);
 
 export function statDefinition(id: ItemStatId): StatInfo {

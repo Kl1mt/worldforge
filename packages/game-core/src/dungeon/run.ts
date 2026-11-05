@@ -230,6 +230,11 @@ export function simulateDungeonRun(
   const roomTable = getLootTable(dungeon.lootTableId);
   const { classId } = input.character;
   const modifiers = equipmentModifiers(input.equipment ?? [], activity.modifierCaps, lootConfig);
+  const encounterModifiers = {
+    xpGain: modifiers.xpGain,
+    skillDamage: modifiers.skillDamage,
+    bossDamage: modifiers.bossDamage,
+  };
 
   let level = input.character.level;
   let xp = input.character.xp;
@@ -320,7 +325,15 @@ export function simulateDungeonRun(
       }
       const rng = createRng(`${input.seed}:room:${r}:${k}`);
       const characterLevel = level;
-      const setup = rollEncounter(rng, dungeon, classId, characterLevel, stats, combat);
+      const setup = rollEncounter(
+        rng,
+        dungeon,
+        classId,
+        characterLevel,
+        stats,
+        combat,
+        encounterModifiers,
+      );
       if (!fight(setup, rng, r)) {
         alive = false;
         break;
@@ -331,6 +344,8 @@ export function simulateDungeonRun(
           sourceLevel: setup.enemyLevel,
           lootTable: roomTable,
           goldFind: modifiers.goldFind,
+          itemFind: modifiers.itemFind,
+          classId,
         },
         lootConfig,
       );
@@ -347,7 +362,15 @@ export function simulateDungeonRun(
     now += dungeon.travelMs;
     regen(dungeon.travelMs);
     const setup: EncounterSetup = {
-      ...buildEncounter(getEnemy(dungeon.bossId), dungeon.bossLevel, classId, level, stats, combat),
+      ...buildEncounter(
+        getEnemy(dungeon.bossId),
+        dungeon.bossLevel,
+        classId,
+        level,
+        stats,
+        combat,
+        encounterModifiers,
+      ),
       maxFightMs: dungeon.bossMaxFightMs,
     };
     bossDefeated = fight(setup, createRng(`${input.seed}:boss`), null, dungeon.bossEnrage);
@@ -360,6 +383,7 @@ export function simulateDungeonRun(
           createRng(`${input.seed}:boss-loot`),
           modifiers.goldFind,
           lootConfig,
+          classId,
         );
         goldLooted += loot.gold;
         drops.push(...loot.items);
@@ -418,6 +442,7 @@ function rollBossLoot(
   rng: Rng,
   goldFind: number,
   config: LootConfig,
+  classId: ClassId,
 ): { gold: number; items: GeneratedItem[] } {
   const { bossLoot } = dungeon;
   const table = getLootTable(bossLoot.lootTableId);
@@ -436,7 +461,7 @@ function rollBossLoot(
       ? Math.min(table.itemLevel.max, Math.max(table.itemLevel.min, rolled))
       : rolled;
     const item = generateItem(
-      { seed: rng.int(0, MAX_SEED), itemLevel, lootTable: table },
+      { seed: rng.int(0, MAX_SEED), itemLevel, lootTable: table, classId },
       bossConfig,
     );
     if (item) items.push(item);

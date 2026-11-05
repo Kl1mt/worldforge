@@ -12,6 +12,16 @@ export interface RarityRule {
   affixCount: number;
   /** Multiplier on the base's implicit stats. */
   statMultiplier: number;
+  /**
+   * Ticket 3.1: affix tiers unlock this many item levels early on this rarity (an Epic of item
+   * level 18 can roll tiers that normally need level 20).
+   */
+  affixLevelBonus: number;
+  /**
+   * Ticket 3.1: shifts affix tier weights toward higher tiers. A tier's weight is multiplied by
+   * `(1 + bias)^(tier − 1)`, where bias is this plus the loot table's `affixTierBias`.
+   */
+  affixTierBias: number;
 }
 
 export interface GoldRule {
@@ -36,6 +46,11 @@ export interface LootTableDefinition {
   /** Inclusive range the rolled item level is clamped to (after `LootConfig` clamping). */
   itemLevel?: { min: number; max: number };
   entries: readonly LootTableEntry[];
+  /**
+   * Ticket 3.1: higher-tier areas and the crypt roll better affixes. Added to the rarity's
+   * `affixTierBias`. Default 0.
+   */
+  affixTierBias?: number;
 }
 
 export interface LootConfig {
@@ -53,12 +68,48 @@ export interface LootConfig {
  */
 export const DEFAULT_LOOT_CONFIG: LootConfig = {
   rarities: {
-    common: { weight: 6000, affixCount: 0, statMultiplier: 1 },
-    uncommon: { weight: 2600, affixCount: 1, statMultiplier: 1.1 },
-    rare: { weight: 1000, affixCount: 2, statMultiplier: 1.2 },
-    epic: { weight: 350, affixCount: 3, statMultiplier: 1.35 },
-    legendary: { weight: 45, affixCount: 4, statMultiplier: 1.5 },
-    mythic: { weight: 5, affixCount: 5, statMultiplier: 1.7 },
+    common: {
+      weight: 6000,
+      affixCount: 0,
+      statMultiplier: 1,
+      affixLevelBonus: 0,
+      affixTierBias: 0,
+    },
+    uncommon: {
+      weight: 2600,
+      affixCount: 1,
+      statMultiplier: 1.1,
+      affixLevelBonus: 0,
+      affixTierBias: 0,
+    },
+    rare: {
+      weight: 1000,
+      affixCount: 2,
+      statMultiplier: 1.2,
+      affixLevelBonus: 0,
+      affixTierBias: 0.25,
+    },
+    epic: {
+      weight: 350,
+      affixCount: 3,
+      statMultiplier: 1.35,
+      affixLevelBonus: 2,
+      affixTierBias: 0.5,
+    },
+    legendary: {
+      weight: 45,
+      affixCount: 4,
+      statMultiplier: 1.5,
+      affixLevelBonus: 4,
+      affixTierBias: 1,
+    },
+    mythic: {
+      weight: 5,
+      affixCount: 5,
+      statMultiplier: 1.7,
+      affixLevelBonus: 6,
+      affixTierBias: 1.5,
+    },
   },
   gold: { dropChance: 0.2, min: 1, max: 3, growthPerLevel: 0.1 },
   itemLevelVariance: 1,

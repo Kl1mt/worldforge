@@ -1,7 +1,8 @@
+import type { ClassId } from '../classes.js';
 import { RARITY_IDS, type RarityId } from '../rarity.js';
 import { createRng, type Rng } from '../rng.js';
 import type { CoreStatId } from '../stats.js';
-import { affixesForSlot, tiersForItemLevel, type AffixDefinition } from '../items/affixes.js';
+import { affixPoolFor, tiersForItemLevel, type AffixDefinition } from '../items/affixes.js';
 import { findItemBase, getItemBase, type ItemBaseDefinition } from '../items/bases.js';
 import {
   DEFAULT_LOOT_CONFIG,
@@ -14,6 +15,13 @@ export interface RolledAffix {
   affixId: string;
   tier: number;
   value: number;
+  /**
+   * Forge state (Phase 3, data model v2; written from ticket 3.4, never by generation):
+   * `improvements` = affix-improvement steps applied (the value stays within its tier's range);
+   * `rerolled` = this affix replaced an earlier one by a reroll. Absent on freshly rolled affixes.
+   */
+  improvements?: number;
+  rerolled?: boolean;
 }
 
 /** A generated item. Matches the persisted `item` columns (see docs/DATA_MODEL.md). */
@@ -75,17 +83,45 @@ export function eligibleBases(
   return result;
 }
 
-/** Affix count for a rarity on a slot: the rarity's count, capped by the slot's pool. */
+/**
+ * Affix count for a rarity on a base: the rarity's count, capped by the base's class-free pool
+ * (content tests keep every pool at least as large as the highest count).
+ */
 export function affixCountFor(
   base: ItemBaseDefinition,
   rarityId: RarityId,
   config: LootConfig = DEFAULT_LOOT_CONFIG,
 ): number {
-  return Math.min(config.rarities[rarityId].affixCount, affixesForSlot(base.slot).length);
+  return Math.min(config.rarities[rarityId].affixCount, affixPoolFor(base).length);
 }
 
-function rollAffixValue(affix: AffixDefinition, itemLevel: number, rng: Rng): RolledAffix {
-  const tier = rng.weighted(tiersForItemLevel(affix, itemLevel), (t) => t.weight);
+/**
+ * Tier weights for one roll (ticket 3.1): the tiers unlocked at `itemLevel` plus the rarity's
+ * `affixLevelBonus`, each weighted `weight × (1 + bias)^(tier − 1)`.
+ */
+export function affixTierWeights(
+  affix: AffixDefinition,
+  itemLevel: number,
+  levelBonus: number,
+  bias: number,
+): { tier: number; weight: number }[] {
+  const factor = 1 + Math.max(0, bias);
+  return tiersForItemLevel(affix, itemLevel, levelBonus).map((t) => ({
+    tier: t.tier,
+    weight: t.weight * factor ** (t.tier - 1),
+  }));
+}
+
+function rollAffixValue(
+  affix: AffixDefinition,
+  itemLevel: number,
+  levelBonus: number,
+  bias: number,
+  rng: Rng,
+): RolledAffix {
+  const weights = affixTierWeights(affix, itemLevel, levelBonus, bias);
+  const picked = rng.weighted(weights, (t) => t.weight);
+  const tier = affix.tiers.find((t) => t.tier === picked.tier)!;
   const steps = Math.round((tier.max - tier.min) / affix.step);
   const value = roundToStep(tier.min + rng.int(0, steps) * affix.step, affix.step);
   return { affixId: affix.id, tier: tier.tier, value };
@@ -99,6 +135,11 @@ export interface GenerateItemParams {
   /** Fixed rarity; otherwise rolled from `config`. */
   rarityId?: RarityId;
   lootTable?: LootTableDefinition;
+  /**
+   * Class of the character the item is generated for (ticket 3.1). Enables that class's
+   * class-flavoured affixes; without it they never roll. Part of the reproduction inputs.
+   */
+  classId?: ClassId;
 }
 
 /**
@@ -124,14 +165,16 @@ export function generateItem(
   }
 
   const rarityId = params.rarityId ?? rollRarity(rng, config);
+  const rarity = config.rarities[rarityId];
+  const bias = rarity.affixTierBias + (params.lootTable?.affixTierBias ?? 0);
 
   // Distinct affixes, picked by weight without replacement.
-  const pool = [...affixesForSlot(base.slot)];
+  const pool = [...affixPoolFor(base, params.classId)];
   const affixes: RolledAffix[] = [];
   for (let n = affixCountFor(base, rarityId, config); n > 0 && pool.length > 0; n--) {
     const affix = rng.weighted(pool, (a) => a.weight);
     pool.splice(pool.indexOf(affix), 1);
-    affixes.push(rollAffixValue(affix, itemLevel, rng));
+    affixes.push(rollAffixValue(affix, itemLevel, rarity.affixLevelBonus, bias, rng));
   }
 
   return { seed, baseId: base.id, rarityId, itemLevel, affixes };
@@ -144,6 +187,14 @@ export interface RollLootParams {
   lootTable?: LootTableDefinition;
   /** Gold find bonus as a fraction (0.1 = +10 %), supplied by the server's stat system. */
   goldFind?: number;
+  /**
+   * Item find bonus as a fraction (ticket 3.1, already capped): the item drop chance becomes
+   * `min(1, itemDropChance × (1 + itemFind))`. Callers give every kill its own RNG stream, so the
+   * bonus never shifts another kill's rolls.
+   */
+  itemFind?: number;
+  /** Class of the character the loot is for (enables class affixes, see `GenerateItemParams`). */
+  classId?: ClassId;
 }
 
 /** Rolls the loot for one kill: gold and at most one item. */
@@ -160,13 +211,22 @@ export function rollLoot(
     : 0;
 
   const items: GeneratedItem[] = [];
-  if (rng.chance(table.itemDropChance)) {
+  const itemFind = Number.isFinite(params.itemFind) ? Math.max(0, params.itemFind ?? 0) : 0;
+  if (rng.chance(Math.min(1, table.itemDropChance * (1 + itemFind)))) {
     const rolled = rollItemLevel(sourceLevel, rng, config);
     const itemLevel = table.itemLevel
       ? Math.min(table.itemLevel.max, Math.max(table.itemLevel.min, rolled))
       : rolled;
     const seed = rng.int(0, MAX_SEED);
-    const item = generateItem({ seed, itemLevel, lootTable: table }, config);
+    const item = generateItem(
+      {
+        seed,
+        itemLevel,
+        lootTable: table,
+        ...(params.classId !== undefined ? { classId: params.classId } : {}),
+      },
+      config,
+    );
     if (item) items.push(item);
   }
   return { gold, items };

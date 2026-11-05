@@ -7,6 +7,16 @@ import type { RarityId } from '../rarity.js';
 export interface ModifierCaps {
   /** Maximum total gold find as a fraction (1 = +100 %). */
   goldFind: number;
+  /** Ticket 3.1. Maximum total item find (scales the per-kill item drop chance). */
+  itemFind: number;
+  /** Ticket 3.1. Maximum total XP gain. */
+  xpGain: number;
+  /** Ticket 3.1. Maximum total resource yield (scales units per gathering find). */
+  resourceYield: number;
+  /** Ticket 3.1. Maximum total boss damage. */
+  bossDamage: number;
+  /** Ticket 3.1. Maximum total auto-skill damage bonus. */
+  skillDamage: number;
 }
 
 export interface InventoryConfig {
@@ -26,7 +36,14 @@ export interface ActivityConfig {
 }
 
 export const DEFAULT_ACTIVITY_CONFIG: ActivityConfig = {
-  modifierCaps: { goldFind: 1 },
+  modifierCaps: {
+    goldFind: 1,
+    itemFind: 0.5,
+    xpGain: 0.3,
+    resourceYield: 0.5,
+    bossDamage: 0.25,
+    skillDamage: 0.25,
+  },
   inventory: {
     capacity: 60,
     salvage: {

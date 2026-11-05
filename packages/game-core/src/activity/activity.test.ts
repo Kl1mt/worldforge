@@ -42,7 +42,7 @@ describe('itemContribution / equipmentModifiers', () => {
     const item = generateItem({ seed: 42, itemLevel: 20, rarityId: 'mythic' })!;
     const c = itemContribution(item);
     for (const v of Object.values(c.stats)) expect(Number.isFinite(v)).toBe(true);
-    expect(c.goldFind).toBeGreaterThanOrEqual(0);
+    expect(c.secondary.goldFind).toBeGreaterThanOrEqual(0);
   });
 
   it('caps total gold find', () => {

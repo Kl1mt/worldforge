@@ -231,6 +231,11 @@ function settleSegment(
     {
       character: input.character,
       equipment: modifiers.stats,
+      modifiers: {
+        xpGain: modifiers.xpGain,
+        skillDamage: modifiers.skillDamage,
+        bossDamage: modifiers.bossDamage,
+      },
       areaId: input.areaId,
       seed: input.seed,
       durationMs: input.durationMs,
@@ -245,6 +250,7 @@ function settleSegment(
           professions,
           createRng(`${input.seed}:gather:${cycle.index}`),
           professionConfig,
+          modifiers.resourceYield,
         );
         for (const f of finds) {
           materials[f.materialId] = (materials[f.materialId] ?? 0) + f.quantity;
@@ -265,6 +271,8 @@ function settleSegment(
             sourceLevel,
             lootTable,
             goldFind: modifiers.goldFind,
+            itemFind: modifiers.itemFind,
+            classId: input.character.classId,
           },
           lootConfig,
         );

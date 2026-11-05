@@ -19,9 +19,19 @@ export interface GatheringCycle {
   enemyId: EnemyId;
 }
 
-/** Units per find at a profession level: `1 + bonusUnitsPerLevel · (level − 1)`, randomised. */
-export function unitsPerFind(level: number, rng: Rng, config: ProfessionConfig): number {
-  const bonus = config.bonusUnitsPerLevel * (level - 1);
+/**
+ * Units per find at a profession level: `(1 + bonusUnitsPerLevel · (level − 1)) · (1 + resourceYield)`
+ * on average, randomised (the fraction rounds up with its probability). Resource yield (ticket 3.1,
+ * already capped) folds into the same single draw, so the stream is unchanged by it.
+ */
+export function unitsPerFind(
+  level: number,
+  rng: Rng,
+  config: ProfessionConfig,
+  resourceYield = 0,
+): number {
+  const yieldBonus = Number.isFinite(resourceYield) && resourceYield > 0 ? resourceYield : 0;
+  const bonus = (1 + config.bonusUnitsPerLevel * (level - 1)) * (1 + yieldBonus) - 1;
   const whole = Math.floor(bonus);
   // Always one draw (also at level 1), so the stream advances the same way at every level.
   return 1 + whole + (rng.next() < bonus - whole ? 1 : 0);
@@ -41,6 +51,8 @@ export function rollGathering(
   professions: ProfessionLevels,
   rng: Rng,
   config: ProfessionConfig = DEFAULT_PROFESSION_CONFIG,
+  /** Capped resource yield of the equipment (ticket 3.1); scales gathering finds only. */
+  resourceYield = 0,
 ): GatheredUnits[] {
   if (cycle.outcome === 'death') return [];
   const area = config.areas[cycle.areaId];
@@ -51,7 +63,7 @@ export function rollGathering(
     const hit = rng.next() < y.chance;
     const professionId = getMaterial(y.materialId).profession;
     const level = professionId ? professions[professionId].level : 1;
-    const quantity = unitsPerFind(level, rng, config);
+    const quantity = unitsPerFind(level, rng, config, resourceYield);
     if (hit) found.push({ materialId: y.materialId, quantity, professionId });
   }
   if (cycle.outcome === 'kill' && getEnemy(cycle.enemyId).undead) {

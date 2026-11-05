@@ -364,3 +364,54 @@ describe('inventory API', () => {
     });
   });
 });
+
+describe('item model v2 (ticket 3.1)', () => {
+  it('shows the Phase 3 columns at their defaults, and forge affix state round-trips', async () => {
+    const p = await newPlayer();
+    const id = await grant(p, 'iron-helm');
+    const res = await inventory(p);
+    expect(res.statusCode).toBe(200);
+    const item = res.json<InventoryView>().inventory.find((i) => i.id === id)!;
+    expect(item).toMatchObject({
+      upgradeLevel: 0,
+      variant: null,
+      effectId: null,
+      setId: null,
+      mythicId: null,
+      locked: false,
+    });
+    const [row] = await database.db.select().from(itemInstances).where(eq(itemInstances.id, id));
+    expect(row).toMatchObject({
+      upgradePity: 0,
+      forgeCounter: 0,
+      rerollCount: 0,
+      effectRoll: null,
+    });
+
+    // The jsonb affix shape carries 3.4's per-affix forge state through the API.
+    const affixes = row!.affixes.map((a, i) =>
+      i === 0 ? { ...a, improvements: 2, rerolled: true } : a,
+    );
+    await database.db
+      .update(itemInstances)
+      .set({ affixes, upgradeLevel: 10, variant: 'void', locked: true, effectRoll: 1 })
+      .where(eq(itemInstances.id, id));
+    const after = (await inventory(p)).json<InventoryView>().inventory.find((i) => i.id === id)!;
+    expect(after).toMatchObject({ upgradeLevel: 10, variant: 'void', locked: true });
+    expect(after.affixes[0]).toMatchObject({ improvements: 2, rerolled: true });
+  });
+
+  it('enforces the column ranges in the database', async () => {
+    const p = await newPlayer();
+    const id = await grant(p, 'iron-helm');
+    const set = (patch: Partial<typeof itemInstances.$inferInsert>) =>
+      database.db.update(itemInstances).set(patch).where(eq(itemInstances.id, id));
+    await expect(set({ upgradeLevel: 11 })).rejects.toThrow();
+    await expect(set({ upgradeLevel: -1 })).rejects.toThrow();
+    await expect(set({ upgradePity: -1 })).rejects.toThrow();
+    await expect(set({ forgeCounter: -1 })).rejects.toThrow();
+    await expect(set({ rerollCount: -1 })).rejects.toThrow();
+    await expect(set({ variant: 'prismatic' as 'void' })).rejects.toThrow();
+    await expect(set({ effectRoll: 1.5 })).rejects.toThrow();
+  });
+});
