@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { WorldState } from '../game/api';
 import type { QuestBoard, QuestDto } from '../quests/api';
 import { capText, guideStepCopy, observedSteps } from './guide';
-import { levelNotice, questNotices, unlockNotices } from './notices';
+import { levelNotice, orderNotices, questNotices, unlockNotices, type Notice } from './notices';
 import { newIds, questKeys, readSeen, writeSeen, type SeenStore } from './seen';
 
 const memory = (): SeenStore & { data: Map<string, string> } => {
@@ -82,6 +82,17 @@ const board = (quests: QuestDto[], over: Partial<QuestBoard> = {}): QuestBoard =
 });
 
 describe('progression notices', () => {
+  it('render the most important notice last, so phones (which show only the last) see it', () => {
+    const n = (id: string, kind: Notice['kind']): Notice => ({ id, kind, title: id, text: '' });
+    const order = orderNotices([
+      n('q', 'quest'),
+      n('l1', 'level'),
+      n('u', 'unlock'),
+      n('l2', 'level'),
+    ]);
+    expect(order.map((x) => x.id)).toEqual(['l1', 'l2', 'u', 'q']);
+  });
+
   it('announces a level once per level', () => {
     expect(levelNotice('c1', 4)).toMatchObject({ id: 'level:c1:4', title: 'Level 4' });
   });
