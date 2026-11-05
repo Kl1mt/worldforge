@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { and, count, eq, isNull } from 'drizzle-orm';
+import { and, count, eq, isNotNull, isNull } from 'drizzle-orm';
 import { buildApp } from '../app.js';
 import { SESSION_COOKIE } from '../auth/index.js';
 import {
@@ -397,6 +397,57 @@ describe('the Nameless Crypt (ticket 2.5)', () => {
       .set({ effectId: null, effectRoll: null })
       .where(eq(itemInstances.id, ring!.id));
     expect(replayRun(run!)).toEqual(withEffect);
+  });
+
+  it('snapshots equipped set pieces at the start; the run replays with the bonus (ticket 3.3)', async () => {
+    const { p, id } = await hero('warrior', 16);
+    const worn = await database.db
+      .select()
+      .from(itemInstances)
+      .where(and(eq(itemInstances.characterId, id), isNotNull(itemInstances.equippedSlot)));
+    // Turn the equipped helm and chest into two Drowned Vigil pieces (2-piece bonus: thorns).
+    for (const [slot, baseId] of [
+      ['head', 'vigil-helm'],
+      ['chest', 'vigil-hauberk'],
+    ] as const) {
+      const row = worn.find((r) => r.equippedSlot === slot)!;
+      await database.db
+        .update(itemInstances)
+        .set({ baseId, rarityId: 'legendary', setId: 'drowned-vigil' })
+        .where(eq(itemInstances.id, row.id));
+    }
+    expect((await enter(p, id)).statusCode).toBe(201);
+    await pinSeed(id, 'sets-pinned');
+    const [run] = await database.db
+      .select()
+      .from(dungeonRuns)
+      .where(and(eq(dungeonRuns.characterId, id), isNull(dungeonRuns.claimedAt)));
+    expect(run!.snapshot.equipment.filter((e) => e.setId === 'drowned-vigil')).toHaveLength(2);
+    const withSet = replayRun(run!);
+    const without = replayRun({
+      ...run!,
+      snapshot: {
+        ...run!.snapshot,
+        equipment: run!.snapshot.equipment.map((e) => ({ ...e, setId: null })),
+      },
+    });
+    // Thorns: the enemies take damage when they hit, so the run plays out differently.
+    expect(withSet.events).not.toEqual(without.events);
+    // Older snapshots have no set ids and replay without bonuses.
+    const legacy = replayRun({
+      ...run!,
+      snapshot: {
+        ...run!.snapshot,
+        equipment: run!.snapshot.equipment.map(({ setId: _, ...e }) => e),
+      },
+    });
+    expect(legacy).toEqual(without);
+    // Changing gear after the start cannot change the run.
+    await database.db
+      .update(itemInstances)
+      .set({ setId: null })
+      .where(eq(itemInstances.characterId, id));
+    expect(replayRun(run!)).toEqual(withSet);
   });
 
   it('parallel claims grant once (same key: one result; other keys: refused)', async () => {

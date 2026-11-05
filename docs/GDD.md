@@ -195,6 +195,8 @@ Legendary effects should change or reinforce play patterns rather than only incr
 
 Set items are intended as a late-game progression layer. Equipping a required number of pieces activates set bonuses. A Void version of a set piece counts as the same piece for set activation; players do not need a full Void set.
 
+**Decided (ticket 3.3):** three sets — the Drowned Vigil (martial, 6 pieces), the Ashen Choir (arcane, 6) and the Bloodmoon Hunt (hybrid, 4) — on armor and jewelry slots every class can wear, with bonuses at 2, 4 and 6 distinct pieces. A set piece is a Legendary-rarity named item without its own effect; half of the Legendary rolls in the Sunken Abbey, the Nameless Crypt and the Gravewarden's hoard become set pieces. Details: `docs/EFFECTS.md`.
+
 ### 7.5 Special Variants
 Variants are modifiers layered on top of an item's rarity and identity, not separate rarity tiers. **Void is initially restricted to Legendary, Mythic, and Set items.** Prismatic and other variants may be introduced later.
 

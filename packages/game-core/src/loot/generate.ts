@@ -5,6 +5,7 @@ import type { CoreStatId } from '../stats.js';
 import { affixPoolFor, tiersForItemLevel, type AffixDefinition } from '../items/affixes.js';
 import { findItemBase, getItemBase, type ItemBaseDefinition } from '../items/bases.js';
 import { mythicForBase, mythicPool, type MythicItemDefinition } from '../items/mythics.js';
+import { setForBase, setPiecePool, type SetDefinition } from '../items/sets.js';
 import { EFFECT_ROLL_STEPS, legendaryEffectPool } from '../effects/resolve.js';
 import {
   DEFAULT_LOOT_CONFIG,
@@ -42,6 +43,11 @@ export interface GeneratedItem {
   effectId?: string;
   effectRoll?: number;
   mythicId?: string;
+  /**
+   * Ticket 3.3: the set of a set piece (`ITEM_SETS`). A set piece is a Legendary-rarity item on its
+   * set's fixed base, without an effect of its own. Absent on every other item.
+   */
+  setId?: string;
 }
 
 export interface LootDrop {
@@ -191,6 +197,24 @@ export function generateItem(
       rarityId = 'legendary';
     }
   }
+  // Set pieces (ticket 3.3) are named items too. A set base is always its set's piece; in a table
+  // with `setShare`, that share of Legendary rolls becomes a set piece. The extra draw happens only
+  // on a Legendary roll there, so every other item rolls exactly as before.
+  let set: SetDefinition | undefined = mythic ? undefined : setForBase(base.id);
+  if (set) {
+    rarityId = 'legendary';
+  } else if (
+    !mythic &&
+    rarityId === 'legendary' &&
+    params.baseId === undefined &&
+    (table.setShare ?? 0) > 0
+  ) {
+    const pieces = setPiecePool(itemLevel, params.classId);
+    if (pieces.length > 0 && rng.chance(table.setShare!)) {
+      base = getItemBase(pieces[rng.int(0, pieces.length - 1)]!);
+      set = setForBase(base.id);
+    }
+  }
   const rarity = config.rarities[rarityId];
   const bias = rarity.affixTierBias + (params.lootTable?.affixTierBias ?? 0);
 
@@ -207,6 +231,8 @@ export function generateItem(
   if (mythic) {
     item.effectId = mythic.effectId;
     item.mythicId = mythic.id;
+  } else if (set) {
+    item.setId = set.id;
   } else if (rarityId === 'legendary') {
     // Drawn after everything else, so the rest of the item rolls exactly as before ticket 3.2.
     const effects = legendaryEffectPool(base, params.classId);

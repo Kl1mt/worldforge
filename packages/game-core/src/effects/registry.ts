@@ -182,6 +182,74 @@ export const EFFECTS: readonly EffectDefinition[] = [
     ],
     text: 'Each kill grants {0.perStack} attack speed, up to {0.maxStacks} times, and restores {1.heal} of your health. Dying or failing a fight ends the streak; a stack fades every {0.decayMs} out of combat.',
   },
+
+  // — Set bonuses (ticket 3.3; fixed; see `ITEM_SETS`). Active at 2, 4 and 6 distinct pieces;
+  // they stack with each other and with item effects up to `DEFAULT_EFFECT_CAPS`.
+  {
+    id: 'vigil-tidebound',
+    name: 'Tidebound',
+    kind: 'set',
+    components: [{ type: 'thorns', reflect: 0.25 }],
+    text: 'Enemies that strike you take {0.reflect} of the blow’s full force.',
+  },
+  {
+    id: 'vigil-hold-the-line',
+    name: 'Hold the Line',
+    kind: 'set',
+    components: [{ type: 'fortitude', threshold: 0.7, bonus: 0.25 }],
+    text: 'Deal {0.bonus} more damage while above {0.threshold} health.',
+  },
+  {
+    id: 'vigil-undertow',
+    name: 'Undertow',
+    kind: 'set',
+    components: [
+      { type: 'execute', threshold: 0.35, bonus: 0.6 },
+      { type: 'lifeOnKill', heal: 0.08 },
+    ],
+    text: 'Deal {0.bonus} more damage to enemies below {0.threshold} health. Every kill restores {1.heal} of your health.',
+  },
+  {
+    id: 'choir-kindled',
+    name: 'Kindled',
+    kind: 'set',
+    components: [{ type: 'critBurn', bonus: 0.3 }],
+    text: 'Critical hits sear for {0.bonus} of the hit as fire that ignores armor and resistance.',
+  },
+  {
+    id: 'choir-hymn-of-cinders',
+    name: 'Hymn of Cinders',
+    kind: 'set',
+    components: [{ type: 'skillSurge', power: 0.9 }],
+    text: 'A critical hit turns your next attack into your class skill at {0.power} power.',
+  },
+  {
+    id: 'choir-last-rite',
+    name: 'Last Rite',
+    kind: 'set',
+    components: [
+      { type: 'bossSlayer', bonus: 0.15 },
+      { type: 'skillRot', fraction: 0.02 },
+    ],
+    text: 'Deal {0.bonus} more damage to bosses. Your class skill also rots away {1.fraction} of the enemy’s remaining health (at most the skill’s own damage).',
+  },
+  {
+    id: 'bloodmoon-scent',
+    name: 'Scent of Blood',
+    kind: 'set',
+    components: [{ type: 'bloodrush', perStack: 0.02, maxStacks: 5, decayMs: 10_000 }],
+    text: 'Each kill grants {0.perStack} attack speed, up to {0.maxStacks} times. Dying or failing a fight ends the streak; a stack fades every {0.decayMs} out of combat.',
+  },
+  {
+    id: 'bloodmoon-long-hunt',
+    name: 'The Long Hunt',
+    kind: 'set',
+    components: [
+      { type: 'skillOpener', bonus: 0.1 },
+      { type: 'lifeOnKill', heal: 0.05 },
+    ],
+    text: 'Every fight opens with your class skill, dealing {0.bonus} more damage. Every kill restores {1.heal} of your health.',
+  },
 ];
 
 /**

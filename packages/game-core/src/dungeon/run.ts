@@ -1,3 +1,4 @@
+import { setBonusInstances } from '../items/sets.js';
 import { isClassId, type ClassId } from '../classes.js';
 import { DEFAULT_ACTIVITY_CONFIG, type ActivityConfig } from '../activity/config.js';
 import { equipmentModifiers, type EquippedItem } from '../activity/equipment.js';
@@ -244,8 +245,10 @@ export function simulateDungeonRun(
   const dungeon: DungeonDefinition = getDungeon(input.dungeonId);
   const roomTable = getLootTable(dungeon.lootTableId);
   const { classId } = input.character;
-  const modifiers = equipmentModifiers(input.equipment ?? [], activity.modifierCaps, lootConfig, {
+  const equipment = input.equipment ?? [];
+  const modifiers = equipmentModifiers(equipment, activity.modifierCaps, lootConfig, {
     classId,
+    extraEffects: setBonusInstances(equipment),
   });
   const effects = hasCombatEffects(modifiers.effects) ? modifiers.effects : undefined;
   // Bloodrush stacks (ticket 3.2): a run starts without a streak; walking between rooms lets

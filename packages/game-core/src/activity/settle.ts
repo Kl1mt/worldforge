@@ -1,3 +1,4 @@
+import { setBonusInstances } from '../items/sets.js';
 import { simulateFarmingAggregate, type FarmingCharacter } from '../combat/farming.js';
 import { DEFAULT_COMBAT_CONFIG, type CombatConfig } from '../combat/encounter.js';
 import { DEFAULT_LOOT_CONFIG, getLootTable, type LootConfig } from '../loot/config.js';
@@ -221,8 +222,10 @@ function settleSegment(
 
   const area = getArea(input.areaId);
   const lootTable = getLootTable(area.lootTableId);
-  const modifiers = equipmentModifiers(input.equipment ?? [], activity.modifierCaps, lootConfig, {
+  const equipment = input.equipment ?? [];
+  const modifiers = equipmentModifiers(equipment, activity.modifierCaps, lootConfig, {
     classId: input.character.classId,
+    extraEffects: setBonusInstances(equipment),
   });
   const items: GeneratedItem[] = [];
   const salvaged: GeneratedItem[] = [];

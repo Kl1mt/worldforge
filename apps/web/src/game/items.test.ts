@@ -5,6 +5,9 @@ import {
   compareItems,
   equippedBySlot,
   groupAffixes,
+  setTracker,
+  setTrackers,
+  summaryItemView,
   targetSlot,
   toItemView,
 } from './items';
@@ -190,5 +193,69 @@ describe('targetSlot', () => {
     const both = toItemView(dto({ id: 'w2', baseId: 'iron-ring', equippedSlot: 'ring2' }));
     expect(targetSlot(ring, equippedBySlot([worn, both]))).toBe('ring1');
     expect(targetSlot(toItemView(dto({})), {})).toBe('weapon');
+  });
+});
+
+describe('set pieces (ticket 3.3)', () => {
+  const piece = (id: string, baseId: string, over: Partial<ItemDto> = {}) =>
+    toItemView(dto({ id, baseId, rarityId: 'legendary', setId: 'drowned-vigil', ...over }));
+
+  it('keeps the set id only when the base is a piece of that set', () => {
+    expect(piece('a', 'vigil-helm').setId).toBe('drowned-vigil');
+    // A set base is unique, but not a boss drop.
+    expect(piece('a', 'vigil-helm').uniqueSource).toBeNull();
+    expect(piece('b', 'vigil-helm', { setId: 'ashen-choir' }).setId).toBeNull();
+    expect(piece('c', 'great-helm').setId).toBeNull();
+    expect(toItemView(dto({ baseId: 'vigil-helm' })).setId).toBeNull();
+  });
+
+  it('tracks worn and packed pieces and lights the bonuses the server counts', () => {
+    const worn = [
+      piece('a', 'vigil-helm', { equippedSlot: 'head' }),
+      piece('b', 'vigil-hauberk', { equippedSlot: 'chest' }),
+      // A Void copy is the same piece (game-core counting ignores the variant).
+      piece('c', 'vigil-gauntlets', { equippedSlot: 'hands', variant: 'void' }),
+      piece('d', 'vigil-sabatons', { equippedSlot: 'feet' }),
+    ];
+    const pack = [piece('e', 'vigil-seal'), piece('f', 'vigil-helm')];
+    const t = setTracker('drowned-vigil', worn, pack)!;
+    expect(t.worn).toBe(4);
+    expect(t.pieces.map((p) => [p.baseId, p.equipped, p.inPack])).toEqual([
+      ['vigil-helm', true, false],
+      ['vigil-hauberk', true, false],
+      ['vigil-gauntlets', true, false],
+      ['vigil-sabatons', true, false],
+      ['vigil-oath-chain', false, false],
+      ['vigil-seal', false, true],
+    ]);
+    expect(t.bonuses.map((b) => [b.pieces, b.active])).toEqual([
+      [2, true],
+      [4, true],
+      [6, false],
+    ]);
+    expect(t.bonuses[0]!.text).toMatch(/25 %/);
+    expect(setTracker('no-such-set', worn, pack)).toBeNull();
+  });
+
+  it('lists only the sets the hero owns a piece of', () => {
+    expect(setTrackers([], [])).toEqual([]);
+    const choir = toItemView(
+      dto({ baseId: 'choir-band', rarityId: 'legendary', setId: 'ashen-choir' }),
+    );
+    expect(setTrackers([], [choir, piece('a', 'vigil-helm')]).map((t) => t.id)).toEqual([
+      'drowned-vigil',
+      'ashen-choir',
+    ]);
+  });
+
+  it('names the set of a found piece in the return summary', () => {
+    const v = summaryItemView({
+      id: 'x',
+      baseId: 'bloodmoon-fang',
+      rarityId: 'legendary',
+      itemLevel: 18,
+      setId: 'bloodmoon-hunt',
+    });
+    expect(v).toMatchObject({ setName: 'The Bloodmoon Hunt', effectName: null });
   });
 });

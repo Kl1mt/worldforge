@@ -90,7 +90,11 @@ export function ReturnSummaryDialog({ heroName }: { heroName: string }) {
         {chase.length > 0 ? (
           <section className="return__chase" aria-labelledby="return-chase">
             <h3 id="return-chase" className="caps">
-              {chase.some((i) => i.rarity === 'mythic') ? 'A Mythic surfaced' : 'Legendary find'}
+              {chase.some((i) => i.rarity === 'mythic')
+                ? 'A Mythic surfaced'
+                : chase.every((i) => i.setName)
+                  ? 'Set piece found'
+                  : 'Legendary find'}
             </h3>
             <ul>
               {chase.map((item) => (
@@ -100,6 +104,9 @@ export function ReturnSummaryDialog({ heroName }: { heroName: string }) {
                     <span className="return__chase-name">{item.name}</span>
                     {item.effectName ? (
                       <span className="return__chase-effect">{item.effectName}</span>
+                    ) : null}
+                    {item.setName ? (
+                      <span className="return__chase-effect">Piece of {item.setName}</span>
                     ) : null}
                   </span>
                 </li>

@@ -469,6 +469,35 @@ describe('hardening (ticket 1.9)', () => {
     expect(after!.momentum).toBe(row!.momentum);
   });
 
+  it('two set pieces activate their set bonus in settlement; one does not (ticket 3.3)', async () => {
+    const momentumWith = async (baseIds: string[]) => {
+      const { p, id } = await farmer('warrior');
+      for (const [i, baseId] of baseIds.entries()) {
+        await database.db.insert(itemInstances).values({
+          id: uuidv7(),
+          characterId: id,
+          baseId,
+          rarityId: 'legendary',
+          itemLevel: 14,
+          seed: i + 1,
+          source: 'test',
+          equippedSlot: baseId === 'bloodmoon-grips' ? 'hands' : 'feet',
+          setId: 'bloodmoon-hunt',
+        });
+      }
+      advance(10 * MIN);
+      await settle(p, id);
+      const [row] = await database.db
+        .select()
+        .from(activities)
+        .where(eq(activities.characterId, id));
+      return row!.momentum;
+    };
+    // Scent of Blood (2 pieces) is a kill streak: the stored momentum shows it.
+    expect(await momentumWith(['bloodmoon-grips'])).toBe(0);
+    expect(await momentumWith(['bloodmoon-grips', 'bloodmoon-treads'])).toBeGreaterThan(0);
+  });
+
   it('equip, unequip and discard settle the running activity first (no retroactive gear)', async () => {
     const { p, id } = await farmer();
     const sword = await grantItem(id);

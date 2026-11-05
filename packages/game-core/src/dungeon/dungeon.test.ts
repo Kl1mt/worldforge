@@ -21,6 +21,7 @@ import {
   type GeneratedItem,
   findItemBase,
   mythicForBase,
+  setForBase,
 } from '../index.js';
 
 /** One tier-3 item per slot at the given level (the gear a crypt-ready hero has collected). */
@@ -249,8 +250,10 @@ describe('dungeonRunProgress', () => {
 });
 
 describe('boss loot content', () => {
-  it('unique bases drop only from the boss table (Mythic bases only through the Mythic roll)', () => {
-    const uniques = ITEM_BASES.filter((b) => b.unique && !mythicForBase(b.id)).map((b) => b.id);
+  it('unique bases drop only from the boss table (Mythic and set bases only through their roll)', () => {
+    const uniques = ITEM_BASES.filter(
+      (b) => b.unique && !mythicForBase(b.id) && !setForBase(b.id),
+    ).map((b) => b.id);
     expect(uniques.length).toBeGreaterThanOrEqual(3);
     for (const table of AREA_LOOT_TABLES) {
       for (const e of table.entries) expect(findItemBase(e.baseId)?.unique, e.baseId).toBeFalsy();

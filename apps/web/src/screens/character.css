@@ -369,3 +369,14 @@
   color: var(--text-dim);
   font-style: italic;
 }
+
+/* Sets (ticket 3.3): one tracker per set the hero owns a piece of. */
+.sets {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.sets__empty {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}

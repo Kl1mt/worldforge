@@ -2,6 +2,7 @@ import { isRarityId } from '../rarity.js';
 import { affixPossibleOn, findAffix } from '../items/affixes.js';
 import { findItemBase, type ItemBaseDefinition } from '../items/bases.js';
 import { findMythic, mythicForBase } from '../items/mythics.js';
+import { findSet, setForBase } from '../items/sets.js';
 import { findEffect } from '../effects/registry.js';
 import { EFFECT_ROLL_STEPS, legendaryEffectPossibleOn } from '../effects/resolve.js';
 import { DEFAULT_LOOT_CONFIG, type LootConfig } from './config.js';
@@ -80,7 +81,31 @@ export function validateItem(
       );
     }
   }
+  errors.push(...setErrors(item, base));
+  if (item.setId !== undefined) return errors;
   errors.push(...effectErrors(item, base));
+  return errors;
+}
+
+/**
+ * Ticket 3.3: a set base must carry its set, and a set piece is a Legendary on one of its set's
+ * bases, without an effect of its own. (Void, ticket 3.5, is a column of its own and changes none
+ * of this.)
+ */
+function setErrors(item: GeneratedItem, base: ItemBaseDefinition): string[] {
+  const errors: string[] = [];
+  const baseSet = setForBase(base.id);
+  if (item.setId === undefined) {
+    if (baseSet) errors.push(`set base ${base.id} without its set ${baseSet.id}`);
+    return errors;
+  }
+  const set = findSet(item.setId);
+  if (!set) return [`unknown set ${item.setId}`];
+  if (!set.pieces.includes(base.id)) errors.push(`set ${set.id} has no piece ${base.id}`);
+  if (item.rarityId !== 'legendary') errors.push(`set piece ${base.id} is ${item.rarityId}`);
+  if (item.effectId !== undefined || item.effectRoll !== undefined || item.mythicId !== undefined) {
+    errors.push(`set piece ${base.id} carries an effect`);
+  }
   return errors;
 }
 
