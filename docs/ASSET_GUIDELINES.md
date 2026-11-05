@@ -13,7 +13,7 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | `art/preview-class-portraits.png` | The four class portraits side by side at ×3. |
 | `art/preview-hub-map-areas.png` | Hub, world map and all area backdrops at ×2. |
 | `art/preview-hub-map-layout.png` | Hub hotspots and map markers from the manifest, drawn over the art at ×3. |
-| `art/preview-boss-uniques.png` | The three Gravewarden unique icons next to the shared icons they replaced, at ×4. |
+| `art/preview-boss-uniques.png` | The three Gravewarden unique icons (after) below the shared icons they replaced (before), at ×4. |
 | `tools/art/pixellab_gen.py` | Generate/collect/contact-sheet helper. |
 
 Curated files are byte-for-byte copies of a raw variant. Do not hand-edit them in place. If an asset needs fixing, save the edit as a new file and record it in the manifest `source`.
