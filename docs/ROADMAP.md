@@ -429,7 +429,7 @@ GDD: §3.1, §7. Needs 2.1 merged (it defines the new item bases). Match the exi
 - Switch the new bases from their placeholder icons to the new ones; update the manifest.
 **Acceptance:** a contact sheet of all new icons next to the existing ones in the PR.
 
-### A.5 Boss-unique item icons — `todo`
+### A.5 Boss-unique item icons — `in progress`
 GDD: §3.1, §7. Follow-up from ticket 2.8. The three Gravewarden uniques borrow existing icons (`packages/game-core/src/items/bases.ts`): Gravewarden’s Cowl uses `item.horned-helm`, Seal of the Nameless uses `item.grave-gold-ring`, Warden’s Bone Chain uses `item.bone-amulet`. They should look unique.
 - One 32px job (matching `apps/web/public/assets/items/`, an existing icon as `style_image`) for the three icons; switch the bases and the manifest.
 **Acceptance:** a contact sheet of the three next to the icons they replace.

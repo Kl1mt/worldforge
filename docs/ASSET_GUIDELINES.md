@@ -13,6 +13,7 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | `art/preview-class-portraits.png` | The four class portraits side by side at ×3. |
 | `art/preview-hub-map-areas.png` | Hub, world map and all area backdrops at ×2. |
 | `art/preview-hub-map-layout.png` | Hub hotspots and map markers from the manifest, drawn over the art at ×3. |
+| `art/preview-boss-uniques.png` | The three Gravewarden unique icons next to the shared icons they replaced, at ×4. |
 | `tools/art/pixellab_gen.py` | Generate/collect/contact-sheet helper. |
 
 Curated files are byte-for-byte copies of a raw variant. Do not hand-edit them in place. If an asset needs fixing, save the edit as a new file and record it in the manifest `source`.
@@ -147,3 +148,9 @@ The world map came out with opaque white pixels along its burnt edge (about 1,15
 - Bosses are **128×128** at the same pixel scale (`enemy.gravewarden`, generated with the warrior as `style_image`). At the scene's sprite scale, a boss is drawn as tall as the hero and twice the size of a normal enemy.
 - `facing` may also be `left`. A left-facing sprite already faces the hero, so like `front`, it is not mirrored. Only `right` is mirrored.
 - Preview: `art/preview-enemies-phase-2.png` (all new enemies next to the three existing ones, plus the boss, at ×3).
+
+## Boss-unique item icons (ticket A.5)
+
+- The Gravewarden's three uniques have their own 32×32 icons: `item.gravewardens-cowl`, `item.seal-of-the-nameless` and `item.wardens-bone-chain`. Motifs are crypt and warden ones (seal emblem, keyhole seal on crimson wax, bone links with a crypt key) in the same palette and pixel scale as the other item icons.
+- `icons-boss-uniques-01` (style image `grave-gold-ring.png`, all three items) produced the cowl and the chain. Its rings were near-copies of the style image and its chains were gold, not bone, so the one allowed regeneration, `icons-boss-uniques-02` (style image `bone-amulet.png`, ring and chain only), produced the seal ring.
+- Preview: `art/preview-boss-uniques.png`.

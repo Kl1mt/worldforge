@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art item icons, one item per icon, crypt warden boss loot: a single heavy signet ring seen from the front, large flat grave-gold seal face engraved with a keyhole and skull, deep crimson wax on the seal, only one ring; necklace of linked pale bone segments and small vertebrae on dark iron links, an old iron crypt key hanging as the pendant, weathered aged brass and old yellowed bone, muted desaturated palette, transparent background",
+  "style_image": "apps/web/public/assets/items/bone-amulet.png",
+  "job_id": "eb99bfa0-fef4-49e5-b476-b5cc982d76f4",
+  "created_at": "2026-11-05T09:00:14.204146+00:00",
+  "seed": 378106513,
+  "generations": 10.0,
+  "count": 64,
+  "width": 32,
+  "height": 32
+}

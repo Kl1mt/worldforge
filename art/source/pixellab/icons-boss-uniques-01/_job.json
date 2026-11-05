@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art item icons, one item per icon, crypt warden boss loot: hooded grave-warden cowl helm of dark iron with a grave-gold crypt key emblem on the brow; heavy grave-gold signet ring with a dark wax-black seal stone engraved with a sealed crypt door; necklace chain of linked bones and vertebrae with a small grave-gold key pendant, weathered aged brass and old bone, muted desaturated palette, transparent background",
+  "style_image": "apps/web/public/assets/items/grave-gold-ring.png",
+  "job_id": "40a14d6d-9976-41c7-aac4-24c2f849629d",
+  "created_at": "2026-11-05T08:56:46.760419+00:00",
+  "seed": 1844586852,
+  "generations": 10.0,
+  "count": 64,
+  "width": 32,
+  "height": 32
+}
