@@ -14,6 +14,7 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | `art/preview-hub-map-areas.png` | Hub, world map and all area backdrops at ×2. |
 | `art/preview-hub-map-layout.png` | Hub hotspots and map markers from the manifest, drawn over the art at ×3. |
 | `art/preview-boss-uniques.png` | The three Gravewarden unique icons (after) below the shared icons they replaced (before), at ×4. |
+| `art/preview-mythic-set-icons.png` | The six named Mythic icons and the three sets' pieces, below a row of tier-3 gear, at ×4. |
 | `tools/art/pixellab_gen.py` | Generate/collect/contact-sheet helper. |
 
 Curated files are byte-for-byte copies of a raw variant. Do not hand-edit them in place. If an asset needs fixing, save the edit as a new file and record it in the manifest `source`.
@@ -154,3 +155,11 @@ The world map came out with opaque white pixels along its burnt edge (about 1,15
 - The Gravewarden's three uniques have their own 32×32 icons: `item.gravewardens-cowl`, `item.seal-of-the-nameless` and `item.wardens-bone-chain`. Motifs are crypt and warden ones (seal emblem, keyhole seal on crimson wax, bone links with a crypt key) in the same palette and pixel scale as the other item icons.
 - `icons-boss-uniques-01` (style image `grave-gold-ring.png`, all three items) produced the cowl and the chain. Its rings were near-copies of the style image and its chains were gold, not bone, so the one allowed regeneration, `icons-boss-uniques-02` (style image `bone-amulet.png`, ring and chain only), produced the seal ring.
 - Preview: `art/preview-boss-uniques.png`.
+
+## Mythic & set item icons (ticket A.6)
+
+- The six named Mythics (ticket 3.2) and the 16 set pieces (ticket 3.3) have their own 32×32 icons. Each icon's manifest id is `item.<base-id>` (`item.crown-of-the-hollow-king`, `item.vigil-helm`, `item.choir-band`, `item.bloodmoon-loop`, …).
+- Each set has one family look: the **Drowned Vigil** uses verdigris-green, barnacled iron with seaweed, anchor and wave motifs. The **Ashen Choir** uses soot-grey and ash-white cloth with aged-brass censer and hymn details. The **Bloodmoon Hunt** uses dark leather and iron with a blood-red crescent moon, plus fang and red-stone accents. The Mythics use blackened iron with grave-gold and crimson details. Their silhouettes (spiked crown, skull crossguard, star-caged sceptre, barbed bow, clawed heart, fanged ring) are busier than tier-3 gear, but they keep the same palette and pixel scale.
+- Two jobs, no regeneration. `icons-mythic-bloodmoon-01` (style image `gravewardens-cowl.png`) produced the Mythics and the Bloodmoon Hunt. `icons-sets-vigil-choir-01` (style image `knights-plate.png`) produced the Drowned Vigil and the Ashen Choir.
+- Non-named Legendary items keep their base icons. Their frame treatment comes from the UI (ticket 3.2).
+- Preview: `art/preview-mythic-set-icons.png`.
