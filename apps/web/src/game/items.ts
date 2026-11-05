@@ -1,6 +1,9 @@
 import {
   BOSS_LOOT_TABLES,
   DUNGEONS,
+  describeEffect,
+  findEffect,
+  mythicForBase,
   getEnemy,
   CORE_STAT_IDS,
   EQUIPMENT_SLOTS,
@@ -82,15 +85,42 @@ export interface ItemView {
   createdAt: string;
   /**
    * For a boss-exclusive (`unique`) base: who drops it, e.g. "The Gravewarden of The Nameless
-   * Crypt". Null for ordinary bases.
+   * Crypt". Null for ordinary bases and Mythics.
    */
   uniqueSource: string | null;
+  /** The Legendary effect or Mythic signature (ticket 3.2), with its rolled numbers. */
+  effect: ItemEffectView | null;
+}
+
+/** An item's unique effect, as the tooltip shows it. */
+export interface ItemEffectView {
+  kind: 'legendary' | 'mythic';
+  name: string;
+  /** The effect text with the rolled values, e.g. "Deal 60 % more damage to bosses." */
+  text: string;
+}
+
+/** Where Mythics come from (game-core loot tables with `mythics`), for the tooltip. */
+export const MYTHIC_SOURCES = 'the depths of the Sunken Abbey and the Gravewarden’s hoard';
+
+/** The display of an item's effect columns; null without a known effect. */
+export function effectView(
+  effectId: string | null | undefined,
+  effectRoll: number | null | undefined,
+): ItemEffectView | null {
+  const effect = effectId ? findEffect(effectId) : undefined;
+  if (!effect || effect.kind === 'set') return null;
+  return {
+    kind: effect.kind,
+    name: effect.name,
+    text: describeEffect({ effectId: effect.id, roll: effectRoll ?? 1 }),
+  };
 }
 
 /** Where a boss-exclusive base drops, from the boss loot tables and dungeon content. */
 export function uniqueSourceOf(baseId: string): string | null {
   const base = findItemBase(baseId);
-  if (!base?.unique) return null;
+  if (!base?.unique || mythicForBase(baseId)) return null;
   const table = BOSS_LOOT_TABLES.find((t) => t.entries.some((e) => e.baseId === baseId));
   const dungeon = table && DUNGEONS.find((d) => d.bossLoot.lootTableId === table.id);
   return dungeon ? `${getEnemy(dungeon.bossId).name} of ${dungeon.name}` : 'a boss';
@@ -104,7 +134,8 @@ function iconOf(id: string | undefined): ItemAssetId | null {
 export type ItemDisplaySource = Pick<
   ItemDto,
   'id' | 'baseId' | 'rarityId' | 'itemLevel' | 'affixes' | 'equippedSlot' | 'source' | 'createdAt'
->;
+> &
+  Partial<Pick<ItemDto, 'effectId' | 'effectRoll'>>;
 
 export function toItemView(dto: ItemDisplaySource): ItemView {
   const base = findItemBase(dto.baseId);
@@ -132,20 +163,30 @@ export function toItemView(dto: ItemDisplaySource): ItemView {
     equippedSlot: dto.equippedSlot,
     createdAt: dto.createdAt,
     uniqueSource: uniqueSourceOf(dto.baseId),
+    effect: effectView(dto.effectId, dto.effectRoll),
   };
 }
 
-/** A gained item from a return summary (no affixes there): name, icon and rarity only. */
+/**
+ * A gained item from a return summary (no affixes there): name, icon, rarity and, for a Legendary
+ * or Mythic, the effect's name (the roll is not in the summary; the pack shows the full text).
+ */
 export function summaryItemView(
   item: SummaryItem,
-): Pick<ItemView, 'id' | 'icon' | 'name' | 'rarity'> {
+): Pick<ItemView, 'id' | 'icon' | 'name' | 'rarity'> & { effectName: string | null } {
   const base = findItemBase(item.baseId);
   return {
     id: item.id,
     icon: iconOf(base?.icon),
     name: base?.name ?? 'Unknown relic',
     rarity: item.rarityId,
+    effectName: item.effectId ? (findEffect(item.effectId)?.name ?? null) : null,
   };
+}
+
+/** Whether a drop deserves its own moment (ticket 3.2): Legendary and Mythic finds. */
+export function isChaseDrop(rarity: RarityId): boolean {
+  return rarity === 'legendary' || rarity === 'mythic';
 }
 
 export function slotName(slot: ItemSlotKind | EquipmentSlotId): string {

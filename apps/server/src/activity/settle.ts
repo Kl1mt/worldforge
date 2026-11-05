@@ -290,6 +290,8 @@ export async function settleActivityTx(
         baseId: r.baseId,
         rarityId: r.rarityId,
         itemLevel: r.itemLevel,
+        ...(r.effectId ? { effectId: r.effectId } : {}),
+        ...(r.mythicId ? { mythicId: r.mythicId } : {}),
       })),
     );
     summary.items = summary.items.slice(-SUMMARY_ITEM_LIMIT);

@@ -222,6 +222,9 @@ export interface ActivitySummaryItem {
   baseId: string;
   rarityId: RarityId;
   itemLevel: number;
+  /** Legendary effect / Mythic signature and named Mythic (ticket 3.2); absent on others. */
+  effectId?: string;
+  mythicId?: string;
 }
 
 /** See `characters.farmState` and docs/FARMING.md. */

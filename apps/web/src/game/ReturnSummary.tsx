@@ -4,7 +4,7 @@ import { MaterialStack } from '../components/MaterialStack';
 import { formatDuration, formatNumber } from '../lib/format';
 import { routeHref } from '../lib/route';
 import { useGame } from './GameProvider';
-import { summaryItemView } from './items';
+import { isChaseDrop, summaryItemView } from './items';
 import { materialCounts, professionName } from './materials';
 import './return-summary.css';
 
@@ -32,6 +32,11 @@ export function ReturnSummaryDialog({ heroName }: { heroName: string }) {
   if (!summary) return null;
   const away = Math.max(0, Date.parse(summary.until) - Date.parse(summary.since));
   const shown = summary.items.slice(-ITEM_ICONS).reverse().map(summaryItemView);
+  // Legendary and Mythic finds get their own moment (ticket 3.2), even when older than the icons.
+  const chase = summary.items
+    .filter((i) => isChaseDrop(i.rarityId))
+    .reverse()
+    .map(summaryItemView);
   const unlisted = summary.itemsGained - shown.length;
   const lootGold = summary.goldGained - summary.goldSalvaged;
   const gathered = materialCounts(summary.materials);
@@ -80,6 +85,27 @@ export function ReturnSummaryDialog({ heroName }: { heroName: string }) {
               ? 'Gained a level.'
               : `Gained ${summary.levelsGained} levels.`}
           </p>
+        ) : null}
+
+        {chase.length > 0 ? (
+          <section className="return__chase" aria-labelledby="return-chase">
+            <h3 id="return-chase" className="caps">
+              {chase.some((i) => i.rarity === 'mythic') ? 'A Mythic surfaced' : 'Legendary find'}
+            </h3>
+            <ul>
+              {chase.map((item) => (
+                <li key={item.id} className={`rarity-${item.rarity}`}>
+                  <ItemFrame item={item} scale={2} context="Found" />
+                  <span className="return__chase-text">
+                    <span className="return__chase-name">{item.name}</span>
+                    {item.effectName ? (
+                      <span className="return__chase-effect">{item.effectName}</span>
+                    ) : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </section>
         ) : null}
 
         {shown.length > 0 ? (

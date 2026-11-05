@@ -81,6 +81,30 @@
   font-style: normal;
 }
 
+/* Legendary effect / Mythic signature (ticket 3.2): a rarity rule and the effect in plain words. */
+.tooltip__effect {
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--rarity);
+  background: color-mix(in srgb, var(--rarity) 7%, transparent);
+}
+
+.tooltip__effect-kind {
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+}
+
+.tooltip__effect-name {
+  color: var(--rarity);
+  font-weight: 700;
+}
+
+.tooltip__effect-text {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
 .tooltip__base {
   display: grid;
   gap: 2px;

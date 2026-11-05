@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { RARITIES } from '@worldforge/game-core';
 import {
+  MYTHIC_SOURCES,
   STAT_GROUP_NAMES,
   compareItems,
   groupAffixes,
@@ -52,6 +53,11 @@ export function ItemTooltip({ item, compareTo, caption, note, children, id }: It
               <span className="caps">Unique boss drop</span> Only {item.uniqueSource} drops this.
             </p>
           ) : null}
+          {item.effect?.kind === 'mythic' ? (
+            <p className="tooltip__unique">
+              <span className="caps">Mythic</span> One of a handful, found only in {MYTHIC_SOURCES}.
+            </p>
+          ) : null}
           {note ? <p className="tooltip__note">{note}</p> : null}
         </header>
 
@@ -87,6 +93,19 @@ export function ItemTooltip({ item, compareTo, caption, note, children, id }: It
         ) : (
           <p className="tooltip__plain">No affixes.</p>
         )}
+
+        {item.effect ? (
+          <section
+            className="tooltip__effect"
+            aria-label={item.effect.kind === 'mythic' ? 'Mythic signature' : 'Legendary effect'}
+          >
+            <p className="tooltip__effect-kind caps">
+              {item.effect.kind === 'mythic' ? 'Signature' : 'Legendary effect'}
+            </p>
+            <p className="tooltip__effect-name">{item.effect.name}</p>
+            <p className="tooltip__effect-text">{item.effect.text}</p>
+          </section>
+        ) : null}
 
         {deltas ? (
           <section className="tooltip__compare" aria-label="Comparison with equipped item">

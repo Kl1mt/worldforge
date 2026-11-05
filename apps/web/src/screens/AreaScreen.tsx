@@ -217,6 +217,16 @@ function LogLine({ entry }: { entry: LogEntry }) {
           Found <span className={`log__loot rarity-${entry.rarity}`}>[{entry.item}]</span>
         </>
       );
+    case 'chase':
+      return (
+        <>
+          <span className={`log__chase rarity-${entry.rarity}`}>
+            {entry.rarity === 'mythic' ? 'A Mythic surfaces' : 'A Legendary find'}:
+          </span>{' '}
+          <span className={`log__loot rarity-${entry.rarity}`}>[{entry.item}]</span>
+          {entry.effect ? <span className="log__dim"> · {entry.effect}</span> : null}
+        </>
+      );
     case 'gold':
       return <span className="log__gold">+{formatNumber(entry.amount)} gold</span>;
     case 'level':

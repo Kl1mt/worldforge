@@ -34,6 +34,9 @@ export interface SummaryItem {
   baseId: string;
   rarityId: RarityId;
   itemLevel: number;
+  /** Legendary effect / Mythic signature and named Mythic (ticket 3.2); absent on other items. */
+  effectId?: string;
+  mythicId?: string;
 }
 
 /** Everything earned since the client last collected a summary (docs/FARMING.md). */
@@ -91,6 +94,8 @@ export interface ItemDto {
   upgradeLevel: number;
   variant: ItemVariantId | null;
   effectId: string | null;
+  /** The Legendary effect's rolled strength, 0…1 (ticket 3.2); null for Mythics and others. */
+  effectRoll: number | null;
   setId: string | null;
   mythicId: string | null;
   locked: boolean;

@@ -21,10 +21,42 @@ const dto = (over: Partial<ItemDto>): ItemDto => ({
   upgradeLevel: 0,
   variant: null,
   effectId: null,
+  effectRoll: null,
   setId: null,
   mythicId: null,
   locked: false,
   ...over,
+});
+
+describe('Legendary and Mythic display (ticket 3.2)', () => {
+  it('shows the effect with its rolled numbers', () => {
+    const v = toItemView(
+      dto({ baseId: 'iron-ring', rarityId: 'legendary', effectId: 'tyrants-bane', effectRoll: 0 }),
+    );
+    expect(v.effect).toEqual({
+      kind: 'legendary',
+      name: 'Tyrant’s Bane',
+      text: 'Deal 10 % more damage to bosses.',
+    });
+    expect(toItemView(dto({})).effect).toBeNull();
+    expect(toItemView(dto({ effectId: 'gone', effectRoll: 1 })).effect).toBeNull();
+  });
+
+  it('names the Mythic and its signature, without a boss source line', () => {
+    const v = toItemView(
+      dto({
+        baseId: 'widowmaker',
+        rarityId: 'mythic',
+        effectId: 'widows-kiss',
+        mythicId: 'widowmaker',
+      }),
+    );
+    expect(v.name).toBe('Widowmaker');
+    expect(v.effect?.kind).toBe('mythic');
+    expect(v.effect?.text).toContain('30 % more damage');
+    expect(v.uniqueSource).toBeNull();
+    expect(toItemView(dto({ baseId: 'gravewardens-cowl' })).uniqueSource).toContain('Gravewarden');
+  });
 });
 
 describe('toItemView', () => {

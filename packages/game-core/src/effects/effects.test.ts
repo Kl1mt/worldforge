@@ -219,7 +219,7 @@ describe('Legendary and Mythic generation', () => {
     }
   });
 
-  it('rolls the rest of a Legendary exactly as before (the effect is drawn last)', () => {
+  it('gives a Legendary its full affix count plus the effect (drawn last, after the affixes)', () => {
     const rng = createRng('legendary-order');
     for (let i = 0; i < 300; i++) {
       const seed = rng.int(0, 2 ** 32 - 1);
@@ -230,7 +230,6 @@ describe('Legendary and Mythic generation', () => {
         classId: 'mage' as const,
       };
       const item = generateItem(params)!;
-      // Same seed as an Epic: base and the first affixes come from the same draws.
       const { effectId, effectRoll, ...rest } = item;
       expect(effectId).toBeDefined();
       expect(effectRoll).toBeDefined();
@@ -352,11 +351,14 @@ describe('Legendary and Mythic generation', () => {
       mythicId: 'widowmaker',
     };
     expect(validateItem(mythic).filter((e) => !e.startsWith('expected'))).toEqual([]);
-    const { mythicId: _m, ...unnamed } = mythic;
+    const unnamed: GeneratedItem = { ...mythic };
+    delete unnamed.mythicId;
     expect(validateItem(unnamed).join()).toMatch(/without its mythic/);
     expect(validateItem({ ...mythic, effectId: 'starfall' }).join()).toMatch(/needs effect/);
     // Pre-3.2 stat-only Legendaries and Mythics stay valid.
-    const { effectId: _e, effectRoll: _r, ...old } = legendary;
+    const old: GeneratedItem = { ...legendary };
+    delete old.effectId;
+    delete old.effectRoll;
     expect(validateItem(old)).toEqual([]);
   });
 });
