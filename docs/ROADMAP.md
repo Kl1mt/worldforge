@@ -362,7 +362,7 @@ GDD: §6.4, §11.2, §15 Phase 3 ("late-game activities and more targeted loot t
 - Also address the Phase 2 note that the crypt is easier than its target for heroes with farmed gear (tune tier I here or in B.2; record which).
 **Acceptance:** determinism and invariance tests; a claim race test; a balance test per tier; screenshots.
 
-### 3.7 Loot filter & pack management (vertical) — `done (PR #TBD)`
+### 3.7 Loot filter & pack management (vertical) — `done (PR #44)`
 GDD: §1.3, §14 (steps 4–5); Phase 2 retrospective (the pack fills in about two game hours). Needs 3.1.
 - **Loot filter rules per character:** auto-salvage or auto-sell drops below a chosen rarity, or without chosen affixes or effects. Applied server-side at settlement and claim, and audited.
 - **Item lock:** locked items can't be sold, salvaged or discarded (the `locked` column from 3.1).
