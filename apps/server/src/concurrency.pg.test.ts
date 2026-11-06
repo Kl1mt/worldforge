@@ -542,12 +542,16 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
       const entries = results.slice(N);
       const ok = claims.filter((r) => r.statusCode === 200);
       expect(ok).toHaveLength(1);
-      for (const r of claims.filter((x) => x.statusCode !== 200)) {
-        expect(r.json()).toMatchObject({ error: { code: 'no_dungeon_run' } });
-      }
       // An entry either lost to the open run or came after the claim; never two open runs.
       for (const r of entries) expect([201, 409]).toContain(r.statusCode);
-      expect(entries.filter((r) => r.statusCode === 201).length).toBeLessThanOrEqual(1);
+      const reentered = entries.filter((r) => r.statusCode === 201).length;
+      expect(reentered).toBeLessThanOrEqual(1);
+      // A losing claim finds no run, or, if a re-entry opened a new run after the winning
+      // claim, finds that run still in progress.
+      const losingCodes = reentered ? ['no_dungeon_run', 'run_in_progress'] : ['no_dungeon_run'];
+      for (const r of claims.filter((x) => x.statusCode !== 200)) {
+        expect(losingCodes).toContain(r.json<{ error: { code: string } }>().error.code);
+      }
       const open = await database.db
         .select()
         .from(dungeonRuns)
