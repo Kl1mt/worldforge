@@ -438,6 +438,121 @@ Checked and holding: the forge stream (`forge_secret` never leaves the server; t
 - **The farming breakpoint at the top** (B.2): past ~22 every late-game build one-shots the Abbey and levels run on to 28 with no content above 24; together with tier III falling at 21 to upgraded gear, the top end needs content or a cap.
 - **Playtest feedback**: `docs/PLAYTEST_FEEDBACK.md` is still the empty template; B.1 and B.2 were tuned from simulations only.
 
+## Phase 4 — Online social layer & community world
+GDD §15 Phase 4, §10.1, §12, §16.3. **Exit:** players can take part in social systems safely; shared progress is consistent; permissions, moderation and abuse reporting are in place.
+
+**Ground rules for Phase 4** (the Phase 1–3 rules still apply: vertical slices, invariance tests, real-PG concurrency tests, `Idempotency-Key` on value endpoints, the migration rule, the window rule, the playtest clock)
+- **Safety before reach.** No player-written text or player-to-player interaction ships without length limits, a text filter, a report action, moderator actions and per-account rate limits in the same ticket. 4.1 builds these once; later tickets use them.
+- **Privacy.** Public views show only the display name, character names and what the player chose to show. Never an email, account id, IP or exact last-seen time. A blocked player is invisible to the blocker everywhere (profiles, friends, guild invites, chat).
+- **Nothing secret from public ids** (Phase 3 retrospective). Public handles are opaque; no seed or reward may derive from anything the client can see.
+- **Permissions as data.** Roles (account: player / moderator / admin; guild: leader / officer / member) and what each may do are a table in code, with one permission-matrix test per feature (every role × every action, including "not a member" and "blocked").
+- **Shared counters are exact.** Community and guild totals are written in the same transaction as the contribution and audited, like 3.8's telemetry; races reconcile with the audit log. Race tests assert what holds in every order, never the order.
+- **No monopoly** (GDD §12.2): contributions to shared goals have per-player caps or diminishing returns, so a few high-power players can't finish everything alone. Individual rewards can coexist with global milestones.
+- **Polling, not sockets.** Social screens poll with cursors and `ETag`/`since` (one API instance, like the rate limits). Size every polling endpoint against 3.9's per-account limits, and give social writes their own, tighter limits.
+- **Extend the journey.** Each ticket adds its steps to `apps/server/src/e2e/journey.ts`; 4.11 turns it into the Phase 4 exit run with two or more players.
+
+**Defaults the owner can override** (recorded in the GDD when the ticket lands):
+- **Communication:** guild chat only. No global chat and no direct messages in Phase 4.
+- **Presence:** coarse buckets only (online now / today / this week / longer), visible to friends and guildmates, and the player can hide it.
+- **Group activity:** an asynchronous weekly guild boss (members fight it at their own time, damage adds up), not real-time co-op.
+- **Trading stays off.** 4.10 only decides item binding and the trade rules, for a later phase.
+- **Warehouse:** per character (no item transfer between characters, so no binding question yet), opened for everyone by the first community project.
+- **Moderation:** the owner is the first admin (granted by a CLI command); moderators work in a minimal in-app queue.
+- **Guilds:** creating one costs gold (a sink); up to 30 members.
+
+**Order** (one session at a time to respect the usage limit, unless noted): 4.1 → 4.2 and 4.3 (may run in parallel) → 4.4 → 4.5 → 4.6 → 4.7 → 4.8 (after A.7) → 4.9 → 4.10 → B.3 → 4.11. Art: A.7 after 4.6 (before 4.8); A.8 after 4.2 and 4.4.
+
+### 4.1 Roles, safety & moderation foundation (vertical) — `todo`
+GDD: §10.1, §16.3. Read `docs/API_CONVENTIONS.md`, `docs/DATA_MODEL.md`, `apps/server/src/auth/`.
+- **Account roles:** player, moderator, admin, stored on the account and checked server-side. A CLI command grants and revokes roles (`pnpm admin:role …`); the first admin is the owner. No role can be gained through the API.
+- **Player text module** (game-core/server, used by every later social ticket): normalisation (Unicode NFKC, trimmed, no control or invisible characters), length limits per kind, a data-driven block list with simple evasion handling, and a link policy (no links in Phase 4).
+- **Reports:** any player can report a player, a profile field, a guild or a message (reason + optional note). One open report per reporter and target. Reports are rate limited and audited.
+- **Sanctions:** moderators can mute (no social writes), suspend (no login) for a time, force a rename, and hide content. Every sanction has a reason, an expiry, an audit row, and is visible to the player ("why can't I post?").
+- **Moderator queue:** a minimal in-app screen for moderators and admins (open reports with context, act, dismiss), styled per the design system. Everyone else gets `404`.
+- **Social rate limits:** a tighter per-account limit class for social writes, on top of 3.9's limits.
+- **Migration:** account roles, reports, sanctions. Public handles for accounts (opaque, not the account id) for later profile links.
+**Acceptance:** permission matrix test (player / moderator / admin × every moderation action); text filter tests (evasion cases, limits); report and sanction races (real PG); screenshots of the report dialog and the moderator queue.
+
+### 4.2 Public profiles & achievements (vertical) — `todo`
+GDD: §10.1, §5.3. Needs 4.1.
+- **Profile page** per account, reached by display name or handle: display name, characters (portrait, class, level), selected achievements, and an optional showcase of one character's equipped gear. A privacy setting: public / friends and guild / hidden. Report action on every profile.
+- **Achievements:** data-driven definitions in game-core (e.g. first Legendary, clear crypt tier III, +10 item, complete a set, finish N contracts). Awarded server-side from the events that already exist (audit and quest events), with a backfill from existing progress. The player picks up to N to show.
+- Players with a block relation (4.3) or a hidden profile get `404`.
+**Acceptance:** achievement award and backfill tests (no double award under races); privacy tests (each setting × viewer relation); screenshots desktop and mobile.
+
+### 4.3 Friends & presence (vertical) — `todo`
+GDD: §10.1. Needs 4.1. May run in parallel with 4.2.
+- **Friends:** request, accept, decline, cancel, remove, and **block** (block removes the friendship and pending requests and hides each player from the other). Caps on friends and pending requests.
+- **Presence:** coarse buckets from the last authenticated request (online now / today / this week / longer), shown to friends only (guildmates in 4.4). A setting hides it. No exact timestamps leave the server.
+- Friends list in the UI with presence, the requests inbox, and a link to each profile.
+**Acceptance:** permission/relation matrix (stranger, requested, friend, blocked either way); request races (both send at once → one friendship); presence never reveals exact times; screenshots.
+
+### 4.4 Guilds (vertical) — `todo`
+GDD: §10.1, §4.2 (Guild Hall). Needs 4.1 (and 4.3 for presence).
+- **Create** (gold cost; name and tag through the text module; unique case-insensitively), **invite / apply / accept**, **leave**, **kick**, **promote / demote** (leader, officer, member), **transfer leadership**, **disband**. Up to 30 members; one guild per account.
+- **The Guild Hall** in the hub opens (it is shown locked today): the guild page with members, roles and presence, plus a guild profile reachable by others (report action).
+- Moderators can force-rename or disband a guild (4.1 sanctions).
+- Leaving or a kick takes effect at once in every guild feature; a leader leaving must hand over or disband.
+**Acceptance:** permission matrix (each guild role and non-member × each action); races (two leaders promote/kick each other, joins at the cap, accept vs disband) on real PG; gold cost audited and reconciled; screenshots.
+
+### 4.5 Guild communication (vertical) — `todo`
+GDD: §10.1. Needs 4.4.
+- **Guild chat:** messages through the text module, cursor-paginated polling, a sensible history limit. A guild "notice" the leader and officers can set.
+- **Moderation:** report a message; officers can delete members' messages in their guild; moderators can hide any message and mute (4.1). Muted players see why.
+- Blocked players' messages are hidden for the blocker. Leaving the guild ends access to its chat at once.
+- Polling stays within the rate limits for a busy guild (document the numbers).
+**Acceptance:** permission matrix (roles × post/delete/notice/report); ordering and pagination under concurrent posts (real PG); filter and mute enforced server-side; screenshots.
+
+### 4.6 Community projects & world state (vertical) — `todo`
+GDD: §12.1, §12.2. Needs 4.1.
+- **Global projects:** data-driven, with stages that need materials and gold. Any player contributes from their own holdings. Totals and stage completion are exact under concurrency (same transaction, audited).
+- **No monopoly:** per-player daily caps or diminishing returns per stage; individual rewards for contributors (e.g. a title or achievement from 4.2, never power) alongside the shared unlock.
+- **World state:** completed projects set global flags that game-core content reads (areas, buildings, recipes). One source of truth, cached, invalidated on completion.
+- **First project: Restore the Graumark Warehouse.** Completing it opens the Warehouse for everyone (built in 4.7). **Second project: Clear the Ashen Pass**, which opens the new region in 4.8.
+- UI: a project board in the hub showing progress, your contribution and the remaining cap; a world notice when a project completes.
+**Acceptance:** contribution races at the stage boundary (real PG: no over-fill, no lost contribution, exactly one completion); caps enforced per window; reconcile with the audit log and telemetry; screenshots.
+
+### 4.7 Warehouse (vertical) — `todo`
+GDD: §4.2 (Warehouse). Needs 4.6 (unlocked by its first project). Phase 3 follow-up.
+- **Per-character storage** in the Warehouse building: move items between the pack and the warehouse; locked and valuable items allowed. Capacity with upgrades (gold sink).
+- **Over-capacity follow-up:** valuables kept beyond the pack (B.2) can be moved to the warehouse; the pack banner points there.
+- Items in the warehouse are never touched by the loot filter, settlement or crypt placement.
+**Acceptance:** move races (move vs sell vs settle on one item, real PG); capacity at the boundary; invariance (an empty warehouse changes nothing); screenshots.
+
+### 4.8 The Ashen Pass: top-end region (vertical) — `todo`
+GDD: §4.3, §12.2. Needs 4.6 (unlocked by its second project) and A.7 (art). Phase 3 follow-up: content ends at 24 while heroes reach 28, and B.2's farming breakpoint leaves nothing to farm toward at the top.
+- **A new area for levels 24–28** (enemies, loot table, materials) and a **boss**, as data. It is a world-state unlock: closed until the community finishes the project.
+- **Address the top end:** an area level and rewards that keep late-game builds meaningful past the Abbey breakpoint; tune crypt tier III against upgraded gear (3.9 saw it fall at 21 to every upgraded hero).
+**Acceptance:** balance tests for the new area and boss; determinism and invariance; the world-state gate tested; screenshots.
+
+### 4.9 Guild boss event (vertical) — `todo`
+GDD: §10.1 (group activities), §11.2. Needs 4.4.
+- **A weekly guild boss:** each member may fight it a few times a week with their own hero (a server simulation from a snapshot, like crypt runs); damage adds up to the guild's total. Stages unlock guild-wide rewards; each participant gets a capped personal reward.
+- **Fair and exact:** attempts come from server-side seed streams (no re-roll by retry), totals are exact under concurrent attempts, a member who leaves keeps their personal reward but their damage stays with the guild they fought for, and joining late can't claim rewards already earned.
+- A guild-only damage board (global leaderboards are Phase 5).
+**Acceptance:** attempt races and week-boundary window tests (real PG); invariance; balance test (a small guild can finish the first stage, a large one can't trivialise every stage); screenshots.
+
+### 4.10 Trading & item binding: decision (docs) — `todo`
+GDD: §10.1, §17 (trading and item binding), §16.3. No trading code.
+- Decide and document item binding (bind on pickup / bind on equip / tradeable, by rarity, variant and source), what a trade may include (items, gold, materials), anti-abuse rules (account age, level, limits, audit, rate limits, reversal by moderators) and the real-money-trading risk.
+- Record the decision in GDD §17 and a ticket outline for the phase that builds it. The owner signs off.
+**Acceptance:** the owner approves the decision document in the PR.
+
+### B.3 Balance pass: top end & social economy — `todo`
+GDD: §8.3, §12.2, §16.4. Needs 4.6–4.9.
+- The top end with the Ashen Pass (levels 24–28, the breakpoint, crypt tier III).
+- New gold and material sinks and sources (guild creation, project contributions, warehouse upgrades, guild boss rewards) measured with 3.8's telemetry and the realistic player.
+- Community projects: how long each stage takes at different player counts, and that the caps prevent monopoly.
+- Address the owner's playtest feedback if it has arrived.
+**Acceptance:** extended balance tests green and fast; before/after tables in the docs.
+
+### 4.11 Phase 4 hardening & exit — `todo`
+GDD: §15 Phase 4 exit, §16.3.
+- **Exit-criteria e2e** with several players: profiles and achievements, friends and block, a guild with chat and moderation, a report handled by a moderator, contributions finishing a community project (warehouse opens), the Ashen Pass unlock, and a guild boss week, all reconciled with the audit log and telemetry. Browser run included.
+- **Exploit and abuse review** of every Phase 4 endpoint: permissions, privacy leaks (block, hidden profiles, presence), spam and flooding, text-filter evasion, contribution and guild-boss races, ownership, client-trusted values.
+- Rate limits reviewed for social polling and writes; the in-memory limiters' single-instance limit recorded.
+- Phase 4 retrospective in this file.
+
 ## Art tickets (run alongside the phases)
 
 ### A.1 Class portraits — `done (PR #14)`
@@ -480,3 +595,15 @@ GDD: §3.1, §7. Needs 3.2 and 3.3 merged (they define the named items). Match t
 - Icons for the named Mythic items and every set piece (about 20–25), visibly more ornate than tier-3 gear but in the same palette. Legendary items (non-named) keep their base icons; their frame treatment comes from 3.2.
 - Budget: one or two 32px jobs (64 variants each); at most one regeneration. Switch the items from placeholder icons and update the manifest and `assets.ts` (they must match, in order).
 **Acceptance:** a contact sheet next to tier-3 gear in the PR.
+
+### A.7 The Ashen Pass: backdrop, enemies & boss — `todo`
+GDD: §3.1, §4.3. Needs 4.6 (the region's content ids are fixed with its project). Match the existing backdrops (384×216, pass `apps/web/public/assets/areas/sunken-abbey.png` as `style_image`) and enemies (64×64, side view; the Gravewarden for the boss at 128×128).
+- One area backdrop (a burnt mountain pass, ash drifts, ruined watchtowers), 3–4 enemies, one boss.
+- Budget: one backdrop job, two enemy jobs, one boss job; at most 2 regenerations. Raw results in `art/source/pixellab/`, curated into `apps/web/public/assets/`, manifest and `assets.ts` updated (in order).
+**Acceptance:** a contact sheet next to the Abbey art in the PR.
+
+### A.8 Achievement & guild heraldry icons — `todo`
+GDD: §3.1, §10.1. Needs 4.2 (achievement ids) and 4.4 (guild emblem choices). Match the 32×32 item icons.
+- Icons for the achievements and a small set of guild emblems (about 12) players can choose from (no uploads: no user images in Phase 4).
+- Budget: one or two 32px jobs; at most one regeneration. Manifest and `assets.ts` updated.
+**Acceptance:** a contact sheet in the PR.
