@@ -216,9 +216,9 @@ jobs:
     # report can reconcile it with the audit log after the server stops.
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    env:
-      E2E_DATA_DIR: ${{ runner.temp }}/wf-e2e
     steps:
+      # The `runner` context is not available in job-level `env`, so set the data dir here.
+      - run: echo "E2E_DATA_DIR=$RUNNER_TEMP/wf-e2e" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
@@ -256,9 +256,7 @@ jobs:
           echo "e2e server did not stop"; exit 1
       - name: Reconcile telemetry with the audit log
         # Exit code 2 when a rollup differs from the audit log.
-        run: pnpm report:telemetry -- --db playtest --reconcile
-        env:
-          PLAYTEST_DATA_DIR: ${{ env.E2E_DATA_DIR }}
+        run: PLAYTEST_DATA_DIR="$E2E_DATA_DIR" pnpm report:telemetry -- --db playtest --reconcile
       - name: Upload screenshots and logs
         if: always()
         uses: actions/upload-artifact@v4
