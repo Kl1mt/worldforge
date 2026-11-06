@@ -1,3 +1,4 @@
+import { refreshAchievements } from '../achievements/award.js';
 import type { FastifyInstance } from 'fastify';
 import { and, asc, eq } from 'drizzle-orm';
 import {
@@ -348,6 +349,10 @@ export async function registerInventory(
           }
           await setSlot(tx, item.id, slot);
           item.equippedSlot = slot;
+          // Ticket 4.2: wearing a set's last piece earns its achievement.
+          if (item.setId) {
+            await refreshAchievements(tx, character, ['fullSetWorn'], activity.now());
+          }
         }
         return inventoryView(character, items);
       });

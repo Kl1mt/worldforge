@@ -291,6 +291,13 @@ It fast-forwards the checkout to `origin/main` and builds the new images while t
 - Options: `--ref <commit>` (deploy a specific commit of `main`), `--no-pull` (deploy the checkout as it is), `--skip-backup`.
 - Each deploy also pulls the newest `cloudflared` image (it runs with auto-update off).
 
+### Data backfills
+
+Some tickets need a one-shot data step on live data. It runs in the same one-shot `migrate` service, right after the migrations (`dist/db/migrate-cli.js`), so every deploy (and `restore.sh`) applies it before the new server starts; nothing is run by hand.
+
+- **Achievements** (ticket 4.2): awards every account the achievements its existing progress already earned: each character's state (items, upgrade levels, level, crypt progress, quests) plus the audit log for items that were sold, salvaged or discarded and for past forge upgrades. It runs once per database, recorded in `data_backfills` under `achievements:<hash of the achievement ids>`, so adding an achievement later runs it again for the new one. It can never award twice: awards are unique per account and achievement (the primary key), one transaction per account, and a re-run or a crash half-way only fills in what is missing. The output line `Backfill achievements:…: N achievements for M accounts` (or `already done`) is in `deploy.sh`'s output.
+- A failing backfill fails the `migrate` step like a failed migration: the migrations it follows stay applied (they are additive), the running server is untouched, and the next deploy retries it.
+
 ## 12. Optional: deploy automatically from GitHub
 
 `.github/workflows/deploy.yml` deploys every push to `main` once CI is green (and from *Actions → Deploy → Run workflow*). It does **nothing** until you enable it. It logs in with a dedicated SSH key that can only run `deploy <commit>`, nothing else.

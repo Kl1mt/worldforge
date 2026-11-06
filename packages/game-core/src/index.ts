@@ -18,3 +18,4 @@ export * from './quests/index.js';
 export * from './onboarding/index.js';
 export * from './effects/index.js';
 export * from './social/index.js';
+export * from './achievements/index.js';

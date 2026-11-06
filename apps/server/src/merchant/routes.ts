@@ -1,3 +1,4 @@
+import { refreshAchievements } from '../achievements/award.js';
 import type { FastifyInstance } from 'fastify';
 import { and, asc, eq, like } from 'drizzle-orm';
 import {
@@ -299,6 +300,7 @@ export async function registerMerchant(
               goldAfter: character.gold,
             },
           });
+          await refreshAchievements(tx, character, ['maxRarity'], now); // ticket 4.2
           recordTelemetry(tx, now, [
             ...dropCounts('merchant', parsed.areaId, [item]),
             ...goldOut('merchant_buy', item.rarityId, offer.price),

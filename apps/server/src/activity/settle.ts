@@ -1,3 +1,4 @@
+import { refreshAchievements, type FactKey } from '../achievements/award.js';
 import { randomBytes } from 'node:crypto';
 import { and, asc, count, eq, isNotNull, isNull, lt, sql } from 'drizzle-orm';
 import {
@@ -293,6 +294,12 @@ export async function settleActivityTx(
       .where(eq(characters.id, characterId))
       .returning();
     updatedCharacter = written!;
+    // Ticket 4.2: achievements from this settlement's drops and levels (no queries otherwise).
+    const factKeys: FactKey[] = [
+      ...(rows.length > 0 ? (['maxRarity'] as const) : []),
+      ...(written!.level !== character.level ? (['maxCharacterLevel'] as const) : []),
+    ];
+    if (factKeys.length > 0) await refreshAchievements(tx, written!, factKeys, now);
 
     Object.assign(patch, {
       settlementSeq: seq,

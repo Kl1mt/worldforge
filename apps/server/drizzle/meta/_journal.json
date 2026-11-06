@@ -134,6 +134,13 @@
       "when": 1794002273354,
       "tag": "0018_friends_presence",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1794006012882,
+      "tag": "0019_profiles_achievements",
+      "breakpoints": true
     }
   ]
 }

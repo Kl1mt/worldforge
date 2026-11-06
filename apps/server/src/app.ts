@@ -19,6 +19,7 @@ import { pruneIdempotencyKeys } from './idempotency/index.js';
 import { registerQuests } from './quests/routes.js';
 import { registerLootFilter } from './loot-filter/routes.js';
 import { registerSafety } from './social/routes.js';
+import { registerProfiles } from './social/profiles.js';
 import { registerModeration } from './social/moderation.js';
 import { registerFriends } from './social/friends.js';
 import { registerLegal, type LegalOptions } from './legal/routes.js';
@@ -87,6 +88,7 @@ export function buildApp({
       await registerQuests(api, activityOptions);
       await registerLootFilter(api, activityOptions);
       await registerSafety(api);
+      await registerProfiles(api);
       await registerModeration(api);
       await registerFriends(api);
       await registerLegal(api, legal ?? {});

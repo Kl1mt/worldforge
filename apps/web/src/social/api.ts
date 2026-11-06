@@ -1,5 +1,11 @@
 import type {
   AccountRole,
+  BannerId,
+  ClassId,
+  EquipmentSlotId,
+  ProfileVisibility,
+  RarityId,
+  RolledAffix,
   ReportReasonId,
   ReportTarget,
   SanctionAction,
@@ -27,6 +33,47 @@ export interface Standing {
 export interface PlayerRef {
   handle: string;
   displayName: string;
+}
+
+/** A hero on a profile (ticket 4.2); `name` is null while a moderator hides it. */
+export interface ProfileHero {
+  name: string | null;
+  classId: ClassId;
+  level: number;
+  appearance: { banner: BannerId };
+}
+
+/** An equipped item as other players see it: no ids, seeds or dates. */
+export interface ShowcaseItem {
+  slot: EquipmentSlotId;
+  baseId: string;
+  rarityId: RarityId;
+  itemLevel: number;
+  affixes: RolledAffix[];
+  upgradeLevel: number;
+  variant: string | null;
+  effectId: string | null;
+  effectRoll: number | null;
+  setId: string | null;
+  mythicId: string | null;
+}
+
+export interface Profile {
+  handle: string;
+  displayName: string | null;
+  self: boolean;
+  visibility: ProfileVisibility | null;
+  characters: ProfileHero[];
+  achievements: { id: string; awardedOn: string }[];
+  showcase: (ProfileHero & { equipped: ShowcaseItem[] }) | null;
+}
+
+export interface ProfileSettings {
+  visibility: ProfileVisibility;
+  showcaseCharacterId: string | null;
+  shown: string[];
+  earned: { id: string; awardedAt: string; characterName: string | null }[];
+  characters: { id: string; name: string }[];
 }
 
 export interface FiledReport {
@@ -77,6 +124,16 @@ export const socialApi = {
     apiRequest('/account/display-name', { method: 'POST', body: { displayName } }),
   lookup: (name: string): Promise<ApiResult<{ player: PlayerRef }>> =>
     apiRequest(`/players/lookup?name=${encodeURIComponent(name)}`),
+  profile: (handle: string, signal?: AbortSignal): Promise<ApiResult<{ profile: Profile }>> =>
+    apiRequest(`/players/${encodeURIComponent(handle)}/profile`, signal ? { signal } : {}),
+  profileSettings: (signal?: AbortSignal): Promise<ApiResult<ProfileSettings>> =>
+    apiRequest('/account/profile', signal ? { signal } : {}),
+  saveProfile: (body: {
+    visibility: ProfileVisibility;
+    shown: string[];
+    showcaseCharacterId: string | null;
+  }): Promise<ApiResult<ProfileSettings>> =>
+    apiRequest('/account/profile', { method: 'POST', body }),
   report: (body: {
     target: ReportTarget;
     reason: ReportReasonId;
@@ -127,7 +184,9 @@ export function describeSanction(s: Sanction): string {
     case 'rename':
       return `Your display name was changed by a moderator. Choose a new one before ${until}.`;
     case 'hide':
-      return `Your display name is hidden from other players until ${until}.`;
+      return s.target?.kind === 'characterName'
+        ? `Your hero name “${s.target.name}” is hidden from other players until ${until}.`
+        : `Your display name is hidden from other players until ${until}.`;
   }
 }
 
@@ -140,6 +199,10 @@ export function describeSocialFailure(error: ApiFailure): string {
       return 'You cannot report yourself.';
     case 'not_found':
       return 'No player goes by that name.';
+    case 'achievement_not_earned':
+      return 'Show only achievements you have earned.';
+    case 'not_your_character':
+      return 'Showcase one of your own heroes.';
     case 'rate_limited': {
       const s = error.retryAfterSeconds ?? 60;
       return `Too many reports and posts in a short time. Try again in ${s >= 90 ? `${Math.ceil(s / 60)} minutes` : `${s} seconds`}.`;

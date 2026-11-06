@@ -473,7 +473,7 @@ GDD: §10.1, §16.3. Read `docs/API_CONVENTIONS.md`, `docs/DATA_MODEL.md`, `apps
 - **Migration:** account roles, reports, sanctions. Public handles for accounts (opaque, not the account id) for later profile links.
 **Acceptance:** permission matrix test (player / moderator / admin × every moderation action); text filter tests (evasion cases, limits); report and sanction races (real PG); screenshots of the report dialog and the moderator queue.
 
-### 4.2 Public profiles & achievements (vertical) — `todo`
+### 4.2 Public profiles & achievements (vertical) — `done (PR #55)`
 GDD: §10.1, §5.3. Needs 4.1.
 - **Profile page** per account, reached by display name or handle: display name, characters (portrait, class, level), selected achievements, and an optional showcase of one character's equipped gear. A privacy setting: public / friends and guild / hidden. Report action on every profile.
 - **Achievements:** data-driven definitions in game-core (e.g. first Legendary, clear crypt tier III, +10 item, complete a set, finish N contracts). Awarded server-side from the events that already exist (audit and quest events), with a backfill from existing progress. The player picks up to N to show.

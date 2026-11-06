@@ -55,6 +55,7 @@ function targetLabel(c: ModCase): string {
   if (c.target.kind === 'profileField' && 'field' in c.target) {
     return PROFILE_FIELD_LABELS[c.target.field];
   }
+  if (c.target.kind === 'characterName') return `Hero name · ${c.target.name}`;
   return REPORT_TARGET_KINDS[c.target.kind].label;
 }
 

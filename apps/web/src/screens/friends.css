@@ -120,6 +120,17 @@
   overflow-wrap: anywhere;
 }
 
+/* Ticket 4.2: a name links to the profile; underline only on hover so the list stays calm. */
+a.fellow__name {
+  text-decoration: none;
+}
+
+a.fellow__name:hover,
+a.fellow__name:focus-visible {
+  color: var(--accent-strong);
+  text-decoration: underline;
+}
+
 .fellow__name--hidden {
   font-weight: 400;
   font-style: italic;

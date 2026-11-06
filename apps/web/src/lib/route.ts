@@ -13,6 +13,8 @@ export const GAME_ROUTES = [
   // everyone else it behaves like an unknown address).
   'account',
   'moderation',
+  // Ticket 4.2: public profiles, `#/profile` (your own) or `#/profile/<handle>`.
+  'profile',
   // Ticket 4.3: friends, requests, blocks and presence.
   'friends',
 ] as const;
@@ -41,6 +43,17 @@ export function parseRoute(hash: string): Route {
 
 export function routeHref(route: Route): string {
   return `#/${route}`;
+}
+
+/** Ticket 4.2: the handle in `#/profile/<handle>`, if any (only the shape is checked). */
+export function profileHandleFromHash(hash: string): string | null {
+  const m = /^#\/?profile\/([0-9a-z]{1,64})(?:[/?]|$)/i.exec(hash);
+  return m ? m[1]!.toLowerCase() : null;
+}
+
+/** The profile page of a handle; without one, your own. */
+export function profileHref(handle?: string): string {
+  return handle ? `#/profile/${encodeURIComponent(handle)}` : routeHref('profile');
 }
 
 export function isGameRoute(route: Route): route is GameRoute {

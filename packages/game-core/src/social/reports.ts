@@ -2,8 +2,7 @@
  * Report targets and reasons (ticket 4.1, docs/SOCIAL.md "Reports").
  *
  * `ReportTarget` is a discriminated union that later tickets extend: 4.1 has `player` and
- * `profileField` (the display name, the only player-written field so far); profiles (4.2) add
- * profile fields, guilds add `{ kind: 'guild', guildId }`, chat adds `{ kind: 'message', messageId }`.
+ * `profileField` (the display name); profiles (4.2) add `characterName`, guilds add `{ kind: 'guild', guildId }`, chat adds `{ kind: 'message', messageId }`.
  * Each new kind adds itself here and registers a resolver on the server
  * (`apps/server/src/social/targets.ts`). Targets name players by their public handle, never by
  * account id.
@@ -13,7 +12,9 @@ export type ProfileFieldId = (typeof PROFILE_FIELD_IDS)[number];
 
 export type ReportTarget =
   | { kind: 'player'; handle: string }
-  | { kind: 'profileField'; handle: string; field: ProfileFieldId };
+  | { kind: 'profileField'; handle: string; field: ProfileFieldId }
+  /** Ticket 4.2: a character's name, as shown on its owner's profile (names are permanent). */
+  | { kind: 'characterName'; handle: string; name: string };
 
 export type ReportTargetKind = ReportTarget['kind'];
 
@@ -26,6 +27,7 @@ export interface ReportTargetKindInfo {
 export const REPORT_TARGET_KINDS: Record<ReportTargetKind, ReportTargetKindInfo> = {
   player: { hideable: false, label: 'Player' },
   profileField: { hideable: true, label: 'Profile field' },
+  characterName: { hideable: true, label: 'Character name' },
 };
 
 export const REPORT_TARGET_KIND_IDS = Object.keys(REPORT_TARGET_KINDS) as ReportTargetKind[];

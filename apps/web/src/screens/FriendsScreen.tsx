@@ -1,7 +1,7 @@
 import { useId, useState, type FormEvent } from 'react';
 import { PRESENCE_LABELS, validatePlayerText } from '@worldforge/game-core';
 import type { ApiResult } from '../lib/api';
-import { routeHref } from '../lib/route';
+import { profileHref, routeHref } from '../lib/route';
 import { ReportDialog } from '../social/ReportDialog';
 import {
   describeFriendFailure,
@@ -17,8 +17,8 @@ import './friends.css';
  * Friends (ticket 4.3): the fellowship roll. The roll of companions on an iron plate, each with a
  * lantern for presence (a coarse bucket, never a time); beside it the ledger of letters — add a
  * companion by name, answer requests at the door, withdraw sent ones — and the presence setting.
- * Blocked players sit at the foot, struck through. Names link to the profile route when 4.2 adds
- * it; until then they show the handle.
+ * Blocked players sit at the foot, struck through. Names link to the profile (ticket 4.2), except
+ * blocked players'.
  */
 export function FriendsScreen() {
   const { state, reload } = useFriends();
@@ -180,12 +180,19 @@ function nameOf(f: FriendEntry): string {
   return f.displayName ?? 'A player whose name is hidden';
 }
 
-function Who({ entry }: { entry: FriendEntry }) {
+/** Ticket 4.2: names link to the profile, except blocked players (theirs is a 404). */
+function Who({ entry, link = true }: { entry: FriendEntry; link?: boolean }) {
+  const cls = `fellow__name${entry.displayName ? '' : ' fellow__name--hidden'}`;
+  const name = entry.displayName ?? 'Name hidden by the wardens';
   return (
     <span className="fellow__who">
-      <span className={`fellow__name${entry.displayName ? '' : ' fellow__name--hidden'}`}>
-        {entry.displayName ?? 'Name hidden by the wardens'}
-      </span>
+      {link ? (
+        <a className={cls} href={profileHref(entry.handle)}>
+          {name}
+        </a>
+      ) : (
+        <span className={cls}>{name}</span>
+      )}
       <span className="fellow__handle">@{entry.handle}</span>
     </span>
   );
@@ -480,7 +487,7 @@ function Blocked({
         <ul className="letters__list">
           {entries.map((f) => (
             <li key={f.handle} className="letters__row letters__row--struck">
-              <Who entry={f} />
+              <Who entry={f} link={false} />
               <span className="letters__actions">
                 <button type="button" className="btn btn--small" onClick={() => onReport(f)}>
                   Report

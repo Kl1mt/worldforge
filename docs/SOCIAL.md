@@ -9,7 +9,7 @@ Code: `packages/game-core/src/social/` (rules and data, usable by server and cli
 1. **Text:** every player-written string goes through `assertPlayerText(kind, raw, field)` on the server (the client may call game-core `validatePlayerText` for instant feedback). Add a kind to `PLAYER_TEXT_RULES` if none fits. Store the returned (normalised) value.
 2. **Write:** the route runs behind `app.requireAccount` and does its work inside `socialWrite(app, request, reply, action, fn)` (or calls `assertSocialWriteAllowed(tx, …)` first inside its own transaction helper, e.g. `idempotentTransaction`). Name a new `SocialWriteAction` (`'chat'`, `'guildCreate'`, …).
 3. **Report:** add the new target to game-core's `ReportTarget` union and `REPORT_TARGET_KINDS`, a resolver in `apps/server/src/social/targets.ts` (`RESOLVERS`) and a branch in `reportTargetSchema`; open `ReportDialog` with a fixed `target` from the UI.
-4. **Blocks and relations:** anything that shows one player to another, or lets one reach another, asks the relationship model (below): a block either way hides each from the other (`isBlockedEitherWay`, or `blockedEitherWay` to filter a list).
+4. **Blocks and relations:** anything that shows one player to another, or lets one reach another, asks the relationship model (below): a block either way hides each from the other (`isBlockedEitherWay`, or `blockedEitherWay` to filter a list). Profiles (ticket 4.2) do this in one place: `viewableProfileOwner` / `canViewProfile` ("Profiles" below).
 5. **Hide:** if the content is `hideable`, filter it out of other players' views with `hiddenTargetKeys(executor, keys, now)`.
 6. **Permissions:** new moderator actions go into `MODERATION_ACTIONS` and the hand-written table in `permission-matrix.test.ts`.
 7. **Races and journey:** a real-PG race test for anything shared; a step in `e2e/journey.ts`.
@@ -64,7 +64,7 @@ Actions: `viewQueue` (allowed for staff, 404 for players), `dismissReport`, `mut
 
 ## Reports
 
-`POST /api/reports` with a `ReportTarget`, a reason (`REPORT_REASONS`) and an optional note. Today's targets: `{ kind: 'player', handle }` and `{ kind: 'profileField', handle, field: 'displayName' }`. One open report per reporter and target (partial unique index; a concurrent duplicate gets `409 report_open`). The report stores a context snapshot (the display name as seen), so later renames keep the evidence. A muted player can still report; self-reports are refused. Every report writes `report.create`.
+`POST /api/reports` with a `ReportTarget`, a reason (`REPORT_REASONS`) and an optional note. Today's targets: `{ kind: 'player', handle }`, `{ kind: 'profileField', handle, field: 'displayName' }` and (ticket 4.2) `{ kind: 'characterName', handle, name }` (key `characterName:<character id>`, hideable: a hidden hero name shows as "Name withheld" on the profile; the queue's `current.value` is the hero's current name). One open report per reporter and target (partial unique index; a concurrent duplicate gets `409 report_open`). The report stores a context snapshot (the display name as seen), so later renames keep the evidence. A muted player can still report; self-reports are refused. Every report writes `report.create`.
 
 The moderator queue groups open reports by target into cases, oldest first, with the subject's handle, name, role, active sanctions and past-sanction count, and each report's reason, note and reporter. Acting on any report of a case (dismiss or a sanction) closes every open report on that target; a second moderator acting on the same report gets `409 report_closed`.
 
@@ -75,7 +75,7 @@ The moderator queue groups open reports by target into cases, oldest first, with
 | `mute` | `mute` | No social writes (`403 muted`), except `report` and `rename`. Play continues. |
 | `suspend` | `suspend` | No login (`403 account_suspended` after a correct password) and every request of a live session answers `403 account_suspended` at once (checked in `requireAccount` on each request). Sessions are not revoked, so they work again when it expires. |
 | `rename` | `forceRename` | The display name becomes a placeholder (`Wanderer 482913`) at once; the player chooses a new one (`POST /api/account/display-name`, not the old name) within the duration. Lifting it restores the old name if still free. |
-| `hide` | `hideContent` | Hides one `hideable` target (today the display name) from other players (the lookup); kinds other than content answer `422 not_hideable`. |
+| `hide` | `hideContent` | Hides one `hideable` target (the display name, a hero name) from other players (the lookup and the profile); kinds other than content answer `422 not_hideable`. |
 
 Every sanction has a reason (shown to the player), an expiry (`SANCTION_DURATIONS`: presets and bounds per kind), an issuer, and audit rows (`sanction.issue` on the subject's account with the issuer in the data; `sanction.lift`). One active sanction per kind (and per content for `hide`): a second is `409 already_sanctioned`, lift first. The player sees active sanctions in `GET /api/account/standing`, in the shell's standing strip and the account screen; the `403` bodies carry the sanction (`details.sanction`).
 
@@ -85,6 +85,28 @@ Every sanction has a reason (shown to the player), an expiry (`SANCTION_DURATION
 
 `socialWrite` counts each write in the **social-write rate-limit class** before any work (in-process, per account, on top of 3.9's limits): **12 a minute and 240 an hour** by default (`DEFAULT_SOCIAL_WRITE_LIMIT`, sized for guild chat at one message every 5 s), `429 rate_limited` with `Retry-After` and `details.limit: 'social'`. Refused writes are not counted. Configurable per app (`auth.socialWriteLimit`). Like the other limits it lives in process memory (one API instance).
 
+## Profiles
+
+Ticket 4.2. Code: game-core `social/profiles.ts` (`PROFILE_VISIBILITIES`, `PROFILE_RELATIONS`, `canViewProfile`), server `apps/server/src/social/profiles.ts` (routes, `profileRelation`, `viewableProfileOwner`, `profileView`), web `screens/ProfileScreen.tsx` (`#/profile`, `#/profile/<handle>`).
+
+- **Reached** by display name (`GET /api/players/lookup?name=`, the search on the profile page and the report dialog) or handle (`?handle=`, `GET /api/players/:handle/profile`). Logged-in players only.
+- **Shows** the display name, the handle, every hero (name, class, level, banner portrait), the achievements the owner picked (up to `MAX_SHOWN_ACHIEVEMENTS` = 5, in their order, with the award day), and optionally one hero's equipped gear (the showcase; never the pack). No account id, email, character or item id, seed, or time finer than a day.
+- **Visibility** (`accounts.profile_visibility`): `public` (default), `friendsAndGuild`, `hidden`. The viewer's relation (`self`, `friend`, `guildmate`, `pending`, `stranger`, `blocked` either way) and `canViewProfile` decide; a `false` is `404 not_found` with the same body as an unknown player, for the profile and the lookup. The owner always sees their own.
+- **Relations come from 4.3** ("Relations"): `profileRelation` maps `relationBetween`: `blocked-by-me` / `blocked-by-them` → `blocked` (404 for the profile, the lookup and the showcase, either way), `friend` → `friend`, `requested-by-me` / `requested-by-them` → `pending` (treated like a stranger). Guilds arrive in 4.4, which maps a shared guild to `guildmate`; until then "friends and guild" means friends only. Names in the friends list link to the profile (blocked players' do not).
+- **Settings:** `POST /api/account/profile` (social write `profile`, rate limited, audited `profile.update`; exempt from mutes because it carries no player text and a muted player must be able to hide their profile).
+- **Report action** on every other player's profile: the player, and each visible hero name (`characterName`). The display name is reported from the report dialog's "their display name".
+
+## Achievements
+
+Ticket 4.2, GDD §5.3 (account-bound). Cosmetic only: no achievement grants power.
+
+- **Definitions** are data in game-core `achievements/definitions.ts` (`ACHIEVEMENTS`): id, name, description, category, an icon asset id for the art ticket A.8 (the client shows a wax-seal placeholder until then), and one typed criterion: `itemRarity`, `upgradeLevel`, `characterLevel`, `gravewardenDefeated`, `cryptTier`, `fullSet`, `contracts`, `storyQuest`. `achievementsEarned(facts)` is pure; a fact that was not collected earns nothing.
+- **Live awards** (`apps/server/src/achievements/award.ts`): the events that already exist call `refreshAchievements(tx, character, factKeys, now)` inside their own transaction, after their change: the settlement (drops, levels; only when it granted items or a level), the crypt claim (drops, level, boss, tier), the quest turn-in (story or contract count, level, reward item), the forge upgrade and craft, the merchant purchase, and equipping a set piece. Facts are read from the character's state in that transaction (contracts count across the account).
+- **At most once:** `account_achievements` has the primary key `(account_id, achievement_id)`; awards insert with `on conflict do nothing`, and only the transaction whose insert created the row writes the `achievement.award` audit row. Two heroes of one account, a live award and the backfill, or two backfills racing all end with one row and one audit row (real-PG test `achievements.pg.test.ts`).
+- **Backfill** (`backfill.ts`): run by `migrate-cli` after the migrations (docs/DEPLOY.md "Data backfills"), once per database and achievement id list. It uses each hero's state plus the audit log for lost history: the rarity of sold, salvaged and discarded items (`merchant.sell`, `forge.salvage`, `item.discard`), notable drops, crafted, bought and quest-reward items, and every `forge.upgrade`'s `toLevel`. Loot-filter salvage (`filtered`) was never owned and does not count. Not recoverable (accepted): a set worn in the past but no longer.
+- **Showing:** the owner picks up to five earned achievements (`shown_slot`); the profile shows those only.
+
+**Adding an achievement:** append a definition (never rename or reuse an id), make sure its fact is collected by `characterFacts` (and the backfill if history matters) and called from the event that changes it, and list the new icon id for the art ticket. The next deploy backfills it.
 ## Relations (friends, requests, blocks) — ticket 4.3
 
 Code: game-core `social/relations.ts` (the matrix, caps, presence buckets) and server `apps/server/src/social/relations.ts` (the reusable API) and `friends.ts` (routes). Tables: `friendships` (one row per unordered pair, `account_low < account_high`; `pending` with `requested_by`, or `friends`), `blocks` (directional), `account_presence`.

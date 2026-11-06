@@ -67,6 +67,8 @@ export const SOCIAL_WRITE_ACTIONS = [
   'friendRemove',
   'block',
   'unblock',
+  // Ticket 4.2: profile settings.
+  'profile',
 ] as const;
 export type SocialWriteAction = (typeof SOCIAL_WRITE_ACTIONS)[number] | (string & {});
 
@@ -83,6 +85,9 @@ export const MUTE_EXEMPT: readonly string[] = [
   'friendRemove',
   'block',
   'unblock',
+  // Ticket 4.2: profile settings carry no player text, and a muted player must still be able to
+  // hide their profile.
+  'profile',
 ];
 
 /** The sanction that blocks this social write, if any (suspension first). */
