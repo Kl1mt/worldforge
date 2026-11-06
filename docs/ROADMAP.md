@@ -613,7 +613,7 @@ GDD: §3.1, §7. Needs 3.2 and 3.3 merged (they define the named items). Match t
 - Budget: one or two 32px jobs (64 variants each); at most one regeneration. Switch the items from placeholder icons and update the manifest and `assets.ts` (they must match, in order).
 **Acceptance:** a contact sheet next to tier-3 gear in the PR.
 
-### A.7 The Ashen Pass: backdrop, enemies & boss — `todo`
+### A.7 The Ashen Pass: backdrop, enemies & boss — `done (PR #57)`
 GDD: §3.1, §4.3. Needs 4.6 (the region's content ids are fixed with its project). Match the existing backdrops (384×216, pass `apps/web/public/assets/areas/sunken-abbey.png` as `style_image`) and enemies (64×64, side view; the Gravewarden for the boss at 128×128).
 - One area backdrop (a burnt mountain pass, ash drifts, ruined watchtowers), 3–4 enemies, one boss.
 - Budget: one backdrop job, two enemy jobs, one boss job; at most 2 regenerations. Raw results in `art/source/pixellab/`, curated into `apps/web/public/assets/`, manifest and `assets.ts` updated (in order).
