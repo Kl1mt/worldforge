@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { and, eq, sql } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { REPORT_REASON_IDS, type ReportReasonId, type ReportTarget } from '@worldforge/game-core';
 import { accounts, reports, sanctions, type Report } from '../db/schema.js';
 import { constraintOf, sqlStateOf } from '../db/transaction.js';
@@ -7,19 +7,9 @@ import { writeAudit } from '../db/audit.js';
 import { uuidv7 } from '../db/uuid.js';
 import { ApiError } from '../errors.js';
 import { displayNameError, normalizeDisplayName } from '../auth/validation.js';
-import {
-  activeSanctions,
-  hiddenTargetKeys,
-  sanctionView,
-  sanctionViewSchema,
-} from './sanctions.js';
+import { activeSanctions, sanctionView, sanctionViewSchema } from './sanctions.js';
 import { socialWrite } from './social-write.js';
-import {
-  profileFieldKey,
-  reportTargetSchema,
-  reportTargetViewSchema,
-  resolveReportTarget,
-} from './targets.js';
+import { reportTargetSchema, reportTargetViewSchema, resolveReportTarget } from './targets.js';
 import { assertPlayerText } from './text.js';
 
 /** A report as its reporter sees it. */
@@ -47,47 +37,8 @@ const reportViewSchema = {
   },
 } as const;
 
-const playerRefSchema = {
-  type: 'object',
-  required: ['handle', 'displayName'],
-  properties: { handle: { type: 'string' }, displayName: { type: 'string' } },
-} as const;
-
 /** Player-facing safety routes (ticket 4.1, docs/SOCIAL.md). */
 export async function registerSafety(app: FastifyInstance): Promise<void> {
-  // Find a player by display name, for the "Report a player" dialog (the seed of 4.2's profile
-  // lookup). Public data only: handle and display name. A hidden name is not found.
-  app.get(
-    '/players/lookup',
-    {
-      preHandler: app.requireAccount,
-      schema: {
-        querystring: {
-          type: 'object',
-          additionalProperties: false,
-          required: ['name'],
-          properties: { name: { type: 'string', minLength: 1, maxLength: 64 } },
-        },
-        response: {
-          200: { type: 'object', required: ['player'], properties: { player: playerRefSchema } },
-        },
-      },
-    },
-    async (request) => {
-      const name = normalizeDisplayName((request.query as { name: string }).name);
-      const [row] = await app.db
-        .select({ id: accounts.id, handle: accounts.handle, displayName: accounts.displayName })
-        .from(accounts)
-        .where(sql`lower(${accounts.displayName}) = lower(${name})`)
-        .limit(1);
-      const hidden =
-        row &&
-        (await hiddenTargetKeys(app.db, [profileFieldKey(row.id, 'displayName')], app.authNow()));
-      if (!row || hidden!.size > 0) throw new ApiError(404, 'not_found', 'No player by that name.');
-      return { player: { handle: row.handle, displayName: row.displayName } };
-    },
-  );
-
   app.post(
     '/reports',
     {

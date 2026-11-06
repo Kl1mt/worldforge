@@ -165,6 +165,9 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
         {account ? (
           <span className="statusbar__note">Signed in as {account.displayName}</span>
         ) : null}
+        <a className="statusbar__link" href={routeHref('profile')}>
+          Profile
+        </a>
         <a className="statusbar__link" href={routeHref('account')}>
           Account &amp; safety
         </a>

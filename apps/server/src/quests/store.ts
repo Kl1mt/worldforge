@@ -1,3 +1,4 @@
+import { refreshAchievements } from '../achievements/award.js';
 import { randomBytes } from 'node:crypto';
 import { and, asc, eq, sql } from 'drizzle-orm';
 import {
@@ -493,6 +494,17 @@ export async function turnInQuestTx(
     .set({ status: 'turnedIn', turnedInAt: now })
     .where(eq(characterQuests.id, quest.id))
     .returning();
+  // Ticket 4.2: achievements from the turn-in (the quest, its item and levels).
+  await refreshAchievements(
+    tx,
+    updatedCharacter!,
+    [
+      quest.kind === 'story' ? 'storyQuestsTurnedIn' : 'contractsTurnedIn',
+      'maxCharacterLevel',
+      ...(item ? (['maxRarity'] as const) : []),
+    ],
+    now,
+  );
 
   const granted: TurnInReward = {
     xp: reward.xp,

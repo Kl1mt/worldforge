@@ -38,6 +38,7 @@ import type {
   ReportTargetKind,
   SanctionKind,
   RolledAffix,
+  ProfileVisibility,
   WorldProgress,
 } from '@worldforge/game-core';
 
@@ -91,6 +92,19 @@ export const accounts = pgTable(
     handle: text('handle')
       .notNull()
       .$defaultFn(() => newHandle()),
+    /**
+     * Profile visibility (ticket 4.2, game-core `ProfileVisibility`, docs/SOCIAL.md "Profiles").
+     * Written only by `POST /api/account/profile`.
+     */
+    profileVisibility: text('profile_visibility')
+      .$type<ProfileVisibility>()
+      .notNull()
+      .default('public'),
+    /** Ticket 4.2: the character whose equipped gear the profile shows; null = no showcase. */
+    showcaseCharacterId: uuid('showcase_character_id').references(
+      (): AnyPgColumn => characters.id,
+      { onDelete: 'set null' },
+    ),
     ...timestamps,
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -99,6 +113,10 @@ export const accounts = pgTable(
     uniqueIndex('accounts_display_name_lower_key').on(sql`lower(${t.displayName})`),
     uniqueIndex('accounts_handle_key').on(t.handle),
     check('accounts_role_check', sql`${t.role} in ('player', 'moderator', 'admin')`),
+    check(
+      'accounts_profile_visibility_check',
+      sql`${t.profileVisibility} in ('public', 'friendsAndGuild', 'hidden')`,
+    ),
     check('accounts_character_slots_check', sql`${t.characterSlots} >= 0`),
   ],
 );
@@ -777,3 +795,49 @@ export type MerchantPurchase = typeof merchantPurchases.$inferSelect;
 export type DungeonRun = typeof dungeonRuns.$inferSelect;
 
 export type InviteCode = typeof inviteCodes.$inferSelect;
+
+/**
+ * Achievements an account has earned (ticket 4.2, docs/SOCIAL.md "Achievements"). Account-bound,
+ * cosmetic. The primary key makes every award at-most-once: concurrent awards (two characters,
+ * a live award racing the backfill) insert with `on conflict do nothing`, and only the insert
+ * that created the row writes the `achievement.award` audit row. `character_id` is the hero that
+ * earned it (kept for the record; null after the character is deleted or for history the
+ * backfill could not tie to one). `shown_slot` (0…MAX_SHOWN_ACHIEVEMENTS−1) is the profile
+ * position the player picked; null = not shown.
+ */
+export const accountAchievements = pgTable(
+  'account_achievements',
+  {
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    /** game-core achievement id. */
+    achievementId: text('achievement_id').notNull(),
+    characterId: uuid('character_id').references(() => characters.id, { onDelete: 'set null' }),
+    /** `live` (awarded by the event) or `backfill`. */
+    source: text('source').$type<'live' | 'backfill'>().notNull(),
+    awardedAt: timestamp('awarded_at', { withTimezone: true }).notNull(),
+    shownSlot: smallint('shown_slot'),
+  },
+  (t) => [
+    primaryKey({ columns: [t.accountId, t.achievementId] }),
+    uniqueIndex('account_achievements_shown_slot_key')
+      .on(t.accountId, t.shownSlot)
+      .where(sql`${t.shownSlot} is not null`),
+    check('account_achievements_source_check', sql`${t.source} in ('live', 'backfill')`),
+    check('account_achievements_shown_slot_check', sql`${t.shownSlot} between 0 and 15`),
+  ],
+);
+
+export type AccountAchievement = typeof accountAchievements.$inferSelect;
+
+/**
+ * One-shot data backfills that ran (ticket 4.2), so `migrate-cli` runs each once per database.
+ * The id names the backfill and its input (the achievement backfill's id includes a hash of the
+ * achievement ids, so adding an achievement runs it again; awards stay at-most-once).
+ */
+export const dataBackfills = pgTable('data_backfills', {
+  id: text('id').primaryKey(),
+  completedAt: timestamp('completed_at', { withTimezone: true }).notNull(),
+  data: jsonb('data').$type<Record<string, unknown>>().notNull().default({}),
+});

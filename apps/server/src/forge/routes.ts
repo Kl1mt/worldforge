@@ -1,3 +1,4 @@
+import { refreshAchievements } from '../achievements/award.js';
 import { randomInt } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
 import { and, asc, eq } from 'drizzle-orm';
@@ -396,6 +397,7 @@ export async function registerForge(
               seed: item.seed,
             },
           });
+          await refreshAchievements(tx, character, ['maxRarity'], now); // ticket 4.2
           recordTelemetry(tx, now, [
             { metric: 'forge', dims: ['craft', recipeId] },
             ...dropCounts('craft', recipeId, [item]),

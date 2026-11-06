@@ -32,6 +32,11 @@ interface ItemTooltipProps {
   /** Actions at the foot of the plate (equip, unequip, discard). */
   children?: ReactNode;
   id?: string;
+  /**
+   * Ticket 4.2: the gear set progress counts (a profile's showcase), instead of the active
+   * character's pack.
+   */
+  setPack?: { equipped: ItemView[]; items: ItemView[] };
 }
 
 /** Small marks for forge work on an affix (ticket 3.4): improvement pips and a reroll sign. */
@@ -54,12 +59,20 @@ function ForgeMarks({ line }: { line: StatLine }) {
   );
 }
 
-export function ItemTooltip({ item, compareTo, caption, note, children, id }: ItemTooltipProps) {
+export function ItemTooltip({
+  item,
+  compareTo,
+  caption,
+  note,
+  children,
+  id,
+  setPack,
+}: ItemTooltipProps) {
   const deltas = compareTo !== undefined ? compareItems(item, compareTo ?? undefined) : null;
   const rarity = RARITY_NAME.get(item.rarity) ?? item.rarity;
   // Set pieces (ticket 3.3): progress from the character's pack when the tooltip has one.
   const game = useOptionalGame();
-  const pack = game?.inventory.kind === 'ready' ? game.inventory.value : null;
+  const pack = setPack ?? (game?.inventory.kind === 'ready' ? game.inventory.value : null);
   const set = item.setId ? setTracker(item.setId, pack?.equipped ?? [], pack?.items ?? []) : null;
 
   return (

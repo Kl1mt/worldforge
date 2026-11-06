@@ -1,3 +1,4 @@
+import { refreshAchievements } from '../achievements/award.js';
 import type { FastifyInstance } from 'fastify';
 import { and, asc, eq, sql } from 'drizzle-orm';
 import {
@@ -620,6 +621,10 @@ export async function registerForgeWork(
                 ...applied.audit,
               },
             });
+            // Ticket 4.2: an upgrade can earn the +N achievements.
+            if (name === 'upgrade') {
+              await refreshAchievements(tx, character, ['maxUpgradeLevel'], now);
+            }
             recordTelemetry(tx, now, [
               { metric: 'forge', dims: [name, ...applied.telemetry] },
               ...goldOut(`forge_${name}`, row.rarityId, cost.gold),

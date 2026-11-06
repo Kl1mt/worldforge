@@ -37,6 +37,8 @@ Status: **partly implemented.** Tables marked *implemented* exist in `apps/serve
 | guide           | jsonb       | default `{"steps":[],"dismissed":false}`; first-session guide (ticket 2.7): game-core `GuideState` (steps seen done, in guide order, and whether it was closed). UI state only, grants nothing; per account so it follows the player across devices |
 | role            | text        | ticket 4.1: `player` (default) / `moderator` / `admin`, `CHECK`. Written only by `pnpm admin:role` (`docs/SOCIAL.md`) |
 | handle          | text        | ticket 4.1: public handle, 12 random characters (game-core `HANDLE_RE`), unique, permanent, not derived from the id; generated on insert (migration `0016` backfilled existing rows) |
+| profile_visibility | text     | ticket 4.2: `public` (default) / `friendsAndGuild` / `hidden`, `CHECK`; game-core `ProfileVisibility`. Written only by `POST /api/account/profile` |
+| showcase_character_id | uuid FK? | ticket 4.2: → `characters.id` `ON DELETE SET NULL`; the hero whose equipped gear the profile shows (the server checks it is the account's own) |
 | created_at      | timestamptz | default `now()`                                              |
 | updated_at      | timestamptz | default `now()`; set by the server on update                 |
 
@@ -293,6 +295,28 @@ Indexes: partial unique `(reporter_id, target_key) where status = 'open'` (one o
 
 Active iff `lifted_at is null and expires_at > now` (the auth clock). Indexes: `(subject_id, expires_at)`, partial `(target_key)`.
 
+### account_achievements — implemented (4.2)
+Migration `0018_profiles_achievements`. See `docs/SOCIAL.md` "Achievements".
+| Column | Type | Notes |
+| --- | --- | --- |
+| account_id | uuid FK | → `accounts.id` `ON DELETE CASCADE` |
+| achievement_id | text | game-core achievement id |
+| character_id | uuid FK? | → `characters.id` `ON DELETE SET NULL`; the hero that earned it (null for backfilled history) |
+| source | text | `live` / `backfill`, `CHECK` |
+| awarded_at | timestamptz | |
+| shown_slot | smallint? | the profile position the player picked (0…4), null = not shown; `CHECK (between 0 and 15)` |
+
+Primary key `(account_id, achievement_id)`: every award is at-most-once (inserted with `on conflict do nothing`; only the inserting transaction writes the `achievement.award` audit row). Partial unique `(account_id, shown_slot) where shown_slot is not null`.
+
+### data_backfills — implemented (4.2)
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | text PK | the backfill and its input, e.g. `achievements:<hash of the achievement ids>` |
+| completed_at | timestamptz | |
+| data | jsonb | counts (accounts, awarded) |
+
+One row per one-shot data backfill that finished on this database; `migrate-cli` skips a backfill whose row exists (docs/DEPLOY.md "Data backfills").
+
 ## Relationships
 
 ```
@@ -306,6 +330,7 @@ account 1─* character 1─1 activity
 account 0..1─* audit_log
 account 1─* idempotency_keys
 account 1─* reports (as reporter and as subject), 1─* sanctions
+account 1─* account_achievements (≤ 1 per achievement); account 0..1─1 showcase character
 character 1─* merchant_purchases
 ```
 

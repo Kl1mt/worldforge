@@ -23,7 +23,7 @@ import {
   sanctionView,
   sanctionViewSchema,
 } from './sanctions.js';
-import { isHideable, reportTargetViewSchema } from './targets.js';
+import { currentTargetValues, isHideable, reportTargetViewSchema } from './targets.js';
 import { assertPlayerText } from './text.js';
 
 /**
@@ -297,7 +297,7 @@ export async function registerModeration(app: FastifyInstance): Promise<void> {
             .orderBy(asc(reports.id))
         : [];
       const subjectIds = [...new Set(rows.map((r) => r.subject.id))];
-      const [hidden, active, past] = await Promise.all([
+      const [hidden, active, past, values] = await Promise.all([
         hiddenTargetKeys(app.db, keys, now),
         subjectIds.length
           ? app.db
@@ -322,6 +322,15 @@ export async function registerModeration(app: FastifyInstance): Promise<void> {
               )
               .groupBy(sanctions.subjectId)
           : Promise.resolve([]),
+        currentTargetValues(
+          app.db,
+          page.map((c) => ({
+            key: c.targetKey,
+            subject: rows.find((r) => r.report.targetKey === c.targetKey)?.subject ?? {
+              displayName: '',
+            },
+          })),
+        ),
       ]);
       const cases = page.map((c) => {
         const own = rows.filter((r) => r.report.targetKey === c.targetKey);
@@ -337,7 +346,10 @@ export async function registerModeration(app: FastifyInstance): Promise<void> {
             sanctions: active.filter((s) => s.subjectId === subject.id).map(sanctionView),
             pastSanctions: past.find((p) => p.subjectId === subject.id)?.n ?? 0,
           },
-          current: { value: subject.displayName, hidden: hidden.has(c.targetKey) },
+          current: {
+            value: values.get(c.targetKey) ?? subject.displayName,
+            hidden: hidden.has(c.targetKey),
+          },
           reports: own.map((r) => ({
             id: r.report.id,
             reason: r.report.reason,

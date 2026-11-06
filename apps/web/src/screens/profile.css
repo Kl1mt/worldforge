@@ -1,0 +1,396 @@
+/* Public profiles (ticket 4.2): a herald's roll. The heroes on an iron plate with their banners,
+   the deeds as wax seals on a ledger strip, one hero's arms as a rack of sockets. The owner's
+   settings sit under the deeds. Phones: one column, the search above. */
+.roll {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.roll__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4) var(--space-6);
+  align-items: end;
+  padding-bottom: var(--space-4);
+  border-bottom: 1px solid var(--brass-700);
+}
+
+.roll__who .caps {
+  color: var(--brass-500);
+}
+
+.roll__who h1 {
+  font-size: var(--text-3xl);
+  line-height: var(--leading-tight);
+  color: var(--bone-100);
+}
+
+.roll__handle {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  margin-top: var(--space-1);
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.roll__seen {
+  padding: 1px var(--space-2);
+  border: var(--border-brass);
+  color: var(--brass-300);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.roll__seen--hidden {
+  border-color: var(--iron-500);
+  color: var(--text-dim);
+}
+
+.roll__report {
+  align-self: center;
+}
+
+.roll__find {
+  display: grid;
+  gap: var(--space-1);
+  margin-left: auto;
+  min-width: min(100%, 300px);
+}
+
+.roll__find-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.roll__find-row .field__well {
+  flex: 1;
+}
+
+.roll__wait,
+.roll__empty {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.roll__missing {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-8) var(--space-6);
+  text-align: center;
+}
+
+.roll__missing .display {
+  font-size: var(--text-xl);
+  color: var(--bone-100);
+}
+
+.roll__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.roll__main,
+.roll__side {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.roll__heroes,
+.roll__arms,
+.roll__settings {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.roll__deeds {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+/* Heroes: banner portraits in a row of stalls. */
+.roll__hero-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.roll__hero {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: center;
+  text-align: center;
+  padding: var(--space-3);
+  background: var(--bg-sunken);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.roll__hero .hero-portrait {
+  width: 128px;
+  height: 128px;
+}
+
+.roll__hero-text {
+  display: grid;
+  gap: 2px;
+  justify-items: center;
+  min-width: 0;
+}
+
+.roll__hero-name {
+  font-size: var(--text-lg);
+  color: var(--bone-100);
+  overflow-wrap: anywhere;
+}
+
+.roll__hero-name.is-withheld {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.roll__hero-line {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+/* A quiet text action, not a button that competes with the content. */
+.roll__flag {
+  margin-top: var(--space-1);
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-faint);
+  font: inherit;
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.roll__flag:hover,
+.roll__flag:focus-visible {
+  color: var(--crimson-400);
+}
+
+/* Arms: the showcased hero's sockets, then the selected item's plate. */
+.roll__arms-line {
+  margin-top: calc(-1 * var(--space-2));
+  color: var(--text-muted);
+}
+
+.roll__rack {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.roll__inspect {
+  max-width: 420px;
+}
+
+/* Deeds: wax seals on the ledger. */
+.deeds {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.deed {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.deed__name {
+  font-size: var(--text-lg);
+  color: var(--bone-100);
+}
+
+.deed__what {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.deed__when {
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+}
+
+/* Placeholder seal until the art ticket (A.8) draws the icons: a wax disc, its rim tinted by the
+   deed's kind, with the deed's initial pressed in. */
+.seal {
+  --wax: var(--crimson-700);
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 38% 32%, rgb(255 255 255 / 0.14), transparent 55%), var(--wax);
+  box-shadow:
+    0 0 0 2px var(--outline-dark),
+    inset 0 0 0 3px rgb(0 0 0 / 0.28),
+    inset 0 -3px 0 rgb(0 0 0 / 0.25);
+}
+
+.seal--loot {
+  --wax: #6b3d18;
+}
+.seal--forge {
+  --wax: var(--iron-500);
+}
+.seal--hero {
+  --wax: var(--moss-500);
+}
+.seal--crypt {
+  --wax: #3d3557;
+}
+.seal--quests {
+  --wax: var(--crimson-700);
+}
+
+.seal__glyph {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  line-height: 1;
+  color: rgb(230 220 203 / 0.82);
+  text-shadow: 0 1px 0 rgb(0 0 0 / 0.6);
+}
+
+/* Settings. */
+.roll__form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.roll__group {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.roll__group legend {
+  margin-bottom: var(--space-2);
+  color: var(--brass-500);
+}
+
+.roll__choice {
+  display: flex;
+  gap: var(--space-2);
+  align-items: baseline;
+  cursor: pointer;
+}
+
+.roll__choice strong {
+  color: var(--bone-100);
+  font-weight: 600;
+}
+
+.roll__hint {
+  display: block;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.ledger-deeds {
+  display: grid;
+  gap: var(--space-2);
+  max-height: 420px;
+  margin: 0;
+  padding: 0 var(--space-1) 0 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.ledger-deed {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+}
+
+.ledger-deed .seal {
+  width: 32px;
+  height: 32px;
+}
+
+.ledger-deed .seal__glyph {
+  font-size: var(--text-md);
+}
+
+.ledger-deed.is-locked .seal {
+  filter: grayscale(1) brightness(0.55);
+}
+
+.ledger-deed.is-locked .ledger-deed__name {
+  color: var(--text-faint);
+}
+
+.ledger-deed__pick {
+  display: flex;
+  flex: 1;
+  gap: var(--space-2);
+  align-items: baseline;
+  cursor: pointer;
+}
+
+.ledger-deed__name {
+  display: block;
+  color: var(--bone-100);
+}
+
+.ledger-deed__order {
+  margin-left: auto;
+  padding: 0 var(--space-2);
+  border: var(--border-brass);
+  color: var(--brass-300);
+  font-variant-numeric: tabular-nums;
+}
+
+.roll__saved {
+  padding: var(--space-2) var(--space-4);
+  border-left: 3px solid var(--moss-400);
+  background: rgb(67 69 58 / 0.4);
+}
+
+@media (max-width: 1080px) {
+  .roll__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .roll__who h1 {
+    font-size: var(--text-2xl);
+  }
+  .roll__find {
+    order: -1;
+    width: 100%;
+    margin-left: 0;
+  }
+  .roll__heroes,
+  .roll__arms,
+  .roll__settings,
+  .roll__deeds {
+    padding: var(--space-4);
+  }
+  .roll__hero-list {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}

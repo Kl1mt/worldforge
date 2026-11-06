@@ -31,6 +31,7 @@ import type { MerchantResponse } from '../merchant/routes.js';
 import type { ForgeResponse } from '../forge/routes.js';
 import type { DungeonClaimResponse, DungeonRunView } from '../dungeon/routes.js';
 import {
+  accountAchievements,
   auditLog,
   characterMaterials,
   characters,
@@ -654,4 +655,89 @@ export async function playSafetyStep(
     .where(eq(sanctions.id, row!.sanctionId!));
   expect(sanction).toMatchObject({ kind: 'rename', liftReason: 'renamed' });
   return { reportId, offender: offender.account, moderator: warden.account };
+}
+
+/**
+ * Phase 4 profile step (ticket 4.2): the hero farms to level 10 (the settlement awards `level10`
+ * live, once), shows it and showcases the hero; another player finds the profile by name and sees
+ * exactly what was chosen, then reports the hero's name from it. Hiding the profile makes it a 404
+ * like an unknown player. Achievement rows reconcile with their audit rows.
+ */
+export async function playProfileStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  hero: Journey,
+) {
+  const me = (await hero.api('GET', '/api/account')).json<{
+    account: { id: string; handle: string; displayName: string };
+  }>().account;
+  await hero.farmBestArea();
+  for (let i = 0; i < 60 && hero.state.level < 10; i++) {
+    await hero.settle();
+    await hero.equipBetterDrops();
+    await hero.farmBestArea();
+  }
+  expect(hero.state.level).toBeGreaterThanOrEqual(10);
+
+  const settings = (await hero.api('GET', '/api/account/profile')).json<{
+    earned: { id: string }[];
+    characters: { id: string; name: string }[];
+  }>();
+  expect(settings.earned.map((e) => e.id)).toContain('level10');
+  const saved = await hero.api('POST', '/api/account/profile', {
+    visibility: 'public',
+    shown: ['level10'],
+    showcaseCharacterId: hero.characterId,
+  });
+  expect(saved.statusCode, saved.body).toBe(200);
+
+  const visitor = await newPlayer(app, 'visitor@graumark.test', 'Curious Visitor');
+  const found = await visitor.api(
+    'GET',
+    `/api/players/lookup?name=${encodeURIComponent(me.displayName)}`,
+  );
+  expect(found.statusCode).toBe(200);
+  const view = (await visitor.api('GET', `/api/players/${me.handle}/profile`)).json<{
+    profile: {
+      displayName: string;
+      characters: { name: string; level: number }[];
+      achievements: { id: string }[];
+      showcase: { name: string; equipped: unknown[] } | null;
+    };
+  }>().profile;
+  expect(view.displayName).toBe(me.displayName);
+  expect(view.characters).toHaveLength(1);
+  expect(view.characters[0]!.level).toBe(hero.state.level);
+  expect(view.achievements.map((a) => a.id)).toEqual(['level10']);
+  expect(view.showcase?.name).toBe(view.characters[0]!.name);
+  expect(view.showcase!.equipped.length).toBeGreaterThan(0);
+
+  const filed = await visitor.api('POST', '/api/reports', {
+    target: { kind: 'characterName', handle: me.handle, name: view.characters[0]!.name },
+    reason: 'other',
+  });
+  expect(filed.statusCode, filed.body).toBe(201);
+
+  await hero.api('POST', '/api/account/profile', {
+    visibility: 'hidden',
+    shown: ['level10'],
+    showcaseCharacterId: hero.characterId,
+  });
+  expect((await visitor.api('GET', `/api/players/${me.handle}/profile`)).statusCode).toBe(404);
+  expect((await hero.api('GET', `/api/players/${me.handle}/profile`)).statusCode).toBe(200);
+
+  // Every award is one row and one audit row.
+  const rows = await database.db
+    .select()
+    .from(accountAchievements)
+    .where(eq(accountAchievements.accountId, me.id));
+  const audits = await database.db
+    .select()
+    .from(auditLog)
+    .where(and(eq(auditLog.accountId, me.id), eq(auditLog.event, 'achievement.award')));
+  expect(audits.map((a) => a.data.achievementId).sort()).toEqual(
+    rows.map((r) => r.achievementId).sort(),
+  );
+  expect(rows.every((r) => r.source === 'live')).toBe(true);
+  return { handle: me.handle, achievements: rows.map((r) => r.achievementId) };
 }

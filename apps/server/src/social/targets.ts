@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray, sql } from 'drizzle-orm';
 import {
   PROFILE_FIELD_IDS,
   REPORT_TARGET_KINDS,
@@ -6,7 +6,7 @@ import {
   type ReportTarget,
   type ReportTargetKind,
 } from '@worldforge/game-core';
-import { accounts, type Account } from '../db/schema.js';
+import { accounts, characters, type Account } from '../db/schema.js';
 import type { Executor } from '../db/types.js';
 
 /**
@@ -58,7 +58,61 @@ const RESOLVERS: { [K in ReportTargetKind]: Resolver<K> } = {
       context: { displayName: subject.displayName, value: subject.displayName },
     };
   },
+  // Ticket 4.2: a character's name on its owner's profile. Names are unique and permanent.
+  characterName: async (executor, t) => {
+    const subject = await accountByHandle(executor, t.handle);
+    if (!subject || typeof t.name !== 'string') return null;
+    const [hero] = await executor
+      .select({ id: characters.id, name: characters.name })
+      .from(characters)
+      .where(
+        and(
+          eq(characters.accountId, subject.id),
+          sql`lower(${characters.name}) = lower(${t.name.trim()})`,
+        ),
+      )
+      .limit(1);
+    if (!hero) return null;
+    return {
+      subject,
+      key: characterNameKey(hero.id),
+      target: { kind: 'characterName', handle: subject.handle, name: hero.name },
+      context: { displayName: subject.displayName, value: hero.name },
+    };
+  },
 };
+
+export function characterNameKey(characterId: string): string {
+  return `characterName:${characterId}`;
+}
+
+/**
+ * The current value of each target key, for the moderator queue ("what does it say now?"):
+ * display names for player and profile-field keys, character names for character keys.
+ */
+export async function currentTargetValues(
+  executor: Executor,
+  rows: readonly { key: string; subject: Pick<Account, 'displayName'> }[],
+): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  const heroIds = rows
+    .map((r) => r.key)
+    .filter((k) => k.startsWith('characterName:'))
+    .map((k) => k.slice('characterName:'.length));
+  const heroes = heroIds.length
+    ? await executor
+        .select({ id: characters.id, name: characters.name })
+        .from(characters)
+        .where(inArray(characters.id, heroIds))
+    : [];
+  for (const r of rows) {
+    if (r.key.startsWith('characterName:')) {
+      const hero = heroes.find((h) => characterNameKey(h.id) === r.key);
+      out.set(r.key, hero?.name ?? '(character deleted)');
+    } else out.set(r.key, r.subject.displayName);
+  }
+  return out;
+}
 
 export function profileFieldKey(accountId: string, field: string): string {
   return `profileField:${accountId}:${field}`;
@@ -97,11 +151,26 @@ export const reportTargetSchema = {
         field: { type: 'string', enum: [...PROFILE_FIELD_IDS] },
       },
     },
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['kind', 'handle', 'name'],
+      properties: {
+        kind: { const: 'characterName' },
+        handle: handleSchema,
+        name: { type: 'string', minLength: 1, maxLength: 64 },
+      },
+    },
   ],
 } as const;
 
 export const reportTargetViewSchema = {
   type: 'object',
   required: ['kind', 'handle'],
-  properties: { kind: { type: 'string' }, handle: { type: 'string' }, field: { type: 'string' } },
+  properties: {
+    kind: { type: 'string' },
+    handle: { type: 'string' },
+    field: { type: 'string' },
+    name: { type: 'string' },
+  },
 } as const;

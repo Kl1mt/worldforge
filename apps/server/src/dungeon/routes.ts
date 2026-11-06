@@ -1,3 +1,4 @@
+import { refreshAchievements } from '../achievements/award.js';
 import type { FastifyInstance } from 'fastify';
 import { and, count, desc, eq, gt, isNotNull, isNull, sql } from 'drizzle-orm';
 import {
@@ -672,6 +673,17 @@ export async function registerDungeons(
             })
             .where(eq(characters.id, characterId))
             .returning();
+          // Ticket 4.2: achievements from the claim (drops, levels, the boss and the tier).
+          await refreshAchievements(
+            tx,
+            written!,
+            [
+              'maxRarity',
+              'maxCharacterLevel',
+              ...(r.bossDefeated ? (['gravewardenDefeated', 'cryptTierCleared'] as const) : []),
+            ],
+            now,
+          );
 
           const result: DungeonResultView = {
             runId: run.id,

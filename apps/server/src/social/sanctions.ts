@@ -41,6 +41,7 @@ export const sanctionViewSchema = {
         kind: { type: 'string' },
         handle: { type: 'string' },
         field: { type: 'string' },
+        name: { type: 'string' },
       },
     },
   },

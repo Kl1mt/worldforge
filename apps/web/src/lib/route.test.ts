@@ -6,6 +6,8 @@ import {
   guardRoute,
   inviteFromLocation,
   parseRoute,
+  profileHandleFromHash,
+  profileHref,
   registerHref,
   routeHref,
 } from './route';
@@ -87,5 +89,22 @@ describe('legal pages and invite links (ticket D.2)', () => {
     expect(parseRoute(href)).toBe('register');
     expect(inviteFromLocation('', href)).toBe('AB CD');
     expect(registerHref(null)).toBe('#/register');
+  });
+});
+
+describe('profile links (ticket 4.2)', () => {
+  it('parses the handle of a profile link', () => {
+    expect(parseRoute('#/profile/abc123def456')).toBe('profile');
+    expect(parseRoute('#/profile')).toBe('profile');
+    expect(profileHandleFromHash('#/profile/ABC123def456')).toBe('abc123def456');
+    expect(profileHandleFromHash('#/profile/abc123def456?x=1')).toBe('abc123def456');
+    expect(profileHandleFromHash('#/profile')).toBeNull();
+    expect(profileHandleFromHash('#/profile/<script>')).toBeNull();
+    expect(profileHandleFromHash('#/hub')).toBeNull();
+  });
+
+  it('builds profile links', () => {
+    expect(profileHref()).toBe('#/profile');
+    expect(profileHref('abc123def456')).toBe('#/profile/abc123def456');
   });
 });

@@ -98,6 +98,7 @@ export function AccountScreen() {
             Report a player
           </button>
           <p className="writ__fine">
+            <a href={routeHref('profile')}>Your public profile</a> ·{' '}
             <a href={routeHref('hub')}>Back to town</a>
           </p>
         </aside>
