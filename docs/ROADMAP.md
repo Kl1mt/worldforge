@@ -555,7 +555,7 @@ GDD: §15 Phase 4 exit, §16.3.
 
 ## Deployment
 
-### D.1 Production deployment — `in progress`
+### D.1 Production deployment — `done (PR #52)`
 Goal: the owner runs Worldforge publicly on their own VPS (Debian 13, 2 vCPU, 4 GB RAM, ~40 GB disk) under their own domain. Same-origin (static web + `/api` on one domain), single API instance. Read `docs/TECH_STACK.md` (hosting, config, migrations, cookies) and `CLAUDE.md`.
 - `deploy/`: multi-stage `Dockerfile` (server: production build, prod deps only, non-root, `node dist/index.js`; web: the built client baked into a Caddy image); `docker-compose.yml` with Caddy (automatic HTTPS, security headers, compression, cache rules, `/api` reverse proxy), the server (health check, restart policy, `TRUST_PROXY`, secure cookies) and PostgreSQL 16 (named volume, no host port, tuned for 4 GB). Migrations run as a one-shot service before the server starts; the server never migrates on startup. The e2e/playtest servers stay out of the production build.
 - `deploy/.env.example` documenting every variable; secrets only in the untracked `deploy/.env`.
