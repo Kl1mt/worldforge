@@ -18,9 +18,11 @@ import type { FastifyInstance } from 'fastify';
 import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import {
+  CONTRACT_TEMPLATES,
   attemptUpgrade,
   createRng,
   generateItem,
+  generateTargetedItem,
   improveAffix,
   rerollAffix,
   salvageYield,
@@ -928,6 +930,12 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
           gold += d.gold;
           items += d.item ? 1 : 0;
           add(d.materials);
+        } else if (event.startsWith('forge.') && event !== 'forge.salvage') {
+          // Ticket 3.9: upgrades, rerolls and improvements spend gold and materials.
+          if (event !== 'forge.craft') {
+            gold -= d.gold;
+            add(d.materials, -1);
+          }
         }
       }
       return { gold, items, materials };
@@ -1067,6 +1075,240 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
         .from(activities)
         .where(eq(activities.characterId, id));
       expect(farming).toEqual([]);
+    });
+
+    describe('Phase 3 (ticket 3.9)', () => {
+      /** A level-20 hero in Legendary gear with tier I cleared, a full pack and forge stock. */
+      async function lateGameHero() {
+        const p = await newPlayer();
+        const id = await newCharacter(p);
+        await makeCryptReady(database.db, id, 'warrior', 20, { rarityId: 'legendary' });
+        await database.db
+          .update(characters)
+          .set({ progress: { gravewardenDefeated: true, cryptTierCleared: 1 } })
+          .where(eq(characters.id, id));
+        await setGold(id, STARTING_GOLD * 10);
+        await database.db
+          .insert(characterMaterials)
+          .values(
+            (['timber', 'rawHide', 'ironOre', 'soulShard', 'ashwort'] as const).map(
+              (materialId) => ({ characterId: id, materialId, quantity: 10_000 }),
+            ),
+          );
+        // The forged item, then filler up to the 60-slot capacity: the claim's drops find no
+        // room, so Legendaries and set pieces are kept over capacity (B.2) and the rest
+        // overflow-salvaged, unless a racing sell or the filter frees room first.
+        const forged = generateItem({
+          seed: 77,
+          itemLevel: 18,
+          baseId: 'barbute',
+          rarityId: 'epic',
+          classId: 'warrior',
+        })!;
+        const itemId = uuidv7();
+        await database.db
+          .insert(itemInstances)
+          .values({ id: itemId, characterId: id, ...forged, source: 'test' });
+        const filler = generateItem({
+          seed: 5,
+          itemLevel: 5,
+          baseId: 'iron-helm',
+          rarityId: 'common',
+        })!;
+        await database.db.insert(itemInstances).values(
+          Array.from({ length: 59 }, () => ({
+            id: uuidv7(),
+            characterId: id,
+            ...filler,
+            source: 'test',
+          })),
+        );
+        return { p, id, itemId };
+      }
+
+      /** A complete targeted Abbey contract (inserted: the race is about the turn-in). */
+      async function readyTargetedContract(characterId: string): Promise<string> {
+        const template = CONTRACT_TEMPLATES.find((t) => t.areaId === 'sunkenAbbey')!;
+        const id = uuidv7();
+        await database.db.insert(characterQuests).values({
+          id,
+          characterId,
+          kind: 'contract',
+          questId: template.id,
+          contractDay: new Date(nowMs).toISOString().slice(0, 10),
+          contractSlot: 0,
+          objectives: [template.objective],
+          progress: ['count' in template.objective ? template.objective.count : 1],
+          reward: {
+            xp: 100,
+            gold: 120,
+            materials: {},
+            item: {
+              slot: 'ring',
+              rarityId: 'epic',
+              itemLevel: 20,
+              lootTableId: 'sunkenAbbey',
+              seed: 4242,
+            },
+          },
+          acceptedAt: new Date(nowMs),
+        });
+        return id;
+      }
+
+      it('a tier II claim, forge work, sell, salvage, lock, a filter change and a targeted turn-in on one item: everything reconciles', async () => {
+        for (let round = 0; round < 3; round++) {
+          const { p, id, itemId } = await lateGameHero();
+          const before = await holdings(id);
+          const entered = await call(p, 'POST', `/api/characters/${id}/dungeon`, {
+            dungeonId: 'namelessCrypt',
+            tier: 2,
+          });
+          expect(entered.statusCode).toBe(201);
+          nowMs = Math.max(
+            nowMs,
+            Date.parse(entered.json<{ run: { endsAt: string } }>().run.endsAt),
+          );
+          // Created after the entry so the pack is full when the claim counts it (the
+          // turn-in needs a free slot, so it may lose with inventory_full; that is fine).
+          const questRowId = await readyTargetedContract(id);
+          const c = `/api/characters/${id}`;
+          const filter = {
+            rules: {
+              action: 'sell',
+              belowRarity: 'rare',
+              wantedAffixes: [],
+              wantedEffects: [],
+              include: [],
+            },
+          };
+          const named = [
+            ['claim', keyed(p, `${c}/dungeon/claim`, {})],
+            ['claim', keyed(p, `${c}/dungeon/claim`, {})],
+            ['upgrade', keyed(p, `${c}/forge/upgrade`, { itemId })],
+            ['reroll', keyed(p, `${c}/forge/reroll`, { itemId, affixIndex: 0 })],
+            ['improve', keyed(p, `${c}/forge/improve`, { itemId, affixIndex: 0 })],
+            ['sell', keyed(p, `${c}/merchant/sell`, { itemIds: [itemId] })],
+            ['salvage', keyed(p, `${c}/forge/salvage`, { itemIds: [itemId] })],
+            ['lock', call(p, 'POST', `${c}/items/${itemId}/lock`)],
+            ['unlock', call(p, 'POST', `${c}/items/${itemId}/unlock`)],
+            ['filter', call(p, 'POST', `${c}/loot-filter`, filter)],
+            ['turnIn', keyed(p, `${c}/quests/${questRowId}/turn-in`, {})],
+            ['turnIn', keyed(p, `${c}/quests/${questRowId}/turn-in`, {})],
+          ] as const;
+          const results = await Promise.all(named.map(([, r]) => r));
+          const of = (name: string) =>
+            results.filter((_, i) => named[i]![0] === name).map((r) => r.statusCode);
+          const err = (r: (typeof results)[number]) =>
+            r.statusCode === 200 ? 'ok' : `${r.statusCode} ${r.json().error.code}`;
+          // No 5xx, no deadlock, nothing unexpected, whatever order the locks were taken in.
+          for (const r of results) {
+            expect(
+              ['ok', '409 no_dungeon_run', '404 not_found', '409 item_locked'].concat([
+                '422 inventory_full',
+                '409 quest_already_turned_in',
+                '422 affix_at_max',
+                '422 improvement_cap',
+              ]),
+              `round ${round}`,
+            ).toContain(err(r));
+          }
+          expect(of('claim').sort()).toEqual([200, 409]);
+          // Lock and unlock answer 404 only when the item was already sold or salvaged.
+          for (const name of ['lock', 'unlock']) {
+            expect(of(name).every((code) => code === 200 || code === 404)).toBe(true);
+          }
+          expect(of('filter')).toEqual([200]);
+          expect(of('turnIn').filter((s) => s === 200).length).toBeLessThanOrEqual(1);
+
+          // The item left at most once, and only if no lock held it at that moment.
+          const disposed =
+            (await eventsOf(id, 'merchant.sell')).length +
+            (await eventsOf(id, 'forge.salvage')).filter((a) =>
+              (a.data as { items: { itemId: string }[] }).items.some((i) => i.itemId === itemId),
+            ).length;
+          const [row] = await database.db
+            .select()
+            .from(itemInstances)
+            .where(eq(itemInstances.id, itemId));
+          expect(disposed).toBe(row ? 0 : 1);
+          // Each successful forge action used one draw of the item's stream, in counter order.
+          const forgeRows = (
+            await database.db
+              .select()
+              .from(auditLog)
+              .where(
+                and(
+                  eq(auditLog.characterId, id),
+                  sql`${auditLog.event} in ('forge.upgrade', 'forge.reroll', 'forge.improve')`,
+                ),
+              )
+          ).map((a) => (a.data as { forgeCounter: number }).forgeCounter);
+          const forgeOk = [...of('upgrade'), ...of('reroll'), ...of('improve')].filter(
+            (s) => s === 200,
+          ).length;
+          expect(forgeRows.sort((a, b) => a - b)).toEqual(
+            Array.from({ length: forgeOk }, (_, i) => i),
+          );
+          if (row) expect(row.forgeCounter).toBe(forgeOk);
+
+          // Gold, items and materials all match the audit log, and the claim granted once.
+          const after = await holdings(id);
+          const audit = await ledger(id);
+          expect(after.gold - before.gold, `round ${round}`).toBe(audit.gold);
+          expect(after.items - before.items).toBe(audit.items);
+          const delta = Object.fromEntries(
+            Object.keys({ ...after.materials, ...before.materials })
+              .map((k) => [
+                k,
+                (after.materials[k] ?? 0) - ((before.materials as Record<string, number>)[k] ?? 0),
+              ])
+              .filter(([, n]) => n !== 0),
+          );
+          expect(delta).toEqual(
+            Object.fromEntries(Object.entries(audit.materials).filter(([, n]) => n !== 0)),
+          );
+          expect(await eventsOf(id, 'dungeon.claim')).toHaveLength(1);
+          expect(await eventsOf(id, 'quest.turn_in')).toHaveLength(
+            of('turnIn').filter((s) => s === 200).length,
+          );
+        }
+      });
+
+      it('racing turn-ins of a targeted contract grant one item, the one its stored seed fixed', async () => {
+        const p = await newPlayer();
+        const id = await newCharacter(p);
+        await database.db.update(characters).set({ level: 20 }).where(eq(characters.id, id));
+        const questRowId = await readyTargetedContract(id);
+        const sameKey = randomUUID();
+        const results = await Promise.all([
+          ...Array.from({ length: N / 2 }, () =>
+            keyed(p, `/api/characters/${id}/quests/${questRowId}/turn-in`, {}),
+          ),
+          ...Array.from({ length: N / 2 }, () =>
+            keyed(p, `/api/characters/${id}/quests/${questRowId}/turn-in`, {}, sameKey),
+          ),
+        ]);
+        const fresh = results.filter(
+          (r) => r.statusCode === 200 && r.headers['idempotency-replayed'] !== 'true',
+        );
+        expect(fresh).toHaveLength(1);
+        for (const r of results.filter((x) => x.statusCode !== 200)) {
+          expect(r.json<{ error: { code: string } }>().error.code).toBe('quest_already_turned_in');
+        }
+        const granted = await database.db
+          .select()
+          .from(itemInstances)
+          .where(and(eq(itemInstances.characterId, id), eq(itemInstances.source, 'quest')));
+        expect(granted).toHaveLength(1);
+        const expected = generateTargetedItem(
+          { slot: 'ring', rarityId: 'epic', itemLevel: 20, lootTableId: 'sunkenAbbey' },
+          4242,
+          'warrior',
+        )!;
+        expect([granted[0]!.baseId, granted[0]!.seed]).toEqual([expected.baseId, expected.seed]);
+        expect(await goldOf(id)).toBe(120);
+      });
     });
   });
 

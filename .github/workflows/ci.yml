@@ -205,3 +205,67 @@ jobs:
             ${{ runner.temp }}/server.log
             ${{ runner.temp }}/web.log
           if-no-files-found: ignore
+
+  e2e-phase3:
+    # Phase 3 exit-criteria run (ticket 3.9, tools/e2e/phase3-exit.mjs): a fresh hunter plays to the
+    # late game; the UI sets a loot filter, locks a valuable drop, upgrades (until a failure),
+    # improves and reworks at the Forge, takes a targeted Abbey contract (a ring) and runs every
+    # crypt tier; the run needs a Legendary, a set piece, a pity-guaranteed upgrade, tiers II and
+    # III cleared and a valuable drop kept over capacity, and no request may be rate limited. The
+    # farming clock runs ×1800; the database is kept on disk (E2E_DATA_DIR) so the telemetry
+    # report can reconcile it with the audit log after the server stops.
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      E2E_DATA_DIR: ${{ runner.temp }}/wf-e2e
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @worldforge/game-core build
+      - name: Install Playwright with Chromium
+        run: |
+          mkdir -p "$RUNNER_TEMP/pw"
+          npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.63.0
+          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
+      - name: Start the e2e server and the web dev server
+        run: |
+          mkdir -p "$E2E_DATA_DIR"
+          E2E_TIME_SCALE=1800 OFFLINE_CAP_SECONDS=360000 pnpm --filter @worldforge/server e2e:serve > "$RUNNER_TEMP/server.log" 2>&1 &
+          pnpm --filter @worldforge/web dev > "$RUNNER_TEMP/web.log" 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://localhost:5173/api/health && exit 0
+            sleep 1
+          done
+          echo "servers did not come up"; cat "$RUNNER_TEMP/server.log" "$RUNNER_TEMP/web.log"; exit 1
+      - name: Phase 3 exit-criteria run
+        run: node tools/e2e/phase3-exit.mjs http://localhost:5173 "$RUNNER_TEMP/e2e-screenshots"
+        env:
+          PLAYWRIGHT_PATH: ${{ runner.temp }}/pw/node_modules/playwright
+      - name: Stop the e2e server (closes its database)
+        run: |
+          pkill -INT -f 'src/e2e/serve.ts' || true
+          for i in $(seq 1 30); do
+            pgrep -f 'src/e2e/serve.ts' > /dev/null || exit 0
+            sleep 1
+          done
+          echo "e2e server did not stop"; exit 1
+      - name: Reconcile telemetry with the audit log
+        # Exit code 2 when a rollup differs from the audit log.
+        run: pnpm report:telemetry -- --db playtest --reconcile
+        env:
+          PLAYTEST_DATA_DIR: ${{ env.E2E_DATA_DIR }}
+      - name: Upload screenshots and logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-phase3-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/e2e-screenshots
+            ${{ runner.temp }}/server.log
+            ${{ runner.temp }}/web.log
+          if-no-files-found: ignore

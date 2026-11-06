@@ -1,0 +1,518 @@
+/**
+ * The exit-criteria player (tickets 2.8 and 3.9): one hero played through the HTTP API the way a
+ * player would, with a simulated server clock and no database shortcuts. The Phase 2 run
+ * (`phase2-exit-criteria.test.ts`) plays `playPhase2` to the Sunken Abbey; the Phase 3 run
+ * (`phase3-exit-criteria.test.ts`) continues from there into the loot-depth loop. Both reconcile
+ * everything the hero holds with the audit log (`expectHoldingsMatchAudit`).
+ *
+ * Test-only (under `src/e2e/`, excluded from the production build).
+ */
+import { expect } from 'vitest';
+import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
+import { randomUUID } from 'node:crypto';
+import { eq } from 'drizzle-orm';
+import {
+  MATERIAL_IDS,
+  RARITY_IDS,
+  canClassUseItem,
+  equipmentSlotsForKind,
+  findItemBase,
+  getArea,
+  type AreaId,
+  type ClassId,
+  type MaterialId,
+} from '@worldforge/game-core';
+import { SESSION_COOKIE } from '../auth/index.js';
+import type { SettleResponse } from '../activity/routes.js';
+import type { InventoryView, ItemView } from '../inventory/routes.js';
+import type { WorldStateResponse } from '../world/routes.js';
+import type { QuestBoardResponse } from '../quests/store.js';
+import type { MerchantResponse } from '../merchant/routes.js';
+import type { ForgeResponse } from '../forge/routes.js';
+import type { DungeonClaimResponse, DungeonRunView } from '../dungeon/routes.js';
+import { auditLog, characterMaterials, characters, itemInstances } from '../db/schema.js';
+import type { DatabaseHandle } from '../db/types.js';
+
+export const MIN = 60_000;
+export const HOUR = 60 * MIN;
+/** Simulated time between two client visits (below the 3 h offline cap: nothing is forfeited). */
+export const STEP = 2 * HOUR;
+export const AREA_ORDER: AreaId[] = [
+  'abandonedFields',
+  'crowwood',
+  'oldBurialGrounds',
+  'blackwater',
+  'sunkenAbbey',
+];
+
+/** The simulated server clock both tests drive. */
+export interface Clock {
+  now(): number;
+  set(ms: number): void;
+}
+
+type Method = 'GET' | 'POST' | 'DELETE';
+
+/**
+ * Item strength for "is this a better drop?": rarity first, then item level, then upgrades (a
+ * Legendary, Mythic or set piece outranks any lower rarity).
+ */
+export const score = (i: Pick<ItemView, 'rarityId' | 'itemLevel'> & { upgradeLevel?: number }) =>
+  RARITY_IDS.indexOf(i.rarityId) * 6 + i.itemLevel + (i.upgradeLevel ?? 0) / 2;
+
+/** Drops B.2 keeps beyond a full pack: Legendary, Mythic, set and Void items. */
+export const isValuable = (i: ItemView) =>
+  i.rarityId === 'legendary' || i.rarityId === 'mythic' || i.setId !== null || i.variant !== null;
+
+/**
+ * What the player never sells when tidying up (B.2's realistic player): locked items, set pieces,
+ * Mythics and Void items. A plain Legendary it doesn't wear goes like any other spare drop.
+ */
+export const isKept = (i: ItemView) =>
+  i.locked || i.setId !== null || i.mythicId !== null || i.variant !== null;
+
+export interface JourneyOptions {
+  app: FastifyInstance;
+  clock: Clock;
+  classId: ClassId;
+  email: string;
+  displayName: string;
+  name: string;
+  /**
+   * Phase 3: the reward slot to choose for a targeted (Abbey) contract offer, or undefined to take
+   * it without an item (the Phase 2 player).
+   */
+  rewardSlot?: (slots: string[]) => string | undefined;
+}
+
+export type Journey = Awaited<ReturnType<typeof startJourney>>;
+
+export async function startJourney(options: JourneyOptions) {
+  const { app, clock, classId } = options;
+  // 1. Register (real account, session cookie) and create a character.
+  const reg = await app.inject({
+    method: 'POST',
+    url: '/api/auth/register',
+    payload: {
+      email: options.email,
+      password: 'ashes-and-iron-42',
+      displayName: options.displayName,
+    },
+  });
+  expect(reg.statusCode).toBe(201);
+  const token = reg.cookies.find((c) => c.name === SESSION_COOKIE)!.value;
+  const api = (
+    method: Method,
+    url: string,
+    payload?: object,
+    headers: Record<string, string> = {},
+  ): Promise<LightMyRequestResponse> =>
+    app.inject({
+      method,
+      url,
+      headers,
+      ...(payload ? { payload } : {}),
+      cookies: { [SESSION_COOKIE]: token },
+    });
+  const keyed = (url: string, payload?: object, key = randomUUID()) =>
+    api('POST', url, payload, { 'idempotency-key': key });
+
+  const created = await api('POST', '/api/characters', {
+    name: options.name,
+    classId,
+    appearance: { banner: 'ash' },
+  });
+  expect(created.statusCode).toBe(201);
+  const characterId = created.json<{ character: { id: string } }>().character.id;
+  const base = `/api/characters/${characterId}`;
+
+  /** What the run saw, for the final assertions. */
+  const state = {
+    level: 1,
+    farmedHours: 0,
+    deaths: 0,
+    areasFarmed: new Set<AreaId>(),
+    turnedIn: [] as { kind: string; questId: string; item: ItemView | null }[],
+    economy: { bought: false, sold: false, salvaged: false, crafted: false },
+    crypt: [] as { tier: number; level: number; outcome: string; bossDefeated: boolean }[],
+    abbeyLockedBeforeBoss: false,
+    /** Pause the junk sale (Phase 3 lets the pack fill to see drops kept over capacity). */
+    tidy: true,
+    /**
+     * Phase 3: also farm where a held contract's kill or gather objective can be done, so
+     * contracts get finished (the Phase 2 player follows only the story).
+     */
+    followContracts: false,
+  };
+
+  const world = async () => (await api('GET', `${base}/world`)).json<WorldStateResponse>();
+  const inventory = async () => (await api('GET', `${base}/inventory`)).json<InventoryView>();
+  const board = async () => (await api('GET', `${base}/quests`)).json<QuestBoardResponse>();
+
+  /** Advances the clock by one visit and settles: the return summary. */
+  const settle = async (): Promise<SettleResponse> => {
+    clock.set(clock.now() + STEP);
+    state.farmedHours += STEP / HOUR;
+    const res = await api('POST', `${base}/activity/settle`);
+    expect(res.statusCode, res.body).toBe(200);
+    const out = res.json<SettleResponse>();
+    expect(out.summary.cappedMs).toBe(0);
+    state.deaths += out.summary.deaths;
+    state.areasFarmed.add(out.activity!.areaId);
+    state.level = out.character.level;
+    return out;
+  };
+
+  /**
+   * Farms where an unfinished story kill objective's enemy lives, else the highest open area
+   * (the client's choice; the server checks the unlock).
+   */
+  const farmBestArea = async () => {
+    const w = await world();
+    const open = AREA_ORDER.filter((id) => w.areas.find((a) => a.id === id)?.unlocked);
+    const b = await board();
+    const storyArea = b.quests
+      .filter((q) => q.kind === 'story')
+      .flatMap((q) => q.objectives.filter((o, n) => o.kind === 'kill' && q.progress[n]! < o.count))
+      .map((o) =>
+        open.find((id) =>
+          getArea(id).enemies.some((e) => e.enemyId === (o as { enemyId: string }).enemyId),
+        ),
+      )
+      .find((id) => id !== undefined);
+    const contractArea = state.followContracts
+      ? b.quests
+          .filter((q) => q.kind === 'contract')
+          .flatMap((q) => q.objectives.filter((o, n) => 'count' in o && q.progress[n]! < o.count))
+          .map((o) =>
+            [...open]
+              .reverse()
+              .find((id) =>
+                o.kind === 'kill'
+                  ? getArea(id).enemies.some((e) => e.enemyId === o.enemyId)
+                  : o.kind === 'gather' && getArea(id).materials.includes(o.materialId),
+              ),
+          )
+          .find((id) => id !== undefined)
+      : undefined;
+    const target = storyArea ?? contractArea ?? open[open.length - 1]!;
+    const current = w.current?.pendingAreaId ?? w.current?.areaId;
+    if (current === target) return;
+    const res = await api('POST', `${base}/activity`, { areaId: target });
+    expect([200, 201]).toContain(res.statusCode);
+  };
+
+  /** Equips every drop that beats what is worn (the player's "equip drops along the way"). */
+  const equipBetterDrops = async () => {
+    let inv = await inventory();
+    const candidates = [...inv.inventory].sort((a, b) => score(b) - score(a));
+    for (const item of candidates) {
+      const def = findItemBase(item.baseId);
+      if (!def || !canClassUseItem(def, classId) || def.minItemLevel > state.level) continue;
+      const slots = equipmentSlotsForKind(def.slot);
+      const worn = slots.map((s) => inv.equipped.find((e) => e.equippedSlot === s));
+      const free = slots.find((_, n) => !worn[n]);
+      const weakest = worn.filter((w): w is ItemView => !!w).sort((a, b) => score(a) - score(b))[0];
+      const slot = free ?? (weakest && score(item) > score(weakest) ? weakest.equippedSlot : null);
+      if (!slot) continue;
+      const res = await api('POST', `${base}/items/${item.id}/equip`, { slot });
+      if (res.statusCode === 200) inv = res.json<InventoryView>();
+      else expect(res.statusCode).toBe(422);
+    }
+    return inv;
+  };
+
+  /** The Tavern: turn in what is ready, take the next story quest and today's contracts. */
+  const visitTavern = async () => {
+    let b = await board();
+    for (const q of b.quests.filter((x) => x.status === 'ready')) {
+      const key = randomUUID();
+      const res = await keyed(`${base}/quests/${q.id}/turn-in`, undefined, key);
+      if (
+        res.statusCode === 422 &&
+        res.json<{ error: { code: string } }>().error.code === 'inventory_full'
+      ) {
+        continue; // the reward item needs room; the next visit sells first
+      }
+      expect(res.statusCode, res.body).toBe(200);
+      const item = res.json<{ reward: { item: ItemView | null } }>().reward.item;
+      state.turnedIn.push({ kind: q.kind, questId: q.questId, item });
+      // A retried turn-in replays the stored reward; a new key is refused by state.
+      const replay = await keyed(`${base}/quests/${q.id}/turn-in`, undefined, key);
+      expect(replay.headers['idempotency-replayed']).toBe('true');
+      expect(replay.json()).toEqual(res.json());
+      const again = await keyed(`${base}/quests/${q.id}/turn-in`);
+      expect(again.statusCode).toBe(409);
+    }
+    b = await board();
+    if (b.story.next && b.story.next.blockers.length === 0) {
+      const res = await api('POST', `${base}/quests`, {
+        kind: 'story',
+        questId: b.story.next.questId,
+      });
+      expect(res.statusCode).toBe(201);
+      b = res.json<QuestBoardResponse>();
+    }
+    for (const offer of b.contracts.offers) {
+      if (offer.accepted || b.contracts.active >= b.contracts.maxActive) continue;
+      const rewardSlot =
+        offer.rewardSlots.length > 0 ? options.rewardSlot?.(offer.rewardSlots) : undefined;
+      const res = await api('POST', `${base}/quests`, {
+        kind: 'contract',
+        slot: offer.slot,
+        ...(rewardSlot ? { rewardSlot } : {}),
+      });
+      expect(res.statusCode, res.body).toBe(201);
+      b = res.json<QuestBoardResponse>();
+    }
+  };
+
+  /** Merchant and Forge, once each, when the character can afford it. */
+  const visitTown = async (inv: InventoryView) => {
+    const spare = inv.inventory.filter((i) => i.source !== 'quest' && !isKept(i));
+    const { economy } = state;
+    if (!economy.sold && spare.length >= 2) {
+      const item = spare[0]!;
+      const key = randomUUID();
+      const res = await keyed(`${base}/merchant/sell`, { itemIds: [item.id] }, key);
+      expect(res.statusCode).toBe(200);
+      const replay = await keyed(`${base}/merchant/sell`, { itemIds: [item.id] }, key);
+      expect(replay.headers['idempotency-replayed']).toBe('true');
+      expect(replay.json<{ character: { gold: number } }>().character.gold).toBe(
+        res.json<{ character: { gold: number } }>().character.gold,
+      );
+      economy.sold = true;
+    }
+    if (!economy.salvaged && spare.length >= 2) {
+      const res = await keyed(`${base}/forge/salvage`, { itemIds: [spare[1]!.id] });
+      expect(res.statusCode).toBe(200);
+      economy.salvaged = true;
+    }
+    if (!economy.bought) {
+      const m = (await api('GET', `${base}/merchant`)).json<MerchantResponse>();
+      const offer = m.offers
+        .filter((o) => !o.soldOut && o.price <= m.gold)
+        .sort((a, b) => a.price - b.price)[0];
+      if (offer) {
+        const key = randomUUID();
+        const res = await keyed(`${base}/merchant/buy`, { offerId: offer.offerId }, key);
+        expect(res.statusCode).toBe(200);
+        const replay = await keyed(`${base}/merchant/buy`, { offerId: offer.offerId }, key);
+        expect(replay.json()).toEqual(res.json());
+        const twice = await keyed(`${base}/merchant/buy`, { offerId: offer.offerId });
+        expect(twice.statusCode).toBe(409);
+        economy.bought = true;
+      }
+    }
+    if (!economy.crafted) {
+      const f = (await api('GET', `${base}/forge`)).json<ForgeResponse>();
+      const recipe = f.recipes.find((r) => r.blockers.length === 0 && r.slots.length > 0);
+      if (recipe) {
+        const res = await keyed(`${base}/forge/craft`, {
+          recipeId: recipe.recipeId,
+          slot: recipe.slots[0],
+        });
+        expect(res.statusCode).toBe(200);
+        economy.crafted = true;
+      }
+    }
+  };
+
+  /**
+   * Keeps the pack from overflowing into auto-salvage by selling what is not worn (never quest
+   * rewards or what `isKept` protects).
+   */
+  const sellJunk = async (inv: InventoryView) => {
+    if (!state.tidy) return;
+    const junk = inv.inventory.filter((i) => i.source !== 'quest' && !isKept(i)).slice(0, -4);
+    if (junk.length < 20) return;
+    const res = await keyed(`${base}/merchant/sell`, { itemIds: junk.map((i) => i.id) });
+    expect(res.statusCode).toBe(200);
+  };
+
+  /**
+   * One crypt run: enter (tier 1–3), wait it out on the server clock, settle, claim (and replay the
+   * claim). Returns the claim result.
+   */
+  const runCrypt = async (tier = 1) => {
+    const start = await api('POST', `${base}/dungeon`, { dungeonId: 'namelessCrypt', tier });
+    expect(start.statusCode, start.body).toBe(201);
+    const { run } = start.json<{ run: DungeonRunView }>();
+    expect(run.tier).toBe(tier);
+    // The run never stacks with farming.
+    expect((await api('GET', `${base}/activity`)).json<{ activity: unknown }>().activity).toBe(
+      null,
+    );
+    const farm = await api('POST', `${base}/activity`, { areaId: 'abandonedFields' });
+    expect(farm.statusCode).toBe(409);
+    // Claiming early is refused.
+    expect((await keyed(`${base}/dungeon/claim`)).statusCode).toBe(409);
+    clock.set(Date.parse(run.endsAt));
+    const settled = await api('POST', `${base}/dungeon/settle`);
+    expect(settled.statusCode).toBe(200);
+    const key = randomUUID();
+    const claim = await keyed(`${base}/dungeon/claim`, undefined, key);
+    expect(claim.statusCode).toBe(200);
+    const { result, character } = claim.json<DungeonClaimResponse>();
+    const replay = await keyed(`${base}/dungeon/claim`, undefined, key);
+    expect(replay.headers['idempotency-replayed']).toBe('true');
+    expect(replay.json()).toEqual(claim.json());
+    expect((await keyed(`${base}/dungeon/claim`)).statusCode).toBe(409);
+    state.crypt.push({
+      tier,
+      level: state.level,
+      outcome: result.outcome,
+      bossDefeated: result.bossDefeated,
+    });
+    state.level = character.level;
+    return result;
+  };
+
+  /** Back to farming after a crypt run (the area is chosen by `farmBestArea` next). */
+  const resumeFarming = async () => {
+    expect([200, 201]).toContain(
+      (await api('POST', `${base}/activity`, { areaId: 'abandonedFields' })).statusCode,
+    );
+  };
+
+  /**
+   * The Phase 2 loop: farm, and at each visit equip better drops, visit the town and the Tavern,
+   * and from level 13 try the crypt once per level until the Gravewarden falls; ends once the
+   * Sunken Abbey has been farmed. Returns false if `maxHours` ran out first.
+   */
+  const playPhase2 = async (maxHours: number) => {
+    expect((await api('POST', `${base}/activity`, { areaId: 'abandonedFields' })).statusCode).toBe(
+      201,
+    );
+    let gravewarden = false;
+    let lastCryptLevel = 0;
+    while (state.farmedHours < maxHours) {
+      await settle();
+      const inv = await equipBetterDrops();
+      await visitTown(inv);
+      await sellJunk(await inventory());
+      await visitTavern();
+
+      if (!gravewarden && state.level >= 13) {
+        const w = await world();
+        state.abbeyLockedBeforeBoss ||= !w.areas.find((a) => a.id === 'sunkenAbbey')!.unlocked;
+        const quests = await board();
+        const cryptQuest = quests.quests.find((q) => q.questId === 'theNamelessCrypt');
+        // One attempt per level gained: a failed run keeps the loot of the rooms it cleared.
+        if (cryptQuest && state.level > lastCryptLevel) {
+          lastCryptLevel = state.level;
+          gravewarden = (await runCrypt(1)).bossDefeated;
+          await visitTavern();
+          await resumeFarming();
+        }
+      }
+      await farmBestArea();
+      if (gravewarden && state.areasFarmed.has('sunkenAbbey')) return true;
+    }
+    return false;
+  };
+
+  return {
+    api,
+    keyed,
+    base,
+    characterId,
+    state,
+    world,
+    inventory,
+    board,
+    settle,
+    farmBestArea,
+    equipBetterDrops,
+    visitTavern,
+    visitTown,
+    sellJunk,
+    runCrypt,
+    resumeFarming,
+    playPhase2,
+  };
+}
+
+/**
+ * Asserts that everything the character holds (gold, items, materials) is accounted for by the
+ * audit log: every grant and every spend has exactly one entry.
+ */
+export async function expectHoldingsMatchAudit(database: DatabaseHandle, characterId: string) {
+  const audit = await database.db
+    .select()
+    .from(auditLog)
+    .where(eq(auditLog.characterId, characterId));
+  let gold = 0;
+  let items = 0;
+  const materials: Partial<Record<MaterialId, number>> = {};
+  const addMaterials = (bundle: unknown, sign = 1) => {
+    for (const [id, n] of Object.entries((bundle ?? {}) as Record<string, number>)) {
+      materials[id as MaterialId] = (materials[id as MaterialId] ?? 0) + sign * n;
+    }
+  };
+  const events: Record<string, number> = {};
+  for (const { event, data } of audit) {
+    events[event] = (events[event] ?? 0) + 1;
+    const d = data as Record<string, unknown> & { gold?: number; items?: unknown };
+    switch (event) {
+      case 'activity.reward':
+        gold += d.gold!;
+        items += d.items as number;
+        addMaterials(d.materials);
+        break;
+      case 'merchant.buy':
+        gold -= d.price as number;
+        items += 1;
+        break;
+      case 'merchant.sell':
+        gold += d.gold!;
+        items -= (d.items as unknown[]).length;
+        break;
+      case 'forge.salvage':
+        gold += d.gold!;
+        items -= (d.items as unknown[]).length;
+        addMaterials(d.materials);
+        break;
+      case 'forge.craft':
+        gold -= d.gold!;
+        items += 1;
+        addMaterials(d.materials, -1);
+        break;
+      // Ticket 3.4 (checked since 3.9): upgrades, rerolls and improvements spend gold and materials.
+      case 'forge.upgrade':
+      case 'forge.reroll':
+      case 'forge.improve':
+        gold -= d.gold!;
+        addMaterials(d.materials, -1);
+        break;
+      case 'quest.turn_in':
+        gold += d.gold!;
+        items += d.item ? 1 : 0;
+        addMaterials(d.materials);
+        break;
+      case 'dungeon.claim':
+        gold += d.gold!;
+        items += d.items as number;
+        addMaterials(d.materials);
+        break;
+      case 'item.discard':
+        items -= 1;
+        break;
+    }
+  }
+  const [row] = await database.db.select().from(characters).where(eq(characters.id, characterId));
+  expect(row!.gold).toBe(gold);
+  const owned = await database.db
+    .select({ id: itemInstances.id })
+    .from(itemInstances)
+    .where(eq(itemInstances.characterId, characterId));
+  expect(owned).toHaveLength(items);
+  const held = await database.db
+    .select()
+    .from(characterMaterials)
+    .where(eq(characterMaterials.characterId, characterId));
+  for (const id of MATERIAL_IDS) {
+    expect(held.find((h) => h.materialId === id)?.quantity ?? 0, id).toBe(materials[id] ?? 0);
+  }
+  return { row: row!, events };
+}

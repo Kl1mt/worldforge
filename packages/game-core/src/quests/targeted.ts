@@ -64,9 +64,10 @@ export function targetedItemReward(slot: ItemSlotKind, level: number): QuestTarg
 }
 
 /**
- * The seed of a targeted reward: derived from the quest row id (server-generated at acceptance),
- * so the item is fixed from the moment the contract is taken; a retried or raced turn-in can never
- * roll another one.
+ * The legacy seed of a targeted reward (ticket 3.6): derived from the quest row id. The row id is
+ * client-visible and this derivation is public, so a player could compute the reward item before
+ * turning the contract in. Since ticket 3.9 the server stores a random seed with the reward at
+ * acceptance (`QuestTargetedItemReward.seed`); this remains only for rows accepted before that.
  */
 export function targetedRewardSeed(questRowId: string): number {
   return createRng(`contract-reward:${questRowId}`).int(0, 0xffffffff);

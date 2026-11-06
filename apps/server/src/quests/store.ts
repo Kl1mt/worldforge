@@ -138,6 +138,19 @@ export interface QuestBoardResponse {
   };
 }
 
+/**
+ * The reward as clients see it: without a targeted reward's seed (ticket 3.9), which stays on the
+ * server so the item can't be computed before it is granted.
+ */
+function publicReward(reward: QuestReward): QuestReward {
+  if (!reward.item || !isTargetedItemReward(reward.item) || reward.item.seed === undefined) {
+    return reward;
+  }
+  const item = { ...reward.item };
+  delete item.seed;
+  return { ...reward, item };
+}
+
 export function questView(q: CharacterQuest): QuestView {
   return {
     id: q.id,
@@ -146,7 +159,7 @@ export function questView(q: CharacterQuest): QuestView {
     contractDay: q.contractDay,
     objectives: q.objectives,
     progress: q.progress,
-    reward: q.reward,
+    reward: publicReward(q.reward),
     status:
       q.status === 'turnedIn'
         ? 'turnedIn'
@@ -321,7 +334,7 @@ export async function acceptQuestTx(
       contractSlot: offer.slot,
       objectives: [offer.template.objective],
       progress: initialProgress([offer.template.objective]),
-      reward: contractReward(offer.template, character.level, rewardSlot),
+      reward: withRewardSeed(contractReward(offer.template, character.level, rewardSlot)),
       acceptedAt: now,
     };
   }
@@ -340,6 +353,16 @@ export async function acceptQuestTx(
     },
   });
   return row!;
+}
+
+/**
+ * Ticket 3.9: a targeted reward gets a server-random seed at acceptance, stored with the row and
+ * never shown (`publicReward`). Before, the seed was derived from the client-visible row id, so the
+ * item could be computed in advance.
+ */
+function withRewardSeed(reward: QuestReward): QuestReward {
+  if (!reward.item || !isTargetedItemReward(reward.item)) return reward;
+  return { ...reward, item: { ...reward.item, seed: randomBytes(4).readUInt32BE(0) } };
 }
 
 export interface TurnInReward {
@@ -398,10 +421,15 @@ export async function turnInQuestTx(
         capacity: inventoryCapacity,
       });
     }
-    // Ticket 3.6: a targeted reward is fixed by the quest row (deterministic, never re-rolled);
+    // Ticket 3.6: a targeted reward is fixed by the quest row (its stored seed, ticket 3.9;
+    // deterministic, never re-rolled);
     // a fixed-base reward keeps its server-random seed (granted once by state).
     const generated = isTargetedItemReward(reward.item)
-      ? generateTargetedItem(reward.item, targetedRewardSeed(quest.id), character.classId)
+      ? generateTargetedItem(
+          reward.item,
+          reward.item.seed ?? targetedRewardSeed(quest.id),
+          character.classId,
+        )
       : generateItem({
           seed: randomBytes(4).readUInt32BE(0),
           itemLevel: reward.item.itemLevel,

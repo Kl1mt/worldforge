@@ -13,8 +13,8 @@ export interface QuestItemReward {
 
 /**
  * Ticket 3.6: an item for a slot the player chose when accepting (Abbey contracts). The base is
- * picked at turn-in among the table's bases of that slot the class can use, from a seed derived
- * from the quest row (`targetedRewardSeed`).
+ * picked at turn-in among the table's bases of that slot the class can use, from the seed stored
+ * at acceptance (`seed`; older rows: `targetedRewardSeed`).
  */
 export interface QuestTargetedItemReward {
   slot: ItemSlotKind;
@@ -22,6 +22,12 @@ export interface QuestTargetedItemReward {
   itemLevel: number;
   /** Loot table whose bases (and affix tier bias) the item comes from. */
   lootTableId: string;
+  /**
+   * Ticket 3.9: the item's seed, drawn server-side at acceptance and stored with the quest row.
+   * Server-only: client views strip it, so the reward can't be computed before it is granted.
+   * Rows accepted before 3.9 have none and fall back to `targetedRewardSeed(questRowId)`.
+   */
+  seed?: number;
 }
 
 /** What turning a quest in grants. */

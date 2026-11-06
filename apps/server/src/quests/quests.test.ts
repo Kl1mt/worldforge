@@ -505,9 +505,20 @@ describe('targeted contract rewards (ticket 3.6)', () => {
     }>().reward.item;
     expect(getItemBase(item.baseId).slot).toBe('neck');
     expect(item).toMatchObject({ rarityId: 'epic', itemLevel: 20 });
+    // Ticket 3.9: the item comes from the seed stored at acceptance, which no view shows (the row
+    // id is public, so a seed derived from it let the client compute the reward in advance).
+    expect(accepted.body).not.toContain('"seed"');
+    expect((await call(p, 'GET', url)).body).not.toContain('"seed"');
+    const [stored] = await database.db
+      .select()
+      .from(characterQuests)
+      .where(eq(characterQuests.id, quest.id));
+    const storedItem = stored!.reward.item as { seed?: number };
+    expect(Number.isInteger(storedItem.seed)).toBe(true);
+    expect(ok[0]!.body).not.toContain(`${storedItem.seed}`);
     const expected = generateTargetedItem(
       { slot: 'neck', rarityId: 'epic', itemLevel: 20, lootTableId: 'sunkenAbbey' },
-      targetedRewardSeed(quest.id),
+      storedItem.seed!,
       'warrior',
     )!;
     const rows = await database.db
@@ -520,5 +531,38 @@ describe('targeted contract rewards (ticket 3.6)', () => {
       expected.seed,
       expected.affixes,
     ]);
+  });
+
+  it('a contract accepted before ticket 3.9 (no stored seed) keeps the item its row id fixed', async () => {
+    const { p, offer } = await abbeyHero();
+    const accepted = await call(p, 'POST', `/api/characters/${p.id}/quests`, {
+      kind: 'contract',
+      slot: offer.slot,
+      rewardSlot: 'ring',
+    });
+    expect(accepted.statusCode).toBe(201);
+    const quest = accepted
+      .json<QuestBoardResponse>()
+      .quests.find((q) => q.questId === offer.templateId)!;
+    // Strip the seed and complete it, as a row written by 3.6 would look.
+    const legacy = { slot: 'ring', rarityId: 'epic', itemLevel: 20, lootTableId: 'sunkenAbbey' };
+    await database.db
+      .update(characterQuests)
+      .set({
+        reward: { ...quest.reward, item: legacy } as never,
+        progress: quest.objectives.map((o) => ('count' in o ? o.count : 1)),
+      })
+      .where(eq(characterQuests.id, quest.id));
+    expect((await turnIn(p, quest.id, 'legacy-key-0001')).statusCode).toBe(200);
+    const expected = generateTargetedItem(
+      legacy as never,
+      targetedRewardSeed(quest.id),
+      'warrior',
+    )!;
+    const [row] = await database.db
+      .select()
+      .from(itemInstances)
+      .where(and(eq(itemInstances.characterId, p.id), eq(itemInstances.source, 'quest')));
+    expect([row!.baseId, row!.seed]).toEqual([expected.baseId, expected.seed]);
   });
 });
