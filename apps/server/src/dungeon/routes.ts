@@ -44,6 +44,7 @@ import {
   goldIn,
   materialCounts,
   overflowCounts,
+  overCapacityCounts,
   rolledDropCounts,
   xpIn,
 } from '../telemetry/counts.js';
@@ -158,6 +159,11 @@ export interface DungeonResultView {
   goldSalvaged: number;
   items: DungeonResultItem[];
   itemsSalvaged: number;
+  /**
+   * Ticket B.2: valuable drops among `items` kept beyond the pack's capacity. Absent when none
+   * (and in results claimed before B.2).
+   */
+  itemsOverCapacity?: number;
   materials: Partial<Record<MaterialId, number>>;
   bossDefeated: boolean;
   bossLoot: boolean;
@@ -256,6 +262,7 @@ export function claimTelemetry(run: DungeonRun, r: DungeonRunResult): TelemetryC
   }
   const part = (inHoard: boolean) => ({
     items: r.items.filter((i) => hoard(i.seed) === inHoard),
+    overCapacity: r.overCapacity.filter((i) => hoard(i.seed) === inHoard),
     salvaged: r.salvaged.filter((i) => hoard(i.seed) === inHoard),
     filtered: filtered.filter((f) => hoard(f.item.seed) === inHoard),
   });
@@ -268,6 +275,7 @@ export function claimTelemetry(run: DungeonRun, r: DungeonRunResult): TelemetryC
     ...rolledDropCounts('crypt', context, part(false)),
     ...rolledDropCounts('crypt_hoard', context, part(true)),
     ...overflowCounts('crypt', context, r.salvaged.length),
+    ...overCapacityCounts('crypt', context, r.overCapacity.length),
     ...goldIn('crypt_loot', context, r.goldLooted),
     ...goldIn('crypt_overflow', context, r.goldSalvaged),
     ...goldIn('crypt_filter', context, filter.gold),
@@ -689,6 +697,7 @@ export async function registerDungeons(
               ...(x.variant ? { variant: x.variant } : {}),
             })),
             itemsSalvaged: r.salvaged.length,
+            ...(r.overCapacity.length > 0 ? { itemsOverCapacity: r.overCapacity.length } : {}),
             materials: r.materials,
             bossDefeated: r.bossDefeated,
             bossLoot: r.bossLoot,
@@ -734,6 +743,7 @@ export async function registerDungeons(
               gold,
               items: rows.length,
               itemsSalvaged: r.salvaged.length,
+              ...(r.overCapacity.length > 0 ? { itemsOverCapacity: r.overCapacity.length } : {}),
               materials: r.materials,
               bossLoot: r.bossLoot,
               questEvents: r.questEvents,

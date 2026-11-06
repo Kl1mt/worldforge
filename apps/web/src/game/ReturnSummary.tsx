@@ -184,7 +184,15 @@ export function ReturnSummaryDialog({ heroName }: { heroName: string }) {
               Pack full: {summary.itemsSalvaged} {summary.itemsSalvaged === 1 ? 'drop' : 'drops'}{' '}
               found no room and {summary.itemsSalvaged === 1 ? 'was' : 'were'} salvaged for{' '}
               {formatNumber(summary.goldSalvaged)} gold ({formatNumber(lootGold)} gold from loot).
-              Make room or set a loot filter to keep the best ones.
+              Legendary, Mythic, set and Void drops are never salvaged this way.
+            </li>
+          ) : null}
+          {(summary.itemsOverCapacity ?? 0) > 0 ? (
+            <li className="return__overflow">
+              Over capacity: {summary.itemsOverCapacity} valuable{' '}
+              {summary.itemsOverCapacity === 1 ? 'drop' : 'drops'} found no room and{' '}
+              {summary.itemsOverCapacity === 1 ? 'was' : 'were'} kept anyway. Until you make room,
+              only Legendary, Mythic, set and Void drops are kept.
             </li>
           ) : null}
           {summary.cappedMs > 0 ? (

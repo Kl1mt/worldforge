@@ -91,7 +91,12 @@ export interface FarmingSettlement {
   goldSalvaged: number;
   /** Items to add to the inventory, in drop order. */
   items: GeneratedItem[];
-  /** Items that did not fit and were salvaged to gold. */
+  /**
+   * Ticket B.2: valuable drops (Legendary, Mythic, set, Void) among `items` that found no room and
+   * were kept beyond the pack's capacity.
+   */
+  overCapacity: GeneratedItem[];
+  /** Ordinary items that did not fit and were salvaged to gold. */
   salvaged: GeneratedItem[];
   /**
    * Ticket 3.7: drops the loot filter sold or salvaged, in drop order (they took no pack space).
@@ -193,6 +198,7 @@ export function settleFarming(
     goldLooted: first.goldLooted + second.goldLooted,
     goldSalvaged: first.goldSalvaged + second.goldSalvaged,
     items: [...first.items, ...second.items],
+    overCapacity: [...first.overCapacity, ...second.overCapacity],
     salvaged: [...first.salvaged, ...second.salvaged],
     ...(first.filtered ? { filtered: [...first.filtered, ...(second.filtered ?? [])] } : {}),
     goldFind: second.goldFind,
@@ -291,7 +297,7 @@ function settleSegment(
     },
   );
 
-  const { items, salvaged, goldSalvaged, filtered } = placer.result();
+  const { items, overCapacity, salvaged, goldSalvaged, filtered } = placer.result();
   return {
     areaId: input.areaId,
     switched: false,
@@ -316,6 +322,7 @@ function settleSegment(
     goldLooted,
     goldSalvaged,
     items,
+    overCapacity,
     salvaged,
     ...(filtered ? { filtered } : {}),
     goldFind: modifiers.goldFind,

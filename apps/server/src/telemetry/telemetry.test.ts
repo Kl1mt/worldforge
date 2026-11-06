@@ -2,11 +2,12 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { and, eq, sql } from 'drizzle-orm';
-import { MATERIAL_IDS, generateItem, type RarityId } from '@worldforge/game-core';
+import { MATERIAL_IDS, generateItem, settleFarming, type RarityId } from '@worldforge/game-core';
 import { buildApp } from '../app.js';
 import { SESSION_COOKIE } from '../auth/index.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
 import {
+  activities,
   auditLog,
   characterMaterials,
   characterQuests,
@@ -255,7 +256,8 @@ describe('value paths', () => {
     const rows = await rollups();
     const [audit] = await auditsOf(p, 'activity.reward');
     const data = audit!.data as { items: number; itemsSalvaged: number; goldSalvaged: number };
-    expect(data.items).toBe(0);
+    // Ticket B.2: only a valuable drop (Legendary and up) may still reach a full pack.
+    expect(data.items).toBe((data as { itemsOverCapacity?: number }).itemsOverCapacity ?? 0);
     expect(data.itemsSalvaged).toBeGreaterThan(0);
     const delta = (
       m: RollupRow['metric'],
@@ -268,6 +270,67 @@ describe('value paths', () => {
       data.itemsSalvaged,
     );
     expect(delta('gold.in', (d) => d[0] === 'farming_overflow', 'amount')).toBe(data.goldSalvaged);
+    await expectReconciled();
+  });
+
+  it('a full pack keeps valuable drops over capacity (ticket B.2)', async () => {
+    const p = await newPlayer();
+    const cap = DEFAULT_ACTIVITY_OPTIONS.rules.inventory.capacity;
+    await database.db.insert(itemInstances).values(
+      Array.from({ length: cap }, (_, n) => ({
+        id: uuidv7(),
+        characterId: p.id,
+        ...generateItem({ seed: n, itemLevel: 3, baseId: 'iron-helm', rarityId: 'common' })!,
+        source: 'test',
+      })),
+    );
+    // A seed whose first hour drops a Legendary or better (searched with the same rules).
+    const seed = Array.from({ length: 200 }, (_, n) => `over-capacity:${n}`).find(
+      (s) =>
+        settleFarming({
+          character: { classId: 'warrior', level: 1, xp: 0 },
+          areaId: 'abandonedFields',
+          seed: s,
+          firstCycle: 0,
+          durationMs: HOUR,
+          inventoryCount: cap,
+        }).overCapacity.length > 0,
+    )!;
+    const before = await rollups();
+    await call(p, 'POST', '/activity', { areaId: 'abandonedFields' });
+    await database.db
+      .update(activities)
+      .set({ seedSecret: seed })
+      .where(eq(activities.characterId, p.id));
+    advance(HOUR);
+    const settled = await call(p, 'POST', '/activity/settle');
+    const summary = settled.json().summary as { itemsOverCapacity?: number; itemsGained: number };
+    const rows = await rollups();
+    const [audit] = await auditsOf(p, 'activity.reward');
+    const data = audit!.data as { items: number; itemsSalvaged: number; itemsOverCapacity: number };
+    expect(data.itemsOverCapacity).toBeGreaterThan(0);
+    expect(data.items).toBe(data.itemsOverCapacity);
+    expect(summary.itemsOverCapacity).toBe(data.itemsOverCapacity);
+    expect(summary.itemsGained).toBe(data.items);
+    const delta = (
+      m: RollupRow['metric'],
+      f: (d: RollupRow['dims']) => boolean,
+      field: 'events' | 'amount' = 'events',
+    ) => total(rows, m, f, field) - total(before, m, f, field);
+    expect(delta('pack.over_capacity', (d) => d[0] === 'farming')).toBe(1);
+    expect(delta('pack.over_capacity', (d) => d[0] === 'farming', 'amount')).toBe(
+      data.itemsOverCapacity,
+    );
+    expect(delta('item.fate', (d) => d[0] === 'farming' && d[1] === 'kept_over_capacity')).toBe(
+      data.itemsOverCapacity,
+    );
+    expect(delta('item.fate', (d) => d[0] === 'farming' && d[1] === 'kept')).toBe(0);
+    // The pack is over capacity now, and holds every one of them.
+    const held = await database.db
+      .select({ rarityId: itemInstances.rarityId })
+      .from(itemInstances)
+      .where(eq(itemInstances.characterId, p.id));
+    expect(held.length).toBe(cap + data.itemsOverCapacity);
     await expectReconciled();
   });
 

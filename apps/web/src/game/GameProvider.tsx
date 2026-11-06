@@ -56,6 +56,8 @@ export interface SessionTally {
   /** Ticket 3.7: drops salvaged because the pack was full, and the gold they gave. */
   overflow: number;
   overflowGold: number;
+  /** Ticket B.2: valuable drops kept beyond the pack's capacity. */
+  overCapacity: number;
   /** Ticket 3.7: drops the loot filter sold or salvaged, and the gold they gave. */
   filtered: number;
   filteredGold: number;
@@ -123,6 +125,7 @@ const EMPTY_TALLY: SessionTally = {
   simulatedMs: 0,
   overflow: 0,
   overflowGold: 0,
+  overCapacity: 0,
   filtered: 0,
   filteredGold: 0,
 };
@@ -212,6 +215,7 @@ export function GameProvider({
         simulatedMs: t.simulatedMs + summary.simulatedMs,
         overflow: t.overflow + summary.itemsSalvaged,
         overflowGold: t.overflowGold + summary.goldSalvaged,
+        overCapacity: t.overCapacity + (summary.itemsOverCapacity ?? 0),
         filtered:
           t.filtered + (summary.filtered ? summary.filtered.sold + summary.filtered.salvaged : 0),
         filteredGold: t.filteredGold + (summary.filtered?.gold ?? 0),

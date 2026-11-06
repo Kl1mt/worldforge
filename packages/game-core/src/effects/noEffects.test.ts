@@ -134,7 +134,14 @@ function withPre36Enrage<T>(f: () => T): T {
 
 /** Ticket 3.6: a crypt run's hash without the fields 3.6 added. */
 const cryptHash = (r: ReturnType<typeof simulateDungeonRun>) =>
-  hash({ ...r, items: [], salvaged: [], tier: undefined, enrageAtMs: undefined });
+  hash({
+    ...r,
+    items: [],
+    overCapacity: undefined,
+    salvaged: [],
+    tier: undefined,
+    enrageAtMs: undefined,
+  });
 
 /** Ticket 3.3: every kit item claims a set it is not a piece of; none of it may count. */
 const forgedSetIds = (items: GeneratedItem[]) =>
@@ -194,6 +201,8 @@ function pinnedHashes(
       out[`settle:${c}:${area}`] = hash({
         ...s,
         items: s.items.filter((i) => i.rarityId !== 'legendary' && i.rarityId !== 'mythic'),
+        // Ticket B.2's field (always empty with an empty pack).
+        overCapacity: undefined,
         salvaged: [],
         goldSalvaged: 0,
       });

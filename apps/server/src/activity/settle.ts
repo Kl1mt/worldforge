@@ -30,6 +30,7 @@ import {
   goldIn,
   materialCounts,
   overflowCounts,
+  overCapacityCounts,
   rolledDropCounts,
   xpIn,
 } from '../telemetry/counts.js';
@@ -325,6 +326,9 @@ export async function settleActivityTx(
     summary.goldSalvaged += settlement.goldSalvaged;
     summary.itemsGained += rows.length;
     summary.itemsSalvaged += settlement.salvaged.length;
+    if (settlement.overCapacity.length > 0) {
+      summary.itemsOverCapacity = (summary.itemsOverCapacity ?? 0) + settlement.overCapacity.length;
+    }
     summary.items.push(
       ...rows.map((r) => ({
         id: r.id,
@@ -393,6 +397,9 @@ export async function settleActivityTx(
           goldSalvaged: settlement.goldSalvaged,
           items: rows.length,
           itemsSalvaged: settlement.salvaged.length,
+          ...(settlement.overCapacity.length > 0
+            ? { itemsOverCapacity: settlement.overCapacity.length }
+            : {}),
           materials: settlement.materials,
           notableItems: rows
             .filter((r) => RARITY_IDS.indexOf(r.rarityId) >= NOTABLE_RARITY)
@@ -410,6 +417,7 @@ export async function settleActivityTx(
         },
         ...rolledDropCounts('farming', area, settlement),
         ...overflowCounts('farming', area, settlement.salvaged.length),
+        ...overCapacityCounts('farming', area, settlement.overCapacity.length),
         ...goldIn('farming_loot', area, settlement.goldLooted),
         ...goldIn('farming_overflow', area, settlement.goldSalvaged),
         ...goldIn('farming_filter', area, filter.gold),

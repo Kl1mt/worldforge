@@ -3,6 +3,7 @@ import {
   DEFAULT_ACTIVITY_CONFIG,
   equipmentModifiers,
   generateItem,
+  isValuableDrop,
   itemContribution,
   requestAreaChange,
   salvageValue,
@@ -102,12 +103,15 @@ describe('settleFarming', () => {
     expect(roomy.salvaged).toEqual([]);
     const full = settleFarming(input({ ...window, inventoryCount: cap }));
     const nearly = settleFarming(input({ ...window, inventoryCount: cap - 2 }));
-    expect(full.items).toEqual([]);
-    expect(full.salvaged).toEqual(roomy.items);
-    expect(full.goldSalvaged).toBe(roomy.items.reduce((s, i) => s + salvageValue(i), 0));
+    // Ticket B.2: valuable drops (Legendary, Mythic, set, Void) are kept beyond the capacity.
+    const ordinary = roomy.items.filter((i) => !isValuableDrop(i));
+    expect(full.items).toEqual(roomy.items.filter(isValuableDrop));
+    expect(full.overCapacity).toEqual(full.items);
+    expect(full.salvaged).toEqual(ordinary);
+    expect(full.goldSalvaged).toBe(ordinary.reduce((s, i) => s + salvageValue(i), 0));
     expect(full.goldLooted).toBe(roomy.goldLooted);
-    expect(nearly.items).toEqual(roomy.items.slice(0, 2));
-    expect(nearly.salvaged.length).toBe(roomy.items.length - 2);
+    expect(nearly.items.slice(0, 2)).toEqual(roomy.items.slice(0, 2));
+    expect(nearly.salvaged.length).toBe(roomy.items.length - nearly.items.length);
   });
 
   it('gold find raises gold, but only up to the cap', () => {

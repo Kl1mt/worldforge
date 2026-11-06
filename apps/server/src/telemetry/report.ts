@@ -279,7 +279,18 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
     [
       'farming: items kept',
       audit('activity.reward', num(sql`data->>'items'`)),
-      sumRollups(rows, 'item.fate', fate(src('farming'), 'kept')),
+      sumRollups(rows, 'item.fate', fate(src('farming'), 'kept')) +
+        sumRollups(rows, 'item.fate', fate(src('farming'), 'kept_over_capacity')),
+    ],
+    [
+      'farming: items kept over capacity',
+      audit('activity.reward', num(sql`data->>'itemsOverCapacity'`)),
+      sumRollups(rows, 'item.fate', fate(src('farming'), 'kept_over_capacity')),
+    ],
+    [
+      'farming: over capacity (pack.over_capacity)',
+      audit('activity.reward', num(sql`data->>'itemsOverCapacity'`)),
+      sumRollups(rows, 'pack.over_capacity', src('farming'), 'amount'),
     ],
     [
       'farming: items overflowed',
@@ -346,7 +357,13 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
     [
       'crypt: items kept',
       audit('dungeon.claim', num(sql`data->>'items'`)),
-      sumRollups(rows, 'item.fate', fate(crypt, 'kept')),
+      sumRollups(rows, 'item.fate', fate(crypt, 'kept')) +
+        sumRollups(rows, 'item.fate', fate(crypt, 'kept_over_capacity')),
+    ],
+    [
+      'crypt: items kept over capacity',
+      audit('dungeon.claim', num(sql`data->>'itemsOverCapacity'`)),
+      sumRollups(rows, 'pack.over_capacity', src('crypt'), 'amount'),
     ],
     [
       'crypt: items overflowed',
@@ -681,6 +698,7 @@ export function renderTelemetryReport(report: TelemetryReport): string {
           ['fate', 'items', 'gold'],
           [
             ['kept in the pack', byFate('kept')[0]!, '—'],
+            ['pack full: valuable, kept over capacity', byFate('kept_over_capacity')[0]!, '—'],
             ['loot filter: sold', ...(byFate('filter_sold') as [number, number])],
             ['loot filter: salvaged', ...(byFate('filter_salvaged') as [number, number])],
             [
@@ -697,6 +715,14 @@ export function renderTelemetryReport(report: TelemetryReport): string {
       if (overflowRuns.size > 0) {
         out.push(
           `  Full-pack overflows: ${[...overflowRuns.entries()]
+            .map(([s, n]) => `${s} ${fmt(n)} settlements/claims`)
+            .join(', ')}`,
+        );
+      }
+      const overRuns = group(rows, 'pack.over_capacity', (d) => d[0]);
+      if (overRuns.size > 0) {
+        out.push(
+          `  Valuable drops kept over capacity: ${[...overRuns.entries()]
             .map(([s, n]) => `${s} ${fmt(n)} settlements/claims`)
             .join(', ')}`,
         );

@@ -153,7 +153,9 @@ export interface DungeonRunResult {
   goldSalvaged: number;
   /** Items to add, in drop order (boss items last). */
   items: GeneratedItem[];
-  /** Items that did not fit and were salvaged to gold. */
+  /** Ticket B.2: valuable drops among `items` kept beyond the pack's capacity. */
+  overCapacity: GeneratedItem[];
+  /** Ordinary items that did not fit and were salvaged to gold. */
   salvaged: GeneratedItem[];
   /** Ticket 3.7: drops the loot filter handled; present only when a filter was given. */
   filtered?: FilteredDrop[];
@@ -465,10 +467,10 @@ export function simulateDungeonRun(
   events.push({ t: now, type: 'end', outcome });
 
   // Loot filter and capacity rule as in farming (ticket 3.7): filtered drops take no space, drops
-  // beyond the free space are salvaged to gold.
+  // beyond the free space are salvaged to gold, valuable ones kept beyond it (ticket B.2).
   const placer = createDropPlacer(input.inventoryCount, activity.inventory, input.lootFilter);
   for (const item of drops) placer.place(item);
-  const { items, salvaged, goldSalvaged, filtered } = placer.result();
+  const { items, overCapacity, salvaged, goldSalvaged, filtered } = placer.result();
 
   return {
     dungeonId: dungeon.id,
@@ -493,6 +495,7 @@ export function simulateDungeonRun(
     goldLooted,
     goldSalvaged,
     items,
+    overCapacity,
     salvaged,
     ...(filtered ? { filtered } : {}),
     materials,
