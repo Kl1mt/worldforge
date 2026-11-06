@@ -42,8 +42,8 @@ Every tier reuses the crypt's rooms, enemies, boss, art and rules; a tier is dat
 | Tier | Unlock | Chambers | Gravewarden | Boss loot (rarity weights U/R/E/L/M · gold) | Loot focus |
 |---|---|---|---|---|---|
 | I | level 12 | 12–16 | level 16 | 3000/3500/1800/250/20 · 120–180 | rings and amulets × 3 (`slots`) |
-| II | level 18 + tier I cleared | 18–21 | level 21, health × 1.8, damage × 1.3 | 2000/3500/2400/350/30 · 260–380 | the Drowned Vigil (`sets`) |
-| III | level 21 + tier II cleared | 21–24 | level 24, health × 2.4, damage × 1.5 | 1000/3500/3000/500/45 · 420–600 | the Ashen Choir (`sets`) + Tyrant's Bane and Headsman's Due × 4 (`effects`) |
+| II | level 18 + tier I cleared | 18–21 | level 21, health × 1.8, damage × 1.3, resistance × 0.5 (B.2) | 2000/3500/2400/350/30 · 260–380 | the Drowned Vigil (`sets`) |
+| III | level 21 + tier II cleared | 21–24 | level 24, health × 2.4, damage × 1.5, resistance × 0.5 (B.2) | 1000/3500/3000/500/45 · 420–600 | the Ashen Choir (`sets`) + Tyrant's Bane and Headsman's Due × 4 (`effects`) |
 
 All tiers: enrage window 30–70 s, × 1.8 damage and × 1.4 attack speed, 150 s limit, 2 boss items, one Gravewarden Seal. A Gravewarden kill of a character from before 3.6 counts as tier I cleared (`cryptTierCleared(progress)`), so nobody has to clear tier I again. The state (`GET …/dungeon`) lists every tier with `unlocked`, `blockers` (`{ kind: 'cryptTier', tier }` for the gate), levels and `lootFocus`, and the deepest `tierCleared`. Items from every tier keep the source `dungeon:namelessCrypt`; the audit entries (`dungeon.start`, `dungeon.claim`, `activity.stop`) carry the tier.
 
@@ -76,6 +76,20 @@ The spread between classes at one rarity comes from the generated kits' affix ro
 
 **Asserted per tier** (`balance.test.ts`, "the Nameless Crypt (tiers: ticket 3.6)"): tier I — naked 0 %; level-12 commons ≤ 50 % per class and 5–30 % on average; commons +5, uncommons and commons + Tyrant's Bane 25–90 % per class; every upgrade step and every level raises the mean; +7 commons stay < 90 %; geared 15, level-12 rares, the full Vigil and Legendaries ≥ 90–95 % per class; the boss still takes > 1.2 × the earliest enrage and a third of a geared-15 hero's health. Tier II — naked 0 %; commons +5 ≤ 10 %; rares 20–70 %; rares +5, epics and rares two levels on raise it but stay ≤ 95 %; every best-in-slot build ≥ 95 % per class. Tier III — naked and commons 0 %; rares ≤ 10 %; epics ≤ 40 % and below tier II's; epics +5 30–85 %; Legendaries ≥ 90 %, every other best-in-slot build ≥ 95 % per class. No build kills the tier II boss in under 0.35 × and the tier III boss in under 0.55 × the earliest enrage. A winning run pays 0.8–2.2 × the XP of farming the matching area for the same time, in every tier.
 
+### Farmed gear (ticket B.2)
+The tables above use generated kits. B.2 measured the tiers against **farmed** gear instead: a hero farms the matching area for 10 or 30 hours (the real settlement), wears the best drop per slot (by item level, rarity and affix count) and upgrades it to +0 or +5 (cheap at these item levels). 12 seeds per cell, warrior / mage / hunter / warlock, before → after B.2 (`tools/balance/crypt-farmed.ts`):
+
+| Tier · level (farmed in) | 10 h, +0 | 10 h, +5 | 30 h, +0 | 30 h, +5 |
+|---|---|---|---|---|
+| I · 12 (Burial Grounds) | 75/83/92/100 → same | 100 % → same | 100 % | 100 % |
+| II · 18 (Abbey) | 67/50/42/42 → 67/58/42/42 | 83/67/92/58 → 83/83/92/83 | 92/58/100/42 → 100/92/100/83 | 100/92/100/83 → 100/100/100/92 |
+| II · 20 | 83/75/75/67 → 92/83/83/92 | 100/92/100/92 → 100 % | 100 % | 100 % |
+| III · 21 (Abbey) | 0 % → same | 8/8/8/0 → 8/8/8/17 | 17/8/33/17 → 17/25/42/42 | 67/33/67/58 → 67/75/67/83 |
+| III · 22 | 0/0/8/0 → 0/8/8/0 | 17/17/17/0 → 17/42/17/25 | 42/25/58/25 → 50/58/58/50 | 75/58/83/58 → 75/83/83/83 |
+| III · 23 | 17/8/25/0 → 25/17/25/25 | 67/33/50/25 → 75/42/50/42 | 50/33/83/67 → 50/58/83/83 | 92/67/100/100 → 92/92/100/100 |
+
+**Reading and decisions.** Tiers II and III are curves over farming time and upgrades, as intended; only the casters were off: with farmed gear the mage and the warlock won about half as often as the warrior and the hunter in tier III (24 seeds at 22, 30 h + 5: 79 / 67 / 92 / 67 %; they died after the enrage, ~15 % slower to kill). **Fixed:** the tier II and III Gravewarden resists magic half as much (`EnemyScale.resistance` = 0.5, tier I unchanged): 79 / 79 / 92 / 83 % now. Tier I is a near-certain win for farmed gear even at its entry level 12 (75–100 % with 10 h of Burial Grounds gear, 100 % from +5). That is 3.6's decision ("farmed gear *should* raise the odds"), and tier I is the Phase 2 gate a player has already passed, so it stays.
+
 ## Targeted loot (ticket 3.6)
 Each tier declares a **loot focus** (`LootFocus` on its chamber and boss tables, `CRYPT_LOOT_FOCI`), shown at the crypt door, so the player can farm toward a build: a slot group (bases of those slots weigh × `slotWeight`), a set (a set-piece roll picks only that set's pieces) and/or an effect family (those Legendary effects weigh × `effectWeight`). A focus only reweights draws the generator makes anyway, so the same item seed rolls the same rarity, item level, set/Mythic outcome and Void flag with or without it (`loot/focus.test.ts`), and every drop stays deterministic per kill stream and split-invariant. Measured (warrior with a Legendary kit at each tier's level, boss loot eligible, 3,000 runs):
 
@@ -87,6 +101,8 @@ Each tier declares a **loot focus** (`LootFocus` on its chamber and boss tables,
 | Legendaries (not set) per run | 0.035 | 0.053 | 0.069 |
 | Tyrant's Bane or Headsman's Due among Legendary effects | 28 % | 32 % | 51 % (unfocused: 28 %) |
 | Mythics · Void items per run | 0.009 · 0.008 | 0.007 · 0.012 | 0.015 · 0.013 |
+
+**Since B.2** (late-game Legendary weight × 1.5, a third of those rolls set pieces; a rare kit labelled Legendary at each tier's level, all classes, boss loot eligible, 4,000 runs per tier; before → after): plain Legendaries per run 0.037 → 0.071 (I), 0.041 → 0.088 (II), 0.045 → 0.099 (III); set pieces 0.033 → 0.031, 0.047 → 0.045, 0.042 → 0.053; Void 0.009 → 0.012, 0.009 → 0.014, 0.013 → 0.019; Mythics unchanged (0.005–0.009). That kit wins tier III 55 % → 71 % of runs (the boss's lower resistance, above).
 
 So a given Vigil piece drops about once per 140 tier II runs and a given Choir piece about once per 80 tier III runs (one boss hoard per 20 h; the chambers drop every run). Abbey contracts add a slot choice for a reward item (`docs/QUESTS.md`).
 

@@ -116,6 +116,13 @@
   line-height: 1.4;
 }
 
+.tooltip__effect-note {
+  margin-top: var(--space-1);
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+  font-style: italic;
+}
+
 /* Set piece (ticket 3.3): the set tracker under the affixes, on a brass rule. */
 .tooltip__set {
   margin-top: var(--space-3);

@@ -160,6 +160,9 @@ export function ItemTooltip({ item, compareTo, caption, note, children, id }: It
             </p>
             <p className="tooltip__effect-name">{item.effect.name}</p>
             <p className="tooltip__effect-text">{item.effect.text}</p>
+            {item.effect.kind === 'legendary' ? (
+              <p className="tooltip__effect-note">Worn twice, only the stronger copy counts.</p>
+            ) : null}
           </section>
         ) : null}
 

@@ -504,6 +504,8 @@ Track aggregate metrics such as session frequency, offline return rates, area ef
 | Offline accumulation cap | **Decided (v0.3):** 3 hours to start, server-configurable; to be upgradeable through progression later (upgrade path open). |
 | Combat timing and formulas | Open; prototype and test in Phase 1. |
 | Drop rates and affix ranges | Open; data-driven and tuned through telemetry. |
+| Full-pack overflow | **Decided (owner, ticket B.2):** ordinary drops that find no room are salvaged to gold; Legendary, Mythic, set and Void drops are kept beyond the pack's capacity (the loot filter's opted-in categories still apply first). See `docs/FARMING.md`. |
+| Stacking copies of an effect | **Decided (ticket B.2):** each Legendary effect counts once (its strongest copy); different effects add up to their caps. |
 | Variant stacking rules | Open; define before implementing multiple variant combinations. **Ticket 3.5:** no stacking; one variant (Void) per item until Prismatic. |
 | Item Awakening | Optional late-game feature; not an early commitment. |
 | Leaderboard formula | Open; define and publish understandable metrics before release. |

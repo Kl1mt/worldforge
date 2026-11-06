@@ -82,11 +82,11 @@ GDD §8.1, §8.3. Rules and numbers in `packages/game-core/src/economy/forgeActi
 | +2→+3 | 80 % | 2 | 120 | 4 | 0 | 1.24 | 3 |
 | +3→+4 | 70 % | 3 | 180 | 5 | 0 | 1.42 | 4 |
 | +4→+5 | 60 % | 3 | 260 | 6 | 1 | 1.62 | 4 |
-| +5→+6 | 50 % | 4 | 380 | 8 | 1 | 1.94 | 5 |
-| +6→+7 | 40 % | 4 | 540 | 10 | 2 | 2.31 | 5 |
-| +7→+8 | 33 % | 5 | 760 | 12 | 2 | 2.76 | 6 |
-| +8→+9 | 25 % | 6 | 1,050 | 15 | 3 | 3.47 | 7 |
-| +9→+10 | 20 % | 7 | 1,400 | 18 | 4 | 4.16 | 8 |
+| +5→+6 | 50 % | 4 | 760 (was 380) | 8 | 1 | 1.94 | 5 |
+| +6→+7 | 40 % | 4 | 1,080 (was 540) | 10 | 2 | 2.31 | 5 |
+| +7→+8 | 33 % | 5 | 1,520 (was 760) | 12 | 2 | 2.76 | 6 |
+| +8→+9 | 25 % | 6 | 2,100 (was 1,050) | 15 | 3 | 3.47 | 7 |
+| +9→+10 | 20 % | 7 | 2,800 (was 1,400) | 18 | 4 | 4.16 | 8 |
 
 **Void items (ticket 3.5).** Forge work never adds or removes a variant: upgrades, rerolls and improvements keep a Void item Void and a plain item plain, at the same prices (Void is not a cost factor). Void's +10 % base values add to the upgrade bonus (+10 Void = +60 %). Sell and salvage prices ignore the variant.
 
@@ -97,6 +97,8 @@ GDD §8.1, §8.3. Rules and numbers in `packages/game-core/src/economy/forgeActi
 **No save-scumming.** Every random outcome (upgrade success, reroll result, improvement roll) is drawn from the item's server-only stream ``createRng(`${forge_secret}:${forge_counter}`)``; the transaction that pays and applies the result advances `forge_counter` by one. An outcome is therefore fixed by the item's state before the action: replaying the request returns the stored response (`Idempotency-Key`), a retry with a new key is a new paid attempt on the next draw, racing requests are serialised by the character → item locks and each sees the advanced counter, and the client never sees `forge_secret`. Tested in `forge/work.test.ts` (server predictions from the stream, replay, same secret + counter on two items give the same outcome, refusals move nothing) and `concurrency.pg.test.ts` (below).
 
 ### Gold and material sink (measured; asserted in `balance.test.ts`)
+*Ticket 3.4's numbers, in hours of kill gold. Ticket B.2 doubled the gold of +5 → +10 and restated the targets in realistic income: "Balance pass: loot depth & economy" below.*
+
 Expected cost of one kit item at the area's middle level (exact means with the pity), against the classes' mean farming gold per hour there, and the best gathering rate of each material:
 
 | Area (level) | Gold/h | First attempt | +0→+5 | +5→+10 | Kit (9 items) to +5 | Kit to +10 | Materials +0→+5 / +5→+10 |
@@ -128,3 +130,33 @@ Upgrades move the cliff like the boss effects do: a +7 kit of commons (≈ 9 × 
 - `GET /characters/:id/forge/items/:itemId` quotes the next upgrade (chance, pity, cost, blockers), the reroll price and options per affix (affixes and tier ranges) and each affix's improvement state. `POST …/forge/upgrade` `{ itemId }`, `…/forge/reroll` and `…/forge/improve` `{ itemId, affixIndex }` need an `Idempotency-Key`, lock the character (settling its activity first), then the item, check refusals and the purse **before** paying or drawing, and write `forge.upgrade` / `forge.reroll` / `forge.improve` audit events (item, `forgeCounter` drawn, gold, materials, outcome; never the secret).
 - Real-PostgreSQL races (`concurrency.pg.test.ts`): N upgrades of one item with different keys (each counter drawn once; the item equals a sequential replay of the audit log), one key raced (one attempt, the rest replay), upgrades, rerolls and improvements mixed on one item, forge actions racing a sell and a salvage of the same item (one order wins; gold reconciles with the audit log), and forge actions on an equipped item racing settles (time credited once).
 - The crypt run snapshot stores each worn item's `upgradeLevel` (older snapshots replay at +0).
+
+## Balance pass: loot depth & economy (ticket B.2)
+The owner's playtest feedback had not arrived (`docs/PLAYTEST_FEEDBACK.md` is still the template), so B.2 balances on simulations and telemetry. Build diversity, effects and sets: `docs/COMBAT.md` "Build diversity"; crypt tiers: `docs/DUNGEONS.md` "Farmed gear"; drop rates: `docs/EFFECTS.md`.
+
+**Measuring with realistic play.** 3.8's sample (`telemetry:simulate`) showed ~1.9M gold in against ~0.1M out (~5 % sunk) and ~39k drops lost to full packs, but its players barely spent: a 5,000 × level starting purse, 200 of every material, one tidy and one forged item a day, and a settle every 3 h around the clock. B.2 adds a **realistic player** (now the default, `--play realistic`; `--play crude` is 3.8's): a purse it could have earned (1,500 × level), 10 × level of each material, **five visits a day** (about 15 credited hours; the night is capped at 3 h), and at every visit it wears any find that beats the piece in its slot (item level, rarity, upgrades), sells commons and uncommons, salvages rares, epics and plain Legendaries it doesn't wear (set pieces, Mythics and Void are kept), and spends its gold on upgrades of worn gear, lowest level first, until gold or materials run out (at most 60 attempts). Half the heroes use a loot filter, as before. 24 heroes (6 profiles × 4 classes, levels 1–23 at the start), 7 game days.
+
+| 7 game days, 24 heroes, 2,555 farming hours | 3.8 crude player (3 days, main) | Realistic, rules before B.2 | Realistic, B.2 |
+|---|---|---|---|
+| Gold in · out · sunk | 1.91M · 0.10M · 5 % | 3.36M · 2.02M · 60 % | 3.28M · 3.27M · **99.7 %** |
+| Forge upgrade attempts · items reaching +10 | 288 · 1 | 4,156 · 156 | 3,927 · 73 |
+| Heroes with a whole kit at +10 at the end | 0 | 19 of 24 | 2 of 24 |
+| Gold left at the end (median hero) | — | ≈ 75k | ≈ 2.4k |
+| Drops auto-salvaged to full packs | 39,156 | 41,016 (188 Legendary/Mythic) | 39,289 (**0** Legendary/Mythic; 227 kept over capacity) |
+
+**Reading.**
+- **Income.** A realistic player earns 2–2.5 × the kill gold the B.1 tables measure: in the Sunken Abbey ≈ 1,650 gold an hour of farming gold (kill gold with gold find, loot-filter and overflow gold; manual sells and salvages add ~10 % more), against 651 for a common kit without gold find. Faster kills (late-game builds hit the farming cap), gold find and selling drops make the difference.
+- **The sink before B.2 ran out.** Against that income a whole kit reached +10 in about 70–100 h of play (19 of 24 heroes in a week; low-level kits are cheap, `(itemLevel + 5) / 25`), and then gold piled up (median 75k, up to 176k) with nothing left to buy: rerolls and improvements are small.
+- **Tuned:** the gold of the steps **+5 → +10 doubled** (table above; +0 → +5 unchanged, so the first steps stay cheap and nearly certain). Everything else about the Forge is unchanged (chances, pity, materials, rerolls, improvements). Now nearly all income is sunk, the median hero is still working toward +10 after a week, and a whole +10 kit is a 90–220 h project at realistic income (asserted).
+- **No grind wall.** A single item's +0 → +5 costs 0.2–1.5 h of realistic income, a whole kit to +5 under 10 h; failure still costs only the attempt and the pity bounds a whole track at ≈ 2.1 × its mean (asserted in `balance.test.ts`, "the gold sink").
+- **Materials vs gathering.** Tier-3 upgrades (iron ore, soul shards) never ran out for Abbey farmers (100k+ iron ore surplus overall, soul shards from salvaging). The one material gate: upgrading **tier-2** gear (raw hide and timber) while farming the Abbey, which gathers neither. Those heroes stopped at +7–8 with 80–110k gold left (in the simulation they keep their upgraded tier-2 pieces; a player would replace them with Abbey drops). Accepted: upgrading old-tier gear asks the player to farm (or salvage) that tier's materials. Soul shards bind briefly at +8 → +10 (2–4 a step, 41 an item over the whole track), and salvaging rares covers it.
+- **Drops lost to full packs** are almost all ordinary drops of heroes without a loot filter (an Abbey hero finds ~60 items an hour, and one visit's window holds three hours of drops): ~31 an hour per such hero, 60 % commons, 26 % uncommons. They pay the overflow salvage gold (6 % of all income). Since B.2 no Legendary, Mythic, set or Void drop is among them (`docs/FARMING.md`).
+
+| Gold sink (B.2; kit = 9 items at the area's middle level, `balance.test.ts`) | Before | After |
+|---|---|---|
+| One item +5 → +10, Sunken Abbey 19 | 12.5k (19 h of kill gold, ≈ 8 h realistic) | 25k (≈ 15 h realistic) |
+| Whole kit to +10, Sunken Abbey 19 | 120k (185 h of kill gold, ≈ 74 h realistic) | 232k (≈ 143 h realistic) |
+| Whole kit to +5 (unchanged) | 2.4–8k (≈ 3–5 h realistic) | same |
+| The Phase 2 purse (25–30k at 17) | a kit to +5 and one or two items to +10 | a kit to +5 and one item most of the way to +10 |
+
+How to reproduce: `pnpm --filter @worldforge/server telemetry:simulate -- --days 7` (about 8 minutes), then `PLAYTEST_DATA_DIR=.telemetry-sample pnpm report:telemetry`. Seeds are server-random, so numbers move by a few percent between runs.
