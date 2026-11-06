@@ -84,6 +84,17 @@ pnpm --filter @worldforge/game-core build
 node tools/e2e/phase2-exit.mjs
 ```
 
+The Phase 3 exit criteria (ticket 3.9) extend the same player: the API run's hero lives in `apps/server/src/e2e/journey.ts` (shared with the Phase 2 run), and `phase3-exit-criteria.test.ts` plays it on past the Abbey (≈ 50–75 game hours, ~15 s): a loot filter, a Legendary and a set piece locked, forge upgrades (every outcome checked against the item's stream; a failure and a pity success), a reroll and an improvement, a targeted Abbey contract, crypt tiers II and III, a valuable drop kept over capacity; then the audit-log reconciliation, and the real `pnpm report:telemetry -- --reconcile` on that run's (on-disk) database. The browser run, CI job `e2e-phase3`, is `tools/e2e/phase3-exit.mjs` (a hunter; the first use of each Phase 3 feature through the UI; fails on any `429`). With `E2E_DATA_DIR` the e2e server keeps its database on disk, so after it stops CI reconciles the run's telemetry:
+
+```
+E2E_DATA_DIR=/tmp/wf-e2e E2E_TIME_SCALE=1800 OFFLINE_CAP_SECONDS=360000 pnpm --filter @worldforge/server e2e:serve
+pnpm --filter @worldforge/web dev
+pnpm --filter @worldforge/game-core build
+node tools/e2e/phase3-exit.mjs
+# stop the server (Ctrl+C), then:
+PLAYTEST_DATA_DIR=/tmp/wf-e2e pnpm report:telemetry -- --db playtest --reconcile
+```
+
 ### Local playtest without Docker (ticket P.1)
 `pnpm playtest` runs `apps/server/src/playtest/serve.ts`: the real `buildApp()` on a PGlite database persisted to `.playtest-data/` (git-ignored), plus the web dev server, for playtesting on a machine without Docker or PostgreSQL. Like the e2e server it is excluded from the production build and refuses `NODE_ENV=production`; auth and rules are unchanged. Optional fast time (`pnpm playtest:fast`, `PLAYTEST_TIME_SCALE`) speeds up only the server's farming clock and never runs it backwards across restarts. User guide and details: `docs/PLAYTEST.md`.
 
@@ -92,7 +103,7 @@ node tools/e2e/phase2-exit.mjs
 
 ### Authentication (ticket 1.2)
 Owner decision (GDD v0.3): real registration and login from Phase 1, no development identity. Email + password, hashed with **argon2id** via `@node-rs/argon2` (prebuilt native binaries, no build step; Node 22 has no built-in argon2). Sessions are opaque random tokens in an `HttpOnly`, `Secure`, `SameSite=Lax` cookie scoped to `/api`, stored server-side as a SHA-256 hash so they can be revoked; no JWTs. Browsers accept `Secure` cookies on `http://localhost`, so local development uses the same flags (`SESSION_COOKIE_SECURE=0` exists only for plain-http hosts other than localhost). Code lives in `apps/server/src/auth/`; gameplay code depends only on `request.auth.account.id` from `app.requireAccount`, so adding OAuth later does not touch game logic.
-Rate limits use `@fastify/rate-limit` with its in-memory store, which is correct for the single API instance assumed below; a horizontally scaled deployment needs a shared store (Redis or Postgres).
+Rate limits (the per-IP login/register limits with `@fastify/rate-limit`, and the per-account game-route limits of ticket 3.9 in `apps/server/src/auth/account-rate-limit.ts`) use in-process memory, which is correct for the single API instance assumed below; a horizontally scaled deployment needs a shared store (Redis or Postgres).
 Not in scope yet (follow-ups): email verification, password reset, OAuth, "log out everywhere", sliding session renewal, pruning expired session rows, and argon2 parameter upgrades on login.
 
 ### Vite + React 19 web client

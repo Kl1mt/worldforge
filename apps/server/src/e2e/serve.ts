@@ -7,14 +7,18 @@
  * - in-memory database (fresh and migrated on every start; nothing persists);
  * - the farming clock runs `E2E_TIME_SCALE` times faster than real time (default 120), so loot
  *   appears within seconds; sessions, rate limits and cookies use the real clock;
- * - scheduled settlement every `E2E_SETTLE_INTERVAL_SECONDS` real seconds (default 5).
+ * - scheduled settlement every `E2E_SETTLE_INTERVAL_SECONDS` real seconds (default 5);
+ * - with `E2E_DATA_DIR` (ticket 3.9) the PGlite database is kept in `<dir>/db` instead of memory,
+ *   so after the run (server stopped) `PLAYTEST_DATA_DIR=<dir> pnpm report:telemetry -- --db
+ *   playtest --reconcile` can check it.
  * Auth, validation and rate limits are unchanged.
  *
  *   pnpm --filter @worldforge/server e2e:serve
  */
 import { buildApp } from '../app.js';
 import { loadConfig } from '../config.js';
-import { createTestDatabase } from '../test/db.js';
+import { join } from 'node:path';
+import { createPgliteDatabase, createTestDatabase } from '../test/db.js';
 import { scaledClock } from './clock.js';
 
 if (process.env.NODE_ENV === 'production') {
@@ -30,7 +34,10 @@ if (!Number.isFinite(settleIntervalSeconds) || settleIntervalSeconds < 0) {
 }
 const now = scaledClock(timeScale);
 
-const database = await createTestDatabase();
+const dataDir = process.env.E2E_DATA_DIR;
+const database = dataDir
+  ? await createPgliteDatabase(join(dataDir, 'db'))
+  : await createTestDatabase();
 const app = buildApp({
   logger: { level: config.logLevel },
   database,
@@ -56,6 +63,6 @@ process.on('SIGTERM', () => void shutdown());
 
 await app.listen({ host: config.host, port: config.port });
 app.log.warn(
-  { timeScale, settleIntervalSeconds },
-  'E2E TEST SERVER: in-memory database, scaled farming clock',
+  { timeScale, settleIntervalSeconds, dataDir },
+  `E2E TEST SERVER: ${dataDir ? 'local' : 'in-memory'} database, scaled farming clock`,
 );

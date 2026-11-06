@@ -546,8 +546,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
   },
 
   // Named Mythic bases (ticket 3.2, `MYTHIC_ITEMS`): only a Mythic roll in a late-game table
-  // drops them. Stronger implicit stats than tier 3. They borrow existing icons as placeholders
-  // until ticket A.6 draws their art.
+  // drops them. Stronger implicit stats than tier 3. Their own icons since ticket A.6.
   {
     id: 'crown-of-the-hollow-king',
     name: 'Crown of the Hollow King',
@@ -623,8 +622,8 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
   },
 
   // Set piece bases (ticket 3.3, `ITEM_SETS`): only a set roll in a late-game table drops them.
-  // Stats like the tier-3 base of their slot, tilted to the set's theme. They borrow existing
-  // icons as placeholders until ticket A.6 draws their art.
+  // Stats like the tier-3 base of their slot, tilted to the set's theme. Their own icons since
+  // ticket A.6.
   {
     id: 'vigil-helm',
     name: 'Helm of the Drowned Vigil',

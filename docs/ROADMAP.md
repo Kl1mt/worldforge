@@ -391,12 +391,52 @@ GDD: §7, §8.3, §15 Phase 3 exit. Needs 3.1–3.8.
 - Address the owner's playtest feedback if it has arrived.
 **Acceptance:** the extended balance test is green and fast; before/after tables in `docs/COMBAT.md` and `docs/ECONOMY.md`.
 
-### 3.9 Phase 3 hardening & exit — `todo`
+### 3.9 Phase 3 hardening & exit — `done (PR #49)`
 GDD: §15 Phase 3 exit, §16.3.
 - **Exit-criteria e2e:** extend the API and browser runs: find a Legendary and a set piece, upgrade, reroll and improve, use the loot filter, run a deeper crypt tier, and reconcile everything with the audit log.
 - **Exploit review of all Phase 3 endpoints:** no re-roll by retry, race or replay; upgrade and pity integrity; filter and lock races; cross-feature races; client-trusted values; ownership.
 - **Per-account rate limits** on game routes (Phase 1–2 carry-over), before trading and leaderboards arrive.
 - Phase 3 retrospective in this file.
+
+### Phase 3 retrospective (ticket 3.9)
+**Exit criteria (GDD §15 Phase 3): met.** *Meaningful build choices* and *no single item or affix dominates* are B.2's build-diversity test (`balance/builds.test.ts`: several distinct builds within a few percent of the best per class, nothing in every top build), which stays green. *Crafting costs and drop rates are measurable* is checked end to end twice, with no database shortcuts. Through the HTTP API with a simulated clock (`apps/server/src/e2e/phase3-exit-criteria.test.ts`, ~15 s): the Phase 2 hero (`e2e/journey.ts`, now shared by both API runs) plays on past the Abbey — a loot filter sells commons and uncommons and is seen acting; the hero finds a Legendary and a set piece and locks them (sell, salvage and discard answer `409 item_locked`); upgrades worn gear (every one of 110–200 attempts matches the item's server-side stream, failures and pity-guaranteed successes included), rerolls and improves an affix; turns in a targeted Abbey contract for a ring; clears crypt tiers II and III; lets the pack fill until a valuable drop is kept beyond its capacity (B.2). Everything held matches the audit log, and the real `pnpm report:telemetry -- --reconcile` on that run's database reports every check matching and measures the drops and forge spending seen. In a real browser (`tools/e2e/phase3-exit.mjs`, CI job `e2e-phase3`): a fresh hunter does the same with every Phase 3 feature's first use through the UI (filter, lock, Forge upgrade/improve/rework, targeted contract, every crypt tier), no request rate limited, and CI reconciles the telemetry of the server's database afterwards (`E2E_DATA_DIR`). All four classes pass the API run (`E2E_CLASS`, eight runs).
+
+**Numbers from the runs (record only; no balance changes in this ticket).** Eight API runs (each class twice):
+- The Phase 2 part ends after 26–32 game hours; the whole Phase 3 checklist after 48–74 h, at levels 22–28. 3–9 deaths in the whole run.
+- Crypt tier II fell at its entry level 18 in 6 of 8 runs (19 and 20 in the others); **tier III fell on the first attempt at its entry level 21 in all 8 runs** (the browser hunter, which upgrades less, won it at 24 in both browser runs, once after a loss at 23). The e2e hero spends its gold on upgrades like B.2's realistic player, so by 21 it wears upgraded Abbey gear; B.2's farmed-gear table expected 17–42 % at 21 with +0 and 67–83 % with +5. Tier III is easier than intended for a player who upgrades; worth a look in the next balance pass.
+- Levels keep rising past the content: 22–28 at the end (tier III's boss is level 24, the Abbey's top level 22). With B.2's farming breakpoint (past ~22 every late-game build one-shots the Abbey) there is nothing left to farm toward at the top.
+- Forge: 112–196 upgrade attempts per run, 23–41 % of them failures, 2–5 pity-guaranteed successes, 19k–133k gold spent on upgrades (more the longer the run: the sink keeps absorbing gold).
+- The loot filter (sell below rare) sold 600–2,400 drops per run.
+
+**What the exploit review found.** Every Phase 3 endpoint (forge upgrade/reroll/improve, loot filter, lock/unlock, bulk sell and salvage, crypt tiers and claims, targeted contracts, over-capacity placement, the telemetry write path) was checked for re-roll by retry, race or replay, upgrade and pity integrity, filter and lock races, cross-feature races, client-trusted values, ownership, and negative or overflowing values. Two things were fixed:
+- **Fixed: a targeted contract's reward could be computed in advance.** The item's seed was derived from the quest row id (`targetedRewardSeed`), which the client sees, with a public algorithm, so a player knew the exact item (base and affixes) the moment the contract was taken. It could not be re-rolled (no way to drop or re-take a contract), but it broke "results are revealed only after paying". The server now draws a random seed at acceptance, stores it in the reward and strips it from every view; older rows keep the row-id seed. Tests in `quests.test.ts` (no seed in any response, the item comes from the stored seed, the legacy fallback) and a real-Postgres race of turn-ins with the same and different keys.
+- **Fixed: no per-account rate limit on game routes** (Phase 1–2 carry-over). Every route behind the session check now counts per account: 900 requests and 300 actions a minute (three tabs of busy play), `429 rate_limited` with `Retry-After`, checked before any game work or `Idempotency-Key` claim (`auth/account-rate-limit.ts`, `docs/API_CONVENTIONS.md`). The API e2e runs and `test:pg` run with the defaults; the browser run fails on any `429`. Only the settle-frequency invariance test raises it (it settles hundreds of times a second on purpose).
+
+Checked and holding: the forge stream (`forge_secret` never leaves the server; the counter advances in the transaction that applies the draw; replays return the stored outcome; races serialise on the item lock) — the API run checks every upgrade against the stream; the pity resets on success and is per step; a new real-Postgres race puts a tier II claim, an upgrade, a reroll, an improve, a sell, a salvage, a lock, an unlock, a filter change and two targeted turn-ins on one item and one hero at once (three rounds, varied orders) and reconciles gold, items, materials, forge counters and telemetry with the audit log, order-independently, with no deadlock or retry. The sweep (`exploit-review.test.ts`) now also covers the forge item view and discard (`404` for foreign items), crypt tiers (0, 4, 1.5, `'II'`, 1e20 → `400`; a tier above the one cleared → `409`), forged reward slots and loot-filter ids, and Phase 3 bodies with client-chosen outcomes (`tier` + `bossLoot`, `rewardSlot` + `seed`/`rarityId`). The telemetry write path takes no client input: its dimensions are content ids or server enums, written only inside the value transactions.
+
+**Accepted risks** (reviewed, left as they are):
+- The crypt claim applies the loot filter and the pack count in force at the claim, and `dungeon/settle` shows the run's drops before it, so a player can pick the filter for known drops. A filtered drop pays exactly what selling or salvaging it by hand would, so nothing is gained.
+- Valuable drops kept over capacity are unbounded storage (bounded by the drop rate, ≈ 0.3 an hour in the Abbey). The warehouse is the real answer.
+- Fastify's Ajv coerces numeric strings in bodies (`tier: "2"` is 2); the value is still validated as the integer.
+- Upgrade, reroll and improve share one stream per item, so the player chooses which action spends the next draw; draws are unknown until spent, so the choice carries no information.
+- The per-account limits live in process memory (one API instance, like the login limits); a scaled deployment needs a shared store. Login throttling is still per IP only.
+- Forge work on a locked item is allowed (the lock only blocks disposal), by design.
+- Phase 2's accepted risks still stand (run `endsAt` visible, idempotency keys expire after 24 h, crafting is guarded only by its key).
+
+**What went well.** The Phase 3 ground rules paid off: one item model and one effect system meant the e2e hero could exercise every feature on the same items; the per-item forge stream made "no save-scumming" checkable at every single upgrade of a 200-upgrade run; telemetry built inside the value transactions reconciled exactly in every run and every race. Extending the Phase 2 player instead of writing a new flow kept the run honest (no shortcuts) and cheap (~15 s).
+
+**What to do differently in Phase 4.**
+- Derive nothing secret from ids the client sees. A seed must come from a server-only secret, like the farm, crypt and forge streams; review every new "deterministic from X" for whether X is public.
+- Race tests: assert what holds in every order (reconciliation, at-most-once), never the order itself; run each race a few rounds (PRs #38, #45, #47 and this ticket's).
+- Rate limits exist now: size new polling or bulk endpoints against them, and give trading and leaderboards their own, tighter limits.
+- Keep the exit-criteria journey current: extend `e2e/journey.ts` for each phase.
+
+**Open follow-ups.**
+- **Warehouse** (GDD: later): storage for kept drops; today valuables pile up beyond the pack and ordinary overflow is salvaged.
+- **Prismatic variants**: deferred (GDD §7.5: only once the variant pipeline and balance are stable; Void has been stable since 3.5/B.2).
+- **Item Awakening** (GDD §8.2, optional) and **trading** (needs moderation, abuse controls and its own rate limits): not started.
+- **The farming breakpoint at the top** (B.2): past ~22 every late-game build one-shots the Abbey and levels run on to 28 with no content above 24; together with tier III falling at 21 to upgraded gear, the top end needs content or a cap.
+- **Playtest feedback**: `docs/PLAYTEST_FEEDBACK.md` is still the empty template; B.1 and B.2 were tuned from simulations only.
 
 ## Art tickets (run alongside the phases)
 

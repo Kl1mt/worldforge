@@ -40,7 +40,12 @@ beforeAll(async () => {
   database = await createTestDatabase();
   app = buildApp({
     database,
-    auth: { registerRateLimit: { max: 1000, timeWindowMs: 60_000 } },
+    auth: {
+      registerRateLimit: { max: 1000, timeWindowMs: 60_000 },
+      // The invariance tests settle hundreds of times within a real second on purpose: they check
+      // the result never depends on settle frequency, beyond what the per-account limit allows.
+      accountRateLimit: { requests: 100_000, actions: 100_000, windowMs: 60_000 },
+    },
     activity: options,
   });
   await app.ready();

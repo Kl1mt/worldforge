@@ -17,6 +17,11 @@ import { ApiError } from '../errors.js';
 import { hashPassword, verifyAgainstDummy, verifyPassword } from './password.js';
 import { createSession, resolveSession, revokeSession } from './session.js';
 import {
+  DEFAULT_ACCOUNT_RATE_LIMIT,
+  createAccountRateLimiter,
+  type AccountRateLimit,
+} from './account-rate-limit.js';
+import {
   EMAIL_MAX,
   PASSWORD_MAX,
   normalizeEmail,
@@ -41,6 +46,11 @@ export interface AuthOptions {
   /** Per client IP. */
   loginRateLimit: RateLimit;
   registerRateLimit: RateLimit;
+  /**
+   * Per account, on every route behind `requireAccount` (ticket 3.9). Counted on the real clock
+   * (`now`), never on the scaled farming clock of the playtest and e2e servers.
+   */
+  accountRateLimit: AccountRateLimit;
   /** Injected clock for session issue/expiry (tests). */
   now: () => Date;
 }
@@ -50,6 +60,7 @@ export const DEFAULT_AUTH_OPTIONS: AuthOptions = {
   cookieSecure: true,
   loginRateLimit: { max: 10, timeWindowMs: 60_000 },
   registerRateLimit: { max: 5, timeWindowMs: 60 * 60_000 },
+  accountRateLimit: DEFAULT_ACCOUNT_RATE_LIMIT,
   now: () => new Date(),
 };
 
@@ -182,6 +193,7 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
     });
   };
 
+  const accountRateLimit = createAccountRateLimiter(options.accountRateLimit, now);
   app.decorate('requireAccount', async (request: FastifyRequest, reply: FastifyReply) => {
     const token = request.cookies[SESSION_COOKIE];
     const resolved = token ? await resolveSession(app.db, token, now()) : null;
@@ -189,6 +201,8 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
       if (token) clearSessionCookie(reply);
       throw new ApiError(401, 'unauthenticated', 'Not logged in.');
     }
+    // Ticket 3.9: per-account limits, checked before any game work (or idempotency claim).
+    accountRateLimit(resolved.account.id, request.method, reply);
     request.auth = resolved;
   });
 
