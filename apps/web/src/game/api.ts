@@ -5,6 +5,7 @@ import type {
   DungeonId,
   EquipmentSlotId,
   ItemVariantId,
+  LootFilterRules,
   MaterialId,
   ProfessionId,
   RarityId,
@@ -63,6 +64,23 @@ export interface ReturnSummary {
   materials?: Partial<Record<MaterialId, number>>;
   /** Profession XP and level-ups (ticket 2.3). */
   professions?: Partial<Record<ProfessionId, { xpGained: number; levelsGained: number }>>;
+  /** Ticket 3.7: new drops the loot filter sold or salvaged (gold is in `goldGained`). */
+  filtered?: LootFilterTally;
+}
+
+/** What the loot filter did with new drops (ticket 3.7). */
+export interface LootFilterTally {
+  sold: number;
+  salvaged: number;
+  gold: number;
+  materials: Partial<Record<MaterialId, number>>;
+}
+
+/** `GET/POST …/loot-filter` (ticket 3.7). */
+export interface LootFilterState {
+  characterId: string;
+  rules: LootFilterRules | null;
+  active: boolean;
 }
 
 export interface ActivityState {
@@ -185,6 +203,26 @@ export const inventoryApi = {
     apiRequest(`${i(id, itemId)}/unequip`, { method: 'POST' }, f),
   discard: (id: string, itemId: string, f?: typeof fetch): Promise<ApiResult<InventoryDto>> =>
     apiRequest(i(id, itemId), { method: 'DELETE' }, f),
+  /** Ticket 3.7: lock or unlock (both idempotent). */
+  setLocked: (
+    id: string,
+    itemId: string,
+    locked: boolean,
+    f?: typeof fetch,
+  ): Promise<ApiResult<InventoryDto>> =>
+    apiRequest(`${i(id, itemId)}/${locked ? 'lock' : 'unlock'}`, { method: 'POST' }, f),
+};
+
+/** Loot filter rules (ticket 3.7). Setting the same rules again is harmless, so no key. */
+export const lootFilterApi = {
+  get: (id: string, o: Signal = {}, f?: typeof fetch): Promise<ApiResult<LootFilterState>> =>
+    apiRequest(`${c(id)}/loot-filter`, o, f),
+  set: (
+    id: string,
+    rules: LootFilterRules | null,
+    f?: typeof fetch,
+  ): Promise<ApiResult<LootFilterState>> =>
+    apiRequest(`${c(id)}/loot-filter`, { method: 'POST', body: { rules } }, f),
 };
 
 /** Merchant and forge (ticket 2.6). */
@@ -429,6 +467,8 @@ export function describeGameFailure(error: Pick<ApiFailure, 'code'>): string {
       return 'This item no longer exists in the world and cannot be equipped.';
     case 'item_equipped':
       return 'Take the item off before discarding it.';
+    case 'item_locked':
+      return 'That item is locked. Unlock it in the pack first.';
     case 'character_not_active':
       return 'Select this character before sending it out to farm.';
     case 'area_locked':

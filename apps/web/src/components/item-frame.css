@@ -170,3 +170,46 @@
   font-variant-numeric: tabular-nums;
   pointer-events: none;
 }
+
+/* Ticket 3.7: locked. A small iron padlock in the upper right corner: a shackle ring above a
+   solid body with a keyhole. Shape-coded, so it reads without colour. */
+.item-frame__lock {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 9px;
+  height: 7px;
+  margin-top: 4px;
+  background: var(--bone-200);
+  box-shadow: 0 0 0 1px var(--ink-950);
+  pointer-events: none;
+}
+
+.item-frame__lock::before {
+  content: '';
+  position: absolute;
+  left: 1px;
+  bottom: 100%;
+  width: 7px;
+  height: 5px;
+  box-sizing: border-box;
+  border: 2px solid var(--bone-200);
+  border-bottom: 0;
+  border-radius: 3px 3px 0 0;
+  filter: drop-shadow(0 0 0.5px var(--ink-950));
+}
+
+.item-frame__lock::after {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 2px;
+  width: 1px;
+  height: 3px;
+  background: var(--ink-950);
+}
+
+.item-frame--interactive:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}

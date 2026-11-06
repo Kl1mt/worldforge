@@ -1324,6 +1324,168 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
     });
   });
 
+  describe('loot filter & item lock (ticket 3.7)', () => {
+    const filterRules = {
+      action: 'salvage',
+      belowRarity: 'rare',
+      wantedAffixes: [],
+      wantedEffects: [],
+      include: [],
+    } as const;
+    type RewardData = {
+      creditedMs: number;
+      gold: number;
+      items: number;
+      filtered?: { gold: number; items: { seed: number; rarityId: string }[] };
+    };
+    const rewardsOf = async (id: string) =>
+      (await rewardAudits(id)).map((r) => r.data as RewardData);
+
+    async function twinFarmers(secret: string) {
+      const a = await farmer();
+      const b = await farmer();
+      for (const { id } of [a, b]) {
+        await database.db
+          .update(activities)
+          .set({ seedSecret: secret })
+          .where(eq(activities.characterId, id));
+      }
+      return [a, b] as const;
+    }
+
+    it('settle vs filter change: every drop is granted or filtered once, by one rule set', async () => {
+      const [racer, plain] = await twinFarmers('pg-filter-race');
+      advance(2 * HOUR);
+      const base = `/api/characters/${racer.id}`;
+      const results = await Promise.all(
+        Array.from({ length: N }, (_, i) =>
+          i % 2 === 0
+            ? call(racer.p, 'POST', `${base}/activity/settle`)
+            : call(racer.p, 'POST', `${base}/loot-filter`, {
+                rules: i % 4 === 1 ? filterRules : null,
+              }),
+        ),
+      );
+      expect(results.map((r) => r.statusCode)).toEqual(Array(N).fill(200));
+      advance(HOUR);
+      await call(racer.p, 'POST', `${base}/activity/settle`);
+      await call(plain.p, 'POST', `/api/characters/${plain.id}/activity/settle`);
+
+      const rewards = await rewardsOf(racer.id);
+      expect(rewards.reduce((s, r) => s + r.creditedMs, 0)).toBe(3 * HOUR);
+      // Each settlement used one rule set: its filtered drops all match the rules.
+      for (const r of rewards) {
+        for (const f of r.filtered?.items ?? []) {
+          expect(['common', 'uncommon']).toContain(f.rarityId);
+        }
+      }
+      // Same seeds as the unfiltered twin: kept ∪ filtered = its drops, nothing twice or lost.
+      const kept = await database.db
+        .select({ seed: itemInstances.seed })
+        .from(itemInstances)
+        .where(eq(itemInstances.characterId, racer.id));
+      const filtered = rewards.flatMap((r) => r.filtered?.items ?? []).map((f) => f.seed);
+      const twin = await database.db
+        .select({ seed: itemInstances.seed })
+        .from(itemInstances)
+        .where(eq(itemInstances.characterId, plain.id));
+      expect([...kept.map((k) => k.seed), ...filtered].sort()).toEqual(
+        twin.map((t) => t.seed).sort(),
+      );
+      expect(kept).toHaveLength(rewards.reduce((s, r) => s + r.items, 0));
+      expect(await goldOf(racer.id)).toBe(rewards.reduce((s, r) => s + r.gold, 0));
+    });
+
+    it('sell and salvage vs lock: a locked item is never sold, a sold item never locked', async () => {
+      const p = await newPlayer();
+      const id = await newCharacter(p);
+      const base = `/api/characters/${id}`;
+      const outcomes = { lockWon: 0, taken: 0 };
+      for (let round = 0; round < 6; round++) {
+        const target = await grant(id, 'barbute', 100 + round);
+        const other = await grant(id, 'iron-helm', 200 + round);
+        const [row] = await database.db
+          .select()
+          .from(itemInstances)
+          .where(eq(itemInstances.id, target));
+        const before = await goldOf(id);
+        // Which request reaches the character lock first depends on timing; every other round
+        // the lock or the sales get a small head start, so both orders really happen.
+        const lockDelay = round % 2 === 0 ? 0 : 20;
+        const sellDelay = round % 2 === 0 ? 20 : 0;
+        const later = <T>(ms: number, f: () => Promise<T>) =>
+          new Promise<T>((resolve, reject) => setTimeout(() => f().then(resolve, reject), ms));
+        const results = await Promise.all([
+          later(lockDelay, () => call(p, 'POST', `${base}/items/${target}/lock`)),
+          later(sellDelay, () => keyed(p, `${base}/merchant/sell`, { itemIds: [other, target] })),
+          later(sellDelay, () => keyed(p, `${base}/forge/salvage`, { itemIds: [target] })),
+          later(lockDelay, () => call(p, 'POST', `${base}/items/${target}/lock`)),
+        ]);
+        for (const r of results) expect([200, 404, 409]).toContain(r.statusCode);
+        const [left] = await database.db
+          .select()
+          .from(itemInstances)
+          .where(eq(itemInstances.id, target));
+        const sells = (await eventsOf(id, 'merchant.sell')).filter((e) =>
+          (e.data as { items: { itemId: string }[] }).items.some((i) => i.itemId === target),
+        );
+        const salvages = (await eventsOf(id, 'forge.salvage')).filter((e) =>
+          JSON.stringify(e.data).includes(target),
+        );
+        if (left) {
+          // The lock won: nothing took it, and the bulk sale (all or nothing) sold nothing.
+          expect(left.locked).toBe(true);
+          outcomes.lockWon++;
+          expect(sells.length + salvages.length).toBe(0);
+          expect(await goldOf(id)).toBe(before);
+        } else {
+          // A sale or salvage won; the lock found nothing (404).
+          outcomes.taken++;
+          expect(sells.length + salvages.length).toBe(1);
+          const gained = sells.length ? sellPrice(row!) * 2 : salvageYield(row!).gold;
+          expect(await goldOf(id)).toBe(before + gained);
+        }
+        // Clean up for the next round (the item the bulk sale may have left behind).
+        await call(p, 'POST', `${base}/items/${target}/unlock`);
+        await database.db.delete(itemInstances).where(eq(itemInstances.characterId, id));
+      }
+      // Both orders happened (the head starts above make this all but certain).
+      expect(outcomes.lockWon).toBeGreaterThan(0);
+      expect(outcomes.taken).toBeGreaterThan(0);
+    });
+
+    it('bulk sell vs settle with a filter: no item or gold lost or duplicated', async () => {
+      const { p, id } = await farmer();
+      const base = `/api/characters/${id}`;
+      expect(
+        (await call(p, 'POST', `${base}/loot-filter`, { rules: filterRules })).statusCode,
+      ).toBe(200);
+      const packed: string[] = [];
+      for (let i = 0; i < 10; i++) packed.push(await grant(id, 'iron-helm', 300 + i));
+      const prices = packed.length * sellPrice({ rarityId: 'common', itemLevel: 5 });
+      advance(2 * HOUR);
+      const results = await Promise.all([
+        call(p, 'POST', `${base}/activity/settle`),
+        keyed(p, `${base}/merchant/sell`, { itemIds: packed }),
+        call(p, 'POST', `${base}/activity/settle`),
+        keyed(p, `${base}/merchant/sell`, { itemIds: packed }),
+        call(p, 'POST', `${base}/activity/settle`),
+      ]);
+      expect(results.map((r) => r.statusCode).sort()).toEqual([200, 200, 200, 200, 404]);
+      const rewards = await rewardsOf(id);
+      expect(rewards.reduce((s, r) => s + r.creditedMs, 0)).toBe(2 * HOUR);
+      expect(rewards.some((r) => (r.filtered?.items.length ?? 0) > 0)).toBe(true);
+      const owned = await database.db
+        .select()
+        .from(itemInstances)
+        .where(eq(itemInstances.characterId, id));
+      expect(owned.filter((i) => packed.includes(i.id))).toEqual([]);
+      expect(owned).toHaveLength(rewards.reduce((s, r) => s + r.items, 0));
+      expect(await eventsOf(id, 'merchant.sell')).toHaveLength(1);
+      expect(await goldOf(id)).toBe(rewards.reduce((s, r) => s + r.gold, 0) + prices);
+    });
+  });
+
   it('the races above ran without a single deadlock or serialization retry', () => {
     expect(transactionStats.retries).toBe(0);
   });

@@ -354,3 +354,10 @@
 .shop__tally .gold {
   margin-left: var(--space-1);
 }
+
+/* Ticket 3.7: locked items are shown in the picker but stay out of a sale. */
+.picker__locked {
+  margin: var(--space-2) 0 0;
+  color: var(--text-faint);
+  font-size: var(--text-sm);
+}

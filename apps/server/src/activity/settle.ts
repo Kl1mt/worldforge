@@ -4,10 +4,12 @@ import {
   DEFAULT_ACTIVITY_CONFIG,
   PROFESSION_IDS,
   RARITY_IDS,
+  filteredTotals,
   questEventsFromSettlement,
   settleFarming,
   type ActivityConfig,
   type FarmingSettlement,
+  type FilteredDrop,
   type MaterialId,
 } from '@worldforge/game-core';
 import {
@@ -24,7 +26,7 @@ import type { Database, Transaction } from '../db/types.js';
 import { withTransaction } from '../db/transaction.js';
 import { writeAudit } from '../db/audit.js';
 import { uuidv7 } from '../db/uuid.js';
-import { grantGatheringTx, loadProfessions } from '../materials/store.js';
+import { changeMaterialsTx, grantGatheringTx, loadProfessions } from '../materials/store.js';
 import { recordQuestEventsTx } from '../quests/store.js';
 
 export interface ActivityOptions {
@@ -49,6 +51,30 @@ export const DEFAULT_ACTIVITY_OPTIONS: ActivityOptions = {
 const SUMMARY_ITEM_LIMIT = 100;
 /** Audit every item of this rarity or better individually. */
 const NOTABLE_RARITY = RARITY_IDS.indexOf('epic');
+
+/**
+ * The audit record of what the loot filter did (ticket 3.7): totals, and every handled drop with
+ * its seed, so a filtered item can be traced like a granted one.
+ */
+export function filterAudit(
+  filtered: readonly FilteredDrop[],
+  totals: ReturnType<typeof filteredTotals>,
+) {
+  return {
+    sold: totals.sold,
+    salvaged: totals.salvaged,
+    gold: totals.gold,
+    materials: totals.materials,
+    items: filtered.map((f) => ({
+      baseId: f.item.baseId,
+      rarityId: f.item.rarityId,
+      itemLevel: f.item.itemLevel,
+      seed: f.item.seed,
+      action: f.action,
+      gold: f.gold,
+    })),
+  };
+}
 
 export function emptySummary(since: Date): ActivitySummary {
   return {
@@ -198,11 +224,16 @@ export async function settleActivityTx(
         durationMs,
         inventoryCount: inventory?.n ?? 0,
         professions: professionsBefore,
+        // Ticket 3.7: the rules in force for this whole window, read with the locked row. A
+        // filter change settles first (with the old rules), so no window mixes two sets.
+        lootFilter: character.lootFilter,
       },
       { activity: options.rules },
     );
 
-    const gold = settlement.goldLooted + settlement.goldSalvaged;
+    const filter = filteredTotals(settlement.filtered);
+    const filteredCount = settlement.filtered?.length ?? 0;
+    const gold = settlement.goldLooted + settlement.goldSalvaged + filter.gold;
     const rows = settlement.items.map((item) => ({
       id: uuidv7(),
       characterId,
@@ -225,6 +256,8 @@ export async function settleActivityTx(
       settlement.professions,
       now,
     );
+    // Filter salvage materials go to the stacks, but are not "gathered" (no quest counts them).
+    await changeMaterialsTx(tx, characterId, filter.materials, now);
 
     // Quest progress from the same settlement, under the same character lock (ticket 2.4).
     await recordQuestEventsTx(
@@ -297,6 +330,19 @@ export async function settleActivityTx(
       })),
     );
     summary.items = summary.items.slice(-SUMMARY_ITEM_LIMIT);
+    if (filteredCount > 0) {
+      const prev = summary.filtered ?? { sold: 0, salvaged: 0, gold: 0, materials: {} };
+      const materials = { ...prev.materials };
+      for (const [id, n] of Object.entries(filter.materials) as [MaterialId, number][]) {
+        materials[id] = (materials[id] ?? 0) + n;
+      }
+      summary.filtered = {
+        sold: prev.sold + filter.sold,
+        salvaged: prev.salvaged + filter.salvaged,
+        gold: prev.gold + filter.gold,
+        materials,
+      };
+    }
     const materials = summary.materials!;
     for (const [id, n] of Object.entries(settlement.materials) as [MaterialId, number][]) {
       materials[id] = (materials[id] ?? 0) + n;
@@ -319,6 +365,7 @@ export async function settleActivityTx(
       gold > 0 ||
       rows.length > 0 ||
       settlement.salvaged.length > 0 ||
+      filteredCount > 0 ||
       materialsGained
     ) {
       await writeAudit(tx, {
@@ -342,6 +389,7 @@ export async function settleActivityTx(
           notableItems: rows
             .filter((r) => RARITY_IDS.indexOf(r.rarityId) >= NOTABLE_RARITY)
             .map((r) => ({ id: r.id, baseId: r.baseId, rarityId: r.rarityId, seed: r.seed })),
+          ...(filteredCount > 0 ? { filtered: filterAudit(settlement.filtered!, filter) } : {}),
         },
       });
     }

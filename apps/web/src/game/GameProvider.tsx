@@ -53,6 +53,12 @@ export interface SessionTally {
   kills: number;
   items: number;
   simulatedMs: number;
+  /** Ticket 3.7: drops salvaged because the pack was full, and the gold they gave. */
+  overflow: number;
+  overflowGold: number;
+  /** Ticket 3.7: drops the loot filter sold or salvaged, and the gold they gave. */
+  filtered: number;
+  filteredGold: number;
 }
 
 interface GameContextValue {
@@ -84,6 +90,8 @@ interface GameContextValue {
   equip: (itemId: string, slot?: EquipmentSlotId) => Promise<string | null>;
   unequip: (itemId: string) => Promise<string | null>;
   discard: (itemId: string) => Promise<string | null>;
+  /** Ticket 3.7: lock or unlock an item (idempotent). */
+  setLocked: (itemId: string, locked: boolean) => Promise<string | null>;
   /** Shows an inventory the server returned from another action (merchant, forge: ticket 2.6). */
   applyInventory: (dto: InventoryDto) => void;
   /** Re-reads materials after an action that changed them (forge: ticket 2.6). */
@@ -109,7 +117,15 @@ function toInventory(dto: InventoryDto): Inventory {
   };
 }
 
-const EMPTY_TALLY: SessionTally = { kills: 0, items: 0, simulatedMs: 0 };
+const EMPTY_TALLY: SessionTally = {
+  kills: 0,
+  items: 0,
+  simulatedMs: 0,
+  overflow: 0,
+  overflowGold: 0,
+  filtered: 0,
+  filteredGold: 0,
+};
 
 /**
  * Game state of the active character: activity, inventory, the Chronicle and the return summary.
@@ -194,11 +210,21 @@ export function GameProvider({
         kills: t.kills + summary.kills,
         items: t.items + summary.itemsGained,
         simulatedMs: t.simulatedMs + summary.simulatedMs,
+        overflow: t.overflow + summary.itemsSalvaged,
+        overflowGold: t.overflowGold + summary.goldSalvaged,
+        filtered:
+          t.filtered + (summary.filtered ? summary.filtered.sold + summary.filtered.salvaged : 0),
+        filteredGold: t.filteredGold + (summary.filtered?.gold ?? 0),
       }));
       updateCharacter(result.character);
       if (asReturn && isWorthAReturnDialog(summary)) setReturnSummary(summary);
       if (summary.itemsGained > 0 || summary.levelsGained > 0) void loadInventory();
-      if (Object.keys(summary.materials ?? {}).length > 0) void loadMaterials();
+      if (
+        Object.keys(summary.materials ?? {}).length > 0 ||
+        Object.keys(summary.filtered?.materials ?? {}).length > 0
+      ) {
+        void loadMaterials();
+      }
     },
     [loadInventory, loadMaterials, updateCharacter],
   );
@@ -424,6 +450,12 @@ export function GameProvider({
     [characterId, itemAction],
   );
 
+  const setLocked = useCallback(
+    (itemId: string, locked: boolean) =>
+      itemAction(() => inventoryApi.setLocked(characterId, itemId, locked)),
+    [characterId, itemAction],
+  );
+
   const applyInventory = useCallback(
     (dto: InventoryDto) => setInventory({ kind: 'ready', value: toInventory(dto) }),
     [],
@@ -458,6 +490,7 @@ export function GameProvider({
       equip,
       unequip,
       discard,
+      setLocked,
       applyInventory,
       refreshMaterials,
       reload,
@@ -480,6 +513,7 @@ export function GameProvider({
       equip,
       unequip,
       discard,
+      setLocked,
       applyInventory,
       refreshMaterials,
       reload,

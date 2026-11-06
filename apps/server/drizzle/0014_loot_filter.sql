@@ -1,0 +1,1 @@
+ALTER TABLE "characters" ADD COLUMN "loot_filter" jsonb;

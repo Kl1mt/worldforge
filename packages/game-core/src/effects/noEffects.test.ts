@@ -13,6 +13,9 @@ import {
   type GeneratedItem,
   type RarityId,
   getDungeonTier,
+  EMPTY_LOOT_FILTER,
+  type LootFilterRules,
+  type EquippedItem,
 } from '../index.js';
 
 /**
@@ -99,7 +102,10 @@ function plainKit(classId: ClassId, itemLevel: number, rarityId: RarityId): Gene
 
 /** Hash of a result; `momentum` (new in 3.2, always 0 here) is left out. */
 const hash = (v: unknown) => {
-  const text = JSON.stringify(v, (k, x: unknown) => (k === 'momentum' ? undefined : x));
+  const text = JSON.stringify(v, (k, x: unknown) =>
+    // `momentum` (3.2) is always 0 here; an empty `filtered` list (3.7) is "nothing filtered".
+    k === 'momentum' || (k === 'filtered' && Array.isArray(x) && x.length === 0) ? undefined : x,
+  );
   // Two FNV-1a passes (different offsets) → 64 bits as hex.
   let a = 0x811c9dc5;
   let b = 0x01000193 ^ 0x5bd1e995;
@@ -154,6 +160,71 @@ const noVariant = (items: GeneratedItem[]) => items.map((item) => ({ ...item, va
 const strayVoid = (items: GeneratedItem[]) =>
   items.map((item) => ({ ...item, variant: 'void' as const }));
 
+/**
+ * The pinned hashes for a kit dressing and a loot filter (ticket 3.7: the filter only decides what
+ * happens to drops, and with no rules nothing changes at all).
+ */
+function pinnedHashes(
+  dress: (items: GeneratedItem[]) => EquippedItem[],
+  lootFilter?: LootFilterRules | null,
+): Record<string, string> {
+  const kit = (classId: ClassId, itemLevel: number, rarityId: RarityId) => {
+    const items = dress(plainKit(classId, itemLevel, rarityId));
+    expect(setBonusInstances(items)).toEqual([]);
+    return items;
+  };
+  const out: Record<string, string> = {};
+  for (const c of CLASS_IDS) {
+    for (const [area, level] of [
+      ['abandonedFields', 3],
+      ['oldBurialGrounds', 11],
+      ['sunkenAbbey', 19],
+    ] as const) {
+      const s = settleFarming({
+        character: { classId: c, level, xp: 0 },
+        equipment: kit(c, level - 1, 'epic'),
+        areaId: area,
+        seed: `fp:${c}`,
+        firstCycle: 0,
+        durationMs: 3_600_000,
+        inventoryCount: 0,
+        ...(lootFilter !== undefined ? { lootFilter } : {}),
+      });
+      expect(s.momentum).toBe(0);
+      out[`settle:${c}:${area}`] = hash({
+        ...s,
+        items: s.items.filter((i) => i.rarityId !== 'legendary' && i.rarityId !== 'mythic'),
+        salvaged: [],
+        goldSalvaged: 0,
+      });
+      const d = simulateFarming(
+        {
+          character: { classId: c, level, xp: 0 },
+          equipment: [],
+          areaId: area,
+          seed: `fpd:${c}`,
+          durationMs: 600_000,
+        },
+        { maxEvents: 500 },
+      );
+      out[`detailed:${c}:${area}`] = hash(d);
+    }
+    const r = withPre36Enrage(() =>
+      simulateDungeonRun({
+        dungeonId: 'namelessCrypt',
+        character: { classId: c, level: 15, xp: 0 },
+        equipment: kit(c, 14, 'rare'),
+        seed: `fp-crypt:${c}`,
+        bossLootEligible: true,
+        inventoryCount: 0,
+        ...(lootFilter !== undefined ? { lootFilter } : {}),
+      }),
+    );
+    out[`crypt:${c}`] = cryptHash(r);
+  }
+  return out;
+}
+
 describe.each([
   ['no effects equipped (ticket 3.2)', (items: GeneratedItem[]) => items],
   ['set ids that cannot count (ticket 3.3)', forgedSetIds],
@@ -162,60 +233,30 @@ describe.each([
   ['a Void flag on items that cannot be Void (ticket 3.5)', strayVoid],
 ])('%s', (_, dress) => {
   it('farming, detailed simulation and the crypt give exactly the pre-3.2 results', () => {
-    const kit = (classId: ClassId, itemLevel: number, rarityId: RarityId) => {
-      const items = dress(plainKit(classId, itemLevel, rarityId));
-      expect(setBonusInstances(items)).toEqual([]);
-      return items;
-    };
-    const out: Record<string, string> = {};
-    for (const c of CLASS_IDS) {
-      for (const [area, level] of [
-        ['abandonedFields', 3],
-        ['oldBurialGrounds', 11],
-        ['sunkenAbbey', 19],
-      ] as const) {
-        const s = settleFarming({
-          character: { classId: c, level, xp: 0 },
-          equipment: kit(c, level - 1, 'epic'),
-          areaId: area,
-          seed: `fp:${c}`,
-          firstCycle: 0,
-          durationMs: 3_600_000,
-          inventoryCount: 0,
-        });
-        expect(s.momentum).toBe(0);
-        out[`settle:${c}:${area}`] = hash({
-          ...s,
-          items: s.items.filter((i) => i.rarityId !== 'legendary' && i.rarityId !== 'mythic'),
-          salvaged: [],
-          goldSalvaged: 0,
-        });
-        const d = simulateFarming(
-          {
-            character: { classId: c, level, xp: 0 },
-            equipment: [],
-            areaId: area,
-            seed: `fpd:${c}`,
-            durationMs: 600_000,
-          },
-          { maxEvents: 500 },
-        );
-        out[`detailed:${c}:${area}`] = hash(d);
-      }
-      const r = withPre36Enrage(() =>
-        simulateDungeonRun({
-          dungeonId: 'namelessCrypt',
-          character: { classId: c, level: 15, xp: 0 },
-          equipment: kit(c, 14, 'rare'),
-          seed: `fp-crypt:${c}`,
-          bossLootEligible: true,
-          inventoryCount: 0,
-        }),
-      );
-      out[`crypt:${c}`] = cryptHash(r);
-    }
-    expect(out).toEqual(BEFORE_EFFECTS);
+    expect(pinnedHashes(dress)).toEqual(BEFORE_EFFECTS);
   });
+});
+
+/**
+ * Ticket 3.7: no loot filter (absent or null) gives exactly the pinned numbers, and so do rules
+ * that handle nothing (the empty rules, or a rarity rule at Common) apart from an empty
+ * `filtered` list.
+ */
+describe.each([
+  ['a null loot filter (ticket 3.7)', null],
+  ['the empty loot filter (ticket 3.7)', EMPTY_LOOT_FILTER],
+  ['a loot filter below Common (ticket 3.7)', { ...EMPTY_LOOT_FILTER, belowRarity: 'common' }],
+] as const)('%s', (_, lootFilter) => {
+  it('farming, detailed simulation and the crypt give exactly the pre-3.2 results', () => {
+    expect(pinnedHashes((items) => items, lootFilter as LootFilterRules | null)).toEqual(
+      BEFORE_EFFECTS,
+    );
+  });
+});
+
+it('the loot filter check can fail: an active filter changes the settlement (ticket 3.7)', () => {
+  const lootFilter = { ...EMPTY_LOOT_FILTER, belowRarity: 'rare' as const };
+  expect(pinnedHashes((items) => items, lootFilter)).not.toEqual(BEFORE_EFFECTS);
 });
 
 it('the +0 check can fail: the same kit at +5 changes the settlement (ticket 3.4)', () => {

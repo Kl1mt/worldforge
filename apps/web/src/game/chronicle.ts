@@ -3,6 +3,7 @@ import { formatDuration } from '../lib/format';
 import type { ReturnSummary } from './api';
 import { isChaseDrop, summaryItemView } from './items';
 import { materialCounts, professionName } from './materials';
+import { describeFiltered } from './lootFilter';
 
 /**
  * The Chronicle (area screen log) is built from settled summaries the server returns: it shows
@@ -57,7 +58,7 @@ export function chronicleEntries(summary: ReturnSummary, seq: number): LogEntry[
     out.push({ id: id('kill'), at, kind: 'kill', kills: summary.kills, xp: summary.xpGained });
   }
   if (summary.deaths > 0) out.push({ id: id('death'), at, kind: 'death', deaths: summary.deaths });
-  const lootGold = summary.goldGained - summary.goldSalvaged;
+  const lootGold = summary.goldGained - summary.goldSalvaged - (summary.filtered?.gold ?? 0);
   if (lootGold > 0) out.push({ id: id('gold'), at, kind: 'gold', amount: lootGold });
   // The summary lists the most recent items newest last; show at most a handful per settlement.
   // Legendary and Mythic finds always get their own line (ticket 3.2).
@@ -101,6 +102,10 @@ export function chronicleEntries(summary: ReturnSummary, seq: number): LogEntry[
       kind: 'note',
       text: `${unlisted} more items went to your pack.`,
     });
+  }
+  const filtered = describeFiltered(summary.filtered);
+  if (filtered) {
+    out.push({ id: id('filter'), at, kind: 'note', text: `Loot filter: ${filtered}.` });
   }
   if (summary.itemsSalvaged > 0) {
     out.push({

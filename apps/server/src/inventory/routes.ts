@@ -180,12 +180,23 @@ const equipBodySchema = {
   properties: { slot: { type: 'string', enum: [...EQUIPMENT_SLOT_IDS] } },
 } as const;
 
+/** No body, or an empty object (ticket 3.7: lock/unlock take nothing from the client). */
+const emptyBodySchema = {
+  type: ['object', 'null'],
+  additionalProperties: false,
+  properties: {},
+} as const;
+
 interface ItemParams {
   characterId: string;
   itemId: string;
 }
 
 const UNIQUE_VIOLATION = '23505';
+
+/** A locked item refuses sell, salvage and discard (ticket 3.7). */
+export const itemLocked = (itemId: string) =>
+  new ApiError(409, 'item_locked', 'This item is locked. Unlock it first.', { itemId });
 
 /** Same answer for "doesn't exist" and "another account's": character ids can't be probed. */
 export const characterNotFound = () => new ApiError(404, 'not_found', 'No such character.');
@@ -365,6 +376,47 @@ export async function registerInventory(
     },
   );
 
+  /**
+   * Item lock (ticket 3.7): a locked item can't be sold, salvaged or discarded (and the loot filter
+   * only ever sees new drops). Both directions are idempotent: locking a locked item changes
+   * nothing. Moves no value, so no `Idempotency-Key` and no audit row (like equip).
+   */
+  for (const [action, locked] of [
+    ['lock', true],
+    ['unlock', false],
+  ] as const) {
+    app.post<{ Params: ItemParams }>(
+      `/characters/:characterId/items/:itemId/${action}`,
+      {
+        preHandler: app.requireAccount,
+        schema: {
+          params: itemParamsSchema,
+          body: emptyBodySchema,
+          response: { 200: inventoryResponseSchema },
+        },
+      },
+      async (request) => {
+        const accountId = request.auth!.account.id;
+        const { characterId, itemId } = request.params;
+        return inventoryTransaction(app, async (tx) => {
+          const character = await lockOwnedCharacter(tx, accountId, characterId, activity);
+          const items = await loadItems(tx, characterId);
+          const item = findItem(items, itemId);
+          if (item.locked !== locked) {
+            await tx
+              .update(itemInstances)
+              .set({ locked })
+              .where(
+                and(eq(itemInstances.id, item.id), eq(itemInstances.characterId, characterId)),
+              );
+            item.locked = locked;
+          }
+          return inventoryView(character, items);
+        });
+      },
+    );
+  }
+
   app.delete<{ Params: ItemParams }>(
     '/characters/:characterId/items/:itemId',
     {
@@ -383,6 +435,7 @@ export async function registerInventory(
             slot: item.equippedSlot,
           });
         }
+        if (item.locked) throw itemLocked(item.id);
         await tx
           .delete(itemInstances)
           .where(and(eq(itemInstances.id, item.id), eq(itemInstances.characterId, characterId)));

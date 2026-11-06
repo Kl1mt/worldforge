@@ -1,4 +1,4 @@
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
 import {
   MATERIAL_IDS,
   type MaterialId,
@@ -9,7 +9,7 @@ import { characters, itemInstances, type Character, type ItemInstance } from '..
 import type { Transaction } from '../db/types.js';
 import { ApiError } from '../errors.js';
 import { characterSchema } from '../characters/routes.js';
-import { itemSchema } from '../inventory/routes.js';
+import { itemLocked, itemSchema } from '../inventory/routes.js';
 
 /** Shared pieces of the merchant and forge endpoints (ticket 2.6). */
 
@@ -75,7 +75,7 @@ export const itemIdsBodySchema = {
 /**
  * The named unequipped items of the character, from rows loaded under the character lock.
  * `404` for an id that is not this character's (ids can't be probed), `409 item_equipped` for an
- * equipped one.
+ * equipped one, `409 item_locked` for a locked one (ticket 3.7). All or nothing.
  */
 export function pickInventoryItems(
   items: readonly ItemInstance[],
@@ -90,6 +90,8 @@ export function pickInventoryItems(
         slot: item.equippedSlot,
       });
     }
+    // Ticket 3.7: locked items can't be sold or salvaged (or used up any other way).
+    if (item.locked) throw itemLocked(id);
     return item;
   });
 }
@@ -99,11 +101,22 @@ export async function deleteItems(
   characterId: string,
   itemIds: readonly string[],
 ): Promise<void> {
-  await tx
+  // `locked = false` and `equipped_slot is null` are a backstop to the checks made under the lock
+  // (`pickInventoryItems`): a delete that misses any row rolls the whole action back.
+  const deleted = await tx
     .delete(itemInstances)
     .where(
-      and(eq(itemInstances.characterId, characterId), inArray(itemInstances.id, [...itemIds])),
-    );
+      and(
+        eq(itemInstances.characterId, characterId),
+        inArray(itemInstances.id, [...itemIds]),
+        eq(itemInstances.locked, false),
+        isNull(itemInstances.equippedSlot),
+      ),
+    )
+    .returning({ id: itemInstances.id });
+  if (deleted.length !== itemIds.length) {
+    throw new ApiError(409, 'conflict', 'The pack changed meanwhile. Try again.');
+  }
 }
 
 /**

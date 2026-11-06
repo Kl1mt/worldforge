@@ -12,7 +12,7 @@ import { AUTO_SKILLS, getEnemy, type ClassId } from '@worldforge/game-core';
 import type { Character } from '../characters/api';
 import { formatNumber } from '../lib/format';
 import { apiRequest, type ApiFailure, type ApiResult } from '../lib/api';
-import type { SummaryItem } from './api';
+import type { LootFilterTally, SummaryItem } from './api';
 
 /** Server shapes of the dungeon endpoints (ticket 2.5, docs/API_CONVENTIONS.md). */
 
@@ -85,6 +85,10 @@ export interface DungeonResult {
   /** Ticket 3.6: the first clear of this tier (the next one may open). */
   firstTierClear?: boolean;
   questEvents: QuestEvent[];
+  /** Ticket 3.7: drops the loot filter sold or salvaged at the claim; absent when none. */
+  filtered?: LootFilterTally & {
+    items: { baseId: string; rarityId: string; itemLevel: number; action: 'sell' | 'salvage' }[];
+  };
 }
 
 const d = (id: string) => `/characters/${encodeURIComponent(id)}/dungeon`;
