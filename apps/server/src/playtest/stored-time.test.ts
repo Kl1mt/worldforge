@@ -6,6 +6,7 @@ import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
 import type { DatabaseHandle } from '../db/types.js';
 import { createTestDatabase } from '../test/db.js';
 import { makeCryptReady } from '../test/dungeon.js';
+import { telemetryDaily } from '../db/schema.js';
 import { latestStoredTimeMs } from './stored-time.js';
 
 let database: DatabaseHandle;
@@ -71,5 +72,12 @@ describe('latestStoredTimeMs (playtest clock floor)', () => {
     nowMs += 60 * 60 * 1000;
     expect((await enter()).statusCode).toBe(201);
     expect(await latestStoredTimeMs(database.db)).toBe(nowMs);
+  });
+
+  it('counts a telemetry day (ticket 3.8) at its start, UTC', async () => {
+    await database.db
+      .insert(telemetryDaily)
+      .values({ day: '2031-05-05', metric: 'gold.in', dim1: 'merchant_sell', amount: 5 });
+    expect(await latestStoredTimeMs(database.db)).toBe(Date.parse('2031-05-05T00:00:00Z'));
   });
 });

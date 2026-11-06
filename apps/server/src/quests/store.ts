@@ -42,6 +42,8 @@ import {
 import { itemEffectColumns } from '../inventory/columns.js';
 import type { Database, Transaction } from '../db/types.js';
 import { writeAudit } from '../db/audit.js';
+import { recordTelemetry } from '../telemetry/record.js';
+import { dropCounts, goldIn, materialCounts, xpIn } from '../telemetry/counts.js';
 import { uuidv7 } from '../db/uuid.js';
 import { ApiError } from '../errors.js';
 // Type-only: a value import would close a cycle (settlement → quests → inventory → settlement).
@@ -488,5 +490,20 @@ export async function turnInQuestTx(
         : null,
     },
   });
+  const source = quest.kind === 'story' ? 'quest' : 'contract';
+  recordTelemetry(tx, now, [
+    {
+      metric: 'quest.reward',
+      dims: [
+        quest.kind,
+        quest.questId,
+        !reward.item ? 'no_item' : isTargetedItemReward(reward.item) ? 'targeted' : 'fixed',
+      ],
+    },
+    ...(item ? dropCounts(source, quest.questId, [item]) : []),
+    ...goldIn(source, quest.questId, reward.gold),
+    ...xpIn(source, quest.questId, reward.xp),
+    ...materialCounts('material.in', source, reward.materials),
+  ]);
   return { character: updatedCharacter!, quest: updatedQuest!, reward: granted };
 }

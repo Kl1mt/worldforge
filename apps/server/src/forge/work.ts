@@ -23,6 +23,8 @@ import {
 import { characters, itemInstances, type Character, type ItemInstance } from '../db/schema.js';
 import type { Database, Transaction } from '../db/types.js';
 import { writeAudit } from '../db/audit.js';
+import { recordTelemetry } from '../telemetry/record.js';
+import { goldOut, materialCounts } from '../telemetry/counts.js';
 import { ApiError } from '../errors.js';
 import type { ActivityOptions } from '../activity/settle.js';
 import { characterView, type CharacterView } from '../characters/routes.js';
@@ -507,6 +509,8 @@ interface Applied {
   outcome: ForgeOutcome;
   /** Extra audit data (the roll, the affixes). */
   audit: Record<string, unknown>;
+  /** Telemetry dimensions after the action (`forge` metric, docs/TELEMETRY.md). */
+  telemetry: [detail: string, outcome: string];
 }
 
 export async function registerForgeWork(
@@ -616,6 +620,11 @@ export async function registerForgeWork(
                 ...applied.audit,
               },
             });
+            recordTelemetry(tx, now, [
+              { metric: 'forge', dims: [name, ...applied.telemetry] },
+              ...goldOut(`forge_${name}`, row.rarityId, cost.gold),
+              ...materialCounts('material.out', `forge_${name}`, cost.materials),
+            ]);
             const items = await tx
               .select()
               .from(itemInstances)
@@ -664,6 +673,11 @@ export async function registerForgeWork(
             pityAfter: out.upgradePity,
             roll: out.roll,
           },
+          // The level tried for, and how it went (a pity success is `guaranteed`).
+          telemetry: [
+            `+${item.upgradeLevel + 1}`,
+            out.success ? (out.guaranteed ? 'guaranteed' : 'success') : 'failure',
+          ],
         };
       },
     };
@@ -691,6 +705,7 @@ export async function registerForgeWork(
             patch: { affixes: out.value, rerollCount: item.rerollCount + 1 },
             outcome: { action: 'reroll', affixIndex, before, after },
             audit: { affixIndex, before, after, rerollCount: item.rerollCount + 1 },
+            telemetry: [row.rarityId, after.affixId],
           };
         },
       };
@@ -717,6 +732,7 @@ export async function registerForgeWork(
             patch: { affixes: out.value },
             outcome: { action: 'improve', affixIndex, before, after },
             audit: { affixIndex, before, after },
+            telemetry: [row.rarityId, after.affixId],
           };
         },
       };

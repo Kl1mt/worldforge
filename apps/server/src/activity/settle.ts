@@ -25,6 +25,14 @@ import { itemEffectColumns } from '../inventory/columns.js';
 import type { Database, Transaction } from '../db/types.js';
 import { withTransaction } from '../db/transaction.js';
 import { writeAudit } from '../db/audit.js';
+import { recordTelemetry } from '../telemetry/record.js';
+import {
+  goldIn,
+  materialCounts,
+  overflowCounts,
+  rolledDropCounts,
+  xpIn,
+} from '../telemetry/counts.js';
 import { uuidv7 } from '../db/uuid.js';
 import { changeMaterialsTx, grantGatheringTx, loadProfessions } from '../materials/store.js';
 import { recordQuestEventsTx } from '../quests/store.js';
@@ -392,6 +400,23 @@ export async function settleActivityTx(
           ...(filteredCount > 0 ? { filtered: filterAudit(settlement.filtered!, filter) } : {}),
         },
       });
+      // Ticket 3.8: the same reward as rollup counters (one `farming.settle` per audit row).
+      const area = activity.areaId;
+      recordTelemetry(tx, now, [
+        {
+          metric: 'farming.settle',
+          dims: [area],
+          amount: Math.round(settlement.simulatedMs / 1000),
+        },
+        ...rolledDropCounts('farming', area, settlement),
+        ...overflowCounts('farming', area, settlement.salvaged.length),
+        ...goldIn('farming_loot', area, settlement.goldLooted),
+        ...goldIn('farming_overflow', area, settlement.goldSalvaged),
+        ...goldIn('farming_filter', area, filter.gold),
+        ...xpIn('farming', area, settlement.xpGained),
+        ...materialCounts('material.in', 'farming_gather', settlement.materials),
+        ...materialCounts('material.in', 'farming_filter', filter.materials),
+      ]);
     }
   }
 

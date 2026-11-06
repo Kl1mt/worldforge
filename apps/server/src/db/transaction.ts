@@ -1,3 +1,4 @@
+import { flushTelemetry } from '../telemetry/record.js';
 import type { Database, Transaction } from './types.js';
 
 export type IsolationLevel = 'read committed' | 'repeatable read' | 'serializable';
@@ -49,6 +50,9 @@ export function isRetryableTransactionError(err: unknown): boolean {
  * Serialization failures and deadlocks are retried with the whole callback re-run, so `fn`
  * must not have side effects outside the transaction (no HTTP calls, no in-memory mutation
  * that survives a retry). All value-changing operations go through this helper.
+ *
+ * Telemetry counters recorded on `tx` (`recordTelemetry`, ticket 3.8) are written as the
+ * transaction's last statement, after `fn` returns; a thrown error discards them with the rest.
  */
 export async function withTransaction<T>(
   db: Database,
@@ -57,7 +61,14 @@ export async function withTransaction<T>(
 ): Promise<T> {
   for (let attempt = 1; ; attempt++) {
     try {
-      return await db.transaction(fn, { isolationLevel });
+      return await db.transaction(
+        async (tx) => {
+          const result = await fn(tx);
+          await flushTelemetry(tx);
+          return result;
+        },
+        { isolationLevel },
+      );
     } catch (err) {
       if (attempt >= maxAttempts || !isRetryableTransactionError(err)) throw err;
       transactionStats.retries++;

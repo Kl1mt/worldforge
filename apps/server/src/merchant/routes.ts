@@ -15,6 +15,8 @@ import { characters, itemInstances, merchantPurchases, type Character } from '..
 import type { Executor } from '../db/types.js';
 import { uuidv7 } from '../db/uuid.js';
 import { writeAudit } from '../db/audit.js';
+import { recordTelemetry } from '../telemetry/record.js';
+import { disposalCounts, dropCounts, goldIn, goldOut } from '../telemetry/counts.js';
 import { ApiError } from '../errors.js';
 import type { ActivityOptions } from '../activity/settle.js';
 import { characterView, type CharacterView } from '../characters/routes.js';
@@ -297,6 +299,10 @@ export async function registerMerchant(
               goldAfter: character.gold,
             },
           });
+          recordTelemetry(tx, now, [
+            ...dropCounts('merchant', parsed.areaId, [item]),
+            ...goldOut('merchant_buy', item.rarityId, offer.price),
+          ]);
           return {
             character: characterView(character),
             item: itemView(item),
@@ -352,6 +358,10 @@ export async function registerMerchant(
               })),
             },
           });
+          recordTelemetry(tx, now, [
+            ...disposalCounts('item.sold', selling, (n) => prices[n]!),
+            ...goldIn('merchant_sell', '', goldGained),
+          ]);
           const sold = new Set(itemIds);
           return {
             character: characterView(character),

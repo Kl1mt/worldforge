@@ -17,6 +17,14 @@ import {
 import { characters, itemInstances } from '../db/schema.js';
 import { uuidv7 } from '../db/uuid.js';
 import { writeAudit } from '../db/audit.js';
+import { recordTelemetry } from '../telemetry/record.js';
+import {
+  disposalCounts,
+  dropCounts,
+  goldIn,
+  goldOut,
+  materialCounts,
+} from '../telemetry/counts.js';
 import { ApiError } from '../errors.js';
 import type { ActivityOptions } from '../activity/settle.js';
 import { characterView, type CharacterView } from '../characters/routes.js';
@@ -290,6 +298,12 @@ export async function registerForge(
               })),
             },
           });
+          recordTelemetry(tx, now, [
+            { metric: 'forge', dims: ['salvage'], events: salvaging.length },
+            ...disposalCounts('item.salvaged', salvaging, (n) => yields[n]!.gold),
+            ...goldIn('forge_salvage', '', total.gold),
+            ...materialCounts('material.in', 'forge_salvage', total.materials),
+          ]);
           const gone = new Set(itemIds);
           return {
             character: characterView(character),
@@ -382,6 +396,12 @@ export async function registerForge(
               seed: item.seed,
             },
           });
+          recordTelemetry(tx, now, [
+            { metric: 'forge', dims: ['craft', recipeId] },
+            ...dropCounts('craft', recipeId, [item]),
+            ...goldOut('forge_craft', recipeId, recipe.gold),
+            ...materialCounts('material.out', 'forge_craft', cost),
+          ]);
           return {
             character: characterView(character),
             item: itemView(item),

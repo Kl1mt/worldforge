@@ -18,6 +18,8 @@ import { characters, itemInstances, type Character, type ItemInstance } from '..
 import { constraintOf, sqlStateOf, withTransaction } from '../db/transaction.js';
 import type { Transaction } from '../db/types.js';
 import { writeAudit } from '../db/audit.js';
+import { recordTelemetry } from '../telemetry/record.js';
+import { disposalCounts } from '../telemetry/counts.js';
 import { ApiError } from '../errors.js';
 import { settleActivityTx, type ActivityOptions } from '../activity/settle.js';
 
@@ -451,6 +453,7 @@ export async function registerInventory(
             seed: item.seed,
           },
         });
+        recordTelemetry(tx, activity.now(), disposalCounts('item.discarded', [item]));
         return inventoryView(
           character,
           items.filter((i) => i.id !== item.id),

@@ -39,6 +39,15 @@ import { itemEffectColumns } from '../inventory/columns.js';
 import type { Executor, Transaction } from '../db/types.js';
 import { withTransaction, constraintOf } from '../db/transaction.js';
 import { writeAudit } from '../db/audit.js';
+import { recordTelemetry } from '../telemetry/record.js';
+import {
+  goldIn,
+  materialCounts,
+  overflowCounts,
+  rolledDropCounts,
+  xpIn,
+} from '../telemetry/counts.js';
+import type { TelemetryCount } from '../telemetry/record.js';
 import { uuidv7 } from '../db/uuid.js';
 import { ApiError } from '../errors.js';
 import { characterView, type CharacterView } from '../characters/routes.js';
@@ -229,6 +238,43 @@ export function replayRun(
     inventoryCount,
     lootFilter,
   });
+}
+
+/**
+ * Ticket 3.8: a claim's telemetry. Drops are split into chamber drops (`crypt`) and the boss hoard
+ * (`crypt_hoard`): when the hoard dropped, the run is replayed without it (the hoard has its own
+ * RNG stream, so the chambers roll the same items) and the drops it lacks are the hoard's.
+ */
+export function claimTelemetry(run: DungeonRun, r: DungeonRunResult): TelemetryCount[] {
+  const context = `${run.dungeonId}:${run.tier}`;
+  const filtered = r.filtered ?? [];
+  let hoard: (seed: number) => boolean = () => false;
+  if (r.bossLoot) {
+    const chambers = replayRun({ ...run, bossLootEligible: false });
+    const seeds = new Set([...chambers.items, ...chambers.salvaged].map((i) => i.seed));
+    hoard = (seed) => !seeds.has(seed);
+  }
+  const part = (inHoard: boolean) => ({
+    items: r.items.filter((i) => hoard(i.seed) === inHoard),
+    salvaged: r.salvaged.filter((i) => hoard(i.seed) === inHoard),
+    filtered: filtered.filter((f) => hoard(f.item.seed) === inHoard),
+  });
+  const filter = filteredTotals(r.filtered);
+  return [
+    {
+      metric: 'crypt.claim',
+      dims: [context, r.outcome === 'cleared' ? 'won' : 'lost', r.bossLoot ? 'hoard' : 'no_hoard'],
+    },
+    ...rolledDropCounts('crypt', context, part(false)),
+    ...rolledDropCounts('crypt_hoard', context, part(true)),
+    ...overflowCounts('crypt', context, r.salvaged.length),
+    ...goldIn('crypt_loot', context, r.goldLooted),
+    ...goldIn('crypt_overflow', context, r.goldSalvaged),
+    ...goldIn('crypt_filter', context, filter.gold),
+    ...xpIn('crypt', context, r.xpGained),
+    ...materialCounts('material.in', 'crypt_loot', r.materials),
+    ...materialCounts('material.in', 'crypt_filter', filter.materials),
+  ];
 }
 
 export function runView(run: DungeonRun, now: Date): DungeonRunView {
@@ -492,6 +538,12 @@ export async function registerDungeons(
           characterId,
           data: { runId: run.id, dungeonId, tier, bossLootEligible: run.bossLootEligible },
         });
+        recordTelemetry(tx, now, [
+          {
+            metric: 'crypt.start',
+            dims: [`${dungeonId}:${tier}`, run.bossLootEligible ? 'hoard_eligible' : 'on_cooldown'],
+          },
+        ]);
         return { run, character, now };
       });
       return reply.code(201).send({
@@ -688,6 +740,7 @@ export async function registerDungeons(
               ...(filteredCount > 0 ? { filtered: filterAudit(r.filtered!, filter) } : {}),
             },
           });
+          recordTelemetry(tx, now, claimTelemetry(run, r));
           return { result, character: characterView(written!) };
         },
       );

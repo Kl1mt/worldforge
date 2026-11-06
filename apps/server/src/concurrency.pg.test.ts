@@ -47,6 +47,7 @@ import { uuidv7 } from './db/uuid.js';
 import { createPostgresTestDatabase } from './test/db.js';
 import { makeCryptReady } from './test/dungeon.js';
 import { recordQuestEventsTx } from './quests/store.js';
+import { loadRollups, reconcileWithAudit, sumRollups } from './telemetry/report.js';
 
 const url = process.env.DATABASE_URL;
 if (!url && process.env.REQUIRE_PG_TESTS === '1') {
@@ -1487,6 +1488,99 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
       expect(owned).toHaveLength(rewards.reduce((s, r) => s + r.items, 0));
       expect(await eventsOf(id, 'merchant.sell')).toHaveLength(1);
       expect(await goldOf(id)).toBe(rewards.reduce((s, r) => s + r.gold, 0) + prices);
+    });
+  });
+
+  describe('telemetry rollups (ticket 3.8)', () => {
+    const rollups = async () => (await loadRollups(database.db, { from: null, to: null })).rows;
+    async function expectReconciled() {
+      const checks = await reconcileWithAudit(database.db);
+      expect(checks.filter((c) => !c.ok)).toEqual([]);
+    }
+
+    it('settles, claims, sells and upgrades of many characters racing on the same counter rows reconcile with the audit log', async () => {
+      // Every request below writes the same day's hot rows (gold.in, item.drop, …) at once.
+      const farmers = await Promise.all(Array.from({ length: N }, () => farmer()));
+      const crypt = await Promise.all(
+        Array.from({ length: N }, async () => {
+          const p = await newPlayer();
+          const id = await newCharacter(p);
+          await makeCryptReady(database.db, id, 'warrior', 16);
+          const res = await call(p, 'POST', `/api/characters/${id}/dungeon`, {
+            dungeonId: 'namelessCrypt',
+          });
+          expect(res.statusCode).toBe(201);
+          return { p, id, endsAt: Date.parse(res.json<{ run: { endsAt: string } }>().run.endsAt) };
+        }),
+      );
+      const sellers = await Promise.all(
+        Array.from({ length: N }, async (_, n) => {
+          const p = await newPlayer();
+          const id = await newCharacter(p);
+          const items = await Promise.all(
+            [1, 2, 3].map((s) => grant(id, 'iron-helm', 900 + 10 * n + s)),
+          );
+          return { p, id, items };
+        }),
+      );
+      const smiths = await Promise.all(
+        Array.from({ length: N }, async (_, n) => {
+          const p = await newPlayer();
+          const id = await newCharacter(p);
+          await setGold(id, 1_000_000);
+          await database.db.insert(characterMaterials).values(
+            (['timber', 'rawHide', 'ironOre', 'soulShard'] as const).map((materialId) => ({
+              characterId: id,
+              materialId,
+              quantity: 10_000,
+            })),
+          );
+          return { p, id, item: await grant(id, 'iron-helm', 950 + n) };
+        }),
+      );
+      nowMs = Math.max(nowMs + 2 * HOUR, ...crypt.map((c) => c.endsAt));
+      const before = await rollups();
+      const claimKeys = crypt.map(() => randomUUID());
+      const sellKeys = sellers.map(() => randomUUID());
+      const results = await Promise.all([
+        ...farmers.map(({ p, id }) => call(p, 'POST', `/api/characters/${id}/activity/settle`)),
+        ...farmers.map(({ p, id }) => call(p, 'POST', `/api/characters/${id}/activity/settle`)),
+        // Each claim and each sell twice with the same key: one runs, the twin replays.
+        ...crypt.flatMap(({ p, id }, n) =>
+          [0, 1].map(() => keyed(p, `/api/characters/${id}/dungeon/claim`, {}, claimKeys[n])),
+        ),
+        ...sellers.flatMap(({ p, id, items }, n) =>
+          [0, 1].map(() =>
+            keyed(p, `/api/characters/${id}/merchant/sell`, { itemIds: items }, sellKeys[n]),
+          ),
+        ),
+        ...smiths.map(({ p, id, item }) =>
+          keyed(p, `/api/characters/${id}/forge/upgrade`, { itemId: item }),
+        ),
+      ]);
+      expect(results.every((r) => r.statusCode === 200)).toBe(true);
+      expect(results.filter((r) => r.headers['idempotency-replayed'] === 'true')).toHaveLength(
+        2 * N,
+      );
+
+      const rows = await rollups();
+      const delta = (
+        metric: Parameters<typeof sumRollups>[1],
+        match: Parameters<typeof sumRollups>[2] = () => true,
+        field: 'events' | 'amount' = 'events',
+      ) => sumRollups(rows, metric, match, field) - sumRollups(before, metric, match, field);
+      expect(delta('farming.settle')).toBe(N);
+      expect(delta('crypt.claim')).toBe(N);
+      expect(delta('item.sold')).toBe(3 * N);
+      expect(delta('gold.in', (d) => d[0] === 'merchant_sell', 'amount')).toBe(
+        3 * N * sellPrice({ rarityId: 'common', itemLevel: 5 }),
+      );
+      expect(delta('forge', (d) => d[0] === 'upgrade')).toBe(N);
+      await expectReconciled();
+    });
+
+    it('every race in this file left rollups exactly consistent with the audit log', async () => {
+      await expectReconciled();
     });
   });
 

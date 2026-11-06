@@ -8,3 +8,4 @@ dist/
 coverage/
 # Local playtest database (pnpm playtest; docs/PLAYTEST.md).
 .playtest-data/
+.telemetry-sample/

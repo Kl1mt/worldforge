@@ -78,6 +78,7 @@ describe('migrations', () => {
       'item_instances',
       'merchant_purchases',
       'sessions',
+      'telemetry_daily',
     ]);
   });
 

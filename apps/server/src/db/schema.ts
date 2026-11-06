@@ -3,6 +3,7 @@ import {
   bigint,
   boolean,
   check,
+  date,
   doublePrecision,
   integer,
   index,
@@ -589,6 +590,30 @@ export const auditLog = pgTable(
   ],
 );
 
+/**
+ * Daily telemetry rollups (ticket 3.8, docs/TELEMETRY.md): server-side aggregate counters only.
+ * One row per game-clock day (UTC), metric and up to three content-id dimensions; `events` counts
+ * occurrences and `amount` sums a quantity (gold, items, materials, XP). Written only by the
+ * per-transaction recorder (`src/telemetry/record.ts`), in the same transaction as the audit row
+ * it mirrors. Never holds account, character or item ids, names, emails or IPs.
+ */
+export const telemetryDaily = pgTable(
+  'telemetry_daily',
+  {
+    day: date('day', { mode: 'string' }).notNull(),
+    metric: text('metric').notNull(),
+    dim1: text('dim1').notNull().default(''),
+    dim2: text('dim2').notNull().default(''),
+    dim3: text('dim3').notNull().default(''),
+    events: bigint('events', { mode: 'number' }).notNull().default(0),
+    amount: bigint('amount', { mode: 'number' }).notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.day, t.metric, t.dim1, t.dim2, t.dim3] }),
+    check('telemetry_daily_events_check', sql`${t.events} >= 0`),
+  ],
+);
+
 export type Account = typeof accounts.$inferSelect;
 export type NewAccount = typeof accounts.$inferInsert;
 export type Session = typeof sessions.$inferSelect;
@@ -597,6 +622,7 @@ export type Character = typeof characters.$inferSelect;
 export type NewCharacter = typeof characters.$inferInsert;
 export type AuditLogEntry = typeof auditLog.$inferSelect;
 export type NewAuditLogEntry = typeof auditLog.$inferInsert;
+export type TelemetryDailyRow = typeof telemetryDaily.$inferSelect;
 export type ItemInstance = typeof itemInstances.$inferSelect;
 export type NewItemInstance = typeof itemInstances.$inferInsert;
 export type CharacterMaterial = typeof characterMaterials.$inferSelect;
