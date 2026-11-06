@@ -122,7 +122,7 @@ sudo apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin d
 sudo usermod -aG docker deploy
 ```
 
-Log out and back in (so the `docker` group applies), then check: `docker run --rm hello-world` and `docker compose version` (v2.24 or newer).
+Log out and back in (so the `docker` group applies), then check: `docker run --rm hello-world` and `docker compose version` (v2.24 or newer; Compose jumped from v2 to v5, so v5.x is fine).
 
 Membership in the `docker` group is equivalent to root on this machine. Keep the `deploy` account's key safe.
 
