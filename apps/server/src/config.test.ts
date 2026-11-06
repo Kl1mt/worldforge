@@ -14,6 +14,8 @@ describe('loadConfig', () => {
       trustProxy: false,
       offlineCapSeconds: 10800,
       settleIntervalSeconds: 300,
+      registrationMode: 'open',
+      legalDir: undefined,
     });
   });
 
@@ -30,6 +32,8 @@ describe('loadConfig', () => {
         TRUST_PROXY: 'true',
         OFFLINE_CAP_SECONDS: '3600',
         SETTLE_INTERVAL_SECONDS: '0',
+        REGISTRATION_MODE: 'invite',
+        LEGAL_DIR: '/srv/legal',
       }),
     ).toEqual({
       host: '0.0.0.0',
@@ -42,7 +46,18 @@ describe('loadConfig', () => {
       trustProxy: true,
       offlineCapSeconds: 3600,
       settleIntervalSeconds: 0,
+      registrationMode: 'invite',
+      legalDir: '/srv/legal',
     });
+  });
+
+  it('parses REGISTRATION_MODE (ticket D.2)', () => {
+    expect(loadConfig({ REGISTRATION_MODE: '' }).registrationMode).toBe('open');
+    expect(loadConfig({ REGISTRATION_MODE: 'open' }).registrationMode).toBe('open');
+    expect(loadConfig({ REGISTRATION_MODE: ' Invite ' }).registrationMode).toBe('invite');
+    expect(loadConfig({ REGISTRATION_MODE: 'closed' }).registrationMode).toBe('closed');
+    expect(() => loadConfig({ REGISTRATION_MODE: 'invites' })).toThrow(/REGISTRATION_MODE/);
+    expect(loadConfig({ LEGAL_DIR: '  ' }).legalDir).toBeUndefined();
   });
 
   it('rejects an invalid port', () => {

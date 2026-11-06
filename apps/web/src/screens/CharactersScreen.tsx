@@ -19,6 +19,7 @@ import { formatNumber } from '../lib/format';
 import { PHONE_QUERY } from '../lib/pixel';
 import { routeHref } from '../lib/route';
 import { HealthLine } from '../shell/HealthLine';
+import { LegalLinks } from '../legal/LegalLinks';
 import { useLogout } from '../shell/useLogout';
 import '../shell/shell.css';
 import './gate.css';
@@ -87,6 +88,7 @@ function HallLayout({ children }: { children: ReactNode }) {
             {error}
           </p>
         ) : null}
+        <LegalLinks />
       </footer>
     </div>
   );

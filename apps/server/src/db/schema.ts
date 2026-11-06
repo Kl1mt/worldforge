@@ -121,6 +121,39 @@ export const sessions = pgTable(
   ],
 );
 
+/**
+ * Invite codes (ticket D.2, docs/DEPLOY.md "Registration"). Created only by admins
+ * (`pnpm admin:invite`). The code itself is random and shown once; only its SHA-256 is stored.
+ * Redeemed atomically by registration in `REGISTRATION_MODE=invite` (`uses` goes up inside the
+ * account's transaction, guarded by `uses < max_uses`). Which code created which account is in
+ * the `account.register` audit row (`data.inviteId`), never the code.
+ */
+export const inviteCodes = pgTable(
+  'invite_codes',
+  {
+    id: uuid('id').primaryKey(),
+    /** SHA-256 hex of the normalised code. */
+    codeHash: text('code_hash').notNull(),
+    maxUses: integer('max_uses').notNull().default(1),
+    uses: integer('uses').notNull().default(0),
+    /** Null: never expires. */
+    expiresAt: timestamp('expires_at', { withTimezone: true }),
+    revokedAt: timestamp('revoked_at', { withTimezone: true }),
+    /** The admin's own note (who it is for). Never shown to players. */
+    note: text('note').notNull().default(''),
+    /** Null when created by the CLI. */
+    createdByAccountId: uuid('created_by_account_id').references(() => accounts.id, {
+      onDelete: 'set null',
+    }),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('invite_codes_code_hash_key').on(t.codeHash),
+    check('invite_codes_max_uses_check', sql`${t.maxUses} >= 1`),
+    check('invite_codes_uses_check', sql`${t.uses} >= 0 and ${t.uses} <= ${t.maxUses}`),
+  ],
+);
+
 /** Player characters (ticket 1.3, GDD §5). Content (the class) is referenced by game-core id. */
 export const characters = pgTable(
   'characters',
@@ -742,3 +775,5 @@ export type NewActivity = typeof activities.$inferInsert;
 export type IdempotencyKey = typeof idempotencyKeys.$inferSelect;
 export type MerchantPurchase = typeof merchantPurchases.$inferSelect;
 export type DungeonRun = typeof dungeonRuns.$inferSelect;
+
+export type InviteCode = typeof inviteCodes.$inferSelect;

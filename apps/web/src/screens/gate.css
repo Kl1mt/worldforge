@@ -388,3 +388,24 @@
     padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
   }
 }
+
+/* Ticket D.2: registration closed, and the privacy consent line under the register button. */
+.gate__notice {
+  margin-top: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--brass-500);
+  background: rgb(90 70 40 / 0.18);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.gate__consent {
+  margin: var(--space-3) 0 0;
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+  text-align: center;
+}
+
+.gate__consent a {
+  color: var(--accent-strong);
+}

@@ -15,7 +15,9 @@ const app = buildApp({
   auth: {
     sessionTtlMs: config.sessionTtlHours * 60 * 60 * 1000,
     cookieSecure: config.sessionCookieSecure,
+    registrationMode: config.registrationMode,
   },
+  legal: { dir: config.legalDir },
   activity: {
     offlineCapMs: config.offlineCapSeconds * 1000,
     settleIntervalMs: config.settleIntervalSeconds * 1000,

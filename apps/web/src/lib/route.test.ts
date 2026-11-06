@@ -1,5 +1,14 @@
 import { describe, expect, it } from 'vitest';
-import { AUTH_ROUTES, GAME_ROUTES, guardRoute, parseRoute, routeHref } from './route';
+import {
+  AUTH_ROUTES,
+  GAME_ROUTES,
+  LEGAL_ROUTES,
+  guardRoute,
+  inviteFromLocation,
+  parseRoute,
+  registerHref,
+  routeHref,
+} from './route';
 
 describe('parseRoute', () => {
   it('parses known routes', () => {
@@ -48,5 +57,35 @@ describe('guardRoute', () => {
     for (const r of GAME_ROUTES) expect(guardRoute(r, 'playing')).toBeNull();
     expect(guardRoute('characters', 'playing')).toBeNull();
     for (const r of AUTH_ROUTES) expect(guardRoute(r, 'playing')).toBe('hub');
+  });
+});
+
+describe('legal pages and invite links (ticket D.2)', () => {
+  it('parses the legal routes and never guards them', () => {
+    for (const r of LEGAL_ROUTES) {
+      expect(parseRoute(routeHref(r))).toBe(r);
+      for (const standing of ['anonymous', 'account', 'playing'] as const) {
+        expect(guardRoute(r, standing)).toBeNull();
+      }
+    }
+  });
+
+  it('reads the invite code from the hash or the query', () => {
+    expect(inviteFromLocation('', '#/register?invite=ABCD-EFGH')).toBe('ABCD-EFGH');
+    expect(inviteFromLocation('?invite=WXYZ', '')).toBe('WXYZ');
+    expect(inviteFromLocation('?invite=FROM-QUERY', '#/register?invite=FROM-HASH')).toBe(
+      'FROM-HASH',
+    );
+    expect(inviteFromLocation('', '#/register')).toBeNull();
+    expect(inviteFromLocation('?invite=', '')).toBeNull();
+    expect(inviteFromLocation(`?invite=${'x'.repeat(65)}`, '')).toBeNull();
+  });
+
+  it('builds a register link that keeps the code and still parses as register', () => {
+    const href = registerHref('AB CD');
+    expect(href).toBe('#/register?invite=AB%20CD');
+    expect(parseRoute(href)).toBe('register');
+    expect(inviteFromLocation('', href)).toBe('AB CD');
+    expect(registerHref(null)).toBe('#/register');
   });
 });

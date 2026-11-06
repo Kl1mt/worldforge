@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { LegalLinks } from '../legal/LegalLinks';
 import { SANCTION_LABELS, getArea, getClass, isStaff } from '@worldforge/game-core';
 import { formatNumber } from '../lib/format';
 import { useAuth } from '../auth/AuthProvider';
@@ -172,6 +173,7 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
             Moderator queue
           </a>
         ) : null}
+        <LegalLinks />
       </footer>
 
       <nav className="bottombar" aria-label="Main (mobile)">

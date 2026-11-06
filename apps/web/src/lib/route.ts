@@ -18,10 +18,13 @@ export const GAME_ROUTES = [
 export const AUTH_ROUTES = ['login', 'register'] as const;
 /** Character select and creation: needs an account, but not an active character. */
 export const ROSTER_ROUTE = 'characters' as const;
-export const ROUTES = [...GAME_ROUTES, ...AUTH_ROUTES, ROSTER_ROUTE] as const;
+/** Ticket D.2: Impressum and privacy policy, open to everyone, logged in or not. */
+export const LEGAL_ROUTES = ['impressum', 'datenschutz'] as const;
+export const ROUTES = [...GAME_ROUTES, ...AUTH_ROUTES, ROSTER_ROUTE, ...LEGAL_ROUTES] as const;
 
 export type GameRoute = (typeof GAME_ROUTES)[number];
 export type AuthRoute = (typeof AUTH_ROUTES)[number];
+export type LegalRoute = (typeof LEGAL_ROUTES)[number];
 export type Route = (typeof ROUTES)[number];
 
 /** The hub is home (ticket 2.2). */
@@ -46,6 +49,30 @@ export function isAuthRoute(route: Route): route is AuthRoute {
   return (AUTH_ROUTES as readonly string[]).includes(route);
 }
 
+export function isLegalRoute(route: Route): route is LegalRoute {
+  return (LEGAL_ROUTES as readonly string[]).includes(route);
+}
+
+/**
+ * Ticket D.2: the invite code of an invite link, from `#/register?invite=CODE` (what the admin
+ * CLI prints) or `/?invite=CODE`. Only the shape is checked here; the server decides.
+ */
+export function inviteFromLocation(search: string, hash: string): string | null {
+  const fromHash = hash.includes('?') ? hash.slice(hash.indexOf('?')) : '';
+  for (const query of [fromHash, search]) {
+    const code = new URLSearchParams(query).get('invite')?.trim();
+    if (code && code.length <= 64) return code;
+  }
+  return null;
+}
+
+/** The register screen with an invite code prefilled. */
+export function registerHref(invite: string | null): string {
+  return invite
+    ? `${routeHref('register')}?invite=${encodeURIComponent(invite)}`
+    : routeHref('register');
+}
+
 /**
  * How far into the game the visitor is: logged out, logged in without an active character,
  * or playing a character.
@@ -58,6 +85,7 @@ export type Standing = 'anonymous' | 'account' | 'playing';
  * have an active character, land on character select.
  */
 export function guardRoute(route: Route, standing: Standing): Route | null {
+  if (isLegalRoute(route)) return null;
   if (standing === 'anonymous') return isAuthRoute(route) ? null : LOGIN_ROUTE;
   if (standing === 'account') return route === ROSTER_ROUTE ? null : ROSTER_ROUTE;
   return isAuthRoute(route) ? DEFAULT_ROUTE : null;

@@ -1,9 +1,11 @@
-import { useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { describeAuthFailure } from '../auth/api';
 import { useAuth } from '../auth/AuthProvider';
 import { ASSETS } from '../content/assets';
 import type { ApiFailure } from '../lib/api';
-import { routeHref, type AuthRoute } from '../lib/route';
+import { inviteFromLocation, routeHref, type AuthRoute } from '../lib/route';
+import { legalApi, type RegistrationMode } from '../legal/api';
+import { LegalLinks } from '../legal/LegalLinks';
 import { HealthLine } from '../shell/HealthLine';
 import { describeSanction, formatWhen, type Sanction } from '../social/api';
 import '../shell/shell.css';
@@ -49,6 +51,7 @@ export function GateLayout({ children }: { children: ReactNode }) {
         <span className="statusbar__note">
           Your progress is kept on the server, on every device.
         </span>
+        <LegalLinks />
       </footer>
     </div>
   );
@@ -154,7 +157,34 @@ const COPY = {
   },
 } as const;
 
-type FieldName = 'email' | 'displayName' | 'password';
+type FieldName = 'inviteCode' | 'email' | 'displayName' | 'password';
+
+/**
+ * Ticket D.2: the server's registration mode, from `GET /api/config`. `unknown` when it could not
+ * be read: the form is shown anyway and the server's answer decides (an invite error reveals the
+ * invite field).
+ */
+type ModeState =
+  { kind: 'loading' } | { kind: 'known'; mode: RegistrationMode } | { kind: 'unknown' };
+
+function useRegistrationMode(enabled: boolean): [ModeState, (mode: RegistrationMode) => void] {
+  const [state, setState] = useState<ModeState>(
+    enabled ? { kind: 'loading' } : { kind: 'unknown' },
+  );
+  useEffect(() => {
+    if (!enabled) return;
+    const controller = new AbortController();
+    legalApi.config(controller.signal).then(
+      (r) =>
+        setState(r.ok ? { kind: 'known', mode: r.value.registration.mode } : { kind: 'unknown' }),
+      () => {
+        /* aborted */
+      },
+    );
+    return () => controller.abort();
+  }, [enabled]);
+  return [state, (mode) => setState({ kind: 'known', mode })];
+}
 
 export function AuthScreen({ mode }: { mode: AuthRoute }) {
   return (
@@ -167,7 +197,17 @@ export function AuthScreen({ mode }: { mode: AuthRoute }) {
 function AuthForm({ mode }: { mode: AuthRoute }) {
   const auth = useAuth();
   const copy = COPY[mode];
-  const [values, setValues] = useState({ email: '', displayName: '', password: '' });
+  const [prefilledInvite] = useState(() =>
+    inviteFromLocation(window.location.search, window.location.hash),
+  );
+  const [values, setValues] = useState({
+    inviteCode: prefilledInvite ?? '',
+    email: '',
+    displayName: '',
+    password: '',
+  });
+  const [registration, setRegistration] = useRegistrationMode(mode === 'register');
+  const [inviteAsked, setInviteAsked] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Partial<Record<FieldName, string>>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -175,8 +215,15 @@ function AuthForm({ mode }: { mode: AuthRoute }) {
   const formRef = useRef<HTMLFormElement>(null);
   const alertRef = useRef<HTMLParagraphElement>(null);
 
+  const wantsInvite =
+    mode === 'register' &&
+    ((registration.kind === 'known' && registration.mode === 'invite') ||
+      (registration.kind === 'unknown' && prefilledInvite !== null) ||
+      inviteAsked);
   const fields: FieldName[] =
-    mode === 'register' ? ['email', 'displayName', 'password'] : ['email', 'password'];
+    mode === 'register'
+      ? [...(wantsInvite ? (['inviteCode'] as const) : []), 'email', 'displayName', 'password']
+      : ['email', 'password'];
 
   const update = (name: FieldName, value: string) => {
     setValues((v) => ({ ...v, [name]: value }));
@@ -214,11 +261,22 @@ function AuthForm({ mode }: { mode: AuthRoute }) {
       failure =
         mode === 'login'
           ? await auth.login({ email: values.email, password: values.password })
-          : await auth.register(values);
+          : await auth.register({
+              email: values.email,
+              displayName: values.displayName,
+              password: values.password,
+              ...(wantsInvite ? { inviteCode: values.inviteCode } : {}),
+            });
     } finally {
       setBusy(false);
     }
     if (!failure) return; // The route guard moves the player into the game.
+    // The mode changed since the screen was opened (or could not be read): follow the server.
+    if (failure.code === 'registration_closed') {
+      setRegistration('closed');
+      return;
+    }
+    if (failure.fields.inviteCode && !wantsInvite) setInviteAsked(true);
 
     const errors = failure.fields as Partial<Record<FieldName, string>>;
     setFieldErrors(errors);
@@ -228,6 +286,8 @@ function AuthForm({ mode }: { mode: AuthRoute }) {
   };
 
   const otherMode: AuthRoute = mode === 'login' ? 'register' : 'login';
+  const closed =
+    mode === 'register' && registration.kind === 'known' && registration.mode === 'closed';
 
   return (
     <section className="gate__panel panel-iron" aria-labelledby="gate-title">
@@ -244,56 +304,101 @@ function AuthForm({ mode }: { mode: AuthRoute }) {
         ))}
       </nav>
 
-      <h1 id="gate-title" className="gate__title display">
-        {copy.title}
-      </h1>
-      <p className="gate__lede">{copy.lede}</p>
+      {closed ? (
+        <>
+          <h1 id="gate-title" className="gate__title display">
+            The ledger is closed
+          </h1>
+          <p className="gate__notice" role="status">
+            New accounts cannot be created right now. If you already have an account, you can enter
+            as usual.
+          </p>
+          <p className="gate__switch">
+            <a href={routeHref('login')}>Enter with your account</a>
+          </p>
+        </>
+      ) : mode === 'register' && registration.kind === 'loading' ? (
+        <>
+          <h1 id="gate-title" className="gate__title display">
+            {copy.title}
+          </h1>
+          <p className="gate__wait" role="status">
+            <span className="gate__wait-mark" aria-hidden="true" /> Opening the ledger…
+          </p>
+        </>
+      ) : (
+        <>
+          <h1 id="gate-title" className="gate__title display">
+            {copy.title}
+          </h1>
+          <p className="gate__lede">
+            {wantsInvite ? 'The Graumark takes new names by invitation for now.' : copy.lede}
+          </p>
 
-      {formError ? (
-        <p ref={alertRef} className="gate__alert" role="alert" tabIndex={-1}>
-          {formError}
-        </p>
-      ) : null}
+          {formError ? (
+            <p ref={alertRef} className="gate__alert" role="alert" tabIndex={-1}>
+              {formError}
+            </p>
+          ) : null}
 
-      <form ref={formRef} className="gate__form" onSubmit={onSubmit} noValidate aria-busy={busy}>
-        {fields.map((name) => (
-          <Field
-            key={name}
-            mode={mode}
-            name={name}
-            value={values[name]}
-            error={fieldErrors[name]}
-            disabled={busy}
-            showPassword={showPassword}
-            onToggleShow={() => setShowPassword((s) => !s)}
-            onChange={(v) => update(name, v)}
-          />
-        ))}
-        <button type="submit" className="btn btn--brass gate__submit" disabled={busy}>
-          {busy ? copy.busy : copy.submit}
-        </button>
-      </form>
+          <form
+            ref={formRef}
+            className="gate__form"
+            onSubmit={onSubmit}
+            noValidate
+            aria-busy={busy}
+          >
+            {fields.map((name) => (
+              <Field
+                key={name}
+                mode={mode}
+                name={name}
+                value={values[name]}
+                error={fieldErrors[name]}
+                disabled={busy}
+                showPassword={showPassword}
+                onToggleShow={() => setShowPassword((s) => !s)}
+                onChange={(v) => update(name, v)}
+              />
+            ))}
+            <button type="submit" className="btn btn--brass gate__submit" disabled={busy}>
+              {busy ? copy.busy : copy.submit}
+            </button>
+            {mode === 'register' ? (
+              <p className="gate__consent">
+                By creating an account you accept the{' '}
+                <a href={routeHref('datenschutz')} target="_blank" rel="noopener">
+                  privacy policy
+                </a>
+                .
+              </p>
+            ) : null}
+          </form>
 
-      <p className="gate__switch">
-        {mode === 'login' ? 'New to the Graumark? ' : 'Already signed the ledger? '}
-        <a href={routeHref(otherMode)}>
-          {mode === 'login' ? 'Create an account' : 'Enter instead'}
-        </a>
-      </p>
-      {mode === 'login' ? (
-        <p className="gate__fine">Password recovery is not available yet.</p>
-      ) : null}
+          <p className="gate__switch">
+            {mode === 'login' ? 'New to the Graumark? ' : 'Already signed the ledger? '}
+            <a href={routeHref(otherMode)}>
+              {mode === 'login' ? 'Create an account' : 'Enter instead'}
+            </a>
+          </p>
+          {mode === 'login' ? (
+            <p className="gate__fine">Password recovery is not available yet.</p>
+          ) : null}
+        </>
+      )}
     </section>
   );
 }
 
 const LABELS: Record<FieldName, string> = {
+  inviteCode: 'Invite code',
   email: 'Email',
   displayName: 'Display name',
   password: 'Password',
 };
 
 const HINTS: Partial<Record<FieldName, string>> = {
+  inviteCode: 'From your invitation, e.g. ABCD-EFGH-JKMN-PQRS.',
   displayName: '3–20 letters or numbers. Shown to other players.',
   password: 'At least 10 characters.',
 };
@@ -339,13 +444,17 @@ function Field({
           autoComplete={
             name === 'email'
               ? 'email'
-              : name === 'displayName'
-                ? 'nickname'
-                : mode === 'login'
-                  ? 'current-password'
-                  : 'new-password'
+              : name === 'inviteCode'
+                ? 'off'
+                : name === 'displayName'
+                  ? 'nickname'
+                  : mode === 'login'
+                    ? 'current-password'
+                    : 'new-password'
           }
-          autoCapitalize={name === 'displayName' ? 'words' : 'none'}
+          autoCapitalize={
+            name === 'displayName' ? 'words' : name === 'inviteCode' ? 'characters' : 'none'
+          }
           spellCheck={false}
           inputMode={name === 'email' ? 'email' : undefined}
           value={value}
