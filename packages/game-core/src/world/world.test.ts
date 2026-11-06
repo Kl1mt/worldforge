@@ -25,6 +25,7 @@ import {
   findLootTable,
   getArea,
   getDungeon,
+  getDungeonTier,
   getEnemy,
   getLootTable,
   getMaterial,
@@ -103,12 +104,25 @@ describe('content contract', () => {
     const [id, min, max, unlock, enemies, boss, drop] = CONTRACT.dungeon;
     expect(DUNGEONS.map((d) => d.id)).toEqual([id]);
     const d = getDungeon(id);
-    expect([d.minLevel, d.maxLevel, d.unlock.level]).toEqual([min, max, unlock]);
+    const t1 = getDungeonTier(id, 1);
+    expect([t1.minLevel, t1.maxLevel, t1.unlock.level]).toEqual([min, max, unlock]);
     expect(d.enemies.map((e) => e.enemyId)).toEqual(enemies);
     expect(d.bossId).toBe(boss);
     expect(d.bossDrops).toEqual([drop]);
-    expect(d.bossLevel).toBeGreaterThanOrEqual(d.minLevel);
-    expect(d.bossLevel).toBeLessThanOrEqual(d.maxLevel);
+    // Ticket 3.6: tiers I–III, each deeper one higher and gated by the one before.
+    expect(d.tiers.map((t) => t.tier)).toEqual([1, 2, 3]);
+    for (const [i, t] of d.tiers.entries()) {
+      expect(t.bossLevel, t.name).toBeGreaterThanOrEqual(t.minLevel);
+      expect(t.bossLevel, t.name).toBeLessThanOrEqual(t.maxLevel);
+      expect(t.bossEnrage.atMs.min, t.name).toBeLessThanOrEqual(t.bossEnrage.atMs.max);
+      expect(t.bossEnrage.atMs.max, t.name).toBeLessThan(t.bossMaxFightMs);
+      if (i === 0) continue;
+      const prev = d.tiers[i - 1]!;
+      expect(t.minLevel, t.name).toBeGreaterThan(prev.minLevel);
+      expect(t.bossLevel, t.name).toBeGreaterThan(prev.bossLevel);
+      expect(t.unlock.level, t.name).toBeGreaterThan(prev.unlock.level);
+      expect(t.unlock.cryptTierCleared, t.name).toBe(prev.tier);
+    }
   });
 
   it('defines exactly the contract enemies and materials', () => {
@@ -205,9 +219,13 @@ describe('areas and level ranges', () => {
       expect(next.minLevel, next.id).toBe(prev.maxLevel - 1);
     }
     // The crypt sits between the Burial Grounds and Blackwater.
-    const crypt = getDungeon('namelessCrypt');
+    const crypt = getDungeonTier('namelessCrypt', 1);
     expect(crypt.minLevel).toBeGreaterThan(getArea('oldBurialGrounds').minLevel);
     expect(crypt.maxLevel).toBeLessThan(getArea('sunkenAbbey').minLevel);
+    // Ticket 3.6: the deeper tiers are late-game content beside the Abbey.
+    expect(getDungeonTier('namelessCrypt', 2).minLevel).toBeGreaterThan(
+      getArea('sunkenAbbey').minLevel,
+    );
   });
 
   it('guards ids', () => {
@@ -254,7 +272,11 @@ describe('materials', () => {
 });
 
 describe('loot tables', () => {
-  const places = [...AREAS, ...DUNGEONS];
+  // Ticket 3.6: every crypt tier is a place with its own chamber table.
+  const places = [
+    ...AREAS,
+    ...DUNGEONS.flatMap((d) => d.tiers.map((t) => ({ ...t, id: `${d.id}:${t.tier}` }))),
+  ];
 
   it('gives every area and the dungeon its own table whose bases all exist', () => {
     expect(new Set(places.map((p) => p.lootTableId)).size).toBe(places.length);
@@ -308,7 +330,7 @@ describe('loot tables', () => {
     expect(fields.entries).toEqual(STANDARD_LOOT_TABLE.entries);
     // Ticket B.1: area kills drop an item 6 % of the time (the standard table keeps 12 %).
     expect(fields.itemDropChance).toBe(0.06);
-    for (const t of AREA_LOOT_TABLES.filter((x) => x.id !== 'namelessCrypt')) {
+    for (const t of AREA_LOOT_TABLES.filter((x) => !x.id.startsWith('namelessCrypt'))) {
       expect(t.itemDropChance, t.id).toBe(0.06);
     }
     for (let level = 1; level <= 6; level++) {
@@ -468,7 +490,8 @@ describe('farming every area', () => {
   });
 
   it('crypt enemies die within the fight timeout; the Gravewarden needs gear', () => {
-    const crypt = getDungeon('namelessCrypt');
+    const dungeon = getDungeon('namelessCrypt');
+    const crypt = { ...dungeon, ...getDungeonTier('namelessCrypt', 1) };
     const level = Math.round((crypt.minLevel + crypt.maxLevel) / 2);
     const killChance = (
       enemyId: string,
@@ -499,7 +522,7 @@ describe('farming every area', () => {
       // Ticket B.1: the boss outlasts its enrage unless the hero is geared (the run outcome
       // itself is covered by the balance test).
       expect(
-        killChance(crypt.bossId, crypt.bossLevel, classId, false, crypt.bossEnrage.atMs),
+        killChance(crypt.bossId, crypt.bossLevel, classId, false, crypt.bossEnrage.atMs.max),
       ).toBeLessThan(0.5);
       expect(
         killChance(crypt.bossId, crypt.bossLevel, classId, true, crypt.bossMaxFightMs),

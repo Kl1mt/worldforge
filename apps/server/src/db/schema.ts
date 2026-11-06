@@ -22,6 +22,7 @@ import type {
   ClassId,
   ItemVariantId,
   DungeonId,
+  DungeonTier,
   EquipmentSlotId,
   GuideState,
   MaterialId,
@@ -521,6 +522,8 @@ export const dungeonRuns = pgTable(
       .references(() => accounts.id, { onDelete: 'cascade' }),
     /** game-core `DungeonId`. */
     dungeonId: text('dungeon_id').$type<DungeonId>().notNull(),
+    /** game-core `DungeonTier` (ticket 3.6); rows from before it are tier I. */
+    tier: smallint('tier').$type<DungeonTier>().notNull().default(1),
     /** Random secret of this run. Never sent to clients. */
     seedSecret: text('seed_secret').notNull(),
     snapshot: jsonb('snapshot').$type<DungeonRunSnapshot>().notNull(),
@@ -544,6 +547,7 @@ export const dungeonRuns = pgTable(
       .where(sql`${t.claimedAt} is null`),
     index('dungeon_runs_character_id_started_at_idx').on(t.characterId, t.startedAt),
     check('dungeon_runs_ends_at_check', sql`${t.endsAt} >= ${t.startedAt}`),
+    check('dungeon_runs_tier_check', sql`${t.tier} between 1 and 3`),
   ],
 );
 

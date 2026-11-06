@@ -1,5 +1,5 @@
 import type { RarityId } from '../rarity.js';
-import { ITEM_BASES } from '../items/bases.js';
+import { ITEM_BASES, type ItemSlotKind } from '../items/bases.js';
 import { AREA_LOOT_TABLES, BOSS_LOOT_TABLES } from './tables.js';
 
 export interface RarityRule {
@@ -34,6 +34,29 @@ export interface GoldRule {
   growthPerLevel: number;
 }
 
+/**
+ * Ticket 3.6: what a source favours, so a player can plan toward a build instead of farming
+ * blind. Any combination of a set, a slot group and an effect family. A focus only reweights draws
+ * the generator makes anyway (the base pick, the set-piece pick, the Legendary effect pick), so it
+ * never adds or removes a draw: every drop path stays deterministic and split-invariant.
+ */
+export interface LootFocus {
+  /** Stable id, e.g. `crypt-i`. */
+  id: string;
+  /** Short label for the UI, e.g. "Rings and amulets". */
+  name: string;
+  /** One line for the UI. */
+  description: string;
+  /** Set pieces: a set-piece roll here picks only pieces of these sets (`ITEM_SETS` ids). */
+  sets?: readonly string[];
+  /** Slot group: bases of these slot kinds weigh `slotWeight` × as much. */
+  slots?: readonly ItemSlotKind[];
+  slotWeight?: number;
+  /** Effect family: these Legendary effects weigh `effectWeight` × as much. */
+  effects?: readonly string[];
+  effectWeight?: number;
+}
+
 export interface LootTableEntry {
   baseId: string;
   weight: number;
@@ -66,6 +89,8 @@ export interface LootTableDefinition {
    * clamped to `LootConfig.maxVoidChance`. Only late-game sources set it. Default 0.
    */
   voidChance?: number;
+  /** Ticket 3.6: the table's loot focus (dungeon tiers and their bosses). */
+  focus?: LootFocus;
 }
 
 export interface LootConfig {

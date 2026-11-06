@@ -1,9 +1,12 @@
+import { useState } from 'react';
 import {
   findContractTemplate,
   getArea,
   getStoryQuest,
+  type ItemSlotKind,
   type QuestObjective,
 } from '@worldforge/game-core';
+import { slotName } from '../game/items';
 import { asset } from '../content/assets';
 import { HUB_HOTSPOTS } from '../content/world';
 import { useMediaQuery } from '../components/useMediaQuery';
@@ -118,10 +121,14 @@ function ContractSlip({
   full: boolean;
   busy: boolean;
   isNew: boolean;
-  onAccept: () => void;
+  onAccept: (rewardSlot?: ItemSlotKind) => void;
 }) {
   const template = findContractTemplate(offer.templateId);
   const area = template ? getArea(template.areaId).name : null;
+  // Ticket 3.6: an Abbey contract lets the hero choose the slot of a reward item.
+  const [rewardSlot, setRewardSlot] = useState<ItemSlotKind | null>(null);
+  const choice = offer.rewardSlots.length > 0 && offer.targetedReward ? offer.targetedReward : null;
+  const rarity = choice ? choice.rarityId[0]!.toUpperCase() + choice.rarityId.slice(1) : '';
   return (
     <li className={`note note--slip${offer.accepted ? ' note--taken' : ''}`}>
       <span className="note__pin" aria-hidden="true" />
@@ -137,17 +144,53 @@ function ContractSlip({
       <h3 className="note__title display">{contractTitle(offer.objective)}</h3>
       <p className="note__task">{objectiveLabel(offer.objective)}</p>
       <Rewards parts={rewardParts(offer.reward)} />
+      {choice && !offer.accepted ? (
+        <div className="note__choice">
+          <p className="note__choice-label" id={`reward-slot-${offer.slot}`}>
+            And a <span className="note__choice-rarity">{rarity}</span> item (lv {choice.itemLevel})
+            for the slot you choose:
+          </p>
+          <div
+            className="note__slots"
+            role="radiogroup"
+            aria-labelledby={`reward-slot-${offer.slot}`}
+          >
+            {offer.rewardSlots.map((s) => (
+              <button
+                key={s}
+                type="button"
+                role="radio"
+                aria-checked={s === rewardSlot}
+                className="btn btn--small"
+                onClick={() => setRewardSlot(s)}
+              >
+                {slotName(s)}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : null}
       {offer.accepted ? (
         <p className="note__stamp">Taken</p>
       ) : (
         <button
           type="button"
           className="btn"
-          disabled={busy || full}
-          title={full ? 'You carry three contracts already' : undefined}
-          onClick={onAccept}
+          disabled={busy || full || (choice !== null && rewardSlot === null)}
+          title={
+            full
+              ? 'You carry three contracts already'
+              : choice && !rewardSlot
+                ? 'Choose the reward’s slot first'
+                : undefined
+          }
+          onClick={() => onAccept(rewardSlot ?? undefined)}
         >
-          {busy ? 'Taking…' : 'Take contract'}
+          {busy
+            ? 'Taking…'
+            : choice && rewardSlot
+              ? `Take contract · ${slotName(rewardSlot).toLowerCase()}`
+              : 'Take contract'}
         </button>
       )}
     </li>
@@ -310,7 +353,13 @@ export function TavernScreen() {
                     isNew={newQuests.has(
                       questKey.offer(board.value.day, offer.slot, offer.templateId),
                     )}
-                    onAccept={() => void quests.accept({ kind: 'contract', slot: offer.slot })}
+                    onAccept={(rewardSlot) =>
+                      void quests.accept({
+                        kind: 'contract',
+                        slot: offer.slot,
+                        ...(rewardSlot ? { rewardSlot } : {}),
+                      })
+                    }
                   />
                 ))}
               </ul>

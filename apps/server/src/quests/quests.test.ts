@@ -1,7 +1,15 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { and, eq } from 'drizzle-orm';
-import { generateItem, type StoryQuestId } from '@worldforge/game-core';
+import {
+  findContractTemplate,
+  generateItem,
+  generateTargetedItem,
+  getItemBase,
+  offersRewardSlot,
+  targetedRewardSeed,
+  type StoryQuestId,
+} from '@worldforge/game-core';
 import { buildApp } from '../app.js';
 import { SESSION_COOKIE } from '../auth/index.js';
 import { DEFAULT_ACTIVITY_OPTIONS, type ActivityOptions } from '../activity/settle.js';
@@ -405,5 +413,112 @@ describe('progress and turn-in', () => {
     expect(res.json()).toMatchObject({ error: { code: 'inventory_full' } });
     expect((await characterRow(p.id)).gold).toBe(before.gold);
     expect(questOf(await board(p), 'whatTheCrowsGuard').status).toBe('ready');
+  });
+});
+
+describe('targeted contract rewards (ticket 3.6)', () => {
+  /** A level-20 hero past the Gravewarden, on a day whose board offers an Abbey contract. */
+  async function abbeyHero() {
+    const p = await newPlayer();
+    await database.db
+      .update(characters)
+      .set({ level: 20, progress: { gravewardenDefeated: true } })
+      .where(eq(characters.id, p.id));
+    for (let day = 0; day < 20; day++) {
+      const b = await board(p);
+      const offer = b.contracts.offers.find((o) => o.rewardSlots.length > 0);
+      if (offer) return { p, b, offer };
+      advance(24 * HOUR);
+    }
+    throw new Error('no Abbey contract in 20 days');
+  }
+
+  it('Abbey contracts offer a slot choice; the chosen slot is fixed and the item granted once', async () => {
+    const { p, b, offer } = await abbeyHero();
+    expect(offer.templateId).toMatch(/^(slay|gather)\./);
+    expect(offer.rewardSlots).toEqual(expect.arrayContaining(['head', 'neck', 'ring', 'weapon']));
+    expect(offer.targetedReward).toEqual({ rarityId: 'epic', itemLevel: 20 });
+    expect(offer.reward.item).toBeNull();
+    for (const o of b.contracts.offers.filter((x) => x !== offer)) {
+      expect(o.rewardSlots.length > 0).toBe(offersRewardSlot(findContractTemplate(o.templateId)!));
+    }
+    // Refused: a slot the contract does not offer, a slot on a story quest, a non-Abbey contract.
+    const url = `/api/characters/${p.id}/quests`;
+    expect(
+      (
+        await call(p, 'POST', url, { kind: 'contract', slot: offer.slot, rewardSlot: 'tail' })
+      ).json(),
+    ).toMatchObject({ error: { code: 'reward_slot_unavailable' } });
+    expect(
+      (
+        await call(p, 'POST', url, {
+          kind: 'story',
+          questId: 'furrowsOfTheDead',
+          rewardSlot: 'neck',
+        })
+      ).statusCode,
+    ).toBe(400);
+    const plain = b.contracts.offers.find((o) => o.rewardSlots.length === 0);
+    if (plain) {
+      expect(
+        (
+          await call(p, 'POST', url, { kind: 'contract', slot: plain.slot, rewardSlot: 'neck' })
+        ).json(),
+      ).toMatchObject({ error: { code: 'reward_slot_unavailable' } });
+    }
+    expect((await board(p)).contracts.active).toBe(0);
+
+    const accepted = await call(p, 'POST', url, {
+      kind: 'contract',
+      slot: offer.slot,
+      rewardSlot: 'neck',
+    });
+    expect(accepted.statusCode).toBe(201);
+    const quest = accepted
+      .json<QuestBoardResponse>()
+      .quests.find((q) => q.questId === offer.templateId)!;
+    expect(quest.reward.item).toEqual({
+      slot: 'neck',
+      rarityId: 'epic',
+      itemLevel: 20,
+      lootTableId: 'sunkenAbbey',
+    });
+    const [acceptAudit] = await database.db
+      .select()
+      .from(auditLog)
+      .where(and(eq(auditLog.characterId, p.id), eq(auditLog.event, 'quest.accept')));
+    expect(acceptAudit!.data).toMatchObject({ rewardSlot: 'neck' });
+
+    // Complete it (test setup), then turn in twice with different keys: one item, the fixed one.
+    await database.db
+      .update(characterQuests)
+      .set({ progress: quest.objectives.map((o) => ('count' in o ? o.count : 1)) })
+      .where(eq(characterQuests.id, quest.id));
+    const [first, second] = await Promise.all([
+      turnIn(p, quest.id, 'targeted-key-0001'),
+      turnIn(p, quest.id, 'targeted-key-0002'),
+    ]);
+    const ok = [first, second].filter((r) => r.statusCode === 200);
+    expect(ok).toHaveLength(1);
+    const item = ok[0]!.json<{
+      reward: { item: { baseId: string; rarityId: string; itemLevel: number } };
+    }>().reward.item;
+    expect(getItemBase(item.baseId).slot).toBe('neck');
+    expect(item).toMatchObject({ rarityId: 'epic', itemLevel: 20 });
+    const expected = generateTargetedItem(
+      { slot: 'neck', rarityId: 'epic', itemLevel: 20, lootTableId: 'sunkenAbbey' },
+      targetedRewardSeed(quest.id),
+      'warrior',
+    )!;
+    const rows = await database.db
+      .select()
+      .from(itemInstances)
+      .where(and(eq(itemInstances.characterId, p.id), eq(itemInstances.source, 'quest')));
+    expect(rows).toHaveLength(1);
+    expect([rows[0]!.baseId, rows[0]!.seed, rows[0]!.affixes]).toEqual([
+      expected.baseId,
+      expected.seed,
+      expected.affixes,
+    ]);
   });
 });

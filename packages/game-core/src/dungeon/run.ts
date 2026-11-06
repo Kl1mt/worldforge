@@ -23,12 +23,18 @@ import { RARITY_IDS } from '../rarity.js';
 import { createRng, type Rng } from '../rng.js';
 import {
   getDungeon,
+  getDungeonTier,
   isDungeonId,
+  isDungeonTier,
   type BossEnrage,
   type DungeonDefinition,
   type DungeonId,
+  type DungeonTier,
+  type DungeonTierDefinition,
+  type EnemyScale,
+  type ResolvedEnrage,
 } from '../world/dungeons.js';
-import { getEnemy, type EnemyId } from '../world/enemies.js';
+import { getEnemy, type EnemyDefinition, type EnemyId } from '../world/enemies.js';
 import type { MaterialId } from '../world/materials.js';
 
 /**
@@ -90,6 +96,8 @@ export interface DungeonEncounterRecord {
 
 export interface DungeonRunInput {
   dungeonId: DungeonId;
+  /** Difficulty tier (ticket 3.6); default 1. */
+  tier?: DungeonTier;
   /** Snapshot at the start of the run; the run always starts at full health. */
   character: { classId: ClassId; level: number; xp: number };
   /** Equipped items at the start of the run (persisted `GeneratedItem` columns incl. effects). */
@@ -110,6 +118,9 @@ export interface DungeonRunOptions {
 
 export interface DungeonRunResult {
   dungeonId: DungeonId;
+  tier: DungeonTier;
+  /** When the boss enrages in this run (ms into the boss fight; ticket 3.6 draws it per run). */
+  enrageAtMs: number;
   outcome: DungeonRunOutcome;
   /** Real time the run takes: until the boss falls or the hero does. */
   durationMs: number;
@@ -148,6 +159,8 @@ const MAX_SEED = 0xffffffff;
 function validate(input: DungeonRunInput): void {
   if (!isDungeonId(input.dungeonId))
     throw new RangeError(`Unknown dungeon: ${String(input.dungeonId)}`);
+  if (input.tier !== undefined && !isDungeonTier(input.tier))
+    throw new RangeError(`Unknown dungeon tier: ${String(input.tier)}`);
   const { classId, level, xp } = input.character;
   if (!isClassId(classId)) throw new RangeError(`Unknown class: ${String(classId)}`);
   if (!Number.isInteger(level) || level < 1 || level > MAX_LEVEL)
@@ -172,7 +185,7 @@ export function resolveDungeonFight(
   rng: Rng,
   startMs: number,
   log: DungeonEvent[],
-  enrage?: BossEnrage,
+  enrage?: ResolvedEnrage,
 ): { kind: 'kill' | 'death' | 'timeout'; offsetMs: number; health: number } {
   let enemyHealth = setup.enemyHealth;
   let hp = health;
@@ -243,7 +256,9 @@ export function simulateDungeonRun(
   const combat = options.combat ?? DEFAULT_COMBAT_CONFIG;
   const lootConfig = options.loot ?? DEFAULT_LOOT_CONFIG;
   const dungeon: DungeonDefinition = getDungeon(input.dungeonId);
-  const roomTable = getLootTable(dungeon.lootTableId);
+  const tier = getDungeonTier(input.dungeonId, input.tier ?? 1);
+  const roomTable = getLootTable(tier.lootTableId);
+  const roomArea = { enemies: dungeon.enemies, minLevel: tier.minLevel, maxLevel: tier.maxLevel };
   const { classId } = input.character;
   const equipment = input.equipment ?? [];
   const modifiers = equipmentModifiers(equipment, activity.modifierCaps, lootConfig, {
@@ -290,7 +305,7 @@ export function simulateDungeonRun(
     rng: Rng,
     room: number | null,
     fightMomentum: number,
-    enrage?: BossEnrage,
+    enrage?: ResolvedEnrage,
   ): boolean => {
     const startMs = now;
     events.push({
@@ -363,7 +378,7 @@ export function simulateDungeonRun(
       const context = effectContext(k > 0 ? combat.searchMs : dungeon.travelMs);
       const setup = rollEncounter(
         rng,
-        dungeon,
+        roomArea,
         classId,
         characterLevel,
         stats,
@@ -394,6 +409,8 @@ export function simulateDungeonRun(
 
   let bossDefeated = false;
   let bossLoot = false;
+  // Ticket 3.6: the enrage moment has its own stream, so it never shifts another draw.
+  const enrage = resolveEnrage(tier.bossEnrage, createRng(`${input.seed}:boss-enrage`));
   if (alive) {
     events.push({ t: now, type: 'enter', room: null });
     now += dungeon.travelMs;
@@ -401,8 +418,8 @@ export function simulateDungeonRun(
     const context = effectContext(dungeon.travelMs);
     const setup: EncounterSetup = {
       ...buildEncounter(
-        getEnemy(dungeon.bossId),
-        dungeon.bossLevel,
+        scaleEnemy(getEnemy(dungeon.bossId), tier.bossScale),
+        tier.bossLevel,
         classId,
         level,
         stats,
@@ -410,21 +427,21 @@ export function simulateDungeonRun(
         encounterModifiers,
         context,
       ),
-      maxFightMs: dungeon.bossMaxFightMs,
+      maxFightMs: tier.bossMaxFightMs,
     };
     bossDefeated = fight(
       setup,
       createRng(`${input.seed}:boss`),
       null,
       context?.momentum ?? 0,
-      dungeon.bossEnrage,
+      enrage,
     );
     if (bossDefeated) {
       questEvents.push({ type: 'bossDefeated', bossId: dungeon.bossId });
       if (input.bossLootEligible) {
         bossLoot = true;
         const loot = rollBossLoot(
-          dungeon,
+          tier,
           createRng(`${input.seed}:boss-loot`),
           modifiers.goldFind,
           lootConfig,
@@ -456,6 +473,8 @@ export function simulateDungeonRun(
 
   return {
     dungeonId: dungeon.id,
+    tier: tier.tier,
+    enrageAtMs: enrage.atMs,
     outcome,
     durationMs: now,
     totalRooms: dungeon.rooms.length,
@@ -481,9 +500,39 @@ export function simulateDungeonRun(
   };
 }
 
+/**
+ * Ticket 3.6: one run's enrage moment, a whole second in the tier's window. Data with a fixed
+ * moment (`min === max`) draws nothing.
+ */
+export function resolveEnrage(enrage: BossEnrage, rng: Rng): ResolvedEnrage {
+  const { min, max } = enrage.atMs;
+  const steps = Math.max(0, Math.floor((max - min) / 1000));
+  return {
+    atMs: steps > 0 ? min + rng.int(0, steps) * 1000 : min,
+    damageMultiplier: enrage.damageMultiplier,
+    attackSpeedMultiplier: enrage.attackSpeedMultiplier,
+  };
+}
+
+/** Ticket 3.6: an enemy with its health and damage scaled (a deeper tier's boss). */
+export function scaleEnemy(enemy: EnemyDefinition, scale?: EnemyScale): EnemyDefinition {
+  if (!scale || (scale.health === 1 && scale.damage === 1)) return enemy;
+  return {
+    ...enemy,
+    health: {
+      base: enemy.health.base * scale.health,
+      perLevel: enemy.health.perLevel * scale.health,
+    },
+    damage: {
+      base: enemy.damage.base * scale.damage,
+      perLevel: enemy.damage.perLevel * scale.damage,
+    },
+  };
+}
+
 /** Boss items (fixed count, boosted rarity odds) and the boss purse. */
 function rollBossLoot(
-  dungeon: DungeonDefinition,
+  dungeon: DungeonTierDefinition,
   rng: Rng,
   goldFind: number,
   config: LootConfig,

@@ -22,7 +22,15 @@ import {
   type QuestEvent,
   type QuestObjective,
   type StoryQuestId,
+  isTargetedItemReward,
+  offersRewardSlot,
+  targetedRewardSlots,
+  targetedRewardSeed,
+  generateTargetedItem,
 } from './index.js';
+import { CLASS_IDS } from '../classes.js';
+import { canClassUseItem, getItemBase } from '../items/bases.js';
+import { validateItem } from '../loot/validate.js';
 
 function checkObjective(o: QuestObjective): void {
   switch (o.kind) {
@@ -53,7 +61,8 @@ describe('quest content', () => {
       if (i > 0) expect(q.level).toBeGreaterThanOrEqual(STORY_QUESTS[i - 1]!.level);
       expect(q.reward.xp).toBeGreaterThan(0);
       for (const id of Object.keys(q.reward.materials)) expect(isMaterialId(id)).toBe(true);
-      if (q.reward.item) {
+      expect(isTargetedItemReward(q.reward.item)).toBe(false);
+      if (q.reward.item && !isTargetedItemReward(q.reward.item)) {
         const base = findItemBase(q.reward.item.baseId);
         expect(base).toBeDefined();
         expect(RARITY_IDS).toContain(q.reward.item.rarityId);
@@ -269,5 +278,67 @@ describe('notice board', () => {
     expect(contractReward(t, 10).gold).toBeGreaterThan(contractReward(t, 2).gold);
     expect(contractDay(new Date('2026-11-04T23:59:59.999Z'))).toBe('2026-11-04');
     expect(contractDay(new Date('2026-11-05T00:00:00.000Z'))).toBe('2026-11-05');
+  });
+});
+
+describe('targeted contract rewards (ticket 3.6)', () => {
+  const abbey = CONTRACT_TEMPLATES.filter((t) => t.areaId === 'sunkenAbbey');
+
+  it('only Abbey contracts offer a reward slot', () => {
+    expect(abbey.length).toBeGreaterThan(0);
+    for (const t of CONTRACT_TEMPLATES)
+      expect(offersRewardSlot(t), t.id).toBe(t.areaId === 'sunkenAbbey');
+    const fields = CONTRACT_TEMPLATES.find((t) => t.areaId === 'abandonedFields')!;
+    expect(() => contractReward(fields, 5, 'ring')).toThrow(RangeError);
+    expect(contractReward(fields, 5).item).toBeNull();
+  });
+
+  it('the chosen slot is fixed in the reward at acceptance; gold and XP are unchanged', () => {
+    const t = abbey[0]!;
+    const plain = contractReward(t, 20);
+    const targeted = contractReward(t, 20, 'neck');
+    expect({ ...targeted, item: null }).toEqual(plain);
+    expect(targeted.item).toEqual({
+      slot: 'neck',
+      rarityId: 'epic',
+      itemLevel: 20,
+      lootTableId: 'sunkenAbbey',
+    });
+    // The item level stays inside the Abbey's item levels.
+    expect(contractReward(t, 30, 'neck').item).toMatchObject({ itemLevel: 23 });
+    expect(contractReward(t, 12, 'neck').item).toMatchObject({ itemLevel: 16 });
+  });
+
+  it('every class can choose every slot it can wear from the Abbey, and gets that slot', () => {
+    for (const c of CLASS_IDS) {
+      const slots = targetedRewardSlots(c, 20);
+      expect(slots, c).toEqual(
+        expect.arrayContaining(['head', 'chest', 'hands', 'feet', 'neck', 'ring', 'weapon']),
+      );
+      for (const slot of slots) {
+        const reward = contractReward(abbey[0]!, 20, slot).item!;
+        if (!isTargetedItemReward(reward)) throw new Error('not targeted');
+        for (let i = 0; i < 20; i++) {
+          const seed = targetedRewardSeed(`00000000-0000-7000-8000-${String(i).padStart(12, '0')}`);
+          const item = generateTargetedItem(reward, seed, c)!;
+          const base = getItemBase(item.baseId);
+          expect(base.slot, `${c} ${slot}`).toBe(slot);
+          expect(canClassUseItem(base, c)).toBe(true);
+          expect(base.unique).toBeFalsy();
+          expect(item.rarityId).toBe('epic');
+          expect(item.itemLevel).toBe(20);
+          expect(item.variant).toBeUndefined();
+          expect(validateItem(item), `${c} ${slot}`).toEqual([]);
+          // Deterministic in the seed.
+          expect(generateTargetedItem(reward, seed, c)).toEqual(item);
+        }
+      }
+    }
+  });
+
+  it('the seed comes from the quest row, so one contract always grants the same item', () => {
+    const id = '0190f5d2-7c1e-7a3b-9d4e-5f6a7b8c9d0e';
+    expect(targetedRewardSeed(id)).toBe(targetedRewardSeed(id));
+    expect(targetedRewardSeed(id)).not.toBe(targetedRewardSeed(`${id.slice(0, -1)}f`));
   });
 });

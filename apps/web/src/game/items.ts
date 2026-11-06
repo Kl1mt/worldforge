@@ -177,7 +177,8 @@ export function uniqueSourceOf(baseId: string): string | null {
   const base = findItemBase(baseId);
   if (!base?.unique || mythicForBase(baseId) || setForBase(baseId)) return null;
   const table = BOSS_LOOT_TABLES.find((t) => t.entries.some((e) => e.baseId === baseId));
-  const dungeon = table && DUNGEONS.find((d) => d.bossLoot.lootTableId === table.id);
+  const dungeon =
+    table && DUNGEONS.find((d) => d.tiers.some((t) => t.bossLoot.lootTableId === table.id));
   return dungeon ? `${getEnemy(dungeon.bossId).name} of ${dungeon.name}` : 'a boss';
 }
 

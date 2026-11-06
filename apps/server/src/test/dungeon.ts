@@ -6,6 +6,7 @@ import {
   equipmentSlotsForKind,
   generateItem,
   type ClassId,
+  type RarityId,
 } from '@worldforge/game-core';
 import { characters, itemInstances } from '../db/schema.js';
 import type { Database } from '../db/types.js';
@@ -13,14 +14,15 @@ import { uuidv7 } from '../db/uuid.js';
 
 /**
  * Test helper (ticket 2.5): sets the character's level and equips one uncommon tier-3 item per
- * slot at that level — the gear a crypt-ready hero has collected by farming.
+ * slot at that level — the gear a crypt-ready hero has collected by farming. Ticket 3.6: another
+ * `rarityId` (e.g. Legendaries for the deeper tiers).
  */
 export async function makeCryptReady(
   db: Database,
   characterId: string,
   classId: ClassId,
   level: number,
-  { gear = true }: { gear?: boolean } = {},
+  { gear = true, rarityId = 'uncommon' }: { gear?: boolean; rarityId?: RarityId } = {},
 ): Promise<void> {
   await db.update(characters).set({ level, experience: 0 }).where(eq(characters.id, characterId));
   if (!gear) return;
@@ -38,7 +40,7 @@ export async function makeCryptReady(
         seed: rng.int(0, 2 ** 31),
         itemLevel: level,
         baseId: base.id,
-        rarityId: 'uncommon',
+        rarityId,
       })!;
       rows.push({ id: uuidv7(), characterId, ...item, equippedSlot: slot, source: 'test' });
     }

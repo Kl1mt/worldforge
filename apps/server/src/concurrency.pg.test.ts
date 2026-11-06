@@ -15,7 +15,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { and, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import {
   attemptUpgrade,
@@ -515,6 +515,71 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
         claims: 1,
         gold: result.goldGained,
       });
+    });
+
+    it('tier III (ticket 3.6): racing claims and re-entries grant once and clear the tier once', async () => {
+      const p = await newPlayer();
+      const id = await newCharacter(p);
+      await makeCryptReady(database.db, id, 'warrior', 22, { rarityId: 'legendary' });
+      await database.db
+        .update(characters)
+        .set({ progress: { gravewardenDefeated: true, cryptTierCleared: 2 } })
+        .where(eq(characters.id, id));
+      const res = await call(p, 'POST', `/api/characters/${id}/dungeon`, {
+        dungeonId: 'namelessCrypt',
+        tier: 3,
+      });
+      expect(res.statusCode).toBe(201);
+      const run = res.json<{ run: { id: string; tier: number; endsAt: string } }>().run;
+      expect(run.tier).toBe(3);
+      nowMs = Math.max(nowMs, Date.parse(run.endsAt));
+      const results = await Promise.all([
+        ...Array.from({ length: N }, (_, i) => claim(p, id, `tier3-claim-${id}-${i}`)),
+        call(p, 'POST', `/api/characters/${id}/dungeon`, { dungeonId: 'namelessCrypt', tier: 1 }),
+        call(p, 'POST', `/api/characters/${id}/dungeon`, { dungeonId: 'namelessCrypt', tier: 3 }),
+      ]);
+      const claims = results.slice(0, N);
+      const entries = results.slice(N);
+      const ok = claims.filter((r) => r.statusCode === 200);
+      expect(ok).toHaveLength(1);
+      for (const r of claims.filter((x) => x.statusCode !== 200)) {
+        expect(r.json()).toMatchObject({ error: { code: 'no_dungeon_run' } });
+      }
+      // An entry either lost to the open run or came after the claim; never two open runs.
+      for (const r of entries) expect([201, 409]).toContain(r.statusCode);
+      expect(entries.filter((r) => r.statusCode === 201).length).toBeLessThanOrEqual(1);
+      const open = await database.db
+        .select()
+        .from(dungeonRuns)
+        .where(and(eq(dungeonRuns.characterId, id), isNull(dungeonRuns.claimedAt)));
+      expect(open.length).toBe(entries.filter((r) => r.statusCode === 201).length);
+      const result = ok[0]!.json<{
+        result: {
+          tier: number;
+          items: unknown[];
+          goldGained: number;
+          bossDefeated: boolean;
+          firstTierClear: boolean;
+        };
+      }>().result;
+      expect(result.tier).toBe(3);
+      expect(result.firstTierClear).toBe(result.bossDefeated);
+      expect(await granted(id)).toEqual({
+        items: result.items.length,
+        seal: result.bossDefeated ? 1 : 0,
+        claims: 1,
+        gold: result.goldGained,
+      });
+      const [c] = await database.db.select().from(characters).where(eq(characters.id, id));
+      expect(c!.progress).toEqual({
+        gravewardenDefeated: true,
+        cryptTierCleared: result.bossDefeated ? 3 : 2,
+      });
+      const [claimAudit] = await database.db
+        .select()
+        .from(auditLog)
+        .where(and(eq(auditLog.characterId, id), eq(auditLog.event, 'dungeon.claim')));
+      expect(claimAudit!.data).toMatchObject({ tier: 3, runId: run.id });
     });
 
     it('never lets a run and farming coexist when dungeon and farming starts race', async () => {

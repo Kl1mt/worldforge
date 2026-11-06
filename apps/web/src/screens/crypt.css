@@ -233,6 +233,59 @@
   font-weight: 600;
 }
 
+/* ── Depth (tier) choice, ticket 3.6 ───────────────────────────────────── */
+.crypt-tiers {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.btn.crypt-tier {
+  display: grid;
+  grid-auto-flow: row;
+  align-content: start;
+  gap: var(--space-1);
+  justify-items: start;
+  min-height: 0;
+  height: auto;
+  padding: var(--space-2) var(--space-3);
+  text-align: left;
+  white-space: normal;
+}
+
+.crypt-tier__name {
+  font-size: var(--text-lg);
+  color: var(--bone-100);
+}
+
+.crypt-tier[aria-checked='true'] .crypt-tier__name {
+  color: var(--accent-strong);
+}
+
+.crypt-tier__levels {
+  font-size: var(--text-xs);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.crypt-tier__focus {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.crypt-tier--locked .crypt-tier__name,
+.crypt-tier--locked .crypt-tier__focus {
+  color: var(--text-dim);
+}
+
+.crypt-door__focus {
+  color: var(--brass-300);
+  font-style: normal;
+  font-weight: 600;
+}
+
 /* ── Log tones ─────────────────────────────────────────────────────────── */
 .crypt-log__hit {
   color: var(--text-muted);

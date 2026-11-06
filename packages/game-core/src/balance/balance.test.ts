@@ -16,7 +16,7 @@ import {
   createRng,
   generateItem,
   getArea,
-  getDungeon,
+  getDungeonTier,
   getItemBase,
   getMaterial,
   legendaryEffectPool,
@@ -25,6 +25,7 @@ import {
   type AreaDefinition,
   type AreaId,
   type ClassId,
+  type DungeonTier,
   type FarmingSettlement,
   type GeneratedItem,
   type MaterialId,
@@ -131,6 +132,22 @@ function geared(classId: ClassId, level: number, areaId: AreaId, lag = 1): FarmS
 }
 
 const mid = (a: AreaDefinition) => a.minLevel + 2;
+
+/** The kit with its first ring replaced by a synthetic Legendary ring carrying one effect. */
+function wearRing(gear: GeneratedItem[], effectId: string): GeneratedItem[] {
+  const out = [...gear];
+  const i = out.findIndex((g) => getItemBase(g.baseId).slot === 'ring');
+  out[i] = {
+    seed: 1,
+    baseId: 'iron-ring',
+    rarityId: 'legendary',
+    itemLevel: 1,
+    affixes: [],
+    effectId,
+    effectRoll: 1,
+  };
+  return out;
+}
 const stats = (areaId: AreaId, level: number) =>
   CLASS_IDS.map((c) => ({ classId: c, ...geared(c, level, areaId) }));
 
@@ -366,13 +383,20 @@ describe('balance (ticket B.1)', () => {
     });
   });
 
-  describe('the Nameless Crypt', () => {
-    const crypt = getDungeon('namelessCrypt');
-    const RUNS = 16;
-    const runs = (classId: ClassId, level: number, equipment: GeneratedItem[]) =>
-      Array.from({ length: RUNS }, (_, i) =>
+  describe('the Nameless Crypt (tiers: ticket 3.6)', () => {
+    const crypt = getDungeonTier('namelessCrypt', 1);
+    const RUNS = 64;
+    const runs = (
+      classId: ClassId,
+      level: number,
+      equipment: GeneratedItem[],
+      tier: DungeonTier = 1,
+      n = RUNS,
+    ) =>
+      Array.from({ length: n }, (_, i) =>
         simulateDungeonRun({
           dungeonId: 'namelessCrypt',
+          tier,
           character: { classId, level, xp: 0 },
           equipment,
           seed: `crypt-balance:${i}`,
@@ -380,21 +404,120 @@ describe('balance (ticket B.1)', () => {
           inventoryCount: 0,
         }),
       );
-    const winRate = (rs: ReturnType<typeof runs>) =>
+    const winRate = (rs: { bossDefeated: boolean }[]) =>
       rs.filter((r) => r.bossDefeated).length / rs.length;
+    /** Win rate per class and the mean over the classes. */
+    const rates = (f: (c: ClassId) => number) => {
+      const per = Object.fromEntries(CLASS_IDS.map((c) => [c, f(c)])) as Record<ClassId, number>;
+      return { per, mean: CLASS_IDS.reduce((s, c) => s + per[c], 0) / CLASS_IDS.length };
+    };
+    const upgraded = (items: GeneratedItem[], upgradeLevel: number) =>
+      items.map((i) => ({ ...i, upgradeLevel }));
+    /** Every kit slot as a Legendary with an effect rolled for the class. */
+    const legendaryKit = (c: ClassId, itemLevel: number): GeneratedItem[] =>
+      kit(c, itemLevel, 'legendary').map((item) =>
+        generateItem({
+          seed: item.seed,
+          itemLevel,
+          baseId: item.baseId,
+          rarityId: 'legendary',
+          classId: c,
+        })!,
+      );
+    /** A set's six pieces in their slots of `gear`. */
+    const withSet = (c: ClassId, gear: GeneratedItem[], setId: string, itemLevel: number) => {
+      const out = [...gear];
+      const used = new Set<number>();
+      ITEM_SETS.find((x) => x.id === setId)!.pieces.forEach((id, i) => {
+        const slot = getItemBase(id).slot;
+        const at = out.findIndex((g, j) => !used.has(j) && getItemBase(g.baseId).slot === slot);
+        out[at] = generateItem({ seed: 100 + i, itemLevel, baseId: id, classId: c })!;
+        used.add(at);
+      });
+      return out;
+    };
+    /** The class's Mythic weapon in place of the kit's weapon. */
+    const withMythic = (c: ClassId, gear: GeneratedItem[], itemLevel: number) => {
+      const m = MYTHIC_ITEMS.find(
+        (x) => getItemBase(x.baseId).slot === 'weapon' && canClassUseItem(getItemBase(x.baseId), c),
+      )!;
+      const item = generateItem({ seed: 7, itemLevel, baseId: m.baseId, classId: c })!;
+      return gear.map((g) => (getItemBase(g.baseId).slot === 'weapon' ? item : g));
+    };
+    const asVoid = (items: GeneratedItem[]) =>
+      items.map((i) =>
+        i.rarityId === 'legendary' || i.rarityId === 'mythic'
+          ? { ...i, variant: 'void' as const }
+          : i,
+      );
+    /** The Phase 3 best-in-slot builds at an item level (each must make a tier reliable). */
+    const bestInSlot = (c: ClassId, il: number): [string, GeneratedItem[]][] => [
+      ['legendary', legendaryKit(c, il)],
+      ['vigil 6 + legendary', withSet(c, legendaryKit(c, il), 'drowned-vigil', il)],
+      ['choir 6 + legendary', withSet(c, legendaryKit(c, il), 'ashen-choir', il)],
+      ['mythic + legendary', withMythic(c, legendaryKit(c, il), il)],
+      ['legendary +10', upgraded(legendaryKit(c, il), 10)],
+      ['void legendary +10', asVoid(upgraded(legendaryKit(c, il), 10))],
+    ];
 
-    it('the Gravewarden is beatable by a geared hero at the crypt’s level, but not trivially', () => {
+    it('tier I: a curve, not a cliff, from the entry to the tier’s level', () => {
+      const entry = crypt.unlock.level;
+      // Naked heroes never win, even at the boss's level.
+      for (const c of CLASS_IDS) expect(winRate(runs(c, crypt.bossLevel, [])), c).toBe(0);
+      // Plain commons at the entry: a small chance (the B.1 cliff said never).
+      const commons = rates((c) => winRate(runs(c, entry, kit(c, entry - 1))));
+      for (const c of CLASS_IDS) expect(commons.per[c], `${c} entry`).toBeLessThanOrEqual(0.5);
+      expect(commons.mean).toBeGreaterThanOrEqual(0.05);
+      expect(commons.mean).toBeLessThanOrEqual(0.3);
+      // Decent gear and some upgrades: a real, but not certain, chance for every class.
+      const decent: [string, (c: ClassId) => GeneratedItem[]][] = [
+        ['commons +5', (c) => upgraded(kit(c, entry - 1), 5)],
+        ['uncommons', (c) => kit(c, entry, 'uncommon')],
+        ['commons + Tyrant’s Bane', (c) => wearRing(kit(c, entry - 1), 'tyrants-bane')],
+      ];
+      for (const [label, gear] of decent) {
+        const r = rates((c) => winRate(runs(c, entry, gear(c))));
+        for (const c of CLASS_IDS) {
+          expect(r.per[c], `${c} ${label}`).toBeGreaterThanOrEqual(0.25);
+          expect(r.per[c], `${c} ${label}`).toBeLessThanOrEqual(0.9);
+        }
+      }
+      // Every upgrade step and every level helps (gradually).
+      const byUpgrade = [0, 3, 5, 7].map(
+        (u) => rates((c) => winRate(runs(c, entry, upgraded(kit(c, entry - 1), u)))).mean,
+      );
+      for (let i = 1; i < byUpgrade.length; i++) {
+        expect(byUpgrade[i]!, `+${[0, 3, 5, 7][i]}`).toBeGreaterThan(byUpgrade[i - 1]!);
+      }
+      expect(byUpgrade.at(-1)!).toBeLessThan(0.9);
+      const byLevel = [entry, entry + 1, entry + 2, entry + 3].map(
+        (l) => rates((c) => winRate(runs(c, l, kit(c, l - 1)))).mean,
+      );
+      for (let i = 1; i < byLevel.length; i++) {
+        expect(byLevel[i]!, `L${entry + i}`).toBeGreaterThan(byLevel[i - 1]!);
+      }
+      // The tier's level with plain gear (B.1's "geared 15") and best-in-slot are reliable.
       for (const c of CLASS_IDS) {
-        expect(winRate(runs(c, crypt.maxLevel, [])), `${c} naked`).toBe(0);
-        expect(winRate(runs(c, crypt.minLevel, kit(c, crypt.minLevel - 1))), `${c} entry`).toBe(0);
-        const geared = runs(c, 15, kit(c, 14));
-        expect(winRate(geared), `${c} geared 15`).toBeGreaterThanOrEqual(0.9);
-        expect(winRate(runs(c, 14, kit(c, 14, 'uncommon'))), `${c} uncommon 14`).toBe(1);
-        // Not trivial: the boss takes most of the pre-enrage window and a third of the hero's health.
-        for (const r of geared) {
+        expect(winRate(runs(c, 15, kit(c, 14))), `${c} geared 15`).toBeGreaterThanOrEqual(0.9);
+        expect(winRate(runs(c, entry, kit(c, entry, 'rare'))), `${c} rares`).toBeGreaterThanOrEqual(
+          0.95,
+        );
+        for (const [label, gear] of [
+          ['vigil 6', withSet(c, kit(c, entry - 1), 'drowned-vigil', 14)],
+          ['legendary', legendaryKit(c, 14)],
+        ] as const) {
+          expect(winRate(runs(c, entry, gear)), `${c} ${label}`).toBeGreaterThanOrEqual(0.95);
+        }
+      }
+    });
+
+    it('tier I is not trivial for a hero at the tier’s level', () => {
+      for (const c of CLASS_IDS) {
+        for (const r of runs(c, 15, kit(c, 14)).filter((x) => x.bossDefeated)) {
+          // The boss takes longer than the earliest enrage and a third of the hero's health.
           const boss = r.encounters.at(-1)!;
           expect(boss.room).toBeNull();
-          expect(boss.endMs - boss.startMs, c).toBeGreaterThan(crypt.bossEnrage.atMs * 0.8);
+          expect(boss.endMs - boss.startMs, c).toBeGreaterThan(crypt.bossEnrage.atMs.min * 1.2);
           const spawn = r.events.findLast((e) => e.type === 'spawn')!;
           const hit = r.events.findLast((e) => e.type === 'enemyAttack')!;
           if (spawn.type !== 'spawn' || hit.type !== 'enemyAttack')
@@ -404,13 +527,100 @@ describe('balance (ticket B.1)', () => {
       }
     });
 
-    it('a run pays at most about twice the XP of farming for the same time', () => {
+    it('tier II: Abbey rares give a chance, rares with upgrades or epics a good one, BiS is reliable', () => {
+      const t = getDungeonTier('namelessCrypt', 2);
+      const entry = t.unlock.level;
+      const at = (gear: (c: ClassId) => GeneratedItem[], level = entry) =>
+        rates((c) => winRate(runs(c, level, gear(c), 2, 32)));
+      for (const c of CLASS_IDS) expect(winRate(runs(c, t.bossLevel, [], 2, 16)), c).toBe(0);
+      // Commons are left behind, even with upgrades.
+      expect(at((c) => upgraded(kit(c, entry - 1), 5)).mean).toBeLessThanOrEqual(0.1);
+      const rare = at((c) => kit(c, entry - 1, 'rare'));
+      expect(rare.mean).toBeGreaterThanOrEqual(0.2);
+      expect(rare.mean).toBeLessThanOrEqual(0.7);
+      // Upgrades, epics or two more levels each lift it, short of certain.
+      const better: [(c: ClassId) => GeneratedItem[], number][] = [
+        [(c) => upgraded(kit(c, entry - 1, 'rare'), 5), entry],
+        [(c) => kit(c, entry - 1, 'epic'), entry],
+        [(c) => kit(c, entry + 1, 'rare'), entry + 2],
+      ];
+      for (const [gear, level] of better) {
+        const r = at(gear, level);
+        expect(r.mean).toBeGreaterThan(rare.mean);
+        expect(r.mean).toBeLessThanOrEqual(0.95);
+      }
       for (const c of CLASS_IDS) {
-        const rs = runs(c, 15, kit(c, 14));
-        const xpPerHour = rs.reduce((s, r) => s + r.xpGained / (r.durationMs / HOUR), 0) / RUNS;
-        const farming = geared(c, 15, 'blackwater').xpPerHour;
-        expect(xpPerHour / farming, c).toBeGreaterThan(1);
-        expect(xpPerHour / farming, c).toBeLessThan(2.2);
+        for (const [label, gear] of bestInSlot(c, entry - 1)) {
+          expect(winRate(runs(c, entry, gear, 2, 32)), `${c} ${label}`).toBeGreaterThanOrEqual(
+            0.95,
+          );
+        }
+      }
+    });
+
+    it('tier III: needs Phase 3 gear; epics with upgrades have a chance, BiS is reliable', () => {
+      const t = getDungeonTier('namelessCrypt', 3);
+      const entry = t.unlock.level;
+      const at = (gear: (c: ClassId) => GeneratedItem[]) =>
+        rates((c) => winRate(runs(c, entry, gear(c), 3, 32)));
+      for (const c of CLASS_IDS) expect(winRate(runs(c, t.bossLevel, [], 3, 16)), c).toBe(0);
+      expect(at((c) => kit(c, entry - 1)).mean).toBe(0);
+      expect(at((c) => kit(c, entry - 1, 'rare')).mean).toBeLessThanOrEqual(0.1);
+      const epic = at((c) => kit(c, entry - 1, 'epic'));
+      expect(epic.mean).toBeLessThanOrEqual(0.4);
+      const epic5 = at((c) => upgraded(kit(c, entry - 1, 'epic'), 5));
+      expect(epic5.mean).toBeGreaterThan(epic.mean);
+      expect(epic5.mean).toBeGreaterThanOrEqual(0.3);
+      expect(epic5.mean).toBeLessThanOrEqual(0.85);
+      // Deeper is harder: the same epics do worse than in tier II at its entry.
+      const t2 = getDungeonTier('namelessCrypt', 2).unlock.level;
+      const epicII = rates((c) => winRate(runs(c, t2, kit(c, t2 - 1, 'epic'), 2, 32)));
+      expect(epic.mean).toBeLessThan(epicII.mean);
+      // Legendaries make it likely, the best-in-slot builds reliable.
+      expect(at((c) => legendaryKit(c, entry - 1)).mean).toBeGreaterThanOrEqual(0.9);
+      for (const c of CLASS_IDS) {
+        for (const [label, gear] of bestInSlot(c, entry - 1).slice(1)) {
+          expect(winRate(runs(c, entry, gear, 3, 32)), `${c} ${label}`).toBeGreaterThanOrEqual(
+            0.95,
+          );
+        }
+      }
+    });
+
+    it('no build trivialises the deeper tiers: the boss outlasts a share of the earliest enrage', () => {
+      for (const tier of [1, 2, 3] as const) {
+        const t = getDungeonTier('namelessCrypt', tier);
+        for (const c of CLASS_IDS) {
+          for (const [label, gear] of bestInSlot(c, t.unlock.level + 1)) {
+            for (const r of runs(c, t.bossLevel, gear, tier, 8)) {
+              const boss = r.encounters.at(-1)!;
+              expect(boss.room, `${tier} ${c} ${label}`).toBeNull();
+              // Tier I is far below these builds' level; tier III is where they belong.
+              if (tier === 1) continue;
+              expect(boss.endMs - boss.startMs, `${tier} ${c} ${label}`).toBeGreaterThan(
+                t.bossEnrage.atMs.min * (tier === 2 ? 0.35 : 0.55),
+              );
+            }
+          }
+        }
+      }
+    });
+
+    it('a run pays at most about twice the XP of farming for the same time', () => {
+      const cases: [DungeonTier, number, (c: ClassId) => GeneratedItem[], AreaId][] = [
+        [1, 15, (c) => kit(c, 14), 'blackwater'],
+        [2, 20, (c) => kit(c, 19, 'epic'), 'sunkenAbbey'],
+        [3, 22, (c) => legendaryKit(c, 21), 'sunkenAbbey'],
+      ];
+      for (const [tier, level, gear, area] of cases) {
+        for (const c of CLASS_IDS) {
+          const rs = runs(c, level, gear(c), tier, 16);
+          const xpPerHour =
+            rs.reduce((s, r) => s + r.xpGained / (r.durationMs / HOUR), 0) / rs.length;
+          const farming = farm(c, level, area, gear(c)).xpPerHour;
+          expect(xpPerHour / farming, `${tier} ${c}`).toBeGreaterThan(0.8);
+          expect(xpPerHour / farming, `${tier} ${c}`).toBeLessThan(2.2);
+        }
       }
     });
   });
@@ -449,7 +659,7 @@ describe('balance (ticket B.1)', () => {
     });
 
     it('capped boss and skill damage speed up the Gravewarden without trivialising it', () => {
-      const crypt = getDungeon('namelessCrypt');
+      const crypt = getDungeonTier('namelessCrypt', 1);
       for (const c of CLASS_IDS) {
         const gear = [...kit(c, 14), overCap('boss-damage', skillAffix(c))];
         for (let i = 0; i < 8; i++) {
@@ -463,8 +673,8 @@ describe('balance (ticket B.1)', () => {
           });
           expect(r.bossDefeated, c).toBe(true);
           const boss = r.encounters.at(-1)!;
-          // Still most of the pre-enrage window (geared without modifiers: ~1.0–1.2×).
-          expect(boss.endMs - boss.startMs, c).toBeGreaterThan(crypt.bossEnrage.atMs * 0.6);
+          // Still 90 % of the earliest enrage moment (27 s, the pre-3.6 threshold).
+          expect(boss.endMs - boss.startMs, c).toBeGreaterThan(crypt.bossEnrage.atMs.min * 0.9);
         }
       }
     });
@@ -574,7 +784,7 @@ describe('balance (ticket B.1)', () => {
     });
 
     it('effects move the crypt but do not trivialise the Gravewarden', () => {
-      const crypt = getDungeon('namelessCrypt');
+      const crypt = getDungeonTier('namelessCrypt', 1);
       const unique = [...legendaries, ...EFFECTS.filter((e) => e.kind === 'mythic')];
       for (const c of CLASS_IDS) {
         for (const e of unique.filter((x) => !x.classId || x.classId === c)) {
@@ -583,12 +793,17 @@ describe('balance (ticket B.1)', () => {
             cryptRuns(c, crypt.maxLevel, [effectRing(e.id)], 4).some((r) => r.bossDefeated),
             `${c} ${e.id} naked`,
           ).toBe(false);
-          // Geared at 15 it still wins, and the boss still takes most of the pre-enrage window.
-          for (const r of cryptRuns(c, 15, [...kit(c, 14), effectRing(e.id)], 6)) {
-            expect(r.bossDefeated, `${c} ${e.id}`).toBe(true);
+          // Geared at 15 it still wins (nearly always: since 3.6 an early enrage can catch any
+          // hero), and the boss still takes 90 % of the earliest enrage moment (27 s, as before).
+          const geared = cryptRuns(c, 15, [...kit(c, 14), effectRing(e.id)], 16);
+          expect(
+            geared.filter((r) => r.bossDefeated).length,
+            `${c} ${e.id}`,
+          ).toBeGreaterThanOrEqual(14);
+          for (const r of geared.filter((x) => x.bossDefeated)) {
             const boss = r.encounters.at(-1)!;
             expect(boss.endMs - boss.startMs, `${c} ${e.id}`).toBeGreaterThan(
-              crypt.bossEnrage.atMs * 0.6,
+              crypt.bossEnrage.atMs.min * 0.9,
             );
           }
         }
@@ -803,7 +1018,7 @@ describe('balance (ticket B.1)', () => {
     });
 
     it('full set bonuses move the crypt but do not trivialise the Gravewarden', () => {
-      const crypt = getDungeon('namelessCrypt');
+      const crypt = getDungeonTier('namelessCrypt', 1);
       for (const c of CLASS_IDS) {
         for (const set of ITEM_SETS) {
           const bonus = set.bonuses.map((b) => bonusRing(b.effectId));
@@ -813,12 +1028,14 @@ describe('balance (ticket B.1)', () => {
             bossRuns(c, bonus, 4).some((r) => r.bossDefeated),
             `${label} naked`,
           ).toBe(false);
-          // Geared at 15 it still wins, and the boss still takes 45 % of the pre-enrage window
-          // (three bonuses at once; a single effect keeps 60 %, see above).
+          // Geared at 15 it still wins, and the boss still takes 2/3 of the earliest enrage
+          // moment (20 s, the pre-3.6 threshold; three bonuses at once, one effect keeps 27 s).
           for (const r of bossRuns(c, [...kit(c, 14), ...bonus])) {
             expect(r.bossDefeated, label).toBe(true);
             const boss = r.encounters.at(-1)!;
-            expect(boss.endMs - boss.startMs, label).toBeGreaterThan(crypt.bossEnrage.atMs * 0.45);
+            expect(boss.endMs - boss.startMs, label).toBeGreaterThan(
+              crypt.bossEnrage.atMs.min * 0.675,
+            );
           }
         }
       }
@@ -940,7 +1157,7 @@ describe('balance (ticket B.1)', () => {
   describe('forge upgrades (ticket 3.4)', () => {
     const upgraded = (items: GeneratedItem[], upgradeLevel: number) =>
       items.map((i) => ({ ...i, upgradeLevel }));
-    const crypt = getDungeon('namelessCrypt');
+    const crypt = getDungeonTier('namelessCrypt', 1);
     const winRate = (rs: { bossDefeated: boolean }[]) =>
       rs.filter((r) => r.bossDefeated).length / rs.length;
     const cryptRuns = (classId: ClassId, level: number, equipment: GeneratedItem[], n = 16) =>
@@ -995,17 +1212,18 @@ describe('balance (ticket B.1)', () => {
 
     it('upgrades move the crypt entry, but never let a naked hero or trivialise the Gravewarden', () => {
       for (const c of CLASS_IDS) {
-        // The 3.1 cliff, not retuned: +0 commons at level 12 never win (docs/ECONOMY.md reports
-        // how upgrades move it: +7 commons win most entries).
-        expect(winRate(cryptRuns(c, 12, kit(c, 11))), `${c} +0 entry`).toBe(0);
-        expect(winRate(cryptRuns(c, 12, upgraded(kit(c, 11), 3))), `${c} +3 entry`).toBeLessThan(
-          0.25,
-        );
-        // A geared +10 hero at 15 always wins, but the boss still takes most of the window.
+        // Since 3.6 the entry is a curve (the tier test): upgrades raise the chance step by
+        // step, and a few of them on commons never make the entry certain.
+        const plus0 = winRate(cryptRuns(c, 12, kit(c, 11)));
+        const plus3 = winRate(cryptRuns(c, 12, upgraded(kit(c, 11), 3)));
+        expect(plus3, `${c} +3 entry`).toBeGreaterThan(plus0);
+        expect(plus3, `${c} +3 entry`).toBeLessThan(0.75);
+        // A geared +10 hero at 15 always wins, but the boss still takes longer than the earliest
+        // enrage (31.5 s, as before).
         for (const r of cryptRuns(c, 15, upgraded(kit(c, 14), 10), 8)) {
           expect(r.bossDefeated, c).toBe(true);
           const boss = r.encounters.at(-1)!;
-          expect(boss.endMs - boss.startMs, c).toBeGreaterThan(crypt.bossEnrage.atMs * 0.7);
+          expect(boss.endMs - boss.startMs, c).toBeGreaterThan(crypt.bossEnrage.atMs.min * 1.05);
         }
       }
     });

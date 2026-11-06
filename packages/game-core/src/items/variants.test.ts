@@ -58,7 +58,16 @@ describe('Void content (ticket 3.5)', () => {
 
   it('only the late-game sources roll Void, and every chance is under the hard cap', () => {
     const withVoid = LOOT_TABLES.filter((t) => effectiveVoidChance(t) > 0).map((t) => t.id);
-    expect(withVoid.sort()).toEqual(['gravewarden', 'namelessCrypt', 'sunkenAbbey']);
+    // Ticket 3.6 adds the deeper crypt tiers' chambers and Gravewarden.
+    expect(withVoid.sort()).toEqual([
+      'gravewarden',
+      'gravewardenII',
+      'gravewardenIII',
+      'namelessCrypt',
+      'namelessCryptII',
+      'namelessCryptIII',
+      'sunkenAbbey',
+    ]);
     for (const t of LOOT_TABLES) {
       expect(effectiveVoidChance(t)).toBeLessThanOrEqual(DEFAULT_LOOT_CONFIG.maxVoidChance);
     }

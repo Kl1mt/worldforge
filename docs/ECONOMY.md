@@ -110,7 +110,7 @@ Plus about 41 soul shards per item for the whole track. **Reading:** the first s
 ### Power (asserted in `balance.test.ts`)
 Upgrades are a moderate edge, mostly safety (base armour and health). A **+10 common kit** at every area's middle and top level: kills × 1.04–1.16 of the same kit at +0, damage share down by about a third, deaths ≤ 2/h; monotone from +0 to +5 to +10; asserted below × 1.25. A +10 rare kit in the Abbey (19, 22) stays in the same bands. A geared +10 hero at 15 always beats the Gravewarden, who still takes > 70 % of the pre-enrage window; +0 is unchanged everywhere (`noEffects.test.ts` reruns the pinned hashes with +0 items carrying forge counters and affix marks).
 
-**Crypt entry (the 3.1 cliff, not retuned).** Win rate of a level-12 hero in item-level-11 commons at each upgrade level (16 seeds):
+**Crypt entry (the 3.1 cliff as it was before ticket 3.6).** Win rate of a level-12 hero in item-level-11 commons at each upgrade level (16 seeds):
 
 | Kit | Warrior | Mage | Hunter | Warlock |
 |---|---|---|---|---|
@@ -120,7 +120,7 @@ Upgrades are a moderate edge, mostly safety (base armour and health). A **+10 co
 | +7 | 100 % | 88 % | 100 % | 63 % |
 | +10 | 100 % | 100 % | 100 % | 100 % |
 
-Upgrades move the cliff like the boss effects do: a +7 kit of commons (≈ 9 × 2–4k gold at item level 11) turns the level-12 entry into a near-certain win; +3 does not move it. Asserted: +0 stays at 0 %, +3 below 25 %. The cliff itself is for 3.6/B.2.
+Upgrades move the cliff like the boss effects do: a +7 kit of commons (≈ 9 × 2–4k gold at item level 11) turns the level-12 entry into a near-certain win; +3 does not move it. Ticket 3.6 resolved the cliff (`docs/DUNGEONS.md`, "Tiers and balance"): with the enrage drawn per run from 30–70 s, level-12 commons win 11–42 % at +0, 28–56 % at +3, 41–58 % at +5 and 55–66 % at +7, so every upgrade step helps and none makes the entry certain. Asserted now: each step raises the mean win rate, +3 stays below 75 % per class, +7 below 90 % on average, and a +10 kit at 15 always wins with the boss taking over 31.5 s.
 
 ### Server rules
 - `GET /characters/:id/forge/items/:itemId` quotes the next upgrade (chance, pity, cost, blockers), the reroll price and options per affix (affixes and tier ranges) and each affix's improvement state. `POST …/forge/upgrade` `{ itemId }`, `…/forge/reroll` and `…/forge/improve` `{ itemId, affixIndex }` need an `Idempotency-Key`, lock the character (settling its activity first), then the item, check refusals and the purse **before** paying or drawing, and write `forge.upgrade` / `forge.reroll` / `forge.improve` audit events (item, `forgeCounter` drawn, gold, materials, outcome; never the secret).

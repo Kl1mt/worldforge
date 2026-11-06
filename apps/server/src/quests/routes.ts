@@ -32,6 +32,8 @@ const acceptBodySchema = {
     kind: { type: 'string', enum: ['story', 'contract'] },
     questId: { type: 'string', minLength: 1, maxLength: 64 },
     slot: { type: 'integer', minimum: 0, maximum: 15 },
+    /** Ticket 3.6: the reward item's slot, for contracts that offer a choice. */
+    rewardSlot: { type: 'string', minLength: 1, maxLength: 16 },
   },
 } as const;
 
@@ -69,7 +71,12 @@ export async function registerQuests(
     async (request) => {
       const accountId = request.auth!.account.id;
       const [character] = await app.db
-        .select({ id: characters.id, level: characters.level, progress: characters.progress })
+        .select({
+          id: characters.id,
+          classId: characters.classId,
+          level: characters.level,
+          progress: characters.progress,
+        })
         .from(characters)
         .where(
           and(eq(characters.id, request.params.characterId), eq(characters.accountId, accountId)),
@@ -82,7 +89,7 @@ export async function registerQuests(
 
   app.post<{
     Params: { characterId: string };
-    Body: { kind: string; questId?: string; slot?: number };
+    Body: { kind: string; questId?: string; slot?: number; rewardSlot?: string };
   }>(
     '/characters/:characterId/quests',
     {
@@ -93,19 +100,28 @@ export async function registerQuests(
       const accountId = request.auth!.account.id;
       const body = request.body;
       let accept: AcceptRequest;
-      if (body.kind === 'story' && body.questId !== undefined && body.slot === undefined) {
+      if (
+        body.kind === 'story' &&
+        body.questId !== undefined &&
+        body.slot === undefined &&
+        body.rewardSlot === undefined
+      ) {
         accept = { kind: 'story', questId: body.questId };
       } else if (
         body.kind === 'contract' &&
         body.slot !== undefined &&
         body.questId === undefined
       ) {
-        accept = { kind: 'contract', slot: body.slot };
+        accept = {
+          kind: 'contract',
+          slot: body.slot,
+          ...(body.rewardSlot !== undefined ? { rewardSlot: body.rewardSlot } : {}),
+        };
       } else {
         throw new ApiError(
           400,
           'validation_failed',
-          'Send { kind: "story", questId } or { kind: "contract", slot }.',
+          'Send { kind: "story", questId } or { kind: "contract", slot, rewardSlot? }.',
         );
       }
       const board = await withTransaction(app.db, async (tx) => {

@@ -1,7 +1,9 @@
 import type {
+  ItemSlotKind,
   MaterialId,
   QuestObjective,
   QuestReward,
+  RarityId,
   StoryBlocker,
   StoryQuestId,
 } from '@worldforge/game-core';
@@ -34,6 +36,9 @@ export interface ContractOfferDto {
   objective: QuestObjective;
   reward: QuestReward;
   accepted: boolean;
+  /** Ticket 3.6: slots to choose a reward item from (Abbey contracts); empty otherwise. */
+  rewardSlots: ItemSlotKind[];
+  targetedReward: { rarityId: RarityId; itemLevel: number } | null;
 }
 
 export interface QuestBoard {
@@ -60,7 +65,9 @@ export interface TurnInResult {
 }
 
 export type AcceptIntent =
-  { kind: 'story'; questId: StoryQuestId } | { kind: 'contract'; slot: number };
+  | { kind: 'story'; questId: StoryQuestId }
+  /** `rewardSlot` (ticket 3.6): the chosen reward item slot of an Abbey contract. */
+  | { kind: 'contract'; slot: number; rewardSlot?: ItemSlotKind };
 
 const q = (id: string) => `/characters/${encodeURIComponent(id)}/quests`;
 
@@ -96,6 +103,8 @@ export function describeQuestFailure(error: Pick<ApiFailure, 'code'>): string {
       return 'That notice is not for you yet.';
     case 'contract_limit':
       return 'You carry three contracts already. Finish one first.';
+    case 'reward_slot_unavailable':
+      return 'That reward is not offered for this contract. The board has been refreshed.';
     case 'quest_incomplete':
       return 'The work is not done yet.';
     case 'quest_already_turned_in':

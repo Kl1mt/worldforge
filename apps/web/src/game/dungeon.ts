@@ -1,6 +1,7 @@
 import type {
   DungeonEvent,
   DungeonId,
+  DungeonTier,
   DungeonRunProgress,
   EnemyId,
   MaterialId,
@@ -19,6 +20,8 @@ export interface DungeonRun {
   id: string;
   characterId: string;
   dungeonId: DungeonId;
+  /** Ticket 3.6. */
+  tier: DungeonTier;
   startedAt: string;
   endsAt: string;
   /** Server time of the view (the client clock may differ). */
@@ -27,11 +30,28 @@ export interface DungeonRun {
   progress: DungeonRunProgress;
 }
 
-export interface DungeonEntry {
-  id: DungeonId;
+/** One tier of a dungeon (ticket 3.6). */
+export interface DungeonTierEntry {
+  tier: DungeonTier;
+  name: string;
   unlocked: boolean;
   blockers: UnlockBlocker[];
+  minLevel: number;
+  maxLevel: number;
+  bossLevel: number;
+  lootFocus: { id: string; name: string; description: string } | null;
+}
+
+export interface DungeonEntry {
+  id: DungeonId;
+  /** Tier I. */
+  unlocked: boolean;
+  blockers: UnlockBlocker[];
+  /** Boss loot cooldown, shared by every tier. */
   bossLootReadyAt: string | null;
+  tiers: DungeonTierEntry[];
+  /** Deepest tier cleared (0 = none). */
+  tierCleared: number;
 }
 
 export interface DungeonState {
@@ -44,6 +64,8 @@ export interface DungeonState {
 export interface DungeonResult {
   runId: string;
   dungeonId: DungeonId;
+  /** Ticket 3.6; absent in results stored before it (tier I). */
+  tier?: DungeonTier;
   outcome: 'cleared' | 'failed';
   durationMs: number;
   roomsCleared: number;
@@ -60,6 +82,8 @@ export interface DungeonResult {
   bossDefeated: boolean;
   bossLoot: boolean;
   firstBossKill: boolean;
+  /** Ticket 3.6: the first clear of this tier (the next one may open). */
+  firstTierClear?: boolean;
   questEvents: QuestEvent[];
 }
 
@@ -71,9 +95,10 @@ export const dungeonApi = {
   enter: (
     id: string,
     dungeonId: DungeonId,
+    tier: DungeonTier = 1,
     f?: typeof fetch,
   ): Promise<ApiResult<{ run: DungeonRun; character: Character }>> =>
-    apiRequest(d(id), { method: 'POST', body: { dungeonId } }, f),
+    apiRequest(d(id), { method: 'POST', body: { dungeonId, tier } }, f),
   settle: (id: string, f?: typeof fetch): Promise<ApiResult<{ run: DungeonRun }>> =>
     apiRequest(`${d(id)}/settle`, { method: 'POST' }, f),
   /** `key` must stay the same for retries of one claim (docs/API_CONVENTIONS.md). */
@@ -93,7 +118,7 @@ export function claimKey(runId: string): string {
 export function describeDungeonFailure(error: Pick<ApiFailure, 'code'>): string {
   switch (error.code) {
     case 'dungeon_locked':
-      return 'Your hero is not ready for the crypt yet.';
+      return 'Your hero is not ready for this depth of the crypt yet.';
     case 'dungeon_run_open':
       return 'A run is already under way. Finish and claim it first.';
     case 'character_not_active':

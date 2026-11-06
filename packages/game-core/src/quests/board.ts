@@ -1,4 +1,6 @@
 import { xpToNextLevel } from '../combat/progression.js';
+import type { ItemSlotKind } from '../items/bases.js';
+import { offersRewardSlot, targetedItemReward } from './targeted.js';
 import { createRng } from '../rng.js';
 import { AREAS, isAreaUnlocked } from '../world/areas.js';
 import type { WorldProgress } from '../world/unlocks.js';
@@ -64,13 +66,22 @@ export function nextStoryOffer(level: number, progress: StoryProgress): StoryOff
  * Contract reward at a character level: a share of the level's XP and some gold, scaled by the
  * template. Fixed when the contract is accepted.
  */
-export function contractReward(template: ContractTemplate, level: number): QuestReward {
+export function contractReward(
+  template: ContractTemplate,
+  level: number,
+  rewardSlot?: ItemSlotKind,
+): QuestReward {
   const xp = Math.max(
     10,
     Math.round(xpToNextLevel(Math.max(1, level)) * 0.3 * template.rewardScale),
   );
   const gold = Math.round((20 + 6 * level) * template.rewardScale);
-  return { xp, gold, materials: {}, item: null };
+  // Ticket 3.6: a contract that offers a reward slot adds an item for the slot chosen.
+  if (rewardSlot !== undefined && !offersRewardSlot(template)) {
+    throw new RangeError(`Contract ${template.id} offers no reward slot.`);
+  }
+  const item = rewardSlot !== undefined ? targetedItemReward(rewardSlot, level) : null;
+  return { xp, gold, materials: {}, item };
 }
 
 /** One of today's contract slots. */

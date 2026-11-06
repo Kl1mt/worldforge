@@ -9,7 +9,8 @@ import {
   type QuestReward,
   type StoryBlocker,
 } from '@worldforge/game-core';
-import { findItemBase } from '@worldforge/game-core';
+import { findItemBase, isTargetedItemReward } from '@worldforge/game-core';
+import { slotName } from '../game/items';
 import { formatNumber } from '../lib/format';
 
 /** The objective as a line on a notice, e.g. "Slay 12 Risen Farmhands". */
@@ -69,9 +70,14 @@ export function rewardParts(r: QuestReward): string[] {
     if (n > 0) parts.push(`${formatNumber(n)} ${getMaterial(id).name}`);
   }
   if (r.item) {
-    const base = findItemBase(r.item.baseId);
     const rarity = r.item.rarityId[0]!.toUpperCase() + r.item.rarityId.slice(1);
-    parts.push(`${rarity} ${base?.name ?? 'item'}`);
+    if (isTargetedItemReward(r.item)) {
+      // Ticket 3.6: the slot chosen when the contract was taken.
+      parts.push(`${rarity} ${slotName(r.item.slot).toLowerCase()} (lv ${r.item.itemLevel})`);
+    } else {
+      const base = findItemBase(r.item.baseId);
+      parts.push(`${rarity} ${base?.name ?? 'item'}`);
+    }
   }
   return parts;
 }

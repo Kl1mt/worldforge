@@ -67,7 +67,7 @@ Every piece is named "<Piece> of <Set>", e.g. "Helm of the Drowned Vigil". The s
 
   Asserted: a Legendary build out-farms every pure set; the fastest farming build always carries Legendaries; the best build with a set is within × 0.75 of the fastest; set + Legendary mixes beat every pure set; the best set build's boss time is within × 1.35 of the Legendary build's (casters: a pure set is the fastest boss build). For every class the best set for farming speed, safety and the boss is not the same set (bonus only, Blackwater 15). With all of a set's bonuses a naked level-16 hero never beats the Gravewarden; a geared level-15 hero always does, and the boss still takes > 45 % of the pre-enrage window.
 
-**Crypt entry (the cliff, not retuned).** Bonuses only (on effect rings, like the 3.2 table): win rate of a level-12 hero in item-level-11 commons (16 seeds), and the kill-rate factor in Blackwater at 15:
+**Crypt entry (the cliff as it was before ticket 3.6, with the enrage fixed at 45 s).** Bonuses only (on effect rings, like the 3.2 table): win rate of a level-12 hero in item-level-11 commons (16 seeds), and the kill-rate factor in Blackwater at 15:
 
 | Set (pieces) | Warrior | Mage | Hunter | Warlock |
 |---|---|---|---|---|
@@ -81,7 +81,7 @@ Every piece is named "<Piece> of <Set>", e.g. "Helm of the Drowned Vigil". The s
 | Bloodmoon Hunt (2) | 0 % · ×1.07 | 0 % · ×1.07 | 0 % · ×1.07 | 0 % · ×1.07 |
 | Bloodmoon Hunt (4) | 0 % · ×1.21 | 0 % · ×1.27 | 0 % · ×1.17 | 0 % · ×1.20 |
 
-Sets move the cliff more than single effects: a full Vigil or Choir turns the level-12 entry into a certain win for every class, the 4-piece Vigil does so for warrior and hunter (fortitude at 70 % on top of thorns), and the hunter again sits closest (Choir 4: 88 %). The farming set (Bloodmoon) doesn't move it. In practice the pieces need item level 14 and drop only in late-game sources, so a hero holding four or six of them is past the entry anyway; the cliff itself is for 3.6/B.2.
+Sets move the cliff more than single effects: a full Vigil or Choir turns the level-12 entry into a certain win for every class, the 4-piece Vigil does so for warrior and hunter (fortitude at 70 % on top of thorns), and the hunter again sits closest (Choir 4: 88 %). The farming set (Bloodmoon) doesn't move it. In practice the pieces need item level 14 and drop only in late-game sources, so a hero holding four or six of them is past the entry anyway. Ticket 3.6 resolved the cliff (a per-run enrage window; `docs/DUNGEONS.md`, "Tiers and balance"): a full Vigil or Legendary kit still makes the level-12 entry certain, and since 3.6 the balance test checks every set against the boss thresholds as a share of the earliest enrage (2/3 of 30 s = the old 20 s).
 
 **Known limits.** The Ashen Choir is a crit and boss set: on low-crit kits its 2- and 4-piece bonuses barely register while farming. The hunter's perfect Legendary build (Ambush + stacked Unbroken) beats every set build at everything; that is the 3.2 Ambush note, for B.2.
 
@@ -117,7 +117,7 @@ Void is a chase for completionists, not a new power tier: a few percent, mostly 
 ## Balance (asserted in `balance.test.ts`)
 Each effect is tested at its strongest roll on a common kit, at the middle of Crowwood, Blackwater and the Sunken Abbey: deaths ≤ 2/h, damage share < 21 %, and kills × 0.99–1.2 of the same kit without it. A Mythic worn in its slot over a rare kit (Abbey 19 and 22) stays inside the bands at × 1–1.3 kills. For every class, the best effect for farming speed, safety and the boss is not the same effect. With any effect, a naked level-16 hero never beats the Gravewarden; a geared level-15 hero always does, and the boss still takes > 60 % of the pre-enrage window. Equivalence: per-fight (12,000 trials, every effect on every class it applies to, two fights) and per 15-minute window (150 seeds, six effect pairs).
 
-**Crypt entry (the 3.1 cliff, not retuned).** Win rate of a level-12 hero in item-level-11 commons with one effect at its best roll (16 seeds), and the effect's kill-rate factor in Blackwater at 15:
+**Crypt entry (the 3.1 cliff as it was before ticket 3.6).** Win rate of a level-12 hero in item-level-11 commons with one effect at its best roll (16 seeds), and the effect's kill-rate factor in Blackwater at 15:
 
 | Effect | Warrior | Mage | Hunter | Warlock |
 |---|---|---|---|---|
@@ -134,6 +134,6 @@ Each effect is tested at its strongest roll on a common kit, at the middle of Cr
 | class Mythic | 75 % · ×1.04 | 13 % · ×1.03 | 100 % · ×1.06 | 100 % · ×1.00 |
 | Endless Hunger | 0 % · ×1.12 | 0 % · ×1.12 | 0 % · ×1.11 | 0 % · ×1.12 |
 
-Boss-focused effects (Tyrant's Bane, Soul Rot, Abyssal Rot) turn the level-12 entry from a certain loss into a certain win for some classes. So does Headsman's Due for the hunter, who already sits closest to the cliff. That is the play pattern they exist for, a crypt gear swap. But it confirms that the entry is a cliff: any boss bonus moves it. Farming-focused effects (Bloodrush, Unbroken, Bramblemail, Carrion Feast) don't move it.
+Boss-focused effects (Tyrant's Bane, Soul Rot, Abyssal Rot) turn the level-12 entry from a certain loss into a certain win for some classes. So does Headsman's Due for the hunter, who already sits closest to the cliff. That is the play pattern they exist for, a crypt gear swap. But it confirmed that the entry was a cliff: any boss bonus moved it. Farming-focused effects (Bloodrush, Unbroken, Bramblemail, Carrion Feast) don't move it. Since ticket 3.6 (the enrage moment is drawn per run from 30–70 s) Tyrant's Bane on level-12 commons wins 61 / 53 / 64 / 52 % instead of 100 / 13 / 100 / 19 %: a real step, not a switch (`docs/DUNGEONS.md`). The per-effect boss check now reads "a geared level-15 hero wins at least 14 of 16 runs, and the boss takes 90 % of the earliest enrage (27 s, as before)".
 
 **Known limits.** Mana Surge, Emberbrand and Starfall scale with crit chance. On a common kit (≈ 5 % crit) they barely register; they are crit-build effects. Carrion Feast does nothing for a geared hero, who regenerates fully between fights anyway; it pays off with lagging gear and in the crypt. Ambush is the strongest Legendary for farming (+14–18 % kills): the hunter's short fights make the opener count.
