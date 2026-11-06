@@ -4,16 +4,25 @@ import fastifyRateLimit from '@fastify/rate-limit';
 import { eq, sql } from 'drizzle-orm';
 import {
   GUIDE_STEP_IDS,
+  isStaff,
   normalizeGuide,
   withGuideStep,
   type GuideState,
+  type AccountRole,
   type GuideStepId,
 } from '@worldforge/game-core';
 import { accounts, type Account } from '../db/schema.js';
 import { constraintOf, sqlStateOf, withTransaction } from '../db/transaction.js';
 import { writeAudit } from '../db/audit.js';
 import { uuidv7 } from '../db/uuid.js';
-import { ApiError } from '../errors.js';
+import { ApiError, errorBody } from '../errors.js';
+import { newHandle } from '../social/handles.js';
+import { activeSanctions, sanctionError } from '../social/sanctions.js';
+import {
+  DEFAULT_SOCIAL_WRITE_LIMIT,
+  createSocialWriteLimiter,
+  type SocialWriteLimit,
+} from '../social/social-write.js';
 import { hashPassword, verifyAgainstDummy, verifyPassword } from './password.js';
 import { createSession, resolveSession, revokeSession } from './session.js';
 import {
@@ -51,6 +60,8 @@ export interface AuthOptions {
    * (`now`), never on the scaled farming clock of the playtest and e2e servers.
    */
   accountRateLimit: AccountRateLimit;
+  /** Per account, for social writes (ticket 4.1), on top of `accountRateLimit`. */
+  socialWriteLimit: SocialWriteLimit;
   /** Injected clock for session issue/expiry (tests). */
   now: () => Date;
 }
@@ -61,6 +72,7 @@ export const DEFAULT_AUTH_OPTIONS: AuthOptions = {
   loginRateLimit: { max: 10, timeWindowMs: 60_000 },
   registerRateLimit: { max: 5, timeWindowMs: 60 * 60_000 },
   accountRateLimit: DEFAULT_ACCOUNT_RATE_LIMIT,
+  socialWriteLimit: DEFAULT_SOCIAL_WRITE_LIMIT,
   now: () => new Date(),
 };
 
@@ -81,6 +93,11 @@ declare module 'fastify' {
      * account id only from here, never from the body.
      */
     requireAccount: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+    /**
+     * preHandler for moderator routes (ticket 4.1): like `requireAccount`, but anyone who is not
+     * staff (moderator or admin), logged in or not, gets the same `404` as an unknown route.
+     */
+    requireStaff: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
   }
 }
 
@@ -88,6 +105,10 @@ export interface AccountView {
   id: string;
   email: string;
   displayName: string;
+  /** Public handle (ticket 4.1): what other players and links use, never the id. */
+  handle: string;
+  /** Ticket 4.1. Shown so the client can offer the moderator queue; checked on the server. */
+  role: AccountRole;
   characterSlots: number;
   createdAt: string;
   /** First-session guide (ticket 2.7). */
@@ -99,6 +120,8 @@ export function accountView(a: Account): AccountView {
     id: a.id,
     email: a.email,
     displayName: a.displayName,
+    handle: a.handle,
+    role: a.role,
     characterSlots: a.characterSlots,
     createdAt: a.createdAt.toISOString(),
     guide: normalizeGuide(a.guide),
@@ -111,11 +134,22 @@ const accountResponseSchema = {
   properties: {
     account: {
       type: 'object',
-      required: ['id', 'email', 'displayName', 'characterSlots', 'createdAt', 'guide'],
+      required: [
+        'id',
+        'email',
+        'displayName',
+        'handle',
+        'role',
+        'characterSlots',
+        'createdAt',
+        'guide',
+      ],
       properties: {
         id: { type: 'string' },
         email: { type: 'string' },
         displayName: { type: 'string' },
+        handle: { type: 'string' },
+        role: { type: 'string' },
         characterSlots: { type: 'integer' },
         createdAt: { type: 'string' },
         guide: {
@@ -194,16 +228,34 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
   };
 
   const accountRateLimit = createAccountRateLimiter(options.accountRateLimit, now);
+  app.decorate('authNow', now);
+  app.decorate('socialWriteLimit', createSocialWriteLimiter(options.socialWriteLimit, now));
   app.decorate('requireAccount', async (request: FastifyRequest, reply: FastifyReply) => {
     const token = request.cookies[SESSION_COOKIE];
-    const resolved = token ? await resolveSession(app.db, token, now()) : null;
+    const at = now();
+    const resolved = token ? await resolveSession(app.db, token, at) : null;
     if (!resolved) {
       if (token) clearSessionCookie(reply);
       throw new ApiError(401, 'unauthenticated', 'Not logged in.');
     }
+    // Ticket 4.1: a suspension stops every session at once (checked on each request, so it also
+    // lifts on its own when it expires). The body says why and until when.
+    const [suspension] = await activeSanctions(app.db, resolved.account.id, at, ['suspend']);
+    if (suspension) throw sanctionError(suspension);
     // Ticket 3.9: per-account limits, checked before any game work (or idempotency claim).
     accountRateLimit(resolved.account.id, request.method, reply);
     request.auth = resolved;
+  });
+  app.decorate('requireStaff', async (request: FastifyRequest, reply: FastifyReply) => {
+    const token = request.cookies[SESSION_COOKIE];
+    const resolved = token ? await resolveSession(app.db, token, now()) : null;
+    if (!resolved || !isStaff(resolved.account.role)) {
+      // Exactly the not-found handler's answer, so the routes can't be told from missing ones.
+      return reply
+        .code(404)
+        .send(errorBody('not_found', `Route ${request.method} ${request.url} not found`));
+    }
+    await app.requireAccount(request, reply);
   });
 
   const rateLimitConfig = (limit: RateLimit) => ({
@@ -234,6 +286,7 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
               id: uuidv7(),
               email: value.email,
               displayName: value.displayName,
+              handle: newHandle(),
               passwordHash,
               createdAt: issuedAt,
               updatedAt: issuedAt,
@@ -293,6 +346,17 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
           data: { reason: account ? 'bad_password' : 'unknown_email' },
         });
         throw INVALID_CREDENTIALS();
+      }
+
+      // Ticket 4.1: a suspended account gets no session (told why only after the right password).
+      const [suspension] = await activeSanctions(app.db, account.id, now(), ['suspend']);
+      if (suspension) {
+        await writeAudit(app.db, {
+          event: 'auth.login_refused',
+          accountId: account.id,
+          data: { reason: 'suspended', sanctionId: suspension.id },
+        });
+        throw sanctionError(suspension);
       }
 
       const session = await withTransaction(app.db, async (tx) => {

@@ -1,0 +1,251 @@
+/* The moderator docket (ticket 4.1): a ledger of open cases on the left, the case file on an
+   iron plate on the right, reports as sunken slips. Phones: the docket above the case file. */
+.docket {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.docket__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+  align-items: end;
+}
+
+.docket__head .caps {
+  color: var(--brass-500);
+}
+
+.docket__head h1 {
+  font-size: var(--text-3xl);
+  color: var(--bone-100);
+}
+
+.docket__count {
+  margin-left: auto;
+  color: var(--text-dim);
+}
+
+.docket__notice {
+  padding: var(--space-2) var(--space-4);
+  border-left: 3px solid var(--moss-400);
+  background: rgb(67 69 58 / 0.4);
+}
+
+.docket__wait {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.docket__empty {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-6);
+  text-align: center;
+}
+
+.docket__empty .display {
+  font-size: var(--text-xl);
+  color: var(--bone-100);
+}
+
+.docket__body {
+  display: grid;
+  grid-template-columns: minmax(240px, 1fr) minmax(0, 2.2fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.docket__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: var(--border-hair);
+  background: var(--bg-sunken);
+}
+
+.docket__row {
+  display: grid;
+  gap: 2px;
+  width: 100%;
+  min-height: 56px;
+  padding: var(--space-2) var(--space-3);
+  border: 0;
+  border-bottom: var(--border-hair);
+  border-left: 3px solid transparent;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.docket__row:hover {
+  background: rgb(255 255 255 / 0.03);
+}
+
+.docket__row[aria-pressed='true'] {
+  border-left-color: var(--brass-400);
+  background: rgb(199 161 94 / 0.08);
+}
+
+.docket__row-name {
+  color: var(--bone-100);
+  font-weight: 700;
+}
+
+.docket__row-meta {
+  color: var(--text-faint);
+  font-size: var(--text-sm);
+}
+
+.case {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.case__head {
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--brass-700);
+}
+
+.case__head .caps {
+  color: var(--brass-500);
+}
+
+.case__head h2 {
+  font-size: var(--text-2xl);
+  color: var(--bone-100);
+}
+
+.case__sub {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.case__active {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.case__active li {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--crimson-400);
+  background: rgb(63 23 31 / 0.4);
+  font-size: var(--text-sm);
+}
+
+.case__reports {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.case__slip {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: var(--bg-sunken);
+  box-shadow: inset 0 0 0 1px var(--iron-700);
+}
+
+.case__slip-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  justify-content: space-between;
+}
+
+.case__slip-head span,
+.case__none,
+.case__then {
+  color: var(--text-faint);
+  font-size: var(--text-sm);
+}
+
+.case__note {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-style: italic;
+}
+
+.case__act {
+  display: grid;
+  gap: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: var(--border-hair);
+}
+
+.case__actions {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  border: var(--border-hair);
+  background: var(--bg-sunken);
+}
+
+.case__actions .report__choice span {
+  display: grid;
+}
+
+.case__hint {
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+}
+
+.case__durations {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.case__act > .btn {
+  justify-self: start;
+}
+
+@media (max-width: 1080px) {
+  .docket__body {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .docket__head h1 {
+    font-size: var(--text-2xl);
+  }
+
+  .docket__count {
+    margin-left: 0;
+  }
+
+  .case {
+    padding: var(--space-4);
+  }
+
+  .case__act > .btn {
+    justify-self: stretch;
+    min-height: 44px;
+  }
+}
+
+.case__lift {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.case__lift-input {
+  min-height: 32px;
+  background: var(--bg-sunken);
+  box-shadow: inset 0 0 0 1px var(--iron-600);
+}

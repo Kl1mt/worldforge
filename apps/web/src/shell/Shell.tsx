@@ -1,5 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { getArea, getClass } from '@worldforge/game-core';
+import { SANCTION_LABELS, getArea, getClass, isStaff } from '@worldforge/game-core';
 import { formatNumber } from '../lib/format';
 import { useAuth } from '../auth/AuthProvider';
 import { routeHref, type GameRoute } from '../lib/route';
@@ -11,6 +11,9 @@ import { Notices } from '../onboarding/Notices';
 import { useOnboarding } from '../onboarding/OnboardingProvider';
 import { HealthLine } from './HealthLine';
 import { useLogout } from './useLogout';
+import { useStanding } from '../social/useStanding';
+import { describeSanction } from '../social/api';
+import '../social/social.css';
 import './shell.css';
 
 interface NavEntry {
@@ -45,6 +48,15 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
     inventory: newItems.size,
     hub: newQuests.size,
   };
+  // Ticket 4.1: a sanction that limits the player is named on every screen ("why can't I post?").
+  const { state: standing, reload: reloadStanding } = useStanding();
+  useEffect(() => {
+    if (route === 'account') reloadStanding();
+  }, [route, reloadStanding]);
+  const limits =
+    standing.kind === 'ready'
+      ? standing.standing.sanctions.filter((x) => x.kind !== 'suspend')
+      : [];
   const mainRef = useRef<HTMLElement>(null);
   const first = useRef(true);
 
@@ -126,6 +138,17 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
       </header>
 
       <main id="main" ref={mainRef} tabIndex={-1} className="shell__main">
+        {route !== 'account'
+          ? limits.map((x) => (
+              <p
+                key={x.id}
+                className={`standing-strip${x.kind === 'rename' ? ' standing-strip--rename' : ''}`}
+              >
+                <strong>{SANCTION_LABELS[x.kind]}.</strong> {describeSanction(x)}{' '}
+                <a href={routeHref('account')}>{x.kind === 'rename' ? 'Choose a name' : 'Why?'}</a>
+              </p>
+            ))
+          : null}
         <FirstSteps route={route} />
         {children}
       </main>
@@ -140,6 +163,14 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
         <ReopenGuide />
         {account ? (
           <span className="statusbar__note">Signed in as {account.displayName}</span>
+        ) : null}
+        <a className="statusbar__link" href={routeHref('account')}>
+          Account &amp; safety
+        </a>
+        {account && isStaff(account.role) ? (
+          <a className="statusbar__link" href={routeHref('moderation')}>
+            Moderator queue
+          </a>
         ) : null}
       </footer>
 

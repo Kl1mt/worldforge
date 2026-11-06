@@ -11,6 +11,7 @@ Status: **partly implemented.** Tables marked *implemented* exist in `apps/serve
 | `item_instances` | implemented (tickets 1.6 / 1.7; item model v2 in 3.1) |
 | `activities` | implemented (ticket 1.6) |
 | `telemetry_daily` | implemented (ticket 3.8) |
+| `reports`, `sanctions` | implemented (ticket 4.1) |
 | others      | draft                   |
 
 ## Principles
@@ -33,6 +34,8 @@ Status: **partly implemented.** Tables marked *implemented* exist in `apps/serve
 | character_slots | smallint    | default 2 (GDD §5.3), `CHECK (>= 0)`; per account, so slots can be granted later |
 | active_character_id | uuid FK? | → `characters.id` `ON DELETE SET NULL`; the last selected character (ticket 1.3). Only ever set to one of the account's own characters (checked by the server) |
 | guide           | jsonb       | default `{"steps":[],"dismissed":false}`; first-session guide (ticket 2.7): game-core `GuideState` (steps seen done, in guide order, and whether it was closed). UI state only, grants nothing; per account so it follows the player across devices |
+| role            | text        | ticket 4.1: `player` (default) / `moderator` / `admin`, `CHECK`. Written only by `pnpm admin:role` (`docs/SOCIAL.md`) |
+| handle          | text        | ticket 4.1: public handle, 12 random characters (game-core `HANDLE_RE`), unique, permanent, not derived from the id; generated on insert (migration `0016` backfilled existing rows) |
 | created_at      | timestamptz | default `now()`                                              |
 | updated_at      | timestamptz | default `now()`; set by the server on update                 |
 
@@ -243,6 +246,37 @@ Daily aggregate counters for balance work (`docs/TELEMETRY.md`, migration `0015_
 
 Written only by `flushTelemetry` (one sorted `INSERT … ON CONFLICT DO UPDATE` per transaction, as its last statement). The day stamps game time, so `latestStoredTimeMs` includes it (its start, UTC). Read by `pnpm report:telemetry`.
 
+### reports — implemented (4.1)
+Migration `0016_safety_moderation`. See `docs/SOCIAL.md`.
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid PK | UUIDv7; the queue's cursor |
+| reporter_id, subject_id | uuid FK | → `accounts.id` `ON DELETE CASCADE` |
+| target_kind | text | game-core `ReportTargetKind` |
+| target_key | text | internal key (`player:<account id>`, `profileField:<account id>:<field>`), never sent to players |
+| target | jsonb | the public `ReportTarget` (handles only) |
+| context | jsonb | snapshot of what the reporter saw |
+| reason / note | text | `REPORT_REASONS` id; normalised `reportNote` text or null |
+| status | text | `open` / `dismissed` / `actioned`, `CHECK` |
+| resolved_at, resolved_by, sanction_id | | set when a moderator closes the case (`sanction_id` → `sanctions.id` `SET NULL`) |
+
+Indexes: partial unique `(reporter_id, target_key) where status = 'open'` (one open report per reporter and target), `(target_key, status)`, partial `(id) where status = 'open'`.
+
+### sanctions — implemented (4.1)
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid PK | |
+| subject_id | uuid FK | → `accounts.id` `ON DELETE CASCADE` |
+| kind | text | `mute` / `suspend` / `rename` / `hide`, `CHECK` |
+| target_key, target | text, jsonb | the hidden content, for `hide` |
+| reason | text | shown to the player |
+| issued_by | uuid FK? | → `accounts.id` `SET NULL` |
+| data | jsonb | kind-specific (a rename's `previousName` and `placeholder`) |
+| created_at / expires_at | timestamptz | `CHECK (expires_at > created_at)` |
+| lifted_at, lifted_by, lift_reason | | set when lifted early (or `renamed`) |
+
+Active iff `lifted_at is null and expires_at > now` (the auth clock). Indexes: `(subject_id, expires_at)`, partial `(target_key)`.
+
 ## Relationships
 
 ```
@@ -255,6 +289,7 @@ account 1─* character 1─1 activity
                      1─* currency_ledger
 account 0..1─* audit_log
 account 1─* idempotency_keys
+account 1─* reports (as reporter and as subject), 1─* sanctions
 character 1─* merchant_purchases
 ```
 

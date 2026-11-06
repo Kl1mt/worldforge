@@ -8,7 +8,15 @@ export interface ApiFailure {
   /** Per-field messages from `details.fields`, when the server sent them. */
   fields: Record<string, string>;
   retryAfterSeconds?: number;
+  /** The envelope's raw `details` (e.g. the sanction of `account_suspended` / `muted`). */
+  details?: unknown;
 }
+
+/**
+ * Fired on `window` whenever a request answers `403 account_suspended` (ticket 4.1), with the
+ * envelope's details; the auth provider switches to the suspended gate at once.
+ */
+export const SUSPENDED_EVENT = 'wf:suspended';
 
 export type ApiResult<T> = { ok: true; value: T } | { ok: false; error: ApiFailure };
 
@@ -30,6 +38,7 @@ function readFailure(status: number, body: unknown): ApiFailure {
     ...(typeof details.retryAfterSeconds === 'number'
       ? { retryAfterSeconds: details.retryAfterSeconds }
       : {}),
+    ...(error.details === undefined ? {} : { details: error.details }),
   };
 }
 
@@ -68,7 +77,13 @@ export async function apiRequest<T>(
   }
   if (res.status === 204) return { ok: true, value: undefined as T };
   const body: unknown = await res.json().catch(() => null);
-  if (!res.ok) return { ok: false, error: readFailure(res.status, body) };
+  if (!res.ok) {
+    const error = readFailure(res.status, body);
+    if (error.code === 'account_suspended' && typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent(SUSPENDED_EVENT, { detail: error.details }));
+    }
+    return { ok: false, error };
+  }
   if (body === null) {
     return {
       ok: false,

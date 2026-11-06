@@ -1,0 +1,330 @@
+/* Ticket 4.1: report dialog, account standing ("the writ") and the moderator docket.
+   docs/DESIGN_SYSTEM.md "Surface treatments". */
+
+/* ── Report dialog: the iron plate as a native modal, like the return summary ───────────── */
+.report {
+  max-width: min(520px, calc(100vw - 2 * var(--gutter)));
+  max-height: calc(100dvh - 2 * var(--space-4));
+  overflow-y: auto;
+  width: 100%;
+  margin: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.report::backdrop {
+  background: rgb(12 10 9 / 0.78);
+}
+
+.report__plate {
+  background-color: var(--bg-surface);
+  background-image: var(--rivets), var(--texture-grain);
+  box-shadow: var(--frame-iron), var(--shadow-drop);
+  padding: var(--space-6);
+}
+
+.report__head {
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--crimson-500);
+}
+
+.report__head .caps {
+  color: var(--crimson-400);
+}
+
+.report__head h2 {
+  margin-top: var(--space-1);
+  font-size: var(--text-2xl);
+  color: var(--bone-100);
+}
+
+.report__alert {
+  margin-top: var(--space-4);
+}
+
+.report__form {
+  display: grid;
+  gap: var(--space-5);
+  margin-top: var(--space-5);
+}
+
+.report__group {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.report__group legend {
+  margin-bottom: var(--space-2);
+  color: var(--text-dim);
+}
+
+.report__choices {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  border: var(--border-hair);
+  background: var(--bg-sunken);
+}
+
+.report__choices--two {
+  grid-template-columns: 1fr;
+}
+
+/* Ledger lines: one rule between choices, a brass edge on the chosen one. */
+.report__choice {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-hair);
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  font-size: var(--text-sm);
+}
+
+.report__choice:has(input:checked) {
+  border-left-color: var(--brass-400);
+  background: rgb(199 161 94 / 0.08);
+  color: var(--bone-100);
+}
+
+.report__choice input {
+  accent-color: var(--brass-400);
+}
+
+.report__optional {
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-faint);
+}
+
+.report__note {
+  min-height: 96px;
+  padding: var(--space-2) var(--space-3);
+  resize: vertical;
+}
+
+.report__count {
+  text-align: right;
+}
+
+.report__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-3);
+}
+
+.report__done {
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--moss-400);
+  background: rgb(67 69 58 / 0.4);
+}
+
+@media (max-width: 760px) {
+  .report__plate {
+    padding: var(--space-4);
+  }
+
+  .report__choices {
+    grid-template-columns: 1fr;
+  }
+
+  .report__actions .btn {
+    flex: 1;
+    min-height: 44px;
+  }
+}
+
+/* ── Account standing: the writ. A wide iron plate with sanction entries sealed in wax
+   (crimson = mute/suspend, brass = rename, iron = hidden content), the ledger beside it. ── */
+.writ {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.writ__head .caps {
+  color: var(--brass-500);
+}
+
+.writ__head h1 {
+  font-size: var(--text-3xl);
+  color: var(--bone-100);
+}
+
+.writ__who {
+  color: var(--text-dim);
+}
+
+.writ__handle {
+  font-family: ui-monospace, monospace;
+  font-size: var(--text-sm);
+}
+
+.writ__body {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.writ__plate,
+.writ__side {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.writ__wait {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.writ__clear {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  color: var(--bone-200);
+}
+
+.writ__list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.writ__entry {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-sunken);
+  border-left: 3px solid var(--crimson-400);
+}
+
+.writ__entry--rename {
+  border-left-color: var(--brass-400);
+}
+
+.writ__entry--hide {
+  border-left-color: var(--iron-500);
+}
+
+.writ__kind {
+  font-size: var(--text-lg);
+  color: var(--bone-100);
+}
+
+.writ__reason .caps,
+.writ__dates {
+  color: var(--text-faint);
+}
+
+.writ__reason .caps {
+  margin-right: var(--space-2);
+}
+
+.writ__dates {
+  font-size: var(--text-sm);
+}
+
+/* A wax seal: a diamond, like the map's markers. */
+.writ__seal {
+  width: 14px;
+  height: 14px;
+  margin-top: 5px;
+  transform: rotate(45deg);
+  background: var(--crimson-500);
+  box-shadow: 0 0 0 2px var(--outline-dark);
+}
+
+.writ__seal--rename {
+  background: var(--brass-500);
+}
+
+.writ__seal--hide {
+  background: var(--iron-500);
+}
+
+.writ__seal--clear {
+  margin-top: 0;
+  background: var(--moss-400);
+}
+
+.writ__rename {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+  border-top: var(--border-hair);
+}
+
+.writ__rename .btn {
+  justify-self: start;
+}
+
+.writ__done {
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--moss-400);
+  background: rgb(67 69 58 / 0.4);
+}
+
+.writ__side .btn {
+  justify-self: start;
+}
+
+.writ__fine {
+  font-size: var(--text-sm);
+}
+
+.writ__fine a {
+  color: var(--accent);
+}
+
+/* The shell's standing strip: shown on every screen while a sanction limits the player. */
+.standing-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: baseline;
+  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  border-left: 3px solid var(--crimson-400);
+  background: rgb(63 23 31 / 0.55);
+  font-size: var(--text-sm);
+}
+
+.standing-strip--rename {
+  border-left-color: var(--brass-400);
+  background: rgb(199 161 94 / 0.1);
+}
+
+.standing-strip a {
+  color: var(--accent-strong);
+}
+
+@media (max-width: 1080px) {
+  .writ__body {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 760px) {
+  .writ__head h1 {
+    font-size: var(--text-2xl);
+  }
+
+  .writ__plate,
+  .writ__side {
+    padding: var(--space-4);
+  }
+
+  .writ__side .btn,
+  .writ__rename .btn {
+    justify-self: stretch;
+    min-height: 44px;
+  }
+}

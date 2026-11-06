@@ -7,7 +7,8 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import type { ApiFailure } from '../lib/api';
+import { SUSPENDED_EVENT, type ApiFailure } from '../lib/api';
+import { sanctionOf, type Sanction } from '../social/api';
 import {
   authApi,
   type Account,
@@ -20,6 +21,8 @@ export type AuthState =
   | { kind: 'loading' }
   | { kind: 'anonymous' }
   | { kind: 'authenticated'; account: Account }
+  /** Ticket 4.1: the account is suspended; every request answers 403 until it expires. */
+  | { kind: 'suspended'; sanction: Sanction }
   /** The session check itself failed (server down); we do not know who the visitor is. */
   | { kind: 'error'; message: string };
 
@@ -36,6 +39,8 @@ interface AuthContextValue {
    * once; the server's answer replaces it. A failure is ignored (the guide is a convenience).
    */
   updateGuide: (update: GuideUpdate) => void;
+  /** Re-reads the account (after a forced rename, ticket 4.1). */
+  refresh: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -48,9 +53,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const controller = new AbortController();
     authApi.current(controller.signal).then(
       (res) => {
+        const sanction = res.ok ? null : sanctionOf(res.error);
         if (res.ok) setState({ kind: 'authenticated', account: res.value.account });
         else if (res.error.status === 401) setState({ kind: 'anonymous' });
-        else setState({ kind: 'error', message: res.error.message });
+        else if (res.error.code === 'account_suspended' && sanction) {
+          setState({ kind: 'suspended', sanction });
+        } else setState({ kind: 'error', message: res.error.message });
       },
       () => {
         /* aborted on unmount */
@@ -58,6 +66,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
     return () => controller.abort();
   }, [attempt]);
+
+  // Any request that finds the account suspended (ticket 4.1) closes the game at once.
+  useEffect(() => {
+    const onSuspended = (e: Event) => {
+      const sanction = sanctionOf((e as CustomEvent<unknown>).detail);
+      if (sanction) setState({ kind: 'suspended', sanction });
+    };
+    window.addEventListener(SUSPENDED_EVENT, onSuspended);
+    return () => window.removeEventListener(SUSPENDED_EVENT, onSuspended);
+  }, []);
+
+  const refresh = useCallback(async () => {
+    const res = await authApi.current();
+    if (res.ok) setState({ kind: 'authenticated', account: res.value.account });
+  }, []);
 
   const login = useCallback(async (input: LoginInput) => {
     const res = await authApi.login(input);
@@ -116,8 +139,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const value = useMemo(
-    () => ({ state, login, register, logout, retry, updateGuide }),
-    [state, login, register, logout, retry, updateGuide],
+    () => ({ state, login, register, logout, retry, updateGuide, refresh }),
+    [state, login, register, logout, retry, updateGuide, refresh],
   );
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
