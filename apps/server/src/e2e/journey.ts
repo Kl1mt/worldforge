@@ -10,7 +10,7 @@
 import { expect } from 'vitest';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 import {
   MATERIAL_IDS,
   RARITY_IDS,
@@ -30,8 +30,16 @@ import type { QuestBoardResponse } from '../quests/store.js';
 import type { MerchantResponse } from '../merchant/routes.js';
 import type { ForgeResponse } from '../forge/routes.js';
 import type { DungeonClaimResponse, DungeonRunView } from '../dungeon/routes.js';
-import { auditLog, characterMaterials, characters, itemInstances } from '../db/schema.js';
+import {
+  auditLog,
+  characterMaterials,
+  characters,
+  itemInstances,
+  reports,
+  sanctions,
+} from '../db/schema.js';
 import type { DatabaseHandle } from '../db/types.js';
+import { setAccountRole } from '../social/roles.js';
 
 export const MIN = 60_000;
 export const HOUR = 60 * MIN;
@@ -515,4 +523,135 @@ export async function expectHoldingsMatchAudit(database: DatabaseHandle, charact
     expect(held.find((h) => h.materialId === id)?.quantity ?? 0, id).toBe(materials[id] ?? 0);
   }
   return { row: row!, events };
+}
+
+/** A second account played through the API (register only), for the social steps. */
+async function newPlayer(app: FastifyInstance, email: string, displayName: string) {
+  const reg = await app.inject({
+    method: 'POST',
+    url: '/api/auth/register',
+    payload: { email, password: 'ashes-and-iron-42', displayName },
+  });
+  expect(reg.statusCode, reg.body).toBe(201);
+  const token = reg.cookies.find((c) => c.name === SESSION_COOKIE)!.value;
+  const { account } = reg.json<{ account: { id: string; handle: string; displayName: string } }>();
+  const api = (method: Method, url: string, payload?: object) =>
+    app.inject({
+      method,
+      url,
+      ...(payload ? { payload } : {}),
+      cookies: { [SESSION_COOKIE]: token },
+    });
+  return { account, api };
+}
+
+/**
+ * Phase 4 safety step (ticket 4.1): the hero meets a player whose name mocks the hero, finds them
+ * by name and reports the name; a moderator (made one by the CLI's `setAccountRole`, as the owner
+ * would) sees the case in the queue and forces a rename; the offender sees why, renames, and the
+ * case is closed. Reconciled with the audit log. 4.11 extends this into the multi-player exit run.
+ */
+export async function playSafetyStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  hero: Journey,
+) {
+  const heroAccount = (await hero.api('GET', '/api/account')).json<{
+    account: { id: string; handle: string };
+  }>().account;
+  const offender = await newPlayer(app, 'heckler@graumark.test', 'Hedda Is Slow');
+  const warden = await newPlayer(app, 'warden@graumark.test', 'Warden Brann');
+  // Not a moderator yet: the queue does not exist for them.
+  expect((await warden.api('GET', '/api/mod/queue')).statusCode).toBe(404);
+  expect(await setAccountRole(database.db, 'warden@graumark.test', 'moderator')).toMatchObject({
+    changed: true,
+  });
+
+  // The hero looks the name up and reports it.
+  const found = await hero.api(
+    'GET',
+    `/api/players/lookup?name=${encodeURIComponent('hedda is slow')}`,
+  );
+  expect(found.statusCode).toBe(200);
+  const { player } = found.json<{ player: { handle: string; displayName: string } }>();
+  expect(player).toEqual({ handle: offender.account.handle, displayName: 'Hedda Is Slow' });
+  const filed = await hero.api('POST', '/api/reports', {
+    target: { kind: 'profileField', handle: player.handle, field: 'displayName' },
+    reason: 'harassment',
+    note: 'Named to mock my hero.',
+  });
+  expect(filed.statusCode, filed.body).toBe(201);
+  const reportId = filed.json<{ report: { id: string } }>().report.id;
+
+  // The moderator's queue shows the case with its context; they force a rename.
+  const queue = (await warden.api('GET', '/api/mod/queue')).json<{
+    cases: { reportId: string; current: { value: string }; reports: { note: string | null }[] }[];
+  }>();
+  const c = queue.cases.find((x) => x.reportId === reportId)!;
+  expect(c.current.value).toBe('Hedda Is Slow');
+  expect(c.reports.map((r) => r.note)).toEqual(['Named to mock my hero.']);
+  const acted = await warden.api('POST', `/api/mod/reports/${reportId}/resolve`, {
+    action: 'forceRename',
+    reason: 'Names may not mock other players.',
+    durationHours: 7 * 24,
+  });
+  expect(acted.statusCode, acted.body).toBe(200);
+
+  // The offender sees why and chooses a new name; the old one is gone from lookups.
+  const standing = (await offender.api('GET', '/api/account/standing')).json<{
+    renameRequired: boolean;
+    sanctions: { kind: string; reason: string }[];
+  }>();
+  expect(standing).toMatchObject({
+    renameRequired: true,
+    sanctions: [{ kind: 'rename', reason: 'Names may not mock other players.' }],
+  });
+  expect(
+    (await offender.api('POST', '/api/account/display-name', { displayName: 'Quiet Ember' }))
+      .statusCode,
+  ).toBe(200);
+  expect(
+    (await hero.api('GET', `/api/players/lookup?name=${encodeURIComponent('Hedda Is Slow')}`))
+      .statusCode,
+  ).toBe(404);
+  expect((await warden.api('GET', '/api/mod/queue')).json<{ cases: unknown[] }>().cases).toEqual(
+    [],
+  );
+
+  // Every step left exactly one audit row.
+  const ids = [heroAccount.id, offender.account.id, warden.account.id];
+  const events = (
+    await database.db
+      .select({ event: auditLog.event, accountId: auditLog.accountId })
+      .from(auditLog)
+      .where(
+        and(
+          inArray(auditLog.accountId, ids),
+          inArray(auditLog.event, [
+            'role.grant',
+            'report.create',
+            'report.resolve',
+            'sanction.issue',
+            'account.rename',
+          ]),
+        ),
+      )
+  ).map((r) => `${r.event}:${ids.indexOf(r.accountId!)}`);
+  expect(events.sort()).toEqual(
+    [
+      'role.grant:2',
+      'report.create:0',
+      'report.resolve:2',
+      'sanction.issue:1',
+      'account.rename:1',
+    ].sort(),
+  );
+  const [row] = await database.db.select().from(reports).where(eq(reports.id, reportId));
+  expect(row!.status).toBe('actioned');
+  const [sanction] = await database.db
+    .select()
+    .from(sanctions)
+    .where(eq(sanctions.id, row!.sanctionId!));
+  expect(sanction).toMatchObject({ kind: 'rename', liftReason: 'renamed' });
+  return { reportId, offender: offender.account, moderator: warden.account };
 }

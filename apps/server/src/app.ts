@@ -18,6 +18,8 @@ import { registerForge } from './forge/routes.js';
 import { pruneIdempotencyKeys } from './idempotency/index.js';
 import { registerQuests } from './quests/routes.js';
 import { registerLootFilter } from './loot-filter/routes.js';
+import { registerSafety } from './social/routes.js';
+import { registerModeration } from './social/moderation.js';
 import type { Database, DatabaseHandle } from './db/types.js';
 
 declare module 'fastify' {
@@ -40,9 +42,21 @@ export interface AppOptions extends FastifyServerOptions {
   auth?: Partial<AuthOptions>;
   /** Farming settlement settings; defaults in `DEFAULT_ACTIVITY_OPTIONS` (scheduler off). */
   activity?: Partial<ActivityOptions>;
+  /**
+   * Tests only: extra routes registered inside the `/api` scope after the game routes, so they see
+   * its decorators (`requireAccount`, `socialWriteLimit`, …). Used to test shared helpers before a
+   * real route uses them.
+   */
+  testRoutes?: (api: FastifyInstance) => Promise<void> | void;
 }
 
-export function buildApp({ database, auth, activity, ...options }: AppOptions): FastifyInstance {
+export function buildApp({
+  database,
+  auth,
+  activity,
+  testRoutes,
+  ...options
+}: AppOptions): FastifyInstance {
   const app = Fastify({
     // API_CONVENTIONS: unknown body properties are rejected, not silently stripped (Fastify's
     // default is `removeAdditional: true`).
@@ -67,6 +81,9 @@ export function buildApp({ database, auth, activity, ...options }: AppOptions): 
       await registerForge(api, activityOptions);
       await registerQuests(api, activityOptions);
       await registerLootFilter(api, activityOptions);
+      await registerSafety(api);
+      await registerModeration(api);
+      if (testRoutes) await testRoutes(api);
 
       api.get('/health', async (request, reply): Promise<HealthResponse> => {
         let db: HealthResponse['db'] = 'up';

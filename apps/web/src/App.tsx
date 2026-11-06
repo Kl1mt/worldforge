@@ -2,9 +2,12 @@ import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { CharactersProvider, useCharacters } from './characters/CharactersProvider';
 import { GameProvider } from './game/GameProvider';
-import { guardRoute, isGameRoute, routeHref, type Standing } from './lib/route';
+import { DEFAULT_ROUTE, guardRoute, isGameRoute, routeHref, type Standing } from './lib/route';
 import { AreaScreen } from './screens/AreaScreen';
-import { AuthScreen, GateStatus } from './screens/AuthScreen';
+import { AuthScreen, GateStatus, SuspendedGate } from './screens/AuthScreen';
+import { AccountScreen } from './screens/AccountScreen';
+import { ModerationScreen } from './screens/ModerationScreen';
+import { isStaff } from '@worldforge/game-core';
 import { TavernScreen } from './screens/TavernScreen';
 import { CharacterScreen } from './screens/CharacterScreen';
 import { CharactersScreen } from './screens/CharactersScreen';
@@ -40,7 +43,12 @@ function Routes() {
   else if (auth.state.kind === 'authenticated' && roster.state.kind === 'ready') {
     standing = roster.active ? 'playing' : 'account';
   }
-  const redirect = standing ? guardRoute(route, standing) : null;
+  // Ticket 4.1: the moderator queue does not exist for players (like an unknown address).
+  const staff = auth.state.kind === 'authenticated' && isStaff(auth.state.account.role);
+  const redirect = standing
+    ? (guardRoute(route, standing) ??
+      (route === 'moderation' && standing === 'playing' && !staff ? DEFAULT_ROUTE : null))
+    : null;
 
   useEffect(() => {
     // `replace` so the guarded screen does not stay in history behind the gate.
@@ -48,6 +56,7 @@ function Routes() {
   }, [redirect]);
 
   if (auth.state.kind === 'error') return <GateStatus kind="offline" onRetry={auth.retry} />;
+  if (auth.state.kind === 'suspended') return <SuspendedGate sanction={auth.state.sanction} />;
   if (roster.state.kind === 'error') {
     return <GateStatus kind="roster-error" onRetry={roster.reload} />;
   }
@@ -72,6 +81,8 @@ function Routes() {
             {route === 'merchant' ? <MerchantScreen /> : null}
             {route === 'character' ? <CharacterScreen /> : null}
             {route === 'inventory' ? <InventoryScreen /> : null}
+            {route === 'account' ? <AccountScreen /> : null}
+            {route === 'moderation' && staff ? <ModerationScreen /> : null}
           </Shell>
         </OnboardingProvider>
       </QuestsProvider>

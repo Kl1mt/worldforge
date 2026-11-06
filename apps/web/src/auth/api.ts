@@ -1,4 +1,5 @@
-import type { GuideState, GuideStepId } from '@worldforge/game-core';
+import type { AccountRole, GuideState, GuideStepId } from '@worldforge/game-core';
+import { describeSanction, sanctionOf } from '../social/api';
 import { apiRequest, type ApiResult } from '../lib/api';
 
 /** The public account shape returned by the server (`AccountView` in apps/server). */
@@ -6,6 +7,10 @@ export interface Account {
   id: string;
   email: string;
   displayName: string;
+  /** Public handle (ticket 4.1). */
+  handle: string;
+  /** Ticket 4.1: staff see the moderator queue (the server checks it on every request). */
+  role: AccountRole;
   characterSlots: number;
   createdAt: string;
   /** First-session guide (ticket 2.7). */
@@ -43,8 +48,13 @@ export function describeAuthFailure(error: {
   code: string;
   message: string;
   retryAfterSeconds?: number;
+  details?: unknown;
 }): string {
   switch (error.code) {
+    case 'account_suspended': {
+      const s = sanctionOf(error);
+      return s ? `${describeSanction(s)} Reason: ${s.reason}` : 'This account is suspended.';
+    }
     case 'invalid_credentials':
       return 'That email and password do not match an account.';
     case 'rate_limited': {

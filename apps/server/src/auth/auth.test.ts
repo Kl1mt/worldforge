@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { and, eq } from 'drizzle-orm';
+import { HANDLE_RE } from '@worldforge/game-core';
 import { buildApp, type AppOptions } from '../app.js';
 import { accounts, auditLog, sessions } from '../db/schema.js';
 import type { DatabaseHandle } from '../db/types.js';
@@ -82,8 +83,21 @@ describe('POST /api/auth/register', () => {
       characterSlots: 2,
     });
     expect(Object.keys(account).sort()).toEqual(
-      ['characterSlots', 'createdAt', 'displayName', 'email', 'guide', 'id'].sort(),
+      [
+        'characterSlots',
+        'createdAt',
+        'displayName',
+        'email',
+        'guide',
+        'handle',
+        'id',
+        'role',
+      ].sort(),
     );
+    // Ticket 4.1: a new account is a player with an opaque handle, unrelated to its id.
+    expect(account.role).toBe('player');
+    expect(account.handle).toMatch(HANDLE_RE);
+    expect(account.id.replace(/-/g, '')).not.toContain(account.handle);
 
     const cookie = sessionCookie(res)!;
     expect(cookie).toMatchObject({ httpOnly: true, secure: true, sameSite: 'Lax', path: '/api' });

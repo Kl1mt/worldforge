@@ -462,7 +462,7 @@ GDD §15 Phase 4, §10.1, §12, §16.3. **Exit:** players can take part in socia
 
 **Order** (one session at a time to respect the usage limit, unless noted): 4.1 → 4.2 and 4.3 (may run in parallel) → 4.4 → 4.5 → 4.6 → 4.7 → 4.8 (after A.7) → 4.9 → 4.10 → B.3 → 4.11. Art: A.7 after 4.6 (before 4.8); A.8 after 4.2 and 4.4.
 
-### 4.1 Roles, safety & moderation foundation (vertical) — `todo`
+### 4.1 Roles, safety & moderation foundation (vertical) — `done (PR #TBD)`
 GDD: §10.1, §16.3. Read `docs/API_CONVENTIONS.md`, `docs/DATA_MODEL.md`, `apps/server/src/auth/`.
 - **Account roles:** player, moderator, admin, stored on the account and checked server-side. A CLI command grants and revokes roles (`pnpm admin:role …`); the first admin is the owner. No role can be gained through the API.
 - **Player text module** (game-core/server, used by every later social ticket): normalisation (Unicode NFKC, trimmed, no control or invisible characters), length limits per kind, a data-driven block list with simple evasion handling, and a link policy (no links in Phase 4).

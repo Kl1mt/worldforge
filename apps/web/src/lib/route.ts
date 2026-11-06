@@ -9,6 +9,10 @@ export const GAME_ROUTES = [
   'tavern',
   'forge',
   'merchant',
+  // Ticket 4.1: account standing (sanctions, reports) and the moderator queue (staff only; for
+  // everyone else it behaves like an unknown address).
+  'account',
+  'moderation',
 ] as const;
 /** The gate: only shown to visitors without a session. */
 export const AUTH_ROUTES = ['login', 'register'] as const;

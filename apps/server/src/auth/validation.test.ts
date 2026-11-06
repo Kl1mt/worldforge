@@ -33,7 +33,26 @@ describe('validateRegistration', () => {
     expect(validateRegistration({ ...valid, displayName: name }).errors).toEqual({});
   });
 
-  it.each(['Ab', 'A'.repeat(21), 'Two  Spaces', '-Edge', 'Edge-', 'semi;colon', '<b>x</b>'])(
+  it('normalises the name (ticket 4.1: NFKC, invisible characters, one space)', () => {
+    const { value, errors } = validateRegistration({
+      ...valid,
+      displayName: 'Ｔwo \u200b  Spaces',
+    });
+    expect(errors).toEqual({});
+    expect(value.displayName).toBe('Two Spaces');
+  });
+
+  it.each([
+    ['Admin', /reserved/],
+    ['Sh1t Lord', /not allowed/],
+    ['Gold dot com', /Links/],
+  ])('rejects filtered name %j', (name, message) => {
+    expect(validateRegistration({ ...valid, displayName: name }).errors.displayName).toMatch(
+      message,
+    );
+  });
+
+  it.each(['Ab', 'A'.repeat(21), 'A\u200b\u200bb', '-Edge', 'Edge-', 'semi;colon', '<b>x</b>'])(
     'rejects name %j',
     (name) => {
       expect(validateRegistration({ ...valid, displayName: name }).errors.displayName).toBeTruthy();

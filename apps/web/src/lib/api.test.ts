@@ -37,6 +37,7 @@ describe('apiRequest', () => {
         message: 'Too many attempts.',
         fields: { email: 'Bad.' },
         retryAfterSeconds: 42,
+        details: body.error.details,
       },
     });
   });

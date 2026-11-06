@@ -113,6 +113,13 @@
       "when": 1793962878816,
       "tag": "0015_telemetry",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1793984364339,
+      "tag": "0016_safety_moderation",
+      "breakpoints": true
     }
   ]
 }

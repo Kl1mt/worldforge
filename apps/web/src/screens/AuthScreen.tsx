@@ -5,6 +5,7 @@ import { ASSETS } from '../content/assets';
 import type { ApiFailure } from '../lib/api';
 import { routeHref, type AuthRoute } from '../lib/route';
 import { HealthLine } from '../shell/HealthLine';
+import { describeSanction, formatWhen, type Sanction } from '../social/api';
 import '../shell/shell.css';
 import './gate.css';
 
@@ -89,6 +90,48 @@ export function GateStatus({
             </button>
           </>
         )}
+      </section>
+    </GateLayout>
+  );
+}
+
+/**
+ * Ticket 4.1: the gate stays shut while the account is suspended. Says why and until when, and
+ * offers only logging out (to use another account) or checking again.
+ */
+export function SuspendedGate({ sanction }: { sanction: Sanction }) {
+  const auth = useAuth();
+  const [busy, setBusy] = useState(false);
+  return (
+    <GateLayout>
+      <section className="gate__panel panel-iron gate__panel--status" aria-labelledby="gate-title">
+        <h1 id="gate-title" className="gate__title display">
+          The gate is barred
+        </h1>
+        <div className="gate__alert gate__alert--sanction" role="alert">
+          <p>{describeSanction(sanction)}</p>
+          <p className="gate__sanction-reason">
+            <span className="caps">Reason</span> {sanction.reason}
+          </p>
+          <p className="gate__fine">
+            Issued {formatWhen(sanction.createdAt)}. Your characters and progress are kept and wait
+            for you.
+          </p>
+        </div>
+        <button type="button" className="btn btn--brass gate__submit" onClick={auth.retry}>
+          Check again
+        </button>
+        <button
+          type="button"
+          className="btn gate__submit"
+          disabled={busy}
+          onClick={() => {
+            setBusy(true);
+            void auth.logout().finally(() => setBusy(false));
+          }}
+        >
+          {busy ? 'Leaving…' : 'Log out'}
+        </button>
       </section>
     </GateLayout>
   );

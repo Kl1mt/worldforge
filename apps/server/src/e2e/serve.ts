@@ -11,6 +11,9 @@
  * - with `E2E_DATA_DIR` (ticket 3.9) the PGlite database is kept in `<dir>/db` instead of memory,
  *   so after the run (server stopped) `PLAYTEST_DATA_DIR=<dir> pnpm report:telemetry -- --db
  *   playtest --reconcile` can check it.
+ * - with `E2E_SEED_MODERATOR=<email>` (ticket 4.1) a moderator account with that email (password
+ *   `ashes-and-iron-42`, display name "Warden Brann") is created at start, the way the owner would
+ *   with `pnpm admin:role`, for the moderator-queue screenshots and browser runs.
  * Auth, validation and rate limits are unchanged.
  *
  *   pnpm --filter @worldforge/server e2e:serve
@@ -20,6 +23,7 @@ import { loadConfig } from '../config.js';
 import { join } from 'node:path';
 import { createPgliteDatabase, createTestDatabase } from '../test/db.js';
 import { scaledClock } from './clock.js';
+import { setAccountRole } from '../social/roles.js';
 
 if (process.env.NODE_ENV === 'production') {
   console.error('src/e2e/serve.ts is a test server and does not run with NODE_ENV=production.');
@@ -60,6 +64,17 @@ const shutdown = async () => {
 };
 process.on('SIGINT', () => void shutdown());
 process.on('SIGTERM', () => void shutdown());
+
+const seedModerator = process.env.E2E_SEED_MODERATOR;
+if (seedModerator) {
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/auth/register',
+    payload: { email: seedModerator, displayName: 'Warden Brann', password: 'ashes-and-iron-42' },
+  });
+  if (res.statusCode !== 201) throw new Error(`seeding the moderator failed: ${res.body}`);
+  await setAccountRole(database.db, seedModerator, 'moderator');
+}
 
 await app.listen({ host: config.host, port: config.port });
 app.log.warn(
