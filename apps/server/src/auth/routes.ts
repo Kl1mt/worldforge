@@ -11,7 +11,8 @@ import {
   type AccountRole,
   type GuideStepId,
 } from '@worldforge/game-core';
-import { accounts, type Account } from '../db/schema.js';
+import { accounts, inviteCodes, type Account } from '../db/schema.js';
+import type { RegistrationMode } from '../config.js';
 import { constraintOf, sqlStateOf, withTransaction } from '../db/transaction.js';
 import { writeAudit } from '../db/audit.js';
 import { uuidv7 } from '../db/uuid.js';
@@ -23,6 +24,7 @@ import {
   createSocialWriteLimiter,
   type SocialWriteLimit,
 } from '../social/social-write.js';
+import { inviteCodeHash, inviteStatus, normalizeInviteCode, redeemInvite } from './invites.js';
 import { hashPassword, verifyAgainstDummy, verifyPassword } from './password.js';
 import { createSession, resolveSession, revokeSession } from './session.js';
 import {
@@ -62,6 +64,11 @@ export interface AuthOptions {
   accountRateLimit: AccountRateLimit;
   /** Per account, for social writes (ticket 4.1), on top of `accountRateLimit`. */
   socialWriteLimit: SocialWriteLimit;
+  /**
+   * Ticket D.2: who may register (`REGISTRATION_MODE`). Default `open`. Login and existing
+   * sessions never depend on it.
+   */
+  registrationMode: RegistrationMode;
   /** Injected clock for session issue/expiry (tests). */
   now: () => Date;
 }
@@ -73,6 +80,7 @@ export const DEFAULT_AUTH_OPTIONS: AuthOptions = {
   registerRateLimit: { max: 5, timeWindowMs: 60 * 60_000 },
   accountRateLimit: DEFAULT_ACCOUNT_RATE_LIMIT,
   socialWriteLimit: DEFAULT_SOCIAL_WRITE_LIMIT,
+  registrationMode: 'open',
   now: () => new Date(),
 };
 
@@ -175,8 +183,16 @@ const registerBodySchema = {
     email: { type: 'string', maxLength: 320 },
     displayName: { type: 'string', maxLength: 64 },
     password: { type: 'string', maxLength: PASSWORD_MAX * 4 },
+    // Ticket D.2: needed in `invite` mode, ignored otherwise.
+    inviteCode: { type: 'string', maxLength: 64 },
   },
 } as const;
+
+const INVITE_INVALID_MESSAGE = 'This invite code is not valid, has expired or has been used up.';
+const inviteInvalid = () =>
+  new ApiError(403, 'invite_invalid', INVITE_INVALID_MESSAGE, {
+    fields: { inviteCode: INVITE_INVALID_MESSAGE },
+  });
 
 const loginBodySchema = {
   type: 'object',
@@ -262,24 +278,56 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
     rateLimit: { max: limit.max, timeWindow: limit.timeWindowMs },
   });
 
-  app.post<{ Body: RegistrationInput }>(
+  // Ticket D.2: public, so the register screen knows whether to ask for an invite code.
+  app.get('/config', async (_request, reply) => {
+    void reply.header('Cache-Control', 'no-cache');
+    return { registration: { mode: options.registrationMode } };
+  });
+
+  app.post<{ Body: RegistrationInput & { inviteCode?: string } }>(
     '/auth/register',
     {
       config: rateLimitConfig(options.registerRateLimit),
       schema: { body: registerBodySchema, response: { 201: accountResponseSchema } },
     },
     async (request, reply) => {
-      const { value, errors } = validateRegistration(request.body);
+      const mode = options.registrationMode;
+      if (mode === 'closed') {
+        throw new ApiError(403, 'registration_closed', 'Registration is closed right now.');
+      }
+      const { inviteCode: rawInvite, ...fields } = request.body;
+      const inviteCode = mode === 'invite' ? (rawInvite ?? '').trim() : '';
+      const { value, errors } = validateRegistration(fields);
+      if (mode === 'invite' && inviteCode === '') {
+        (errors as Record<string, string>).inviteCode = 'Enter your invite code.';
+      }
       if (Object.keys(errors).length > 0) {
         throw new ApiError(400, 'validation_failed', 'Some fields need attention.', {
           fields: errors,
         });
+      }
+      if (mode === 'invite') {
+        // Cheap early answer before the slow password hash. Not the guard: the conditional
+        // UPDATE in the transaction is what makes redemption atomic.
+        const normalized = normalizeInviteCode(inviteCode);
+        const [invite] = normalized
+          ? await app.db
+              .select()
+              .from(inviteCodes)
+              .where(eq(inviteCodes.codeHash, inviteCodeHash(normalized)))
+          : [];
+        if (!invite || inviteStatus(invite, now()) !== 'active') throw inviteInvalid();
       }
       // Hash outside the transaction: it is slow and has no database side effects.
       const passwordHash = await hashPassword(value.password);
       const issuedAt = now();
       try {
         const { account, session } = await withTransaction(app.db, async (tx) => {
+          let inviteId: string | null = null;
+          if (mode === 'invite') {
+            inviteId = await redeemInvite(tx, inviteCode, issuedAt);
+            if (!inviteId) throw inviteInvalid();
+          }
           const [account] = await tx
             .insert(accounts)
             .values({
@@ -293,7 +341,12 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
             })
             .returning();
           const session = await createSession(tx, account!.id, issuedAt, options.sessionTtlMs);
-          await writeAudit(tx, { event: 'account.register', accountId: account!.id });
+          await writeAudit(tx, {
+            event: 'account.register',
+            accountId: account!.id,
+            // Ticket D.2: which invite created the account (its id, never the code).
+            ...(inviteId ? { data: { inviteId } } : {}),
+          });
           return { account: account!, session };
         });
         setSessionCookie(reply, session.token, session.expiresAt);

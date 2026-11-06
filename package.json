@@ -23,6 +23,7 @@
     "playtest:fast": "node tools/playtest/run.mjs --fast",
     "playtest:reset": "node tools/playtest/reset.mjs",
     "admin:role": "pnpm --silent --filter @worldforge/server admin:role",
+    "admin:invite": "pnpm --silent --filter @worldforge/server admin:invite",
     "report:telemetry": "pnpm --silent --filter @worldforge/server report:telemetry"
   },
   "devDependencies": {

@@ -26,6 +26,8 @@ export interface LoginInput {
 
 export interface RegisterInput extends LoginInput {
   displayName: string;
+  /** Ticket D.2: needed when the server's registration mode is `invite`. */
+  inviteCode?: string;
 }
 
 type AccountResult = ApiResult<{ account: Account }>;
@@ -63,6 +65,10 @@ export function describeAuthFailure(error: {
       const wait = s >= 90 ? `${Math.ceil(s / 60)} minutes` : `${s} seconds`;
       return `Too many attempts. Try again in ${wait}.`;
     }
+    case 'invite_invalid':
+      return 'That invite code cannot be used. Check it, or ask for a new one.';
+    case 'registration_closed':
+      return 'Registration is closed right now.';
     case 'validation_failed':
     case 'email_taken':
     case 'display_name_taken':

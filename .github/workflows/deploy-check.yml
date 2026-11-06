@@ -44,6 +44,14 @@ jobs:
             grep -qi "^$h" <<<"$headers" || { echo "missing header: $h"; exit 1; }
           done
           test "$(curl -s -o /dev/null -w '%{http_code}' $base/assets/missing-ABCDEFGH.js)" = 404
+          # Ticket D.2: registration mode from .env, legal pages (template, then the mounted file).
+          curl -fsS $base/api/config | grep -q '"mode":"invite"'
+          curl -fsS $base/api/legal/datenschutz | grep -q '"template":true'
+          printf '# Impressum\n\nCI Betreiber\n' > deploy/legal/impressum.md
+          curl -fsS $base/api/legal/impressum | grep -q 'CI Betreiber'
+          rm deploy/legal/impressum.md
+          deploy/admin.sh invite create --note ci | grep -q '^Invite code: '
+          deploy/admin.sh invite list | grep -q 'note: ci'
           # The player's IP comes from CF-Connecting-IP; a client-sent X-Forwarded-For is ignored.
           curl -fsS -o /dev/null -H 'CF-Connecting-IP: 203.0.113.7' -H 'X-Forwarded-For: 6.6.6.6' "$base/api/health?probe=cf"
           sleep 1

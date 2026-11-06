@@ -12,6 +12,7 @@ Status: **partly implemented.** Tables marked *implemented* exist in `apps/serve
 | `activities` | implemented (ticket 1.6) |
 | `telemetry_daily` | implemented (ticket 3.8) |
 | `reports`, `sanctions` | implemented (ticket 4.1) |
+| `invite_codes` | implemented (ticket D.2) |
 | others      | draft                   |
 
 ## Principles
@@ -51,6 +52,21 @@ Owner decision (GDD v0.3): real registration/login from Phase 1, no dev identity
 | revoked_at | timestamptz | null while active; set on logout                                  |
 
 A session is valid iff `revoked_at IS NULL AND expires_at > now()` (the server compares against its own clock). Login and registration insert a row (`created_at` = issue time, `expires_at` = + `SESSION_TTL_HOURS`); logout sets `revoked_at`. Pruning expired rows is left to a later maintenance job.
+
+### invite_codes — implemented (D.2)
+| Column                | Type        | Notes                                                        |
+| --------------------- | ----------- | ------------------------------------------------------------ |
+| id                    | uuid PK     | UUIDv7; what `pnpm admin:invite list/revoke` shows           |
+| code_hash             | text        | SHA-256 hex of the normalised 16-character code, unique; the code itself is never stored |
+| max_uses              | integer     | default 1, `CHECK (max_uses >= 1)`                           |
+| uses                  | integer     | default 0, `CHECK (uses between 0 and max_uses)`             |
+| expires_at            | timestamptz | null = never                                                 |
+| revoked_at            | timestamptz | null while usable                                            |
+| note                  | text        | the admin's note, default `''`                               |
+| created_by_account_id | uuid FK     | → `accounts.id` `ON DELETE SET NULL`; null from the CLI      |
+| created_at            | timestamptz | default `now()`                                              |
+
+Written only by `pnpm admin:invite` (create, revoke) and by registration in `REGISTRATION_MODE=invite`, which raises `uses` with one conditional `UPDATE … WHERE uses < max_uses AND revoked_at IS NULL AND (expires_at IS NULL OR expires_at > now)` inside the account's transaction (docs/DEPLOY.md "Registration and invite codes"). The `account.register` audit row carries `data.inviteId`.
 
 ### characters — implemented (1.3)
 | Column         | Type        | Notes                                            |

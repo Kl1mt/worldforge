@@ -76,6 +76,11 @@ describe('apiRequest', () => {
 });
 
 describe('describeAuthFailure', () => {
+  it('explains invite and closed-registration refusals (ticket D.2)', () => {
+    expect(describeAuthFailure({ code: 'invite_invalid', message: '' })).toMatch(/invite code/);
+    expect(describeAuthFailure({ code: 'registration_closed', message: '' })).toMatch(/closed/);
+  });
+
   it('keeps failed logins generic', () => {
     expect(describeAuthFailure({ code: 'invalid_credentials', message: 'x' })).toBe(
       'That email and password do not match an account.',

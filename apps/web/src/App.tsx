@@ -2,7 +2,17 @@ import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { CharactersProvider, useCharacters } from './characters/CharactersProvider';
 import { GameProvider } from './game/GameProvider';
-import { DEFAULT_ROUTE, guardRoute, isGameRoute, routeHref, type Standing } from './lib/route';
+import {
+  DEFAULT_ROUTE,
+  guardRoute,
+  inviteFromLocation,
+  isGameRoute,
+  isLegalRoute,
+  registerHref,
+  routeHref,
+  type Standing,
+} from './lib/route';
+import { LegalScreen } from './legal/LegalScreen';
 import { AreaScreen } from './screens/AreaScreen';
 import { AuthScreen, GateStatus, SuspendedGate } from './screens/AuthScreen';
 import { AccountScreen } from './screens/AccountScreen';
@@ -49,18 +59,28 @@ function Routes() {
     ? (guardRoute(route, standing) ??
       (route === 'moderation' && standing === 'playing' && !staff ? DEFAULT_ROUTE : null))
     : null;
+  // Ticket D.2: an invite link (`?invite=CODE`) opens the register screen for visitors, with the
+  // code carried in the hash.
+  const invite = inviteFromLocation(window.location.search, window.location.hash);
+  const inviteRedirect =
+    standing === 'anonymous' && invite && route !== 'register' && !isLegalRoute(route);
 
   useEffect(() => {
     // `replace` so the guarded screen does not stay in history behind the gate.
-    if (redirect) window.location.replace(routeHref(redirect));
-  }, [redirect]);
+    if (inviteRedirect) {
+      window.location.replace(`${window.location.pathname}${registerHref(invite)}`);
+    } else if (redirect) window.location.replace(routeHref(redirect));
+  }, [redirect, inviteRedirect, invite]);
+
+  // Ticket D.2: the legal pages are open to everyone, whatever the session check says.
+  if (isLegalRoute(route)) return <LegalScreen key={route} page={route} />;
 
   if (auth.state.kind === 'error') return <GateStatus kind="offline" onRetry={auth.retry} />;
   if (auth.state.kind === 'suspended') return <SuspendedGate sanction={auth.state.sanction} />;
   if (roster.state.kind === 'error') {
     return <GateStatus kind="roster-error" onRetry={roster.reload} />;
   }
-  if (standing === null || redirect) return <GateStatus kind="checking" />;
+  if (standing === null || redirect || inviteRedirect) return <GateStatus kind="checking" />;
   if (route === 'characters') return <CharactersScreen />;
   if (!isGameRoute(route)) return <AuthScreen mode={route} />;
 

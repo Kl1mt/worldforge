@@ -1,3 +1,15 @@
+/**
+ * Who may create an account (ticket D.2, docs/DEPLOY.md "Registration"): `open` (anyone),
+ * `invite` (a valid invite code from `pnpm admin:invite`), `closed` (nobody). Login and existing
+ * sessions never depend on it.
+ */
+export const REGISTRATION_MODES = ['open', 'invite', 'closed'] as const;
+export type RegistrationMode = (typeof REGISTRATION_MODES)[number];
+
+export function isRegistrationMode(value: unknown): value is RegistrationMode {
+  return (REGISTRATION_MODES as readonly unknown[]).includes(value);
+}
+
 export interface ServerConfig {
   host: string;
   port: number;
@@ -15,6 +27,13 @@ export interface ServerConfig {
   offlineCapSeconds: number;
   /** Scheduled settlement interval; 0 disables it. */
   settleIntervalSeconds: number;
+  /** Ticket D.2. Default `open` (dev, tests, playtest, e2e); production sets `invite`. */
+  registrationMode: RegistrationMode;
+  /**
+   * Ticket D.2: directory with the owner's `impressum.md` / `datenschutz.md`. A file missing there
+   * falls back to the template shipped in `content/legal/`. Unset: templates only.
+   */
+  legalDir: string | undefined;
 }
 
 function intEnv(env: NodeJS.ProcessEnv, name: string, fallback: number, min: number, max: number) {
@@ -34,6 +53,17 @@ function boolEnv(env: NodeJS.ProcessEnv, name: string, fallback: boolean): boole
   throw new Error(`Invalid ${name}: ${raw} (expected 1/0/true/false)`);
 }
 
+function registrationModeEnv(env: NodeJS.ProcessEnv): RegistrationMode {
+  const raw = env.REGISTRATION_MODE?.trim().toLowerCase();
+  if (raw === undefined || raw === '') return 'open';
+  if (!isRegistrationMode(raw)) {
+    throw new Error(
+      `Invalid REGISTRATION_MODE: ${env.REGISTRATION_MODE} (expected ${REGISTRATION_MODES.join('|')})`,
+    );
+  }
+  return raw;
+}
+
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
   const databaseUrl = env.DATABASE_URL?.trim() || undefined;
   if (databaseUrl !== undefined && !/^postgres(ql)?:\/\//.test(databaseUrl)) {
@@ -50,6 +80,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     trustProxy: boolEnv(env, 'TRUST_PROXY', false),
     offlineCapSeconds: intEnv(env, 'OFFLINE_CAP_SECONDS', 3 * 60 * 60, 0, 7 * 24 * 60 * 60),
     settleIntervalSeconds: intEnv(env, 'SETTLE_INTERVAL_SECONDS', 300, 0, 24 * 60 * 60),
+    registrationMode: registrationModeEnv(env),
+    legalDir: env.LEGAL_DIR?.trim() || undefined,
   };
 }
 

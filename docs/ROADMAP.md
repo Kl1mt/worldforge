@@ -563,6 +563,12 @@ Goal: the owner runs Worldforge publicly on their own VPS (Debian 13, 2 vCPU, 4 
 - Optional GitHub Actions deploy over SSH after CI passes on `main`, off unless a repo variable enables it; secrets documented, none added. A cheap CI check that builds the images on PRs touching `deploy/`.
 - `docs/DEPLOY.md`: step-by-step for the owner on Debian 13 (domain and tunnel at Cloudflare, deploy user, SSH, ufw with only SSH open, Docker from Docker's repo, first start, admin, backups and restore, updates, logs, monitoring, troubleshooting, keeping the IP private) and a "before going public" checklist.
 
+### D.2 Invite-only registration & legal pages — `in progress`
+Goal: the live site can be limited to invited players and has the legally required pages. Read `CLAUDE.md`, `docs/DEPLOY.md`, `docs/SOCIAL.md`, `apps/server/src/auth/`.
+- `REGISTRATION_MODE=open|invite|closed` (server config; `open` by default for dev, tests, playtest and e2e; `invite` in `deploy/.env.example`). Login, accounts and sessions are unaffected.
+- Invite codes: random, stored hashed, single- or multi-use with expiry, created/listed/revoked only by admins (`pnpm admin:invite`, `deploy/admin.sh invite …`), redeemed atomically at registration (real-Postgres race test), audited without exposing codes. Register UI: invite field, `?invite=CODE` links, closed message, public `GET /api/config`.
+- Impressum and Datenschutzerklärung pages from owner-editable Markdown (`content/legal/` templates, overridden by the mounted `deploy/legal/` on the VPS), linked in every footer, consent line at registration. Templates are placeholders, not legal advice.
+
 ## Art tickets (run alongside the phases)
 
 ### A.1 Class portraits — `done (PR #14)`

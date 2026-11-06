@@ -90,6 +90,13 @@ services:
       TRUST_PROXY: '1'
       OFFLINE_CAP_SECONDS: ${OFFLINE_CAP_SECONDS:-10800}
       SETTLE_INTERVAL_SECONDS: ${SETTLE_INTERVAL_SECONDS:-300}
+      # Ticket D.2 (DEPLOY.md "Registration"): open | invite | closed. Open if unset.
+      REGISTRATION_MODE: ${REGISTRATION_MODE:-open}
+      # The owner's legal pages, mounted read-only from deploy/legal/ (DEPLOY.md "Legal pages");
+      # a missing file falls back to the placeholder template baked into the image.
+      LEGAL_DIR: /app/legal
+      # Only for the invite links `deploy/admin.sh invite create` prints.
+      DOMAIN: ${DOMAIN:-}
       NODE_OPTIONS: --max-old-space-size=512
     depends_on:
       db:
@@ -99,6 +106,8 @@ services:
     mem_limit: 768m
     read_only: true
     tmpfs: [/tmp]
+    volumes:
+      - ./legal:/app/legal:ro
     cap_drop: [ALL]
     security_opt: ['no-new-privileges:true']
     networks: [backend, frontend]

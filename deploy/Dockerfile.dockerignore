@@ -14,3 +14,5 @@ docs
 tools
 deploy/backups
 deploy/.env
+# The owner's legal pages (personal address): mounted at runtime, never baked into an image.
+deploy/legal

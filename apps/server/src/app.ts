@@ -20,6 +20,7 @@ import { registerQuests } from './quests/routes.js';
 import { registerLootFilter } from './loot-filter/routes.js';
 import { registerSafety } from './social/routes.js';
 import { registerModeration } from './social/moderation.js';
+import { registerLegal, type LegalOptions } from './legal/routes.js';
 import type { Database, DatabaseHandle } from './db/types.js';
 
 declare module 'fastify' {
@@ -42,6 +43,8 @@ export interface AppOptions extends FastifyServerOptions {
   auth?: Partial<AuthOptions>;
   /** Farming settlement settings; defaults in `DEFAULT_ACTIVITY_OPTIONS` (scheduler off). */
   activity?: Partial<ActivityOptions>;
+  /** Legal pages (ticket D.2): the owner's directory; default templates only. */
+  legal?: LegalOptions;
   /**
    * Tests only: extra routes registered inside the `/api` scope after the game routes, so they see
    * its decorators (`requireAccount`, `socialWriteLimit`, …). Used to test shared helpers before a
@@ -54,6 +57,7 @@ export function buildApp({
   database,
   auth,
   activity,
+  legal,
   testRoutes,
   ...options
 }: AppOptions): FastifyInstance {
@@ -83,6 +87,7 @@ export function buildApp({
       await registerLootFilter(api, activityOptions);
       await registerSafety(api);
       await registerModeration(api);
+      await registerLegal(api, legal ?? {});
       if (testRoutes) await testRoutes(api);
 
       api.get('/health', async (request, reply): Promise<HealthResponse> => {

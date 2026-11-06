@@ -22,6 +22,7 @@ COPY tsconfig.base.json ./
 COPY packages/game-core packages/game-core
 COPY apps/server apps/server
 COPY apps/web apps/web
+COPY content content
 # Topological: game-core → server, web. The server build excludes src/e2e and src/playtest.
 RUN pnpm build
 # A self-contained node_modules with production dependencies only (game-core copied from dist).
@@ -36,9 +37,13 @@ COPY --from=build /out/server/node_modules ./node_modules
 COPY --from=build /repo/apps/server/package.json ./package.json
 COPY --from=build /repo/apps/server/dist ./dist
 COPY --from=build /repo/apps/server/drizzle ./drizzle
+# Placeholder legal pages (ticket D.2); the owner's own files are mounted at /app/legal.
+COPY --from=build /repo/content/legal ./content/legal
 # The e2e and playtest servers must never ship (they also refuse NODE_ENV=production).
 RUN test ! -e dist/e2e && test ! -e dist/playtest && test -f dist/index.js \
-  && test -f dist/db/migrate-cli.js && test -f dist/social/role-cli.js
+  && test -f dist/db/migrate-cli.js && test -f dist/social/role-cli.js \
+  && test -f dist/auth/invite-cli.js && test -f content/legal/impressum.md \
+  && test -f content/legal/datenschutz.md
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=4s --start-period=30s --retries=3 \

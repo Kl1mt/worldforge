@@ -4,7 +4,7 @@ This guide takes a fresh **Debian 13 (trixie)** VPS to a public Worldforge at `h
 
 You type the commands in a terminal **on the server** unless a step says "on your computer". Lines starting with `sudo` need the deploy user's password. `<server-ip>` is the VPS's address from your hosting provider. You need it only for SSH, so keep it to yourself.
 
-Ticket D.1. Files: `deploy/` (Dockerfile, Compose stack, Caddyfile, scripts, systemd timer) and `.github/workflows/deploy.yml` (optional automatic deploys).
+Ticket D.1. Files: `deploy/` (Dockerfile, Compose stack, Caddyfile, scripts, systemd timer) and `.github/workflows/deploy.yml` (optional automatic deploys). Ticket D.2 added invite-only registration and the legal pages (§9, "Registration and invite codes" and "Legal pages").
 
 ## What runs where
 
@@ -170,6 +170,7 @@ Set at least:
 - `CLOUDFLARE_TUNNEL_TOKEN`: the token from §6.
 - `POSTGRES_PASSWORD`: the random hex string. Leave `DATABASE_URL` as it is, because it is built from the `POSTGRES_*` values.
 - Leave `COMPOSE_PROFILES=tunnel`, which starts `cloudflared`.
+- `REGISTRATION_MODE`: `invite` (the default in `.env.example`) until you open the game to everyone; see §9 "Registration and invite codes".
 
 Every variable is explained in `deploy/.env.example`. `deploy/.env` is git-ignored: never commit it or paste it anywhere. `NODE_ENV=production`, `SESSION_COOKIE_SECURE=1` and `TRUST_PROXY=1` are fixed in `docker-compose.yml`.
 
@@ -202,6 +203,45 @@ deploy/admin.sh grant you@example.com admin
 ```
 
 (`deploy/admin.sh revoke <email|handle>` takes it back; `moderator` is the other role. This runs the production `admin:role:prod` command inside the server container, see `docs/SOCIAL.md`.)
+
+With `REGISTRATION_MODE=invite` you need an invite code for your own account too: create one first (next section), then register with it.
+
+### Registration and invite codes
+
+`REGISTRATION_MODE` in `deploy/.env` decides who may create an account (ticket D.2):
+
+| Mode | Register screen | Use it when |
+|------|-----------------|-------------|
+| `open` | anyone can register | the game is public (also the default when the variable is unset, and in development, tests, playtest and e2e) |
+| `invite` | asks for an invite code | a small, invited group (the default in `.env.example`) |
+| `closed` | says registration is closed | you want no new accounts for now |
+
+Login, existing accounts and their sessions work the same in every mode. After changing the value, apply it with `docker compose up -d server` (or the next `deploy/deploy.sh`).
+
+Invite codes are created only by an admin on the server:
+
+```sh
+deploy/admin.sh invite create                                   # 1 use, expires in 14 days
+deploy/admin.sh invite create --uses 10 --expires 30d --note "guild friends"
+deploy/admin.sh invite list                                     # id, status, uses, expiry, note
+deploy/admin.sh invite revoke <invite id|code>                  # accounts it created stay
+```
+
+`create` prints the code and a ready link, `https://$DOMAIN/#/register?invite=CODE`, which opens the register screen with the code filled in. **Copy it right away**: the code is random and only its SHA-256 hash is stored, so it cannot be shown again (create a new one instead). `--expires` takes `14d`, `12h`, `30m` or `never`. A code is used up after `--uses` accounts; a failed registration (e.g. a taken email) does not use it up. Which code created which account is in the audit log (`account.register` with `data.inviteId`); the code itself never appears in logs. Wrong codes count against the per-IP registration limit (5 per hour). In development the same commands are `pnpm admin:invite …`.
+
+### Legal pages
+
+The Impressum (`/#/impressum`) and the privacy policy (`/#/datenschutz`) are linked in the footer of every screen and in the consent line under the register button. Their text is **yours**: the image ships placeholder templates (`content/legal/*.md` in the repository, marked "Platzhalter" and shown with a "Template" note) that list what you must fill in. They are not legal advice.
+
+On the server, put your own files in `~/worldforge/deploy/legal/`, which is mounted read-only into the server container at `/app/legal` (`LEGAL_DIR`). It is git-ignored and excluded from the image build, so your address never lands in the repository or an image:
+
+```sh
+cp content/legal/impressum.md content/legal/datenschutz.md deploy/legal/
+nano deploy/legal/impressum.md     # fill in every [bracket]; delete the first line <!-- worldforge:template -->
+nano deploy/legal/datenschutz.md
+```
+
+Changes show on the next page load; no restart or deploy needed. A file missing in `deploy/legal/` falls back to the template, and as long as the first line `<!-- worldforge:template -->` is there the page shows the "Template" note. The Markdown supports headings, paragraphs (a single line break stays a line break, handy for addresses), lists, `>` quotes, `---` rules, `**bold**`, `*italic*` and links (`https:`, `mailto:`, `tel:`); HTML is shown as plain text. Include `deploy/legal/` in your off-VPS copies (§10), since it is not in git.
 
 ## 10. Backups
 
@@ -325,8 +365,9 @@ The tunnel keeps the IP out of DNS and off the web ports. Don't give it away els
 Worldforge is ready to run for a **small, invited group**. Before you advertise it:
 
 - [ ] **No password reset or email verification yet** (ticket 1.2 follow-ups). A player who forgets their password cannot get back in on their own. Tell testers, or be ready to help by hand.
-- [ ] **Datenschutzerklärung (privacy policy)**: required in Germany as soon as you store accounts. It must cover what is stored (email, display name, password hash, game data, IP addresses in the server's request logs, which rotate at 5 × 10 MB, and in the in-memory rate limits), the hoster and Cloudflare as processors (sign the hoster's AV contract / DPA; Cloudflare's DPA is part of its terms), retention and the players' rights. The content must come from you (a generator or a lawyer). The game can host the pages later.
-- [ ] **Impressum**: required for a German public website that is not purely private. The content (name, address, contact) comes from you; the code can host the page later.
+- [ ] **Datenschutzerklärung (privacy policy)** in `deploy/legal/datenschutz.md` (§9 "Legal pages"): required in Germany as soon as you store accounts. It must cover what is stored (email, display name, password hash, game data, IP addresses in the server's request logs, which rotate at 5 × 10 MB, and in the in-memory rate limits), the hoster and Cloudflare as processors (sign the hoster's AV contract / DPA; Cloudflare's DPA is part of its terms), retention and the players' rights. The template lists these points; the content must come from you (a generator or a lawyer).
+- [ ] **Impressum** in `deploy/legal/impressum.md`: required for a German public website that is not purely private. The content (name, address, contact per § 5 DDG) comes from you.
+- [ ] **`REGISTRATION_MODE`** is what you want (`invite` for a closed group, §9).
 - [ ] **Backups are copied off the VPS** and a restore has been tried once (§10).
 - [ ] **An uptime check** on `/api/health` (§13).
 - [ ] Keep it **semi-private** (share the link with testers rather than publicly) until the Phase 4 hardening ticket (4.11) has reviewed the social features for abuse and privacy.
