@@ -21,7 +21,8 @@
     "doctor": "node tools/doctor.mjs",
     "playtest": "node tools/playtest/run.mjs",
     "playtest:fast": "node tools/playtest/run.mjs --fast",
-    "playtest:reset": "node tools/playtest/reset.mjs"
+    "playtest:reset": "node tools/playtest/reset.mjs",
+    "report:telemetry": "pnpm --silent --filter @worldforge/server report:telemetry"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

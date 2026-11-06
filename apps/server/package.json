@@ -13,6 +13,8 @@
     "test:pg": "vitest run src/concurrency.pg.test.ts",
     "e2e:serve": "tsx --conditions=source src/e2e/serve.ts",
     "playtest:serve": "tsx --conditions=source src/playtest/serve.ts",
+    "report:telemetry": "tsx --conditions=source src/telemetry/report-cli.ts",
+    "telemetry:simulate": "tsx --conditions=source src/telemetry/simulate.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx --env-file-if-exists=.env --conditions=source src/db/migrate-cli.ts",
     "db:migrate:prod": "node --env-file-if-exists=.env dist/db/migrate-cli.js"

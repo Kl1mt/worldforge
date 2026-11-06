@@ -122,6 +122,8 @@ Press **Ctrl+C** in the terminal running `pnpm playtest` (on macOS also Ctrl, no
 
 If you closed the terminal window instead, the game has stopped too.
 
+After a session, `pnpm report:telemetry` (with the game stopped) prints what the playtest world did in aggregate: drops by rarity, gold sources and sinks, crypt wins and losses, forge spending. It reads `.playtest-data/` and holds no player data (`docs/TELEMETRY.md`).
+
 ---
 
 ## 6. Start over (delete all game data)

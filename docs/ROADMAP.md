@@ -371,7 +371,7 @@ GDD: §1.3, §14 (steps 4–5); Phase 2 retrospective (the pack fills in about t
 **Acceptance:** filter determinism and invariance; PG races (settle vs filter change, sell vs lock); screenshots.
 **Follow-up (warehouse, GDD: later):** a full pack still overflow-salvages *every* drop that finds no room, Legendary, Mythic, set and Void included (unchanged capacity rule; the filter can only free room). A warehouse or an overflow stash for protected drops would close this.
 
-### 3.8 Loot & economy telemetry — `todo`
+### 3.8 Loot & economy telemetry — `done (PR #46)`
 GDD: §16.4, §15 Phase 3 ("telemetry for drop rates, item usage and build distribution").
 - Privacy-conscious, server-side aggregates only. No client tracking and no personal data:
   - drop counts by rarity, variant, effect and area;
