@@ -9,3 +9,6 @@ coverage/
 # Local playtest database (pnpm playtest; docs/PLAYTEST.md).
 .playtest-data/
 .telemetry-sample/
+# Production deploy (docs/DEPLOY.md): local secrets, dumps and the script lock.
+deploy/backups/
+deploy/.lock

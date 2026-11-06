@@ -1,0 +1,60 @@
+# Optional automatic deploy to the VPS (ticket D.1, docs/DEPLOY.md §11). Does nothing until the
+# repository variable DEPLOY_ENABLED is "true" and these are set (repo or `production`
+# environment secrets): DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY (private key whose public half is
+# in the VPS user's authorized_keys with the forced command deploy/ssh-deploy.sh) and
+# DEPLOY_KNOWN_HOSTS (`ssh-keyscan -t ed25519 <host>` output, checked against the VPS).
+# Optional variable DEPLOY_PORT (default 22).
+name: Deploy
+
+on:
+  # After CI passes for a push to main.
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
+    branches: [main]
+  # Manual: Actions → Deploy → Run workflow (main only).
+  workflow_dispatch:
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions: {}
+
+jobs:
+  deploy:
+    if: >-
+      vars.DEPLOY_ENABLED == 'true' &&
+      ((github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/main') ||
+       (github.event_name == 'workflow_run' &&
+        github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.event == 'push' &&
+        github.event.workflow_run.head_branch == 'main' &&
+        github.event.workflow_run.head_repository.full_name == github.repository))
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 30
+    steps:
+      - name: Deploy over SSH
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          HOST: ${{ secrets.DEPLOY_HOST }}
+          USER_NAME: ${{ secrets.DEPLOY_USER }}
+          PORT: ${{ vars.DEPLOY_PORT || '22' }}
+          # The commit CI tested; deploy.sh refuses anything that is not on origin/main.
+          SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
+        run: |
+          for name in SSH_KEY KNOWN_HOSTS HOST USER_NAME; do
+            [ -n "${!name}" ] || { echo "::error::secret for $name is not set (docs/DEPLOY.md §11)"; exit 1; }
+          done
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" > ~/.ssh/known_hosts
+          # The key's forced command (deploy/ssh-deploy.sh) only accepts "deploy <sha>".
+          ssh -i ~/.ssh/deploy_key -p "$PORT" -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o ServerAliveInterval=30 "$USER_NAME@$HOST" "deploy $SHA"
+      - name: Remove the key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

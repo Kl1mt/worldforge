@@ -1,0 +1,55 @@
+# Builds and starts the production stack (deploy/) on PRs that touch it (ticket D.1): shellcheck,
+# compose config, both images, migrations, the server health check and Caddy's HTTPS front, all
+# through deploy/deploy.sh with a throwaway .env and DOMAIN=localhost (Caddy's internal CA).
+name: Deploy config
+
+on:
+  pull_request:
+    paths:
+      - 'deploy/**'
+      - '.github/workflows/deploy*.yml'
+      - 'pnpm-lock.yaml'
+      - '**/package.json'
+
+concurrency:
+  group: deploy-check-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  stack:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Shellcheck
+        run: shellcheck -x deploy/*.sh
+      - name: Throwaway .env
+        run: |
+          cp deploy/.env.example deploy/.env
+          sed -i "s/^DOMAIN=.*/DOMAIN=localhost/; s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 16)/" deploy/.env
+          docker compose -f deploy/docker-compose.yml config --quiet
+      - name: Build, migrate and start (deploy.sh)
+        run: deploy/deploy.sh --no-pull --skip-backup
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          curl -fsSk https://localhost/api/health | grep -q '"db":"up"'
+          headers=$(curl -fsSk -D- -o /dev/null https://localhost/)
+          for h in strict-transport-security content-security-policy x-content-type-options 'cache-control: no-cache'; do
+            grep -qi "^$h" <<<"$headers" || { echo "missing header: $h"; exit 1; }
+          done
+          test "$(curl -sk -o /dev/null -w '%{http_code}' https://localhost/assets/missing-ABCDEFGH.js)" = 404
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://localhost/)" = 308
+          # Neither the API nor the database is published on the host.
+          if curl -s -m 3 http://127.0.0.1:3000/api/health; then echo "API port is published"; exit 1; fi
+          if (exec 3<>/dev/tcp/127.0.0.1/5432) 2>/dev/null; then echo "database port is published"; exit 1; fi
+      - name: Backup and idempotent re-deploy
+        run: |
+          deploy/backup.sh --kind manual
+          deploy/deploy.sh --no-pull --skip-backup
+      - name: Logs
+        if: failure()
+        run: docker compose -f deploy/docker-compose.yml logs --tail 200

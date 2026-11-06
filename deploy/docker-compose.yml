@@ -1,0 +1,152 @@
+# Worldforge production stack (ticket D.1, docs/DEPLOY.md). Run from this directory; the
+# variables come from deploy/.env (copy .env.example, never commit it).
+#   docker compose up -d --build     first start (db → migrate → server → web)
+#   ./deploy.sh                      later updates (pull, build, backup, migrate, restart, verify)
+name: worldforge
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '5'
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in deploy/.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in deploy/.env}
+    # Sized for a 4 GB VPS shared with the API, Caddy and image builds (docs/DEPLOY.md).
+    command:
+      - postgres
+      - -c
+      - max_connections=40
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=1GB
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
+      - -c
+      - max_wal_size=1GB
+      - -c
+      - log_min_duration_statement=1000
+    shm_size: 256mb
+    mem_limit: 1g
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    # No `ports:` — the database is reachable only from the internal network.
+    networks: [backend]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: *logging
+
+  # One-shot: applies pending migrations, then exits. The server never migrates on startup.
+  migrate:
+    image: worldforge-server:latest
+    pull_policy: never
+    command: ['node', 'dist/db/migrate-cli.js']
+    restart: 'no'
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in deploy/.env}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [backend]
+    logging: *logging
+
+  server:
+    image: worldforge-server:latest
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: server
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: '3000'
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in deploy/.env}
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-720}
+      # Fixed for this stack: HTTPS only, and Caddy is the only client that can reach the server.
+      SESSION_COOKIE_SECURE: '1'
+      TRUST_PROXY: '1'
+      OFFLINE_CAP_SECONDS: ${OFFLINE_CAP_SECONDS:-10800}
+      SETTLE_INTERVAL_SECONDS: ${SETTLE_INTERVAL_SECONDS:-300}
+      NODE_OPTIONS: --max-old-space-size=512
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    mem_limit: 768m
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    networks: [backend, frontend]
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 15s
+      timeout: 4s
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
+    logging: *logging
+
+  web:
+    image: worldforge-web:latest
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: web
+    restart: unless-stopped
+    environment:
+      DOMAIN: ${DOMAIN:?set DOMAIN in deploy/.env}
+      ACME_EMAIL: ${ACME_EMAIL:?set ACME_EMAIL in deploy/.env}
+    ports:
+      - '80:80'
+      - '443:443'
+      - '443:443/udp' # HTTP/3
+    volumes:
+      - caddy-data:/data # certificates and ACME account: keep this volume
+      - caddy-config:/config
+    depends_on:
+      - server
+    mem_limit: 256m
+    networks: [frontend]
+    logging: *logging
+
+networks:
+  # No route to the internet: only the server and the one-shot jobs talk to the database.
+  backend:
+    internal: true
+  # IPv6 on: Docker forwards IPv6 clients by NAT and the server sees their real address. Off,
+  # Docker's userland proxy relays them and they all share the bridge gateway's IP (and so one
+  # rate-limit bucket). Turn on when the VPS has IPv6 and DNS has an AAAA record (DEPLOY.md §1).
+  frontend:
+    enable_ipv6: ${ENABLE_IPV6:-false}
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:

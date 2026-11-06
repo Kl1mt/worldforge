@@ -1,0 +1,16 @@
+# Nightly database dump (docs/DEPLOY.md §9). Install:
+#   sudo cp deploy/systemd/worldforge-backup.{service,timer} /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now worldforge-backup.timer
+# Adjust User= and the paths if the deploy user or the clone location differ.
+[Unit]
+Description=Worldforge database backup
+Wants=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+User=deploy
+WorkingDirectory=/home/deploy/worldforge
+ExecStart=/home/deploy/worldforge/deploy/backup.sh
+Nice=10
+IOSchedulingClass=idle
