@@ -11,6 +11,7 @@ import {
   attackHit,
   buildEncounter,
   combineEffects,
+  distinctEffects,
   createRng,
   describeEffect,
   deriveCharacterStats,
@@ -131,16 +132,60 @@ describe('combineEffects', () => {
       threshold: 0.3,
       bonus: 0.6,
     });
+    // Different sources of one mechanic add up to the cap (Headsman's Due, Undertow, Starfall).
     const many = combineEffects(
-      Array.from({ length: 5 }, () => ({ effectId: 'headsmans-due', roll: 1 })),
-      'warrior',
+      [
+        { effectId: 'headsmans-due', roll: 1 },
+        { effectId: 'vigil-undertow', roll: 0 },
+        { effectId: 'widows-kiss', roll: 0 },
+      ],
+      'hunter',
     );
     expect(many.execute.bonus).toBe(DEFAULT_EFFECT_CAPS.execute.bonus);
     const thorns = combineEffects(
-      Array.from({ length: 5 }, () => ({ effectId: 'bramblemail', roll: 1 })),
+      [
+        { effectId: 'bramblemail', roll: 1 },
+        { effectId: 'vigil-tidebound', roll: 0 },
+        { effectId: 'hollow-majesty', roll: 0 },
+      ],
       'mage',
     );
     expect(thorns.thorns).toBe(DEFAULT_EFFECT_CAPS.thorns);
+  });
+
+  it('counts each effect once: only its strongest copy (ticket B.2)', () => {
+    const one = combineEffects([{ effectId: 'unbroken', roll: 0.8 }], 'warrior');
+    const three = combineEffects(
+      [
+        { effectId: 'unbroken', roll: 0.2 },
+        { effectId: 'unbroken', roll: 0.8 },
+        { effectId: 'unbroken', roll: 0.5 },
+      ],
+      'warrior',
+    );
+    expect(three).toEqual(one);
+    // A Void copy (stronger magnitudes) beats a plain copy of the same roll.
+    const voidCopy = { effectId: 'headsmans-due', roll: 0.5, strength: 1.1 };
+    expect(
+      distinctEffects([
+        { effectId: 'headsmans-due', roll: 0.5 },
+        voidCopy,
+        { effectId: 'bloodrush', roll: 0 },
+      ]),
+    ).toEqual([voidCopy, { effectId: 'bloodrush', roll: 0 }]);
+    // On a tie the first copy counts; other ids are untouched and keep their order.
+    const a = { effectId: 'emberbrand', roll: 1 };
+    const b = { effectId: 'emberbrand', roll: 1 };
+    expect(distinctEffects([a, b])[0]).toBe(a);
+    // Two different effects with one mechanic still add up.
+    const both = combineEffects(
+      [
+        { effectId: 'tyrants-bane', roll: 0 },
+        { effectId: 'abyssal-rot', roll: 0 },
+      ],
+      'warlock',
+    );
+    expect(both.bossSlayer).toBe(0.2);
   });
 
   it('counts class effects only for their class', () => {

@@ -59,6 +59,11 @@ export interface ReturnSummary {
   goldSalvaged: number;
   itemsGained: number;
   itemsSalvaged: number;
+  /**
+   * Ticket B.2: valuable drops (Legendary, Mythic, set, Void) that found no room and were kept
+   * beyond the pack's capacity (part of `itemsGained`). Missing when none.
+   */
+  itemsOverCapacity?: number;
   items: SummaryItem[];
   /** Materials gathered (ticket 2.3). Missing in summaries from before 2.3. */
   materials?: Partial<Record<MaterialId, number>>;

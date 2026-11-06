@@ -115,6 +115,15 @@ export function chronicleEntries(summary: ReturnSummary, seq: number): LogEntry[
       text: `Pack full: ${summary.itemsSalvaged} ${summary.itemsSalvaged === 1 ? 'item' : 'items'} salvaged for ${summary.goldSalvaged} gold.`,
     });
   }
+  const over = summary.itemsOverCapacity ?? 0;
+  if (over > 0) {
+    out.push({
+      id: id('over'),
+      at,
+      kind: 'note',
+      text: `Pack over capacity: ${over} valuable ${over === 1 ? 'drop' : 'drops'} kept anyway.`,
+    });
+  }
   if (summary.levelsGained > 0) {
     out.push({ id: id('level'), at, kind: 'level', levels: summary.levelsGained });
   }

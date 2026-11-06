@@ -110,6 +110,33 @@ Starting numbers for later balancing: a fresh level-1 character farming Abandone
 
 Observations: almost all deaths happen in the first levels (a mage dies about once a minute at level 1–3, then rarely); the warrior barely dies. Casters lose ~15–20 % of their early kills to deaths and respawns. Every class reaches level 13 (the area's top) within 3 h, so the Fields stop giving XP-relevant challenge well inside one offline cap. The browser e2e runs (×120 clock, 30 min cap) match: warrior 1 death and mage 26 deaths in ~32 simulated minutes (ticket 1.8 saw 12 deaths in ~30 min).
 
+## Build diversity (ticket B.2)
+GDD §15 Phase 3 exit: "different item combinations create meaningful build choices … no single item or affix dominates all builds". `packages/game-core/src/balance/builds.test.ts` makes it testable (≈ 14 s, in parallel with `balance.test.ts`).
+
+**The search** (`balance/builds.ts`). A late-game build per class: a set layout (none; the Drowned Vigil or the Ashen Choir at 2, 4 or 6 pieces; the Bloodmoon Hunt at 4; and the four two-set mixes; 12 in all), a Legendary in every other slot (base: the class's best regular base, median effect roll), an affix package for every item (`crit`: crit chance and damage; `speed`: attack speed; `power`: flat damage and the class skill; `guard`: health and defences; each item takes the first affixes its slot allows, at the middle of the highest tier its level unlocks), and a greedy effect search per layout and package (each slot in turn keeps the effect that helps most, never a copy). Two jobs: the **tier III Gravewarden** at level 23 in item-level-22 gear (mean boss time over 16 runs, a loss = 150 s) and **farming the Sunken Abbey** at level 19 in item-level-18 gear (kills/min, 2 × 40 min). Mythics are left out of the search (one per ~50 h of Abbey farming, a given one far rarer): a top-build check must not hinge on a drop nobody can plan for; they get their own band.
+
+**Asserted.** Per class and job, at least three distinct builds (layout or package) within **7 %** of the best ("a few percent": boss times move by about 2 % between seed sets), from at least two set layouts; at the boss, no set in all of them. Over both jobs' top builds, no set, Mythic, Legendary effect or leading affix (the three most frequent, as in the 3.8 build signature) is in every one. The top boss builds stay within 12 % of each other at +10 Void (upgrades and Void pick no winner). The class Mythic weapon on the best build is faster, at most × 1.4.
+
+**Before → after** (the same search on `main` before B.2; tier III Gravewarden; builds within 7 % · set layouts among them · what every one of them wears):
+
+| Class | Before | After | Class Mythic weapon on the best build (after) |
+|---|---|---|---|
+| Warrior | 9.6 s; 2 builds · 1 layout, all Ashen Choir 6 | 10.6 s; 4 · 3 (Choir 6, Vigil 6, Vigil 4 + Choir 2) | 10.4 s (× 1.02) |
+| Mage | 10.4 s; 1 · 1, Choir 6 | 9.6 s; 3 · 3 (Vigil 4, Choir 4, Choir 2) | 7.4 s (× 1.30) |
+| Hunter | 8.1 s; 1 · 1, Choir 6 | 9.7 s; 3 · 3 (Choir 6, Choir 4, Vigil 6) | 8.2 s (× 1.18) |
+| Warlock | 12.5 s; 3 · 2 | 11.6 s; 5 · 4 (Vigil 6, Choir 4, Vigil 4, …) | 9.3 s (× 1.25) |
+
+Every top boss build of every class carries Tyrant's Bane, Emberbrand and crit chance: they are the boss's tools (boss damage, crit burn) and no farming top build needs them, so neither effect nor affix is in all top builds. Farming is unchanged by B.2 and decided by a breakpoint, not by the build: at 19 the Abbey dies in one or two blows and kills/min is capped near 23–24 by the 2 s search. The Bloodmoon Hunt's 4-piece opener (the class skill as the first hit) reaches the one-shot two or three levels earlier than other builds, so it is in every farming top build (hunters: Ambush does the same, so 42 builds of all 12 layouts tie); that is the farming set's job (3.3), and the best build without it is asserted within 20 % (≈ 17 % behind). Past level ~22 every late-game build one-shots the Abbey.
+
+**What changed** (data and two rules; game-core):
+- **An effect counts once** (`distinctEffects`): stacking copies of one Legendary effect (three Unbrokens, two Tyrant's Banes) was the shape of every best build. Different effects still add up to the caps.
+- **Skill surges don't chain:** a surged class skill's crit no longer surges the next attack (`AttackHit.surged`). With its +25 % skill crit, the hunter chained Aimed Shots through the Ashen Choir's Hymn of Cinders.
+- **Sets:** Last Rite (Choir 6) + 10 % to bosses and 1 % rot (were 15 % and 2 %): the full Choir was every class's best boss build. Hold the Line (Vigil 4) + 30 % (was 25 %), Undertow (Vigil 6) execute + 80 % (was 60 %).
+- **Headsman's Due also rolls on rings**, so a second ring has a boss effect now that copies count once.
+- Crypt tiers II and III: `docs/DUNGEONS.md`; drop rates: `docs/EFFECTS.md`; forge costs: `docs/ECONOMY.md`.
+
+**The ticket's suspects.** *Ambush* (the strongest farming Legendary) works through the same one-shot breakpoint as the Bloodmoon opener: a levelling advantage that ends at the farming cap; at the boss it is not in the hunter's top builds. *The hunter's perfect Legendary build* stacked Unbroken; with copies counting once, Legendaries alone are not among the hunter's top boss builds, but on the tier I boss with a common kit the six-Legendary build stays × 1.46 faster than the best set build (was × 1.28; `balance.test.ts` records it). *Crit-dependent effects* (Mana Surge, Emberbrand, Starfall, Ashen Choir 2/4), evaluated with crit kits, are strong, not weak: Emberbrand is in every top boss build, Mana Surge in every mage one, the Choir in most. *Mage kits in tier III* were the slowest with farmed gear (with best-in-slot builds the warlock was): fixed for both casters with the tier II/III Gravewarden's lower resistance.
+
 ## Open points
 - Balance is tuned (ticket B.1, above) against simulations; the owner's playtest feedback may still move it. Keep `src/balance/balance.test.ts` green when adding content.
 - Item stats are only an input; the loot module (ticket 1.5) produces them.

@@ -38,10 +38,29 @@ const TABS: { id: Tab; name: string }[] = [
 const NEARLY_FULL = 5;
 type Notice = { kind: 'ok' | 'error'; text: string };
 
-/** Server rule (game-core activity config): drops beyond this are salvaged to gold. */
+/**
+ * Server rule (game-core activity config): ordinary drops beyond this are salvaged to gold;
+ * valuable ones (Legendary, Mythic, set, Void) are kept beyond it (ticket B.2).
+ */
 const CAPACITY = DEFAULT_ACTIVITY_CONFIG.inventory.capacity;
 /** Sockets drawn at least (the approved 8 × 5 chest); more rows appear as the pack fills. */
 const MIN_SOCKETS = 40;
+/** The pack-full banner's "since you came back" line (overflow salvage and valuables kept). */
+function sinceBack(t: { overflow: number; overflowGold: number; overCapacity: number }): string {
+  const parts: string[] = [];
+  if (t.overflow > 0) {
+    parts.push(
+      `${t.overflow} ${t.overflow === 1 ? 'drop' : 'drops'} salvaged for ${formatNumber(t.overflowGold)} gold`,
+    );
+  }
+  if (t.overCapacity > 0) {
+    parts.push(
+      `${t.overCapacity} valuable ${t.overCapacity === 1 ? 'drop' : 'drops'} kept over capacity`,
+    );
+  }
+  return parts.length > 0 ? `Since you came back: ${parts.join('; ')}.` : '';
+}
+
 const CLASS_NAME = new Map(CLASSES.map((c) => [c.id, c.name]));
 
 function usableBy(classes: readonly ClassId[]): string {
@@ -97,6 +116,7 @@ export function InventoryScreen() {
   const sockets = Math.max(MIN_SOCKETS, Math.ceil(items.length / columns) * columns);
   const emptySockets = filter === 'all' ? Math.max(0, sockets - items.length) : 0;
   const free = Math.max(0, CAPACITY - items.length);
+  const over = Math.max(0, items.length - CAPACITY);
   // The selection falls back to the first visible item (e.g. after equipping the selected one).
   const selected = visible.find((i) => i.id === selectedId) ?? visible[0];
   const slot = selected ? targetSlot(selected, equipped) : undefined;
@@ -327,6 +347,7 @@ export function InventoryScreen() {
           <span className="pack__capacity-num">{ready ? items.length : '–'}</span>
           <span className="pack__capacity-of"> / {CAPACITY}</span>
           <span className="caps"> carried</span>
+          {ready && over > 0 ? <span className="caps pack__over">· over capacity</span> : null}
         </p>
       </header>
 
@@ -384,17 +405,17 @@ export function InventoryScreen() {
               role={free === 0 ? 'alert' : 'status'}
             >
               <p className="pack__full-title display">
-                {free === 0
-                  ? 'Your pack is full.'
-                  : `Nearly full: ${free} ${free === 1 ? 'slot' : 'slots'} left.`}
+                {over > 0
+                  ? `Over capacity: ${over} ${over === 1 ? 'item' : 'items'} beyond the limit.`
+                  : free === 0
+                    ? 'Your pack is full.'
+                    : `Nearly full: ${free} ${free === 1 ? 'slot' : 'slots'} left.`}
               </p>
               <p>
                 {free === 0
-                  ? 'New drops that find no room are salvaged for gold the moment they drop, whatever their rarity.'
-                  : 'Once it is full, new drops that find no room are salvaged for gold the moment they drop.'}{' '}
-                {tally.overflow > 0
-                  ? `Since you came back: ${tally.overflow} ${tally.overflow === 1 ? 'drop' : 'drops'} salvaged for ${formatNumber(tally.overflowGold)} gold.`
-                  : ''}{' '}
+                  ? 'New drops that find no room are salvaged for gold the moment they drop. Legendary, Mythic, set and Void drops are kept anyway, beyond the limit.'
+                  : 'Once it is full, new drops that find no room are salvaged for gold the moment they drop (Legendary, Mythic, set and Void drops are kept anyway).'}{' '}
+                {sinceBack(tally)}{' '}
                 {tally.filtered > 0
                   ? `Your loot filter handled ${tally.filtered} more for ${formatNumber(tally.filteredGold)} gold; those never need room.`
                   : 'Drops your loot filter handles never need room.'}
@@ -533,7 +554,9 @@ export function InventoryScreen() {
               {ready && filter === 'all' && items.length > 0 ? (
                 <p className="stash__free">
                   {free} free {free === 1 ? 'slot' : 'slots'}
-                  {free === 0 ? ' · drops that find no room are salvaged for gold' : ''}
+                  {free === 0
+                    ? ' · drops that find no room are salvaged for gold, except Legendary, Mythic, set and Void'
+                    : ''}
                 </p>
               ) : null}
             </section>

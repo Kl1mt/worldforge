@@ -399,6 +399,12 @@ function Reckoning({
           {formatNumber(result.goldSalvaged)} gold.
         </p>
       ) : null}
+      {(result.itemsOverCapacity ?? 0) > 0 ? (
+        <p className="reckoning__line reckoning__line--dim">
+          Your pack was full, but {result.itemsOverCapacity} valuable{' '}
+          {result.itemsOverCapacity === 1 ? 'drop was' : 'drops were'} kept beyond its capacity.
+        </p>
+      ) : null}
       <div className="reckoning__actions">
         <a className="btn" href={routeHref('map')}>
           Back to the map

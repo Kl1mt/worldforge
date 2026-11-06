@@ -68,10 +68,37 @@ export function emptyCombatEffects(): CombatEffects {
   };
 }
 
+/** How strong an instance is, to pick the one copy of an effect that counts (ticket B.2). */
+function potency(instance: EffectInstance): number {
+  let sum = 0;
+  for (const c of resolveEffectComponents(instance)) {
+    for (const [key, v] of Object.entries(c)) {
+      if (typeof v === 'number' && !STRUCTURAL_PARAMS.has(key)) sum += v;
+    }
+  }
+  return sum;
+}
+
 /**
- * Combines effect instances into the numbers combat uses. Magnitudes add up to their cap;
- * execute takes the highest threshold, fortitude the lowest (not below the cap's minimum), and
- * bloodrush the most stacks and the slowest decay. Class effects only count for their class.
+ * Ticket B.2: an effect counts **once**. Of several instances with the same id (two Legendaries
+ * with Unbroken), only the strongest counts (the larger magnitudes after roll and Void strength;
+ * on a tie, the first). Different effects still add up, even with the same mechanic (Tyrant's Bane next to
+ * Abyssal Rot's boss bonus or a set's). Keeps the instances' order otherwise.
+ */
+export function distinctEffects(instances: readonly EffectInstance[]): EffectInstance[] {
+  const best = new Map<string, EffectInstance>();
+  for (const i of instances) {
+    const held = best.get(i.effectId);
+    if (!held || potency(i) > potency(held)) best.set(i.effectId, i);
+  }
+  return instances.filter((i) => best.get(i.effectId) === i);
+}
+
+/**
+ * Combines effect instances into the numbers combat uses. Each effect id counts once (its
+ * strongest instance, `distinctEffects`, ticket B.2). Magnitudes add up to their cap; execute
+ * takes the highest threshold, fortitude the lowest (not below the cap's minimum), and bloodrush
+ * the most stacks and the slowest decay. Class effects only count for their class.
  */
 export function combineEffects(
   instances: readonly EffectInstance[],
@@ -80,7 +107,7 @@ export function combineEffects(
 ): CombatEffects {
   const fx = emptyCombatEffects();
   let fortitudeThreshold = Infinity;
-  for (const instance of instances) {
+  for (const instance of distinctEffects(instances)) {
     const definition = findEffect(instance.effectId);
     if (!definition || (definition.classId !== undefined && definition.classId !== classId)) {
       continue;

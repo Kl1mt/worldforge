@@ -11,9 +11,14 @@ function tierEntries(weights: Partial<Record<ItemTier, number>>): LootTableEntry
 
 /**
  * Ticket 3.3: in the late-game sources (the Sunken Abbey, the Nameless Crypt and the Gravewarden's
- * hoard) half of the Legendary rolls at item level 14+ become a set piece (`ITEM_SETS`).
+ * hoard) a share of the Legendary rolls at item level 14+ becomes a set piece (`ITEM_SETS`).
+ * Ticket B.2: a third (was half), with Legendary rolls 1.5 × as likely there (`LEGENDARY_WEIGHT`):
+ * set pieces drop as often as before, plain Legendaries as often as before 3.3 took half of them.
  */
-export const SET_SHARE = 0.5;
+export const SET_SHARE = 1 / 3;
+
+/** Ticket B.2: the Legendary weight multiplier of the late-game sources (see `SET_SHARE`). */
+export const LEGENDARY_WEIGHT = 1.5;
 
 /**
  * Ticket 3.5: in the same late-game sources, a Legendary or Mythic (set pieces included) is Void
@@ -97,6 +102,7 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
     affixTierBias: 0.6,
     mythics: true,
     setShare: SET_SHARE,
+    legendaryWeight: LEGENDARY_WEIGHT,
     voidChance: VOID_CHANCE,
     itemDropChance: 0.06,
     itemLevel: { min: 16, max: 23 },
@@ -106,6 +112,7 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
     id: 'namelessCrypt',
     affixTierBias: 0.6,
     setShare: SET_SHARE,
+    legendaryWeight: LEGENDARY_WEIGHT,
     voidChance: VOID_CHANCE,
     itemDropChance: 0.18,
     itemLevel: { min: 11, max: 17 },
@@ -117,6 +124,7 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
     id: 'namelessCryptII',
     affixTierBias: 0.8,
     setShare: SET_SHARE,
+    legendaryWeight: LEGENDARY_WEIGHT,
     voidChance: VOID_CHANCE,
     itemDropChance: 0.18,
     itemLevel: { min: 17, max: 22 },
@@ -127,6 +135,7 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
     id: 'namelessCryptIII',
     affixTierBias: 1,
     setShare: SET_SHARE,
+    legendaryWeight: LEGENDARY_WEIGHT,
     voidChance: VOID_CHANCE,
     itemDropChance: 0.18,
     itemLevel: { min: 20, max: 25 },
@@ -151,6 +160,7 @@ export const BOSS_LOOT_TABLES: readonly LootTableDefinition[] = [
     affixTierBias: 1,
     mythics: true,
     setShare: SET_SHARE,
+    legendaryWeight: LEGENDARY_WEIGHT,
     voidChance: VOID_CHANCE,
     itemDropChance: 1,
     itemLevel: { min: 15, max: 17 },
@@ -163,6 +173,7 @@ export const BOSS_LOOT_TABLES: readonly LootTableDefinition[] = [
     affixTierBias: 1.2,
     mythics: true,
     setShare: SET_SHARE,
+    legendaryWeight: LEGENDARY_WEIGHT,
     voidChance: VOID_CHANCE,
     itemDropChance: 1,
     itemLevel: { min: 20, max: 22 },
@@ -174,6 +185,7 @@ export const BOSS_LOOT_TABLES: readonly LootTableDefinition[] = [
     affixTierBias: 1.4,
     mythics: true,
     setShare: SET_SHARE,
+    legendaryWeight: LEGENDARY_WEIGHT,
     voidChance: VOID_CHANCE,
     itemDropChance: 1,
     itemLevel: { min: 23, max: 25 },

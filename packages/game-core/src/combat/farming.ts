@@ -375,7 +375,7 @@ export function resolveFightDetailed(
     if (p <= setup.maxFightMs && p <= e) {
       const hit = attackHit(setup, attack, prevCrit, hp, enemyHealth);
       const crit = rng.chance(hit.critChance);
-      prevCrit = crit;
+      prevCrit = crit && !hit.surged;
       const damage = crit ? hit.crit : hit.normal;
       enemyHealth -= damage;
       log?.push({ t: startMs + p, type: 'attack', damage, crit, skill: hit.skill });

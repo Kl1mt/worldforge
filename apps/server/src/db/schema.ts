@@ -277,6 +277,11 @@ export interface ActivitySummary {
   goldSalvaged: number;
   itemsGained: number;
   itemsSalvaged: number;
+  /**
+   * Ticket B.2: valuable drops (Legendary, Mythic, set, Void) that found no room and were kept
+   * beyond the pack's capacity; part of `itemsGained`. Absent in summaries written before B.2.
+   */
+  itemsOverCapacity?: number;
   /** The most recent gained items (at most 100). */
   items: ActivitySummaryItem[];
   /** Materials gained (ticket 2.3). Absent in summaries written before 2.3. */

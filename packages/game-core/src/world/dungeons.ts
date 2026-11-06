@@ -65,6 +65,11 @@ export type DungeonTier = (typeof DUNGEON_TIERS)[number];
 export interface EnemyScale {
   health: number;
   damage: number;
+  /**
+   * Ticket B.2: multiplies the enemy's resistance (magic mitigation), default 1. The deeper tiers'
+   * Gravewarden resists magic less, so the casters (slowest there with farmed gear) catch up.
+   */
+  resistance?: number;
 }
 
 /**
@@ -174,7 +179,7 @@ export const DUNGEONS: readonly DungeonDefinition[] = [
         maxLevel: 21,
         unlock: { level: 18, cryptTierCleared: 1 },
         bossLevel: 21,
-        bossScale: { health: 1.8, damage: 1.3 },
+        bossScale: { health: 1.8, damage: 1.3, resistance: 0.5 },
         bossMaxFightMs: 150_000,
         bossEnrage: {
           atMs: { min: 30_000, max: 70_000 },
@@ -203,7 +208,7 @@ export const DUNGEONS: readonly DungeonDefinition[] = [
         maxLevel: 24,
         unlock: { level: 21, cryptTierCleared: 2 },
         bossLevel: 24,
-        bossScale: { health: 2.4, damage: 1.5 },
+        bossScale: { health: 2.4, damage: 1.5, resistance: 0.5 },
         bossMaxFightMs: 150_000,
         bossEnrage: {
           atMs: { min: 30_000, max: 70_000 },

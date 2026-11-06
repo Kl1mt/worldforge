@@ -85,11 +85,13 @@ export const DEFAULT_FORGE_ACTION_CONFIG: ForgeActionConfig = {
     { chance: 0.8, pity: 2, gold: 120, units: 4, essence: 0 },
     { chance: 0.7, pity: 3, gold: 180, units: 5, essence: 0 },
     { chance: 0.6, pity: 3, gold: 260, units: 6, essence: 1 }, // +4 → +5
-    { chance: 0.5, pity: 4, gold: 380, units: 8, essence: 1 },
-    { chance: 0.4, pity: 4, gold: 540, units: 10, essence: 2 },
-    { chance: 0.33, pity: 5, gold: 760, units: 12, essence: 2 },
-    { chance: 0.25, pity: 6, gold: 1050, units: 15, essence: 3 },
-    { chance: 0.2, pity: 7, gold: 1400, units: 18, essence: 4 }, // +9 → +10
+    // Ticket B.2: the gold of +5 → +10 doubled (was 380 / 540 / 760 / 1,050 / 1,400). Realistic
+    // play earns 2–2.5 × the kill gold, and a +10 kit came within ~100 h (docs/ECONOMY.md).
+    { chance: 0.5, pity: 4, gold: 760, units: 8, essence: 1 },
+    { chance: 0.4, pity: 4, gold: 1080, units: 10, essence: 2 },
+    { chance: 0.33, pity: 5, gold: 1520, units: 12, essence: 2 },
+    { chance: 0.25, pity: 6, gold: 2100, units: 15, essence: 3 },
+    { chance: 0.2, pity: 7, gold: 2800, units: 18, essence: 4 }, // +9 → +10
   ],
   reroll: { gold: 200, growth: 0.5, units: 3, essence: 2, essencePerReroll: 1, essenceCap: 12 },
   improve: { maxImprovements: 3, gold: 150, units: 4, essence: 1, minShare: 0.15, maxShare: 0.35 },

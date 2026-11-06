@@ -19,6 +19,7 @@ import {
   getLootTable,
   resolveDungeonFight,
   simulateDungeonRun,
+  isValuableDrop,
   type ClassId,
   type DungeonEvent,
   type DungeonRunInput,
@@ -166,9 +167,33 @@ describe('simulateDungeonRun', () => {
       input({ inventoryCount: DEFAULT_ACTIVITY_CONFIG.inventory.capacity }),
     );
     const free = simulateDungeonRun(input());
-    expect(full.items).toEqual([]);
-    expect(full.salvaged).toEqual(free.items);
+    // Ticket B.2: valuable drops are kept beyond the capacity, every other drop is salvaged.
+    expect(full.items).toEqual(free.items.filter(isValuableDrop));
+    expect(full.overCapacity).toEqual(full.items);
+    expect(full.salvaged).toEqual(free.items.filter((i) => !isValuableDrop(i)));
     expect(full.goldSalvaged).toBeGreaterThan(0);
+  });
+
+  it('keeps every valuable drop of every tier when the pack is full (ticket B.2)', () => {
+    const cap = DEFAULT_ACTIVITY_CONFIG.inventory.capacity;
+    let valuable = 0;
+    for (const tier of [1, 2, 3] as const) {
+      for (let i = 0; i < 40; i++) {
+        const args = input({
+          seed: `full-pack:${tier}:${i}`,
+          tier,
+          character: { classId: 'warrior', level: 24, xp: 0 },
+          equipment: cryptGear('warrior', 24),
+        });
+        const free = simulateDungeonRun(args);
+        const full = simulateDungeonRun({ ...args, inventoryCount: cap + 2 });
+        expect(full.items).toEqual(free.items.filter(isValuableDrop));
+        expect(full.overCapacity).toEqual(full.items);
+        expect(full.salvaged.some(isValuableDrop)).toBe(false);
+        valuable += full.items.length;
+      }
+    }
+    expect(valuable).toBeGreaterThan(0);
   });
 
   it('rejects invalid input', () => {

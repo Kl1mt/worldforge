@@ -23,7 +23,8 @@ export const EFFECTS: readonly EffectDefinition[] = [
     id: 'headsmans-due',
     name: 'Headsman’s Due',
     kind: 'legendary',
-    slots: ['weapon', 'offhand', 'neck'],
+    // Ticket B.2: rings too, so a second ring has a boss effect once copies count once.
+    slots: ['weapon', 'offhand', 'neck', 'ring'],
     weight: 10,
     components: [{ type: 'execute', threshold: 0.3, bonus: { min: 0.4, max: 0.8 } }],
     text: 'Deal {0.bonus} more damage to enemies below {0.threshold} health.',
@@ -196,7 +197,8 @@ export const EFFECTS: readonly EffectDefinition[] = [
     id: 'vigil-hold-the-line',
     name: 'Hold the Line',
     kind: 'set',
-    components: [{ type: 'fortitude', threshold: 0.7, bonus: 0.25 }],
+    // Ticket B.2: 30 % (was 25 %), so the Vigil competes with the Choir at the deep Gravewarden.
+    components: [{ type: 'fortitude', threshold: 0.7, bonus: 0.3 }],
     text: 'Deal {0.bonus} more damage while above {0.threshold} health.',
   },
   {
@@ -204,7 +206,8 @@ export const EFFECTS: readonly EffectDefinition[] = [
     name: 'Undertow',
     kind: 'set',
     components: [
-      { type: 'execute', threshold: 0.35, bonus: 0.6 },
+      // Ticket B.2: 80 % (was 60 %).
+      { type: 'execute', threshold: 0.35, bonus: 0.8 },
       { type: 'lifeOnKill', heal: 0.08 },
     ],
     text: 'Deal {0.bonus} more damage to enemies below {0.threshold} health. Every kill restores {1.heal} of your health.',
@@ -228,8 +231,10 @@ export const EFFECTS: readonly EffectDefinition[] = [
     name: 'Last Rite',
     kind: 'set',
     components: [
-      { type: 'bossSlayer', bonus: 0.15 },
-      { type: 'skillRot', fraction: 0.02 },
+      // Ticket B.2: 10 % and 1 % (were 15 % and 2 %): the full Choir was the best boss build of
+      // every class.
+      { type: 'bossSlayer', bonus: 0.1 },
+      { type: 'skillRot', fraction: 0.01 },
     ],
     text: 'Deal {0.bonus} more damage to bosses. Your class skill also rots away {1.fraction} of the enemy’s remaining health (at most the skill’s own damage).',
   },

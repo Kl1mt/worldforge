@@ -27,6 +27,7 @@ export const TELEMETRY_METRICS = [
   'item.salvaged',
   'item.discarded',
   'pack.overflow',
+  'pack.over_capacity',
   'gold.in',
   'gold.out',
   'material.in',

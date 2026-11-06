@@ -78,6 +78,8 @@ export interface DungeonResult {
   /** Since ticket 3.5 with effect, set and variant (older stored results have none). */
   items: SummaryItem[];
   itemsSalvaged: number;
+  /** Ticket B.2: valuable drops kept beyond the pack's capacity (part of `items`). */
+  itemsOverCapacity?: number;
   materials: Partial<Record<MaterialId, number>>;
   bossDefeated: boolean;
   bossLoot: boolean;

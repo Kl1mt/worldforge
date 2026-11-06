@@ -4,6 +4,7 @@ import {
   EMPTY_LOOT_FILTER,
   createDropPlacer,
   filteredTotals,
+  isValuableDrop,
   generateItem,
   isLootFilterActive,
   lootFilterCategories,
@@ -169,9 +170,72 @@ describe('createDropPlacer', () => {
     const p = createDropPlacer(57, DEFAULT_ACTIVITY_CONFIG.inventory, null);
     for (const d of drops) p.place(d);
     const r = p.result();
+    expect(drops.some(isValuableDrop)).toBe(false);
     expect(r.items).toEqual(drops.slice(0, 3));
+    expect(r.overCapacity).toEqual([]);
     expect(r.salvaged).toEqual(drops.slice(3));
     expect(r.filtered).toBeUndefined();
+  });
+
+  describe('valuable drops survive a full pack (ticket B.2)', () => {
+    const cap = DEFAULT_ACTIVITY_CONFIG.inventory.capacity;
+    const legendary = item({ seed: 11, rarityId: 'legendary', effectId: 'emberbrand' });
+    const mythic = item({ seed: 12, rarityId: 'mythic', mythicId: 'widowmaker' });
+    const setPiece = item({ seed: 13, rarityId: 'legendary', setId: 'drownedVigil' });
+    const voidLeg = item({ seed: 14, rarityId: 'legendary', effectId: 'ambush', variant: 'void' });
+    const epic = item({ seed: 15, rarityId: 'epic' });
+    const common = item({ seed: 16, rarityId: 'common', affixes: [] });
+    const mixed = [common, legendary, epic, mythic, setPiece, common, voidLeg, epic];
+
+    it('Legendary, Mythic, set and Void are valuable; nothing else is', () => {
+      expect([legendary, mythic, setPiece, voidLeg].map(isValuableDrop)).toEqual([
+        true,
+        true,
+        true,
+        true,
+      ]);
+      expect([epic, common].map(isValuableDrop)).toEqual([false, false]);
+    });
+
+    it('keeps valuable drops beyond the capacity and salvages only ordinary ones', () => {
+      for (const held of [cap, cap + 5]) {
+        const p = createDropPlacer(held, DEFAULT_ACTIVITY_CONFIG.inventory, null);
+        for (const d of mixed) p.place(d);
+        const r = p.result();
+        expect(r.items).toEqual([legendary, mythic, setPiece, voidLeg]);
+        expect(r.overCapacity).toEqual(r.items);
+        expect(r.salvaged).toEqual([common, epic, common, epic]);
+      }
+    });
+
+    it('fills free slots in drop order first; only drops after that go over', () => {
+      const p = createDropPlacer(cap - 2, DEFAULT_ACTIVITY_CONFIG.inventory, null);
+      for (const d of mixed) p.place(d);
+      const r = p.result();
+      expect(r.items).toEqual([common, legendary, mythic, setPiece, voidLeg]);
+      expect(r.overCapacity).toEqual([mythic, setPiece, voidLeg]);
+      expect(r.salvaged).toEqual([epic, common, epic]);
+    });
+
+    it("the loot filter's opt-in categories still apply first", () => {
+      const all = rules({
+        belowRarity: 'mythic',
+        include: ['legendary', 'mythic', 'set', 'void'],
+      });
+      const p = createDropPlacer(cap, DEFAULT_ACTIVITY_CONFIG.inventory, all);
+      for (const d of mixed) p.place(d);
+      const r = p.result();
+      // The Mythic is not below Mythic, so the rarity rule keeps it (over the capacity).
+      expect(r.items).toEqual([mythic]);
+      expect(r.filtered!.map((f) => f.item)).toEqual(mixed.filter((d) => d.rarityId !== 'mythic'));
+      expect(r.salvaged).toEqual([]);
+      // Only Legendaries opted in: the rest stays protected and goes over the capacity.
+      const some = rules({ belowRarity: 'mythic', include: ['legendary'] });
+      const q = createDropPlacer(cap, DEFAULT_ACTIVITY_CONFIG.inventory, some);
+      for (const d of mixed) q.place(d);
+      expect(q.result().items).toEqual([mythic, setPiece, voidLeg]);
+      expect(q.result().overCapacity).toEqual([mythic, setPiece, voidLeg]);
+    });
   });
 
   it('filtered drops take no pack space; kept drops still overflow in order', () => {
@@ -263,11 +327,67 @@ describe('settleFarming with a loot filter (ticket 3.7)', () => {
       return { ...out, gold, firstCycle, carry };
     };
     const cap = DEFAULT_ACTIVITY_CONFIG.inventory.capacity;
-    for (const held of [0, cap - 4]) {
+    for (const held of [0, cap - 4, cap + 3]) {
       const once = run(HOUR, held);
       expect(once.filtered.length).toBeGreaterThan(0);
       for (const step of [3_000, 60_000]) expect(run(step, held)).toEqual(once);
     }
+  });
+
+  it('keeps valuable drops over capacity, split-invariantly (ticket B.2)', () => {
+    const cap = DEFAULT_ACTIVITY_CONFIG.inventory.capacity;
+    const base = (seed: string): SettleFarmingInput =>
+      farm({
+        character: { classId: 'warrior', level: 20, xp: 0 },
+        areaId: 'sunkenAbbey',
+        seed,
+        durationMs: 6 * HOUR,
+        inventoryCount: cap - 1,
+      });
+    let seed = '';
+    let once: ReturnType<typeof settleFarming> | undefined;
+    for (let i = 0; i < 20; i++) {
+      const s = settleFarming(base(`over-cap:${i}`));
+      if (s.overCapacity.length > 0) {
+        seed = `over-cap:${i}`;
+        once = s;
+        break;
+      }
+    }
+    expect(once).toBeDefined();
+    expect(once!.overCapacity.every(isValuableDrop)).toBe(true);
+    expect(once!.salvaged.some(isValuableDrop)).toBe(false);
+    expect(once!.items.length).toBe(1 + once!.overCapacity.length);
+    // Settling every 20 minutes (the pack goes over capacity mid-way) gives the same fates.
+    let character: SettleFarmingInput['character'] = base(seed).character;
+    let carry = 0;
+    let firstCycle = 0;
+    let inventoryCount = cap - 1;
+    let professions: SettleFarmingInput['professions'] = undefined;
+    const kept: number[] = [];
+    const over: number[] = [];
+    const salvaged: number[] = [];
+    for (let t = 0; t < 6 * HOUR; t += HOUR / 3) {
+      const s = settleFarming({
+        ...base(seed),
+        character,
+        firstCycle,
+        inventoryCount,
+        durationMs: carry + HOUR / 3,
+        ...(professions ? { professions } : {}),
+      });
+      carry = s.unusedMs;
+      firstCycle += s.encounters;
+      inventoryCount += s.items.length;
+      professions = s.professions;
+      character = { classId: 'warrior', level: s.level, xp: s.xp, health: s.health };
+      kept.push(...s.items.map((i) => i.seed));
+      over.push(...s.overCapacity.map((i) => i.seed));
+      salvaged.push(...s.salvaged.map((i) => i.seed));
+    }
+    expect(kept).toEqual(once!.items.map((i) => i.seed));
+    expect(over).toEqual(once!.overCapacity.map((i) => i.seed));
+    expect(salvaged).toEqual(once!.salvaged.map((i) => i.seed));
   });
 
   it('keeps protected drops even under the harshest rules', () => {

@@ -1,6 +1,10 @@
-// `pnpm --filter @worldforge/server telemetry:simulate [-- --dir .telemetry-sample --days 3]`
+// `pnpm --filter @worldforge/server telemetry:simulate [-- --dir .telemetry-sample --days 3
+//   --play realistic|crude]`
 // (ticket 3.8): plays a small simulated population through the real API on a PGlite database, so
-// the telemetry report has something to show without a playtest. Then:
+// the telemetry report has something to show without a playtest. Ticket B.2 added the default
+// `realistic` player (see `docs/TELEMETRY.md`): it tidies the pack, wears its best finds and
+// spends its gold at the Forge every session, starting from a purse it could have earned. `crude`
+// is 3.8's player (a fat starting purse, one tidy and one forged item a day). Then:
 //
 //   PLAYTEST_DATA_DIR=.telemetry-sample pnpm report:telemetry
 //
@@ -11,7 +15,14 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { eq } from 'drizzle-orm';
-import { CLASS_IDS, MATERIAL_IDS, type ClassId, type RarityId } from '@worldforge/game-core';
+import {
+  CLASS_IDS,
+  MATERIAL_IDS,
+  equipmentSlotsForKind,
+  getItemBase,
+  type ClassId,
+  type RarityId,
+} from '@worldforge/game-core';
 import { buildApp } from '../app.js';
 import { SESSION_COOKIE } from '../auth/index.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
@@ -24,11 +35,32 @@ const { values: args } = parseArgs({
   options: {
     dir: { type: 'string', default: '.telemetry-sample' },
     days: { type: 'string', default: '3' },
+    play: { type: 'string', default: 'realistic' },
   },
   args: process.argv.slice(2).filter((a) => a !== '--'),
 });
 const dir = resolve(process.env.INIT_CWD ?? REPO_ROOT, args.dir!);
 const days = Math.max(1, Number(args.days) || 3);
+const realistic = args.play !== 'crude';
+/** Rough worth of a piece for the realistic player: base value by level, rarity and upgrades. */
+const IMPLICIT: Record<string, number> = {
+  common: 1,
+  uncommon: 1.1,
+  rare: 1.2,
+  epic: 1.35,
+  legendary: 1.5,
+  mythic: 1.7,
+};
+const power = (i: { itemLevel: number; rarityId: string; upgradeLevel: number }) =>
+  (i.itemLevel + 5) * (IMPLICIT[i.rarityId] ?? 1) * (1 + 0.05 * i.upgradeLevel);
+const RARITY_RANK: Record<string, number> = {
+  common: 0,
+  uncommon: 1,
+  rare: 2,
+  epic: 3,
+  legendary: 4,
+  mythic: 5,
+};
 
 rmSync(dir, { recursive: true, force: true });
 mkdirSync(dir, { recursive: true });
@@ -108,13 +140,18 @@ for (const classId of CLASS_IDS) {
     await database.db
       .update(characters)
       .set({
-        gold: 5_000 * level,
+        // Realistic: about what farming up to this level pays (Phase 2: 25–30k by level 17).
+        gold: realistic ? 1_500 * level : 5_000 * level,
         progress: { gravewardenDefeated: level >= 17, cryptTierCleared: Math.max(0, tier - 1) },
       })
       .where(eq(characters.id, id));
-    await database.db
-      .insert(characterMaterials)
-      .values(MATERIAL_IDS.map((materialId) => ({ characterId: id, materialId, quantity: 200 })));
+    await database.db.insert(characterMaterials).values(
+      MATERIAL_IDS.map((materialId) => ({
+        characterId: id,
+        materialId,
+        quantity: realistic ? 10 * level : 200,
+      })),
+    );
     const area = AREAS.find(([min]) => level >= min)![1];
     heroes.push({ token, id, classId, level, area, tier, filter: n % 2 === 0 });
   }
@@ -143,12 +180,70 @@ const expectOk = (what: string, status: number, body: string) => {
   }
 };
 
+type ItemRow = typeof itemInstances.$inferSelect;
+const packOf = async (h: Hero): Promise<ItemRow[]> =>
+  database.db.select().from(itemInstances).where(eq(itemInstances.characterId, h.id));
+
+/**
+ * The realistic player's visit (ticket B.2), after every settlement: wear any find of a better
+ * rarity than what the slot holds, sell commons and uncommons, salvage rares and epics (materials
+ * for the Forge), then upgrade worn gear, lowest level first, until gold or materials run out.
+ */
+async function visit(h: Hero): Promise<void> {
+  let inv = await packOf(h);
+  const worn = new Map(inv.filter((i) => i.equippedSlot).map((i) => [i.equippedSlot!, i]));
+  for (const item of inv.filter((i) => i.equippedSlot === null)) {
+    if ((RARITY_RANK[item.rarityId] ?? 0) < 2) continue;
+    const slots = equipmentSlotsForKind(getItemBase(item.baseId).slot);
+    const slot = slots
+      .map((s) => ({ s, w: worn.get(s) }))
+      .sort((a, b) => (a.w ? power(a.w) : -1) - (b.w ? power(b.w) : -1))[0];
+    if (!slot || (slot.w && power(slot.w) * 1.1 >= power(item))) continue;
+    const res = await send(h, 'POST', `/items/${item.id}/equip`, { slot: slot.s });
+    if (res.statusCode === 200) worn.set(slot.s, item);
+  }
+  inv = await packOf(h);
+  const loose = inv.filter((i) => i.equippedSlot === null && !i.locked);
+  const sell = loose.filter((i) => RARITY_RANK[i.rarityId]! <= 1).map((i) => i.id);
+  // Rares, epics and plain Legendaries it does not wear; set pieces, Mythics and Void are kept.
+  const salvage = loose
+    .filter((i) => {
+      const rank = RARITY_RANK[i.rarityId]!;
+      return rank >= 2 && rank <= 4 && !i.setId && !i.mythicId && !i.variant;
+    })
+    .map((i) => i.id);
+  if (sell.length > 0)
+    expectOk('sell', (await send(h, 'POST', '/merchant/sell', { itemIds: sell })).statusCode, '');
+  if (salvage.length > 0)
+    expectOk(
+      'salvage',
+      (await send(h, 'POST', '/forge/salvage', { itemIds: salvage })).statusCode,
+      '',
+    );
+  const gear = inv
+    .filter((i) => i.equippedSlot !== null)
+    .sort((a, b) => a.upgradeLevel - b.upgradeLevel);
+  const level = new Map(gear.map((g) => [g.id, g.upgradeLevel]));
+  for (let attempts = 0; attempts < 60 && gear.length > 0; attempts++) {
+    gear.sort((a, b) => level.get(a.id)! - level.get(b.id)!);
+    const target = gear[0]!;
+    if (level.get(target.id)! >= 10) break;
+    const r = await send(h, 'POST', '/forge/upgrade', { itemId: target.id });
+    if (r.statusCode !== 200) break;
+    const after = r.json<{ outcome: { upgradeLevel: number } }>().outcome.upgradeLevel;
+    level.set(target.id, after);
+  }
+}
+
 for (let day = 0; day < days; day++) {
-  for (let slot = 0; slot < 8; slot++) {
-    nowMs += 3 * HOUR;
+  // Realistic: five visits a day (morning, three in the day, late evening; the night is capped
+  // at 3 h), so about 15 credited hours. Crude: a settle every 3 h around the clock (24 h).
+  for (const gap of realistic ? [9, 4, 4, 4, 3] : [3, 3, 3, 3, 3, 3, 3, 3]) {
+    nowMs += gap * HOUR;
     for (const h of heroes) {
       const r = await send(h, 'POST', '/activity/settle');
       expectOk('settle', r.statusCode, r.body);
+      if (realistic) await visit(h);
     }
   }
   for (const h of heroes) {
@@ -176,7 +271,7 @@ for (let day = 0; day < days; day++) {
 
     // Forge an epic or better from the pack.
     const target = loose.find((i) => ['epic', 'legendary', 'mythic'].includes(i.rarityId));
-    if (target) {
+    if (target && !realistic) {
       for (let k = 0; k < 4; k++) await send(h, 'POST', '/forge/upgrade', { itemId: target.id });
       await send(h, 'POST', '/forge/reroll', { itemId: target.id, affixIndex: 0 });
       await send(h, 'POST', '/forge/improve', { itemId: target.id, affixIndex: 0 });

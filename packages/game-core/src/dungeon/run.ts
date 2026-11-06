@@ -153,7 +153,9 @@ export interface DungeonRunResult {
   goldSalvaged: number;
   /** Items to add, in drop order (boss items last). */
   items: GeneratedItem[];
-  /** Items that did not fit and were salvaged to gold. */
+  /** Ticket B.2: valuable drops among `items` kept beyond the pack's capacity. */
+  overCapacity: GeneratedItem[];
+  /** Ordinary items that did not fit and were salvaged to gold. */
   salvaged: GeneratedItem[];
   /** Ticket 3.7: drops the loot filter handled; present only when a filter was given. */
   filtered?: FilteredDrop[];
@@ -215,7 +217,7 @@ export function resolveDungeonFight(
     if (p <= setup.maxFightMs && p <= e) {
       const hit = attackHit(setup, attack, prevCrit, hp, enemyHealth);
       const crit = rng.chance(hit.critChance);
-      prevCrit = crit;
+      prevCrit = crit && !hit.surged;
       const damage = crit ? hit.crit : hit.normal;
       enemyHealth = Math.max(0, enemyHealth - damage);
       log.push({ t: startMs + p, type: 'attack', damage, crit, skill: hit.skill, enemyHealth });
@@ -465,10 +467,10 @@ export function simulateDungeonRun(
   events.push({ t: now, type: 'end', outcome });
 
   // Loot filter and capacity rule as in farming (ticket 3.7): filtered drops take no space, drops
-  // beyond the free space are salvaged to gold.
+  // beyond the free space are salvaged to gold, valuable ones kept beyond it (ticket B.2).
   const placer = createDropPlacer(input.inventoryCount, activity.inventory, input.lootFilter);
   for (const item of drops) placer.place(item);
-  const { items, salvaged, goldSalvaged, filtered } = placer.result();
+  const { items, overCapacity, salvaged, goldSalvaged, filtered } = placer.result();
 
   return {
     dungeonId: dungeon.id,
@@ -493,6 +495,7 @@ export function simulateDungeonRun(
     goldLooted,
     goldSalvaged,
     items,
+    overCapacity,
     salvaged,
     ...(filtered ? { filtered } : {}),
     materials,
@@ -516,9 +519,18 @@ export function resolveEnrage(enrage: BossEnrage, rng: Rng): ResolvedEnrage {
 
 /** Ticket 3.6: an enemy with its health and damage scaled (a deeper tier's boss). */
 export function scaleEnemy(enemy: EnemyDefinition, scale?: EnemyScale): EnemyDefinition {
-  if (!scale || (scale.health === 1 && scale.damage === 1)) return enemy;
+  const resistance = scale?.resistance ?? 1;
+  if (!scale || (scale.health === 1 && scale.damage === 1 && resistance === 1)) return enemy;
   return {
     ...enemy,
+    ...(resistance !== 1
+      ? {
+          resistance: {
+            base: enemy.resistance.base * resistance,
+            perLevel: enemy.resistance.perLevel * resistance,
+          },
+        }
+      : {}),
     health: {
       base: enemy.health.base * scale.health,
       perLevel: enemy.health.perLevel * scale.health,

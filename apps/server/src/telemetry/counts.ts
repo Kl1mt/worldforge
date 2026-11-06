@@ -11,7 +11,8 @@ export type DropSource =
   'farming' | 'crypt' | 'crypt_hoard' | 'quest' | 'contract' | 'merchant' | 'craft';
 
 /** What became of a rolled drop (`item.fate` dim2). */
-export type DropFate = 'kept' | 'filter_sold' | 'filter_salvaged' | 'overflow_salvaged';
+export type DropFate =
+  'kept' | 'kept_over_capacity' | 'filter_sold' | 'filter_salvaged' | 'overflow_salvaged';
 
 /** The item fields telemetry reads (a `GeneratedItem` or an `item_instances` row). */
 export interface CountedItem {
@@ -73,19 +74,28 @@ export function rolledDropCounts(
   source: DropSource,
   context: string,
   placed: {
+    /** Every item that went into the pack (valuable drops kept beyond the capacity included). */
     items: readonly CountedItem[];
+    /** Ticket B.2: the valuable drops among `items` kept beyond the pack's capacity. */
+    overCapacity?: readonly CountedItem[];
     salvaged: readonly CountedItem[];
     filtered?: readonly FilteredDrop[] | undefined;
   },
 ): TelemetryCount[] {
   const filtered = placed.filtered ?? [];
+  const over = new Set(placed.overCapacity ?? []);
   return [
     ...dropCounts(source, context, [
       ...placed.items,
       ...placed.salvaged,
       ...filtered.map((f) => f.item),
     ]),
-    ...fateCounts(source, 'kept', placed.items),
+    ...fateCounts(
+      source,
+      'kept',
+      placed.items.filter((i) => !over.has(i)),
+    ),
+    ...fateCounts(source, 'kept_over_capacity', [...over]),
     ...fateCounts(source, 'overflow_salvaged', placed.salvaged),
     ...filteredFateCounts(source, filtered),
   ];
@@ -124,6 +134,20 @@ export function overflowCounts(
   items: number,
 ): TelemetryCount[] {
   return items === 0 ? [] : [{ metric: 'pack.overflow', dims: [source, context], amount: items }];
+}
+
+/**
+ * `pack.over_capacity` (ticket B.2): one event per settlement or claim that kept valuable drops
+ * beyond the pack's capacity, `amount` the items.
+ */
+export function overCapacityCounts(
+  source: DropSource,
+  context: string,
+  items: number,
+): TelemetryCount[] {
+  return items === 0
+    ? []
+    : [{ metric: 'pack.over_capacity', dims: [source, context], amount: items }];
 }
 
 /** Manual merchant sells and forge salvages, per rarity, `amount` the gold. */

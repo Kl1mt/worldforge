@@ -88,8 +88,14 @@ export function rollItemLevel(
   return Math.min(config.maxItemLevel, Math.max(1, level));
 }
 
-export function rollRarity(rng: Rng, config: LootConfig = DEFAULT_LOOT_CONFIG): RarityId {
-  return rng.weighted(RARITY_IDS, (id) => config.rarities[id].weight);
+export function rollRarity(
+  rng: Rng,
+  config: LootConfig = DEFAULT_LOOT_CONFIG,
+  legendaryWeight = 1,
+): RarityId {
+  return rng.weighted(RARITY_IDS, (id) =>
+    id === 'legendary' ? config.rarities[id].weight * legendaryWeight : config.rarities[id].weight,
+  );
 }
 
 /** Bases of a table that can drop at the given item level. */
@@ -225,7 +231,7 @@ export function generateItem(
     base = rng.weighted(candidates, (c) => c.weight).base;
   }
 
-  let rarityId = params.rarityId ?? rollRarity(rng, config);
+  let rarityId = params.rarityId ?? rollRarity(rng, config, table.legendaryWeight ?? 1);
   // Mythics (ticket 3.2) are named items. A Mythic base is always its Mythic; a Mythic roll picks
   // a named Mythic in a late-game table and becomes a Legendary anywhere else. An explicitly
   // requested Mythic rarity without a named Mythic stays a stat-only Mythic (the Phase 1 rule).

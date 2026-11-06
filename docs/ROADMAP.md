@@ -383,7 +383,7 @@ GDD: §16.4, §15 Phase 3 ("telemetry for drop rates, item usage and build distr
 - A report command (`pnpm report:telemetry`) printing a readable summary, for balance work. No admin UI yet (no roles exist); document how it would be exposed later.
 **Acceptance:** rollup correctness tests (PG); report output in the PR.
 
-### B.2 Balance pass: loot depth & economy — `todo`
+### B.2 Balance pass: loot depth & economy — `done (PR #48)`
 GDD: §7, §8.3, §15 Phase 3 exit. Needs 3.1–3.8.
 - **Build diversity check** (makes the exit criterion testable): simulate the best builds per class from the item pool (affixes, effects, sets, upgrades, Void). Assert several distinct builds within a few percent of the best, and that no single item, effect or affix appears in all top builds.
 - **Economy:** forge costs vs gold income (the sink works without making upgrades a grind wall); material demand vs gathering; drop rates for Legendary, Mythic, Set and Void measured with 3.8's telemetry, and documented.
