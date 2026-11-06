@@ -1,7 +1,8 @@
 # Worldforge production stack (ticket D.1, docs/DEPLOY.md). Run from this directory; the
 # variables come from deploy/.env (copy .env.example, never commit it).
-#   docker compose up -d --build     first start (db → migrate → server → web)
-#   ./deploy.sh                      later updates (pull, build, backup, migrate, restart, verify)
+#   deploy/deploy.sh                 first start and every update (build, backup, migrate, restart,
+#                                    health check, rollback); `docker compose up -d` also works
+#   docker compose ps | logs -f      state and logs
 name: worldforge
 
 x-logging: &logging
