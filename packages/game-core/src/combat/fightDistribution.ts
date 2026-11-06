@@ -47,7 +47,8 @@ export function killDistribution(setup: EncounterSetup, health: number): KillEve
         const hit = attackHit(setup, attack, key % 2 === 1, heroHealth, setup.enemyHealth - dealt);
         const outcomes: [number, number, number][] = [
           [hit.normal, 1 - hit.critChance, 0],
-          [hit.crit, hit.critChance, tracksCrit ? 1 : 0],
+          // Ticket B.2: a surged attack's crit does not surge the next one.
+          [hit.crit, hit.critChance, tracksCrit && !hit.surged ? 1 : 0],
         ];
         for (const [damage, q, flag] of outcomes) {
           if (q <= 0) continue;

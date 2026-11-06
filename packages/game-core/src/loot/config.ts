@@ -85,6 +85,12 @@ export interface LootTableDefinition {
    */
   setShare?: number;
   /**
+   * Ticket B.2: multiplies the Legendary rarity weight of rolls here (default 1). The late-game
+   * sources use `LEGENDARY_WEIGHT` so that, with `SET_SHARE` pieces taken from those rolls, plain
+   * Legendaries drop about as often as before ticket 3.3 (docs/LOOT.md).
+   */
+  legendaryWeight?: number;
+  /**
    * Ticket 3.5: the chance (0…1) that a Legendary or Mythic here (set pieces included) is Void,
    * clamped to `LootConfig.maxVoidChance`. Only late-game sources set it. Default 0.
    */

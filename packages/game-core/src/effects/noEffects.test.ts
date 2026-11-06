@@ -14,6 +14,9 @@ import {
   type RarityId,
   getDungeonTier,
   EMPTY_LOOT_FILTER,
+  AREA_LOOT_TABLES,
+  BOSS_LOOT_TABLES,
+  type LootTableDefinition,
   type LootFilterRules,
   type EquippedItem,
 } from '../index.js';
@@ -171,7 +174,38 @@ const strayVoid = (items: GeneratedItem[]) =>
  * The pinned hashes for a kit dressing and a loot filter (ticket 3.7: the filter only decides what
  * happens to drops, and with no rules nothing changes at all).
  */
+/**
+ * Ticket B.2: runs `f` with the late-game loot tables as before B.2 (no Legendary weight, half of
+ * the Legendary rolls set pieces). B.2 changed only these two table fields, so with them restored
+ * every pinned hash must come out exactly as before.
+ */
+function withPreB2Loot<T>(f: () => T): T {
+  const tables = [...AREA_LOOT_TABLES, ...BOSS_LOOT_TABLES].filter(
+    (t) => t.legendaryWeight !== undefined,
+  ) as LootTableDefinition[];
+  const saved = tables.map((t) => ({ t, w: t.legendaryWeight, s: t.setShare }));
+  for (const t of tables) {
+    delete t.legendaryWeight;
+    t.setShare = 0.5;
+  }
+  try {
+    return f();
+  } finally {
+    for (const { t, w, s } of saved) {
+      if (w !== undefined) t.legendaryWeight = w;
+      if (s !== undefined) t.setShare = s;
+    }
+  }
+}
+
 function pinnedHashes(
+  dress: (items: GeneratedItem[]) => EquippedItem[],
+  lootFilter?: LootFilterRules | null,
+): Record<string, string> {
+  return withPreB2Loot(() => pinnedHashesNow(dress, lootFilter));
+}
+
+function pinnedHashesNow(
   dress: (items: GeneratedItem[]) => EquippedItem[],
   lootFilter?: LootFilterRules | null,
 ): Record<string, string> {
@@ -318,4 +352,13 @@ it('the crypt check can fail: tier I’s enrage window changes the runs (ticket 
     }),
   );
   expect(runs.some(([before, after]) => before !== after)).toBe(true);
+});
+
+describe('the late-game loot tables (ticket B.2)', () => {
+  it('changed only the Sunken Abbey and crypt hashes, nothing else', () => {
+    const now = pinnedHashesNow((items) => items);
+    const moved = Object.keys(BEFORE_EFFECTS).filter((k) => now[k] !== BEFORE_EFFECTS[k]);
+    expect(moved.length).toBeGreaterThan(0);
+    for (const k of moved) expect(k).toMatch(/sunkenAbbey|crypt/);
+  });
 });

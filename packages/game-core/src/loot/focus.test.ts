@@ -131,7 +131,8 @@ describe('crypt loot foci (ticket 3.6)', () => {
         expect(validateItem(a, legendaryOnly)).toEqual([]);
         pieces.add(a.baseId);
       }
-      expect(sets, tableId).toBeGreaterThan(300);
+      // About SET_SHARE (a third since ticket B.2) of the Legendary rolls.
+      expect(sets, tableId).toBeGreaterThan(200);
       // Every piece of the set can drop there.
       expect(pieces.size, tableId).toBe(ITEM_SETS.find((s) => s.id === setId)!.pieces.length);
     }

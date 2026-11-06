@@ -24,6 +24,7 @@ import {
   type EquippedItem,
   type GeneratedItem,
   type LootConfig,
+  SET_SHARE,
 } from '../index.js';
 
 /** An item without its set id (the column null), as `EquippedItem` reads it. */
@@ -212,7 +213,7 @@ describe('set counting', () => {
 });
 
 describe('set piece generation', () => {
-  it('drops set pieces only from late-game tables, as half of their Legendary rolls', () => {
+  it('drops set pieces only from late-game tables, as SET_SHARE of their Legendary rolls', () => {
     const rng = createRng('set-sources');
     for (const tableId of LOOT_TABLES.map((t) => t.id)) {
       const table = getLootTable(tableId);
@@ -233,8 +234,9 @@ describe('set piece generation', () => {
       // Ticket 3.6: the deeper crypt tiers are late-game sources too.
       const lateGame = ['sunkenAbbey', 'namelessCrypt', 'gravewarden'];
       if (lateGame.some((id) => tableId.startsWith(id))) {
-        expect(sets / n, tableId).toBeGreaterThan(0.44);
-        expect(sets / n, tableId).toBeLessThan(0.56);
+        // Ticket B.2: a third of the Legendary rolls (was half).
+        expect(sets / n, tableId).toBeGreaterThan(SET_SHARE - 0.06);
+        expect(sets / n, tableId).toBeLessThan(SET_SHARE + 0.06);
       } else {
         expect(sets, tableId).toBe(0);
       }
@@ -244,7 +246,8 @@ describe('set piece generation', () => {
   it('every piece can drop, roughly evenly, and only from item level 14', () => {
     const rng = createRng('set-pieces');
     const counts = new Map<string, number>();
-    for (let i = 0; i < 8000; i++) {
+    const n = 12_000;
+    for (let i = 0; i < n; i++) {
       const item = generateItem(
         {
           seed: rng.int(0, 2 ** 32 - 1),
@@ -258,8 +261,8 @@ describe('set piece generation', () => {
     }
     const all = ITEM_SETS.flatMap((s) => s.pieces);
     for (const id of all) {
-      expect(counts.get(id) ?? 0, id).toBeGreaterThan((4000 / all.length) * 0.7);
-      expect(counts.get(id) ?? 0, id).toBeLessThan((4000 / all.length) * 1.3);
+      expect(counts.get(id) ?? 0, id).toBeGreaterThan(((n * SET_SHARE) / all.length) * 0.7);
+      expect(counts.get(id) ?? 0, id).toBeLessThan(((n * SET_SHARE) / all.length) * 1.3);
     }
     for (let i = 0; i < 300; i++) {
       const item = generateItem(

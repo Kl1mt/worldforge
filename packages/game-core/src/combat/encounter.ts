@@ -144,12 +144,18 @@ export interface SetupEffects {
 /** What the hero's `attack`-th attack (1-based) of a fight deals. */
 export interface AttackHit extends HitProfile {
   skill: boolean;
+  /**
+   * Ticket B.2: a crit turned this attack into the class skill (skill surge). Its own crit does not
+   * surge the next attack (no chains); the simulations carry `crit && !surged` as the next
+   * attack's `prevCrit`.
+   */
+  surged: boolean;
 }
 
 /**
  * Prices one hero attack: the class skill on every `skillEvery`-th attack, otherwise a basic
  * attack, with the effects that apply in this moment. Both simulations price every attack here.
- * - `prevCrit`: the previous attack of this fight crit (Mana Surge);
+ * - `prevCrit`: the previous attack of this fight crit and was not itself a surge (Mana Surge);
  * - `heroHealth`: the hero's health when the attack lands (fortitude, rage);
  * - `enemyHealth`: the enemy's remaining health (execute, rot).
  */
@@ -162,7 +168,7 @@ export function attackHit(
 ): AttackHit {
   const scheduled = attack % setup.skillEvery === 0;
   const fx = setup.effects;
-  if (!fx) return { ...(scheduled ? setup.skill : setup.auto), skill: scheduled };
+  if (!fx) return { ...(scheduled ? setup.skill : setup.auto), skill: scheduled, surged: false };
   const opener = attack === 1 && fx.skillOpener > 0;
   const surged = !scheduled && !opener && prevCrit && fx.skillSurge > 0;
   const skill = scheduled || opener || surged;
@@ -181,6 +187,7 @@ export function attackHit(
   const rot = skill && fx.skillRot > 0 ? Math.min(hit, fx.skillRot * enemyHealth) : 0;
   return {
     skill,
+    surged,
     normal: hitDamage(hit + rot),
     crit: hitDamage(hit * fx.critDamage + fx.raw * multiplier * fx.critBurn + rot),
     critChance: Math.min(1, Math.max(0, fx.critChance + (skill ? fx.skillBonusCrit : 0))),

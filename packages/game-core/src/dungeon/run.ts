@@ -217,7 +217,7 @@ export function resolveDungeonFight(
     if (p <= setup.maxFightMs && p <= e) {
       const hit = attackHit(setup, attack, prevCrit, hp, enemyHealth);
       const crit = rng.chance(hit.critChance);
-      prevCrit = crit;
+      prevCrit = crit && !hit.surged;
       const damage = crit ? hit.crit : hit.normal;
       enemyHealth = Math.max(0, enemyHealth - damage);
       log.push({ t: startMs + p, type: 'attack', damage, crit, skill: hit.skill, enemyHealth });
@@ -519,9 +519,18 @@ export function resolveEnrage(enrage: BossEnrage, rng: Rng): ResolvedEnrage {
 
 /** Ticket 3.6: an enemy with its health and damage scaled (a deeper tier's boss). */
 export function scaleEnemy(enemy: EnemyDefinition, scale?: EnemyScale): EnemyDefinition {
-  if (!scale || (scale.health === 1 && scale.damage === 1)) return enemy;
+  const resistance = scale?.resistance ?? 1;
+  if (!scale || (scale.health === 1 && scale.damage === 1 && resistance === 1)) return enemy;
   return {
     ...enemy,
+    ...(resistance !== 1
+      ? {
+          resistance: {
+            base: enemy.resistance.base * resistance,
+            perLevel: enemy.resistance.perLevel * resistance,
+          },
+        }
+      : {}),
     health: {
       base: enemy.health.base * scale.health,
       perLevel: enemy.health.perLevel * scale.health,

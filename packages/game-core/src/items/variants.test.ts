@@ -235,14 +235,17 @@ describe('Void rules (ticket 3.5)', () => {
       maxStacks: (rushPlain as { maxStacks: number }).maxStacks,
       decayMs: (rushPlain as { decayMs: number }).decayMs,
     });
-    // The caps still bind: many Void execute items stay at the cap.
-    const many = Array.from({ length: 6 }, () => inst!);
-    expect(combineEffects(many, 'warrior')).toEqual(
-      combineEffects(
-        Array.from({ length: 6 }, () => ({ effectId: 'headsmans-due', roll: 1 })),
-        'warrior',
-      ),
+    // The caps still bind: a Void execute item with other execute sources stays at the cap.
+    const others = [
+      { effectId: 'vigil-undertow', roll: 0 },
+      { effectId: 'starfall', roll: 0 },
+    ];
+    expect(combineEffects([inst!, ...others], 'mage').execute).toEqual(
+      combineEffects([{ effectId: 'headsmans-due', roll: 1 }, ...others], 'mage').execute,
     );
+    // Ticket B.2: copies of one effect count once, the Void one being the strongest.
+    const copies = [{ effectId: 'headsmans-due', roll: 1 }, inst!];
+    expect(combineEffects(copies, 'warrior')).toEqual(combineEffects([inst!], 'warrior'));
   });
 
   it('scales a Mythic signature, and an epic with a stray Void flag stays unscaled', () => {
