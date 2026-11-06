@@ -36,26 +36,30 @@ jobs:
         run: deploy/deploy.sh --no-pull --skip-backup
       - name: Smoke test
         run: |
-          set -euo pipefail
+          set -xeuo pipefail
           base=http://127.0.0.1:8080
-          curl -fsS $base/api/health | grep -q '"db":"up"'
+          # Read each output first, then match: `cmd | grep -q` under pipefail fails when grep exits
+          # early and the writer gets SIGPIPE (docker compose logs then exits 255).
+          out=$(curl -fsS $base/api/health); grep -q '"db":"up"' <<<"$out"
           headers=$(curl -fsS -D- -o /dev/null $base/)
           for h in strict-transport-security content-security-policy x-content-type-options 'cache-control: no-cache'; do
             grep -qi "^$h" <<<"$headers" || { echo "missing header: $h"; exit 1; }
           done
           test "$(curl -s -o /dev/null -w '%{http_code}' $base/assets/missing-ABCDEFGH.js)" = 404
           # Ticket D.2: registration mode from .env, legal pages (template, then the mounted file).
-          curl -fsS $base/api/config | grep -q '"mode":"invite"'
-          curl -fsS $base/api/legal/datenschutz | grep -q '"template":true'
+          out=$(curl -fsS $base/api/config); grep -q '"mode":"invite"' <<<"$out"
+          out=$(curl -fsS $base/api/legal/datenschutz); grep -q '"template":true' <<<"$out"
           printf '# Impressum\n\nCI Betreiber\n' > deploy/legal/impressum.md
-          curl -fsS $base/api/legal/impressum | grep -q 'CI Betreiber'
+          out=$(curl -fsS $base/api/legal/impressum); grep -q 'CI Betreiber' <<<"$out"
           rm deploy/legal/impressum.md
-          deploy/admin.sh invite create --note ci | grep -q '^Invite code: '
-          deploy/admin.sh invite list | grep -q 'note: ci'
+          out=$(deploy/admin.sh invite create --note ci); grep -q '^Invite code: ' <<<"$out"
+          out=$(deploy/admin.sh invite list); grep -q 'note: ci' <<<"$out"
           # The player's IP comes from CF-Connecting-IP; a client-sent X-Forwarded-For is ignored.
           curl -fsS -o /dev/null -H 'CF-Connecting-IP: 203.0.113.7' -H 'X-Forwarded-For: 6.6.6.6' "$base/api/health?probe=cf"
           sleep 1
-          docker compose -f deploy/docker-compose.yml logs server | grep 'probe=cf' | grep -q '"remoteAddress":"203.0.113.7"'
+          out=$(docker compose -f deploy/docker-compose.yml logs server)
+          probe=$(grep 'probe=cf' <<<"$out" || true)
+          grep -q '"remoteAddress":"203.0.113.7"' <<<"$probe" || { echo "CF-Connecting-IP not used"; exit 1; }
           # Nothing is served on the host's public ports: no 80/443, no API, no database.
           for port in 80 443 3000 5432; do
             if (exec 3<>/dev/tcp/127.0.0.1/$port) 2>/dev/null; then echo "port $port is published"; exit 1; fi

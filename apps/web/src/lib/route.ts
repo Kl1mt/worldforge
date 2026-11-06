@@ -15,6 +15,8 @@ export const GAME_ROUTES = [
   'moderation',
   // Ticket 4.2: public profiles, `#/profile` (your own) or `#/profile/<handle>`.
   'profile',
+  // Ticket 4.3: friends, requests, blocks and presence.
+  'friends',
 ] as const;
 /** The gate: only shown to visitors without a session. */
 export const AUTH_ROUTES = ['login', 'register'] as const;

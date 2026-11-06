@@ -31,7 +31,7 @@ import './profile.css';
 import '../social/social.css';
 
 /**
- * Public profiles (ticket 4.2, docs/SOCIAL.md "Profiles"): a herald's roll for one player, with
+ * Public profiles (ticket 4.2, docs/SOCIAL.md "Profiles"): a herald's herald for one player, with
  * their heroes, the deeds they chose to show and, if they want, one hero's arms. `#/profile` is
  * your own (with the settings), `#/profile/<handle>` anyone's. A profile you may not see looks
  * exactly like a name nobody bears.
@@ -86,18 +86,18 @@ export function ProfileScreen() {
   const name = profile ? (profile.displayName ?? 'A name withheld') : null;
 
   return (
-    <section className="roll" aria-labelledby="roll-title">
-      <header className="roll__head">
-        <div className="roll__who">
+    <section className="herald" aria-labelledby="herald-title">
+      <header className="herald__head">
+        <div className="herald__who">
           <p className="caps">{profile?.self ? 'Your profile' : 'Profile'}</p>
-          <h1 id="roll-title" className="display">
-            {name ?? (load.kind === 'missing' ? 'No such name' : 'The roll of names')}
+          <h1 id="herald-title" className="display">
+            {name ?? (load.kind === 'missing' ? 'No such name' : 'The herald of names')}
           </h1>
           {profile ? (
-            <p className="roll__handle">
+            <p className="herald__handle">
               @{profile.handle}
               {profile.self && profile.visibility ? (
-                <span className={`roll__seen roll__seen--${profile.visibility}`}>
+                <span className={`herald__seen herald__seen--${profile.visibility}`}>
                   Seen by: {PROFILE_VISIBILITY_LABELS[profile.visibility]}
                 </span>
               ) : null}
@@ -107,7 +107,7 @@ export function ProfileScreen() {
         {profile && !profile.self ? (
           <button
             type="button"
-            className="btn roll__report"
+            className="btn herald__report"
             onClick={() =>
               setReport({
                 target: { kind: 'player', handle: profile.handle },
@@ -122,7 +122,7 @@ export function ProfileScreen() {
       </header>
 
       {load.kind === 'loading' ? (
-        <p className="roll__wait" role="status">
+        <p className="herald__wait" role="status">
           The herald unrolls the parchment…
         </p>
       ) : null}
@@ -135,7 +135,7 @@ export function ProfileScreen() {
         </div>
       ) : null}
       {load.kind === 'missing' ? (
-        <div className="roll__missing panel-ledger">
+        <div className="herald__missing panel-ledger">
           <p className="display">No one by that name walks these roads.</p>
           <p>The player may not exist, or keeps their profile to themselves.</p>
           <p>
@@ -145,12 +145,12 @@ export function ProfileScreen() {
       ) : null}
 
       {profile ? (
-        <div className="roll__body">
-          <div className="roll__main">
+        <div className="herald__body">
+          <div className="herald__main">
             <Heroes profile={profile} onReport={setReport} />
             {profile.showcase ? <Showcase showcase={profile.showcase} /> : null}
           </div>
-          <aside className="roll__side">
+          <aside className="herald__side">
             <Deeds profile={profile} />
             {profile.self ? <SettingsPanel onSaved={() => setAttempt((n) => n + 1)} /> : null}
           </aside>
@@ -192,11 +192,11 @@ function FindPlayer() {
   };
 
   return (
-    <form className="roll__find" onSubmit={submit} noValidate role="search">
+    <form className="herald__find" onSubmit={submit} noValidate role="search">
       <label className="field__label caps" htmlFor={id}>
         Find a player
       </label>
-      <div className="roll__find-row">
+      <div className="herald__find-row">
         <div className="field__well">
           <input
             id={id}
@@ -235,31 +235,31 @@ function Heroes({
   onReport: (r: { target: ReportTarget; label: string }) => void;
 }) {
   return (
-    <section className="roll__heroes panel-iron" aria-labelledby="roll-heroes">
-      <h2 id="roll-heroes" className="rule-heading">
+    <section className="herald__heroes panel-iron" aria-labelledby="herald-heroes">
+      <h2 id="herald-heroes" className="rule-heading">
         Heroes
       </h2>
       {profile.characters.length === 0 ? (
-        <p className="roll__empty">No hero has taken up arms yet.</p>
+        <p className="herald__empty">No hero has taken up arms yet.</p>
       ) : (
-        <ul className="roll__hero-list">
+        <ul className="herald__hero-list">
           {profile.characters.map((h, i) => (
-            <li key={`${h.name ?? 'hidden'}-${i}`} className="roll__hero">
+            <li key={`${h.name ?? 'hidden'}-${i}`} className="herald__hero">
               <HeroPortrait
                 classId={h.classId}
                 banner={h.appearance.banner}
                 scale={1}
                 alt={`${getClass(h.classId).name} portrait`}
               />
-              <div className="roll__hero-text">
-                <p className={`roll__hero-name display${h.name ? '' : ' is-withheld'}`}>
+              <div className="herald__hero-text">
+                <p className={`herald__hero-name display${h.name ? '' : ' is-withheld'}`}>
                   {h.name ?? 'Name withheld'}
                 </p>
-                <p className="roll__hero-line">{heroLine(h)}</p>
+                <p className="herald__hero-line">{heroLine(h)}</p>
                 {!profile.self && h.name ? (
                   <button
                     type="button"
-                    className="roll__flag"
+                    className="herald__flag"
                     onClick={() =>
                       onReport({
                         target: { kind: 'characterName', handle: profile.handle, name: h.name! },
@@ -298,16 +298,16 @@ function Showcase({ showcase }: { showcase: NonNullable<Profile['showcase']> }) 
   const item = items.find((i) => i.id === selected) ?? null;
   const title = showcase.name ? `Arms of ${showcase.name}` : 'Arms of a hero';
   return (
-    <section className="roll__arms panel-iron" aria-labelledby="roll-arms">
-      <h2 id="roll-arms" className="rule-heading">
+    <section className="herald__arms panel-iron" aria-labelledby="herald-arms">
+      <h2 id="herald-arms" className="rule-heading">
         {title}
       </h2>
-      <p className="roll__arms-line">{heroLine(showcase)}</p>
+      <p className="herald__arms-line">{heroLine(showcase)}</p>
       {items.length === 0 ? (
-        <p className="roll__empty">This hero fights with bare hands for now.</p>
+        <p className="herald__empty">This hero fights with bare hands for now.</p>
       ) : (
         <>
-          <ul className="roll__rack" aria-label={`${title}: equipped items`}>
+          <ul className="herald__rack" aria-label={`${title}: equipped items`}>
             {items.map((i) => (
               <li key={i.id}>
                 <ItemFrame
@@ -321,7 +321,7 @@ function Showcase({ showcase }: { showcase: NonNullable<Profile['showcase']> }) 
             ))}
           </ul>
           {item ? (
-            <div className="roll__inspect" aria-live="polite">
+            <div className="herald__inspect" aria-live="polite">
               <ItemTooltip
                 item={item}
                 caption={`Equipped · ${slotName(item.equippedSlot!)}`}
@@ -355,15 +355,15 @@ function Deeds({ profile }: { profile: Profile }) {
     .map((s) => ({ ...s, def: findAchievement(s.id) }))
     .filter((s): s is typeof s & { def: AchievementDefinition } => s.def !== undefined);
   return (
-    <section className="roll__deeds panel-ledger" aria-labelledby="roll-deeds">
-      <h2 id="roll-deeds" className="rule-heading">
+    <section className="herald__deeds panel-ledger" aria-labelledby="herald-deeds">
+      <h2 id="herald-deeds" className="rule-heading">
         Deeds
       </h2>
       {shown.length === 0 ? (
-        <p className="roll__empty">
+        <p className="herald__empty">
           {profile.self
             ? 'You show no deeds yet. Choose up to five below.'
-            : 'No deeds are shown on this roll.'}
+            : 'No deeds are shown on this herald.'}
         </p>
       ) : (
         <ul className="deeds">
@@ -385,7 +385,7 @@ function Deeds({ profile }: { profile: Profile }) {
 
 const VISIBILITY_HINT: Record<ProfileVisibility, string> = {
   public: 'Every player can find your profile.',
-  friendsAndGuild: 'Only your friends and guildmates (both arrive soon; until then, only you).',
+  friendsAndGuild: 'Only your friends (and guildmates, once guilds arrive).',
   hidden: 'Nobody but you. Others are told no such name exists.',
 };
 
@@ -435,7 +435,7 @@ function SettingsPanel({ onSaved }: { onSaved: () => void }) {
       return;
     }
     apply(res.value);
-    setMessage({ ok: true, text: 'Your roll is amended.' });
+    setMessage({ ok: true, text: 'Your herald is amended.' });
     onSaved();
   };
 
@@ -449,12 +449,12 @@ function SettingsPanel({ onSaved }: { onSaved: () => void }) {
     );
 
   return (
-    <section className="roll__settings panel-iron" aria-labelledby="roll-settings">
-      <h2 id="roll-settings" className="rule-heading">
+    <section className="herald__settings panel-iron" aria-labelledby="herald-settings">
+      <h2 id="herald-settings" className="rule-heading">
         How others see you
       </h2>
       {load.kind === 'loading' ? (
-        <p className="roll__wait" role="status">
+        <p className="herald__wait" role="status">
           Fetching your seals…
         </p>
       ) : null}
@@ -467,11 +467,11 @@ function SettingsPanel({ onSaved }: { onSaved: () => void }) {
         </div>
       ) : null}
       {load.kind === 'ready' ? (
-        <form className="roll__form" onSubmit={submit} noValidate>
-          <fieldset className="roll__group">
+        <form className="herald__form" onSubmit={submit} noValidate>
+          <fieldset className="herald__group">
             <legend className="caps">Who may see your profile</legend>
             {PROFILE_VISIBILITIES.map((v) => (
-              <label key={v} className="roll__choice">
+              <label key={v} className="herald__choice">
                 <input
                   type="radio"
                   name={`${ids}-vis`}
@@ -480,13 +480,13 @@ function SettingsPanel({ onSaved }: { onSaved: () => void }) {
                 />
                 <span>
                   <strong>{PROFILE_VISIBILITY_LABELS[v]}</strong>
-                  <span className="roll__hint">{VISIBILITY_HINT[v]}</span>
+                  <span className="herald__hint">{VISIBILITY_HINT[v]}</span>
                 </span>
               </label>
             ))}
           </fieldset>
 
-          <fieldset className="roll__group">
+          <fieldset className="herald__group">
             <legend className="caps">
               Deeds to show ({shown.length} / {MAX_SHOWN_ACHIEVEMENTS})
             </legend>
@@ -508,7 +508,7 @@ function SettingsPanel({ onSaved }: { onSaved: () => void }) {
                         />
                         <span>
                           <span className="ledger-deed__name">{a.name}</span>
-                          <span className="roll__hint">
+                          <span className="herald__hint">
                             {a.description}
                             {earned.characterName ? ` · ${earned.characterName}` : ''}
                           </span>
@@ -518,7 +518,7 @@ function SettingsPanel({ onSaved }: { onSaved: () => void }) {
                     ) : (
                       <span>
                         <span className="ledger-deed__name">{a.name}</span>
-                        <span className="roll__hint">{a.description} · Not yet earned</span>
+                        <span className="herald__hint">{a.description} · Not yet earned</span>
                       </span>
                     )}
                   </li>
@@ -551,7 +551,7 @@ function SettingsPanel({ onSaved }: { onSaved: () => void }) {
 
           {message ? (
             <p
-              className={message.ok ? 'roll__saved' : 'gate__alert'}
+              className={message.ok ? 'herald__saved' : 'gate__alert'}
               role={message.ok ? 'status' : 'alert'}
             >
               {message.text}

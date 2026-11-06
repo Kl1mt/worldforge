@@ -12,6 +12,7 @@ import {
   type EquipmentSlotId,
   type ProfileRelation,
   type ProfileVisibility,
+  type Relation,
 } from '@worldforge/game-core';
 import {
   accountAchievements,
@@ -25,6 +26,7 @@ import { writeAudit } from '../db/audit.js';
 import type { Executor } from '../db/types.js';
 import { ApiError } from '../errors.js';
 import { normalizeDisplayName } from '../auth/validation.js';
+import { relationBetween } from './relations.js';
 import { hiddenTargetKeys } from './sanctions.js';
 import { socialWrite } from './social-write.js';
 import { characterNameKey, profileFieldKey } from './targets.js';
@@ -36,17 +38,28 @@ import { characterNameKey, profileFieldKey } from './targets.js';
  */
 
 /**
- * The viewer's relation to the owner. Ticket 4.3 owns friends and blocks, 4.4 guilds: until they
- * land everyone but the owner is a `stranger`, so "friends and guild" means "only me" for now.
- * TODO(4.3): map 4.3's relation helper here (blocked either way → `blocked`, friends → `friend`).
+ * The viewer's relation to the owner, from 4.3's relationship model (`relationBetween`): a block
+ * in either direction is `blocked` (404, like an unknown player), a friendship is `friend`, a
+ * pending request either way is `pending` (not a friend). Guilds arrive in 4.4.
+ * TODO(4.4): a shared guild → `guildmate`.
  */
 export async function profileRelation(
-  _executor: Executor,
+  executor: Executor,
   viewerId: string,
   ownerId: string,
 ): Promise<ProfileRelation> {
-  return viewerId === ownerId ? 'self' : 'stranger';
+  return PROFILE_RELATION_OF[await relationBetween(executor, viewerId, ownerId)];
 }
+
+const PROFILE_RELATION_OF: Record<Relation, ProfileRelation> = {
+  self: 'self',
+  stranger: 'stranger',
+  'requested-by-me': 'pending',
+  'requested-by-them': 'pending',
+  friend: 'friend',
+  'blocked-by-me': 'blocked',
+  'blocked-by-them': 'blocked',
+};
 
 /** The owner if `viewerId` may see their profile, else null (the caller answers 404). */
 export async function viewableProfileOwner(

@@ -10,7 +10,7 @@
 import { expect } from 'vitest';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import { and, eq, inArray } from 'drizzle-orm';
+import { and, eq, inArray, like } from 'drizzle-orm';
 import {
   MATERIAL_IDS,
   RARITY_IDS,
@@ -655,6 +655,82 @@ export async function playSafetyStep(
     .where(eq(sanctions.id, row!.sanctionId!));
   expect(sanction).toMatchObject({ kind: 'rename', liftReason: 'renamed' });
   return { reportId, offender: offender.account, moderator: warden.account };
+}
+
+/**
+ * Phase 4 friends step (ticket 4.3): the hero adds a companion by display name, the companion
+ * accepts from the inbox, and the hero sees them online (a bucket, never a time); the companion
+ * hides their presence. A pest's request is answered with a block: it vanishes and the pest can no
+ * longer reach the hero. Reconciled with the audit log. 4.11 runs this in the multi-player exit run.
+ */
+export async function playFriendsStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  hero: Journey,
+) {
+  type Entry = { handle: string; displayName: string | null; presence?: string | null };
+  type Friends = { friends: Entry[]; incoming: Entry[]; outgoing: Entry[]; blocked: Entry[] };
+  const heroAccount = (await hero.api('GET', '/api/account')).json<{
+    account: { id: string; handle: string; displayName: string };
+  }>().account;
+  const companion = await newPlayer(app, 'companion@graumark.test', 'Ysolde Ash');
+  const pest = await newPlayer(app, 'pest@graumark.test', 'Pest Of Graumark');
+
+  // The hero adds the companion by name; it waits in the companion's inbox.
+  const asked = await hero.api('POST', '/api/friends/requests', { name: 'ysolde ash' });
+  expect(asked.statusCode, asked.body).toBe(200);
+  expect(asked.json()).toEqual({ relation: 'requested-by-me' });
+  const inbox = (await companion.api('GET', '/api/friends')).json<Friends>();
+  expect(inbox.incoming).toEqual([
+    { handle: heroAccount.handle, displayName: heroAccount.displayName },
+  ]);
+  const accepted = await companion.api(
+    'POST',
+    `/api/friends/requests/${heroAccount.handle}/accept`,
+  );
+  expect(accepted.json()).toEqual({ relation: 'friend' });
+
+  // The hero sees the companion online; once hidden, no presence at all.
+  const list = async () => (await hero.api('GET', '/api/friends')).json<Friends>();
+  expect((await list()).friends).toEqual([
+    { handle: companion.account.handle, displayName: 'Ysolde Ash', presence: 'online' },
+  ]);
+  expect((await companion.api('POST', '/api/account/presence', { hidden: true })).statusCode).toBe(
+    200,
+  );
+  expect((await list()).friends[0]!.presence).toBeNull();
+
+  // The pest asks; the hero blocks instead of answering.
+  expect(
+    (await pest.api('POST', '/api/friends/requests', { handle: heroAccount.handle })).statusCode,
+  ).toBe(200);
+  expect((await list()).incoming.map((e) => e.handle)).toEqual([pest.account.handle]);
+  expect((await hero.api('POST', '/api/blocks', { handle: pest.account.handle })).json()).toEqual({
+    relation: 'blocked-by-me',
+  });
+  const after = await list();
+  expect(after.incoming).toEqual([]);
+  expect(after.blocked.map((e) => e.handle)).toEqual([pest.account.handle]);
+  // The pest sees nothing of the hero any more.
+  expect((await pest.api('GET', '/api/friends')).json<Friends>().outgoing).toEqual([]);
+  expect(
+    (await pest.api('POST', '/api/friends/requests', { handle: heroAccount.handle })).statusCode,
+  ).toBe(404);
+  expect((await pest.api('GET', `/api/players/${heroAccount.handle}/relation`)).statusCode).toBe(
+    404,
+  );
+
+  const ids = [heroAccount.id, companion.account.id, pest.account.id];
+  const events = (
+    await database.db
+      .select({ event: auditLog.event, accountId: auditLog.accountId })
+      .from(auditLog)
+      .where(and(inArray(auditLog.accountId, ids), like(auditLog.event, 'friend.%')))
+  ).map((r) => `${r.event}:${ids.indexOf(r.accountId!)}`);
+  expect(events.sort()).toEqual(
+    ['friend.request:0', 'friend.accept:1', 'friend.request:2', 'friend.block:0'].sort(),
+  );
+  return { companion: companion.account, pest: pest.account };
 }
 
 /**

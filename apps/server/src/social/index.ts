@@ -16,3 +16,12 @@ export {
 export { assertPlayerText } from './text.js';
 export { resolveReportTarget, profileFieldKey, type ResolvedTarget } from './targets.js';
 export { setAccountRole, type RoleChange } from './roles.js';
+export {
+  blockedEitherWay,
+  friendIds,
+  isBlockedEitherWay,
+  lockSocialAccounts,
+  presenceOf,
+  relationBetween,
+  relationsFor,
+} from './relations.js';

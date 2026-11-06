@@ -158,6 +158,27 @@ a.purse__who:hover .purse__class {
   font-weight: 700;
 }
 
+/* Ticket 4.3: the Friends link, a plain engraved label with the count of waiting requests. */
+.purse__friends {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 32px;
+  color: var(--bone-200);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  letter-spacing: 0.02em;
+}
+
+.purse__friends:hover,
+.purse__friends[aria-current='page'] {
+  color: var(--accent-strong);
+}
+
+.purse__friends[aria-current='page'] {
+  box-shadow: inset 0 -2px 0 var(--brass-500);
+}
+
 /* A coin drawn as two stacked squares of brass: no stock icon. */
 .purse__coin {
   width: 10px;

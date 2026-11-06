@@ -749,6 +749,76 @@ export const sanctions = pgTable(
 );
 
 /**
+ * Friendships and friend requests (ticket 4.3, docs/SOCIAL.md "Relations"). One row per unordered
+ * pair, stored with `account_low < account_high` (uuid order), so a pair can never hold two rows:
+ * both players sending at once meet on the primary key. `pending` rows carry who asked
+ * (`requested_by`, one of the pair). Every change to a pair runs under both accounts' social
+ * locks (`lockSocialAccounts`), so the caps are exact.
+ */
+export const friendships = pgTable(
+  'friendships',
+  {
+    accountLow: uuid('account_low')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    accountHigh: uuid('account_high')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    status: text('status').$type<'pending' | 'friends'>().notNull(),
+    requestedBy: uuid('requested_by').notNull(),
+    ...timestamps,
+    acceptedAt: timestamp('accepted_at', { withTimezone: true }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.accountLow, t.accountHigh] }),
+    index('friendships_account_high_idx').on(t.accountHigh),
+    check('friendships_order_check', sql`${t.accountLow} < ${t.accountHigh}`),
+    check('friendships_status_check', sql`${t.status} in ('pending', 'friends')`),
+    check(
+      'friendships_requested_by_check',
+      sql`${t.requestedBy} in (${t.accountLow}, ${t.accountHigh})`,
+    ),
+  ],
+);
+
+/**
+ * Blocks (ticket 4.3): `blocker_id` blocks `blocked_id`. Directional; both may block each other.
+ * A block removes the pair's friendship and requests in the same transaction and hides each
+ * player from the other (docs/SOCIAL.md).
+ */
+export const blocks = pgTable(
+  'blocks',
+  {
+    blockerId: uuid('blocker_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    blockedId: uuid('blocked_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    ...timestamps,
+  },
+  (t) => [
+    primaryKey({ columns: [t.blockerId, t.blockedId] }),
+    index('blocks_blocked_id_idx').on(t.blockedId),
+    check('blocks_not_self_check', sql`${t.blockerId} <> ${t.blockedId}`),
+  ],
+);
+
+/**
+ * Presence (ticket 4.3, docs/SOCIAL.md "Presence"): when the account last made an authenticated
+ * request, coalesced to at most one write every few minutes per account, and whether the player
+ * hides it. Its own table so the frequent upsert never waits on the account row's locks. The time
+ * never leaves the server; views get a coarse bucket (game-core `presenceBucket`).
+ */
+export const accountPresence = pgTable('account_presence', {
+  accountId: uuid('account_id')
+    .primaryKey()
+    .references(() => accounts.id, { onDelete: 'cascade' }),
+  lastSeenAt: timestamp('last_seen_at', { withTimezone: true }),
+  hidden: boolean('hidden').notNull().default(false),
+});
+
+/**
  * Daily telemetry rollups (ticket 3.8, docs/TELEMETRY.md): server-side aggregate counters only.
  * One row per game-clock day (UTC), metric and up to three content-id dimensions; `events` counts
  * occurrences and `amount` sums a quantity (gold, items, materials, XP). Written only by the
@@ -783,6 +853,8 @@ export type NewAuditLogEntry = typeof auditLog.$inferInsert;
 export type TelemetryDailyRow = typeof telemetryDaily.$inferSelect;
 export type Report = typeof reports.$inferSelect;
 export type Sanction = typeof sanctions.$inferSelect;
+export type Friendship = typeof friendships.$inferSelect;
+export type Block = typeof blocks.$inferSelect;
 export type ItemInstance = typeof itemInstances.$inferSelect;
 export type NewItemInstance = typeof itemInstances.$inferInsert;
 export type CharacterMaterial = typeof characterMaterials.$inferSelect;

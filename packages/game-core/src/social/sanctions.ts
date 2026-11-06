@@ -56,15 +56,39 @@ export function validSanctionDuration(kind: SanctionKind, hours: number): boolea
  * and goes through the server's `socialWrite` helper. Later tickets add theirs (profile, friend,
  * guild, chat).
  */
-export const SOCIAL_WRITE_ACTIONS = ['report', 'rename', 'profile'] as const;
+export const SOCIAL_WRITE_ACTIONS = [
+  'report',
+  'rename',
+  // Ticket 4.3: friends and blocks.
+  'friendRequest',
+  'friendAccept',
+  'friendDecline',
+  'friendCancel',
+  'friendRemove',
+  'block',
+  'unblock',
+  // Ticket 4.2: profile settings.
+  'profile',
+] as const;
 export type SocialWriteAction = (typeof SOCIAL_WRITE_ACTIONS)[number] | (string & {});
 
 /**
- * Social writes a mute does not block: a muted player can still report, do a forced rename and
- * change their profile settings (ticket 4.2: visibility, shown achievements and showcase carry no
- * player text, and a muted player must still be able to hide their profile).
+ * Social writes a mute does not block: a muted player can still report and do a forced rename,
+ * and can always step away from others (ticket 4.3: decline, cancel, unfriend, block, unblock).
+ * Sending or accepting a friend request reaches another player, so a mute blocks those.
  */
-export const MUTE_EXEMPT: readonly string[] = ['report', 'rename', 'profile'];
+export const MUTE_EXEMPT: readonly string[] = [
+  'report',
+  'rename',
+  'friendDecline',
+  'friendCancel',
+  'friendRemove',
+  'block',
+  'unblock',
+  // Ticket 4.2: profile settings carry no player text, and a muted player must still be able to
+  // hide their profile.
+  'profile',
+];
 
 /** The sanction that blocks this social write, if any (suspension first). */
 export function blockingSanction<T extends { kind: SanctionKind }>(

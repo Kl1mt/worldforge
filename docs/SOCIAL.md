@@ -9,9 +9,10 @@ Code: `packages/game-core/src/social/` (rules and data, usable by server and cli
 1. **Text:** every player-written string goes through `assertPlayerText(kind, raw, field)` on the server (the client may call game-core `validatePlayerText` for instant feedback). Add a kind to `PLAYER_TEXT_RULES` if none fits. Store the returned (normalised) value.
 2. **Write:** the route runs behind `app.requireAccount` and does its work inside `socialWrite(app, request, reply, action, fn)` (or calls `assertSocialWriteAllowed(tx, …)` first inside its own transaction helper, e.g. `idempotentTransaction`). Name a new `SocialWriteAction` (`'chat'`, `'guildCreate'`, …).
 3. **Report:** add the new target to game-core's `ReportTarget` union and `REPORT_TARGET_KINDS`, a resolver in `apps/server/src/social/targets.ts` (`RESOLVERS`) and a branch in `reportTargetSchema`; open `ReportDialog` with a fixed `target` from the UI.
-4. **Hide:** if the content is `hideable`, filter it out of other players' views with `hiddenTargetKeys(executor, keys, now)`. **Privacy and blocks:** anything that shows one player to another goes through the profile rules (`viewableProfileOwner` / `canViewProfile`, "Profiles" below): a block either way or a hidden profile is a `404` like an unknown player.
-5. **Permissions:** new moderator actions go into `MODERATION_ACTIONS` and the hand-written table in `permission-matrix.test.ts`.
-6. **Races and journey:** a real-PG race test for anything shared; a step in `e2e/journey.ts`.
+4. **Blocks and relations:** anything that shows one player to another, or lets one reach another, asks the relationship model (below): a block either way hides each from the other (`isBlockedEitherWay`, or `blockedEitherWay` to filter a list). Profiles (ticket 4.2) do this in one place: `viewableProfileOwner` / `canViewProfile` ("Profiles" below).
+5. **Hide:** if the content is `hideable`, filter it out of other players' views with `hiddenTargetKeys(executor, keys, now)`.
+6. **Permissions:** new moderator actions go into `MODERATION_ACTIONS` and the hand-written table in `permission-matrix.test.ts`.
+7. **Races and journey:** a real-PG race test for anything shared; a step in `e2e/journey.ts`.
 
 ## Player text
 
@@ -91,7 +92,7 @@ Ticket 4.2. Code: game-core `social/profiles.ts` (`PROFILE_VISIBILITIES`, `PROFI
 - **Reached** by display name (`GET /api/players/lookup?name=`, the search on the profile page and the report dialog) or handle (`?handle=`, `GET /api/players/:handle/profile`). Logged-in players only.
 - **Shows** the display name, the handle, every hero (name, class, level, banner portrait), the achievements the owner picked (up to `MAX_SHOWN_ACHIEVEMENTS` = 5, in their order, with the award day), and optionally one hero's equipped gear (the showcase; never the pack). No account id, email, character or item id, seed, or time finer than a day.
 - **Visibility** (`accounts.profile_visibility`): `public` (default), `friendsAndGuild`, `hidden`. The viewer's relation (`self`, `friend`, `guildmate`, `pending`, `stranger`, `blocked` either way) and `canViewProfile` decide; a `false` is `404 not_found` with the same body as an unknown player, for the profile and the lookup. The owner always sees their own.
-- **Relations come from 4.3/4.4.** Until 4.3 merges `profileRelation` knows only `self` and `stranger`, so "friends and guild" behaves as "only me". When 4.3 lands it maps 4.3's helper: a block in either direction → `blocked`, a friendship → `friend`, a pending request → `pending`; 4.4 adds `guildmate`.
+- **Relations come from 4.3** ("Relations"): `profileRelation` maps `relationBetween`: `blocked-by-me` / `blocked-by-them` → `blocked` (404 for the profile, the lookup and the showcase, either way), `friend` → `friend`, `requested-by-me` / `requested-by-them` → `pending` (treated like a stranger). Guilds arrive in 4.4, which maps a shared guild to `guildmate`; until then "friends and guild" means friends only. Names in the friends list link to the profile (blocked players' do not).
 - **Settings:** `POST /api/account/profile` (social write `profile`, rate limited, audited `profile.update`; exempt from mutes because it carries no player text and a muted player must be able to hide their profile).
 - **Report action** on every other player's profile: the player, and each visible hero name (`characterName`). The display name is reported from the report dialog's "their display name".
 
@@ -106,7 +107,58 @@ Ticket 4.2, GDD §5.3 (account-bound). Cosmetic only: no achievement grants powe
 - **Showing:** the owner picks up to five earned achievements (`shown_slot`); the profile shows those only.
 
 **Adding an achievement:** append a definition (never rename or reuse an id), make sure its fact is collected by `characterFacts` (and the backfill if history matters) and called from the event that changes it, and list the new icon id for the art ticket. The next deploy backfills it.
+## Relations (friends, requests, blocks) — ticket 4.3
+
+Code: game-core `social/relations.ts` (the matrix, caps, presence buckets) and server `apps/server/src/social/relations.ts` (the reusable API) and `friends.ts` (routes). Tables: `friendships` (one row per unordered pair, `account_low < account_high`; `pending` with `requested_by`, or `friends`), `blocks` (directional), `account_presence`.
+
+**The API for other features** (internal account ids in, never shown to players):
+
+| Helper | Answers |
+|---|---|
+| `relationBetween(executor, viewerId, targetId)` | `'self' \| 'stranger' \| 'requested-by-me' \| 'requested-by-them' \| 'friend' \| 'blocked-by-me' \| 'blocked-by-them'` |
+| `relationsFor(executor, viewerId, targetIds)` | `Map<id, Relation>` for a list, two queries whatever its length |
+| `isBlockedEitherWay(executor, a, b)` | either blocks the other |
+| `blockedEitherWay(executor, viewerId, ids?)` | the ids (of `ids`, or of everyone) the viewer must not see: blocked by or blocking the viewer |
+| `friendIds(executor, accountId)` | accepted friends |
+| `presenceOf(executor, ids, now)` | `Map<id, PresenceBucket \| null>` (null = hidden); the caller checks who may see it |
+| `lockSocialAccounts(tx, ids)` | takes each account's social lock (advisory, transaction-scoped, sorted); hold it to change a relation |
+
+game-core: `relationFromFacts`, `friendDecision(relation, action)`, `visibleRelation` (`blocked-by-them` → null: answer as for an unknown player), `isBlockRelation`, `FRIEND_LIMITS`, `presenceBucket`, `PRESENCE_LABELS`. The client can ask `GET /api/players/:handle/relation`.
+
+How later tickets use it: **4.2** profiles answer `404` when `isBlockedEitherWay`, and `friends and guild` privacy means `relation === 'friend'` (or a guildmate, 4.4). **4.4** guild invites refuse a block either way and show guildmates' presence through `presenceOf` (respecting `hidden`). **4.5** chat filters messages with `blockedEitherWay(viewer, authorIds)`.
+
+**The relation matrix** (game-core `FRIEND_MATRIX`; tested per relation × action in `friends.test.ts` against a hand-written table). Codes are the error codes; ✓ is allowed, with the relation afterwards.
+
+| Action ↓ / relation → | stranger | requested-by-me | requested-by-them | friend | blocked-by-me | blocked-by-them |
+|---|---|---|---|---|---|---|
+| sendRequest | ✓ requested-by-me | 409 request_pending | ✓ friend (accepts theirs) | 409 already_friends | 409 blocked_by_you | 404 not_found |
+| accept | 404 no_request | 404 no_request | ✓ friend | 409 already_friends | 404 no_request | 404 not_found |
+| decline | 404 no_request | 404 no_request | ✓ stranger | 404 no_request | 404 no_request | 404 not_found |
+| cancel | 404 no_request | ✓ stranger | 404 no_request | 404 no_request | 404 no_request | 404 not_found |
+| remove | 404 not_friends | 404 not_friends | 404 not_friends | ✓ stranger | 404 not_friends | 404 not_found |
+| block | ✓ | ✓ (drops the request) | ✓ (drops the request) | ✓ (ends the friendship) | 409 already_blocked | ✓ |
+| unblock | 404 not_blocked | 404 not_blocked | 404 not_blocked | 404 not_blocked | ✓ stranger | 404 not_found |
+| report | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ |
+| viewPresence | — | — | — | ✓ (unless hidden) | — | — |
+
+Self: `422 cannot_target_self` (`cannot_report_self` for reports). A player who blocks you is answered exactly like an unknown player, so a block is never announced; you may still block them back and report them. A block wins over everything in `relationFromFacts` (yours over theirs, so you can always see and lift your own).
+
+**Writes:** every action runs in `socialWrite` (social rate-limit class) and holds both accounts' social locks while it reads the relation, checks the matrix and the caps, and writes. Mutes block `friendRequest` and `friendAccept` (reaching someone); `friendDecline`, `friendCancel`, `friendRemove`, `block` and `unblock` are mute-exempt (stepping away is always allowed). Audit: `friend.request`, `friend.accept`, `friend.decline`, `friend.cancel`, `friend.remove`, `friend.block` (with what it removed), `friend.unblock`, `presence.setting`.
+
+**Caps** (`FRIEND_LIMITS`, exact under races): 100 friends (`409 friend_limit`, or `friend_limit_them` for the other side), 25 requests waiting that you sent (`request_limit`), 50 waiting in an inbox (`inbox_full`), 500 blocks (`block_limit`). Answering a waiting request needs no request slot.
+
+## Presence — ticket 4.3
+
+A bucket from the last authenticated request (any route behind `requireAccount`): `online` (≤ 10 min), `today` (≤ 24 h), `week` (≤ 7 days), `longer` (or never). Shown to friends only (guildmates from 4.4); the player can hide it (`POST /api/account/presence`), and then friends get `null`. **No timestamp leaves the server**: no route returns `last_seen_at`, and the friends list carries no times at all (tested: no date or epoch in the body).
+
+**Cheap recording:** `createPresenceRecorder` keeps the last write per account in process memory and upserts `account_presence` at most once every **3 minutes** per account (`PRESENCE_WRITE_INTERVAL_MS`), whatever the request rate: under 3.9's limit of 900 requests a minute that is still ≤ 0.34 writes a minute per account, and a busy game tab (settle every 8 s) costs one write per 3 min instead of 22. The upsert touches only `account_presence` (never the locked account row), never moves the time backwards (`greatest`), and a failure is logged without failing the request. A restart forgets the memory, so the first request after it writes once. `online` (10 min) covers several write intervals, so an active player never flickers.
+
+**Accepted:** a friend who polls the list can tell roughly when you went quiet (the moment `online` turns into `today`, ±3 min); that is what "online now" means. Hide presence to avoid it.
+
+**Polling:** the friends screen polls `GET /api/friends` every 60 s and the shell (request badge) every 2 min; the response carries an `ETag` and `Cache-Control: private, no-cache`, so the browser revalidates and an unchanged list is a `304`. That is ≤ 1.5 requests a minute per tab, far below 3.9's 900.
 
 ## Race tests
 
 `apps/server/src/social/social.pg.test.ts` (real PostgreSQL, part of `test:pg`, three rounds each in varied orders, asserting only what holds in every order): concurrent duplicate reports on one target; a mute racing the target's social writes; a suspension racing the target's requests; several moderators acting on one report; a role revoke racing the moderator's actions; no deadlock or retry.
+
+`apps/server/src/social/friends.pg.test.ts` (ticket 4.3): both players of many pairs sending a request at once → one friendship each (one request and one accept audited); a block racing an accept → always blocked, never friends, with the block's audit saying whether it removed a friendship or a request; an unfriend or a cancel racing an accept → the final state matches the audit log; concurrent accepts and sends at the friend and inbox caps → exactly one succeeds. Without the social locks every one of these fails.

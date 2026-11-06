@@ -296,7 +296,7 @@ Indexes: partial unique `(reporter_id, target_key) where status = 'open'` (one o
 Active iff `lifted_at is null and expires_at > now` (the auth clock). Indexes: `(subject_id, expires_at)`, partial `(target_key)`.
 
 ### account_achievements — implemented (4.2)
-Migration `0018_profiles_achievements`. See `docs/SOCIAL.md` "Achievements".
+Migration `0019_profiles_achievements`. See `docs/SOCIAL.md` "Achievements".
 | Column | Type | Notes |
 | --- | --- | --- |
 | account_id | uuid FK | → `accounts.id` `ON DELETE CASCADE` |
@@ -316,6 +316,33 @@ Primary key `(account_id, achievement_id)`: every award is at-most-once (inserte
 | data | jsonb | counts (accounts, awarded) |
 
 One row per one-shot data backfill that finished on this database; `migrate-cli` skips a backfill whose row exists (docs/DEPLOY.md "Data backfills").
+### friendships — implemented (4.3)
+Migration `0018_friends_presence` (additive: three new tables, no change to existing rows). See `docs/SOCIAL.md` "Relations".
+| Column | Type | Notes |
+| --- | --- | --- |
+| account_low, account_high | uuid FK, PK together | → `accounts.id` `ON DELETE CASCADE`; the pair in uuid order, `CHECK (account_low < account_high)`, so a pair has at most one row |
+| status | text | `pending` / `friends`, `CHECK` |
+| requested_by | uuid | who asked, one of the pair (`CHECK`) |
+| created_at / accepted_at | timestamptz | `accepted_at` set on accept |
+
+Index: `(account_high)` (the PK covers lookups by `account_low`). Every change to a pair runs under both accounts' transaction-scoped advisory locks (`lockSocialAccounts`), so the caps (`FRIEND_LIMITS`) are exact.
+
+### blocks — implemented (4.3)
+| Column | Type | Notes |
+| --- | --- | --- |
+| blocker_id, blocked_id | uuid FK, PK together | → `accounts.id` `ON DELETE CASCADE`; `CHECK (blocker_id <> blocked_id)`; directional, both may block each other |
+| created_at | timestamptz | |
+
+Index: `(blocked_id)`. Inserting a block deletes the pair's `friendships` row in the same transaction.
+
+### account_presence — implemented (4.3)
+| Column | Type | Notes |
+| --- | --- | --- |
+| account_id | uuid PK FK | → `accounts.id` `ON DELETE CASCADE` |
+| last_seen_at | timestamptz? | last authenticated request, written at most once per 3 min per account (`greatest`, never backwards); never sent to clients |
+| hidden | boolean | the player hides their presence (default false) |
+
+A separate table so the frequent upsert never waits on the account row's locks. No row = never seen since 4.3 shipped (shown as "away for a while").
 
 ## Relationships
 
@@ -331,6 +358,7 @@ account 0..1─* audit_log
 account 1─* idempotency_keys
 account 1─* reports (as reporter and as subject), 1─* sanctions
 account 1─* account_achievements (≤ 1 per achievement); account 0..1─1 showcase character
+account *─* account via friendships (one row per pair) and blocks (directional); account 1─0..1 account_presence
 character 1─* merchant_purchases
 ```
 

@@ -1,12 +1,12 @@
-/* Public profiles (ticket 4.2): a herald's roll. The heroes on an iron plate with their banners,
+/* Public profiles (ticket 4.2): a herald's herald. The heroes on an iron plate with their banners,
    the deeds as wax seals on a ledger strip, one hero's arms as a rack of sockets. The owner's
    settings sit under the deeds. Phones: one column, the search above. */
-.roll {
+.herald {
   display: grid;
   gap: var(--space-5);
 }
 
-.roll__head {
+.herald__head {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-4) var(--space-6);
@@ -15,17 +15,17 @@
   border-bottom: 1px solid var(--brass-700);
 }
 
-.roll__who .caps {
+.herald__who .caps {
   color: var(--brass-500);
 }
 
-.roll__who h1 {
+.herald__who h1 {
   font-size: var(--text-3xl);
   line-height: var(--leading-tight);
   color: var(--bone-100);
 }
 
-.roll__handle {
+.herald__handle {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-3);
@@ -35,7 +35,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.roll__seen {
+.herald__seen {
   padding: 1px var(--space-2);
   border: var(--border-brass);
   color: var(--brass-300);
@@ -44,78 +44,78 @@
   text-transform: uppercase;
 }
 
-.roll__seen--hidden {
+.herald__seen--hidden {
   border-color: var(--iron-500);
   color: var(--text-dim);
 }
 
-.roll__report {
+.herald__report {
   align-self: center;
 }
 
-.roll__find {
+.herald__find {
   display: grid;
   gap: var(--space-1);
   margin-left: auto;
   min-width: min(100%, 300px);
 }
 
-.roll__find-row {
+.herald__find-row {
   display: flex;
   gap: var(--space-2);
 }
 
-.roll__find-row .field__well {
+.herald__find-row .field__well {
   flex: 1;
 }
 
-.roll__wait,
-.roll__empty {
+.herald__wait,
+.herald__empty {
   color: var(--text-dim);
   font-style: italic;
 }
 
-.roll__missing {
+.herald__missing {
   display: grid;
   gap: var(--space-2);
   padding: var(--space-8) var(--space-6);
   text-align: center;
 }
 
-.roll__missing .display {
+.herald__missing .display {
   font-size: var(--text-xl);
   color: var(--bone-100);
 }
 
-.roll__body {
+.herald__body {
   display: grid;
   grid-template-columns: minmax(0, 1.5fr) minmax(300px, 1fr);
   gap: var(--space-5);
   align-items: start;
 }
 
-.roll__main,
-.roll__side {
+.herald__main,
+.herald__side {
   display: grid;
   gap: var(--space-5);
 }
 
-.roll__heroes,
-.roll__arms,
-.roll__settings {
+.herald__heroes,
+.herald__arms,
+.herald__settings {
   display: grid;
   gap: var(--space-4);
   padding: var(--space-5);
 }
 
-.roll__deeds {
+.herald__deeds {
   display: grid;
   gap: var(--space-3);
   padding: var(--space-5);
 }
 
 /* Heroes: banner portraits in a row of stalls. */
-.roll__hero-list {
+.herald__hero-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
   gap: var(--space-3);
@@ -124,7 +124,7 @@
   list-style: none;
 }
 
-.roll__hero {
+.herald__hero {
   display: grid;
   gap: var(--space-2);
   justify-items: center;
@@ -134,36 +134,36 @@
   box-shadow: inset 0 0 0 1px var(--line);
 }
 
-.roll__hero .hero-portrait {
+.herald__hero .hero-portrait {
   width: 128px;
   height: 128px;
 }
 
-.roll__hero-text {
+.herald__hero-text {
   display: grid;
   gap: 2px;
   justify-items: center;
   min-width: 0;
 }
 
-.roll__hero-name {
+.herald__hero-name {
   font-size: var(--text-lg);
   color: var(--bone-100);
   overflow-wrap: anywhere;
 }
 
-.roll__hero-name.is-withheld {
+.herald__hero-name.is-withheld {
   color: var(--text-faint);
   font-style: italic;
 }
 
-.roll__hero-line {
+.herald__hero-line {
   color: var(--text-muted);
   font-size: var(--text-sm);
 }
 
 /* A quiet text action, not a button that competes with the content. */
-.roll__flag {
+.herald__flag {
   margin-top: var(--space-1);
   padding: 0;
   border: 0;
@@ -176,18 +176,18 @@
   cursor: pointer;
 }
 
-.roll__flag:hover,
-.roll__flag:focus-visible {
+.herald__flag:hover,
+.herald__flag:focus-visible {
   color: var(--crimson-400);
 }
 
 /* Arms: the showcased hero's sockets, then the selected item's plate. */
-.roll__arms-line {
+.herald__arms-line {
   margin-top: calc(-1 * var(--space-2));
   color: var(--text-muted);
 }
 
-.roll__rack {
+.herald__rack {
   display: flex;
   flex-wrap: wrap;
   gap: var(--space-2);
@@ -196,7 +196,7 @@
   list-style: none;
 }
 
-.roll__inspect {
+.herald__inspect {
   max-width: 420px;
 }
 
@@ -273,12 +273,12 @@
 }
 
 /* Settings. */
-.roll__form {
+.herald__form {
   display: grid;
   gap: var(--space-4);
 }
 
-.roll__group {
+.herald__group {
   display: grid;
   gap: var(--space-2);
   margin: 0;
@@ -286,24 +286,24 @@
   border: 0;
 }
 
-.roll__group legend {
+.herald__group legend {
   margin-bottom: var(--space-2);
   color: var(--brass-500);
 }
 
-.roll__choice {
+.herald__choice {
   display: flex;
   gap: var(--space-2);
   align-items: baseline;
   cursor: pointer;
 }
 
-.roll__choice strong {
+.herald__choice strong {
   color: var(--bone-100);
   font-weight: 600;
 }
 
-.roll__hint {
+.herald__hint {
   display: block;
   color: var(--text-dim);
   font-size: var(--text-sm);
@@ -363,34 +363,34 @@
   font-variant-numeric: tabular-nums;
 }
 
-.roll__saved {
+.herald__saved {
   padding: var(--space-2) var(--space-4);
   border-left: 3px solid var(--moss-400);
   background: rgb(67 69 58 / 0.4);
 }
 
 @media (max-width: 1080px) {
-  .roll__body {
+  .herald__body {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
 @media (max-width: 760px) {
-  .roll__who h1 {
+  .herald__who h1 {
     font-size: var(--text-2xl);
   }
-  .roll__find {
+  .herald__find {
     order: -1;
     width: 100%;
     margin-left: 0;
   }
-  .roll__heroes,
-  .roll__arms,
-  .roll__settings,
-  .roll__deeds {
+  .herald__heroes,
+  .herald__arms,
+  .herald__settings,
+  .herald__deeds {
     padding: var(--space-4);
   }
-  .roll__hero-list {
+  .herald__hero-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 }

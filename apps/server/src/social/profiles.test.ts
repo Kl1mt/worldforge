@@ -7,6 +7,7 @@ import {
   canViewProfile,
   type ProfileRelation,
   type ProfileVisibility,
+  type Relation,
 } from '@worldforge/game-core';
 import { buildApp } from '../app.js';
 import { accountAchievements, accounts, auditLog, sanctions } from '../db/schema.js';
@@ -17,6 +18,7 @@ import { insertCharacter, insertItem } from '../test/heroes.js';
 import { caller, insertAccount, type TestAccount } from '../test/social.js';
 import { refreshAchievements } from '../achievements/award.js';
 import { profileRelation } from './profiles.js';
+import { relationBetween } from './relations.js';
 
 describe('public profiles (ticket 4.2)', () => {
   let database: DatabaseHandle;
@@ -63,34 +65,83 @@ describe('public profiles (ticket 4.2)', () => {
   }
 
   describe('privacy: each setting × each viewer relation', () => {
-    // Until 4.3 merges, the server knows only `self` and `stranger`; game-core's table covers the
-    // rest and the server asks it (friends-and-guild behaves as "only me" for now).
-    const relations: ProfileRelation[] = ['self', 'stranger'];
+    // The viewer's side of 4.3's relation, set up through 4.3's API; the server maps it onto
+    // game-core's `ProfileRelation` and asks `canViewProfile` (guildmates arrive in 4.4).
+    const RELATIONS: [Relation, ProfileRelation][] = [
+      ['self', 'self'],
+      ['stranger', 'stranger'],
+      ['requested-by-me', 'pending'],
+      ['requested-by-them', 'pending'],
+      ['friend', 'friend'],
+      ['blocked-by-me', 'blocked'],
+      ['blocked-by-them', 'blocked'],
+    ];
+    const ok = async (p: Promise<{ statusCode: number; body: string }>) => {
+      const r = await p;
+      expect(r.statusCode, r.body).toBe(200);
+    };
+    async function viewerWith(owner: TestAccount, relation: Relation): Promise<TestAccount> {
+      if (relation === 'self') return owner;
+      const viewer = await player();
+      const request = (from: TestAccount, to: TestAccount) =>
+        ok(call(from, 'POST', '/api/friends/requests', { handle: to.handle }));
+      if (relation === 'requested-by-me') await request(viewer, owner);
+      if (relation === 'requested-by-them') await request(owner, viewer);
+      if (relation === 'friend') {
+        await request(viewer, owner);
+        await ok(call(owner, 'POST', `/api/friends/requests/${viewer.handle}/accept`));
+      }
+      if (relation === 'blocked-by-me') {
+        await ok(call(viewer, 'POST', '/api/blocks', { handle: owner.handle }));
+      }
+      if (relation === 'blocked-by-them') {
+        await ok(call(owner, 'POST', '/api/blocks', { handle: viewer.handle }));
+      }
+      expect(await relationBetween(db(), viewer.id, owner.id)).toBe(relation);
+      return viewer;
+    }
+
     for (const visibility of PROFILE_VISIBILITIES) {
-      for (const relation of relations) {
+      for (const [relation, profileRel] of RELATIONS) {
         it(`${visibility} × ${relation}`, async () => {
-          const { acc } = await owner();
+          const { acc, hero } = await owner();
           await setVisibility(acc, visibility);
-          const viewer = relation === 'self' ? acc : await player();
-          expect(await profileRelation(db(), viewer.id, acc.id)).toBe(relation);
-          const visible = canViewProfile(visibility, relation);
+          await db()
+            .update(accounts)
+            .set({ showcaseCharacterId: hero.id })
+            .where(eq(accounts.id, acc.id));
+          const viewer = await viewerWith(acc, relation);
+          expect(await profileRelation(db(), viewer.id, acc.id)).toBe(profileRel);
+          const visible = canViewProfile(visibility, profileRel);
+          // Blocks hide the profile whatever the setting; friends see "friends and guild".
+          if (profileRel === 'blocked') expect(visible).toBe(false);
+          if (profileRel === 'friend') expect(visible).toBe(visibility !== 'hidden');
           const byHandle = await profile(viewer, acc.handle);
           const byName = await call(
             viewer,
             'GET',
             `/api/players/lookup?name=${encodeURIComponent(acc.displayName)}`,
           );
+          const byLookupHandle = await call(
+            viewer,
+            'GET',
+            `/api/players/lookup?handle=${acc.handle}`,
+          );
           const unknown = await profile(viewer, 'zzzzzzzzzzzz');
-          expect(byHandle.statusCode).toBe(visible ? 200 : 404);
-          expect(byName.statusCode).toBe(visible ? 200 : 404);
+          const unknownName = await call(viewer, 'GET', '/api/players/lookup?name=Nobody%20Here');
+          for (const res of [byHandle, byName, byLookupHandle]) {
+            expect(res.statusCode).toBe(visible ? 200 : 404);
+          }
           if (!visible) {
-            // Indistinguishable from a player who does not exist.
+            // Indistinguishable from a player who does not exist (profile, showcase and lookup).
             expect(byHandle.json()).toEqual(unknown.json());
+            expect(byName.json()).toEqual(unknownName.json());
+            expect(byHandle.body).not.toContain(hero.name);
           } else {
-            expect(byHandle.json().profile.self).toBe(relation === 'self');
-            expect(byHandle.json().profile.visibility).toBe(
-              relation === 'self' ? visibility : null,
-            );
+            const view = byHandle.json().profile;
+            expect(view.self).toBe(relation === 'self');
+            expect(view.visibility).toBe(relation === 'self' ? visibility : null);
+            expect(view.showcase.name).toBe(hero.name);
           }
         });
       }

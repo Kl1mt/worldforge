@@ -14,6 +14,7 @@ import { HealthLine } from './HealthLine';
 import { useLogout } from './useLogout';
 import { useStanding } from '../social/useStanding';
 import { describeSanction } from '../social/api';
+import { useFriends } from '../social/friends';
 import '../social/social.css';
 import './shell.css';
 
@@ -58,6 +59,9 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
     standing.kind === 'ready'
       ? standing.standing.sanctions.filter((x) => x.kind !== 'suspend')
       : [];
+  // Ticket 4.3: requests waiting at the door, on the Friends link (polled every 2 minutes).
+  const { state: friends } = useFriends(120_000);
+  const waiting = friends.kind === 'ready' ? friends.view.incoming.length : 0;
   const mainRef = useRef<HTMLElement>(null);
   const first = useRef(true);
 
@@ -120,6 +124,21 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
               <span className="purse__class">
                 Level {character.level} {cls.name} · Change
               </span>
+            </a>
+            <a
+              className="purse__friends"
+              href={routeHref('friends')}
+              aria-current={route === 'friends' ? 'page' : undefined}
+            >
+              Friends
+              {waiting ? (
+                <span className="new-tag">
+                  {waiting}
+                  <span className="visually-hidden">
+                    {waiting === 1 ? ' request waiting' : ' requests waiting'}
+                  </span>
+                </span>
+              ) : null}
             </a>
             <div className="purse__gold" aria-label={`${formatNumber(character.gold)} gold`}>
               <span className="purse__coin" aria-hidden="true" />

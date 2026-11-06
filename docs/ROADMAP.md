@@ -480,7 +480,7 @@ GDD: §10.1, §5.3. Needs 4.1.
 - Players with a block relation (4.3) or a hidden profile get `404`.
 **Acceptance:** achievement award and backfill tests (no double award under races); privacy tests (each setting × viewer relation); screenshots desktop and mobile.
 
-### 4.3 Friends & presence (vertical) — `todo`
+### 4.3 Friends & presence (vertical) — `done (PR #54)`
 GDD: §10.1. Needs 4.1. May run in parallel with 4.2.
 - **Friends:** request, accept, decline, cancel, remove, and **block** (block removes the friendship and pending requests and hides each player from the other). Caps on friends and pending requests.
 - **Presence:** coarse buckets from the last authenticated request (online now / today / this week / longer), shown to friends only (guildmates in 4.4). A setting hides it. No exact timestamps leave the server.
