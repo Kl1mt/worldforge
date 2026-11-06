@@ -17,6 +17,7 @@ import { AreaScreen } from './screens/AreaScreen';
 import { AuthScreen, GateStatus, SuspendedGate } from './screens/AuthScreen';
 import { AccountScreen } from './screens/AccountScreen';
 import { ModerationScreen } from './screens/ModerationScreen';
+import { FriendsScreen } from './screens/FriendsScreen';
 import { isStaff } from '@worldforge/game-core';
 import { TavernScreen } from './screens/TavernScreen';
 import { CharacterScreen } from './screens/CharacterScreen';
@@ -103,6 +104,7 @@ function Routes() {
             {route === 'inventory' ? <InventoryScreen /> : null}
             {route === 'account' ? <AccountScreen /> : null}
             {route === 'moderation' && staff ? <ModerationScreen /> : null}
+            {route === 'friends' ? <FriendsScreen /> : null}
           </Shell>
         </OnboardingProvider>
       </QuestsProvider>

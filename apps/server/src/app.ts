@@ -20,6 +20,7 @@ import { registerQuests } from './quests/routes.js';
 import { registerLootFilter } from './loot-filter/routes.js';
 import { registerSafety } from './social/routes.js';
 import { registerModeration } from './social/moderation.js';
+import { registerFriends } from './social/friends.js';
 import { registerLegal, type LegalOptions } from './legal/routes.js';
 import type { Database, DatabaseHandle } from './db/types.js';
 
@@ -87,6 +88,7 @@ export function buildApp({
       await registerLootFilter(api, activityOptions);
       await registerSafety(api);
       await registerModeration(api);
+      await registerFriends(api);
       await registerLegal(api, legal ?? {});
       if (testRoutes) await testRoutes(api);
 

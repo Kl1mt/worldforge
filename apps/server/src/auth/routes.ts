@@ -24,6 +24,7 @@ import {
   createSocialWriteLimiter,
   type SocialWriteLimit,
 } from '../social/social-write.js';
+import { createPresenceRecorder } from '../social/presence.js';
 import { inviteCodeHash, inviteStatus, normalizeInviteCode, redeemInvite } from './invites.js';
 import { hashPassword, verifyAgainstDummy, verifyPassword } from './password.js';
 import { createSession, resolveSession, revokeSession } from './session.js';
@@ -69,6 +70,11 @@ export interface AuthOptions {
    * sessions never depend on it.
    */
   registrationMode: RegistrationMode;
+  /**
+   * Ticket 4.3: presence ("last seen") is written at most once per this interval per account.
+   * Default game-core `PRESENCE_WRITE_INTERVAL_MS` (3 min).
+   */
+  presenceWriteIntervalMs?: number;
   /** Injected clock for session issue/expiry (tests). */
   now: () => Date;
 }
@@ -246,6 +252,11 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
   const accountRateLimit = createAccountRateLimiter(options.accountRateLimit, now);
   app.decorate('authNow', now);
   app.decorate('socialWriteLimit', createSocialWriteLimiter(options.socialWriteLimit, now));
+  const seen = createPresenceRecorder(
+    app.db,
+    (err) => app.log.warn({ err }, 'presence write failed'),
+    options.presenceWriteIntervalMs,
+  );
   app.decorate('requireAccount', async (request: FastifyRequest, reply: FastifyReply) => {
     const token = request.cookies[SESSION_COOKIE];
     const at = now();
@@ -260,6 +271,8 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
     if (suspension) throw sanctionError(suspension);
     // Ticket 3.9: per-account limits, checked before any game work (or idempotency claim).
     accountRateLimit(resolved.account.id, request.method, reply);
+    // Ticket 4.3: presence, coalesced (one write every few minutes per account at most).
+    await seen(resolved.account.id, at);
     request.auth = resolved;
   });
   app.decorate('requireStaff', async (request: FastifyRequest, reply: FastifyReply) => {
