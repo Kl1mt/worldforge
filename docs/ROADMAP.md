@@ -391,7 +391,7 @@ GDD: §7, §8.3, §15 Phase 3 exit. Needs 3.1–3.8.
 - Address the owner's playtest feedback if it has arrived.
 **Acceptance:** the extended balance test is green and fast; before/after tables in `docs/COMBAT.md` and `docs/ECONOMY.md`.
 
-### 3.9 Phase 3 hardening & exit — `done (PR #TBD)`
+### 3.9 Phase 3 hardening & exit — `done (PR #49)`
 GDD: §15 Phase 3 exit, §16.3.
 - **Exit-criteria e2e:** extend the API and browser runs: find a Legendary and a set piece, upgrade, reroll and improve, use the loot filter, run a deeper crypt tier, and reconcile everything with the audit log.
 - **Exploit review of all Phase 3 endpoints:** no re-roll by retry, race or replay; upgrade and pity integrity; filter and lock races; cross-feature races; client-trusted values; ownership.
