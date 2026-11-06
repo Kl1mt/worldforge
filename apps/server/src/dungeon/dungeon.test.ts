@@ -19,7 +19,7 @@ import { replayRun, type DungeonClaimResponse, type DungeonStateResponse } from 
 import type { DungeonRunView } from './routes.js';
 import type { WorldStateResponse } from '../world/routes.js';
 import type { QuestBoardResponse } from '../quests/store.js';
-import { STORY_QUEST_IDS } from '@worldforge/game-core';
+import { STORY_QUEST_IDS, type RarityId } from '@worldforge/game-core';
 import { characterQuests } from '../db/schema.js';
 import { uuidv7 } from '../db/uuid.js';
 
@@ -125,11 +125,21 @@ const claim = (p: Player, id: string, key: string | null = `claim-${tag()}-key`)
 const farm = (p: Player, id: string, areaId = 'abandonedFields') =>
   call(p, 'POST', `/api/characters/${id}/activity`, { areaId });
 
-async function hero(classId = 'warrior', level = 16, gear = true) {
+async function hero(classId = 'warrior', level = 16, gear = true, rarityId: RarityId = 'uncommon') {
   const p = await newPlayer();
   const id = await newCharacter(p, classId);
-  await makeCryptReady(database.db, id, classId as 'warrior', level, { gear });
+  await makeCryptReady(database.db, id, classId as 'warrior', level, { gear, rarityId });
   return { p, id };
+}
+
+const enterTier = (p: Player, id: string, tier: unknown) =>
+  call(p, 'POST', `/api/characters/${id}/dungeon`, { dungeonId: 'namelessCrypt', tier });
+
+async function setProgress(characterId: string, progress: Record<string, unknown>) {
+  await database.db
+    .update(characters)
+    .set({ progress: progress as never })
+    .where(eq(characters.id, characterId));
 }
 
 /** Pins a run's seed (and its end time) so two runs can be compared. */
@@ -526,6 +536,154 @@ describe('the Nameless Crypt (ticket 2.5)', () => {
       .set({ variant: null })
       .where(eq(itemInstances.characterId, id));
     expect(replayRun(run!)).toEqual(withVoid);
+  });
+
+  describe('tiers (ticket 3.6)', () => {
+    it('shows every tier with its gate and loot focus; a deeper tier needs the one before', async () => {
+      const { p, id } = await hero('warrior', 18);
+      const state = (
+        await call(p, 'GET', `/api/characters/${id}/dungeon`)
+      ).json<DungeonStateResponse>();
+      const crypt = state.dungeons[0]!;
+      expect(crypt.tiers.map((t) => t.tier)).toEqual([1, 2, 3]);
+      expect(crypt.tierCleared).toBe(0);
+      expect(crypt.tiers[0]).toMatchObject({ unlocked: true, blockers: [], minLevel: 12 });
+      expect(crypt.tiers[1]).toMatchObject({
+        unlocked: false,
+        blockers: [{ kind: 'cryptTier', tier: 1 }],
+        lootFocus: { id: 'crypt-ii', name: 'The Drowned Vigil' },
+      });
+      expect(crypt.tiers[2]!.blockers).toEqual([
+        { kind: 'level', required: 21 },
+        { kind: 'cryptTier', tier: 2 },
+      ]);
+      for (const t of crypt.tiers) expect(t.lootFocus?.description.length).toBeGreaterThan(0);
+      const locked = await enterTier(p, id, 2);
+      expect(locked.statusCode).toBe(409);
+      expect(locked.json()).toMatchObject({
+        error: {
+          code: 'dungeon_locked',
+          details: { tier: 2, blockers: [{ kind: 'cryptTier', tier: 1 }] },
+        },
+      });
+      for (const bad of [0, 4, 9, 'two', 1.5]) {
+        expect((await enterTier(p, id, bad)).statusCode, String(bad)).toBe(400);
+      }
+      // A pre-3.6 Gravewarden kill counts as tier I cleared.
+      await setProgress(id, { gravewardenDefeated: true });
+      const after = (
+        await call(p, 'GET', `/api/characters/${id}/dungeon`)
+      ).json<DungeonStateResponse>();
+      expect(after.dungeons[0]!.tierCleared).toBe(1);
+      expect(after.dungeons[0]!.tiers[1]).toMatchObject({ unlocked: true, blockers: [] });
+      expect(
+        await database.db.select().from(dungeonRuns).where(eq(dungeonRuns.characterId, id)),
+      ).toEqual([]);
+    });
+
+    it('a tier II clear: stored tier, claim clears it, opens tier III; boss loot cooldown is shared', async () => {
+      const { p, id } = await hero('warrior', 21, true, 'legendary');
+      await setProgress(id, { gravewardenDefeated: true });
+      const started = await enterTier(p, id, 2);
+      expect(started.statusCode).toBe(201);
+      const run = started.json<{ run: DungeonRunView }>().run;
+      expect(run.tier).toBe(2);
+      expect(run.bossLootEligible).toBe(true);
+      const [row] = await database.db.select().from(dungeonRuns).where(eq(dungeonRuns.id, run.id));
+      expect(row!.tier).toBe(2);
+      const replay = replayRun(row!);
+      expect(replay.tier).toBe(2);
+      expect(replay.outcome).toBe('cleared');
+      nowMs = row!.endsAt.getTime();
+      const res = await claim(p, id);
+      expect(res.statusCode).toBe(200);
+      const { result, character } = res.json<DungeonClaimResponse>();
+      expect(result).toMatchObject({
+        tier: 2,
+        outcome: 'cleared',
+        firstTierClear: true,
+        firstBossKill: false,
+      });
+      expect(character.id).toBe(id);
+      expect((await owned(id)).character.progress).toEqual({
+        gravewardenDefeated: true,
+        cryptTierCleared: 2,
+      });
+      const audits = await database.db
+        .select()
+        .from(auditLog)
+        .where(and(eq(auditLog.characterId, id)));
+      expect(audits.find((a) => a.event === 'dungeon.start')!.data).toMatchObject({ tier: 2 });
+      expect(audits.find((a) => a.event === 'dungeon.claim')!.data).toMatchObject({ tier: 2 });
+      // Tier III is open now; its boss loot shares the cooldown the tier II hoard started.
+      const state = (
+        await call(p, 'GET', `/api/characters/${id}/dungeon`)
+      ).json<DungeonStateResponse>();
+      expect(state.dungeons[0]!.tiers[2]).toMatchObject({ unlocked: true, blockers: [] });
+      expect(state.dungeons[0]!.bossLootReadyAt).not.toBeNull();
+      const third = await enterTier(p, id, 3);
+      expect(third.statusCode).toBe(201);
+      expect(third.json<{ run: DungeonRunView }>().run).toMatchObject({
+        tier: 3,
+        bossLootEligible: false,
+      });
+      // A lower tier cleared again never lowers the progress.
+      nowMs = (
+        await database.db
+          .select()
+          .from(dungeonRuns)
+          .where(and(eq(dungeonRuns.characterId, id), isNull(dungeonRuns.claimedAt)))
+      )[0]!.endsAt.getTime();
+      const second = (await claim(p, id)).json<DungeonClaimResponse>();
+      expect(second.result.tier).toBe(3);
+      expect((await owned(id)).character.progress.cryptTierCleared).toBe(
+        second.result.bossDefeated ? 3 : 2,
+      );
+      await enterTier(p, id, 1);
+      nowMs += HOUR;
+      const third1 = (await claim(p, id)).json<DungeonClaimResponse>();
+      expect(third1.result).toMatchObject({ tier: 1, firstTierClear: false });
+      expect((await owned(id)).character.progress.cryptTierCleared).toBeGreaterThanOrEqual(2);
+    });
+
+    it('settling often or never gives the same tier III claim (invariance)', async () => {
+      const a = await hero('hunter', 22, true, 'legendary');
+      const b = await hero('hunter', 22, true, 'legendary');
+      for (const h of [a, b]) {
+        await setProgress(h.id, { gravewardenDefeated: true, cryptTierCleared: 2 });
+        expect((await enterTier(h.p, h.id, 3)).statusCode).toBe(201);
+      }
+      const endA = await pinSeed(a.id, 'tier3-invariance');
+      const endB = await pinSeed(b.id, 'tier3-invariance');
+      expect(endA).toEqual(endB);
+      const startMs = nowMs;
+      const duration = endA.getTime() - startMs;
+      for (let t = 0; t <= duration + 7 * SEC; t += 7 * SEC) {
+        nowMs = startMs + t;
+        const s = (await settle(a.p, a.id)).json<{ run: DungeonRunView }>().run;
+        expect(s.tier).toBe(3);
+        if (t < duration) expect((await claim(a.p, a.id)).statusCode).toBe(409);
+      }
+      nowMs = startMs + duration + 7 * SEC;
+      const ra = (await claim(a.p, a.id)).json<DungeonClaimResponse>().result;
+      const rb = (await claim(b.p, b.id)).json<DungeonClaimResponse>().result;
+      const strip = (r: typeof ra) => ({
+        ...r,
+        runId: '',
+        items: r.items.map((i) => ({ ...i, id: '' })),
+      });
+      expect(strip(ra)).toEqual(strip(rb));
+      expect(ra.tier).toBe(3);
+      const pick = (rows: Awaited<ReturnType<typeof owned>>) => ({
+        items: rows.items
+          .map((i) => [i.baseId, i.rarityId, i.itemLevel, i.seed, i.affixes, i.setId, i.variant])
+          .sort((x, y) => String(x).localeCompare(String(y))),
+        gold: rows.character.gold,
+        xp: rows.character.experience,
+        progress: rows.character.progress,
+      });
+      expect(pick(await owned(a.id))).toEqual(pick(await owned(b.id)));
+    });
   });
 
   it('parallel claims grant once (same key: one result; other keys: refused)', async () => {

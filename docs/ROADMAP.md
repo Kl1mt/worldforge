@@ -355,7 +355,7 @@ GDD: §7.5. Needs 3.2 and 3.3.
 - **Visual:** a reusable overlay or palette treatment on the base item art (CSS filter or blend plus an optional PixelLab-generated texture), with no new per-item art (GDD §7.5). Restrained, not a glow on everything.
 **Acceptance:** rarity and variant distribution tests; screenshots of Void items in the grid, tooltip and drop moment.
 
-### 3.6 Late-game activity & targeted loot (vertical) — `todo`
+### 3.6 Late-game activity & targeted loot (vertical) — `done (PR #43)`
 GDD: §6.4, §11.2, §15 Phase 3 ("late-game activities and more targeted loot tables"). Needs 3.2 and 3.3.
 - **Deeper Nameless Crypt tiers:** Tier II and III scale enemies, the Gravewarden and rewards to levels 18–22+, unlocked by clearing the previous tier. They reuse the existing art and rules; each tier is data.
 - **Targeted loot:** each tier or boss has a declared loot focus (e.g. specific set pieces, a slot group or an effect family). Abbey contracts can offer a targeted reward (a choice of slot). The player can plan toward a build instead of farming blind.

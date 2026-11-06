@@ -1,3 +1,4 @@
+import type { ItemSlotKind } from '../items/bases.js';
 import type { RarityId } from '../rarity.js';
 import { AREAS, type AreaId } from '../world/areas.js';
 import type { MaterialId } from '../world/materials.js';
@@ -10,12 +11,29 @@ export interface QuestItemReward {
   itemLevel: number;
 }
 
+/**
+ * Ticket 3.6: an item for a slot the player chose when accepting (Abbey contracts). The base is
+ * picked at turn-in among the table's bases of that slot the class can use, from a seed derived
+ * from the quest row (`targetedRewardSeed`).
+ */
+export interface QuestTargetedItemReward {
+  slot: ItemSlotKind;
+  rarityId: RarityId;
+  itemLevel: number;
+  /** Loot table whose bases (and affix tier bias) the item comes from. */
+  lootTableId: string;
+}
+
 /** What turning a quest in grants. */
 export interface QuestReward {
   xp: number;
   gold: number;
   materials: Partial<Record<MaterialId, number>>;
-  item: QuestItemReward | null;
+  item: QuestItemReward | QuestTargetedItemReward | null;
+}
+
+export function isTargetedItemReward(item: QuestReward['item']): item is QuestTargetedItemReward {
+  return item !== null && 'slot' in item;
 }
 
 export const STORY_QUEST_IDS = [

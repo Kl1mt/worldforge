@@ -11,7 +11,11 @@ import {
   dungeonRunProgress,
   generateItem,
   getDungeon,
+  getDungeonTier,
   getEnemy,
+  resolveEnrage,
+  scaleEnemy,
+  DUNGEON_TIERS,
   getLootTable,
   resolveDungeonFight,
   simulateDungeonRun,
@@ -71,7 +75,7 @@ describe('simulateDungeonRun', () => {
 
   it('runs every room, then the boss, in real time (minutes)', () => {
     const run = simulateDungeonRun(input());
-    const dungeon = getDungeon('namelessCrypt');
+    const dungeon = { ...getDungeon('namelessCrypt'), ...getDungeonTier('namelessCrypt', 1) };
     expect(run.outcome).toBe('cleared');
     expect(run.roomsCleared).toBe(dungeon.rooms.length);
     const roomFights = dungeon.rooms.reduce((n, r) => n + r.enemies, 0);
@@ -178,27 +182,154 @@ describe('simulateDungeonRun', () => {
 
 describe('the Gravewarden enrage', () => {
   it('hits harder and faster from the enrage time on', () => {
-    const dungeon = getDungeon('namelessCrypt');
+    const tier = getDungeonTier('namelessCrypt', 1);
+    const enrage = resolveEnrage(tier.bossEnrage, createRng('enrage-moment'));
     const stats = deriveCharacterStats('warrior', 16, []);
     const setup = {
       ...buildEncounter(getEnemy('gravewarden'), 16, 'warrior', 16, stats, DEFAULT_COMBAT_CONFIG),
-      maxFightMs: dungeon.bossMaxFightMs,
+      maxFightMs: tier.bossMaxFightMs,
       enemyHealth: 1_000_000,
     };
     const log: DungeonEvent[] = [];
-    resolveDungeonFight(setup, 1_000_000, createRng('enrage'), 0, log, dungeon.bossEnrage);
+    resolveDungeonFight(setup, 1_000_000, createRng('enrage'), 0, log, enrage);
     const hits = log.filter((e) => e.type === 'enemyAttack');
-    const before = hits.filter((e) => e.t < dungeon.bossEnrage.atMs);
-    const after = hits.filter((e) => e.t >= dungeon.bossEnrage.atMs);
-    expect(log.filter((e) => e.type === 'enrage')).toEqual([
-      { t: dungeon.bossEnrage.atMs, type: 'enrage' },
-    ]);
+    const before = hits.filter((e) => e.t < enrage.atMs);
+    const after = hits.filter((e) => e.t >= enrage.atMs);
+    expect(log.filter((e) => e.type === 'enrage')).toEqual([{ t: enrage.atMs, type: 'enrage' }]);
     expect(new Set(before.map((e) => e.damage))).toEqual(new Set([setup.enemyHit]));
     expect(new Set(after.map((e) => e.damage))).toEqual(
-      new Set([Math.round(setup.enemyHit * dungeon.bossEnrage.damageMultiplier)]),
+      new Set([Math.round(setup.enemyHit * enrage.damageMultiplier)]),
     );
     const gap = (xs: { t: number }[]) => xs[xs.length - 1]!.t - xs[xs.length - 2]!.t;
     expect(gap(after)).toBeLessThan(gap(before));
+  });
+
+  it('enrages at a moment drawn per run from the tier’s window, in whole seconds (ticket 3.6)', () => {
+    for (const t of DUNGEON_TIERS) {
+      const { atMs } = getDungeonTier('namelessCrypt', t).bossEnrage;
+      const moments = new Set<number>();
+      for (let i = 0; i < 200; i++) {
+        const run = simulateDungeonRun(
+          input({ tier: t, seed: `enrage:${i}`, bossLootEligible: false }),
+        );
+        expect(run.enrageAtMs).toBeGreaterThanOrEqual(atMs.min);
+        expect(run.enrageAtMs).toBeLessThanOrEqual(atMs.max);
+        expect(run.enrageAtMs % 1000).toBe(0);
+        moments.add(run.enrageAtMs);
+        // The log shows it at that moment of the boss fight, if the fight lasts that long.
+        const boss = run.encounters.at(-1)!;
+        const enrage = run.events.find((e) => e.type === 'enrage');
+        if (boss.room === null && boss.endMs - boss.startMs >= run.enrageAtMs) {
+          expect(enrage?.t).toBe(boss.startMs + run.enrageAtMs);
+        } else {
+          expect(enrage).toBeUndefined();
+        }
+      }
+      // Spread over the window, not a fixed moment.
+      expect(moments.size, `tier ${t}`).toBeGreaterThan(25);
+      expect(Math.min(...moments)).toBeLessThan(atMs.min + 5_000);
+      expect(Math.max(...moments)).toBeGreaterThan(atMs.max - 5_000);
+    }
+  });
+
+  it('draws the enrage from its own stream: the rooms and every drop are untouched by it', () => {
+    // The same run with a fixed enrage moment (a window of one value draws nothing).
+    const tier = getDungeonTier('namelessCrypt', 1);
+    const fixed = resolveEnrage(
+      { ...tier.bossEnrage, atMs: { min: 45_000, max: 45_000 } },
+      createRng('x'),
+    );
+    expect(fixed.atMs).toBe(45_000);
+    const a = simulateDungeonRun(input({ seed: 'stream-a' }));
+    const b = simulateDungeonRun(input({ seed: 'stream-a', bossLootEligible: false }));
+    expect(b.enrageAtMs).toBe(a.enrageAtMs);
+    expect(b.encounters).toEqual(a.encounters);
+  });
+});
+
+describe('crypt tiers (ticket 3.6)', () => {
+  const tierInput = (tier: 1 | 2 | 3, level: number, classId: ClassId = 'warrior') =>
+    input({
+      tier,
+      character: { classId, level, xp: 0 },
+      equipment: cryptGear(classId, level - 1).map((i) => ({
+        ...i,
+        rarityId: 'legendary' as const,
+      })),
+    });
+
+  it('tier I is the default', () => {
+    expect(simulateDungeonRun(input({ tier: 1 }))).toEqual(simulateDungeonRun(input()));
+    expect(simulateDungeonRun(input()).tier).toBe(1);
+  });
+
+  it('each tier fights in its level range, against its scaled boss, and rolls its own tables', () => {
+    for (const t of DUNGEON_TIERS) {
+      const def = getDungeonTier('namelessCrypt', t);
+      const run = simulateDungeonRun(tierInput(t, def.bossLevel));
+      expect(run.tier).toBe(t);
+      for (const e of run.encounters.slice(0, -1)) {
+        expect(e.enemyLevel).toBeGreaterThanOrEqual(def.minLevel);
+        expect(e.enemyLevel).toBeLessThanOrEqual(def.maxLevel);
+      }
+      const spawn = run.events.findLast((e) => e.type === 'spawn')!;
+      if (spawn.type !== 'spawn') throw new Error('no spawn');
+      expect(spawn.enemyId).toBe('gravewarden');
+      expect(spawn.enemyLevel).toBe(def.bossLevel);
+      const stats = deriveCharacterStats('warrior', def.bossLevel, []);
+      const plain = buildEncounter(
+        scaleEnemy(getEnemy('gravewarden'), def.bossScale),
+        def.bossLevel,
+        'warrior',
+        def.bossLevel,
+        stats,
+        DEFAULT_COMBAT_CONFIG,
+      );
+      expect(spawn.enemyHealth).toBe(plain.enemyHealth);
+      if (t > 1) {
+        const unscaled = buildEncounter(
+          getEnemy('gravewarden'),
+          def.bossLevel,
+          'warrior',
+          def.bossLevel,
+          stats,
+          DEFAULT_COMBAT_CONFIG,
+        );
+        expect(plain.enemyHealth).toBeGreaterThan(unscaled.enemyHealth);
+        expect(plain.enemyHit).toBeGreaterThan(unscaled.enemyHit);
+      }
+      expect(run.bossDefeated, `tier ${t}`).toBe(true);
+      const bossTable = getLootTable(def.bossLoot.lootTableId);
+      for (const item of run.items.slice(-def.bossLoot.items)) {
+        expect(bossTable.entries.map((e) => e.baseId).concat(item.baseId)).toContain(item.baseId);
+        expect(item.itemLevel).toBeGreaterThanOrEqual(bossTable.itemLevel!.min);
+        expect(item.itemLevel).toBeLessThanOrEqual(bossTable.itemLevel!.max);
+      }
+    }
+  });
+
+  it('every tier is deterministic and reveals the same run however often it is polled', () => {
+    for (const t of DUNGEON_TIERS) {
+      const def = getDungeonTier('namelessCrypt', t);
+      const run = simulateDungeonRun(tierInput(t, def.bossLevel));
+      expect(simulateDungeonRun(tierInput(t, def.bossLevel))).toEqual(run);
+      for (const step of [1_000, 7_700, 60_000]) {
+        const seen: DungeonEvent[] = [];
+        let last = -1;
+        for (let at = 0; ; at += step) {
+          const p = dungeonRunProgress(run, at, 10_000);
+          seen.push(...p.events.filter((e) => e.t > last));
+          last = p.elapsedMs;
+          if (p.finished) break;
+        }
+        expect(seen).toEqual(run.events);
+      }
+    }
+  });
+
+  it('rejects an unknown tier', () => {
+    expect(() => simulateDungeonRun(input({ tier: 4 as never }))).toThrow(RangeError);
+    expect(() => getDungeonTier('namelessCrypt', 0 as never)).toThrow();
   });
 });
 
@@ -258,7 +389,9 @@ describe('boss loot content', () => {
     for (const table of AREA_LOOT_TABLES) {
       for (const e of table.entries) expect(findItemBase(e.baseId)?.unique, e.baseId).toBeFalsy();
     }
-    const boss = getLootTable(getDungeon('namelessCrypt').bossLoot.lootTableId);
-    for (const id of uniques) expect(boss.entries.map((e) => e.baseId)).toContain(id);
+    for (const tier of getDungeon('namelessCrypt').tiers) {
+      const boss = getLootTable(tier.bossLoot.lootTableId);
+      for (const id of uniques) expect(boss.entries.map((e) => e.baseId)).toContain(id);
+    }
   });
 });

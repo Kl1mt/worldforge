@@ -65,11 +65,12 @@ export function unlockNotices(prev: WorldState | null, next: WorldState): Notice
   for (const d of next.dungeons) {
     if (d.unlocked && !before.has(d.id)) {
       const dungeon = getDungeon(d.id);
+      const first = dungeon.tiers[0]!;
       out.push({
         id: `unlock:${next.characterId}:${d.id}`,
         kind: 'unlock',
         title: `${dungeon.name} is open`,
-        text: `Levels ${dungeon.minLevel}–${dungeon.maxLevel}. A run needs you here; it does not continue offline.`,
+        text: `Levels ${first.minLevel}–${first.maxLevel}. A run needs you here; it does not continue offline.`,
         href: '#/crypt',
         linkLabel: 'To the crypt',
       });

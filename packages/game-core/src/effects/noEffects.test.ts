@@ -12,6 +12,7 @@ import {
   type ClassId,
   type GeneratedItem,
   type RarityId,
+  getDungeonTier,
 } from '../index.js';
 
 /**
@@ -32,6 +33,13 @@ import {
  * Ticket 3.5 runs them again with an explicit `variant: null` on every kit item, and with a stray
  * `variant: 'void'` on the epic and rare kits (Void exists only on Legendaries and Mythics, so it
  * must do nothing there). Void Legendary and Mythic drops fall under the drop exclusion above.
+ *
+ * Ticket 3.6 retuned crypt tier I in exactly two ways (docs/DUNGEONS.md): the Gravewarden's enrage
+ * moment is drawn per run from 30–70 s (it was fixed at 45 s), from its own seed stream; and the
+ * tier's tables carry a loot focus (rings and amulets weigh × 3), which only changes which base an
+ * item seed picks (drops are outside the crypt hash). So the crypt hashes are checked with the
+ * enrage pinned back to 45 s (`withPre36Enrage`): everything else about a run must be unchanged.
+ * The run result's new `tier` and `enrageAtMs` fields are left out of the hash.
  */
 const BEFORE_EFFECTS: Record<string, string> = {
   'settle:warrior:abandonedFields': '1273120753d9015e',
@@ -102,6 +110,25 @@ const hash = (v: unknown) => {
   }
   return a.toString(16).padStart(8, '0') + b.toString(16).padStart(8, '0');
 };
+
+/**
+ * Ticket 3.6: runs `f` with tier I's enrage fixed at its pre-3.6 moment (45 s). A window of one
+ * value draws nothing, so the run is the pre-3.6 run.
+ */
+function withPre36Enrage<T>(f: () => T): T {
+  const enrage = getDungeonTier('namelessCrypt', 1).bossEnrage;
+  const window = enrage.atMs;
+  enrage.atMs = { min: 45_000, max: 45_000 };
+  try {
+    return f();
+  } finally {
+    enrage.atMs = window;
+  }
+}
+
+/** Ticket 3.6: a crypt run's hash without the fields 3.6 added. */
+const cryptHash = (r: ReturnType<typeof simulateDungeonRun>) =>
+  hash({ ...r, items: [], salvaged: [], tier: undefined, enrageAtMs: undefined });
 
 /** Ticket 3.3: every kit item claims a set it is not a piece of; none of it may count. */
 const forgedSetIds = (items: GeneratedItem[]) =>
@@ -175,15 +202,17 @@ describe.each([
         );
         out[`detailed:${c}:${area}`] = hash(d);
       }
-      const r = simulateDungeonRun({
-        dungeonId: 'namelessCrypt',
-        character: { classId: c, level: 15, xp: 0 },
-        equipment: kit(c, 14, 'rare'),
-        seed: `fp-crypt:${c}`,
-        bossLootEligible: true,
-        inventoryCount: 0,
-      });
-      out[`crypt:${c}`] = hash({ ...r, items: [], salvaged: [] });
+      const r = withPre36Enrage(() =>
+        simulateDungeonRun({
+          dungeonId: 'namelessCrypt',
+          character: { classId: c, level: 15, xp: 0 },
+          equipment: kit(c, 14, 'rare'),
+          seed: `fp-crypt:${c}`,
+          bossLootEligible: true,
+          inventoryCount: 0,
+        }),
+      );
+      out[`crypt:${c}`] = cryptHash(r);
     }
     expect(out).toEqual(BEFORE_EFFECTS);
   });
@@ -219,4 +248,24 @@ it('the Void check can fail: the same kit as Void Legendaries changes the settle
       }),
     );
   expect(run('void')).not.toBe(run(null));
+});
+
+it('the crypt check can fail: tier I’s enrage window changes the runs (ticket 3.6)', () => {
+  const runs = CLASS_IDS.flatMap((c) =>
+    Array.from({ length: 8 }, (_, i) => {
+      const input = {
+        dungeonId: 'namelessCrypt' as const,
+        character: { classId: c, level: 13, xp: 0 },
+        equipment: plainKit(c, 12, 'common'),
+        seed: `fp-crypt-36:${c}:${i}`,
+        bossLootEligible: false,
+        inventoryCount: 0,
+      };
+      return [
+        cryptHash(withPre36Enrage(() => simulateDungeonRun(input))),
+        cryptHash(simulateDungeonRun(input)),
+      ];
+    }),
+  );
+  expect(runs.some(([before, after]) => before !== after)).toBe(true);
 });

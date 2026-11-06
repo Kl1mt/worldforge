@@ -10,7 +10,14 @@ import {
   contractReward,
   dailyContracts,
   generateItem,
+  generateTargetedItem,
   getStoryQuest,
+  isTargetedItemReward,
+  offersRewardSlot,
+  targetedRewardSeed,
+  targetedRewardSlots,
+  type ClassId,
+  type ItemSlotKind,
   initialProgress,
   isQuestComplete,
   isStoryQuestId,
@@ -100,6 +107,12 @@ export interface ContractOfferView {
   /** Reward at the character's current level; fixed when accepted. */
   reward: QuestReward;
   accepted: boolean;
+  /**
+   * Ticket 3.6: slots the player may choose for a reward item when accepting (`rewardSlot`);
+   * empty when the contract offers no choice. The item is described by `targetedReward`.
+   */
+  rewardSlots: ItemSlotKind[];
+  targetedReward: { rarityId: string; itemLevel: number } | null;
 }
 
 export interface QuestBoardResponse {
@@ -145,6 +158,7 @@ export function questView(q: CharacterQuest): QuestView {
 
 interface BoardCharacter {
   id: string;
+  classId: ClassId;
   level: number;
   progress: WorldProgress;
 }
@@ -179,13 +193,26 @@ export async function questBoard(
       completed: STORY_QUEST_IDS.filter((id) => turnedIn.has(id)),
     },
     contracts: {
-      offers: offers.map((o) => ({
-        slot: o.slot,
-        templateId: o.template.id,
-        objective: o.template.objective,
-        reward: contractReward(o.template, character.level),
-        accepted: takenSlots.has(o.slot),
-      })),
+      offers: offers.map((o) => {
+        const rewardSlots = offersRewardSlot(o.template)
+          ? targetedRewardSlots(character.classId, character.level)
+          : [];
+        const targeted =
+          rewardSlots.length > 0
+            ? contractReward(o.template, character.level, rewardSlots[0]).item
+            : null;
+        return {
+          slot: o.slot,
+          templateId: o.template.id,
+          objective: o.template.objective,
+          reward: contractReward(o.template, character.level),
+          accepted: takenSlots.has(o.slot),
+          rewardSlots,
+          targetedReward: targeted
+            ? { rarityId: targeted.rarityId, itemLevel: targeted.itemLevel }
+            : null,
+        };
+      }),
       perDay: CONTRACTS_PER_DAY,
       active: rows.filter((r) => r.kind === 'contract' && r.status === 'active').length,
       maxActive: MAX_ACTIVE_CONTRACTS,
@@ -193,7 +220,10 @@ export async function questBoard(
   };
 }
 
-export type AcceptRequest = { kind: 'story'; questId: string } | { kind: 'contract'; slot: number };
+export type AcceptRequest =
+  | { kind: 'story'; questId: string }
+  /** `rewardSlot` (ticket 3.6): the item slot chosen for a contract that offers one. */
+  | { kind: 'contract'; slot: number; rewardSlot?: string };
 
 /**
  * Accepts a story quest or one of today's contracts. The character must be locked and settled
@@ -261,6 +291,19 @@ export async function acceptQuestTx(
     ) {
       throw new ApiError(409, 'quest_already_accepted', 'You already took this contract today.');
     }
+    // Ticket 3.6: a targeted reward's slot must be one the contract offers to this character.
+    let rewardSlot: ItemSlotKind | undefined;
+    if (request.rewardSlot !== undefined) {
+      const choices = offersRewardSlot(offer.template)
+        ? targetedRewardSlots(character.classId, character.level)
+        : [];
+      if (!choices.includes(request.rewardSlot as ItemSlotKind)) {
+        throw new ApiError(422, 'reward_slot_unavailable', 'This contract offers no such reward.', {
+          rewardSlots: choices,
+        });
+      }
+      rewardSlot = request.rewardSlot as ItemSlotKind;
+    }
     const active = rows.filter((r) => r.kind === 'contract' && r.status === 'active').length;
     if (active >= MAX_ACTIVE_CONTRACTS) {
       throw new ApiError(422, 'contract_limit', 'Finish a contract before taking another.', {
@@ -276,7 +319,7 @@ export async function acceptQuestTx(
       contractSlot: offer.slot,
       objectives: [offer.template.objective],
       progress: initialProgress([offer.template.objective]),
-      reward: contractReward(offer.template, character.level),
+      reward: contractReward(offer.template, character.level, rewardSlot),
       acceptedAt: now,
     };
   }
@@ -285,7 +328,14 @@ export async function acceptQuestTx(
     event: 'quest.accept',
     accountId: character.accountId,
     characterId: character.id,
-    data: { questRowId: row!.id, kind: row!.kind, questId: row!.questId },
+    data: {
+      questRowId: row!.id,
+      kind: row!.kind,
+      questId: row!.questId,
+      ...(row!.reward.item && isTargetedItemReward(row!.reward.item)
+        ? { rewardSlot: row!.reward.item.slot }
+        : {}),
+    },
   });
   return row!;
 }
@@ -346,14 +396,18 @@ export async function turnInQuestTx(
         capacity: inventoryCapacity,
       });
     }
-    const generated = generateItem({
-      seed: randomBytes(4).readUInt32BE(0),
-      itemLevel: reward.item.itemLevel,
-      baseId: reward.item.baseId,
-      rarityId: reward.item.rarityId,
-      classId: character.classId,
-    });
-    if (!generated) throw new Error(`quest reward item cannot be generated: ${reward.item.baseId}`);
+    // Ticket 3.6: a targeted reward is fixed by the quest row (deterministic, never re-rolled);
+    // a fixed-base reward keeps its server-random seed (granted once by state).
+    const generated = isTargetedItemReward(reward.item)
+      ? generateTargetedItem(reward.item, targetedRewardSeed(quest.id), character.classId)
+      : generateItem({
+          seed: randomBytes(4).readUInt32BE(0),
+          itemLevel: reward.item.itemLevel,
+          baseId: reward.item.baseId,
+          rarityId: reward.item.rarityId,
+          classId: character.classId,
+        });
+    if (!generated) throw new Error(`quest reward item cannot be generated: ${quest.questId}`);
     const [row] = await tx
       .insert(itemInstances)
       .values({

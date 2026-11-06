@@ -55,7 +55,8 @@ const PLACES_BASE = [
     kind: 'dungeon' as const,
     name: d.name,
     description: d.description,
-    levels: `${d.minLevel}–${d.maxLevel}`,
+    // Ticket 3.6: tier I's entry to the deepest tier's top.
+    levels: `${d.tiers[0]!.minLevel}–${d.tiers.at(-1)!.maxLevel}`,
     foes: [...d.enemies.map((e) => getEnemy(e.enemyId).name), getEnemy(d.bossId).name],
   })),
 ];

@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getClass,
   getDungeon,
+  getDungeonTier,
   getEnemy,
   type DungeonRunProgress,
+  type DungeonTier,
   type EnemyId,
   type UnlockBlocker,
 } from '@worldforge/game-core';
@@ -24,6 +26,7 @@ import {
   dungeonApi,
   type DungeonResult,
   type DungeonState,
+  type DungeonTierEntry,
 } from '../game/dungeon';
 import { summaryItemView } from '../game/items';
 import { materialCounts } from '../game/materials';
@@ -46,7 +49,58 @@ type Load =
   { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; value: DungeonState };
 
 function blockerText(b: UnlockBlocker): string {
-  return b.kind === 'level' ? `Reach level ${b.required}` : 'Defeat the Gravewarden';
+  switch (b.kind) {
+    case 'level':
+      return `Reach level ${b.required}`;
+    case 'cryptTier':
+      return `Clear Tier ${ROMAN[b.tier - 1]}`;
+    default:
+      return 'Defeat the Gravewarden';
+  }
+}
+
+/** The enrage window of a tier in seconds, e.g. "30 and 70". */
+function enrageWindow(tier: DungeonTier): string {
+  const { min, max } = getDungeonTier(CRYPT.id, tier).bossEnrage.atMs;
+  return `${Math.round(min / 1000)} and ${Math.round(max / 1000)}`;
+}
+
+/**
+ * Ticket 3.6: the crypt's depths. One button per tier (a radiogroup like the Forge's slot choice);
+ * a locked tier says what opens it, an open one what it is for.
+ */
+function TierChoice({
+  tiers,
+  selected,
+  onSelect,
+}: {
+  tiers: DungeonTierEntry[];
+  selected: DungeonTier;
+  onSelect: (tier: DungeonTier) => void;
+}) {
+  return (
+    <div className="crypt-tiers" role="radiogroup" aria-label="Depth">
+      {tiers.map((t) => (
+        <button
+          key={t.tier}
+          type="button"
+          role="radio"
+          aria-checked={t.tier === selected}
+          className={`btn crypt-tier${t.unlocked ? '' : ' crypt-tier--locked'}`}
+          onClick={() => onSelect(t.tier)}
+        >
+          <span className="crypt-tier__name display">{t.name}</span>
+          <span className="crypt-tier__levels">
+            Lv {t.minLevel}–{t.maxLevel}
+            {t.unlocked ? '' : ' · barred'}
+          </span>
+          <span className="crypt-tier__focus">
+            {t.unlocked ? (t.lootFocus?.name ?? '') : t.blockers.map(blockerText).join(' · ')}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
 }
 
 const hoardFormat = new Intl.DateTimeFormat('en-GB', {
@@ -170,7 +224,13 @@ function CryptScene({ progress }: { progress: DungeonRunProgress | null }) {
 }
 
 /** Chamber I … IV, then the warden: carved steps down the side of the screen. */
-function Descent({ progress }: { progress: DungeonRunProgress | null }) {
+function Descent({
+  progress,
+  bossLevel,
+}: {
+  progress: DungeonRunProgress | null;
+  bossLevel: number;
+}) {
   const steps = [
     ...CRYPT.rooms.map((r, i) => ({
       key: `r${i}`,
@@ -181,7 +241,7 @@ function Descent({ progress }: { progress: DungeonRunProgress | null }) {
     {
       key: 'boss',
       label: 'The Gravewarden',
-      note: `Lv ${CRYPT.bossLevel}`,
+      note: `Lv ${bossLevel}`,
       stage: 'boss' as const,
     },
   ];
@@ -264,7 +324,10 @@ function Reckoning({
       className={`reckoning panel-iron${won ? ' reckoning--won' : ''}`}
       aria-labelledby="reckoning-title"
     >
-      <p className="caps">The crypt’s reckoning · {formatDuration(result.durationMs)}</p>
+      <p className="caps">
+        The crypt’s reckoning · Tier {ROMAN[(result.tier ?? 1) - 1]} ·{' '}
+        {formatDuration(result.durationMs)}
+      </p>
       <h2 id="reckoning-title" className="display reckoning__title">
         {won ? 'The Gravewarden falls' : 'The crypt keeps its warden'}
       </h2>
@@ -278,6 +341,15 @@ function Reckoning({
       {result.firstBossKill ? (
         <p className="reckoning__unlock" role="status">
           The way to the <strong>Sunken Abbey</strong> lies open.
+        </p>
+      ) : null}
+      {result.firstTierClear && (result.tier ?? 1) < CRYPT.tiers.length ? (
+        <p className="reckoning__unlock" role="status">
+          A deeper stair opens: <strong>Tier {ROMAN[result.tier ?? 1]}</strong>
+          {(() => {
+            const next = getDungeonTier(CRYPT.id, ((result.tier ?? 1) + 1) as DungeonTier);
+            return `, from level ${next.unlock.level}.`;
+          })()}
         </p>
       ) : null}
       <dl className="reckoning__tally">
@@ -343,6 +415,8 @@ export function CryptScreen() {
   const [result, setResult] = useState<DungeonResult | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** The depth chosen at the door (ticket 3.6); null = the deepest open tier. */
+  const [chosenTier, setChosenTier] = useState<DungeonTier | null>(null);
   const alive = useRef(true);
 
   const load = useCallback(async () => {
@@ -382,11 +456,12 @@ export function CryptScreen() {
     return () => window.clearInterval(timer);
   }, [running, hero.id, load]);
 
-  const enter = async () => {
+  const enter = async (tier: DungeonTier) => {
     setBusy(true);
     setError(null);
     setResult(null);
-    const res = await dungeonApi.enter(hero.id, CRYPT.id);
+    setChosenTier(tier);
+    const res = await dungeonApi.enter(hero.id, CRYPT.id, tier);
     setBusy(false);
     if (!res.ok) {
       setError(describeDungeonFailure(res.error));
@@ -465,15 +540,20 @@ export function CryptScreen() {
   const { dungeons, busyCharacterId } = state.value;
   const entry = dungeons.find((d) => d.id === CRYPT.id);
   const progress = run?.progress ?? null;
+  const tiers = entry?.tiers ?? [];
+  const deepestOpen = tiers.filter((t) => t.unlocked).at(-1)?.tier ?? 1;
+  const selectedTier: DungeonTier = run?.tier ?? chosenTier ?? deepestOpen;
+  const selected = tiers.find((t) => t.tier === selectedTier);
+  const selectedDef = getDungeonTier(CRYPT.id, selectedTier);
 
   let panel;
   if (result) {
-    panel = <Reckoning result={result} busy={busy} onAgain={() => void enter()} />;
+    panel = <Reckoning result={result} busy={busy} onAgain={() => void enter(result.tier ?? 1)} />;
   } else if (run && progress) {
     panel = (
       <section className="crypt-door panel-iron" aria-labelledby="crypt-run-title">
         <h2 id="crypt-run-title" className="rule-heading">
-          {progress.finished ? 'The fighting has stopped' : 'Delving'}
+          {progress.finished ? 'The fighting has stopped' : 'Delving'} · Tier {ROMAN[run.tier - 1]}
         </h2>
         {progress.finished ? (
           <>
@@ -526,39 +606,58 @@ export function CryptScreen() {
         <h2 id="crypt-door-title" className="rule-heading">
           Before you descend
         </h2>
+        {tiers.length > 1 ? (
+          <TierChoice tiers={tiers} selected={selectedTier} onSelect={setChosenTier} />
+        ) : null}
         <ul className="crypt-door__facts">
           <li>
             {CRYPT.rooms.length} chambers of{' '}
-            {CRYPT.enemies.map((e) => getEnemy(e.enemyId).name).join(' and ')}, then the Gravewarden
-            (Lv {CRYPT.bossLevel}).
+            {CRYPT.enemies.map((e) => getEnemy(e.enemyId).name).join(' and ')} (Lv{' '}
+            {selectedDef.minLevel}–{selectedDef.maxLevel}), then the Gravewarden (Lv{' '}
+            {selectedDef.bossLevel}
+            {selectedTier > 1 ? ', stronger than its level' : ''}).
           </li>
           <li>
-            The warden <strong>enrages</strong> after {Math.round(CRYPT.bossEnrage.atMs / 1000)} s.
-            Kill it before then.
+            The warden <strong>enrages</strong> between {enrageWindow(selectedTier)} s into the
+            fight. The faster you kill it, the safer.
           </li>
+          {selected?.lootFocus ? (
+            <li>
+              Loot focus: <em className="crypt-door__focus">{selected.lootFocus.name}</em>.{' '}
+              {selected.lootFocus.description}
+            </li>
+          ) : null}
           <li>
             Your hero leaves the fields while in the crypt. A fall keeps what you took on the way
             down.
           </li>
           <li>
             {readyAt
-              ? `The warden’s hoard returns ${hoardTime(readyAt)}. You can still fight it.`
-              : 'The warden’s hoard: a Gravewarden Seal and two items of its own.'}
+              ? `The warden’s hoard returns ${hoardTime(readyAt)}, at every depth. You can still fight it.`
+              : 'The warden’s hoard: a Gravewarden Seal and two items of its own. It is shared by every depth, once per 20 hours.'}
           </li>
         </ul>
         {busyCharacterId ? (
           <p className="area__alert area__alert--line" role="status">
             Another of your heroes is in the crypt. Switch to them to finish that run.
           </p>
+        ) : selected && !selected.unlocked ? (
+          <p className="crypt-door__line" role="status">
+            {selected.name} is barred: {selected.blockers.map(blockerText).join(', ')}.
+          </p>
         ) : (
           <button
             type="button"
             className="btn btn--brass"
-            onClick={() => void enter()}
+            onClick={() => void enter(selectedTier)}
             disabled={busy}
             aria-busy={busy}
           >
-            {busy ? 'Descending…' : 'Descend into the crypt'}
+            {busy
+              ? 'Descending…'
+              : selectedTier === 1
+                ? 'Descend into the crypt'
+                : `Descend to ${selectedDef.name}`}
           </button>
         )}
       </section>
@@ -576,7 +675,7 @@ export function CryptScreen() {
       <div className="crypt__grid">
         <CryptScene progress={result ? null : progress} />
         <aside className="crypt__side">
-          <Descent progress={result ? null : progress} />
+          <Descent progress={result ? null : progress} bossLevel={selectedDef.bossLevel} />
           {panel}
         </aside>
         {progress && !result ? <CryptLog progress={progress} /> : null}

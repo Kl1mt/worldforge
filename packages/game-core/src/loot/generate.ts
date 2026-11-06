@@ -9,6 +9,7 @@ import { setForBase, setPiecePool, type SetDefinition } from '../items/sets.js';
 import { upgradeImplicitBonus, type ItemVariantId } from '../items/model.js';
 import { activeVariant } from '../items/variants.js';
 import { EFFECT_ROLL_STEPS, legendaryEffectPool } from '../effects/resolve.js';
+import type { EffectDefinition } from '../effects/types.js';
 import {
   DEFAULT_LOOT_CONFIG,
   STANDARD_LOOT_TABLE,
@@ -97,13 +98,45 @@ export function eligibleBases(
   itemLevel: number,
 ): { base: ItemBaseDefinition; weight: number }[] {
   const result: { base: ItemBaseDefinition; weight: number }[] = [];
+  const focus = table.focus;
   for (const entry of table.entries) {
     const base = findItemBase(entry.baseId);
     if (base && entry.weight > 0 && base.minItemLevel <= itemLevel) {
-      result.push({ base, weight: entry.weight });
+      // Ticket 3.6: a slot-group focus reweights the bases; the pick is still one draw.
+      const focused = focus?.slots?.includes(base.slot) === true;
+      result.push({
+        base,
+        weight: focused ? entry.weight * (focus!.slotWeight ?? 1) : entry.weight,
+      });
     }
   }
   return result;
+}
+
+/**
+ * Ticket 3.6: the set pieces a set-piece roll from `table` picks from: the pieces of the table's
+ * focused sets, or every piece when it has no set focus (or none of the focused pieces fits).
+ */
+export function focusedSetPieces(
+  table: LootTableDefinition,
+  itemLevel: number,
+  classId?: ClassId,
+): string[] {
+  const pieces = setPiecePool(itemLevel, classId);
+  const sets = table.focus?.sets;
+  if (!sets || sets.length === 0) return pieces;
+  const focused = pieces.filter((id) => sets.includes(setForBase(id)?.id ?? ''));
+  return focused.length > 0 ? focused : pieces;
+}
+
+/** Ticket 3.6: a Legendary effect's weight in `table` (an effect-family focus multiplies it). */
+export function focusedEffectWeight(
+  table: LootTableDefinition,
+  effect: Pick<EffectDefinition, 'id' | 'weight'>,
+): number {
+  const w = effect.weight ?? 0;
+  const focus = table.focus;
+  return focus?.effects?.includes(effect.id) === true ? w * (focus.effectWeight ?? 1) : w;
 }
 
 /**
@@ -220,7 +253,7 @@ export function generateItem(
     params.baseId === undefined &&
     (table.setShare ?? 0) > 0
   ) {
-    const pieces = setPiecePool(itemLevel, params.classId);
+    const pieces = focusedSetPieces(table, itemLevel, params.classId);
     if (pieces.length > 0 && rng.chance(table.setShare!)) {
       base = getItemBase(pieces[rng.int(0, pieces.length - 1)]!);
       set = setForBase(base.id);
@@ -248,7 +281,7 @@ export function generateItem(
     // Drawn after everything else, so the rest of the item rolls exactly as before ticket 3.2.
     const effects = legendaryEffectPool(base, params.classId);
     if (effects.length > 0) {
-      item.effectId = rng.weighted(effects, (e) => e.weight ?? 0).id;
+      item.effectId = rng.weighted(effects, (e) => focusedEffectWeight(table, e)).id;
       item.effectRoll = rng.int(0, EFFECT_ROLL_STEPS) / EFFECT_ROLL_STEPS;
     }
   }

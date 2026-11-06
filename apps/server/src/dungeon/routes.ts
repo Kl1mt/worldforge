@@ -2,16 +2,21 @@ import type { FastifyInstance } from 'fastify';
 import { and, count, desc, eq, gt, isNotNull, isNull, sql } from 'drizzle-orm';
 import {
   DUNGEON_IDS,
+  DUNGEON_TIERS,
   applyXp,
+  cryptTierCleared,
   dungeonRunProgress,
   dungeonUnlockBlockers,
   getDungeon,
+  getLootTable,
   isDungeonId,
+  isDungeonTier,
   normalizeProfessions,
   simulateDungeonRun,
   type DungeonId,
   type DungeonRunProgress,
   type DungeonRunResult,
+  type DungeonTier,
   type ItemVariantId,
   type MaterialId,
   type QuestEvent,
@@ -48,6 +53,8 @@ export interface DungeonRunView {
   id: string;
   characterId: string;
   dungeonId: DungeonId;
+  /** Ticket 3.6. */
+  tier: DungeonTier;
   startedAt: string;
   endsAt: string;
   /** Server time of this view. */
@@ -56,12 +63,36 @@ export interface DungeonRunView {
   progress: DungeonRunProgress;
 }
 
-export interface DungeonEntryView {
-  id: DungeonId;
+/** What a tier favours (ticket 3.6, game-core `LootFocus`). */
+export interface LootFocusView {
+  id: string;
+  name: string;
+  description: string;
+}
+
+/** One tier of a dungeon as the character sees it (ticket 3.6). */
+export interface DungeonTierView {
+  tier: DungeonTier;
+  name: string;
   unlocked: boolean;
   blockers: UnlockBlocker[];
-  /** When boss loot can drop again for this character; null = now. */
+  minLevel: number;
+  maxLevel: number;
+  bossLevel: number;
+  lootFocus: LootFocusView | null;
+}
+
+export interface DungeonEntryView {
+  id: DungeonId;
+  /** Tier I (the dungeon itself). */
+  unlocked: boolean;
+  blockers: UnlockBlocker[];
+  /** When boss loot can drop again for this character (any tier); null = now. */
   bossLootReadyAt: string | null;
+  /** Ticket 3.6: every tier, in order. */
+  tiers: DungeonTierView[];
+  /** The deepest tier this character has cleared (0 = none). */
+  tierCleared: number;
 }
 
 export interface DungeonStateResponse {
@@ -92,6 +123,8 @@ export interface DungeonResultItem {
 export interface DungeonResultView {
   runId: string;
   dungeonId: DungeonId;
+  /** Ticket 3.6; absent in results stored before it (tier I). */
+  tier?: DungeonTier;
   outcome: 'cleared' | 'failed';
   durationMs: number;
   roomsCleared: number;
@@ -108,6 +141,8 @@ export interface DungeonResultView {
   bossLoot: boolean;
   /** The first Gravewarden kill of this character (it opens the Sunken Abbey). */
   firstBossKill: boolean;
+  /** Ticket 3.6: this claim cleared the tier for the first time (the next tier may open). */
+  firstTierClear?: boolean;
   /** Game events for quests (ticket 2.4). */
   questEvents: QuestEvent[];
 }
@@ -127,7 +162,11 @@ const startBodySchema = {
   type: 'object',
   additionalProperties: false,
   required: ['dungeonId'],
-  properties: { dungeonId: { type: 'string', maxLength: 64 } },
+  properties: {
+    dungeonId: { type: 'string', maxLength: 64 },
+    /** Ticket 3.6; default 1. */
+    tier: { type: 'integer', minimum: 1, maximum: 9 },
+  },
 } as const;
 
 type IdParams = { Params: { characterId: string } };
@@ -156,6 +195,7 @@ async function lockOwnedCharacter(
 export function replayRun(run: DungeonRun, inventoryCount = 0): DungeonRunResult {
   return simulateDungeonRun({
     dungeonId: run.dungeonId,
+    tier: run.tier,
     character: {
       classId: run.snapshot.classId,
       level: run.snapshot.level,
@@ -174,6 +214,7 @@ export function runView(run: DungeonRun, now: Date): DungeonRunView {
     id: run.id,
     characterId: run.characterId,
     dungeonId: run.dungeonId,
+    tier: run.tier,
     startedAt: run.startedAt.toISOString(),
     endsAt: run.endsAt.toISOString(),
     now: now.toISOString(),
@@ -189,7 +230,8 @@ async function bossLootReadyAt(
   dungeonId: DungeonId,
   now: Date,
 ): Promise<Date | null> {
-  const cooldownMs = getDungeon(dungeonId).bossLoot.cooldownHours * HOUR;
+  // One cooldown for every tier of a dungeon (ticket 3.6).
+  const cooldownMs = getDungeon(dungeonId).bossLootCooldownHours * HOUR;
   const [last] = await db
     .select({ startedAt: dungeonRuns.startedAt })
     .from(dungeonRuns)
@@ -241,13 +283,35 @@ export async function registerDungeons(
     const open = await openRunOfAccount(app.db, accountId);
     const dungeons: DungeonEntryView[] = [];
     for (const id of DUNGEON_IDS) {
-      const blockers = dungeonUnlockBlockers(id, { level: character.level }, character.progress);
+      const tiers = getDungeon(id).tiers.map((t): DungeonTierView => {
+        const blockers = dungeonUnlockBlockers(
+          id,
+          { level: character.level },
+          character.progress,
+          t.tier,
+        );
+        const focus = getLootTable(t.bossLoot.lootTableId).focus;
+        return {
+          tier: t.tier,
+          name: t.name,
+          unlocked: blockers.length === 0,
+          blockers,
+          minLevel: t.minLevel,
+          maxLevel: t.maxLevel,
+          bossLevel: t.bossLevel,
+          lootFocus: focus
+            ? { id: focus.id, name: focus.name, description: focus.description }
+            : null,
+        };
+      });
       const ready = await bossLootReadyAt(app.db, characterId, id, now);
       dungeons.push({
         id,
-        unlocked: blockers.length === 0,
-        blockers,
+        unlocked: tiers[0]!.unlocked,
+        blockers: tiers[0]!.blockers,
         bossLootReadyAt: ready?.toISOString() ?? null,
+        tiers,
+        tierCleared: cryptTierCleared(character.progress),
       });
     }
     return {
@@ -269,16 +333,22 @@ export async function registerDungeons(
    * Enter a dungeon with the account's active character. Any farming of the account is settled
    * and stopped first (a run never stacks with farming). One unclaimed run per account.
    */
-  app.post<IdParams & { Body: { dungeonId: string } }>(
+  app.post<IdParams & { Body: { dungeonId: string; tier?: number } }>(
     '/characters/:characterId/dungeon',
     { preHandler: app.requireAccount, schema: { params: idParamsSchema, body: startBodySchema } },
     async (request, reply) => {
       const accountId = request.auth!.account.id;
       const { characterId } = request.params;
       const { dungeonId } = request.body;
+      const tier = request.body.tier ?? 1;
       if (!isDungeonId(dungeonId)) {
         throw new ApiError(400, 'validation_failed', 'Some fields need attention.', {
           fields: { dungeonId: `Choose one of: ${DUNGEON_IDS.join(', ')}.` },
+        });
+      }
+      if (!isDungeonTier(tier)) {
+        throw new ApiError(400, 'validation_failed', 'Some fields need attention.', {
+          fields: { tier: `Choose one of: ${DUNGEON_TIERS.join(', ')}.` },
         });
       }
       const result = await withTransaction(app.db, async (tx) => {
@@ -320,7 +390,7 @@ export async function registerDungeons(
             event: 'activity.stop',
             accountId,
             characterId: a.characterId,
-            data: { reason: 'dungeon_started', dungeonId },
+            data: { reason: 'dungeon_started', dungeonId, tier },
           });
         }
 
@@ -330,10 +400,12 @@ export async function registerDungeons(
           dungeonId,
           { level: character.level },
           character.progress,
+          tier,
         );
         if (blockers.length > 0) {
           throw new ApiError(409, 'dungeon_locked', 'This dungeon is not open to this hero yet.', {
             dungeonId,
+            tier,
             blockers,
           });
         }
@@ -361,6 +433,7 @@ export async function registerDungeons(
           characterId,
           accountId,
           dungeonId,
+          tier,
           seedSecret: newSeedSecret(),
           snapshot: {
             classId: character.classId,
@@ -394,7 +467,7 @@ export async function registerDungeons(
           event: 'dungeon.start',
           accountId,
           characterId,
-          data: { runId: run.id, dungeonId, bossLootEligible: run.bossLootEligible },
+          data: { runId: run.id, dungeonId, tier, bossLootEligible: run.bossLootEligible },
         });
         return { run, character, now };
       });
@@ -489,6 +562,9 @@ export async function registerDungeons(
 
           const gold = r.goldLooted + r.goldSalvaged;
           const firstBossKill = r.bossDefeated && !character.progress.gravewardenDefeated;
+          // Ticket 3.6: a boss kill clears the run's tier (the next tier's gate).
+          const clearedBefore = cryptTierCleared(character.progress);
+          const firstTierClear = r.bossDefeated && run.tier > clearedBefore;
           const [written] = await tx
             .update(characters)
             .set({
@@ -496,7 +572,13 @@ export async function registerDungeons(
               experience: xp,
               gold: sql`${characters.gold} + ${gold}`,
               ...(r.bossDefeated
-                ? { progress: { ...character.progress, gravewardenDefeated: true } }
+                ? {
+                    progress: {
+                      ...character.progress,
+                      gravewardenDefeated: true,
+                      cryptTierCleared: Math.max(clearedBefore, run.tier),
+                    },
+                  }
                 : {}),
               version: sql`${characters.version} + 1`,
               updatedAt: now,
@@ -507,6 +589,7 @@ export async function registerDungeons(
           const result: DungeonResultView = {
             runId: run.id,
             dungeonId: run.dungeonId,
+            tier: run.tier,
             outcome: r.outcome,
             durationMs: r.durationMs,
             roomsCleared: r.roomsCleared,
@@ -531,6 +614,7 @@ export async function registerDungeons(
             bossDefeated: r.bossDefeated,
             bossLoot: r.bossLoot,
             firstBossKill,
+            firstTierClear,
             questEvents: r.questEvents,
           };
           await tx
@@ -549,6 +633,7 @@ export async function registerDungeons(
             data: {
               runId: run.id,
               dungeonId: run.dungeonId,
+              tier: run.tier,
               outcome: r.outcome,
               xp: r.xpGained,
               gold,

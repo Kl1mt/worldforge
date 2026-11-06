@@ -230,7 +230,9 @@ describe('set piece generation', () => {
         expect(item.effectId).toBeUndefined();
         expect(setForBase(item.baseId)?.id).toBe(item.setId);
       }
-      if (['sunkenAbbey', 'namelessCrypt', 'gravewarden'].includes(tableId)) {
+      // Ticket 3.6: the deeper crypt tiers are late-game sources too.
+      const lateGame = ['sunkenAbbey', 'namelessCrypt', 'gravewarden'];
+      if (lateGame.some((id) => tableId.startsWith(id))) {
         expect(sets / n, tableId).toBeGreaterThan(0.44);
         expect(sets / n, tableId).toBeLessThan(0.56);
       } else {
