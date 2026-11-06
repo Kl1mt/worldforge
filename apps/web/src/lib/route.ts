@@ -13,6 +13,8 @@ export const GAME_ROUTES = [
   // everyone else it behaves like an unknown address).
   'account',
   'moderation',
+  // Ticket 4.3: friends, requests, blocks and presence.
+  'friends',
 ] as const;
 /** The gate: only shown to visitors without a session. */
 export const AUTH_ROUTES = ['login', 'register'] as const;

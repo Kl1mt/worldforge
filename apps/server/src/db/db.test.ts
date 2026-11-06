@@ -60,20 +60,23 @@ function journalEntries(): number {
 }
 
 describe('migrations', () => {
-  it('create exactly the expected tables (Phase 1, 2.3 materials & professions, 2.4 quests, 2.5 dungeons, 2.6 economy, 4.1 safety, D.2 invites) from scratch', async () => {
+  it('create exactly the expected tables (Phase 1, 2.3 materials & professions, 2.4 quests, 2.5 dungeons, 2.6 economy, 4.1 safety, D.2 invites, 4.3 friends) from scratch', async () => {
     const rows = await queryRows<{ table_name: string }>(
       db(),
       sql`select table_name from information_schema.tables where table_schema = 'public' order by 1`,
     );
     expect(rows.map((r) => r.table_name)).toEqual([
+      'account_presence',
       'accounts',
       'activities',
       'audit_log',
+      'blocks',
       'character_materials',
       'character_professions',
       'character_quests',
       'characters',
       'dungeon_runs',
+      'friendships',
       'idempotency_keys',
       'invite_codes',
       'item_instances',
