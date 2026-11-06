@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Replaces the database with a dump from backup.sh (docs/DEPLOY.md §9). Takes a safety dump
+# Replaces the database with a dump from backup.sh (docs/DEPLOY.md §10). Takes a safety dump
 # first, stops the server, restores, applies newer migrations and starts the server again.
 #
 #   deploy/restore.sh deploy/backups/daily/worldforge-20261106-033000.dump

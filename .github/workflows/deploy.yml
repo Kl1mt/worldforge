@@ -1,4 +1,4 @@
-# Optional automatic deploy to the VPS (ticket D.1, docs/DEPLOY.md §11). Does nothing until the
+# Optional automatic deploy to the VPS (ticket D.1, docs/DEPLOY.md §12). Does nothing until the
 # repository variable DEPLOY_ENABLED is "true" and these are set (repo or `production`
 # environment secrets): DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY (private key whose public half is
 # in the VPS user's authorized_keys with the forced command deploy/ssh-deploy.sh) and
@@ -46,7 +46,7 @@ jobs:
           SHA: ${{ github.event.workflow_run.head_sha || github.sha }}
         run: |
           for name in SSH_KEY KNOWN_HOSTS HOST USER_NAME; do
-            [ -n "${!name}" ] || { echo "::error::secret for $name is not set (docs/DEPLOY.md §11)"; exit 1; }
+            [ -n "${!name}" ] || { echo "::error::secret for $name is not set (docs/DEPLOY.md §12)"; exit 1; }
           done
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SSH_KEY" > ~/.ssh/deploy_key

@@ -1,14 +1,25 @@
-# Worldforge edge (ticket D.1, docs/DEPLOY.md): automatic HTTPS for $DOMAIN, the static client
-# from /srv, and /api reverse-proxied to the single API instance. Same origin, so no CORS and
-# the session cookie (HttpOnly, Secure, SameSite=Lax, Path=/api) just works.
+# Worldforge origin behind a Cloudflare Tunnel (ticket D.1, docs/DEPLOY.md). Cloudflare terminates
+# HTTPS; `cloudflared` reaches this server over the internal Docker network, so Caddy speaks plain
+# HTTP, publishes no public port and never shows the VPS's IP. It serves the static client from
+# /srv and reverse-proxies /api to the single API instance (same origin: no CORS, and the session
+# cookie, HttpOnly, Secure, SameSite=Lax, Path=/api, just works).
 {
-	email {$ACME_EMAIL}
+	auto_https off
+	admin off
+	servers {
+		# Only containers (cloudflared) and the host itself can reach Caddy: no public port. Their
+		# private addresses are trusted, and the player's address comes from CF-Connecting-IP,
+		# which Cloudflare's edge always overwrites (a client cannot set it).
+		trusted_proxies static private_ranges
+		client_ip_headers CF-Connecting-IP
+	}
 }
 
-{$DOMAIN} {
+:80 {
 	encode zstd gzip
 
 	header {
+		# Players only ever see HTTPS (Cloudflare edge), so HSTS is correct here.
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
 		X-Frame-Options "DENY"
@@ -25,13 +36,15 @@
 		# Never cache API responses unless the server says otherwise.
 		header ?Cache-Control "no-store"
 		reverse_proxy server:3000 {
+			# The server trusts exactly one value (TRUST_PROXY=1): the player's IP resolved above,
+			# never anything a client sent, so per-IP rate limits see each player.
+			header_up X-Forwarded-For {client_ip}
+			header_up X-Forwarded-Proto https
 			# Hold requests while the API container restarts during a deploy instead of
 			# answering 502 at once (minimal downtime with a single instance).
 			lb_try_duration 30s
 			lb_try_interval 250ms
 		}
-		# Caddy replaces X-Forwarded-For from untrusted clients with the real peer address, so
-		# the server can trust it (TRUST_PROXY=1) and rate limits key on the real client IP.
 	}
 
 	handle {

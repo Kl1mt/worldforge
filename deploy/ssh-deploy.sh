@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Forced command for the GitHub Actions deploy key (docs/DEPLOY.md §11). In ~/.ssh/authorized_keys:
+# Forced command for the GitHub Actions deploy key (docs/DEPLOY.md §12). In ~/.ssh/authorized_keys:
 #   command="/home/deploy/worldforge/deploy/ssh-deploy.sh",restrict ssh-ed25519 AAAA… github-deploy
 # The key can then only run `deploy` or `deploy <40-hex commit>`, nothing else.
 set -euo pipefail

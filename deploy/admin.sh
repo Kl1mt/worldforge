@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Grants or revokes moderator/admin roles inside the running server container: the production
-# build's `admin:role:prod` command (dist/social/role-cli.js; docs/SOCIAL.md, docs/DEPLOY.md §8).
+# build's `admin:role:prod` command (dist/social/role-cli.js; docs/SOCIAL.md, docs/DEPLOY.md §9).
 #
 #   deploy/admin.sh grant <email|handle> <moderator|admin>
 #   deploy/admin.sh revoke <email|handle>

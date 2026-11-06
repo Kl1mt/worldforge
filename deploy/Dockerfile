@@ -45,8 +45,8 @@ HEALTHCHECK --interval=15s --timeout=4s --start-period=30s --retries=3 \
   CMD ["node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"]
 CMD ["node", "--enable-source-maps", "dist/index.js"]
 
-# ---- web: Caddy serving the built client and proxying /api -----------------------------------
+# ---- web: Caddy serving the built client and proxying /api (behind the Cloudflare Tunnel) -----
 FROM ${CADDY_IMAGE} AS web
 COPY deploy/Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /repo/apps/web/dist /srv
-RUN DOMAIN=localhost ACME_EMAIL=ops@example.com caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile
+RUN caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile

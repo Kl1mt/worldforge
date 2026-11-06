@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Deploys main: pull → build → backup → migrate → restart → health check, and rolls the app
-# images back if the new server does not become healthy. Safe to re-run (docs/DEPLOY.md §10).
+# images back if the new server does not become healthy. Safe to re-run (docs/DEPLOY.md §11).
 #
 #   deploy/deploy.sh                 fast-forward to origin/main and deploy
 #   deploy/deploy.sh --ref <sha>     deploy that commit (must be on origin/main; used by CI)
@@ -38,6 +38,13 @@ require_setup
 [[ $(env_get POSTGRES_PASSWORD) != change-me ]] || die "set a real POSTGRES_PASSWORD in $ENV_FILE"
 domain=$(env_get DOMAIN)
 [[ -n $domain && $domain != play.example.com ]] || die "set DOMAIN in $ENV_FILE"
+web_port=$(env_get WEB_LOCAL_PORT 8080)
+tunnel=0
+if [[ ,$(env_get COMPOSE_PROFILES), == *,tunnel,* ]]; then
+  tunnel=1
+  [[ -n $(env_get CLOUDFLARE_TUNNEL_TOKEN) ]] || die "set CLOUDFLARE_TUNNEL_TOKEN in $ENV_FILE (DEPLOY.md §8)"
+fi
+command -v curl >/dev/null 2>&1 || die "curl is missing (sudo apt install curl)"
 take_lock
 
 # --- 1. Code ---------------------------------------------------------------------------------
@@ -69,6 +76,9 @@ for image in "${images[@]}"; do
 done
 log "building images"
 compose build --pull server web
+if ((tunnel)); then
+  compose pull --quiet cloudflared || warn "could not pull a newer cloudflared image"
+fi
 
 restore_previous_tags() {
   local image
@@ -97,29 +107,49 @@ fi
 # Caddy holds /api requests for up to 30 s while the server container is replaced.
 log "restarting the server"
 compose up -d --no-deps server
+# rollback REASON: back to the previous images, then exit with an error.
+rollback() {
+  if ! docker image inspect worldforge-server:previous >/dev/null 2>&1; then
+    die "$1, and there is no previous image to roll back to"
+  fi
+  warn "$1; rolling back to the previous images"
+  restore_previous_tags
+  compose up -d --no-deps server web
+  if wait_healthy server 150 && local_health; then
+    die "deploy of $rev failed and was rolled back (the checkout stays at $rev; migrations are not undone)"
+  fi
+  die "deploy of $rev failed and the rollback is not healthy either: check 'docker compose logs server web'"
+}
+
+# Caddy → server on the VPS itself (no Cloudflare involved): proves the new images work.
+local_health() {
+  local _
+  for _ in $(seq 1 15); do
+    curl -fsS --max-time 5 "http://127.0.0.1:$web_port/api/health" >/dev/null 2>&1 && return 0
+    sleep 2
+  done
+  return 1
+}
+
 if ! wait_healthy server 150; then
   compose logs --tail 50 server >&2 || true
-  if docker image inspect worldforge-server:previous >/dev/null 2>&1; then
-    warn "the new server is not healthy; rolling back to the previous images"
-    restore_previous_tags
-    compose up -d --no-deps server web
-    if wait_healthy server 150; then
-      die "deploy of $rev failed and was rolled back (the checkout stays at $rev; migrations are not undone)"
-    fi
-    die "deploy of $rev failed and the rollback is not healthy either: check 'docker compose logs server'"
-  fi
-  die "the server is not healthy and there is no previous image to roll back to"
+  rollback "the new server is not healthy"
 fi
 compose up -d --no-deps web
+local_health || rollback "Caddy does not answer on 127.0.0.1:$web_port"
+log "http://127.0.0.1:$web_port/api/health is ok"
 
-# End to end through Caddy and the real certificate. Not fatal: DNS or certificate trouble is
-# not fixed by rolling back the app (docs/DEPLOY.md §13).
-curl_args=(-fsS --max-time 10 --resolve "$domain:443:127.0.0.1")
-[[ $domain == localhost ]] && curl_args+=(-k)
-if command -v curl >/dev/null 2>&1; then
+# --- 6. Tunnel and the public URL: not fatal, a rollback does not fix Cloudflare settings ----
+if ((tunnel)); then
+  compose up -d --no-deps cloudflared
+  if wait_healthy cloudflared 90; then
+    log "the Cloudflare Tunnel is connected"
+  else
+    warn "the Cloudflare Tunnel is not connected (docker compose logs cloudflared; DEPLOY.md §14)"
+  fi
   ok=0
-  for _ in $(seq 1 30); do
-    if curl "${curl_args[@]}" "https://$domain/api/health" >/dev/null 2>&1; then
+  for _ in $(seq 1 10); do
+    if curl -fsS --max-time 10 "https://$domain/api/health" >/dev/null 2>&1; then
       ok=1
       break
     fi
@@ -128,11 +158,11 @@ if command -v curl >/dev/null 2>&1; then
   if ((ok)); then
     log "https://$domain/api/health is ok"
   else
-    warn "https://$domain/api/health is not reachable yet (certificate or DNS? docker compose logs web)"
+    warn "https://$domain/api/health is not reachable (tunnel public hostname? DEPLOY.md §14)"
   fi
 fi
 
-# --- 6. Clean up old layers so builds don't fill the disk ------------------------------------
+# --- 7. Clean up old layers so builds don't fill the disk ------------------------------------
 docker image prune -f >/dev/null || true
 docker builder prune -f --filter until=168h >/dev/null 2>&1 || true
 log "deployed $rev"

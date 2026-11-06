@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Dumps the database (pg_dump custom format, compressed) and prunes old dumps (docs/DEPLOY.md §9).
+# Dumps the database (pg_dump custom format, compressed) and prunes old dumps (docs/DEPLOY.md §10).
 #
 #   deploy/backup.sh                  nightly dump: keeps BACKUP_KEEP_DAILY (14) daily dumps,
 #                                     and one per week for BACKUP_KEEP_WEEKLY (8) weeks
