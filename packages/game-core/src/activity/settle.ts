@@ -15,8 +15,10 @@ import {
   type ProfessionLevels,
   type ProfessionState,
 } from '../professions/progression.js';
-import { DEFAULT_ACTIVITY_CONFIG, type ActivityConfig, type InventoryConfig } from './config.js';
+import { DEFAULT_ACTIVITY_CONFIG, type ActivityConfig } from './config.js';
 import { equipmentModifiers, type EquippedItem } from './equipment.js';
+import { createDropPlacer, type FilteredDrop } from './placement.js';
+import type { LootFilterRules } from '../economy/lootFilter.js';
 
 export interface SettleFarmingInput {
   character: FarmingCharacter;
@@ -43,6 +45,11 @@ export interface SettleFarmingInput {
   switchToAreaId?: AreaId;
   /** Profession levels at the window start (ticket 2.3); missing professions are level 1. */
   professions?: Partial<Record<ProfessionId, ProfessionState>>;
+  /**
+   * Ticket 3.7: the character's loot filter, read once for the whole window (the server snapshots
+   * it under the character lock). Null or absent = no filter: the result is exactly as before.
+   */
+  lootFilter?: LootFilterRules | null;
 }
 
 export interface SettleFarmingOptions {
@@ -86,6 +93,12 @@ export interface FarmingSettlement {
   items: GeneratedItem[];
   /** Items that did not fit and were salvaged to gold. */
   salvaged: GeneratedItem[];
+  /**
+   * Ticket 3.7: drops the loot filter sold or salvaged, in drop order (they took no pack space).
+   * Present only when a filter was given. Their gold and materials are not in `goldLooted`,
+   * `goldSalvaged` or `materials` (which feed quests): see `filteredTotals`.
+   */
+  filtered?: FilteredDrop[];
   /** Gold find used for the drops (already capped). */
   goldFind: number;
   /** Materials gathered or dropped (ticket 2.3); only ids with a positive quantity. */
@@ -103,18 +116,6 @@ function addCounts<K extends string>(
   const out: Partial<Record<K, number>> = { ...a };
   for (const [k, n] of Object.entries(b) as [K, number][]) out[k] = (out[k] ?? 0) + n;
   return out;
-}
-
-/** Gold an overflow item is salvaged for. */
-export function salvageValue(
-  item: Pick<GeneratedItem, 'rarityId' | 'itemLevel'>,
-  config: InventoryConfig = DEFAULT_ACTIVITY_CONFIG.inventory,
-): number {
-  const { base, perItemLevel, rarityMultiplier } = config.salvage;
-  return Math.max(
-    1,
-    Math.round((base + perItemLevel * item.itemLevel) * rarityMultiplier[item.rarityId]),
-  );
 }
 
 /**
@@ -193,6 +194,7 @@ export function settleFarming(
     goldSalvaged: first.goldSalvaged + second.goldSalvaged,
     items: [...first.items, ...second.items],
     salvaged: [...first.salvaged, ...second.salvaged],
+    ...(first.filtered ? { filtered: [...first.filtered, ...(second.filtered ?? [])] } : {}),
     goldFind: second.goldFind,
     materials: addCounts(first.materials, second.materials),
     professions: second.professions,
@@ -227,11 +229,8 @@ function settleSegment(
     classId: input.character.classId,
     extraEffects: setBonusInstances(equipment),
   });
-  const items: GeneratedItem[] = [];
-  const salvaged: GeneratedItem[] = [];
+  const placer = createDropPlacer(input.inventoryCount, activity.inventory, input.lootFilter);
   let goldLooted = 0;
-  let goldSalvaged = 0;
-  let free = Math.max(0, activity.inventory.capacity - input.inventoryCount);
   const professions = normalizeProfessions(input.professions, professionConfig);
   const materials: Partial<Record<MaterialId, number>> = {};
   const professionXpGained: Partial<Record<ProfessionId, number>> = {};
@@ -287,19 +286,12 @@ function settleSegment(
           lootConfig,
         );
         goldLooted += drop.gold;
-        for (const item of drop.items) {
-          if (free > 0) {
-            items.push(item);
-            free--;
-          } else {
-            salvaged.push(item);
-            goldSalvaged += salvageValue(item, activity.inventory);
-          }
-        }
+        for (const item of drop.items) placer.place(item);
       },
     },
   );
 
+  const { items, salvaged, goldSalvaged, filtered } = placer.result();
   return {
     areaId: input.areaId,
     switched: false,
@@ -325,6 +317,7 @@ function settleSegment(
     goldSalvaged,
     items,
     salvaged,
+    ...(filtered ? { filtered } : {}),
     goldFind: modifiers.goldFind,
     materials,
     professions,

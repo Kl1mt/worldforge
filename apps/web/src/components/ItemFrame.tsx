@@ -10,6 +10,8 @@ interface ItemFrameProps {
         upgradeLevel?: number;
         /** Ticket 3.5: a Void item gets the void overlay (only when the variant applies). */
         variant?: ItemView['variant'];
+        /** Ticket 3.7: a padlock in the upper right corner. */
+        locked?: boolean;
       })
     | undefined;
   /** Icon scale (icons are 32 px native). */
@@ -22,6 +24,8 @@ interface ItemFrameProps {
   context?: string;
   /** Not looked at yet on this device (ticket 2.7): a "New" tag on the socket. */
   isNew?: boolean;
+  /** Ticket 3.7: shown but not selectable (e.g. a locked item in a sell picker). */
+  disabled?: boolean;
 }
 
 /**
@@ -38,6 +42,7 @@ export function ItemFrame({
   onSelect,
   context,
   isNew,
+  disabled,
 }: ItemFrameProps) {
   const size = 32 * scale;
   // One art pixel in CSS pixels, for the Void edge (`--px`).
@@ -49,13 +54,14 @@ export function ItemFrame({
     onSelect ? 'item-frame--interactive' : '',
     item && isNew ? 'item-frame--new' : '',
     item?.variant ? `item-frame--${item.variant.id}` : '',
+    item?.locked ? 'item-frame--locked' : '',
   ]
     .filter(Boolean)
     .join(' ');
   const upgrade = item?.upgradeLevel ?? 0;
   const variant = item?.variant ? `${item.variant.name} ` : '';
   const label = item
-    ? `${context ? `${context}: ` : ''}${item.name}${upgrade > 0 ? ` +${upgrade}` : ''}, ${variant}${item.rarity}${isNew ? ', new' : ''}`
+    ? `${context ? `${context}: ` : ''}${item.name}${upgrade > 0 ? ` +${upgrade}` : ''}, ${variant}${item.rarity}${item.locked ? ', locked' : ''}${isNew ? ', new' : ''}`
     : `${context ?? 'Empty slot'}${emptyLabel && !context ? `: ${emptyLabel}` : ''}, empty`;
 
   const tag =
@@ -89,12 +95,15 @@ export function ItemFrame({
       ◇
     </span>
   ) : null;
+  // Ticket 3.7: a small iron padlock (shape, not colour) in the upper right corner.
+  const lockMark = item?.locked ? <span className="item-frame__lock" aria-hidden="true" /> : null;
   const inner = (
     <>
       {art}
       {tag}
       {mark}
       {voidMark}
+      {lockMark}
     </>
   );
 
@@ -106,6 +115,7 @@ export function ItemFrame({
         aria-label={label}
         aria-pressed={selected ?? false}
         onClick={onSelect}
+        disabled={disabled}
         style={px}
       >
         {inner}

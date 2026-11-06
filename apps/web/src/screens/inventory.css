@@ -299,3 +299,91 @@
     inset 0 0 0 1px var(--crimson-400),
     inset 0 1px 0 rgb(255 255 255 / 0.06);
 }
+
+/* ── Ticket 3.7: pack pressure, several items at once, the lock ───────── */
+.pack__full {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--brass-500);
+  background: rgb(163 130 74 / 0.08);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.pack__full p {
+  margin: 0;
+  max-width: 78ch;
+}
+
+.pack__full-title {
+  font-size: var(--text-lg);
+  color: var(--accent-strong);
+}
+
+.pack__full--full {
+  border-left-color: var(--crimson-400);
+  background: rgb(184 73 63 / 0.1);
+}
+
+.pack__full--full .pack__full-title {
+  color: var(--bone-100);
+}
+
+.pack__full-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.pack__select-toggle {
+  margin-left: auto;
+}
+
+.pack__bulk {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
+  margin: calc(var(--space-5) * -1 + var(--space-2)) 0 var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-sunken);
+  box-shadow: inset 0 0 0 1px var(--brass-700);
+}
+
+.pack__bulk-count {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.pack__bulk-count strong {
+  color: var(--bone-100);
+  font-size: var(--text-lg);
+}
+
+.pack__bulk-quick,
+.pack__bulk-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.pack__bulk-actions {
+  margin-left: auto;
+}
+
+@media (max-width: 720px) {
+  .pack__select-toggle {
+    margin-left: 0;
+  }
+
+  .pack__bulk-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .pack__bulk-actions .btn {
+    flex: 1 1 auto;
+  }
+}

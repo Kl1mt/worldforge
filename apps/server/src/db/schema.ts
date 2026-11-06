@@ -25,6 +25,7 @@ import type {
   DungeonTier,
   EquipmentSlotId,
   GuideState,
+  LootFilterRules,
   MaterialId,
   ProfessionId,
   QuestObjective,
@@ -129,6 +130,12 @@ export const characters = pgTable(
       .$type<WorldProgress>()
       .notNull()
       .default({ gravewardenDefeated: false }),
+    /**
+     * Loot filter rules (ticket 3.7, game-core `LootFilterRules`); null = no filter. Written only
+     * by `POST …/loot-filter` (validated, after settling with the old rules); read by settlement
+     * and the crypt claim under the character lock, so each window uses one well-defined set.
+     */
+    lootFilter: jsonb('loot_filter').$type<LootFilterRules>(),
     /** Optimistic-concurrency counter for later value-changing writes. */
     version: integer('version').notNull().default(0),
     ...timestamps,
@@ -275,6 +282,19 @@ export interface ActivitySummary {
   materials?: Partial<Record<MaterialId, number>>;
   /** Profession XP and level-ups (ticket 2.3). Absent in summaries written before 2.3. */
   professions?: Partial<Record<ProfessionId, { xpGained: number; levelsGained: number }>>;
+  /**
+   * Ticket 3.7: drops the loot filter sold or salvaged. Their gold is part of `goldGained`, their
+   * materials are not part of `materials` (gathering). Absent while nothing was filtered.
+   */
+  filtered?: LootFilterSummary;
+}
+
+/** What the loot filter did with new drops (ticket 3.7). */
+export interface LootFilterSummary {
+  sold: number;
+  salvaged: number;
+  gold: number;
+  materials: Partial<Record<MaterialId, number>>;
 }
 
 /**

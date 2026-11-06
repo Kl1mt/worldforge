@@ -1,0 +1,142 @@
+/* Ticket 3.7: the loot filter, written as a quartermaster's standing orders on an iron plate. */
+.lf {
+  display: grid;
+  gap: var(--space-5);
+  max-width: 880px;
+}
+
+.lf__empty {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4);
+  background: var(--bg-sunken);
+  color: var(--text-dim);
+}
+
+.lf__status {
+  padding: var(--space-4) var(--space-5);
+  border-left: 3px solid var(--iron-600);
+  background: var(--bg-sunken);
+}
+
+.lf__status--on {
+  border-left-color: var(--brass-500);
+}
+
+.lf__status .caps {
+  color: var(--text-dim);
+}
+
+.lf__status--on .caps {
+  color: var(--brass-400);
+}
+
+.lf__summary {
+  margin: var(--space-1) 0 var(--space-2);
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  color: var(--text);
+}
+
+.lf__fine {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+  max-width: 68ch;
+}
+
+.lf__form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.lf__group {
+  margin: 0;
+  padding: var(--space-3) 0 var(--space-4);
+  border: 0;
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: var(--space-2);
+}
+
+.lf__group legend {
+  float: left;
+  width: 100%;
+  margin-bottom: var(--space-2);
+  padding: 0;
+  color: var(--brass-400);
+}
+
+.lf__group--guard legend {
+  color: var(--rarity-legendary);
+}
+
+.lf__hint {
+  display: block;
+  margin: 0;
+  color: var(--text-faint);
+  font-size: var(--text-sm);
+}
+
+.lf__choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+}
+
+.lf__choices--grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+}
+
+.lf__choice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-2);
+  cursor: pointer;
+}
+
+.lf__choice input {
+  margin-top: 4px;
+  accent-color: var(--brass-500);
+}
+
+.lf__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.lf__chip {
+  min-height: 32px;
+  padding: 0 var(--space-3);
+}
+
+.lf__chip--small {
+  min-height: 28px;
+  font-size: var(--text-sm);
+}
+
+.lf__chip--effect {
+  font-style: italic;
+}
+
+.lf__actions {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--brass-700);
+}
+
+.lf__preview {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.lf__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}

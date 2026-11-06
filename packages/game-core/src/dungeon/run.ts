@@ -4,7 +4,8 @@ import { DEFAULT_ACTIVITY_CONFIG, type ActivityConfig } from '../activity/config
 import { equipmentModifiers, type EquippedItem } from '../activity/equipment.js';
 import { lifeOnKillHeal, momentumAfterIdle } from '../combat/farming.js';
 import { hasCombatEffects } from '../effects/resolve.js';
-import { salvageValue } from '../activity/settle.js';
+import { createDropPlacer, type FilteredDrop } from '../activity/placement.js';
+import type { LootFilterRules } from '../economy/lootFilter.js';
 import { deriveCharacterStats, type StatBlock } from '../combat/characterStats.js';
 import {
   DEFAULT_COMBAT_CONFIG,
@@ -108,6 +109,11 @@ export interface DungeonRunInput {
   bossLootEligible: boolean;
   /** Unequipped items held when the result is claimed (capacity rule). */
   inventoryCount: number;
+  /**
+   * Ticket 3.7: the loot filter in force at the claim (read under the character lock). It only
+   * decides what happens to the drops; null or absent = no filter, exactly as before.
+   */
+  lootFilter?: LootFilterRules | null;
 }
 
 export interface DungeonRunOptions {
@@ -149,6 +155,8 @@ export interface DungeonRunResult {
   items: GeneratedItem[];
   /** Items that did not fit and were salvaged to gold. */
   salvaged: GeneratedItem[];
+  /** Ticket 3.7: drops the loot filter handled; present only when a filter was given. */
+  filtered?: FilteredDrop[];
   materials: Partial<Record<MaterialId, number>>;
   /** Events for quests (ticket 2.4), e.g. `{ type: 'bossDefeated', bossId: 'gravewarden' }`. */
   questEvents: QuestEvent[];
@@ -456,20 +464,11 @@ export function simulateDungeonRun(
   const outcome: DungeonRunOutcome = bossDefeated ? 'cleared' : 'failed';
   events.push({ t: now, type: 'end', outcome });
 
-  // Capacity rule as in farming: drops beyond the free space are salvaged to gold.
-  let free = Math.max(0, activity.inventory.capacity - input.inventoryCount);
-  const items: GeneratedItem[] = [];
-  const salvaged: GeneratedItem[] = [];
-  let goldSalvaged = 0;
-  for (const item of drops) {
-    if (free > 0) {
-      items.push(item);
-      free--;
-    } else {
-      salvaged.push(item);
-      goldSalvaged += salvageValue(item, activity.inventory);
-    }
-  }
+  // Loot filter and capacity rule as in farming (ticket 3.7): filtered drops take no space, drops
+  // beyond the free space are salvaged to gold.
+  const placer = createDropPlacer(input.inventoryCount, activity.inventory, input.lootFilter);
+  for (const item of drops) placer.place(item);
+  const { items, salvaged, goldSalvaged, filtered } = placer.result();
 
   return {
     dungeonId: dungeon.id,
@@ -495,6 +494,7 @@ export function simulateDungeonRun(
     goldSalvaged,
     items,
     salvaged,
+    ...(filtered ? { filtered } : {}),
     materials,
     questEvents,
   };

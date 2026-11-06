@@ -32,6 +32,7 @@ import { summaryItemView } from '../game/items';
 import { materialCounts } from '../game/materials';
 import { formatDuration, formatNumber } from '../lib/format';
 import { PHONE_QUERY, pixelScale, sceneSpriteScale } from '../lib/pixel';
+import { describeFiltered } from '../game/lootFilter';
 import { routeHref } from '../lib/route';
 import { Trail } from '../shell/Trail';
 import './area.css';
@@ -385,9 +386,16 @@ function Reckoning({
       ) : (
         <p className="reckoning__line reckoning__line--dim">No items this time.</p>
       )}
+      {result.filtered ? (
+        <p className="reckoning__line reckoning__line--dim">
+          Your loot filter {describeFiltered(result.filtered)}.
+        </p>
+      ) : null}
       {result.itemsSalvaged > 0 ? (
         <p className="reckoning__line reckoning__line--dim">
-          Your pack was full: {result.itemsSalvaged} item(s) salvaged for{' '}
+          Your pack was full: {result.itemsSalvaged}{' '}
+          {result.itemsSalvaged === 1 ? 'drop found' : 'drops found'} no room and{' '}
+          {result.itemsSalvaged === 1 ? 'was' : 'were'} salvaged for{' '}
           {formatNumber(result.goldSalvaged)} gold.
         </p>
       ) : null}

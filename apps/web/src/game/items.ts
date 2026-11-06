@@ -22,6 +22,7 @@ import {
   getImplicitStats,
   activeVariant,
   type ItemVariantDefinition,
+  type LootFilterItem,
   type ClassId,
   type CoreStatId,
   type EquipmentSlotId,
@@ -111,6 +112,10 @@ export interface ItemView {
    * `activeVariant`); null otherwise. Its bonuses are already in `base` and `effect`.
    */
   variant: VariantView | null;
+  /** Ticket 3.7: locked items can't be sold, salvaged or discarded. */
+  locked: boolean;
+  /** Ticket 3.7: the fields the loot filter reads (game-core `lootFilterHandles`), for previews. */
+  filterKey: LootFilterItem;
 }
 
 /** A variant as the frame and tooltip show it (ticket 3.5). */
@@ -191,7 +196,12 @@ export type ItemDisplaySource = Pick<
   ItemDto,
   'id' | 'baseId' | 'rarityId' | 'itemLevel' | 'affixes' | 'equippedSlot' | 'source' | 'createdAt'
 > &
-  Partial<Pick<ItemDto, 'effectId' | 'effectRoll' | 'setId' | 'upgradeLevel' | 'variant'>>;
+  Partial<
+    Pick<
+      ItemDto,
+      'effectId' | 'effectRoll' | 'setId' | 'mythicId' | 'upgradeLevel' | 'variant' | 'locked'
+    >
+  >;
 
 /** The set id of an item, if it really is a piece of that set (game-core `wornSets` rule). */
 function setIdOf(baseId: string, setId: string | null | undefined): string | null {
@@ -236,6 +246,15 @@ export function toItemView(dto: ItemDisplaySource): ItemView {
       dto.variant,
       Boolean(dto.effectId && findEffect(dto.effectId)),
     ),
+    locked: dto.locked ?? false,
+    filterKey: {
+      rarityId: dto.rarityId,
+      affixes: dto.affixes,
+      ...(dto.effectId ? { effectId: dto.effectId } : {}),
+      ...(dto.setId ? { setId: dto.setId } : {}),
+      ...(dto.mythicId ? { mythicId: dto.mythicId } : {}),
+      ...(dto.variant ? { variant: dto.variant } : {}),
+    },
   };
 }
 

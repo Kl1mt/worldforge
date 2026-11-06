@@ -38,6 +38,8 @@ Upgrades (+0 to +10), affix rerolls and affix improvement: see **Forge work (tic
 ## Server rules
 - Buy, sell, salvage and craft need an `Idempotency-Key` (`docs/API_CONVENTIONS.md`), lock the character row, settle its running activity first (ticket 1.9), check against stored state, and write an audit event in the same transaction.
 - Gold and material changes are `quantity ± n` updates under the lock, backed by `CHECK (>= 0)` constraints. Buying and crafting refuse a full pack (`inventory_full`) instead of salvaging the new item.
+- **Item lock (ticket 3.7):** a locked item can't be sold, salvaged or discarded (`409 item_locked`, the whole batch refused). The Pack sells and salvages several items at once through the same endpoints (multi-select, locked items left out).
+- **Loot filter (ticket 3.7):** auto-sell pays exactly `sellPrice`, auto-salvage exactly `salvageYield` (`docs/LOOT.md`), so the filter is a convenience, not a better rate; both are above the overflow salvage.
 - Real-PostgreSQL races (`concurrency.pg.test.ts`): racing sells of one item, one key raced N times, racing buys of one offer, buys exceeding the purse, sell vs salvage vs discard vs settle on one item, crafts exceeding the materials. None causes a retry.
 
 ## Balance (ticket B.1)

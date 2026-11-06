@@ -7,6 +7,7 @@ import {
   cryptTierCleared,
   dungeonRunProgress,
   dungeonUnlockBlockers,
+  filteredTotals,
   getDungeon,
   getLootTable,
   isDungeonId,
@@ -18,6 +19,8 @@ import {
   type DungeonRunResult,
   type DungeonTier,
   type ItemVariantId,
+  type LootFilterAction,
+  type LootFilterRules,
   type MaterialId,
   type QuestEvent,
   type UnlockBlocker,
@@ -30,6 +33,7 @@ import {
   itemInstances,
   type Character,
   type DungeonRun,
+  type LootFilterSummary,
 } from '../db/schema.js';
 import { itemEffectColumns } from '../inventory/columns.js';
 import type { Executor, Transaction } from '../db/types.js';
@@ -40,11 +44,12 @@ import { ApiError } from '../errors.js';
 import { characterView, type CharacterView } from '../characters/routes.js';
 import {
   endActivityTx,
+  filterAudit,
   newSeedSecret,
   settleActivityTx,
   type ActivityOptions,
 } from '../activity/settle.js';
-import { grantGatheringTx } from '../materials/store.js';
+import { changeMaterialsTx, grantGatheringTx } from '../materials/store.js';
 import { recordQuestEventsTx } from '../quests/store.js';
 import { idempotentTransaction } from '../idempotency/index.js';
 
@@ -104,6 +109,14 @@ export interface DungeonStateResponse {
   character: CharacterView;
 }
 
+/** A drop the loot filter handled at the claim (ticket 3.7); it was never an owned item. */
+export interface FilteredItemView {
+  baseId: string;
+  rarityId: string;
+  itemLevel: number;
+  action: LootFilterAction;
+}
+
 export interface DungeonResultItem {
   id: string;
   baseId: string;
@@ -145,6 +158,11 @@ export interface DungeonResultView {
   firstTierClear?: boolean;
   /** Game events for quests (ticket 2.4). */
   questEvents: QuestEvent[];
+  /**
+   * Ticket 3.7: drops the loot filter sold or salvaged at the claim (their gold is part of
+   * `goldGained`, their materials are not part of `materials`). Absent when nothing was filtered.
+   */
+  filtered?: LootFilterSummary & { items: FilteredItemView[] };
 }
 
 export interface DungeonClaimResponse {
@@ -192,7 +210,11 @@ async function lockOwnedCharacter(
 }
 
 /** Replays the run from its seed and snapshot (pure; the stored row is all it needs). */
-export function replayRun(run: DungeonRun, inventoryCount = 0): DungeonRunResult {
+export function replayRun(
+  run: DungeonRun,
+  inventoryCount = 0,
+  lootFilter: LootFilterRules | null = null,
+): DungeonRunResult {
   return simulateDungeonRun({
     dungeonId: run.dungeonId,
     tier: run.tier,
@@ -205,6 +227,7 @@ export function replayRun(run: DungeonRun, inventoryCount = 0): DungeonRunResult
     seed: run.seedSecret,
     bossLootEligible: run.bossLootEligible,
     inventoryCount,
+    lootFilter,
   });
 }
 
@@ -529,7 +552,10 @@ export async function registerDungeons(
             .where(
               and(eq(itemInstances.characterId, characterId), isNull(itemInstances.equippedSlot)),
             );
-          const r = replayRun(run, inventory?.n ?? 0);
+          // Ticket 3.7: the loot filter in force now, read with the locked character row.
+          const r = replayRun(run, inventory?.n ?? 0, character.lootFilter);
+          const filter = filteredTotals(r.filtered);
+          const filteredCount = r.filtered?.length ?? 0;
 
           // XP is added to the character's current level and XP (the snapshot only fixed the run).
           const { level, xp } = applyXp(
@@ -553,6 +579,7 @@ export async function registerDungeons(
           if (rows.length > 0) await tx.insert(itemInstances).values(rows);
           const none = normalizeProfessions({});
           await grantGatheringTx(tx, characterId, r.materials, none, none, now);
+          await changeMaterialsTx(tx, characterId, filter.materials, now);
 
           // Quests (ticket 2.4): a Gravewarden kill completes the story's last step. The character
           // row is locked above, as recordQuestEventsTx requires (docs/QUESTS.md). Only quests
@@ -560,7 +587,7 @@ export async function registerDungeons(
           // accepting the step after the run has ended but before claiming does not complete it.
           await recordQuestEventsTx(tx, characterId, r.questEvents, { acceptedBy: run.startedAt });
 
-          const gold = r.goldLooted + r.goldSalvaged;
+          const gold = r.goldLooted + r.goldSalvaged + filter.gold;
           const firstBossKill = r.bossDefeated && !character.progress.gravewardenDefeated;
           // Ticket 3.6: a boss kill clears the run's tier (the next tier's gate).
           const clearedBefore = cryptTierCleared(character.progress);
@@ -616,6 +643,22 @@ export async function registerDungeons(
             firstBossKill,
             firstTierClear,
             questEvents: r.questEvents,
+            ...(filteredCount > 0
+              ? {
+                  filtered: {
+                    sold: filter.sold,
+                    salvaged: filter.salvaged,
+                    gold: filter.gold,
+                    materials: filter.materials,
+                    items: r.filtered!.map(({ item, action }) => ({
+                      baseId: item.baseId,
+                      rarityId: item.rarityId,
+                      itemLevel: item.itemLevel,
+                      action,
+                    })),
+                  },
+                }
+              : {}),
           };
           await tx
             .update(dungeonRuns)
@@ -642,6 +685,7 @@ export async function registerDungeons(
               materials: r.materials,
               bossLoot: r.bossLoot,
               questEvents: r.questEvents,
+              ...(filteredCount > 0 ? { filtered: filterAudit(r.filtered!, filter) } : {}),
             },
           });
           return { result, character: characterView(written!) };

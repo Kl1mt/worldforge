@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react';
 import { ItemFrame } from '../components/ItemFrame';
 import { MaterialStack } from '../components/MaterialStack';
 import { formatDuration, formatNumber } from '../lib/format';
+import { describeFiltered } from './lootFilter';
 import { routeHref } from '../lib/route';
 import { useGame } from './GameProvider';
 import { isChaseDrop, summaryItemView } from './items';
@@ -38,7 +39,9 @@ export function ReturnSummaryDialog({ heroName }: { heroName: string }) {
     .reverse()
     .map(summaryItemView);
   const unlisted = summary.itemsGained - shown.length;
-  const lootGold = summary.goldGained - summary.goldSalvaged;
+  const filterGold = summary.filtered?.gold ?? 0;
+  const lootGold = summary.goldGained - summary.goldSalvaged - filterGold;
+  const filtered = describeFiltered(summary.filtered);
   const gathered = materialCounts(summary.materials);
   const crafts = Object.entries(summary.professions ?? {}).filter(
     ([, p]) => p && p.xpGained > 0,
@@ -175,11 +178,13 @@ export function ReturnSummaryDialog({ heroName }: { heroName: string }) {
               : ''}
             .
           </li>
+          {filtered ? <li>Your loot filter {filtered}.</li> : null}
           {summary.itemsSalvaged > 0 ? (
-            <li>
-              Pack full: {summary.itemsSalvaged}{' '}
-              {summary.itemsSalvaged === 1 ? 'item was' : 'items were'} salvaged for{' '}
+            <li className="return__overflow">
+              Pack full: {summary.itemsSalvaged} {summary.itemsSalvaged === 1 ? 'drop' : 'drops'}{' '}
+              found no room and {summary.itemsSalvaged === 1 ? 'was' : 'were'} salvaged for{' '}
               {formatNumber(summary.goldSalvaged)} gold ({formatNumber(lootGold)} gold from loot).
+              Make room or set a loot filter to keep the best ones.
             </li>
           ) : null}
           {summary.cappedMs > 0 ? (

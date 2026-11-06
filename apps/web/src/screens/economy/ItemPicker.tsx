@@ -7,6 +7,7 @@ import { routeHref } from '../../lib/route';
 /**
  * A multi-select grid of the pack's unequipped items (merchant sell, forge salvage). Quick picks
  * select every item up to a rarity. Equipped items never show: they can't be sold or salvaged.
+ * Locked items (ticket 3.7) show with their padlock but can't be picked.
  */
 export function ItemPicker({
   items,
@@ -27,7 +28,12 @@ export function ItemPicker({
     [items],
   );
   const upTo = (rarity: RarityId) =>
-    onChange(new Set(sorted.filter((i) => compareRarity(i.rarity, rarity) <= 0).map((i) => i.id)));
+    onChange(
+      new Set(
+        sorted.filter((i) => !i.locked && compareRarity(i.rarity, rarity) <= 0).map((i) => i.id),
+      ),
+    );
+  const locked = sorted.filter((i) => i.locked).length;
   const toggle = (id: string) => {
     const next = new Set(picked);
     if (next.has(id)) next.delete(id);
@@ -70,13 +76,20 @@ export function ItemPicker({
             <ItemFrame
               item={item}
               scale={2}
-              selected={picked.has(item.id)}
+              selected={picked.has(item.id) && !item.locked}
               onSelect={() => toggle(item.id)}
+              disabled={item.locked}
               context={`Level ${item.itemLevel}`}
             />
           </li>
         ))}
       </ul>
+      {locked > 0 ? (
+        <p className="picker__locked">
+          {locked} locked {locked === 1 ? 'item stays' : 'items stay'} out of this. Unlock in the
+          pack.
+        </p>
+      ) : null}
     </div>
   );
 }
