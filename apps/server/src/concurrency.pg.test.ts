@@ -1341,6 +1341,7 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
       creditedMs: number;
       gold: number;
       items: number;
+      itemsSalvaged: number;
       filtered?: { gold: number; items: { seed: number; rarityId: string }[] };
     };
     const rewardsOf = async (id: string) =>
@@ -1394,9 +1395,21 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
         .select({ seed: itemInstances.seed })
         .from(itemInstances)
         .where(eq(itemInstances.characterId, plain.id));
-      expect([...kept.map((k) => k.seed), ...filtered].sort()).toEqual(
-        twin.map((t) => t.seed).sort(),
+      // The twin's pack can fill up: drops that don't fit are salvaged for gold and leave no
+      // row, so compare drop counts in full and the seeds the twin kept (its earliest drops).
+      const overflowOf = (rs: RewardData[]) => rs.reduce((s, r) => s + r.itemsSalvaged, 0);
+      const twinRewards = await rewardsOf(plain.id);
+      expect(kept.length + filtered.length + overflowOf(rewards)).toBe(
+        twin.length + overflowOf(twinRewards),
       );
+      const racerSeeds = new Set([...kept.map((k) => k.seed), ...filtered]);
+      expect(new Set(racerSeeds).size).toBe(kept.length + filtered.length);
+      if (overflowOf(rewards) === 0) {
+        for (const t of twin) expect(racerSeeds.has(t.seed)).toBe(true);
+      }
+      if (overflowOf(twinRewards) === 0) {
+        expect([...racerSeeds].sort()).toEqual(twin.map((t) => t.seed).sort());
+      }
       expect(kept).toHaveLength(rewards.reduce((s, r) => s + r.items, 0));
       expect(await goldOf(racer.id)).toBe(rewards.reduce((s, r) => s + r.gold, 0));
     });
