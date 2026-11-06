@@ -113,6 +113,7 @@ React has the broadest ecosystem and hiring familiarity; the UI is panel- and li
 - Web client: static files on a CDN (any static host).
 - API: a single Node 22 process behind HTTPS (a container on a managed platform). Stateless apart from the database, so it can scale horizontally later.
 - Database: managed PostgreSQL with daily backups and point-in-time recovery.
+- **Self-hosted alternative (ticket D.1, the owner's current setup):** one VPS running `deploy/docker-compose.yml` behind a **Cloudflare Tunnel** (`cloudflared` dials out, Cloudflare terminates HTTPS, so the VPS publishes no web port and its IP is never in DNS): Caddy (serves the static client, reverse-proxies `/api`), one server container (`node dist/index.js`, non-root, production dependencies only) and PostgreSQL 16 on a named volume with no published port. Migrations run as a one-shot `migrate` service before the server starts. Backups are nightly `pg_dump` files (14 daily, 8 weekly) rather than point-in-time recovery. `TRUST_PROXY=1` is correct there because Caddy is the server's only client and sets `X-Forwarded-For` to the player's IP from Cloudflare's `CF-Connecting-IP` (which the edge overwrites), discarding anything a client sent. Guide: `docs/DEPLOY.md`.
 - Same-origin deployment (`/api` reverse-proxied next to the static client) is preferred to avoid CORS and keep cookies simple; development mirrors this with the Vite proxy.
 - Config via environment variables only (`PORT`, `HOST`, `LOG_LEVEL`, `DATABASE_URL`, `DATABASE_POOL_MAX`, `SESSION_TTL_HOURS`, `SESSION_COOKIE_SECURE`, `TRUST_PROXY`); secrets never committed. `pnpm dev` / `start` / `db:migrate` also read `apps/server/.env` if present (Node `--env-file-if-exists`).
 
@@ -123,6 +124,7 @@ Wraps the same web build in a native window with a small footprint (system webvi
 Layouts are responsive from Phase 0 (down to ~375px) with touch-sized targets. When store apps are needed, Capacitor wraps the same client with minimal native glue, keeping one codebase and the shared backend.
 
 ## Changes
+- 2026-11-06 — self-hosted production stack (`deploy/`: Docker Compose with a Cloudflare Tunnel, Caddy and PostgreSQL 16, deploy/backup/restore scripts, optional GitHub deploy over SSH; ticket D.1).
 - 2026-11-04 — real-PostgreSQL concurrency tests (`test:pg`, CI `migrations` job) and the browser exit-criteria run as CI job `e2e` (ticket 1.9).
 - 2026-11-04 — initial record (ticket 0.1).
 - 2026-11-04 — e2e test server on PGlite with a scaled farming clock (ticket 1.8).

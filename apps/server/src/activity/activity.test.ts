@@ -358,10 +358,13 @@ describe('settlement', () => {
     );
     advance(HOUR);
     const { summary } = (await settle(p, id)).json<SettleResponse>();
-    expect(summary.itemsGained).toBe(0);
+    // Ordinary drops are salvaged; valuable ones (ticket B.2: Legendary, Mythic, set, Void) are
+    // kept beyond capacity. Whether this hour rolls one depends on the activity's random seed.
+    const kept = summary.itemsOverCapacity ?? 0;
+    expect(summary.itemsGained).toBe(kept);
     expect(summary.itemsSalvaged).toBeGreaterThan(0);
     expect(summary.goldSalvaged).toBeGreaterThan(0);
-    expect(await inventoryCount(id)).toBe(capacity);
+    expect(await inventoryCount(id)).toBe(capacity + kept);
   });
 });
 

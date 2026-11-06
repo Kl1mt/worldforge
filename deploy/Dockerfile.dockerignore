@@ -1,0 +1,16 @@
+# Build context is the repo root; keep it small and free of secrets.
+.git
+**/node_modules
+**/dist
+**/coverage
+**/*.log
+**/.env
+**/.env.*
+!**/.env.example
+.playtest-data
+.telemetry-sample
+art
+docs
+tools
+deploy/backups
+deploy/.env

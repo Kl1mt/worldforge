@@ -30,6 +30,7 @@ Node 22 (`.nvmrc`), pnpm 10. Run from the repo root:
 - Single package: `pnpm --filter @worldforge/<game-core|server|web> <script>`.
 - Database: `pnpm db:up` (Docker Postgres), `pnpm db:migrate`, `pnpm db:generate` (new migration after editing `apps/server/src/db/schema.ts`). Server tests use in-memory PGlite (`createTestDatabase()`), no Docker needed. Real-Postgres concurrency tests: `DATABASE_URL=… pnpm --filter @worldforge/server test:pg` (skipped without `DATABASE_URL`; CI runs them).
 
+- Production: `deploy/` (Dockerfile, Compose with Cloudflare Tunnel + Caddy + PostgreSQL, `deploy.sh`/`backup.sh`/`restore.sh`/`admin.sh`), guide in `docs/DEPLOY.md`.
 - Telemetry: `pnpm report:telemetry` (balance report from the server-side rollups; `-- --help` for options, `docs/TELEMETRY.md`).
 
 Layout: `packages/game-core` (pure TS rules + content, no DOM/Node), `apps/server` (Fastify, `buildApp()`), `apps/web` (Vite + React).

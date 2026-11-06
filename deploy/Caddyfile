@@ -1,0 +1,74 @@
+# Worldforge origin behind a Cloudflare Tunnel (ticket D.1, docs/DEPLOY.md). Cloudflare terminates
+# HTTPS; `cloudflared` reaches this server over the internal Docker network, so Caddy speaks plain
+# HTTP, publishes no public port and never shows the VPS's IP. It serves the static client from
+# /srv and reverse-proxies /api to the single API instance (same origin: no CORS, and the session
+# cookie, HttpOnly, Secure, SameSite=Lax, Path=/api, just works).
+{
+	auto_https off
+	admin off
+	servers {
+		# Only containers (cloudflared) and the host itself can reach Caddy: no public port. Their
+		# private addresses are trusted, and the player's address comes from CF-Connecting-IP,
+		# which Cloudflare's edge always overwrites (a client cannot set it).
+		trusted_proxies static private_ranges
+		client_ip_headers CF-Connecting-IP
+	}
+}
+
+:80 {
+	encode zstd gzip
+
+	header {
+		# Players only ever see HTTPS (Cloudflare edge), so HSTS is correct here.
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+		-Server
+	}
+
+	@api path /api /api/*
+	handle @api {
+		# Never cache API responses unless the server says otherwise.
+		header ?Cache-Control "no-store"
+		reverse_proxy server:3000 {
+			# The server trusts exactly one value (TRUST_PROXY=1): the player's IP resolved above,
+			# never anything a client sent, so per-IP rate limits see each player.
+			header_up X-Forwarded-For {client_ip}
+			header_up X-Forwarded-Proto https
+			# Hold requests while the API container restarts during a deploy instead of
+			# answering 502 at once (minimal downtime with a single instance).
+			lb_try_duration 30s
+			lb_try_interval 250ms
+		}
+	}
+
+	handle {
+		root * /srv
+
+		# Vite's content-hashed bundles and fonts: cache forever.
+		@hashed path_regexp ^/assets/[^/]+-[A-Za-z0-9_-]{8}\.[a-z0-9]+$
+		header @hashed Cache-Control "public, max-age=31536000, immutable"
+		# Art copied from apps/web/public/assets keeps its file name between releases.
+		@art {
+			path /assets/*
+			not path_regexp ^/assets/[^/]+-[A-Za-z0-9_-]{8}\.[a-z0-9]+$
+		}
+		header @art Cache-Control "public, max-age=3600"
+		# index.html (and anything outside /assets): always revalidate, so a deploy shows at once.
+		@document not path /assets/*
+		header @document Cache-Control "no-cache"
+
+		# The client has no URL routes yet; unknown paths outside /assets get the app shell.
+		@shell {
+			not path /assets/*
+			not file
+		}
+		rewrite @shell /index.html
+		file_server
+	}
+}

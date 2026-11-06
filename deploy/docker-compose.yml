@@ -1,0 +1,179 @@
+# Worldforge production stack (ticket D.1, docs/DEPLOY.md). Run from this directory; the
+# variables come from deploy/.env (copy .env.example, never commit it).
+#   deploy/deploy.sh                 first start and every update (build, backup, migrate, restart,
+#                                    health check, rollback); `docker compose up -d` also works
+#   docker compose ps | logs -f      state and logs
+# Players reach the game only through the Cloudflare Tunnel (`cloudflared`), never this IP.
+name: worldforge
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: '5'
+
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?set POSTGRES_USER in deploy/.env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in deploy/.env}
+      POSTGRES_DB: ${POSTGRES_DB:?set POSTGRES_DB in deploy/.env}
+    # Sized for a 4 GB VPS shared with the API, Caddy and image builds (docs/DEPLOY.md).
+    command:
+      - postgres
+      - -c
+      - max_connections=40
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - effective_cache_size=1GB
+      - -c
+      - work_mem=8MB
+      - -c
+      - maintenance_work_mem=64MB
+      - -c
+      - random_page_cost=1.1
+      - -c
+      - effective_io_concurrency=200
+      - -c
+      - max_wal_size=1GB
+      - -c
+      - log_min_duration_statement=1000
+    shm_size: 256mb
+    mem_limit: 1g
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    # No `ports:` — the database is reachable only from the internal network.
+    networks: [backend]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    logging: *logging
+
+  # One-shot: applies pending migrations, then exits. The server never migrates on startup.
+  migrate:
+    image: worldforge-server:latest
+    pull_policy: never
+    command: ['node', 'dist/db/migrate-cli.js']
+    restart: 'no'
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in deploy/.env}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [backend]
+    logging: *logging
+
+  server:
+    image: worldforge-server:latest
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: server
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      HOST: 0.0.0.0
+      PORT: '3000'
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      DATABASE_URL: ${DATABASE_URL:?set DATABASE_URL in deploy/.env}
+      DATABASE_POOL_MAX: ${DATABASE_POOL_MAX:-10}
+      SESSION_TTL_HOURS: ${SESSION_TTL_HOURS:-720}
+      # Fixed for this stack: HTTPS only, and Caddy is the only client that can reach the server.
+      SESSION_COOKIE_SECURE: '1'
+      TRUST_PROXY: '1'
+      OFFLINE_CAP_SECONDS: ${OFFLINE_CAP_SECONDS:-10800}
+      SETTLE_INTERVAL_SECONDS: ${SETTLE_INTERVAL_SECONDS:-300}
+      NODE_OPTIONS: --max-old-space-size=512
+    depends_on:
+      db:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    mem_limit: 768m
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    networks: [backend, frontend]
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then(r => process.exit(r.ok ? 0 : 1), () => process.exit(1))"
+      interval: 15s
+      timeout: 4s
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
+    logging: *logging
+
+  web:
+    image: worldforge-web:latest
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      target: web
+    restart: unless-stopped
+    # Plain HTTP for cloudflared, plus the host's loopback only (health checks, an SSH port
+    # forward): no public port, so the VPS's IP serves nothing on 80/443 (DEPLOY.md §4).
+    ports:
+      - '127.0.0.1:${WEB_LOCAL_PORT:-8080}:80'
+    volumes:
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - server
+    mem_limit: 256m
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    networks: [frontend]
+    logging: *logging
+
+  # Cloudflare Tunnel: an outbound connection to Cloudflare that carries the players' traffic to
+  # `web`. DNS points at the tunnel, never at this server (DEPLOY.md §1). Enabled by
+  # COMPOSE_PROFILES=tunnel in deploy/.env; the route is configured in the Cloudflare dashboard
+  # (public hostname → http://web:80).
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles: [tunnel]
+    restart: unless-stopped
+    command: ['tunnel', '--no-autoupdate', 'run']
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+      TUNNEL_METRICS: 127.0.0.1:20241
+    depends_on:
+      - web
+    mem_limit: 128m
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    networks: [frontend]
+    healthcheck:
+      test: ['CMD', 'cloudflared', 'tunnel', '--metrics', '127.0.0.1:20241', 'ready']
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
+      start_interval: 2s
+    logging: *logging
+
+networks:
+  # No route to the internet: only the server and the one-shot jobs talk to the database.
+  backend:
+    internal: true
+  frontend: {}
+
+volumes:
+  db-data:
+  caddy-data:
+  caddy-config:
