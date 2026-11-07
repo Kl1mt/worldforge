@@ -1,5 +1,5 @@
 {
-  "id": "32badc14-64a3-4cd8-bcd8-04486a8c6992",
+  "id": "0c482f5c-f828-4c00-8379-63fb47b808ca",
   "prevId": "a2f113a6-f41a-4039-8659-e2e1ef4dae22",
   "version": "7",
   "dialect": "postgresql",
@@ -1147,13 +1147,6 @@
           "primaryKey": false,
           "notNull": false
         },
-        "warehouse_level": {
-          "name": "warehouse_level",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
         "version": {
           "name": "version",
           "type": "integer",
@@ -1238,10 +1231,6 @@
         "characters_gold_check": {
           "name": "characters_gold_check",
           "value": "\"characters\".\"gold\" >= 0"
-        },
-        "characters_warehouse_level_check": {
-          "name": "characters_warehouse_level_check",
-          "value": "\"characters\".\"warehouse_level\" >= 0"
         }
       },
       "isRLSEnabled": false
@@ -1843,6 +1832,576 @@
       "uniqueConstraints": {},
       "policies": {},
       "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.guild_boss_attempts": {
+      "name": "guild_boss_attempts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "account_id": {
+          "name": "account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "week": {
+          "name": "week",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "attempt_no": {
+          "name": "attempt_no",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "guild_id": {
+          "name": "guild_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "character_id": {
+          "name": "character_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "boss_id": {
+          "name": "boss_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "snapshot": {
+          "name": "snapshot",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "damage": {
+          "name": "damage",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "counted": {
+          "name": "counted",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "end": {
+          "name": "end",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "duration_ms": {
+          "name": "duration_ms",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "guild_boss_attempts_account_week_no_key": {
+          "name": "guild_boss_attempts_account_week_no_key",
+          "columns": [
+            {
+              "expression": "account_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "week",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "attempt_no",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "guild_boss_attempts_guild_week_idx": {
+          "name": "guild_boss_attempts_guild_week_idx",
+          "columns": [
+            {
+              "expression": "guild_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "week",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "guild_boss_attempts_account_id_accounts_id_fk": {
+          "name": "guild_boss_attempts_account_id_accounts_id_fk",
+          "tableFrom": "guild_boss_attempts",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "guild_boss_attempts_guild_id_guilds_id_fk": {
+          "name": "guild_boss_attempts_guild_id_guilds_id_fk",
+          "tableFrom": "guild_boss_attempts",
+          "tableTo": "guilds",
+          "columnsFrom": [
+            "guild_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "guild_boss_attempts_character_id_characters_id_fk": {
+          "name": "guild_boss_attempts_character_id_characters_id_fk",
+          "tableFrom": "guild_boss_attempts",
+          "tableTo": "characters",
+          "columnsFrom": [
+            "character_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "guild_boss_attempts_no_check": {
+          "name": "guild_boss_attempts_no_check",
+          "value": "\"guild_boss_attempts\".\"attempt_no\" >= 1"
+        },
+        "guild_boss_attempts_counted_check": {
+          "name": "guild_boss_attempts_counted_check",
+          "value": "\"guild_boss_attempts\".\"counted\" >= 0 and \"guild_boss_attempts\".\"counted\" <= \"guild_boss_attempts\".\"damage\""
+        },
+        "guild_boss_attempts_end_check": {
+          "name": "guild_boss_attempts_end_check",
+          "value": "\"guild_boss_attempts\".\"end\" in ('fell', 'endured')"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.guild_boss_rewards": {
+      "name": "guild_boss_rewards",
+      "schema": "",
+      "columns": {
+        "account_id": {
+          "name": "account_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "week": {
+          "name": "week",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stage": {
+          "name": "stage",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "guild_id": {
+          "name": "guild_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "boss_id": {
+          "name": "boss_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "gold": {
+          "name": "gold",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "materials": {
+          "name": "materials",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "earned_at": {
+          "name": "earned_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "claimed_at": {
+          "name": "claimed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "character_id": {
+          "name": "character_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "guild_boss_rewards_guild_week_idx": {
+          "name": "guild_boss_rewards_guild_week_idx",
+          "columns": [
+            {
+              "expression": "guild_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "week",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "guild_boss_rewards_account_id_accounts_id_fk": {
+          "name": "guild_boss_rewards_account_id_accounts_id_fk",
+          "tableFrom": "guild_boss_rewards",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "guild_boss_rewards_guild_id_guilds_id_fk": {
+          "name": "guild_boss_rewards_guild_id_guilds_id_fk",
+          "tableFrom": "guild_boss_rewards",
+          "tableTo": "guilds",
+          "columnsFrom": [
+            "guild_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "guild_boss_rewards_character_id_characters_id_fk": {
+          "name": "guild_boss_rewards_character_id_characters_id_fk",
+          "tableFrom": "guild_boss_rewards",
+          "tableTo": "characters",
+          "columnsFrom": [
+            "character_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "guild_boss_rewards_account_id_week_stage_pk": {
+          "name": "guild_boss_rewards_account_id_week_stage_pk",
+          "columns": [
+            "account_id",
+            "week",
+            "stage"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "guild_boss_rewards_status_check": {
+          "name": "guild_boss_rewards_status_check",
+          "value": "\"guild_boss_rewards\".\"status\" in ('pending', 'earned')"
+        },
+        "guild_boss_rewards_claim_check": {
+          "name": "guild_boss_rewards_claim_check",
+          "value": "\"guild_boss_rewards\".\"claimed_at\" is null or (\"guild_boss_rewards\".\"status\" = 'earned' and \"guild_boss_rewards\".\"earned_at\" is not null)"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.guild_boss_stages": {
+      "name": "guild_boss_stages",
+      "schema": "",
+      "columns": {
+        "guild_id": {
+          "name": "guild_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "week": {
+          "name": "week",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "stage": {
+          "name": "stage",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "reached_at": {
+          "name": "reached_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "attempt_id": {
+          "name": "attempt_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "guild_boss_stages_guild_id_guilds_id_fk": {
+          "name": "guild_boss_stages_guild_id_guilds_id_fk",
+          "tableFrom": "guild_boss_stages",
+          "tableTo": "guilds",
+          "columnsFrom": [
+            "guild_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "guild_boss_stages_attempt_id_guild_boss_attempts_id_fk": {
+          "name": "guild_boss_stages_attempt_id_guild_boss_attempts_id_fk",
+          "tableFrom": "guild_boss_stages",
+          "tableTo": "guild_boss_attempts",
+          "columnsFrom": [
+            "attempt_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "guild_boss_stages_guild_id_week_stage_pk": {
+          "name": "guild_boss_stages_guild_id_week_stage_pk",
+          "columns": [
+            "guild_id",
+            "week",
+            "stage"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.guild_boss_streams": {
+      "name": "guild_boss_streams",
+      "schema": "",
+      "columns": {
+        "account_id": {
+          "name": "account_id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "seed_secret": {
+          "name": "seed_secret",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "guild_boss_streams_account_id_accounts_id_fk": {
+          "name": "guild_boss_streams_account_id_accounts_id_fk",
+          "tableFrom": "guild_boss_streams",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.guild_boss_weeks": {
+      "name": "guild_boss_weeks",
+      "schema": "",
+      "columns": {
+        "guild_id": {
+          "name": "guild_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "week": {
+          "name": "week",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "boss_id": {
+          "name": "boss_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "total": {
+          "name": "total",
+          "type": "bigint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "attempts": {
+          "name": "attempts",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "stage": {
+          "name": "stage",
+          "type": "smallint",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "guild_boss_weeks_guild_id_guilds_id_fk": {
+          "name": "guild_boss_weeks_guild_id_guilds_id_fk",
+          "tableFrom": "guild_boss_weeks",
+          "tableTo": "guilds",
+          "columnsFrom": [
+            "guild_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "guild_boss_weeks_guild_id_week_pk": {
+          "name": "guild_boss_weeks_guild_id_week_pk",
+          "columns": [
+            "guild_id",
+            "week"
+          ]
+        }
+      },
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "guild_boss_weeks_total_check": {
+          "name": "guild_boss_weeks_total_check",
+          "value": "\"guild_boss_weeks\".\"total\" >= 0"
+        }
+      },
       "isRLSEnabled": false
     },
     "public.guild_invites": {
@@ -2676,13 +3235,6 @@
           "notNull": true,
           "default": false
         },
-        "in_warehouse": {
-          "name": "in_warehouse",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -2768,10 +3320,6 @@
         "item_instances_effect_roll_check": {
           "name": "item_instances_effect_roll_check",
           "value": "\"item_instances\".\"effect_roll\" is null or (\"item_instances\".\"effect_roll\" >= 0 and \"item_instances\".\"effect_roll\" <= 1)"
-        },
-        "item_instances_warehouse_check": {
-          "name": "item_instances_warehouse_check",
-          "value": "not \"item_instances\".\"in_warehouse\" or \"item_instances\".\"equipped_slot\" is null"
         }
       },
       "isRLSEnabled": false

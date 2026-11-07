@@ -12,6 +12,7 @@ import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { and, eq, inArray, like, sql } from 'drizzle-orm';
 import {
+  GUILD_BOSS_ATTEMPTS_PER_WEEK,
   GUILD_CREATE_COST,
   MATERIAL_IDS,
   RARITY_IDS,
@@ -516,6 +517,11 @@ export async function expectHoldingsMatchAudit(database: DatabaseHandle, charact
       case 'guild.create':
         gold -= d.gold!;
         break;
+      // Ticket 4.9: guild boss stage rewards are paid to the hero chosen at the claim.
+      case 'guild_boss.claim':
+        gold += d.gold!;
+        addMaterials(d.materials);
+        break;
       // Ticket 4.6: contributions to a community project spend gold and materials.
       case 'community.contribute':
         gold -= d.gold!;
@@ -554,10 +560,16 @@ async function newPlayer(app: FastifyInstance, email: string, displayName: strin
   expect(reg.statusCode, reg.body).toBe(201);
   const token = reg.cookies.find((c) => c.name === SESSION_COOKIE)!.value;
   const { account } = reg.json<{ account: { id: string; handle: string; displayName: string } }>();
-  const api = (method: Method, url: string, payload?: object) =>
+  const api = (
+    method: Method,
+    url: string,
+    payload?: object,
+    headers: Record<string, string> = {},
+  ) =>
     app.inject({
       method,
       url,
+      headers,
       ...(payload ? { payload } : {}),
       cookies: { [SESSION_COOKIE]: token },
     });
@@ -1043,6 +1055,114 @@ export async function playGuildChatStep(
       ),
     );
   expect(events.map((e) => e.event).sort()).toEqual(['guild.chat_remove', 'guild.notice']);
+}
+
+/**
+ * Phase 4 guild boss step (ticket 4.9), after `playGuildStep`: the hero (farmed to the boss's
+ * minimum level if needed) spends the week's attempts on the guild boss: a retried attempt replays
+ * without spending another, the fourth is refused, the board and the guild's total add up, and
+ * the companion's untrained hero is turned away. The recruit who left the guild cannot fight for
+ * it; a stranger sees only their own (empty) side. On Monday (UTC) the attempts are back and the
+ * total starts over. Holdings and telemetry reconcile with the audit log.
+ */
+export async function playGuildBossStep(
+  database: DatabaseHandle,
+  hero: Journey,
+  clock: Clock,
+  { guildHandle, companion, recruit }: Awaited<ReturnType<typeof playGuildStep>>,
+) {
+  type State = {
+    week: { key: string; endsAt: string };
+    boss: { name: string; minLevel: number; attemptDamageCap: number };
+    me: { attemptsUsed: number; attemptsLeft: number; rewards: unknown[] };
+    guild: {
+      handle: string;
+      total: number;
+      attempts: number;
+      board: { you: boolean; damage: number; attempts: number }[];
+    } | null;
+  };
+  const state = async (who: { api: Journey['api'] }) => {
+    const res = await who.api('GET', '/api/guild/boss');
+    expect(res.statusCode, res.body).toBe(200);
+    return res.json<State>();
+  };
+  const first = await state(hero);
+  expect(first.guild!.handle).toBe(guildHandle);
+  for (let i = 0; i < 60 && hero.state.level < first.boss.minLevel; i++) {
+    await hero.settle();
+    await hero.equipBetterDrops();
+    await hero.farmBestArea();
+  }
+  expect(hero.state.level).toBeGreaterThanOrEqual(first.boss.minLevel);
+
+  const fight = (key = randomUUID()) =>
+    hero.keyed('/api/guild/boss/attempts', { characterId: hero.characterId }, key);
+  const key = randomUUID();
+  const opened = await fight(key);
+  expect(opened.statusCode, opened.body).toBe(201);
+  const replay = await fight(key);
+  expect(replay.headers['idempotency-replayed']).toBe('true');
+  expect(replay.json<{ attempt: unknown }>().attempt).toEqual(
+    opened.json<{ attempt: unknown }>().attempt,
+  );
+  let counted = opened.json<{ attempt: { counted: number } }>().attempt.counted;
+  for (let n = 2; n <= GUILD_BOSS_ATTEMPTS_PER_WEEK; n++) {
+    const res = await fight();
+    expect(res.statusCode, res.body).toBe(201);
+    counted += res.json<{ attempt: { counted: number } }>().attempt.counted;
+  }
+  expect((await fight()).json<{ error: { code: string } }>().error.code).toBe('no_attempts_left');
+  const after = await state(hero);
+  expect(after.me).toMatchObject({ attemptsUsed: GUILD_BOSS_ATTEMPTS_PER_WEEK, attemptsLeft: 0 });
+  expect(after.guild).toMatchObject({ total: counted, attempts: GUILD_BOSS_ATTEMPTS_PER_WEEK });
+  expect(after.guild!.board).toEqual([
+    expect.objectContaining({ you: true, damage: counted, attempts: GUILD_BOSS_ATTEMPTS_PER_WEEK }),
+  ]);
+
+  // The companion's fresh hero is not ready; the recruit who left has no guild to fight for.
+  const companionHero = await companion.api('POST', '/api/characters', {
+    name: 'Wrenna',
+    classId: 'hunter',
+    appearance: { banner: 'ash' },
+  });
+  expect(companionHero.statusCode, companionHero.body).toBe(201);
+  const companionHeroId = companionHero.json<{ character: { id: string } }>().character.id;
+  const refused = await companion.api(
+    'POST',
+    '/api/guild/boss/attempts',
+    { characterId: companionHeroId },
+    { 'idempotency-key': randomUUID() },
+  );
+  expect(refused.json<{ error: { code: string } }>().error.code).toBe('hero_too_low');
+  const outside = await state(recruit);
+  expect(outside.guild).toBeNull();
+  expect(outside.me.attemptsUsed).toBe(0);
+
+  // Monday 00:00 UTC: a new week, new attempts, a fresh total; nothing was earned to claim.
+  clock.set(Date.parse(after.week.endsAt));
+  const next = await state(hero);
+  expect(next.week.key).not.toBe(after.week.key);
+  expect(next.me).toMatchObject({ attemptsUsed: 0, attemptsLeft: GUILD_BOSS_ATTEMPTS_PER_WEEK });
+  expect(next.guild).toMatchObject({ total: 0, attempts: 0, board: [] });
+  const claim = await hero.keyed('/api/guild/boss/claim', { characterId: hero.characterId });
+  expect(claim.json<{ error: { code: string } }>().error.code).toBe('nothing_to_claim');
+
+  const { row } = await expectHoldingsMatchAudit(database, hero.characterId);
+  expect(row.level).toBeGreaterThanOrEqual(first.boss.minLevel);
+  const checks = (await reconcileWithAudit(database.db)).filter((c) =>
+    c.check.startsWith('guild boss:'),
+  );
+  expect(checks.length).toBe(5);
+  for (const c of checks) expect(c, c.check).toMatchObject({ ok: true });
+  const audited = await database.db
+    .select({ event: auditLog.event })
+    .from(auditLog)
+    .where(and(eq(auditLog.characterId, hero.characterId), like(auditLog.event, 'guild_boss.%')));
+  expect(audited.map((a) => a.event)).toEqual(
+    Array.from({ length: GUILD_BOSS_ATTEMPTS_PER_WEEK }, () => 'guild_boss.attempt'),
+  );
+  return { counted };
 }
 
 /**

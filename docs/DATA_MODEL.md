@@ -83,7 +83,7 @@ Written only by `pnpm admin:invite` (create, revoke) and by registration in `REG
 | gold           | bigint      | default 0, `CHECK (>= 0)`                        |
 | farm_state     | jsonb?      | `{ seedSecret, cycleIndex, health, areaId? }` saved when the character's activity ends and restored when it starts again (ticket 1.9), so stop → start neither heals nor re-rolls. `areaId` (ticket 2.2) is the area of a cycle left unfinished by the stop; the next start replays that cycle there before travelling on. Never sent to clients |
 | progress       | jsonb       | game-core `WorldProgress`, default `{"gravewardenDefeated": false}` (ticket 2.2). Unlock facts besides the level; written only by the server (the Gravewarden kill arrives with ticket 2.5). Ticket 3.6 adds `cryptTierCleared` (the deepest crypt tier cleared; absent before it, and a Gravewarden kill counts as tier I) |
-| warehouse_level | integer    | 4.7 (migration `0023_warehouse`). Warehouse upgrades bought, default 0, `CHECK (>= 0)`; capacity is game-core `warehouseCapacity(level)`. Written only by `POST …/warehouse/upgrade` under the character lock |
+| warehouse_level | integer    | 4.7 (migration `0024_warehouse`). Warehouse upgrades bought, default 0, `CHECK (>= 0)`; capacity is game-core `warehouseCapacity(level)`. Written only by `POST …/warehouse/upgrade` under the character lock |
 | loot_filter    | jsonb?      | game-core `LootFilterRules` (ticket 3.7, migration `0014_loot_filter`); null = no filter. Written only by `POST …/loot-filter` (validated, after settling with the old rules); read under the character lock by settlement and the crypt claim (`docs/LOOT.md` "Loot filter"). Stamps no game time |
 | version        | integer     | default 0; optimistic concurrency counter for later value-changing writes |
 | created_at / updated_at | timestamptz | default `now()`                         |
@@ -128,7 +128,7 @@ One owned item, created from a game-core `GeneratedItem`. Location is a column, 
 | set_id        | text?       | 3.1 (3.3). Set id of a set piece                                   |
 | mythic_id     | text?       | 3.1 (3.2). Named Mythic item id                                    |
 | locked        | boolean     | 3.1 (3.7). Locked items can't be sold, salvaged or discarded; default false |
-| in_warehouse  | boolean     | 4.7 (migration `0023_warehouse`). In the character's warehouse, not the pack; default false. Check `item_instances_warehouse_check`: never equipped while stored. Stored items take no pack slot and are out of reach of sell, salvage, discard, the forge, the loot filter and placement until moved back (`docs/WAREHOUSE.md`) |
+| in_warehouse  | boolean     | 4.7 (migration `0024_warehouse`). In the character's warehouse, not the pack; default false. Check `item_instances_warehouse_check`: never equipped while stored. Stored items take no pack slot and are out of reach of sell, salvage, discard, the forge, the loot filter and placement until moved back (`docs/WAREHOUSE.md`) |
 
 Indexes: `(character_id)`; partial unique `(character_id, equipped_slot) where equipped_slot is not null`. Checks: `item_level >= 1`, `upgrade_level` 0–10, the three counters `>= 0`, `variant`, `effect_roll`.
 
@@ -387,6 +387,19 @@ No leader column: the leader is the guild's one `guild_members` row with role `l
 
 Readable: the newest 500 lines of a guild and none older than 30 days (`GUILD_CHAT_LIMITS`); older rows stay stored, unserved. A moderator's `hide` is a sanction on the key, not a column.
 
+### guild_boss_streams, guild_boss_attempts, guild_boss_weeks, guild_boss_stages, guild_boss_rewards — implemented (4.9)
+Rules: `docs/GUILD_BOSS.md`. All additive; `week` is a `date`, the Monday (UTC) the week starts on, stored with each row (the window).
+
+| Table | Columns | Notes |
+| --- | --- | --- |
+| guild_boss_streams | account_id PK FK (`CASCADE`), seed_secret, created_at | one server-only secret per account, created on its first attempt; never sent |
+| guild_boss_attempts | id PK, account_id? FK (`SET NULL`: damage stays), week, attempt_no, guild_id FK, character_id? FK (`SET NULL`), boss_id, snapshot jsonb (crypt snapshot shape), damage, counted, end (`fell`/`endured`), duration_ms, created_at | unique `(account_id, week, attempt_no)` (attempts per account, not per guild); index `(guild_id, week)`; checks `attempt_no ≥ 1`, `0 ≤ counted ≤ damage` |
+| guild_boss_weeks | PK `(guild_id, week)`, boss_id, total bigint, attempts, stage, updated_at | the shared counter, written in the attempt's transaction under the guild lock |
+| guild_boss_stages | PK `(guild_id, week, stage)`, reached_at, attempt_id FK | when a stage was reached and by which attempt |
+| guild_boss_rewards | PK `(account_id, week, stage)`, guild_id, boss_id, status (`pending`/`earned`), gold, materials jsonb, earned_at?, claimed_at?, character_id? (`SET NULL`), created_at | one per account, week and stage whatever the guild; `claimed_at` only on `earned` rows (check) |
+
+`latestStoredTimeMs` includes `guild_boss_attempts.created_at` and the reward rows' times.
+
 ### community_projects, community_project_progress, community_contributions, world_flags — implemented (4.6)
 `docs/COMMUNITY.md`. Definitions are game-core data; these hold state only.
 - `community_projects (project_id text PK, stage_index int ≥ 0, completed_at timestamptz?, updated_at timestamptz)`: one row per touched project, created by its first contribution. `stage_index` is the stage being filled (the number of stages once complete). **The lock:** every contribution and completion selects it `for update`. Times are the game clock.
@@ -413,6 +426,7 @@ account 1─* account_achievements (≤ 1 per achievement); account 0..1─1 sho
 account *─* account via friendships (one row per pair) and blocks (directional); account 1─0..1 account_presence
 account 1─0..1 guild_members *─1 guild 1─* guild_invites, guild_applications
 guild 1─* guild_messages *─0..1 account (author); guild 0..1─1 guild_messages (the notice)
+guild 1─* guild_boss_weeks, guild_boss_stages, guild_boss_attempts *─0..1 account; account 1─* guild_boss_rewards; account 1─0..1 guild_boss_streams
 account 1─* community_contributions *─1 community_projects 1─* community_project_progress
 character 1─* merchant_purchases
 ```

@@ -12,6 +12,9 @@ import { queryRows } from '../db/query.js';
  * "in progress" until real time caught up with its end (days with `--fast`).
  *
  * Ticket 3.8: telemetry rollups stamp the game day (its start, UTC, is a safe lower bound).
+ * Ticket 4.9: guild boss attempts and rewards stamp the game clock (the week of an attempt is
+ * derived from it); `guild_boss_weeks.updated_at` and `guild_boss_stages.reached_at` equal an
+ * attempt's `created_at`.
  * Ticket 4.6: community projects (last change), contribution windows and world flags.
  */
 export async function latestStoredTimeMs(db: Database): Promise<number | null> {
@@ -26,6 +29,9 @@ export async function latestStoredTimeMs(db: Database): Promise<number | null> {
       (select max(created_at) from item_instances),
       (select max(created_at) from idempotency_keys),
       (select max(day)::timestamp at time zone 'UTC' from telemetry_daily),
+      (select max(created_at) from guild_boss_attempts),
+      (select max(greatest(earned_at, claimed_at, created_at)) from guild_boss_rewards)
+,
       (select max(updated_at) from community_projects),
       (select max(day)::timestamp at time zone 'UTC' from community_contributions),
       (select max(set_at) from world_flags)

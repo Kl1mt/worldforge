@@ -1,0 +1,432 @@
+/* ── The weekly guild boss (ticket 4.9): a siege plate in the Guild Hall. The boss stands in a
+   dark stone niche with a crimson under-light; the guild's damage climbs an iron siege-chain of five
+   wax siege-seals (crimson once broken); the hero is sent from a small iron form with three attempt
+   diamonds; the blow-by-blow is a sunken slip with a brass edge; the damage siege-board is the ledger;
+   earned siege-spoils wait on a parchment-dark slip with the coin and material sockets. ── */
+.siege {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-5);
+}
+
+.siege__head {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: end;
+}
+
+.siege__niche {
+  display: grid;
+  place-items: end center;
+  width: 152px;
+  height: 152px;
+  border-radius: 76px 76px 4px 4px;
+  background:
+    radial-gradient(ellipse at 50% 100%, rgb(143 55 52 / 0.45), transparent 62%),
+    linear-gradient(var(--ink-950), var(--ink-900));
+  box-shadow:
+    inset 0 0 0 2px var(--iron-700),
+    inset 0 0 0 4px var(--ink-950),
+    inset 0 -18px 30px rgb(0 0 0 / 0.6);
+  overflow: hidden;
+}
+
+.siege__missing {
+  padding: var(--space-4);
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.siege__intro {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.siege__where {
+  margin: 0;
+  color: var(--crimson-400);
+}
+
+.siege__title {
+  margin: 0;
+  font-size: 1.9rem;
+  color: var(--accent-strong);
+}
+
+.siege__text {
+  margin: 0;
+  font-style: italic;
+  color: var(--text-dim);
+}
+
+.siege__fine {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--text-dim);
+}
+
+.siege__empty {
+  margin: 0;
+  color: var(--text-dim);
+}
+
+/* The siege-chain of stages. */
+.siege__track {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.siege__tally {
+  margin: 0;
+}
+
+.siege__total {
+  font-size: 1.5rem;
+  color: var(--accent-strong);
+}
+
+.siege-chain {
+  position: relative;
+  height: 12px;
+  background:
+    repeating-linear-gradient(90deg, var(--iron-700) 0 10px, var(--iron-800) 10px 14px),
+    var(--ink-950);
+  box-shadow:
+    0 0 0 1px var(--outline-dark, #000),
+    inset 0 0 0 1px var(--iron-600);
+}
+
+.siege-chain__fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: linear-gradient(90deg, var(--crimson-700), var(--crimson-400));
+  box-shadow: inset 0 -3px 0 rgb(0 0 0 / 0.3);
+  transition: width 400ms ease-out;
+}
+
+.siege-seals {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.siege-seals__seal {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  text-align: center;
+  color: var(--text-dim);
+}
+
+.siege-seals__mark {
+  width: 22px;
+  height: 22px;
+  transform: rotate(45deg);
+  background: var(--iron-700);
+  box-shadow:
+    0 0 0 1px var(--ink-950),
+    inset 0 0 0 2px var(--iron-600);
+}
+
+.siege-seals__seal--broken {
+  color: var(--text);
+}
+
+.siege-seals__seal--broken .siege-seals__mark {
+  background: var(--crimson-500);
+  box-shadow:
+    0 0 0 1px var(--ink-950),
+    inset 0 0 0 2px var(--brass-500);
+}
+
+.siege-seals__name {
+  font-family: var(--font-display);
+  font-size: 1.05rem;
+}
+
+.siege-seals__need {
+  font-size: 0.85rem;
+}
+
+.siege-seals__reward {
+  font-size: 0.85rem;
+}
+
+/* Fight plate and siege-board side by side. */
+.siege__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.siege__left {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.siege__fight {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.siege__fight .rule-heading,
+.siege__board .rule-heading,
+.siege-spoils .rule-heading {
+  margin: 0;
+  font-size: 1.2rem;
+}
+
+.siege-pips {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.siege-pips__pip {
+  width: 14px;
+  height: 14px;
+  transform: rotate(45deg);
+  background: var(--brass-400);
+  box-shadow: 0 0 0 1px var(--ink-950);
+}
+
+.siege-pips__pip--spent {
+  background: var(--iron-700);
+  box-shadow:
+    0 0 0 1px var(--ink-950),
+    inset 0 0 0 2px var(--iron-600);
+}
+
+.siege-pips__text {
+  margin-left: var(--space-2);
+  color: var(--text-dim);
+}
+
+.siege__mine {
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--text-dim);
+}
+
+.siege__send {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+
+.siege__send .field {
+  width: 100%;
+}
+
+.siege__strip {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--brass-400);
+  background: rgb(199 161 94 / 0.1);
+}
+
+.siege__strip--crimson {
+  border-left-color: var(--crimson-400);
+  background: rgb(63 23 31 / 0.55);
+}
+
+.siege__strip--moss {
+  border-left-color: var(--moss-400);
+  background: rgb(96 102 82 / 0.18);
+}
+
+/* The blow-by-blow of the last attempt. */
+.siege-blow {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  border-left: 3px solid var(--brass-400);
+  background:
+    var(--texture-grain), linear-gradient(90deg, rgb(199 161 94 / 0.12), transparent 60%),
+    var(--bg-sunken);
+}
+
+.siege-blow__where,
+.siege-blow__line,
+.siege-blow__stage {
+  margin: 0;
+}
+
+.siege-blow__damage {
+  font-size: 1.6rem;
+  color: var(--accent-strong);
+}
+
+.siege-blow__facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-5);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  color: var(--text-dim);
+}
+
+.siege-blow__facts li::before {
+  content: '◆ ';
+  color: var(--brass-500);
+}
+
+.siege-blow__stage {
+  color: var(--crimson-400);
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+}
+
+/* The guild-only damage siege-board. */
+.siege__board {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.siege-board {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.siege-board__row {
+  display: grid;
+  grid-template-columns: 2ch minmax(0, 1fr) auto 4ch;
+  gap: var(--space-3);
+  align-items: baseline;
+  min-height: 28px;
+}
+
+.siege-board__row--you {
+  color: var(--accent-strong);
+}
+
+.siege-board__rank {
+  color: var(--text-dim);
+  text-align: right;
+}
+
+.siege-board__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.siege-board__damage {
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.siege-board__tries {
+  color: var(--brass-500);
+  font-size: 0.7rem;
+  letter-spacing: 0.1em;
+}
+
+/* Spoils waiting to be claimed. */
+.siege-spoils {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-top: 2px solid var(--brass-700);
+  background: var(--texture-grain), rgb(63 23 31 / 0.25);
+}
+
+.siege-spoils__list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.siege-spoils__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+}
+
+.siege-spoils__what {
+  font-family: var(--font-display);
+}
+
+.siege-spoils__guild {
+  color: var(--text-dim);
+}
+
+.siege-spoils__sum {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.siege-spoils__claim {
+  display: grid;
+  grid-template-columns: minmax(0, 16rem) auto;
+  justify-content: start;
+  gap: var(--space-3);
+  align-items: end;
+}
+
+.siege-spoils__claim .field {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .siege {
+    padding: var(--space-4);
+  }
+
+  .siege__head {
+    grid-template-columns: minmax(0, 1fr);
+    justify-items: start;
+  }
+
+  .siege__niche {
+    width: 136px;
+    height: 136px;
+  }
+
+  .siege__title {
+    font-size: 1.5rem;
+  }
+
+  .siege__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .siege-seals {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: var(--space-1);
+  }
+
+  .siege-seals__name {
+    font-size: 0.8rem;
+  }
+
+  .siege-seals__need,
+  .siege-seals__reward {
+    font-size: 0.75rem;
+  }
+
+  .siege__send .btn,
+  .siege-spoils__claim .btn {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  .siege-spoils__claim {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
