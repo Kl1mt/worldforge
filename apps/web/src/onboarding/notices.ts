@@ -15,7 +15,7 @@ import { questTitle } from '../quests/text';
 export interface Notice {
   /** Stable per event, so the same notice is never shown twice. */
   id: string;
-  kind: 'release' | 'level' | 'unlock' | 'quest' | 'world';
+  kind: 'reload' | 'release' | 'level' | 'unlock' | 'quest' | 'world';
   title: string;
   text: string;
   /** Where to go about it. */
@@ -26,14 +26,16 @@ export interface Notice {
 /**
  * Render order, least important first. Phones show only the last slip (onboarding.css), so a
  * quest completing in the same update as a level-up must not be hidden behind it. Ticket F.3:
- * "New in v…" (release) gives way to everything about the hero's own progress.
+ * "New in v…" (release) gives way to everything about the hero's own progress. Ticket F.4: the
+ * reload hint is quieter still; it stays until answered, so it waits behind every other slip.
  */
 const KIND_RANK: Record<Notice['kind'], number> = {
-  release: 0,
-  level: 1,
-  unlock: 2,
-  quest: 3,
-  world: 4,
+  reload: 0,
+  release: 1,
+  level: 2,
+  unlock: 3,
+  quest: 4,
+  world: 5,
 };
 
 /** Notices in render order: by importance, then by arrival (`sort` is stable). */

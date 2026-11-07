@@ -23,9 +23,21 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.5.2';
+export const GAME_VERSION = '0.5.3';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.5.3',
+    date: '2026-11-07',
+    title: 'Word from the gate',
+    new: [
+      'When Graumark changes while you play, a quiet notice tells you the new version is out and offers to reload. Choose Later and it will not ask again for that version.',
+    ],
+    fixed: [
+      'If part of the game fails to load after a change in Graumark, you now get a way to reload instead of an empty screen.',
+    ],
+    tickets: ['F.4'],
+  },
   {
     version: '0.5.2',
     date: '2026-11-07',

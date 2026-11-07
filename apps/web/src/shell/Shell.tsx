@@ -13,6 +13,7 @@ import { useOnboarding } from '../onboarding/OnboardingProvider';
 import { HealthLine } from './HealthLine';
 import { versionLabel } from '../notes/unread';
 import '../notes/notes.css';
+import { ReloadBoundary } from '../notes/ReloadBoundary';
 import { useLogout } from './useLogout';
 import { useStanding } from '../social/useStanding';
 import { describeSanction } from '../social/api';
@@ -172,7 +173,10 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
             ))
           : null}
         <FirstSteps route={route} />
-        {children}
+        {/* Ticket F.4: a screen that fails to load shows a reload panel, not a blank page. */}
+        <ReloadBoundary key={route} town>
+          {children}
+        </ReloadBoundary>
       </main>
 
       <footer className="statusbar">

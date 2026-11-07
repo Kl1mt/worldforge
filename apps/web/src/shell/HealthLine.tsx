@@ -1,17 +1,11 @@
-import { useEffect, useState } from 'react';
-import { fetchHealth, type HealthState } from '../health';
+import { useHealthPoll } from './healthPoll';
 
-/** Server connection line: covers the loading, success and error states. */
+/**
+ * Server connection line: covers the loading, success and error states. Ticket F.4: it reads
+ * the shared health poll, which also carries the server's version for the reload hint.
+ */
 export function HealthLine() {
-  const [state, setState] = useState<HealthState>({ kind: 'loading' });
-
-  useEffect(() => {
-    const controller = new AbortController();
-    fetchHealth(fetch, controller.signal).then(setState, () => {
-      /* aborted on unmount */
-    });
-    return () => controller.abort();
-  }, []);
+  const { health: state } = useHealthPoll();
 
   switch (state.kind) {
     case 'loading':

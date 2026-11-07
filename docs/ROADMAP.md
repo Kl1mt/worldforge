@@ -645,6 +645,14 @@ Owner request: patch notes and version numbers in-game for every new thing.
 - Process: the patch notes rule and its collision rule in `CLAUDE.md`, `docs/DEVELOPMENT.md` "Versions and patch notes"; game-core tests enforce valid, unique, increasing versions, ordered dates, the current version, non-empty releases and player language.
 - Tests: game-core ordering, `/api/health` version, route, unread logic, the screen's markup; screenshots `docs/screenshots/phase-5/notes-*`. No gameplay changes.
 
+### F.4 New-version reload hint — `done (PR #TBD)`
+Owner request: a tab kept open through a deploy notices that a newer version is live and offers a reload.
+- One shared, light poll of `GET /api/health` (`shell/healthPoll.ts`): every 5 minutes while the tab is visible and once when it comes back after at least a minute; the status line ("Server online") and the version check read it, so there is no extra request. Before, the health line checked only once per page.
+- game-core `isNewerVersion`: strictly newer only; equal, older, missing or malformed versions never prompt.
+- A quiet herald slip ("Graumark has changed: v… is out. Reload to join it.") with Reload and Later; Later is kept per version in localStorage (no migration), the next version asks again. It never fades, takes no focus and never reloads by itself, ranks below every other notice in `orderNotices` and waits for the first-steps guide like "New in v…". After the reload, F.3's "New in v…" takes over.
+- Failed loads after a deploy: Vite's `vite:preloadError` or an unhandled chunk-load rejection brings the slip back (whatever Later said); a screen that throws while rendering shows an in-world reload panel (`ReloadBoundary`, keyed by route inside the shell, plus one around the whole app) instead of a blank page. The web still ships as one bundle, so today this guards future lazy screens and late assets.
+- Tests: the comparison, the offer (newer only, Later per version, guide), the poll with an injected clock, timers and fetch, the chunk-error watcher and the boundary's panel; screenshots `docs/screenshots/phase-5/reload-hint-*` (`node tools/screenshots/reload.mjs`, local server only). No server or gameplay changes.
+
 ## Phase 5 — Leaderboards, competitive systems & trading
 GDD §15 Phase 5, §10.2, §10.3, §16.3, §16.4; trading per `docs/TRADING.md` (owner decision: built at the end of this phase). **Exit:** leaderboard values are reproducible and server-authoritative; PvP matches are understandable, reasonably fair, and do not damage core PvE progression; trading (if switched on) creates and destroys no value, and every trade is auditable and reversible within its window.
 

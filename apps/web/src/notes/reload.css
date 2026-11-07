@@ -1,0 +1,34 @@
+/* Ticket F.4: the reload panel, shown in place of a screen that failed to load. Scoped names. */
+.reload-panel {
+  max-width: 560px;
+  margin: var(--space-8) auto;
+  border-left: 3px solid var(--bone-300);
+}
+
+.reload-panel__kind {
+  margin: 0;
+  color: var(--text-dim);
+}
+
+.reload-panel__title {
+  margin: var(--space-1) 0 0;
+  font-size: var(--text-2xl);
+  line-height: 1.15;
+}
+
+.reload-panel__text {
+  margin: var(--space-3) 0 0;
+  color: var(--text-dim);
+}
+
+.reload-panel__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-4);
+  margin: var(--space-5) 0 0;
+}
+
+.reload-panel__town {
+  color: var(--accent-strong);
+}

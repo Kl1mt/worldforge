@@ -21,6 +21,15 @@ import { levelNotice, questNotices, unlockNotices, worldNotices, type Notice } f
 import { useWorldView } from '../community/api';
 import { browserStore, newIds, questKeys, readSeen, seenKey, writeSeen } from './seen';
 import { notesSeenKey, notesUnread, releaseNotice, releaseNoticeId } from '../notes/unread';
+import {
+  isReloadNoticeId,
+  readReloadLater,
+  reloadNotice,
+  reloadOffer,
+  writeReloadLater,
+} from '../notes/update';
+import { watchChunkErrors } from '../notes/chunks';
+import { useHealthPoll } from '../shell/healthPoll';
 
 /** How long a notice stays before it fades on its own. */
 export const NOTICE_MS = 8_000;
@@ -91,9 +100,23 @@ export function OnboardingProvider({ route, children }: { route: GameRoute; chil
     for (const n of unseen) shown.current.add(n.id);
     setNotices((list) => [...list, ...unseen].slice(-MAX_NOTICES));
   }, []);
+  // Ticket F.4: the reload hint's "Later" (kept for that version) and a failed load this visit.
+  const [reloadLater, setReloadLater] = useState(() => readReloadLater(store));
+  const [chunkFailed, setChunkFailed] = useState(false);
   const dismissNotice = useCallback(
-    (id: string) => setNotices((list) => list.filter((n) => n.id !== id)),
-    [],
+    (id: string) => {
+      if (isReloadNoticeId(id)) {
+        const version = id.slice('reload:'.length);
+        setChunkFailed(false);
+        if (version !== 'unknown') {
+          writeReloadLater(store, version);
+          setReloadLater(version);
+        }
+        return;
+      }
+      setNotices((list) => list.filter((n) => n.id !== id));
+    },
+    [store],
   );
 
   const lastLevel = useRef(hero.level);
@@ -150,11 +173,23 @@ export function OnboardingProvider({ route, children }: { route: GameRoute; chil
   useEffect(() => {
     if (announceNotes) push([releaseNotice()]);
   }, [announceNotes, push]);
-  // Read (or read elsewhere): the slip goes with the marker.
-  const shownNotices = useMemo(
-    () => (notes.unread ? notices : notices.filter((n) => n.id !== releaseNoticeId())),
-    [notes.unread, notices],
+  // --- Ticket F.4: a newer version is live (the shared health poll) or a part of this build
+  // failed to load. Not in `notices`: it never fades and is not crowded out by MAX_NOTICES.
+  const { serverVersion } = useHealthPoll();
+  useEffect(() => watchChunkErrors(window, () => setChunkFailed(true)), []);
+  const offer = reloadOffer({ serverVersion, later: reloadLater, guideActive, chunkFailed });
+  const offerVersion = offer.show ? offer.version : null;
+  const offerReason = offer.show ? offer.reason : null;
+  const reloadSlip = useMemo(
+    () => (offerReason ? reloadNotice({ version: offerVersion, reason: offerReason }) : null),
+    [offerVersion, offerReason],
   );
+
+  // Read (or read elsewhere): the slip goes with the marker.
+  const shownNotices = useMemo(() => {
+    const list = notes.unread ? notices : notices.filter((n) => n.id !== releaseNoticeId());
+    return reloadSlip ? [...list, reloadSlip] : list;
+  }, [notes.unread, notices, reloadSlip]);
 
   // --- "New" markers. A hero that has never fought starts with an empty seen list, so its
   // first drops and the Tavern's notices are marked; an older hero on a new device is not.
