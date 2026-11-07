@@ -155,13 +155,6 @@
       "when": 1794015454124,
       "tag": "0021_guild_chat",
       "breakpoints": true
-    },
-    {
-      "idx": 22,
-      "version": "7",
-      "when": 1794018264948,
-      "tag": "0022_guild_boss",
-      "breakpoints": true
     }
   ]
 }
