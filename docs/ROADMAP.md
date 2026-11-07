@@ -523,6 +523,7 @@ GDD: §4.2 (Warehouse). Needs 4.6 (unlocked by its first project). Phase 3 follo
 GDD: §4.3, §12.2. Needs 4.6 (unlocked by its second project) and A.7 (art). Phase 3 follow-up: content ends at 24 while heroes reach 28, and B.2's farming breakpoint leaves nothing to farm toward at the top.
 - **A new area for levels 24–28** (enemies, loot table, materials) and a **boss**, as data. It is a world-state unlock: closed until the community finishes the project.
 - **Address the top end:** an area level and rewards that keep late-game builds meaningful past the Abbey breakpoint; tune crypt tier III against upgraded gear (3.9 saw it fall at 21 to every upgraded hero).
+- **Fixed ids (art from A.7):** area `ashenPass` (levels 24–28); enemies `ashWraith`, `cinderHound`, `pyreCultist`, `emberGolem`; boss `ashenWarden`. Asset ids are `area.ashen-pass` and `enemy.<kebab-id>` (already registered); add a `MAP_MARKERS` entry for `ashenPass` (`docs/ASSET_GUIDELINES.md`, "The Ashen Pass").
 **Acceptance:** balance tests for the new area and boss; determinism and invariance; the world-state gate tested; screenshots.
 
 ### 4.9 Guild boss event (vertical) — `todo`
@@ -612,10 +613,11 @@ GDD: §3.1, §7. Needs 3.2 and 3.3 merged (they define the named items). Match t
 - Budget: one or two 32px jobs (64 variants each); at most one regeneration. Switch the items from placeholder icons and update the manifest and `assets.ts` (they must match, in order).
 **Acceptance:** a contact sheet next to tier-3 gear in the PR.
 
-### A.7 The Ashen Pass: backdrop, enemies & boss — `todo`
+### A.7 The Ashen Pass: backdrop, enemies & boss — `done (PR #57)`
 GDD: §3.1, §4.3. Needs 4.6 (the region's content ids are fixed with its project). Match the existing backdrops (384×216, pass `apps/web/public/assets/areas/sunken-abbey.png` as `style_image`) and enemies (64×64, side view; the Gravewarden for the boss at 128×128).
 - One area backdrop (a burnt mountain pass, ash drifts, ruined watchtowers), 3–4 enemies, one boss.
 - Budget: one backdrop job, two enemy jobs, one boss job; at most 2 regenerations. Raw results in `art/source/pixellab/`, curated into `apps/web/public/assets/`, manifest and `assets.ts` updated (in order).
+- **Fixed ids:** area `ashenPass` (levels 24–28); enemies `ashWraith`, `cinderHound`, `pyreCultist`, `emberGolem`; boss `ashenWarden` (128×128). Art ids `area.ashen-pass`, `enemy.ash-wraith`, `enemy.cinder-hound`, `enemy.pyre-cultist`, `enemy.ember-golem`, `enemy.ashen-warden`.
 **Acceptance:** a contact sheet next to the Abbey art in the PR.
 
 ### A.8 Achievement & guild heraldry icons — `todo`

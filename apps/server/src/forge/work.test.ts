@@ -217,27 +217,31 @@ describe('upgrades (ticket 3.4)', () => {
 
   it('every outcome is the one the item’s stream fixed in advance; failures never downgrade', async () => {
     const p = await newPlayer(1_000_000);
-    const itemId = await grant(p, { rarityId: 'epic' }, { upgradeLevel: 7 });
+    // +7 → +10 at 33 %, 25 % and 20 %: an item's stream skips every failure ~1.7 % of the time
+    // (its forge secret is random), so take fresh items until one fails on the way.
+    let itemId = '';
     let failures = 0;
-    for (let i = 0; i < 25; i++) {
-      const before = await row(itemId);
-      if (before.upgradeLevel === 10) break;
-      const expected = await predictUpgrade(itemId);
-      const res = await post(p, 'upgrade', { itemId });
-      expect(res.statusCode).toBe(200);
-      const out = res.json<ForgeActionResponse>().outcome;
-      expect(out).toMatchObject({
-        success: expected.success,
-        upgradeLevel: expected.upgradeLevel,
-        upgradePity: expected.upgradePity,
-      });
-      const after = await row(itemId);
-      expect(after.upgradeLevel).toBeGreaterThanOrEqual(before.upgradeLevel);
-      expect(after.forgeCounter).toBe(before.forgeCounter + 1);
-      if (!expected.success) failures += 1;
+    for (let item = 0; item < 6 && failures === 0; item++) {
+      itemId = await grant(p, { rarityId: 'epic' }, { upgradeLevel: 7 });
+      for (let i = 0; i < 25; i++) {
+        const before = await row(itemId);
+        if (before.upgradeLevel === 10) break;
+        const expected = await predictUpgrade(itemId);
+        const res = await post(p, 'upgrade', { itemId });
+        expect(res.statusCode).toBe(200);
+        const out = res.json<ForgeActionResponse>().outcome;
+        expect(out).toMatchObject({
+          success: expected.success,
+          upgradeLevel: expected.upgradeLevel,
+          upgradePity: expected.upgradePity,
+        });
+        const after = await row(itemId);
+        expect(after.upgradeLevel).toBeGreaterThanOrEqual(before.upgradeLevel);
+        expect(after.forgeCounter).toBe(before.forgeCounter + 1);
+        if (!expected.success) failures += 1;
+      }
+      expect((await row(itemId)).upgradeLevel).toBe(10);
     }
-    expect((await row(itemId)).upgradeLevel).toBe(10);
-    // +7 → +10 at 33 %, 25 % and 20 %: practically always a failure on the way.
     expect(failures).toBeGreaterThan(0);
     const max = await post(p, 'upgrade', { itemId });
     expect(max.statusCode).toBe(422);

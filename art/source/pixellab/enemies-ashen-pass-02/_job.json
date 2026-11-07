@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, full body, side view, enemies of the Ashen Pass: a cinder hound, a gaunt emaciated charred hound with smouldering orange cracks in its blackened hide; an ember golem, a hulking construct of black slag rock with glowing ember seams, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+  "style_image": "apps/web/public/assets/enemies/fallen-knight.png",
+  "job_id": "00ff9cf6-f61b-44ca-aaa7-6df55ce1ac19",
+  "created_at": "2026-11-06T23:23:28.184695+00:00",
+  "seed": 529291796,
+  "generations": 10.0,
+  "count": 16,
+  "width": 64,
+  "height": 64
+}

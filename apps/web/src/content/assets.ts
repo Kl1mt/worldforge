@@ -148,6 +148,14 @@ export const ASSETS = {
   'material.soul-shard': material('soul-shard'),
   'material.abbey-silver': material('abbey-silver'),
   'material.gravewarden-seal': material('gravewarden-seal'),
+  // The Ashen Pass (A.7): art only. Ticket 4.8 adds the area `ashenPass` and its enemies to
+  // game-core with these asset ids; until then nothing in gameplay references them.
+  'area.ashen-pass': { path: '/assets/areas/ashen-pass.png', width: 384, height: 216 },
+  'enemy.ash-wraith': enemy('ash-wraith', 'right'),
+  'enemy.cinder-hound': enemy('cinder-hound', 'left'),
+  'enemy.pyre-cultist': enemy('pyre-cultist', 'right'),
+  'enemy.ember-golem': enemy('ember-golem', 'front'),
+  'enemy.ashen-warden': enemy('ashen-warden', 'front', 128),
 } as const satisfies Record<string, SpriteAsset>;
 
 export type AssetId = keyof typeof ASSETS;
