@@ -526,7 +526,7 @@ GDD: §4.3, §12.2. Needs 4.6 (unlocked by its second project) and A.7 (art). Ph
 - **Fixed ids (art from A.7):** area `ashenPass` (levels 24–28); enemies `ashWraith`, `cinderHound`, `pyreCultist`, `emberGolem`; boss `ashenWarden`. Asset ids are `area.ashen-pass` and `enemy.<kebab-id>` (already registered); add a `MAP_MARKERS` entry for `ashenPass` (`docs/ASSET_GUIDELINES.md`, "The Ashen Pass").
 **Acceptance:** balance tests for the new area and boss; determinism and invariance; the world-state gate tested; screenshots.
 
-### 4.9 Guild boss event (vertical) — `done (PR #TBD)`
+### 4.9 Guild boss event (vertical) — `done (PR #69)`
 GDD: §10.1 (group activities), §11.2. Needs 4.4.
 - **A weekly guild boss:** each member may fight it a few times a week with their own hero (a server simulation from a snapshot, like crypt runs); damage adds up to the guild's total. Stages unlock guild-wide rewards; each participant gets a capped personal reward.
 - **Fair and exact:** attempts come from server-side seed streams (no re-roll by retry), totals are exact under concurrent attempts, a member who leaves keeps their personal reward but their damage stays with the guild they fought for, and joining late can't claim rewards already earned.
