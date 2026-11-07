@@ -72,7 +72,14 @@ export function profileHref(handle?: string): string {
 }
 
 /** Ticket D.3: the admin panel's sections, in tab order. */
-export const ADMIN_SECTIONS = ['invites', 'players', 'telemetry', 'status', 'roles'] as const;
+export const ADMIN_SECTIONS = [
+  'invites',
+  'players',
+  'telemetry',
+  'seasons',
+  'status',
+  'roles',
+] as const;
 export type AdminSection = (typeof ADMIN_SECTIONS)[number];
 
 /** `#/admin/players/<handle>` → `{ section: 'players', arg: '<handle>' }`; default: invites. */
@@ -161,28 +168,42 @@ export function guardRoute(route: Route, standing: Standing): Route | null {
   return isAuthRoute(route) ? DEFAULT_ROUTE : null;
 }
 
-/** Ticket 5.2: a board's address (metric, class filter, level bracket). */
+/** Ticket 5.2: a board's address (metric, class filter, level bracket; 5.3: the season). */
 export interface BoardLocation {
   metric: string | null;
   classId: string | null;
   bracket: string | null;
+  /** Ticket 5.3: null = all time; `current` = the season under way (or the latest); else its number. */
+  season: 'current' | number | null;
 }
 
-/** `#/boards/power?class=mage&bracket=20-29` → its parts (only the shape is checked). */
+/** `#/boards/power?class=mage&bracket=20-29&season=2` → its parts (only the shape is checked). */
 export function boardLocation(hash: string): BoardLocation {
   const m = /^#\/?boards(?:\/([a-zA-Z]{1,32}))?(?:\?(.*))?$/.exec(hash);
   const q = new URLSearchParams(m?.[2] ?? '');
   const ok = (v: string | null) => (v && /^[0-9a-z-]{1,32}$/i.test(v) ? v : null);
-  return { metric: m?.[1] ?? null, classId: ok(q.get('class')), bracket: ok(q.get('bracket')) };
+  const s = q.get('season');
+  const season = s === 'current' ? 'current' : s && /^[1-9]\d{0,5}$/.test(s) ? Number(s) : null;
+  return {
+    metric: m?.[1] ?? null,
+    classId: ok(q.get('class')),
+    bracket: ok(q.get('bracket')),
+    season,
+  };
 }
 
 export function boardHref(
   metric: string,
-  { classId, bracket }: { classId?: string | null; bracket?: string | null } = {},
+  {
+    classId,
+    bracket,
+    season,
+  }: { classId?: string | null; bracket?: string | null; season?: 'current' | number | null } = {},
 ): string {
   const q = new URLSearchParams();
   if (classId) q.set('class', classId);
   if (bracket) q.set('bracket', bracket);
+  if (season) q.set('season', String(season));
   const qs = q.toString();
   return `#/boards/${encodeURIComponent(metric)}${qs ? `?${qs}` : ''}`;
 }

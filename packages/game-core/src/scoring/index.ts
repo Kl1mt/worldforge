@@ -6,3 +6,5 @@ export * from './power.js';
 export * from './progress.js';
 export * from './scores.js';
 export * from './boards.js';
+export * from './seasons.js';
+export * from './prestige.js';

@@ -218,6 +218,17 @@ export function findSprite(id: string): SpriteAsset | null {
   return Object.hasOwn(ASSETS, id) ? ASSETS[id as AssetId] : null;
 }
 
+/**
+ * Ticket 5.3: prestige art by its fixed asset name (game-core `PRESTIGE_TIERS[].frameAsset`,
+ * `SEASON_TITLES[].badgeAsset`: `season-frame-champion` … `season-frame-veteran`,
+ * `title-badge-level` … `title-badge-pve-progress`). Ticket A.10 registers them here as
+ * `prestige.<name>` (files under `/assets/prestige/`); until then this returns null and the UI
+ * draws a CSS frame and a text badge instead.
+ */
+export function prestigeSprite(name: string): SpriteAsset | null {
+  return findSprite(`prestige.${name}`);
+}
+
 /** The full-body portrait for a class (`character.<classId>`), used wherever a hero is drawn. */
 export function classPortrait(classId: ClassId): SpriteAsset {
   return ASSETS[`character.${classId}`];

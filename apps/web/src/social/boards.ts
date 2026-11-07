@@ -1,12 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ClassId, ScoreMetric } from '@worldforge/game-core';
 import { apiRequest, type ApiFailure } from '../lib/api';
+import type { PrestigeShown, SeasonView } from './seasons';
 
 /** One board entry (ticket 5.2, `GET /api/leaderboards/:metric`). */
 export interface BoardEntry {
   rank: number;
   you: boolean;
-  player: { handle: string; displayName: string | null; profile: boolean };
+  player: {
+    handle: string;
+    displayName: string | null;
+    profile: boolean;
+    /** Ticket 5.3: the title and frame the player shows. */
+    prestige: PrestigeShown;
+  };
   hero: { name: string | null; classId: ClassId; level: number };
   value: number;
   sortKey: number[];
@@ -15,7 +22,9 @@ export interface BoardEntry {
 
 export interface BoardView {
   metric: ScoreMetric;
-  scope: 'allTime';
+  scope: 'allTime' | 'season';
+  /** Ticket 5.3: the season shown; null for all time or before any season. */
+  season: SeasonView | null;
   formulaVersion: number;
   filters: { classId: ClassId | null; bracket: string | null };
   total: number;
@@ -29,6 +38,8 @@ export interface BoardQuery {
   metric: ScoreMetric;
   classId: ClassId | null;
   bracket: string | null;
+  /** Ticket 5.3: null = all time; `current` = the season under way (or the latest). */
+  season: 'current' | number | null;
   cursor: string | null;
 }
 
@@ -38,6 +49,8 @@ export function boardPath(q: BoardQuery): string {
   const p = new URLSearchParams({ limit: String(BOARD_PAGE_SIZE) });
   if (q.classId) p.set('class', q.classId);
   if (q.bracket) p.set('bracket', q.bracket);
+  if (q.season) p.set('scope', 'season');
+  if (typeof q.season === 'number') p.set('season', String(q.season));
   if (q.cursor) p.set('cursor', q.cursor);
   return `/leaderboards/${q.metric}?${p.toString()}`;
 }

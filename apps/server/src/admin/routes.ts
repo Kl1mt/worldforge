@@ -17,6 +17,7 @@ import { buildTelemetryReport, parseDay, telemetrySections } from '../telemetry/
 import { PLAYER_SEARCH_LIMIT, playerDetail, searchPlayers, staffList } from './players.js';
 import { databaseStatus, migrationStatus, statusCounts, type BuildInfo } from './status.js';
 import { projectProgressSummary } from '../community/model.js';
+import { registerSeasonAdmin } from '../seasons/routes.js';
 
 /**
  * The admin panel's API (ticket D.3, docs/API_CONVENTIONS.md "Admin"), all under `/api/admin`.
@@ -38,6 +39,8 @@ export interface AdminOptions {
   build?: BuildInfo;
   /** The audit-log reconcile scans the whole log: per admin, this many per window. */
   reconcileLimit?: { max: number; windowMs: number };
+  /** Ticket 5.3: the game clock for the season controls (default: the auth clock). */
+  gameNow?: () => Date;
 }
 
 export const DEFAULT_RECONCILE_LIMIT = { max: 3, windowMs: 5 * 60_000 };
@@ -731,6 +734,13 @@ export async function registerAdmin(app: FastifyInstance, options: AdminOptions 
           };
         },
       );
+
+      // ---- Seasons (ticket 5.3): view, schedule the next, end early or extend -----------------
+      await registerSeasonAdmin(admin, {
+        now: options.gameNow ?? (() => app.authNow()),
+        audit,
+        lockAdmin,
+      });
 
       // ---- Roles: read-only (granting stays CLI-only) ----------------------------------------
       admin.get(

@@ -14,10 +14,11 @@ export const BOARD_METRICS: readonly { id: ScoreMetric; name: string; unit: stri
 ];
 
 /**
- * The time a board covers. All-time only for now; seasons (ticket 5.3) add their ids here and a
- * season boundary on `achievedAt` (the window rule), without changing the stored snapshots.
+ * The time a board covers: all time, or one season (ticket 5.3: `scope=season` with a season
+ * number; the season boards rank each hero's score at the season's end, for heroes whose score on
+ * that board rose during the season; docs/LEADERBOARDS.md "Seasons").
  */
-export const BOARD_SCOPES = ['allTime'] as const;
+export const BOARD_SCOPES = ['allTime', 'season'] as const;
 export type BoardScope = (typeof BOARD_SCOPES)[number];
 
 export interface LevelBracket {

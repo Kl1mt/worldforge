@@ -233,6 +233,21 @@ Community projects (ticket 4.6, `docs/COMMUNITY.md`): `deploy/admin.sh project s
 
 `create` prints the code and a ready link, `https://$DOMAIN/#/register?invite=CODE`, which opens the register screen with the code filled in. **Copy it right away**: the code is random and only its SHA-256 hash is stored, so it cannot be shown again (create a new one instead). `--expires` takes `14d`, `12h`, `30m` or `never`. A code is used up after `--uses` accounts; a failed registration (e.g. a taken email) does not use it up. Which code created which account is in the audit log (`account.register` with `data.inviteId`); the code itself never appears in logs. Wrong codes count against the per-IP registration limit (5 per hour). In development the same commands are `pnpm admin:invite …`.
 
+### Seasons
+
+Seasons (ticket 5.3, `docs/LEADERBOARDS.md` "Seasons and prestige") do not start by themselves: schedule the first one, in the admin panel's **Seasons** tab or on the VPS. Times are UTC:
+
+```bash
+deploy/admin.sh seasons status
+deploy/admin.sh seasons schedule --start 2026-12-07T00:00:00Z            # 8 weeks by default
+deploy/admin.sh seasons schedule --start 2026-12-07T00:00:00Z --weeks 6  # or --end <ISO>
+deploy/admin.sh seasons extend 1 --to 2027-02-08T00:00:00Z               # move the end (later or earlier)
+deploy/admin.sh seasons end 1                                            # end the current season now
+deploy/admin.sh seasons close                                            # seal and honour due seasons now
+```
+
+(`pnpm admin:seasons …` in development.) After that, each season follows the last one back to back for 8 weeks unless you re-plan the next one (`schedule` replaces a season that has not begun). A few minutes after a season ends, the running server seals its final standings and gives the honours (each scheduler run, `SETTLE_INTERVAL_SECONDS`); `close` does the same at once and is safe to repeat. Every change is audited. Migration `0026` only adds tables.
+
 ### Admin panel
 
 Signed in as an admin, the footer has an **Admin panel** link (`/#/admin`, ticket D.3). It covers what you would otherwise do with `deploy/admin.sh` and `pnpm report:telemetry` on the VPS:
@@ -240,6 +255,7 @@ Signed in as an admin, the footer has an **Admin panel** link (`/#/admin`, ticke
 - **Players:** look someone up by display name or handle: account age, role, the invite they joined with, heroes, sanctions and reports, with links into the moderator queue. Emails are never shown.
 - **Telemetry:** the balance report for a date window, optionally checked against the audit log.
 - **Server:** the deployed commit and build time, uptime, database, registration mode, accounts, heroes, active players (24 h / 7 d, counts only) and whether migrations are pending.
+- **Seasons:** the current and next season with their dates and counts, past seasons; schedule or re-plan the next season, move a season's end (extend or shorten), or end the current season early. The same rules as `deploy/admin.sh seasons`.
 - **Roles:** who is moderator or admin. Granting and revoking stay on the server (`deploy/admin.sh grant|revoke`): there is deliberately no button, so a stolen admin session cannot create admins.
 
 Everything there is audited on your account. To other players and moderators `/api/admin/*` does not exist (`404`).

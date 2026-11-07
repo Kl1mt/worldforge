@@ -12,6 +12,7 @@ import type {
   SanctionAction,
   SanctionKind,
 } from '@worldforge/game-core';
+import type { PrestigeShown } from './seasons';
 import { apiRequest, type ApiFailure, type ApiResult } from '../lib/api';
 
 /** A sanction as its subject sees it (server `SanctionView`, ticket 4.1). */
@@ -69,6 +70,8 @@ export interface Profile {
   showcase: (ProfileHero & { equipped: ShowcaseItem[] }) | null;
   /** Ticket 4.4: the owner's guild (null when none, or hidden from you). */
   guild: { handle: string; name: string; tag: string; emblem: string; role: GuildRole } | null;
+  /** Ticket 5.3: the season title and frame the owner shows. */
+  prestige: PrestigeShown;
 }
 
 export interface ProfileSettings {

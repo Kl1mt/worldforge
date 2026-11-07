@@ -28,6 +28,8 @@ import {
   type ProfileSettings,
 } from '../social/api';
 import { ReportDialog } from '../social/ReportDialog';
+import { PrestigeFrame, TitleBadge } from '../social/Prestige';
+import { HonoursPanel } from './HonoursPanel';
 import './characters.css';
 import './gate.css';
 import './profile.css';
@@ -94,8 +96,15 @@ export function ProfileScreen() {
         <div className="herald__who">
           <p className="caps">{profile?.self ? 'Your profile' : 'Profile'}</p>
           <h1 id="herald-title" className="display">
-            {name ?? (load.kind === 'missing' ? 'No such name' : 'The herald of names')}
+            <PrestigeFrame frame={profile?.prestige.frame ?? null}>
+              {name ?? (load.kind === 'missing' ? 'No such name' : 'The herald of names')}
+            </PrestigeFrame>
           </h1>
+          {profile?.prestige.title ? (
+            <p className="herald__title">
+              <TitleBadge badge={profile.prestige.title} />
+            </p>
+          ) : null}
           {profile ? (
             <p className="herald__handle">
               @{profile.handle}
@@ -167,6 +176,7 @@ export function ProfileScreen() {
           <aside className="herald__side">
             <Deeds profile={profile} />
             {profile.self ? <SettingsPanel onSaved={() => setAttempt((n) => n + 1)} /> : null}
+            {profile.self ? <HonoursPanel onSaved={() => setAttempt((n) => n + 1)} /> : null}
           </aside>
         </div>
       ) : null}

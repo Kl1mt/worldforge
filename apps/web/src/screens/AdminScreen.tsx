@@ -6,6 +6,7 @@ import {
   formatUptime,
   inviteLink,
   type AdminInvite,
+  type AdminSeasons,
   type InviteStatus,
   type PlayerFile,
   type PlayerRow,
@@ -23,6 +24,8 @@ import {
   type AdminSection,
 } from '../lib/route';
 import { formatWhen } from '../social/api';
+import { daysLeft, seasonSpan, type SeasonView } from '../social/seasons';
+import { DEFAULT_SEASON_WEEKS, seasonName } from '@worldforge/game-core';
 import './gate.css';
 import './admin.css';
 
@@ -30,6 +33,7 @@ const SECTION_LABELS: Record<AdminSection, { label: string; hint: string }> = {
   invites: { label: 'Invites', hint: 'Who may join' },
   players: { label: 'Players', hint: 'Look someone up' },
   telemetry: { label: 'Telemetry', hint: 'Loot & economy' },
+  seasons: { label: 'Seasons', hint: 'Rolls & honours' },
   status: { label: 'Server', hint: 'Health & version' },
   roles: { label: 'Roles', hint: 'Wardens & admins' },
 };
@@ -126,7 +130,7 @@ function Failed({
 
 /**
  * The admin panel (ticket D.3): the strongroom of the keep. A row of ledger tabs (invites,
- * players, telemetry, server, roles) over one folio at a time. Admins only: for everyone else the
+ * players, telemetry, seasons, server, roles) over one folio at a time. Admins only: for everyone else the
  * route behaves like an unknown address, and the server answers 404 to every admin route.
  */
 export function AdminScreen() {
@@ -164,6 +168,7 @@ export function AdminScreen() {
         {loc.section === 'invites' ? <InvitesFolio /> : null}
         {loc.section === 'players' ? <PlayersFolio handle={loc.arg} /> : null}
         {loc.section === 'telemetry' ? <TelemetryFolio /> : null}
+        {loc.section === 'seasons' ? <SeasonsFolio /> : null}
         {loc.section === 'status' ? <StatusFolio /> : null}
         {loc.section === 'roles' ? <RolesFolio /> : null}
       </div>
@@ -1182,4 +1187,348 @@ function RolesList({ staff }: { staff: StaffMember[] }) {
       ))}
     </ul>
   );
+}
+
+// ---- Seasons (ticket 5.3) ---------------------------------------------------------------------
+
+const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+/** `<input type="datetime-local">` value in UTC ("2026-12-07T00:00"), and back to ISO. */
+const toUtcInput = (iso: string) => iso.slice(0, 16);
+const fromUtcInput = (v: string) => (v ? new Date(`${v}:00Z`).toISOString() : '');
+
+const SEASON_STATUS: Record<SeasonView['status'], string> = {
+  scheduled: 'Scheduled',
+  active: 'Under way',
+  closing: 'Ended, sealing',
+  closed: 'Sealed and honoured',
+};
+
+function SeasonsFolio() {
+  const [state, reload] = useLoad(adminApi.seasons);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [fresh, setFresh] = useState<AdminSeasons | null>(null);
+  const view = fresh ?? (state.kind === 'ready' ? state.value : null);
+
+  const act = async (label: string, run: () => ReturnType<typeof adminApi.seasons>) => {
+    setBusy(true);
+    setMessage(null);
+    const res = await run();
+    setBusy(false);
+    if (!res.ok) {
+      setMessage({ ok: false, text: describeAdminFailure(res.error) });
+      return;
+    }
+    setFresh(res.value);
+    setMessage({ ok: true, text: label });
+  };
+
+  return (
+    <div className="strong__split strong__split--roles">
+      <div className="strong__main">
+        <div className="strong__bar">
+          <h2 className="rule-heading">The season calendar</h2>
+          <button
+            type="button"
+            className="btn btn--small"
+            onClick={() => {
+              setFresh(null);
+              reload();
+            }}
+            disabled={state.kind === 'loading'}
+          >
+            Refresh
+          </button>
+        </div>
+        {state.kind === 'loading' && !fresh ? <Waiting>Opening the calendar…</Waiting> : null}
+        {state.kind === 'error' && !fresh ? (
+          <Failed what="The seasons could not be read." error={state.error} onRetry={reload} />
+        ) : null}
+        {message ? (
+          <p
+            className={message.ok ? 'strong__note' : 'gate__alert'}
+            role={message.ok ? 'status' : 'alert'}
+          >
+            {message.text}
+          </p>
+        ) : null}
+        {view ? (
+          <SeasonsView
+            view={view}
+            busy={busy}
+            onSchedule={(input) =>
+              act('The season is on the calendar.', () => adminApi.scheduleSeason(input))
+            }
+            onEnd={(n, endsAt) =>
+              act(endsAt ? 'The season’s end has moved.' : 'The season has ended.', () =>
+                adminApi.endSeason(n, endsAt),
+              )
+            }
+          />
+        ) : null}
+      </div>
+      <aside className="strong__side writ-cli panel-iron" aria-labelledby="season-cli-title">
+        <p className="caps">Also on the server</p>
+        <h2 id="season-cli-title" className="display">
+          Seasons from the shell
+        </h2>
+        <p>
+          Times are UTC. A season ends at its end time; a few minutes later its rolls are sealed and
+          the honours are given, once. The next season follows on its own, back to back, for{' '}
+          {DEFAULT_SEASON_WEEKS} weeks, unless you schedule another.
+        </p>
+        <pre className="writ-cli__code">
+          <code>
+            deploy/admin.sh seasons status{'\n'}deploy/admin.sh seasons schedule --start
+            2026-12-07T00:00:00Z --weeks 8{'\n'}deploy/admin.sh seasons extend 1 --to
+            2027-02-08T00:00:00Z{'\n'}deploy/admin.sh seasons end 1
+          </code>
+        </pre>
+        <p className="dossier__dim">
+          In development: <code>pnpm admin:seasons …</code>. Every change is audited.
+        </p>
+      </aside>
+    </div>
+  );
+}
+
+function SeasonsView({
+  view,
+  busy,
+  onSchedule,
+  onEnd,
+}: {
+  view: AdminSeasons;
+  busy: boolean;
+  onSchedule: (input: { startsAt: string; endsAt: string }) => void;
+  onEnd: (number: number, endsAt?: string) => void;
+}) {
+  const counts = (n: number) => view.counts.find((c) => c.season === n);
+  const nothing = !view.current && !view.next && view.past.length === 0;
+  return (
+    <div className="almanac__seasons">
+      {nothing ? (
+        <div className="strong__empty panel-ledger">
+          <p className="display">No season has been called yet.</p>
+          <p className="strong__note">
+            Schedule the first one below. After it begins, each season follows the last on its own.
+          </p>
+        </div>
+      ) : null}
+      {view.current ? (
+        <SeasonCard
+          label="Current season"
+          season={view.current}
+          now={view.now}
+          counts={counts(view.current.number)}
+          busy={busy}
+          onEnd={onEnd}
+        />
+      ) : null}
+      {view.next ? (
+        <SeasonCard
+          label="Next season"
+          season={view.next}
+          now={view.now}
+          counts={counts(view.next.number)}
+          busy={busy}
+          onEnd={onEnd}
+        />
+      ) : null}
+      <ScheduleForm view={view} busy={busy} onSchedule={onSchedule} />
+      {view.past.length > 0 ? (
+        <section className="panel-ledger almanac__section" aria-label="Past seasons">
+          <h3 className="caps">Past seasons</h3>
+          <ul className="seasonroll">
+            {view.past.map((p) => {
+              const c = counts(p.number);
+              return (
+                <li key={p.number} className="seasonroll__row">
+                  <span className="seasonroll__name display">{seasonName(p.number)}</span>
+                  <span className="strong__note">{seasonSpan(p)}</span>
+                  <span className={`seasonroll__status seasonroll__status--${p.status}`}>
+                    {SEASON_STATUS[p.status]}
+                  </span>
+                  <span className="strong__note">
+                    {c
+                      ? `${plural(c.standings, 'final place')}, ${plural(c.awards, 'honour')}`
+                      : ''}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
+        </section>
+      ) : null}
+    </div>
+  );
+}
+
+function SeasonCard({
+  label,
+  season,
+  now,
+  counts,
+  busy,
+  onEnd,
+}: {
+  label: string;
+  season: SeasonView;
+  now: string;
+  counts: AdminSeasons['counts'][number] | undefined;
+  busy: boolean;
+  onEnd: (number: number, endsAt?: string) => void;
+}) {
+  const ids = useId();
+  const [endsAt, setEndsAt] = useState(toUtcInput(season.endsAt));
+  const [confirming, setConfirming] = useState(false);
+  const active = season.status === 'active';
+  return (
+    <section className="panel-ledger almanac__section seasoncard" aria-labelledby={`${ids}-h`}>
+      <p className="caps">{label}</p>
+      <h3 id={`${ids}-h`} className="display">
+        {seasonName(season.number)}
+      </h3>
+      <p>
+        {seasonSpan(season)} (UTC) · {SEASON_STATUS[season.status]}
+        {active ? ` · ${plural(daysLeft(season.endsAt, now), 'day')} left` : ''}
+      </p>
+      {counts && active ? (
+        <p className="strong__note">{plural(counts.entries, 'standing')} on its rolls so far.</p>
+      ) : null}
+      <form
+        className="seasoncard__form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          onEnd(season.number, fromUtcInput(endsAt));
+        }}
+      >
+        <label className="field__label caps" htmlFor={`${ids}-end`}>
+          Ends (UTC)
+        </label>
+        <div className="seasoncard__row">
+          <input
+            id={`${ids}-end`}
+            className="field__input"
+            type="datetime-local"
+            value={endsAt}
+            onChange={(e) => setEndsAt(e.target.value)}
+          />
+          <button type="submit" className="btn btn--small" disabled={busy || !endsAt}>
+            Move the end
+          </button>
+        </div>
+      </form>
+      {active ? (
+        confirming ? (
+          <div className="seasoncard__row">
+            <span className="strong__note">
+              End it now? The rolls are sealed a few minutes later.
+            </span>
+            <button
+              type="button"
+              className="btn btn--small"
+              disabled={busy}
+              onClick={() => {
+                setConfirming(false);
+                onEnd(season.number);
+              }}
+            >
+              End now
+            </button>
+            <button type="button" className="btn btn--small" onClick={() => setConfirming(false)}>
+              Keep it
+            </button>
+          </div>
+        ) : (
+          <button type="button" className="btn btn--small" onClick={() => setConfirming(true)}>
+            End early…
+          </button>
+        )
+      ) : null}
+    </section>
+  );
+}
+
+function ScheduleForm({
+  view,
+  busy,
+  onSchedule,
+}: {
+  view: AdminSeasons;
+  busy: boolean;
+  onSchedule: (input: { startsAt: string; endsAt: string }) => void;
+}) {
+  const ids = useId();
+  const after = view.next ?? view.current;
+  const defaultStart = view.next
+    ? view.next.startsAt
+    : view.current
+      ? view.current.endsAt
+      : nextMondayUtc(view.now);
+  const [start, setStart] = useState(toUtcInput(defaultStart));
+  const [weeks, setWeeks] = useState(String(DEFAULT_SEASON_WEEKS));
+  const n = Number(weeks);
+  const valid = start !== '' && Number.isInteger(n) && n >= 1 && n <= 26;
+  return (
+    <section className="panel-ledger almanac__section" aria-labelledby={`${ids}-h`}>
+      <h3 id={`${ids}-h`} className="caps">
+        {view.next ? `Re-plan ${seasonName(view.next.number)}` : 'Schedule the next season'}
+      </h3>
+      <p className="strong__note">
+        {after
+          ? 'It may start when the season before it ends, or later; seasons never overlap.'
+          : 'The first season. It may start now or later.'}
+      </p>
+      <form
+        className="seasoncard__form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!valid) return;
+          const startsAt = fromUtcInput(start);
+          onSchedule({
+            startsAt,
+            endsAt: new Date(Date.parse(startsAt) + n * WEEK_MS).toISOString(),
+          });
+        }}
+      >
+        <div className="seasoncard__row">
+          <label className="field__label caps" htmlFor={`${ids}-start`}>
+            Starts (UTC)
+          </label>
+          <input
+            id={`${ids}-start`}
+            className="field__input"
+            type="datetime-local"
+            value={start}
+            onChange={(e) => setStart(e.target.value)}
+          />
+          <label className="field__label caps" htmlFor={`${ids}-weeks`}>
+            Weeks
+          </label>
+          <input
+            id={`${ids}-weeks`}
+            className="field__input seasoncard__weeks"
+            type="number"
+            min={1}
+            max={26}
+            value={weeks}
+            onChange={(e) => setWeeks(e.target.value)}
+          />
+          <button type="submit" className="btn btn--small btn--brass" disabled={busy || !valid}>
+            {view.next ? 'Re-plan' : 'Schedule'}
+          </button>
+        </div>
+      </form>
+    </section>
+  );
+}
+
+/** The next Monday 00:00 UTC after `iso` (the default start of the first season). */
+function nextMondayUtc(iso: string): string {
+  const d = new Date(iso);
+  const days = (8 - d.getUTCDay()) % 7 || 7;
+  return new Date(
+    Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + days),
+  ).toISOString();
 }

@@ -1,4 +1,4 @@
-# Leaderboards: what is measured (ticket 5.1) and the boards (ticket 5.2)
+# Leaderboards: what is measured (5.1), the boards (5.2), seasons and prestige (5.3)
 
 GDD §10.2, §16.3; Phase 5 ground rules in `ROADMAP.md`. This ticket defines the four scores, their published formulas and a read-only breakdown on the character screen ("Standing"). Boards, storage and filters are ticket 5.2; seasons 5.3.
 
@@ -9,6 +9,27 @@ Code: game-core `packages/game-core/src/scoring/` (formulas, data, tests), serve
 Every score is worked out by the server from what your hero has done and wears. Nothing your browser sends is ever taken as a score. On the character screen, **Standing** shows your four scores; open a line to see what counted and why.
 
 **Everyone on a board is listed by name** (owner decision): there is no opt-out and no anonymous entry. Your profile settings still decide whether your name links to your profile.
+
+### Seasons
+A season lasts eight weeks (times in UTC). Every board can be shown for all time or for one season.
+
+- **Who is on a season board:** every hero whose score on that board **rose during the season**. A hero that only fell, or fell and came back to where it started, is not on it.
+- **What counts:** your score **when the season ends** (or now, while it is under way). It is the same score as on the all-time board; only who is listed differs.
+- **The boundary:** a change counts in a season if you made it before the season's end. The moment the season ends belongs to the next one.
+- **At the end** the season board is sealed for good (the "final standings") and stays readable. A few minutes after the end, every hero on it is honoured by place (below). Players with an active sanction at that moment are left off the final standings.
+- The next season starts the moment the last one ends, unless the town has planned another start.
+
+### Prestige rewards
+Honours are given once per season, on each of the four boards, by your best hero's place on the final standings:
+
+| Honour | Place on a season board | Frame |
+|---|---|---|
+| **Champion** | 1st | gilt |
+| **Exalted** | top 10 | brass |
+| **Renowned** | top 100 | pewter |
+| **Veteran** | any other place, with a hero of level 10 or more | iron |
+
+Each honour gives a **title** for that board (Climber for Character Level, Armsbearer for Gear Score, Blade for Character Power, Pathfinder for PvE Progress: "Exalted Pathfinder, Season 2") and a **profile frame** of its tier. On your profile, under **Season honours**, choose one title and one frame to show (or none); they appear beside your name on the boards, your profile and your guild's roster. Your first honour is shown automatically until you choose. **Honours are for glory only: they change no number in the game.**
 
 ### Character Level
 Your level. Between heroes of the same level, whoever has earned more experience toward the next level is ahead.
@@ -76,12 +97,38 @@ Code: game-core `scoring/boards.ts` (board names, `BOARD_SCOPES`, `LEVEL_BRACKET
 
 ### What a board shows
 - **Order:** `sort_key` (higher first, the metric's own tie-breakers included), then `achieved_at` (reached first wins), then the hero id. game-core's `compareBoardEntries` is the reference; a test checks the SQL order against it.
-- **Filters:** all-time (`scope=allTime`, the only scope until 5.3), class, level bracket (`LEVEL_BRACKETS`: 1–9, 10–19, 20–29, 30+, by the hero's level at its latest refresh). Pages of 25 (API: 1–100), with an offset cursor; ranks are recomputed on every read, so a page boundary can shift between reads while scores move.
+- **Filters:** all-time (`scope=allTime`) or a season (`scope=season`, 5.3), class, level bracket (`LEVEL_BRACKETS`: 1–9, 10–19, 20–29, 30+, by the hero's level at its latest refresh). Pages of 25 (API: 1–100), with an offset cursor; ranks are recomputed on every read, so a page boundary can shift between reads while scores move.
 - **Your place:** each of your heroes that fits the filters, with its rank.
 - **Who is listed (owner decision):** every hero, by its player's display name, no opt-out; blocks hide no one. The name links to the profile only where `canViewProfile(visibility, relation)` allows it for this viewer, and the **hero's name is shown only there** (a hidden profile keeps its heroes' names private; the board shows class and level). Names a moderator hides read "Name withheld". **Accounts with any active sanction** (mute, suspend, rename, hide) are left out at read time and come back when it ends; their scores keep being stored.
 - **Report:** each other player's entry has Report → their display name (`profileField`), and the hero's name (`characterName`) where it is shown, through the shared report dialog.
 - **Polling:** the page re-reads once a minute with the `ETag` (`304` when unchanged); board reads have their own limit of 60 a minute per account, on top of 3.9's limits.
 - **Invariance:** boards only read. No gameplay number changes; the no-effects hashes and balance suites are untouched (`leaderboards.test.ts` "invariance").
+
+## Seasons and prestige (ticket 5.3)
+
+Code: game-core `scoring/seasons.ts` (windows, plan rules, `SEASON_CLOSE_GRACE_MS`, the automatic next season) and `scoring/prestige.ts` (`PRESTIGE_TIERS`, `SEASON_TITLES`, `seasonAwards`, `bestAward`); server `apps/server/src/seasons/` (`model.ts` season rows, archive, awards, plan changes, `prestigeFor`; `routes.ts` player and admin routes; `season-cli.ts`); web `BoardsScreen.tsx` (the Time filter, `#/boards/<metric>?season=current|<n>`), `social/Prestige.tsx` (marks), `HonoursPanel.tsx` (the chooser on your profile), the Seasons tab of the admin panel. Screenshots: `docs/screenshots/phase-5/seasons-*.png`, `honours-*.png`, `admin-seasons-*.png` (`node tools/screenshots/seasons.mjs`, a dev server on a scratch database).
+
+### The season model
+- `seasons` (`DATA_MODEL.md`): number, `[starts_at, ends_at)` in UTC (the game clock; equal to the wall clock in production), `archived_at`, `awarded_at`. Default length 8 weeks; 1 day to 26 weeks. Seasons never overlap.
+- **Plan changes** (the admin panel and the CLI, one rule set in game-core, serialised on an advisory lock, audited `season.schedule` / `season.end` / `season.extend` with `via`): schedule the next season (or re-plan the one not yet begun; it may not start before the latest begun season ends); move the end of the current or the next season, earlier (**end early**: now) or later (**extend**). A next season that starts exactly where the moved one ended moves along with it, keeping its length; any other overlap is refused (`409 season_plan_refused`, `details.problem`). An ended season cannot change.
+- **The first season** is scheduled by the owner; nothing starts by itself. Once a season has begun and nothing follows it, the scheduler adds the next one back to back (8 weeks; after a server outage longer than a season, it starts at once instead).
+
+### Definition of a season score
+A season board ranks `season_entries`: each hero's standing on that board within the season, written by 5.2's refresh **in the same transaction** as its all-time row, whenever the hero's `sort_key` moves and the refresh's clock lies in the season's window. That clock is the **request's arrival** (`achieved_at`, the window rule): a change requested before the end counts even if its refresh commits a moment after; one at or after the end goes to the next season. Changes the sweep finds (settlements while away, a world flag) count at the sweep's time.
+- `value`, `sort_key`, `achieved_at`: the latest standing reached inside the window, i.e. **the score at the season's end**.
+- `base_sort_key`: the hero's all-time `sort_key` just before its first change in the season (null: none yet). The board lists rows with `sort_key > base_sort_key` (lexicographic, as `compareSortKeys`), so a hero that only fell, or fell and recovered, is not listed. Order and filters as on the all-time board (`compareBoardEntries`, class, level bracket by the level at the latest in-season change).
+- A formula version bump mid-season updates the season rows' value and key but keeps their base and time (a known limit: bump formulas between seasons).
+
+### Archive (final standings)
+`archiveSeason` runs from the scheduler once `now ≥ ends_at + 5 min` (`SEASON_CLOSE_GRACE_MS`). One transaction under the season's exclusive advisory lock (`season:<n>`): refreshes take it shared before writing a season row and re-check `archived_at`, so the archive waits for every refresh in flight and none writes after it. Per board, the listed rows of accounts **without an active sanction at that moment** are copied to `season_standings` with `rank` 1…n (the board order), then `archived_at` is set. A past season's board reads the archive (filters re-rank within it; accounts sanctioned now are left out, ranks kept). Tested: the archive equals every season board (metrics, filters, pages) read just before the end.
+
+### Awards (exactly once, resumable)
+`awardSeason` recomputes the awards from the archive with game-core `seasonAwards` (per account and board: the best tier among its heroes, then the better place; deterministic) and inserts them in batches with `on conflict do nothing` on `season_awards`' primary key `(season, account, metric)`. Only after the last batch, in one transaction under the season lock, it gives each account decorated this season that never chose a display its default (`bestAward`: best tier, newest season, board order), sets `awarded_at` and audits `season.award` once. A crash mid-way leaves `awarded_at` null; the next scheduler run (or `admin:seasons close`) finishes the same set. Two instances at once insert each award once (real-PG test).
+
+**Tier thresholds** (game-core `PRESTIGE_TIERS`, data): Champion rank 1, Exalted ≤ 10, Renowned ≤ 100, Veteran any rank with the hero at level ≥ 10 at its last in-season change (`VETERAN_MIN_LEVEL`, the minimum activity: a hero must rise on the board and be past the first areas, so throwaway heroes earn nothing). Asset names (A.10): frames `season-frame-champion|exalted|renowned|veteran`, title badges `title-badge-level|gear-score|power|pve-progress`, registered as `prestige.<name>` in `apps/web/src/content/assets.ts`; until then the web draws a CSS rim and an enamelled lozenge.
+
+### Display
+`prestige_displays` holds each account's chosen title and frame (each a reference to one of its own awards, composite foreign keys; nulls = shows none; no row = never chosen). `prestigeFor` resolves it for boards (`player.prestige`), profiles (`prestige`) and both guild rosters (`members[].prestige`; not for a member the viewer blocks). Cosmetic only: nothing in game-core's rules reads `prestige.ts` or `seasons.ts` (a test scans the imports), and awards and displays change no gameplay row, score input or score (invariance test). Privacy is unchanged: everyone is listed by name; the profile link and the hero's name follow `canViewProfile` (tested on season boards and archives for each visibility × relation).
 
 ## Technical spec (for 5.2)
 
@@ -130,4 +177,8 @@ Power is the only non-trivial score: 20 trials × 2 runs × at most 4 fights (�
 - `apps/server/src/leaderboards/leaderboards.test.ts` (5.2): refresh on equip with the request clock, XP-only debounce, bracket levels, sweep backfill and a world flag, wrong vs outdated, board order and pages, ties, filters and your rank, ETag, every sanction kind excluded and restored, no ids in answers, bad queries, read limit, viewer backfill, the profile-link matrix (each visibility × self, friend, guildmate, pending, stranger, blocked either way; the profile route agrees), invariance.
 - `apps/server/src/leaderboards/leaderboards.pg.test.ts` (5.2, real PostgreSQL): a score change racing board reads (old or new value, never another); equips and stray refreshes racing (every row current afterwards); no retries.
 - Journey: `playLeaderboardStep` (`e2e/journey.ts`; `leaderboard-journey.test.ts` and the Phase 4 exit run under its leak guard).
+- `packages/game-core/src/scoring/seasons.test.ts` (5.3): windows and the boundary, status, plan rules (schedule, re-plan, end early, extend, followers, refusals), the automatic next season, tiers and asset names, awards independent of order, the default display.
+- `apps/server/src/seasons/seasons.test.ts` (5.3): the window rule at the boundary (a request 1 ms before the end refreshed after it counts; the end moment goes to the next season; nothing written after the archive), season boards list only risers in board order, archive integrity (every metric, filters, pages; sanctioned left out; ranks 1…n), awards exactly once and the default display, choosing a title and frame (refusals; shown on boards, profiles and both guild rosters), a crash mid-award then a rerun, the profile-link privacy matrix on season boards and archives, 404s, admin controls (404 to everyone else, schedule, extend, end early, audit), the CLI, invariance and the import scan.
+- `apps/server/src/seasons/seasons.pg.test.ts` (5.3, real PostgreSQL): award runs racing (some crashing mid-way): each award once, one default display per account, one audit row; a restart mid-award then three resumes racing; a score change racing the archive: the archive equals the season board in every order, and nothing is written after it.
+- Journey: `playSeasonStep` (`e2e/journey.ts`; `season-journey.test.ts`): the owner schedules a season in the admin panel, the hero rises on its board, the season ends, the hero is honoured once and shows its title and frame to another player; scores unchanged.
 - `apps/server/src/scores/scores.test.ts`: the route equals `computeScores` on the stored input, a forged item row counts 0, the guild boss stage rule, 404 for another account's hero, 401 without a session.

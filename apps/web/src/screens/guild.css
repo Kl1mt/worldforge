@@ -335,3 +335,11 @@ select.field__input option {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Ticket 5.3: a member's season frame mark and title on the roster rows. */
+.guildroll__row .fellow__who {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 2px var(--space-2);
+}

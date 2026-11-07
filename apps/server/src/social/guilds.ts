@@ -63,6 +63,7 @@ import { latestSeq } from './chat-model.js';
 import { assertSocialWriteAllowed, socialWrite } from './social-write.js';
 import { profileFieldKey } from './targets.js';
 import { assertPlayerText } from './text.js';
+import { NO_PRESTIGE_SHOWN, prestigeFor, prestigeShownSchema } from '../seasons/model.js';
 
 /**
  * Guild routes (ticket 4.4, docs/SOCIAL.md "Guilds"). Every write runs in `socialWrite` (the
@@ -235,11 +236,20 @@ const myGuildResponse = {
                 type: 'array',
                 items: {
                   type: 'object',
-                  required: ['handle', 'displayName', 'role', 'presence', 'joinedOn', 'blocked'],
+                  required: [
+                    'handle',
+                    'displayName',
+                    'role',
+                    'presence',
+                    'joinedOn',
+                    'blocked',
+                    'prestige',
+                  ],
                   properties: {
                     handle: { type: 'string' },
                     displayName: { type: ['string', 'null'] },
                     role: { type: 'string' },
+                    prestige: prestigeShownSchema,
                     presence: { type: ['string', 'null'], enum: [...PRESENCE_BUCKETS, null] },
                     joinedOn: { type: 'string' },
                     blocked: { type: 'boolean' },
@@ -433,7 +443,7 @@ async function myGuildView(executor: Executor, me: Account, now: Date) {
       ...sentInvites.map((i) => i.accountId),
       ...applications.map((a) => a.accountId),
     ];
-    const [byId, presence, blockedIds] = await Promise.all([
+    const [byId, presence, blockedIds, prestige] = await Promise.all([
       people(executor, ids, now),
       presenceOf(
         executor,
@@ -441,6 +451,10 @@ async function myGuildView(executor: Executor, me: Account, now: Date) {
         now,
       ),
       blockedEitherWay(executor, me.id, ids),
+      prestigeFor(
+        executor,
+        members.map((m) => m.accountId),
+      ),
     ]);
     const relations = await relationsFor(
       executor,
@@ -463,6 +477,8 @@ async function myGuildView(executor: Executor, me: Account, now: Date) {
           presence: blockedIds.has(m.accountId) ? null : (presence.get(m.accountId) ?? null),
           joinedOn: day(m.joinedAt),
           blocked: byMe,
+          // Ticket 5.3: the member's season title and frame (cosmetic), not for a blocked member.
+          prestige: byMe ? NO_PRESTIGE_SHOWN : (prestige.get(m.accountId) ?? NO_PRESTIGE_SHOWN),
         };
       })
       .sort(
@@ -718,11 +734,12 @@ export async function registerGuilds(
                 type: 'array',
                 items: {
                   type: 'object',
-                  required: ['handle', 'displayName', 'role'],
+                  required: ['handle', 'displayName', 'role', 'prestige'],
                   properties: {
                     handle: { type: 'string' },
                     displayName: { type: ['string', 'null'] },
                     role: { type: 'string' },
+                    prestige: prestigeShownSchema,
                   },
                 },
               },
@@ -746,7 +763,7 @@ export async function registerGuilds(
       if (!guild) refuse(NO_GUILD);
       const members = await guildMembersOf(app.db, guild.id);
       const ids = members.map((m) => m.accountId);
-      const [byId, blocked, mine, invite, application, sums] = await Promise.all([
+      const [byId, blocked, mine, invite, application, sums, prestige] = await Promise.all([
         people(app.db, ids, now),
         blockedEitherWay(app.db, me.id, ids),
         membershipOf(app.db, me.id),
@@ -761,6 +778,7 @@ export async function registerGuilds(
             and(eq(guildApplications.guildId, guild.id), eq(guildApplications.accountId, me.id)),
           ),
         summaries(app.db, [guild]),
+        prestigeFor(app.db, ids),
       ]);
       const standing = mine
         ? mine.guild.id === guild.id
@@ -780,7 +798,11 @@ export async function registerGuilds(
               ROLE_ORDER[a.role] - ROLE_ORDER[b.role] ||
               a.joinedAt.getTime() - b.joinedAt.getTime(),
           )
-          .map((m) => ({ ...byId.get(m.accountId)!, role: m.role })),
+          .map((m) => ({
+            ...byId.get(m.accountId)!,
+            role: m.role,
+            prestige: prestige.get(m.accountId) ?? NO_PRESTIGE_SHOWN,
+          })),
         standing,
       };
     },

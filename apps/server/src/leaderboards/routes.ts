@@ -22,6 +22,16 @@ import { profileRelationsFor } from '../social/profiles.js';
 import { hiddenTargetKeys } from '../social/sanctions.js';
 import { characterNameKey, profileFieldKey } from '../social/targets.js';
 import { refreshAccountHeroes, refreshHeroScores, type SnapshotDeps } from './snapshot.js';
+import {
+  NO_PRESTIGE_SHOWN,
+  listSeasons,
+  prestigeFor,
+  prestigeShownSchema,
+  roseInSeason,
+  seasonView,
+  type PrestigeShown,
+  type SeasonView,
+} from '../seasons/model.js';
 
 /**
  * Leaderboards (ticket 5.2, docs/LEADERBOARDS.md "Boards", API_CONVENTIONS.md).
@@ -89,6 +99,8 @@ export interface BoardEntryView {
     displayName: string | null;
     /** Whether this viewer may open the player's profile (its visibility and their relation). */
     profile: boolean;
+    /** Ticket 5.3: the title and frame the player chose to show (cosmetic). */
+    prestige: PrestigeShown;
   };
   hero: {
     /** Shown only where the profile may be opened, and not while a moderator hides it. */
@@ -105,6 +117,8 @@ export interface BoardEntryView {
 export interface BoardView {
   metric: ScoreMetric;
   scope: BoardScope;
+  /** Ticket 5.3: the season shown (`scope=season`); null for all time, or before any season. */
+  season: SeasonView | null;
   formulaVersion: number;
   filters: { classId: ClassId | null; bracket: string | null };
   total: number;
@@ -158,6 +172,8 @@ const notSanctioned = (now: Date) =>
 export interface BoardQuery {
   metric: ScoreMetric;
   scope: BoardScope;
+  /** `scope=season`: the season's number, its archive state (null: no season to show). */
+  season?: { number: number; archived: boolean } | null;
   classId: ClassId | null;
   bracket: string | null;
   offset: number;
@@ -171,11 +187,25 @@ export async function readBoard(
   q: BoardQuery,
   now: Date,
 ): Promise<BoardView> {
-  const where: SQL[] = [
-    sql`e.metric = ${q.metric}`,
-    sql`e.formula_version = ${FORMULA_VERSIONS[q.metric]}`,
-    notSanctioned(now),
-  ];
+  // The rows a board ranks (ticket 5.3): all time, a season under way (its heroes whose score
+  // rose), or an archived season (its final standings, in their archived order).
+  const season = q.scope === 'season' ? (q.season ?? null) : null;
+  const source =
+    q.scope !== 'season'
+      ? sql`leaderboard_entries`
+      : season?.archived
+        ? sql`season_standings`
+        : sql`season_entries`;
+  const where: SQL[] = [sql`e.metric = ${q.metric}`, notSanctioned(now)];
+  if (q.scope !== 'season') where.push(sql`e.formula_version = ${FORMULA_VERSIONS[q.metric]}`);
+  else if (!season) where.push(sql`false`);
+  else {
+    where.push(sql`e.season = ${season.number}`);
+    if (!season.archived) where.push(roseInSeason);
+  }
+  const order = season?.archived
+    ? sql`e.rank asc`
+    : sql`e.sort_key desc, e.achieved_at asc, e.character_id asc`;
   if (q.classId) where.push(sql`e.class_id = ${q.classId}`);
   const bracket = q.bracket ? findLevelBracket(q.bracket) : undefined;
   if (bracket) {
@@ -186,9 +216,9 @@ export async function readBoard(
     db,
     sql`with ranked as (
       select e.character_id, e.account_id, e.class_id, e.level, e.value, e.sort_key, e.achieved_at,
-        row_number() over (order by e.sort_key desc, e.achieved_at asc, e.character_id asc) as rank,
+        row_number() over (order by ${order}) as rank,
         count(*) over () as total
-      from leaderboard_entries e
+      from ${source} e
       where ${sql.join(where, sql` and `)}
     )
     select r.*, c.name, a.handle, a.display_name, a.profile_visibility
@@ -202,13 +232,14 @@ export async function readBoard(
   if (rows.length === 0 && q.offset > 0) {
     const [c] = await queryRows<{ n: number }>(
       db,
-      sql`select count(*)::int as n from leaderboard_entries e where ${sql.join(where, sql` and `)}`,
+      sql`select count(*)::int as n from ${source} e where ${sql.join(where, sql` and `)}`,
     );
     total = c?.n ?? 0;
   }
 
   const accountIds = [...new Set(rows.map((r) => r.account_id))];
   const relations = await profileRelationsFor(db, viewerId, accountIds);
+  const prestige = await prestigeFor(db, accountIds);
   const hidden = await hiddenTargetKeys(
     db,
     [
@@ -229,6 +260,7 @@ export async function readBoard(
         displayName:
           !you && hidden.has(profileFieldKey(r.account_id, 'displayName')) ? null : r.display_name,
         profile,
+        prestige: prestige.get(r.account_id) ?? NO_PRESTIGE_SHOWN,
       },
       hero: { name: profile && !nameHidden ? r.name : null, classId: r.class_id, level: r.level },
       value: Number(r.value),
@@ -248,6 +280,7 @@ export async function readBoard(
   return {
     metric: q.metric,
     scope: q.scope,
+    season: null,
     formulaVersion: FORMULA_VERSIONS[q.metric],
     filters: { classId: q.classId, bracket: bracket?.id ?? null },
     total,
@@ -270,6 +303,7 @@ const entrySchema = {
         handle: { type: 'string' },
         displayName: { type: ['string', 'null'] },
         profile: { type: 'boolean' },
+        prestige: prestigeShownSchema,
       },
     },
     hero: {
@@ -286,6 +320,19 @@ const entrySchema = {
   },
 } as const;
 
+export const seasonViewSchema = {
+  type: 'object',
+  required: ['number', 'startsAt', 'endsAt', 'status', 'archivedAt', 'awardedAt'],
+  properties: {
+    number: { type: 'integer' },
+    startsAt: { type: 'string' },
+    endsAt: { type: 'string' },
+    status: { type: 'string' },
+    archivedAt: { type: ['string', 'null'] },
+    awardedAt: { type: ['string', 'null'] },
+  },
+} as const;
+
 const boardSchema = {
   type: 'object',
   properties: {
@@ -294,6 +341,7 @@ const boardSchema = {
       properties: {
         metric: { type: 'string' },
         scope: { type: 'string' },
+        season: { anyOf: [{ type: 'null' }, seasonViewSchema] },
         formulaVersion: { type: 'integer' },
         filters: {
           type: 'object',
@@ -316,6 +364,7 @@ interface BoardRequest {
   Params: { metric: ScoreMetric };
   Querystring: {
     scope?: BoardScope;
+    season?: number;
     class?: ClassId;
     bracket?: string;
     cursor?: string;
@@ -373,6 +422,7 @@ export async function registerLeaderboards(
           additionalProperties: false,
           properties: {
             scope: { type: 'string', enum: [...BOARD_SCOPES] },
+            season: { type: 'integer', minimum: 1, maximum: 100_000 },
             class: { type: 'string', enum: [...CLASS_IDS] },
             bracket: { type: 'string', enum: [...LEVEL_BRACKET_IDS] },
             cursor: { type: 'string', maxLength: 64 },
@@ -398,12 +448,29 @@ export async function registerLeaderboards(
       for (const h of own) {
         if (h.n < SCORE_METRICS.length) await refreshHeroScores(deps, h.id, options.now());
       }
+      // Ticket 5.3: which season (`scope=season`): the one asked for, else the season under way,
+      // else the latest that has begun; none yet is an empty board, an unknown number a 404.
+      const scope = request.query.scope ?? (request.query.season ? 'season' : 'allTime');
+      let season: SeasonView | null = null;
+      if (scope === 'season') {
+        const gameNow = options.now();
+        const list = await listSeasons(app.db);
+        const begun = list.filter((s) => s.startsAt.getTime() <= gameNow.getTime());
+        const pick =
+          request.query.season !== undefined
+            ? begun.find((s) => s.number === request.query.season)
+            : begun.at(-1);
+        if (request.query.season !== undefined && !pick)
+          throw new ApiError(404, 'season_not_found', 'No such season (or it has not begun).');
+        season = pick ? seasonView(pick, gameNow) : null;
+      }
       const board = await readBoard(
         app.db,
         accountId,
         {
           metric: request.params.metric,
-          scope: request.query.scope ?? 'allTime',
+          scope,
+          season: season ? { number: season.number, archived: season.archivedAt !== null } : null,
           classId: request.query.class ?? null,
           bracket: request.query.bracket ?? null,
           offset: decodeCursor(request.query.cursor),
@@ -411,7 +478,7 @@ export async function registerLeaderboards(
         },
         now,
       );
-      const body = { board };
+      const body = { board: { ...board, season } };
       const etag = `"${createHash('sha256').update(JSON.stringify(body)).digest('base64url').slice(0, 22)}"`;
       void reply.header('etag', etag).header('cache-control', 'private, no-cache');
       if (request.headers['if-none-match'] === etag) return reply.code(304).send();

@@ -31,6 +31,8 @@ import {
   type MyGuild,
 } from '../social/guilds';
 import { Gold, ShopHeader } from './economy/ShopHeader';
+import { FrameMark, TitleBadge } from '../social/Prestige';
+import type { PrestigeShown } from '../social/seasons';
 import './gate.css';
 import './friends.css';
 import './economy/shop.css';
@@ -108,11 +110,21 @@ function GuildName({ guild }: { guild: Pick<GuildSummary, 'name' | 'tag'> }) {
   );
 }
 
-function Who({ person, link = true }: { person: GuildPerson; link?: boolean }) {
+function Who({
+  person,
+  link = true,
+  prestige,
+}: {
+  person: GuildPerson;
+  link?: boolean;
+  /** Ticket 5.3: the member's chosen frame and title (roster rows only). */
+  prestige?: PrestigeShown;
+}) {
   const cls = `fellow__name${person.displayName ? '' : ' fellow__name--hidden'}`;
   const name = person.displayName ?? 'Name withheld';
   return (
     <span className="fellow__who">
+      {prestige?.frame ? <FrameMark frame={prestige.frame} /> : null}
       {link && person.displayName ? (
         <a className={cls} href={profileHref(person.handle)}>
           {name}
@@ -121,6 +133,7 @@ function Who({ person, link = true }: { person: GuildPerson; link?: boolean }) {
         <span className={cls}>{name}</span>
       )}
       <span className="fellow__handle">@{person.handle}</span>
+      {prestige?.title ? <TitleBadge badge={prestige.title} compact /> : null}
     </span>
   );
 }
@@ -763,7 +776,7 @@ function MemberRow({
   return (
     <li className={`roll__row guildroll__row${m.blocked ? ' letters__row--struck' : ''}`}>
       <span className={`lantern lantern--${presence}`} aria-hidden="true" />
-      <Who person={m} link={!m.blocked} />
+      <Who person={m} link={!m.blocked} prestige={m.prestige} />
       <span className={`roll__presence roll__presence--${presence}`}>
         {self
           ? 'You'
@@ -1262,7 +1275,7 @@ function GuildProfileScreen({ handle }: { handle: string }) {
                 {rows.map((m) => (
                   <li key={m.handle} className="roll__row guildroll__row guildroll__row--public">
                     <span className="guildroll__pip" aria-hidden="true" />
-                    <Who person={m} />
+                    <Who person={m} prestige={m.prestige} />
                   </li>
                 ))}
               </ul>

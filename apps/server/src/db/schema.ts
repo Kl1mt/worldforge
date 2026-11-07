@@ -5,6 +5,7 @@ import {
   check,
   date,
   doublePrecision,
+  foreignKey,
   integer,
   index,
   jsonb,
@@ -19,6 +20,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import type {
   AccountRole,
+  PrestigeTier,
   AreaId,
   CharacterAppearance,
   ClassId,
@@ -1338,6 +1340,185 @@ export const leaderboardEntries = pgTable(
     check(
       'leaderboard_entries_metric_check',
       sql`${t.metric} in ('level', 'gearScore', 'power', 'pveProgress')`,
+    ),
+  ],
+);
+
+/**
+ * Ticket 5.3: seasons (docs/LEADERBOARDS.md "Seasons"). One row per season, numbered 1, 2, …; the
+ * window is `[starts_at, ends_at)` in UTC. `archived_at` is set when the final standings were
+ * taken (`season_standings`), `awarded_at` when every award was given (`season_awards`).
+ */
+export const seasons = pgTable(
+  'seasons',
+  {
+    number: integer('number').primaryKey(),
+    startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+    endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    archivedAt: timestamp('archived_at', { withTimezone: true }),
+    awardedAt: timestamp('awarded_at', { withTimezone: true }),
+  },
+  (t) => [
+    check('seasons_window_check', sql`${t.endsAt} > ${t.startsAt}`),
+    check('seasons_number_check', sql`${t.number} >= 1`),
+  ],
+);
+
+export type Season = typeof seasons.$inferSelect;
+
+/**
+ * Ticket 5.3: a hero's standing on one board within one season, written in the same transaction as
+ * its `leaderboard_entries` row whenever the score moves inside the season's window (by the
+ * request's clock). `base_sort_key` is the standing the hero had before its first change in the
+ * season (null: no standing yet); the season board lists rows whose `sort_key` rose above it.
+ */
+export const seasonEntries = pgTable(
+  'season_entries',
+  {
+    season: integer('season')
+      .notNull()
+      .references(() => seasons.number, { onDelete: 'cascade' }),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    metric: text('metric').$type<ScoreMetric>().notNull(),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    classId: text('class_id').$type<ClassId>().notNull(),
+    level: integer('level').notNull(),
+    formulaVersion: integer('formula_version').notNull(),
+    value: bigint('value', { mode: 'number' }).notNull(),
+    sortKey: bigint('sort_key', { mode: 'number' }).array().notNull(),
+    baseSortKey: bigint('base_sort_key', { mode: 'number' }).array(),
+    achievedAt: timestamp('achieved_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.season, t.characterId, t.metric] }),
+    index('season_entries_rank_idx').on(
+      t.season,
+      t.metric,
+      sql`${t.sortKey} desc`,
+      t.achievedAt,
+      t.characterId,
+    ),
+    index('season_entries_character_id_idx').on(t.characterId),
+    index('season_entries_account_id_idx').on(t.accountId),
+    check(
+      'season_entries_metric_check',
+      sql`${t.metric} in ('level', 'gearScore', 'power', 'pveProgress')`,
+    ),
+  ],
+);
+
+/**
+ * Ticket 5.3: the archive, a season's final standings per board, taken once after its end (one
+ * transaction). Ranks are over the eligible heroes (no active sanction at that moment), 1…n.
+ */
+export const seasonStandings = pgTable(
+  'season_standings',
+  {
+    season: integer('season')
+      .notNull()
+      .references(() => seasons.number, { onDelete: 'cascade' }),
+    metric: text('metric').$type<ScoreMetric>().notNull(),
+    rank: integer('rank').notNull(),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    classId: text('class_id').$type<ClassId>().notNull(),
+    level: integer('level').notNull(),
+    formulaVersion: integer('formula_version').notNull(),
+    value: bigint('value', { mode: 'number' }).notNull(),
+    sortKey: bigint('sort_key', { mode: 'number' }).array().notNull(),
+    achievedAt: timestamp('achieved_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.season, t.metric, t.characterId] }),
+    uniqueIndex('season_standings_rank_idx').on(t.season, t.metric, t.rank),
+    index('season_standings_account_id_idx').on(t.accountId),
+    index('season_standings_character_id_idx').on(t.characterId),
+    check(
+      'season_standings_metric_check',
+      sql`${t.metric} in ('level', 'gearScore', 'power', 'pveProgress')`,
+    ),
+  ],
+);
+
+/**
+ * Ticket 5.3: prestige rewards, at most one per account, season and board (the primary key makes
+ * the award exactly-once: a rerun or a second instance inserts nothing). Cosmetic only.
+ */
+export const seasonAwards = pgTable(
+  'season_awards',
+  {
+    season: integer('season')
+      .notNull()
+      .references(() => seasons.number, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    metric: text('metric').$type<ScoreMetric>().notNull(),
+    tier: text('tier').$type<PrestigeTier>().notNull(),
+    rank: integer('rank').notNull(),
+    /** The hero whose place earned it (null once that hero is gone). */
+    characterId: uuid('character_id').references(() => characters.id, { onDelete: 'set null' }),
+    awardedAt: timestamp('awarded_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.season, t.accountId, t.metric] }),
+    index('season_awards_account_id_idx').on(t.accountId),
+    check(
+      'season_awards_metric_check',
+      sql`${t.metric} in ('level', 'gearScore', 'power', 'pveProgress')`,
+    ),
+    check(
+      'season_awards_tier_check',
+      sql`${t.tier} in ('champion', 'exalted', 'renowned', 'veteran')`,
+    ),
+  ],
+);
+
+/**
+ * Ticket 5.3: which earned title and frame a player shows. No row: never chosen (the first award
+ * picks the best one); a row with nulls: the player chose to show none. Each choice must be one of
+ * the account's own awards (composite foreign keys).
+ */
+export const prestigeDisplays = pgTable(
+  'prestige_displays',
+  {
+    accountId: uuid('account_id')
+      .primaryKey()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    titleSeason: integer('title_season'),
+    titleMetric: text('title_metric').$type<ScoreMetric>(),
+    frameSeason: integer('frame_season'),
+    frameMetric: text('frame_metric').$type<ScoreMetric>(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    foreignKey({
+      name: 'prestige_displays_title_fk',
+      columns: [t.titleSeason, t.accountId, t.titleMetric],
+      foreignColumns: [seasonAwards.season, seasonAwards.accountId, seasonAwards.metric],
+    }),
+    foreignKey({
+      name: 'prestige_displays_frame_fk',
+      columns: [t.frameSeason, t.accountId, t.frameMetric],
+      foreignColumns: [seasonAwards.season, seasonAwards.accountId, seasonAwards.metric],
+    }),
+    check(
+      'prestige_displays_title_check',
+      sql`(${t.titleSeason} is null) = (${t.titleMetric} is null)`,
+    ),
+    check(
+      'prestige_displays_frame_check',
+      sql`(${t.frameSeason} is null) = (${t.frameMetric} is null)`,
     ),
   ],
 );
