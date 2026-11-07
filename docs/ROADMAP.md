@@ -533,7 +533,7 @@ GDD: §10.1 (group activities), §11.2. Needs 4.4.
 - A guild-only damage board (global leaderboards are Phase 5).
 **Acceptance:** attempt races and week-boundary window tests (real PG); invariance; balance test (a small guild can finish the first stage, a large one can't trivialise every stage); screenshots.
 
-### 4.10 Trading & item binding: decision (docs) — `todo`
+### 4.10 Trading & item binding: decision (docs) — `done (PR #72)`
 GDD: §10.1, §17 (trading and item binding), §16.3. No trading code.
 - Decide and document item binding (bind on pickup / bind on equip / tradeable, by rarity, variant and source), what a trade may include (items, gold, materials), anti-abuse rules (account age, level, limits, audit, rate limits, reversal by moderators) and the real-money-trading risk.
 - Record the decision in GDD §17 and a ticket outline for the phase that builds it. The owner signs off.
