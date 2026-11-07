@@ -569,7 +569,7 @@ Goal: the live site can be limited to invited players and has the legally requir
 - Invite codes: random, stored hashed, single- or multi-use with expiry, created/listed/revoked only by admins (`pnpm admin:invite`, `deploy/admin.sh invite …`), redeemed atomically at registration (real-Postgres race test), audited without exposing codes. Register UI: invite field, `?invite=CODE` links, closed message, public `GET /api/config`.
 - Impressum and Datenschutzerklärung pages from owner-editable Markdown (`content/legal/` templates, overridden by the mounted `deploy/legal/` on the VPS), linked in every footer, consent line at registration. Templates are placeholders, not legal advice.
 
-### D.3 Admin panel — `in progress`
+### D.3 Admin panel — `done (PR #58)`
 Goal: the owner administers the live site from the browser instead of the VPS shell, without widening what a stolen admin session could do. Read `CLAUDE.md`, `docs/SOCIAL.md`, `docs/TELEMETRY.md`, `docs/DEPLOY.md`, `docs/API_CONVENTIONS.md`.
 - `#/admin` (footer link for admins only) on `/api/admin/*`, which answers the not-found `404` to everyone but admins, before body validation, inside the per-account rate limits. No migration.
 - **Invites:** create (uses, expiry, note) with the code and the `#/register?invite=CODE` link shown once with copy buttons; list with status, uses, expiry, note, creator and the accounts each code created (from the audit `inviteId`); revoke. Reuses D.2's invite module (the CLI is unchanged).
