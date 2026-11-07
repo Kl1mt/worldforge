@@ -1,18 +1,21 @@
 import { useState, type ReactNode } from 'react';
 import { SEASON_TITLES, findPrestigeTier, prestigeTitle, seasonName } from '@worldforge/game-core';
-import { prestigeSprite } from '../content/assets';
+import { SEASON_FRAME_WINDOW, prestigeSprite } from '../content/assets';
 import type { PrestigeBadge } from './seasons';
 import './prestige.css';
 
 /**
- * Ticket 5.3: prestige marks, cosmetic only. A title badge (the board's badge art by its fixed
- * name, A.10) with the title's words, and a profile frame by tier. Until the art exists, or if it
- * fails to load, the badge is a small enamelled lozenge and the frame a CSS rim in the tier's
- * metal: champion gilt, exalted brass, renowned pewter, veteran iron.
+ * Ticket 5.3: prestige marks, cosmetic only, drawn with A.10's art by its fixed names:
+ * - `TitleBadge`: the board's 32×32 badge with the title's words (×1, or shrunk smoothly to 24 px
+ *   in rows, the one exception to integer scaling; always beside its text);
+ * - `FramedPlate`: the tier's 64×64 frame at an integer scale over content that fills its window
+ *   (×1 around a 32 px badge, ×4 around a 128 px class portrait);
+ * - `FrameMark`: in rows, where a 64 px frame does not fit, a small rim in the tier's metal.
+ * If the art is missing or fails to load: an enamelled lozenge and a CSS rim per tier.
  */
 
 function useArt(name: string) {
-  const sprite = prestigeSprite(name);
+  const sprite = name ? prestigeSprite(name) : null;
   const [failed, setFailed] = useState<string | null>(null);
   const shown = sprite !== null && failed !== sprite.path ? sprite : null;
   return { sprite: shown, onError: () => sprite && setFailed(sprite.path) };
@@ -24,7 +27,7 @@ export function TitleBadge({
   compact = false,
 }: {
   badge: PrestigeBadge | null;
-  /** Rows (boards, rosters): the season as a short mark. */
+  /** Rows (boards, rosters): a 24 px badge and the season as a short mark. */
   compact?: boolean;
 }) {
   const art = useArt(badge ? SEASON_TITLES[badge.metric].badgeAsset : '');
@@ -38,11 +41,11 @@ export function TitleBadge({
     >
       {art.sprite ? (
         <img
-          className="honour__badge pixel"
+          className={`honour__badge${compact ? ' honour__badge--small' : ' pixel'}`}
           src={art.sprite.path}
           alt=""
-          width={art.sprite.width}
-          height={art.sprite.height}
+          width={compact ? 24 : art.sprite.width}
+          height={compact ? 24 : art.sprite.height}
           draggable={false}
           onError={art.onError}
         />
@@ -55,7 +58,58 @@ export function TitleBadge({
   );
 }
 
-/** A rim around a name or a portrait, by the tier of the chosen frame (none: no rim). */
+/**
+ * The tier's frame at ×`scale` (64 px × scale) over `children`, centred in the frame's window
+ * (36 px × scale). Without art: the same box with a CSS rim. None chosen: nothing.
+ */
+export function FramedPlate({
+  frame,
+  scale,
+  children,
+}: {
+  frame: PrestigeBadge | null;
+  scale: 1 | 2 | 4;
+  children: ReactNode;
+}) {
+  const tier = frame ? findPrestigeTier(frame.tier) : undefined;
+  const art = useArt(tier?.frameAsset ?? '');
+  if (!frame || !tier) return null;
+  const size = 64 * scale;
+  const w = SEASON_FRAME_WINDOW;
+  return (
+    <span
+      className={`honourplate honour--${tier.id}${art.sprite ? '' : ' honourplate--rim'}`}
+      style={{ width: size, height: size }}
+      role="img"
+      aria-label={`${tier.name} frame, ${seasonName(frame.season)}`}
+    >
+      <span
+        className="honourplate__window"
+        style={{
+          left: w.x * scale,
+          top: w.y * scale,
+          width: w.width * scale,
+          height: w.height * scale,
+        }}
+      >
+        {children}
+      </span>
+      {art.sprite ? (
+        <img
+          className="honourplate__art pixel"
+          src={art.sprite.path}
+          alt=""
+          width={size}
+          height={size}
+          draggable={false}
+          onError={art.onError}
+        />
+      ) : null}
+    </span>
+  );
+}
+
+/** A rim in the tier's metal around a name (CSS only). */
 export function PrestigeFrame({
   frame,
   children,
@@ -66,22 +120,12 @@ export function PrestigeFrame({
   size?: 'sm' | 'md';
 }) {
   const tier = frame ? findPrestigeTier(frame.tier) : undefined;
-  const art = useArt(tier?.frameAsset ?? '');
   if (!frame || !tier) return <>{children}</>;
   return (
     <span
-      className={`honourframe honourframe--${tier.id} honourframe--${size}${art.sprite ? ' honourframe--art' : ''}`}
+      className={`honourframe honourframe--${tier.id} honourframe--${size}`}
       title={`${tier.name} frame, ${seasonName(frame.season)}`}
     >
-      {art.sprite ? (
-        <img
-          className="honourframe__art pixel"
-          src={art.sprite.path}
-          alt=""
-          draggable={false}
-          onError={art.onError}
-        />
-      ) : null}
       <span className="honourframe__inner">{children}</span>
     </span>
   );

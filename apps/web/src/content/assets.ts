@@ -255,13 +255,14 @@ export function findSprite(id: string): SpriteAsset | null {
 
 /**
  * Ticket 5.3: prestige art by its fixed asset name (game-core `PRESTIGE_TIERS[].frameAsset`,
- * `SEASON_TITLES[].badgeAsset`: `season-frame-champion` … `season-frame-veteran`,
- * `title-badge-level` … `title-badge-pve-progress`). Ticket A.10 registers them here as
- * `prestige.<name>` (files under `/assets/prestige/`); until then this returns null and the UI
- * draws a CSS frame and a text badge instead.
+ * `SEASON_TITLES[].badgeAsset`): `season-frame-<tier>` is A.10's `frame.<name>` (64×64, fill
+ * `SEASON_FRAME_WINDOW`), `title-badge-<metric>` its `badge.<name>` (32×32). Null for a name that
+ * is not registered; the UI then draws a CSS rim and an enamelled lozenge instead.
  */
 export function prestigeSprite(name: string): SpriteAsset | null {
-  return findSprite(`prestige.${name}`);
+  if (name.startsWith('season-frame-')) return findSprite(`frame.${name}`);
+  if (name.startsWith('title-badge-')) return findSprite(`badge.${name}`);
+  return null;
 }
 
 /** The full-body portrait for a class (`character.<classId>`), used wherever a hero is drawn. */

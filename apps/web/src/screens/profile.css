@@ -464,8 +464,7 @@
   background: var(--ink-850);
 }
 
-.honours__preview-name {
-  padding: 0 var(--space-2);
+.honours__charge {
   color: var(--bone-100);
 }
 

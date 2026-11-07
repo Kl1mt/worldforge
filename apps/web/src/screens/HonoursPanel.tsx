@@ -1,13 +1,15 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import {
   BOARD_METRICS,
+  SEASON_TITLES,
   findPrestigeTier,
   prestigeTitle,
   seasonName,
   type ScoreMetric,
 } from '@worldforge/game-core';
 import { describeSocialFailure } from '../social/api';
-import { PrestigeFrame, TitleBadge } from '../social/Prestige';
+import { FramedPlate, TitleBadge } from '../social/Prestige';
+import { prestigeSprite } from '../content/assets';
 import {
   seasonsApi,
   type EarnedAward,
@@ -116,10 +118,18 @@ export function HonoursPanel({ onSaved }: { onSaved: () => void }) {
       {load.kind === 'ready' && earned.length > 0 ? (
         <form className="herald__form" onSubmit={submit} noValidate>
           <div className="honours__preview" aria-label="Preview">
-            <PrestigeFrame frame={previewFrame}>
-              <span className="honours__preview-name display">You</span>
-            </PrestigeFrame>
-            <TitleBadge badge={previewTitle} />
+            {previewFrame ? (
+              <FramedPlate frame={previewFrame} scale={1}>
+                <FrameCharge award={previewFrame} />
+              </FramedPlate>
+            ) : (
+              <span className="herald__hint">No frame</span>
+            )}
+            {previewTitle ? (
+              <TitleBadge badge={previewTitle} />
+            ) : (
+              <span className="herald__hint">No title</span>
+            )}
           </div>
           <div className="field">
             <label className="field__label caps" htmlFor={`${ids}-t`}>
@@ -191,4 +201,15 @@ export function HonoursPanel({ onSaved }: { onSaved: () => void }) {
       ) : null}
     </section>
   );
+}
+
+/** The 32 px charge inside a ×1 frame: the board's badge, else the tier's initial. */
+function FrameCharge({ award }: { award: EarnedAward }) {
+  const badge = prestigeSprite(SEASON_TITLES[award.metric].badgeAsset);
+  if (badge) {
+    return (
+      <img className="pixel" src={badge.path} alt="" width={32} height={32} draggable={false} />
+    );
+  }
+  return <span className="honours__charge display">{findPrestigeTier(award.tier)!.name[0]}</span>;
 }

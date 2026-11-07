@@ -1,6 +1,6 @@
-/* ── Prestige marks (ticket 5.3): title badges and profile frames. Cosmetic. The art comes from
-   A.10 (`prestige.<asset name>`); without it, an enamelled lozenge and a metal rim per tier. All
-   class names are scoped `honour…`. ── */
+/* ── Prestige marks (ticket 5.3): title badges and profile frames. Cosmetic. The art is A.10's
+   (`frame.<name>`, `badge.<name>`); rows and missing art use an enamelled lozenge and a metal rim
+   per tier. All class names are scoped `honour…`. ── */
 .honour--champion,
 .honourframe--champion {
   --honour-metal: var(--brass-300);
@@ -51,8 +51,14 @@
 }
 .honour__badge {
   flex: none;
-  width: 16px;
-  height: 16px;
+  width: 32px;
+  height: 32px;
+}
+/* The one exception to integer scaling (docs/ASSET_GUIDELINES.md): a badge in a row, smoothed. */
+.honour__badge--small {
+  width: 24px;
+  height: 24px;
+  image-rendering: auto;
 }
 .honour__words {
   overflow: hidden;
@@ -92,19 +98,6 @@
   padding: 1px;
   outline-offset: 1px;
 }
-.honourframe--art {
-  border-color: transparent;
-  outline: none;
-  box-shadow: none;
-  background: none;
-}
-.honourframe__art {
-  position: absolute;
-  inset: -6px;
-  width: calc(100% + 12px);
-  height: calc(100% + 12px);
-  pointer-events: none;
-}
 .honourframe__inner {
   position: relative;
   display: inline-block;
@@ -118,4 +111,29 @@
   font-family: var(--font-display, serif);
   font-size: 0.7rem;
   line-height: 1;
+}
+
+/* The frame art (A.10) at an integer scale over content centred in its window. */
+.honourplate {
+  position: relative;
+  display: inline-block;
+  flex: none;
+}
+.honourplate__window {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  overflow: visible;
+  background: var(--ink-900);
+}
+.honourplate__art {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+/* Without the art: a rim around the window in the tier's metal. */
+.honourplate--rim .honourplate__window {
+  border: 2px solid var(--honour-metal);
+  outline: 1px solid var(--honour-deep);
+  outline-offset: 3px;
 }
