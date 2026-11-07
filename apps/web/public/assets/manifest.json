@@ -1633,6 +1633,129 @@
       },
       "prompt": "dark fantasy pixel art heraldic charge icons, one bold simple emblem silhouette per icon, centred, for a guild shield: anvil; crow with spread wings; castle tower; flame; skull; oak tree; howling wolf head; iron key; spiked crown; crescent moon; coiled serpent; chalice, aged brass and bone-white with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
       "source": "art/source/pixellab/emblems-guild-01/62.png"
+    },
+    {
+      "id": "frame.season-frame-champion",
+      "path": "/assets/frames/season-frame-champion.png",
+      "kind": "frame",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, square ornamental portrait frame, front view, symmetrical, thick border around the edges only, large empty hollow centre, one frame per image, four ranks of prestige: plain riveted dark iron frame; iron frame with aged brass corner studs; engraved aged brass frame with small skull corners; ornate grave-gold frame with deep crimson gems and a small spiked crown at the top, weathered metal, dark near-black outline, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/frames-season-01/edits/12-trim.png",
+      "window": {
+        "x": 14,
+        "y": 14,
+        "width": 36,
+        "height": 36
+      }
+    },
+    {
+      "id": "frame.season-frame-exalted",
+      "path": "/assets/frames/season-frame-exalted.png",
+      "kind": "frame",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, square ornamental portrait frame, front view, symmetrical, thick border around the edges only, large empty hollow centre, one frame per image, four ranks of prestige: plain riveted dark iron frame; iron frame with aged brass corner studs; engraved aged brass frame with small skull corners; ornate grave-gold frame with deep crimson gems and a small spiked crown at the top, weathered metal, dark near-black outline, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/frames-season-01/08.png",
+      "window": {
+        "x": 14,
+        "y": 14,
+        "width": 36,
+        "height": 36
+      }
+    },
+    {
+      "id": "frame.season-frame-renowned",
+      "path": "/assets/frames/season-frame-renowned.png",
+      "kind": "frame",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, square ornamental portrait frame, front view, symmetrical, thick border around the edges only, large empty hollow centre, one frame per image, four ranks of prestige: plain riveted dark iron frame; iron frame with aged brass corner studs; engraved aged brass frame with small skull corners; ornate grave-gold frame with deep crimson gems and a small spiked crown at the top, weathered metal, dark near-black outline, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/frames-season-01/04.png",
+      "window": {
+        "x": 14,
+        "y": 14,
+        "width": 36,
+        "height": 36
+      }
+    },
+    {
+      "id": "frame.season-frame-veteran",
+      "path": "/assets/frames/season-frame-veteran.png",
+      "kind": "frame",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, square ornamental portrait frame, front view, symmetrical, thick border around the edges only, large empty hollow centre, one frame per image, four ranks of prestige: plain riveted dark iron frame; iron frame with aged brass corner studs; engraved aged brass frame with small skull corners; ornate grave-gold frame with deep crimson gems and a small spiked crown at the top, weathered metal, dark near-black outline, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/frames-season-01/00.png",
+      "window": {
+        "x": 14,
+        "y": 14,
+        "width": 36,
+        "height": 36
+      }
+    },
+    {
+      "id": "badge.title-badge-level",
+      "path": "/assets/badges/title-badge-level.png",
+      "kind": "badge",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, small round heraldic badge per icon, aged brass rim around a dark iron disc with one bold simple emblem, centred: three stacked upward chevrons; crossed sword over a shield; clenched iron gauntlet fist; skull with a planted pennant flag; laurel wreath; anvil, aged brass, dark iron, bone-white and deep crimson, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/badges-titles-01/00.png"
+    },
+    {
+      "id": "badge.title-badge-gear-score",
+      "path": "/assets/badges/title-badge-gear-score.png",
+      "kind": "badge",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, small round heraldic badge per icon, aged brass rim around a dark iron disc with one bold simple emblem, centred: three stacked upward chevrons; crossed sword over a shield; clenched iron gauntlet fist; skull with a planted pennant flag; laurel wreath; anvil, aged brass, dark iron, bone-white and deep crimson, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/badges-titles-01/01.png"
+    },
+    {
+      "id": "badge.title-badge-power",
+      "path": "/assets/badges/title-badge-power.png",
+      "kind": "badge",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, small round heraldic badge per icon, aged brass rim around a dark iron disc with one bold simple emblem, centred: three stacked upward chevrons; crossed sword over a shield; clenched iron gauntlet fist; skull with a planted pennant flag; laurel wreath; anvil, aged brass, dark iron, bone-white and deep crimson, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/badges-titles-01/edits/02-lifted.png"
+    },
+    {
+      "id": "badge.title-badge-pve-progress",
+      "path": "/assets/badges/title-badge-pve-progress.png",
+      "kind": "badge",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, small round heraldic badge per icon, aged brass rim around a dark iron disc with one bold simple emblem, centred: three stacked upward chevrons; crossed sword over a shield; clenched iron gauntlet fist; skull with a planted pennant flag; laurel wreath; anvil, aged brass, dark iron, bone-white and deep crimson, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/badges-titles-01/19.png"
+    },
+    {
+      "id": "area.arena",
+      "path": "/assets/areas/arena.png",
+      "kind": "area",
+      "size": {
+        "width": 384,
+        "height": 216
+      },
+      "prompt": "dark fantasy pixel art, backdrop, an empty duelling arena of a frontier town: a ruined round stone arena with a flat packed sand floor in the foreground, crumbling tiered stone stands, rusted iron spiked gates, tattered crimson and brass banners on poles, iron braziers with dim firelight, cold grey overcast sky, no people, muted desaturated palette, charcoal and stone grey, dim crimson accents, gloomy light",
+      "source": "art/source/pixellab/area-arena-01/00.png"
     }
   ]
 }

@@ -695,7 +695,7 @@ GDD: §10.2, §13. Needs 5.2.
 - Prestige rewards: titles and profile frames shown on profiles, boards and in guilds; awarded exactly once at season end (real-PG races, a restart mid-award), cosmetic only.
 - Tests: the season boundary (window rule), award idempotency, archive integrity; screenshots.
 
-### A.10 Profile frames, title badges & arena art — `todo`
+### A.10 Profile frames, title badges & arena art — `done (PR #87)`
 GDD: §3.1, §13.1. Needs 5.3's reward ids (and 5.5's arena screen for the arena art).
 - A set of profile frames by tier, small title badges, and an arena backdrop for the duel screen, matching the existing style.
 - Budget: one or two 32px jobs plus one backdrop job; at most one regeneration. Manifest and `assets.ts` updated.

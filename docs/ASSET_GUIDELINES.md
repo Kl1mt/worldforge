@@ -7,7 +7,7 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | Path | Contents |
 |---|---|
 | `art/source/pixellab/<batch>/` | Raw generator output, unedited: `NN.png`, `_contact-sheet.png`, `_job.json` (prompt, size, seed, job id). Never served. |
-| `apps/web/public/assets/{items,enemies,characters,areas,hub,map,materials,achievements,guild-emblems}/` | Curated picks at **native resolution**, kebab-case names (`iron-helm.png`). |
+| `apps/web/public/assets/{items,enemies,characters,areas,hub,map,materials,achievements,guild-emblems,frames,badges}/` | Curated picks at **native resolution**, kebab-case names (`iron-helm.png`). |
 | `apps/web/public/assets/manifest.json` | One entry per curated asset (see below). |
 | `art/preview-phase-0.png` | Combined preview of all curated Phase 0 assets. |
 | `art/preview-class-portraits.png` | The four class portraits side by side at ×3. |
@@ -18,6 +18,7 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | `art/preview-heraldry.png` | The achievement icons and guild emblems at ×4, below a row of item icons for scale. |
 | `art/preview-project-achievements.png` | The two community-project achievement icons (A.9) below A.8's achievement set, at ×4. |
 | `art/preview-ashen-pass.png` | The Ashen Pass backdrop next to the Sunken Abbey, its four enemies below the existing ones, and the Ashen Warden next to the Gravewarden. |
+| `art/preview-prestige.png` | The season frames around a sample crest (×1, ×2) and the warrior portrait (×4), the title badges (×2, ×1, 24 and 16 px), and the arena backdrop next to the Ashen Pass and the Sunken Abbey (A.10). Same image as `docs/screenshots/phase-5/a10-contact-sheet.png`; rebuild with `python3 tools/art/preview_prestige.py`. |
 | `tools/art/pixellab_gen.py` | Generate/collect/contact-sheet helper. |
 
 Curated files are byte-for-byte copies of a raw variant. Do not hand-edit them in place. If an asset needs fixing, save the edit as a new file and record it in the manifest `source`.
@@ -28,9 +29,11 @@ Curated files are byte-for-byte copies of a raw variant. Do not hand-edit them i
 |---|---|---|
 | Item icon | 32×32 | Transparent background, object centred, roughly 45° for weapons. |
 | Achievement icon, guild emblem | 32×32 | Same pixel scale as item icons. Emblems are a single charge, upright and centred. |
+| Season frame | 64×64 | Transparent outside and inside the bands. Fixed layout (not 9-slice): content fills the 36×36 window at (14, 14) and the frame is drawn on top. |
+| Title badge | 32×32 | Same pixel scale as item icons: a brass-rimmed dark disc with one emblem. |
 | Enemy | 64×64 | Transparent background, full body, feet on the bottom rows. |
 | Character | 128×128 | Transparent background, full body. |
-| Area backdrop | 384×216 | Opaque, 16:9. It fills the scene. |
+| Area backdrop, arena | 384×216 | Opaque, 16:9. It fills the scene. |
 | Hub, world map | 384×216 | Opaque, 16:9, same pixel scale as the backdrops. |
 
 Assets are always stored at native size. All enlargement happens at render time.
@@ -125,9 +128,10 @@ It uses only the async flow: it POSTs, then polls `GET /background-jobs/{id}` ev
 ```
 
 - `id` is `<kind>.<kebab-name>` and stays stable once referenced by content data.
-- `kind` is one of `item | material | enemy | character | area | hub | map | achievement | guild-emblem`.
+- `kind` is one of `item | material | enemy | character | area | hub | map | achievement | guild-emblem | frame | badge`.
 - The optional fields are `slot` (items, using the GDD §7.1 slot family: `weapon`, `offhand`, `head`, `chest`, `hands`, `feet`, `neck`, `ring`) and `facing` (sprites).
 - `hotspots` (`hub` only): clickable buildings as `{ id, label, x, y, width, height }` rectangles in native image pixels (origin top-left). Building ids: `forge`, `merchant`, `tavern`, `guildHall`, `warehouse`, `summoningShrine`, `worldMap` (the signpost and map table). Rectangles do not overlap. Whether a building is locked is game state, not art data.
+- `window` (`frame` only): `{ x, y, width, height }`, the content box in native frame pixels (see the A.10 section).
 - `markers` (`map` only): `{ id, x, y }` centre points in native image pixels, one per `AreaId` (including the dungeon `namelessCrypt`) plus `hub` for the town of Graumark.
 
 When the UI scales a hub or map by an integer ×N, multiply hotspot and marker coordinates by the same N.
@@ -190,3 +194,15 @@ The world map came out with opaque white pixels along its burnt edge (about 1,15
 - The two 4.6 project deeds have icons now, so every achievement in `ACHIEVEMENTS` is drawn: `achievement.warehouse-restorer` ("Mender of Graumark", an iron key in the lock of a restored, iron-banded oak door) and `achievement.ashen-pass-breaker` ("Through the Ash", a cracked watchtower with an ember at its broken top).
 - One 32px job, no regeneration: `icons-achievements-02` (style image `achievements/contracts-10.png`). Picks `00.png` and `28.png`, unedited. The batch also holds a crate with a hammer, key rings, broken chains on ash and an ember-wreathed gate, unused.
 - Preview: `art/preview-project-achievements.png`.
+
+## Season frames, title badges & the arena (ticket A.10)
+
+- Art for season prestige (ticket 5.3) and the duel screen (ticket 5.5). It is registered but not drawn anywhere yet. The file names are fixed, because 5.3 and 5.5 build on them:
+  - **Profile frames**, best to least: `frames/season-frame-champion.png` (grave-gold with crimson gems and a small spiked crown), `season-frame-exalted.png` (engraved aged brass with skull bosses), `season-frame-renowned.png` (dark iron with brass corner plates), `season-frame-veteran.png` (plain riveted iron). Ids `frame.season-frame-<tier>`; helper `seasonFrameAsset(tier)` over `SEASON_FRAME_TIERS`.
+  - **Title badges**, one per leaderboard metric: `badges/title-badge-level.png` (stacked chevrons), `title-badge-gear-score.png` (crossed swords over a shield), `title-badge-power.png` (a clenched gauntlet), `title-badge-pve-progress.png` (a crimson pennant planted on a skull). Ids `badge.title-badge-<metric>`; helper `titleBadgeAsset(metric)` takes game-core's `ScoreMetric`.
+  - **Arena backdrop**: `areas/arena.png` (`area.arena`, helper `arenaBackdrop()`), an empty ruined round arena with a sand floor, crimson banners and braziers, at the area backdrop size and treatment.
+- **Frame layout.** All four frames share one fixed layout (not 9-slice: the bands are textured and the corners ornamented, so they don't tile). The frame is 64×64 and has transparent margins, so the tiers can be swapped without moving anything. Fill the **window** `{ x: 14, y: 14, width: 36, height: 36 }` (`SEASON_FRAME_WINDOW`, also in the manifest) with the content and its well, then draw the frame on top at the same integer scale. The bands cover the window's edge in every tier, and the corner bosses of exalted and champion overlap its corners. The central 32×32 at (16, 16) is always visible. Scales: ×1 (64 px) around a 32 px charge or a small crest, ×2 (128 px) around a 64 px avatar or crest, ×4 (256 px) around the 128 px class portrait. The champion's crown rises about 5 px above the other frames' top bands, still inside the 64×64 box.
+- **Badges at small sizes.** Draw a badge at ×1 (32 px) where there is room. In a 16–24 px slot (a board row, a name line) it may be shrunk with smooth filtering, which is the one exception to the integer-scaling rule. Prefer 24 px. At 16 px the ring and the emblem's colour carry it, so put the badge next to its text label (the title or the board name), never alone.
+- Three jobs, no regeneration (35 generations): `frames-season-01` (64×64, style image `achievements/level-10.png`; one row of four variants per tier), `badges-titles-01` (32×32, style image `achievements/level-20.png`) and `area-arena-01` (style image `areas/sunken-abbey.png`). Picks: frames `00` (veteran), `04` (renowned), `08` (exalted), `12` (champion); badges `00`, `01`, `02`, `19`; arena `00`. All are alpha-keyed with no partial alpha, like the rest of the art.
+- Two edits, saved next to the raw files (which stay unchanged). `frames-season-01/edits/12-trim.png` drops one duplicated row of the champion's side posts (row 50), so its opening ends at row 49 like the others and the shared window is centred. `badges-titles-01/edits/02-lifted.png` lifts the gauntlet (×1.6 brightness with a warm bias, then snapped to the batch's own palette) so it reads on the dark disc like the other emblems. The outline and the ring are untouched.
+- Preview: `art/preview-prestige.png`. A web test checks that every tier, metric and the arena resolves to a manifest entry and a file of the right size, and that the frames carry the shared window.
