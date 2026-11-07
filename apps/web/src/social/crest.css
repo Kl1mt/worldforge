@@ -1,6 +1,7 @@
-/* ── Guild crests (ticket 4.4): a brass-rimmed heater shield dyed per emblem, with a placeholder
-   glyph until the art ticket A.8 draws the 32×32 emblems. The `--dye` tokens are shared with the
-   guild banner (`screens/guild.css`). ── */
+/* ── Guild crests (ticket 4.4, art A.8): a brass-rimmed heater shield dyed per emblem, its 32×32
+   charge drawn at an integer scale (`--s`: ×1 small and medium and on phones, ×2 on the banner).
+   The display-face glyph is the fallback when the art is missing. The `--dye` tokens are shared
+   with the guild banner (`screens/guild.css`). ── */
 /* Emblem dyes: muted cloth tones from the banner tokens. */
 .crest--anvil,
 .guildbanner--anvil {
@@ -26,10 +27,35 @@
 .guildbanner--oak {
   --dye: var(--banner-moss);
 }
+.crest--wolf,
+.guildbanner--wolf {
+  --dye: #3a3f45;
+}
+.crest--key,
+.guildbanner--key {
+  --dye: #4a3b2c;
+}
+.crest--crown,
+.guildbanner--crown {
+  --dye: var(--crimson-800);
+}
+.crest--moon,
+.guildbanner--moon {
+  --dye: #2c3550;
+}
+.crest--serpent,
+.guildbanner--serpent {
+  --dye: #34402f;
+}
+.crest--chalice,
+.guildbanner--chalice {
+  --dye: #4a2a35;
+}
 
 /* The crest: a heater shield, brass rim (the outer layer) around the dyed field. */
 .crest {
-  --w: 36px;
+  --w: 40px;
+  --s: 1;
   position: relative;
   display: inline-grid;
   place-items: center;
@@ -48,6 +74,15 @@
   clip-path: polygon(0 0, 100% 0, 100% 58%, 50% 100%, 0 58%);
 }
 
+/* The charge sits in the shield's upper body (above the point), never resampled. */
+.crest__charge {
+  position: relative;
+  width: calc(32px * var(--s));
+  height: calc(32px * var(--s));
+  margin-top: calc(var(--w) * -0.12);
+  filter: drop-shadow(0 1px 0 rgb(0 0 0 / 0.45));
+}
+
 .crest__glyph {
   position: relative;
   margin-top: -18%;
@@ -59,9 +94,10 @@
 }
 
 .crest--sm {
-  --w: 22px;
+  --w: 36px;
 }
 
 .crest--lg {
-  --w: 64px;
+  --w: 76px;
+  --s: 2;
 }
