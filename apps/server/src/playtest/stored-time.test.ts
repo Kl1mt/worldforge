@@ -91,42 +91,6 @@ describe('latestStoredTimeMs (playtest clock floor)', () => {
     expect(await latestStoredTimeMs(database.db)).toBe(Date.parse('2031-05-05T00:00:00Z'));
   });
 
-  it('counts guild boss attempts and rewards (ticket 4.9)', async () => {
-    const leader = await insertAccount(database.db);
-    const guild = await insertGuild(database.db, leader.id);
-    const at = Date.parse('2032-02-03T04:05:06Z');
-    await database.db.insert(guildBossAttempts).values({
-      id: uuidv7(),
-      accountId: leader.id,
-      week: '2032-02-02',
-      attemptNo: 1,
-      guildId: guild.id,
-      bossId: 'risenGravewarden',
-      snapshot: { classId: 'warrior', level: 20, xp: 0, equipment: [] },
-      damage: 10,
-      counted: 10,
-      end: 'fell',
-      durationMs: 1000,
-      createdAt: new Date(at),
-    });
-    expect(await latestStoredTimeMs(database.db)).toBe(at);
-    const claimed = Date.parse('2032-03-01T00:00:00Z');
-    await database.db.insert(guildBossRewards).values({
-      accountId: leader.id,
-      week: '2032-02-02',
-      stage: 1,
-      guildId: guild.id,
-      bossId: 'risenGravewarden',
-      status: 'earned',
-      gold: 1,
-      materials: {},
-      earnedAt: new Date(at),
-      claimedAt: new Date(claimed),
-      createdAt: new Date(at),
-    });
-    expect(await latestStoredTimeMs(database.db)).toBe(claimed);
-  });
-
   it('counts community projects, contribution days and world flags (ticket 4.6)', async () => {
     await database.db
       .insert(communityProjects)
@@ -146,5 +110,41 @@ describe('latestStoredTimeMs (playtest clock floor)', () => {
       .insert(worldFlags)
       .values({ flagId: 'warehouseRestored', setAt: new Date('2032-03-03T03:00:00Z') });
     expect(await latestStoredTimeMs(database.db)).toBe(Date.parse('2032-03-03T03:00:00Z'));
+  });
+
+  it('counts guild boss attempts and rewards (ticket 4.9)', async () => {
+    const leader = await insertAccount(database.db);
+    const guild = await insertGuild(database.db, leader.id);
+    const at = Date.parse('2034-02-03T04:05:06Z');
+    await database.db.insert(guildBossAttempts).values({
+      id: uuidv7(),
+      accountId: leader.id,
+      week: '2034-01-30',
+      attemptNo: 1,
+      guildId: guild.id,
+      bossId: 'risenGravewarden',
+      snapshot: { classId: 'warrior', level: 20, xp: 0, equipment: [] },
+      damage: 10,
+      counted: 10,
+      end: 'fell',
+      durationMs: 1000,
+      createdAt: new Date(at),
+    });
+    expect(await latestStoredTimeMs(database.db)).toBe(at);
+    const claimed = Date.parse('2034-03-01T00:00:00Z');
+    await database.db.insert(guildBossRewards).values({
+      accountId: leader.id,
+      week: '2034-01-30',
+      stage: 1,
+      guildId: guild.id,
+      bossId: 'risenGravewarden',
+      status: 'earned',
+      gold: 1,
+      materials: {},
+      earnedAt: new Date(at),
+      claimedAt: new Date(claimed),
+      createdAt: new Date(at),
+    });
+    expect(await latestStoredTimeMs(database.db)).toBe(claimed);
   });
 });
