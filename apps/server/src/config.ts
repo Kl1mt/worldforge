@@ -104,7 +104,9 @@ function buildEnv(raw: string | undefined, shape: RegExp): string | null {
 /** Like `loadConfig`, but fails fast when `DATABASE_URL` is missing. */
 export function requireDatabaseUrl(config: ServerConfig): string {
   if (!config.databaseUrl) {
-    throw new Error('DATABASE_URL is not set. Copy .env.example to .env (see README).');
+    throw new Error(
+      'DATABASE_URL is not set. Copy .env.example to .env (see docs/DEVELOPMENT.md).',
+    );
   }
   return config.databaseUrl;
 }

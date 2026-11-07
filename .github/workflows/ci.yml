@@ -24,8 +24,36 @@ jobs:
       - run: pnpm format:check
       - run: pnpm lint
       - run: pnpm typecheck
-      - run: pnpm test
       - run: pnpm build
+
+  tests:
+    # The unit and integration tests, one job per package (the server's, the slowest, in two
+    # shards), in parallel with `checks`. Same tests as `pnpm test`; tests resolve workspace
+    # packages from source, so no build is needed first.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: game-core
+            run: pnpm --filter @worldforge/game-core test
+          - name: web
+            run: pnpm --filter @worldforge/web test
+          - name: server 1/2
+            run: pnpm --filter @worldforge/server exec vitest run --shard=1/2
+          - name: server 2/2
+            run: pnpm --filter @worldforge/server exec vitest run --shard=2/2
+    name: tests (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: ${{ matrix.run }}
 
   migrations:
     # Applies the committed migrations from scratch to a real PostgreSQL server with the
