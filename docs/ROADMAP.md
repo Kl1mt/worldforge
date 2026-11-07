@@ -645,7 +645,7 @@ Owner request: patch notes and version numbers in-game for every new thing.
 - Process: the patch notes rule and its collision rule in `CLAUDE.md`, `docs/DEVELOPMENT.md` "Versions and patch notes"; game-core tests enforce valid, unique, increasing versions, ordered dates, the current version, non-empty releases and player language.
 - Tests: game-core ordering, `/api/health` version, route, unread logic, the screen's markup; screenshots `docs/screenshots/phase-5/notes-*`. No gameplay changes.
 
-### F.4 New-version reload hint — `done (PR #TBD)`
+### F.4 New-version reload hint — `done (PR #86)`
 Owner request: a tab kept open through a deploy notices that a newer version is live and offers a reload.
 - One shared, light poll of `GET /api/health` (`shell/healthPoll.ts`): every 5 minutes while the tab is visible and once when it comes back after at least a minute; the status line ("Server online") and the version check read it, so there is no extra request. Before, the health line checked only once per page.
 - game-core `isNewerVersion`: strictly newer only; equal, older, missing or malformed versions never prompt.
