@@ -68,7 +68,7 @@ export async function registerSafety(app: FastifyInstance): Promise<void> {
         reply,
         'report',
         async (tx, { account, now }) => {
-          const resolved = await resolveReportTarget(tx, body.target);
+          const resolved = await resolveReportTarget(tx, body.target, account.id);
           if (!resolved) throw new ApiError(404, 'not_found', 'Nothing to report there.');
           if (resolved.subject.id === account.id) {
             throw new ApiError(422, 'cannot_report_self', 'You cannot report yourself.');

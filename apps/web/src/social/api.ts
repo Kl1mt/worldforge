@@ -189,9 +189,13 @@ export function describeSanction(s: Sanction): string {
     case 'rename':
       return `Your display name was changed by a moderator. Choose a new one before ${until}.`;
     case 'hide':
-      return s.target?.kind === 'characterName'
-        ? `Your hero name “${s.target.name}” is hidden from other players until ${until}.`
-        : `Your display name is hidden from other players until ${until}.`;
+      if (s.target?.kind === 'characterName') {
+        return `Your hero name “${s.target.name}” is hidden from other players until ${until}.`;
+      }
+      if (s.target?.kind === 'message') {
+        return `One of your guild chat lines is hidden by the wardens until ${until}.`;
+      }
+      return `Your display name is hidden from other players until ${until}.`;
   }
 }
 

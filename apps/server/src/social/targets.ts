@@ -6,9 +6,10 @@ import {
   type ReportTarget,
   type ReportTargetKind,
 } from '@worldforge/game-core';
-import { accounts, characters, guilds, type Account } from '../db/schema.js';
+import { accounts, characters, guildMessages, guilds, type Account } from '../db/schema.js';
 import type { Executor } from '../db/types.js';
 import { guildByHandle, guildLeaderId, guildTargetKey } from './guild-model.js';
+import { messageById, messageTargetKey, visibleMessage } from './chat-model.js';
 
 /**
  * Report target registry (ticket 4.1, docs/SOCIAL.md "Reports"). Each kind of game-core
@@ -30,6 +31,8 @@ export interface ResolvedTarget {
 type Resolver<K extends ReportTargetKind> = (
   executor: Executor,
   target: Extract<ReportTarget, { kind: K }>,
+  /** The reporter, for targets only some players can see (ticket 4.5: guild chat). */
+  viewerId?: string,
 ) => Promise<ResolvedTarget | null>;
 
 async function accountByHandle(executor: Executor, handle: string): Promise<Account | null> {
@@ -102,6 +105,34 @@ const RESOLVERS: { [K in ReportTargetKind]: Resolver<K> } = {
       },
     };
   },
+  // Ticket 4.5: a guild chat line or notice. Only someone who can see it (a member of its guild,
+  // not blocked either way with its author) can report it; the subject is its author. The text
+  // is kept in the snapshot, so a later removal keeps the evidence.
+  message: async (executor, t, viewerId) => {
+    if (typeof t.id !== 'string') return null;
+    const found = viewerId
+      ? await visibleMessage(executor, viewerId, t.id)
+      : await messageById(executor, t.id);
+    if (!found || !found.message.authorId) return null;
+    const { message, guild } = found;
+    const [subject] = await executor
+      .select()
+      .from(accounts)
+      .where(eq(accounts.id, message.authorId!));
+    if (!subject) return null;
+    return {
+      subject,
+      key: messageTargetKey(message.id),
+      target: { kind: 'message', id: message.id },
+      context: {
+        displayName: subject.displayName,
+        value: message.body,
+        messageKind: message.kind,
+        guild: `${guild.name} [${guild.tag}]`,
+        sentAt: message.createdAt.toISOString(),
+      },
+    };
+  },
 };
 
 export function characterNameKey(characterId: string): string {
@@ -125,6 +156,20 @@ export async function currentTargetValues(
     .map((r) => r.key)
     .filter((k) => k.startsWith('guild:'))
     .map((k) => k.slice('guild:'.length));
+  const messageIds = rows
+    .map((r) => r.key)
+    .filter((k) => k.startsWith('message:'))
+    .map((k) => k.slice('message:'.length));
+  const messageRows = messageIds.length
+    ? await executor
+        .select({
+          id: guildMessages.id,
+          body: guildMessages.body,
+          removedAs: guildMessages.removedAs,
+        })
+        .from(guildMessages)
+        .where(inArray(guildMessages.id, messageIds))
+    : [];
   const guildRows = guildIds.length
     ? await executor
         .select({
@@ -152,6 +197,16 @@ export async function currentTargetValues(
         r.key,
         !g ? '(guild gone)' : `${g.name} [${g.tag}]${g.disbandedAt ? ' (disbanded)' : ''}`,
       );
+    } else if (r.key.startsWith('message:')) {
+      // Moderators see the words, even after an officer removed the line.
+      const m = messageRows.find((x) => messageTargetKey(x.id) === r.key);
+      const removed =
+        m?.removedAs === 'withdrawn'
+          ? ' (withdrawn by its author)'
+          : m?.removedAs === 'removed'
+            ? ' (removed by an officer)'
+            : '';
+      out.set(r.key, m ? `${m.body}${removed}` : '(guild gone)');
     } else out.set(r.key, r.subject.displayName);
   }
   return out;
@@ -164,9 +219,10 @@ export function profileFieldKey(accountId: string, field: string): string {
 export function resolveReportTarget(
   executor: Executor,
   target: ReportTarget,
+  viewerId?: string,
 ): Promise<ResolvedTarget | null> {
   const resolver = RESOLVERS[target.kind] as Resolver<ReportTargetKind>;
-  return resolver(executor, target as never);
+  return resolver(executor, target as never, viewerId);
 }
 
 export function isHideable(kind: ReportTargetKind): boolean {
@@ -210,16 +266,27 @@ export const reportTargetSchema = {
       required: ['kind', 'handle'],
       properties: { kind: { const: 'guild' }, handle: handleSchema },
     },
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['kind', 'id'],
+      properties: {
+        kind: { const: 'message' },
+        id: { type: 'string', minLength: 1, maxLength: 64 },
+      },
+    },
   ],
 } as const;
 
 export const reportTargetViewSchema = {
   type: 'object',
-  required: ['kind', 'handle'],
+  required: ['kind'],
   properties: {
     kind: { type: 'string' },
     handle: { type: 'string' },
     field: { type: 'string' },
     name: { type: 'string' },
+    // Ticket 4.5: a message target (no handle).
+    id: { type: 'string' },
   },
 } as const;

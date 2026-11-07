@@ -495,7 +495,7 @@ GDD: §10.1, §4.2 (Guild Hall). Needs 4.1 (and 4.3 for presence).
 - Leaving or a kick takes effect at once in every guild feature; a leader leaving must hand over or disband.
 **Acceptance:** permission matrix (each guild role and non-member × each action); races (two leaders promote/kick each other, joins at the cap, accept vs disband) on real PG; gold cost audited and reconciled; screenshots.
 
-### 4.5 Guild communication (vertical) — `todo`
+### 4.5 Guild communication (vertical) — `done (PR #67)`
 GDD: §10.1. Needs 4.4.
 - **Guild chat:** messages through the text module, cursor-paginated polling, a sensible history limit. A guild "notice" the leader and officers can set.
 - **Moderation:** report a message; officers can delete members' messages in their guild; moderators can hide any message and mute (4.1). Muted players see why.

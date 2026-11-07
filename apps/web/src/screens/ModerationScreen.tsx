@@ -87,6 +87,11 @@ function targetLabel(c: ModCase): string {
   }
   if (c.target.kind === 'characterName') return `Hero name · ${c.target.name}`;
   if (c.target.kind === 'guild') return `Guild · ${c.current.value} · led by`;
+  // Ticket 4.5: the words of a reported guild chat line (kept even after an officer struck it).
+  if (c.target.kind === 'message') {
+    const where = c.reports[0]?.context.guild;
+    return `Guild chat${typeof where === 'string' ? ` in ${where}` : ''} · “${c.current.value}” · by`;
+  }
   return REPORT_TARGET_KINDS[c.target.kind].label;
 }
 

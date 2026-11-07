@@ -23,6 +23,7 @@ import { registerProfiles } from './social/profiles.js';
 import { registerModeration } from './social/moderation.js';
 import { registerFriends } from './social/friends.js';
 import { registerGuilds } from './social/guilds.js';
+import { registerGuildChat } from './social/guild-chat.js';
 import { registerLegal, type LegalOptions } from './legal/routes.js';
 import { registerAdmin, type AdminOptions } from './admin/routes.js';
 import type { Database, DatabaseHandle } from './db/types.js';
@@ -97,6 +98,7 @@ export function buildApp({
       await registerModeration(api);
       await registerFriends(api);
       await registerGuilds(api, activityOptions);
+      await registerGuildChat(api);
       await registerLegal(api, legal ?? {});
       await registerAdmin(api, admin ?? {});
       if (testRoutes) await testRoutes(api);
