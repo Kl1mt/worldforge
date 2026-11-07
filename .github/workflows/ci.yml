@@ -78,6 +78,9 @@ jobs:
     # and 390 px. The server is the real buildApp() on PGlite with a scaled farming clock
     # (apps/server/src/e2e/serve.ts); docs/TECH_STACK.md, "End-to-end run".
     runs-on: ubuntu-latest
+    # Chromium and its system libraries are preinstalled (same version as the client below), so
+    # no `playwright install --with-deps` per run: that apt step took from 20 s to 7 min.
+    container: mcr.microsoft.com/playwright:v1.63.0-noble
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
@@ -87,11 +90,11 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Install Playwright with Chromium
+      - name: Playwright client (Chromium and its libraries come with the container)
         run: |
+          command -v curl >/dev/null && command -v pkill >/dev/null || { apt-get update -qq && apt-get install -y -qq curl procps >/dev/null; }
           mkdir -p "$RUNNER_TEMP/pw"
           npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.63.0
-          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       - name: Start the e2e server and the web dev server
         run: |
           OFFLINE_CAP_SECONDS=1800 pnpm --filter @worldforge/server e2e:serve > "$RUNNER_TEMP/server.log" 2>&1 &
@@ -122,6 +125,9 @@ jobs:
     # remembered across a reload and a new login, at 1440 and 390 px. Faster farming clock (×600)
     # so the level-up, area-unlocked and quest-complete notices come within minutes.
     runs-on: ubuntu-latest
+    # Chromium and its system libraries are preinstalled (same version as the client below), so
+    # no `playwright install --with-deps` per run: that apt step took from 20 s to 7 min.
+    container: mcr.microsoft.com/playwright:v1.63.0-noble
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -131,11 +137,11 @@ jobs:
           node-version-file: .nvmrc
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - name: Install Playwright with Chromium
+      - name: Playwright client (Chromium and its libraries come with the container)
         run: |
+          command -v curl >/dev/null && command -v pkill >/dev/null || { apt-get update -qq && apt-get install -y -qq curl procps >/dev/null; }
           mkdir -p "$RUNNER_TEMP/pw"
           npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.63.0
-          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       - name: Start the e2e server and the web dev server
         run: |
           E2E_TIME_SCALE=600 OFFLINE_CAP_SECONDS=36000 pnpm --filter @worldforge/server e2e:serve > "$RUNNER_TEMP/server.log" 2>&1 &
@@ -167,6 +173,9 @@ jobs:
     # and is farmed. The farming clock runs ×1200 (B.1 puts level 17 at ~30 game hours); the
     # script imports item bases from the built game-core.
     runs-on: ubuntu-latest
+    # Chromium and its system libraries are preinstalled (same version as the client below), so
+    # no `playwright install --with-deps` per run: that apt step took from 20 s to 7 min.
+    container: mcr.microsoft.com/playwright:v1.63.0-noble
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
@@ -177,11 +186,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @worldforge/game-core build
-      - name: Install Playwright with Chromium
+      - name: Playwright client (Chromium and its libraries come with the container)
         run: |
+          command -v curl >/dev/null && command -v pkill >/dev/null || { apt-get update -qq && apt-get install -y -qq curl procps >/dev/null; }
           mkdir -p "$RUNNER_TEMP/pw"
           npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.63.0
-          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       - name: Start the e2e server and the web dev server
         run: |
           E2E_TIME_SCALE=1200 OFFLINE_CAP_SECONDS=360000 pnpm --filter @worldforge/server e2e:serve > "$RUNNER_TEMP/server.log" 2>&1 &
@@ -215,6 +224,9 @@ jobs:
     # farming clock runs ×1800; the database is kept on disk (E2E_DATA_DIR) so the telemetry
     # report can reconcile it with the audit log after the server stops.
     runs-on: ubuntu-latest
+    # Chromium and its system libraries are preinstalled (same version as the client below), so
+    # no `playwright install --with-deps` per run: that apt step took from 20 s to 7 min.
+    container: mcr.microsoft.com/playwright:v1.63.0-noble
     timeout-minutes: 25
     steps:
       # The `runner` context is not available in job-level `env`, so set the data dir here.
@@ -227,11 +239,11 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm --filter @worldforge/game-core build
-      - name: Install Playwright with Chromium
+      - name: Playwright client (Chromium and its libraries come with the container)
         run: |
+          command -v curl >/dev/null && command -v pkill >/dev/null || { apt-get update -qq && apt-get install -y -qq curl procps >/dev/null; }
           mkdir -p "$RUNNER_TEMP/pw"
           npm install --no-save --no-package-lock --prefix "$RUNNER_TEMP/pw" playwright@1.63.0
-          "$RUNNER_TEMP/pw/node_modules/.bin/playwright" install --with-deps chromium
       - name: Start the e2e server and the web dev server
         run: |
           mkdir -p "$E2E_DATA_DIR"
