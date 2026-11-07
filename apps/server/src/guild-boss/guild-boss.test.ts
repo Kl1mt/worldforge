@@ -46,6 +46,7 @@ import type {
   GuildBossClaimResponse,
   GuildBossStateResponse,
 } from './routes.js';
+import { attemptSeed } from './model.js';
 
 const boss = getGuildBoss('risenGravewarden');
 const DAY = 86_400_000;
@@ -177,7 +178,22 @@ describe('guild boss', () => {
 
     const second = await fought(leader, heroOf(leader));
     expect(second.attemptNo).toBe(2);
-    expect(second.events).not.toEqual(body.attempt.events);
+    // Each attempt has its own seed. Two seeds can still give the same fight log (this hero's
+    // fight has little variance: about 1 secret in 30), so check both fights against game-core
+    // with the stored stream instead of asserting that they differ.
+    const [stream] = await db()
+      .select()
+      .from(guildBossStreams)
+      .where(eq(guildBossStreams.accountId, leader.id));
+    const predicted = (attemptNo: number) =>
+      simulateGuildBossAttempt({
+        bossId: boss.id,
+        character: { classId: 'warrior', level: 20 },
+        equipment: [],
+        seed: attemptSeed(stream!.seedSecret, guildBossWeek(nowMs), attemptNo),
+      });
+    expect(body.attempt.events).toEqual(predicted(1).events);
+    expect(second.events).toEqual(predicted(2).events);
     await fought(leader, heroOf(leader));
     expect(status(await attempt(leader, heroOf(leader)))).toBe('409 no_attempts_left');
     const s = await state(leader);
