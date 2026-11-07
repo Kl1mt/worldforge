@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, full body, side view, boss: the Ashen Warden, the burned keeper of the mountain pass, a towering armoured knight in scorched blackened plate with ornate aged brass trim, a tall crested helm with a narrow visor glowing faintly, wreathed in drifting ash and embers, a long charred tabard, wielding a huge two-handed greatsword with a smouldering blade, massive silhouette, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+  "style_image": "apps/web/public/assets/enemies/gravewarden.png",
+  "job_id": "c0cb549e-0f7e-483b-9e79-3d8a99be5ae4",
+  "created_at": "2026-11-06T23:23:28.198738+00:00",
+  "seed": 861471368,
+  "generations": 10.0,
+  "count": 4,
+  "width": 128,
+  "height": 128
+}
