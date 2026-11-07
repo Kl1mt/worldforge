@@ -621,7 +621,7 @@ Small tickets from the Phase 4 retrospective, before Phase 5.
 - **(b) Trading** (`docs/TRADING.md`, T.1–T.7) is built at the end of the next phase (Phase 5).
 - **(c) Crypt tier III** stays "the Legendary tier" (Legendary/set kits win at 21; epic kits find it a wall) and is not made harder. A harder crypt mode (a tier IV or heroic crypt, tuned for upgraded Legendary kits) comes later as part of the content above level 28 (`docs/DUNGEONS.md`). No number changes.
 
-### F.1 Ashen Pass contracts — `in progress`
+### F.1 Ashen Pass contracts — `done (PR #78)`
 GDD: §6.4, §11.1. Owner decision: switch the Pass's contracts on, but only when the hero can enter the Pass.
 - The contract board, the accept path and the turn-in get the world flags (`app.worldState.flags()`); a contract's area must pass the map's unlock rule (`UnlockRule.worldFlag` plus level and Gravewarden): before both hold, Pass contracts are neither offered nor acceptable, and one held while the flag closes again cannot be turned in (`422 contract_area_locked`).
 - Offers stay deterministic; heroes who cannot reach the Pass keep exactly the offers they had (docs/QUESTS.md "Ashen Pass contracts"). No migration.
