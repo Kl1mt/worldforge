@@ -3,6 +3,7 @@ import { getGameContent } from '@worldforge/game-core';
 import { registerErrorHandling } from './errors.js';
 import { DEFAULT_AUTH_OPTIONS, registerAuth, type AuthOptions } from './auth/index.js';
 import { registerCharacters } from './characters/routes.js';
+import { registerScores } from './scores/routes.js';
 import { registerActivities } from './activity/routes.js';
 import {
   DEFAULT_ACTIVITY_OPTIONS,
@@ -112,6 +113,7 @@ export function buildApp({
       await registerWarehouse(api, activityOptions);
       await registerLegal(api, legal ?? {});
       await registerAdmin(api, admin ?? {});
+      await registerScores(api);
       if (testRoutes) await testRoutes(api);
 
       api.get('/health', async (request, reply): Promise<HealthResponse> => {
