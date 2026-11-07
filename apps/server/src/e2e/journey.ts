@@ -10,8 +10,9 @@
 import { expect } from 'vitest';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import { and, eq, inArray, like } from 'drizzle-orm';
+import { and, eq, inArray, like, sql } from 'drizzle-orm';
 import {
+  GUILD_CREATE_COST,
   MATERIAL_IDS,
   RARITY_IDS,
   canClassUseItem,
@@ -35,12 +36,14 @@ import {
   auditLog,
   characterMaterials,
   characters,
+  guilds,
   itemInstances,
   reports,
   sanctions,
 } from '../db/schema.js';
 import type { DatabaseHandle } from '../db/types.js';
 import { setAccountRole } from '../social/roles.js';
+import { reconcileWithAudit } from '../telemetry/report.js';
 
 export const MIN = 60_000;
 export const HOUR = 60 * MIN;
@@ -507,6 +510,10 @@ export async function expectHoldingsMatchAudit(database: DatabaseHandle, charact
       case 'item.discard':
         items -= 1;
         break;
+      // Ticket 4.4: founding a guild costs the chosen hero gold.
+      case 'guild.create':
+        gold -= d.gold!;
+        break;
     }
   }
   const [row] = await database.db.select().from(characters).where(eq(characters.id, characterId));
@@ -816,4 +823,134 @@ export async function playProfileStep(
   );
   expect(rows.every((r) => r.source === 'live')).toBe(true);
   return { handle: me.handle, achievements: rows.map((r) => r.achievementId) };
+}
+
+/**
+ * Phase 4 guild step (ticket 4.4): the hero farms until the purse covers the founding cost and
+ * founds a guild (an `Idempotency-Key` value operation: a retry replays, gold leaves once). A
+ * companion finds it and applies, the hero accepts; a recruit is invited by name and accepts; the
+ * hero names the companion an officer and sees guildmates' presence (a bucket, never a time); the
+ * recruit leaves. A stranger views and reports the guild; a player who blocks the hero cannot find
+ * it. Gold reconciles with the audit log and the telemetry rollups.
+ */
+export async function playGuildStep(app: FastifyInstance, database: DatabaseHandle, hero: Journey) {
+  const me = (await hero.api('GET', '/api/account')).json<{
+    account: { id: string; handle: string; displayName: string };
+  }>().account;
+  const gold = async () =>
+    (await hero.api('GET', '/api/characters'))
+      .json<{ characters: { id: string; gold: number }[] }>()
+      .characters.find((c) => c.id === hero.characterId)!.gold;
+  await hero.farmBestArea();
+  for (let i = 0; i < 120 && (await gold()) < GUILD_CREATE_COST; i++) {
+    await hero.settle();
+    await hero.equipBetterDrops();
+    await hero.sellJunk(await hero.inventory());
+    await hero.farmBestArea();
+  }
+  const before = await gold();
+  expect(before).toBeGreaterThanOrEqual(GUILD_CREATE_COST);
+
+  const key = randomUUID();
+  const body = {
+    characterId: hero.characterId,
+    name: 'The Ashen Wardens',
+    tag: 'ash',
+    emblem: 'flame',
+  };
+  const founded = await hero.keyed('/api/guilds', body, key);
+  expect(founded.statusCode, founded.body).toBe(201);
+  const replay = await hero.keyed('/api/guilds', body, key);
+  expect(replay.headers['idempotency-replayed']).toBe('true');
+  expect(await gold()).toBe(before - GUILD_CREATE_COST);
+  const guild = founded.json<{ guild: { handle: string; tag: string } }>().guild;
+  expect(guild.tag).toBe('ASH');
+
+  type Page = {
+    guild: {
+      members: { handle: string; role: string; presence: string | null }[];
+      applications: { player: { handle: string } }[];
+    } | null;
+  };
+  const page = async (who: { api: Journey['api'] }) =>
+    (await who.api('GET', '/api/guild')).json<Page>();
+
+  // A companion finds the guild and applies; the hero takes them in.
+  const companion = await newPlayer(app, 'warden@graumark.test', 'Wren Of Ash');
+  const search = (await companion.api('GET', '/api/guilds?q=ashen')).json<{
+    guilds: { handle: string }[];
+  }>();
+  expect(search.guilds.map((g) => g.handle)).toContain(guild.handle);
+  expect((await companion.api('POST', `/api/guilds/${guild.handle}/apply`)).statusCode).toBe(200);
+  expect((await page(hero)).guild!.applications.map((a) => a.player.handle)).toEqual([
+    companion.account.handle,
+  ]);
+  expect(
+    (await hero.api('POST', `/api/guild/applications/${companion.account.handle}/accept`))
+      .statusCode,
+  ).toBe(200);
+
+  // A recruit is invited by name and accepts, then leaves again.
+  const recruit = await newPlayer(app, 'recruit@graumark.test', 'Brannoc Vell');
+  expect((await hero.api('POST', '/api/guild/invites', { name: 'brannoc vell' })).statusCode).toBe(
+    200,
+  );
+  expect((await recruit.api('POST', `/api/guilds/${guild.handle}/invite/accept`)).statusCode).toBe(
+    200,
+  );
+  expect(
+    (await hero.api('POST', `/api/guild/members/${companion.account.handle}/promote`)).statusCode,
+  ).toBe(200);
+  const roster = (await page(hero)).guild!.members;
+  expect(roster.map((m) => [m.handle, m.role])).toEqual([
+    [me.handle, 'leader'],
+    [companion.account.handle, 'officer'],
+    [recruit.account.handle, 'member'],
+  ]);
+  expect(roster.every((m) => m.presence === 'online')).toBe(true);
+  expect((await recruit.api('POST', '/api/guild/leave')).statusCode).toBe(200);
+  expect((await page(recruit)).guild).toBeNull();
+  // The leader cannot simply walk away.
+  expect((await hero.api('POST', '/api/guild/leave')).statusCode).toBe(409);
+
+  // Others see the guild's profile and can report it; a player who blocks the hero cannot see it.
+  const stranger = await newPlayer(app, 'stranger@graumark.test', 'Odo Marrow');
+  const profile = await stranger.api('GET', `/api/guilds/${guild.handle}`);
+  expect(profile.statusCode).toBe(200);
+  expect(profile.json<{ members: unknown[] }>().members).toHaveLength(2);
+  const report = await stranger.api('POST', '/api/reports', {
+    target: { kind: 'guild', handle: guild.handle },
+    reason: 'other',
+  });
+  expect(report.statusCode, report.body).toBe(201);
+  expect((await stranger.api('POST', '/api/blocks', { handle: me.handle })).statusCode).toBe(200);
+  expect((await stranger.api('GET', `/api/guilds/${guild.handle}`)).statusCode).toBe(404);
+
+  // Gold, audit and telemetry agree.
+  await expectHoldingsMatchAudit(database, hero.characterId);
+  const checks = await reconcileWithAudit(database.db);
+  for (const c of checks.filter((c) => c.check.startsWith('guilds:'))) {
+    expect(c, c.check).toMatchObject({ ok: true });
+  }
+  const events = await database.db
+    .select({ event: auditLog.event })
+    .from(auditLog)
+    .where(
+      and(
+        like(auditLog.event, 'guild.%'),
+        sql`${auditLog.data}->>'guildId' = ${(await database.db.select({ id: guilds.id }).from(guilds).where(eq(guilds.handle, guild.handle)))[0]!.id}`,
+      ),
+    );
+  expect(events.map((e) => e.event).sort()).toEqual(
+    [
+      'guild.create',
+      'guild.apply',
+      'guild.join',
+      'guild.invite',
+      'guild.join',
+      'guild.promote',
+      'guild.leave',
+    ].sort(),
+  );
+  return { guildHandle: guild.handle };
 }

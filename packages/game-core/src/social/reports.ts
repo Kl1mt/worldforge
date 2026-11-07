@@ -14,7 +14,9 @@ export type ReportTarget =
   | { kind: 'player'; handle: string }
   | { kind: 'profileField'; handle: string; field: ProfileFieldId }
   /** Ticket 4.2: a character's name, as shown on its owner's profile (names are permanent). */
-  | { kind: 'characterName'; handle: string; name: string };
+  | { kind: 'characterName'; handle: string; name: string }
+  /** Ticket 4.4: a guild (its name and tag), by the guild's opaque handle. The subject is its leader. */
+  | { kind: 'guild'; handle: string };
 
 export type ReportTargetKind = ReportTarget['kind'];
 
@@ -28,6 +30,8 @@ export const REPORT_TARGET_KINDS: Record<ReportTargetKind, ReportTargetKindInfo>
   player: { hideable: false, label: 'Player' },
   profileField: { hideable: true, label: 'Profile field' },
   characterName: { hideable: true, label: 'Character name' },
+  // Moderators rename or disband a guild (`renameGuild`, `disbandGuild`) rather than hide it.
+  guild: { hideable: false, label: 'Guild' },
 };
 
 export const REPORT_TARGET_KIND_IDS = Object.keys(REPORT_TARGET_KINDS) as ReportTargetKind[];

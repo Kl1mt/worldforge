@@ -492,6 +492,17 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
       audit('forge.upgrade', sql`count(*)`, sql`(data->>'success')::boolean`),
       sumRollups(rows, 'forge', (d) => d[0] === 'upgrade' && d[2] !== 'failure'),
     ],
+    // Guilds (ticket 4.4): founding costs gold.
+    [
+      'guilds: founded',
+      audit('guild.create', sql`count(*)`),
+      sumRollups(rows, 'gold.out', src('guild_create')),
+    ],
+    [
+      'guilds: founding gold',
+      audit('guild.create', num(sql`data->>'gold'`)),
+      sumRollups(rows, 'gold.out', src('guild_create'), 'amount'),
+    ],
     // Discards
     ['items discarded', audit('item.discard', sql`count(*)`), sumRollups(rows, 'item.discarded')],
   ];
