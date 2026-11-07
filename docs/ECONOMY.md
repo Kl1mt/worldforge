@@ -134,6 +134,9 @@ Upgrades move the cliff like the boss effects do: a +7 kit of commons (≈ 9 × 
 ## Community projects (ticket 4.6)
 A shared sink: the two projects take 114,000 gold and ~2,400 materials in all, at most 20 % of each stage's need per player and day (`docs/COMMUNITY.md` "Numbers"). Telemetry: `gold.out community_project`, `material.out community_project`.
 
+## The Warehouse (ticket 4.7)
+A gold sink with a use: six upgrades from 30 to 120 shelves cost 1,000 · 3,000 · 7,500 · 15,000 · 30,000 · 50,000 gold (106,500 in all, `docs/WAREHOUSE.md`). Stored items are never sold or salvaged until moved back; they keep their sell and salvage prices. Telemetry: `gold.out warehouse_upgrade`.
+
 ## Balance pass: loot depth & economy (ticket B.2)
 The owner's playtest feedback had not arrived (`docs/PLAYTEST_FEEDBACK.md` is still the template), so B.2 balances on simulations and telemetry. Build diversity, effects and sets: `docs/COMBAT.md` "Build diversity"; crypt tiers: `docs/DUNGEONS.md` "Farmed gear"; drop rates: `docs/EFFECTS.md`.
 

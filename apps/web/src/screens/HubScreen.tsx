@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import { getArea } from '@worldforge/game-core';
 import { useActiveCharacter } from '../characters/CharactersProvider';
 import { asset } from '../content/assets';
@@ -11,6 +11,7 @@ import { PHONE_QUERY, pixelScale } from '../lib/pixel';
 import { routeHref, type GameRoute } from '../lib/route';
 import { Meter } from '../components/Meter';
 import { projectProgress, useProjectBoard, type BoardState } from '../community/api';
+import { useOnboarding } from '../onboarding/OnboardingProvider';
 import './hub.css';
 import './works.css';
 
@@ -40,12 +41,21 @@ const ORDERED: Hotspot[] = [
   ...HUB_HOTSPOTS.filter((h) => h.id !== 'worldMap'),
 ];
 
-/** Ticket 4.6: the Warehouse's line once the town has restored it (4.7 opens the doors). */
-const RESTORED_WAREHOUSE = 'Restored by the town. The keeper is still sorting the shelves.';
+/** Ticket 4.7: the Warehouse once the town has restored it (world flag `warehouseRestored`). */
+const OPEN_WAREHOUSE: Building = {
+  route: 'warehouse',
+  purpose: 'Store what you keep: safe from the filter, no room in the pack.',
+};
+
+/** Ticket 4.7: the Warehouse is built but locked (a world flag), not "later". */
+const lockedWord = (id: BuildingId) => (id === 'warehouse' ? 'locked' : 'later');
 
 function accessibleLabel(h: Hotspot, buildings: Record<BuildingId, Building>): string {
   const b = buildings[h.id];
-  return b.route ? `${h.label}: ${b.purpose}` : `${h.label}, opens later. ${b.purpose}`;
+  if (b.route) return `${h.label}: ${b.purpose}`;
+  return h.id === 'warehouse'
+    ? `${h.label}, locked until the town restores it. ${b.purpose}`
+    : `${h.label}, opens later. ${b.purpose}`;
 }
 
 /**
@@ -113,14 +123,18 @@ function HeroWhereabouts() {
 export function HubScreen() {
   const phone = useMediaQuery(PHONE_QUERY);
   const { state: works } = useProjectBoard();
+  const { worldFlags } = useOnboarding();
+  // The world flag is the source of truth (the server checks it on every warehouse route); the
+  // board's finished project shows it as soon as the board arrives.
   const restored =
-    works.kind === 'ready' &&
-    works.board.projects.some((p) => p.id === 'restoreWarehouse' && p.status === 'complete');
+    worldFlags?.warehouseRestored === true ||
+    (works.kind === 'ready' &&
+      works.board.projects.some((p) => p.id === 'restoreWarehouse' && p.status === 'complete'));
   const buildings: Record<BuildingId, Building> = restored
-    ? { ...BUILDINGS, warehouse: { ...BUILDINGS.warehouse, purpose: RESTORED_WAREHOUSE } }
+    ? { ...BUILDINGS, warehouse: OPEN_WAREHOUSE }
     : BUILDINGS;
   const [ref, width] = useElementWidth<HTMLDivElement>(1152);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<ReactNode>(null);
   const [focus, setFocus] = useState<BuildingId | null>(null);
   // Desktop: as large as fits (×2 or ×3). Phones: ×1, cropped around the centre if needed.
   const scale = pixelScale(width, HUB.width, { min: 1, max: 3 });
@@ -128,7 +142,18 @@ export function HubScreen() {
   const left = Math.round((stageWidth - HUB.width * scale) / 2);
   const inscription = focus ? buildings[focus].purpose : null;
 
-  const later = (h: Hotspot) => setNotice(`The ${h.label} opens later. ${buildings[h.id].purpose}`);
+  const later = (h: Hotspot) =>
+    setNotice(
+      h.id === 'warehouse' ? (
+        // Ticket 4.7: locked until the town restores it; point at the project board.
+        <>
+          The Warehouse is locked until the town restores it.{' '}
+          <a href={routeHref('works')}>See the town works</a>.
+        </>
+      ) : (
+        `The ${h.label} opens later. ${buildings[h.id].purpose}`
+      ),
+    );
 
   return (
     <div className="hub">
@@ -174,7 +199,7 @@ export function HubScreen() {
             const plaque = (
               <span className="hotspot__plaque" aria-hidden="true">
                 {h.label}
-                {b.route ? null : <span className="hotspot__later">later</span>}
+                {b.route ? null : <span className="hotspot__later">{lockedWord(h.id)}</span>}
               </span>
             );
             return b.route ? (
@@ -216,7 +241,9 @@ export function HubScreen() {
                 <>
                   <span className="signpost__name display">{h.label}</span>
                   <span className="signpost__purpose">{b.purpose}</span>
-                  {b.route ? null : <span className="signpost__later caps">Later</span>}
+                  {b.route ? null : (
+                    <span className="signpost__later caps">{lockedWord(h.id)}</span>
+                  )}
                 </>
               );
               return (

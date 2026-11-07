@@ -9,7 +9,7 @@ import { characters, itemInstances, type Character, type ItemInstance } from '..
 import type { Transaction } from '../db/types.js';
 import { ApiError } from '../errors.js';
 import { characterSchema } from '../characters/routes.js';
-import { itemLocked, itemSchema } from '../inventory/routes.js';
+import { itemLocked, itemSchema, itemInWarehouse } from '../inventory/routes.js';
 
 /** Shared pieces of the merchant and forge endpoints (ticket 2.6). */
 
@@ -84,6 +84,8 @@ export function pickInventoryItems(
   return itemIds.map((id) => {
     const item = items.find((i) => i.id === id);
     if (!item) throw new ApiError(404, 'not_found', 'No such item.', { itemId: id });
+    // Ticket 4.7: a stored item is never sold or salvaged until it is back in the pack.
+    if (item.inWarehouse) throw itemInWarehouse(id);
     if (item.equippedSlot !== null) {
       throw new ApiError(409, 'item_equipped', 'Unequip this item first.', {
         itemId: id,
@@ -101,7 +103,7 @@ export async function deleteItems(
   characterId: string,
   itemIds: readonly string[],
 ): Promise<void> {
-  // `locked = false` and `equipped_slot is null` are a backstop to the checks made under the lock
+  // `locked = false`, `equipped_slot is null` and `in_warehouse = false` are a backstop to the checks made under the lock
   // (`pickInventoryItems`): a delete that misses any row rolls the whole action back.
   const deleted = await tx
     .delete(itemInstances)
@@ -111,6 +113,7 @@ export async function deleteItems(
         inArray(itemInstances.id, [...itemIds]),
         eq(itemInstances.locked, false),
         isNull(itemInstances.equippedSlot),
+        eq(itemInstances.inWarehouse, false),
       ),
     )
     .returning({ id: itemInstances.id });

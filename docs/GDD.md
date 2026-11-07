@@ -99,7 +99,7 @@ The hub is an illustrated, non-walkable town screen. Players select buildings fr
 | Merchant | Buy and sell selected goods; economy functions to be balanced. |
 | Tavern | Quests, contracts, and activity notices. |
 | Guild Hall | Guilds: found one, join one, manage members and roles (ticket 4.4). |
-| Warehouse | Storage; shared account storage is a possible later feature. |
+| Warehouse | Storage per character (ticket 4.7, `docs/WAREHOUSE.md`), opened by the first community project; upgrades cost gold. Shared account storage is a possible later feature. |
 | Summoning Shrine | Cosmetic-only draws, deferred until the core game works. |
 | World Map | Choose regions, farming areas, dungeons, and other activities. |
 

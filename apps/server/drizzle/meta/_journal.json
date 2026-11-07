@@ -169,6 +169,13 @@
       "when": 1794019839932,
       "tag": "0023_guild_boss",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1794021588901,
+      "tag": "0024_warehouse",
+      "breakpoints": true
     }
   ]
 }

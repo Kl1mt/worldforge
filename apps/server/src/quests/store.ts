@@ -48,7 +48,7 @@ import { dropCounts, goldIn, materialCounts, xpIn } from '../telemetry/counts.js
 import { uuidv7 } from '../db/uuid.js';
 import { ApiError } from '../errors.js';
 // Type-only: a value import would close a cycle (settlement → quests → inventory → settlement).
-import { itemView, type ItemView } from '../inventory/routes.js';
+import { itemView, type ItemView, packItemsWhere } from '../inventory/routes.js';
 
 type Db = Database | Transaction;
 
@@ -411,12 +411,8 @@ export async function turnInQuestTx(
     const [held] = await tx
       .select({ n: sql<number>`count(*)::int` })
       .from(itemInstances)
-      .where(
-        and(
-          eq(itemInstances.characterId, character.id),
-          sql`${itemInstances.equippedSlot} is null`,
-        ),
-      );
+      // Ticket 4.7: warehouse items take no pack slot.
+      .where(packItemsWhere(character.id));
     if ((held?.n ?? 0) >= inventoryCapacity) {
       throw new ApiError(422, 'inventory_full', 'Make room in your pack for the reward item.', {
         capacity: inventoryCapacity,

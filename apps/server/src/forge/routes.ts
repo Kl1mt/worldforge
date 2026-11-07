@@ -40,6 +40,7 @@ import {
   lockOwnedCharacter,
   type InventoryView,
   type ItemView,
+  isPackItem,
 } from '../inventory/routes.js';
 import { changeMaterialsTx, loadMaterialBundle } from '../materials/store.js';
 import { idempotentTransaction } from '../idempotency/index.js';
@@ -244,12 +245,10 @@ export async function registerForge(
           slots: recipeSlots(r, character.classId),
           blockers: craftBlockers(r, character, held),
         })),
-        salvage: items
-          .filter((i) => i.equippedSlot === null)
-          .map((i) => {
-            const y = salvageYield(i);
-            return { itemId: i.id, gold: y.gold, materials: materialList(y.materials) };
-          }),
+        salvage: items.filter(isPackItem).map((i) => {
+          const y = salvageYield(i);
+          return { itemId: i.id, gold: y.gold, materials: materialList(y.materials) };
+        }),
       };
     },
   );
@@ -361,7 +360,7 @@ export async function registerForge(
             throw new ApiError(422, code, message, { blockers });
           }
           const items = await loadItems(tx, characterId);
-          if (items.filter((i) => i.equippedSlot === null).length >= capacity) {
+          if (items.filter(isPackItem).length >= capacity) {
             throw inventoryFull(capacity);
           }
           const crafted = craftItem({

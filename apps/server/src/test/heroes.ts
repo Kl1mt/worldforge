@@ -42,12 +42,16 @@ export async function insertItem(
     upgradeLevel = 0,
     equippedSlot = null,
     setId = null,
+    inWarehouse = false,
+    locked = false,
   }: {
     baseId?: string;
     rarityId?: RarityId;
     upgradeLevel?: number;
     equippedSlot?: EquipmentSlotId | null;
     setId?: string | null;
+    inWarehouse?: boolean;
+    locked?: boolean;
   } = {},
 ) {
   const [row] = await db
@@ -64,6 +68,8 @@ export async function insertItem(
       source: 'test',
       upgradeLevel,
       setId,
+      inWarehouse,
+      locked,
     })
     .returning();
   return row!;
