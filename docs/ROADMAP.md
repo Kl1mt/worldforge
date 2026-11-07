@@ -627,6 +627,16 @@ GDD: §6.4, §11.1. Owner decision: switch the Pass's contracts on, but only whe
 - Offers stay deterministic; heroes who cannot reach the Pass keep exactly the offers they had (docs/QUESTS.md "Ashen Pass contracts"). No migration.
 - Tests: closed flag, under-level, open (offered, taken, finished, turned in), invariance; the API journey's Ashen Pass step takes and finishes one Pass contract.
 
+### F.2 Flake hunt — `done (PR #79)`
+Tests that passed on their PR kept failing later on `main` and blocked the auto-deploy. Every suite was run many times with fresh random seeds and shuffled file order (game-core, web, server ×20; `test:pg` ×40; API e2e/journeys ×40; each browser run ×3), and each flaky test was fixed so it holds for every seed and order (no skips, no weakened checks).
+- **Ashen Pass journey** (`e2e/journey.ts`): a quest turn-in's XP could level the hero, but the journey kept its old level, so the Pass step expected the Warden's Watch still locked at 26. The helper now takes the level from the turn-in, and the step re-reads it before the Watch.
+- **Phase 3 browser run** (`tools/e2e/phase3-exit.mjs`): the UI lock clicked the pack grid at an index from the API's oldest-first list, taken before the tidy-up sold junk, while the grid shows the newest first; a late valuable drop in a full pack pointed past the grid (timeout), otherwise it locked some other item. It now finds the item by id in the grid's order and checks that exactly that item was locked.
+- **Guild boss attempt test** (`guild-boss/guild-boss.test.ts`): asserted that attempt 2's fight log differs from attempt 1's; for this hero about 1 secret in 30 gives the same log (failed on this PR's CI). Both logs are now checked against game-core with the stored stream and per-attempt seeds.
+- **Phase 1 exit criteria** (`e2e/exit-criteria.test.ts`): about 1 run in 17,000 drops nothing a warrior can wear in the first half hour; the activity seed is now searched with game-core's rules.
+- **Guild boss journey step**: three attempts normally stay below stage 1; when a strong farm breaks it, the step now expects the stage's reward to be claimed instead of `nothing_to_claim`.
+- **Real-Postgres timing** (`concurrency.pg.test.ts`): sell/salvage vs lock keeps going (with a growing head start) until both orders were seen; the parallel-transactions check got a wider margin.
+- Prevention: "Writing tests that don't flake" in `CLAUDE.md`; a nightly/manual **Flake hunt** workflow (`.github/workflows/flake-hunt.yml`) repeats the server suite and `test:pg` with shuffled order, off the per-PR path. No production code or gameplay numbers changed.
+
 ## Deployment
 
 ### D.1 Production deployment — `done (PR #52)`

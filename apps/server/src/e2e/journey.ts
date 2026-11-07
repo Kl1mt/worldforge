@@ -283,8 +283,15 @@ export async function startJourney(options: JourneyOptions) {
         continue; // the reward item needs room; the next visit sells first
       }
       expect(res.statusCode, res.body).toBe(200);
-      const item = res.json<{ reward: { item: ItemView | null } }>().reward.item;
+      const turnedIn = res.json<{
+        reward: { item: ItemView | null };
+        character: { level: number };
+      }>();
+      const item = turnedIn.reward.item;
       state.turnedIn.push({ kind: q.kind, questId: q.questId, item });
+      // The reward's XP can level the hero (Ticket F.2: the Ashen Pass step then read a stale
+      // level and expected the Warden's Watch still locked).
+      state.level = turnedIn.character.level;
       // A retried turn-in replays the stored reward; a new key is refused by state.
       const replay = await keyed(`${base}/quests/${q.id}/turn-in`, undefined, key);
       expect(replay.headers['idempotency-replayed']).toBe('true');
@@ -1171,7 +1178,12 @@ export async function playGuildBossStep(
 ) {
   type State = {
     week: { key: string; endsAt: string };
-    boss: { name: string; minLevel: number; attemptDamageCap: number };
+    boss: {
+      name: string;
+      minLevel: number;
+      attemptDamageCap: number;
+      stages: { stage: number; threshold: number }[];
+    };
     me: { attemptsUsed: number; attemptsLeft: number; rewards: unknown[] };
     guild: {
       handle: string;
@@ -1237,14 +1249,23 @@ export async function playGuildBossStep(
   expect(outside.guild).toBeNull();
   expect(outside.me.attemptsUsed).toBe(0);
 
-  // Monday 00:00 UTC: a new week, new attempts, a fresh total; nothing was earned to claim.
+  // Monday 00:00 UTC: a new week, new attempts, a fresh total. A lone hero's three attempts
+  // normally stay below the first stage, so nothing was earned to claim; a strong farm (the
+  // hero's level and gear depend on the activity's random seed) can break it, and then the
+  // stage's reward is claimed instead.
+  const broken = first.boss.stages.filter((s) => counted >= s.threshold).length;
   clock.set(Date.parse(after.week.endsAt));
   const next = await state(hero);
   expect(next.week.key).not.toBe(after.week.key);
   expect(next.me).toMatchObject({ attemptsUsed: 0, attemptsLeft: GUILD_BOSS_ATTEMPTS_PER_WEEK });
   expect(next.guild).toMatchObject({ total: 0, attempts: 0, board: [] });
   const claim = await hero.keyed('/api/guild/boss/claim', { characterId: hero.characterId });
-  expect(claim.json<{ error: { code: string } }>().error.code).toBe('nothing_to_claim');
+  if (broken === 0) {
+    expect(claim.json<{ error: { code: string } }>().error.code).toBe('nothing_to_claim');
+  } else {
+    expect(claim.statusCode, claim.body).toBe(200);
+    expect(claim.json<GuildBossClaimResponse>().claimed.rewards).toHaveLength(broken);
+  }
 
   const { row } = await expectHoldingsMatchAudit(database, hero.characterId);
   expect(row.level).toBeGreaterThanOrEqual(first.boss.minLevel);
@@ -1257,9 +1278,17 @@ export async function playGuildBossStep(
     .select({ event: auditLog.event })
     .from(auditLog)
     .where(and(eq(auditLog.characterId, hero.characterId), like(auditLog.event, 'guild_boss.%')));
-  expect(audited.map((a) => a.event)).toEqual(
-    Array.from({ length: GUILD_BOSS_ATTEMPTS_PER_WEEK }, () => 'guild_boss.attempt'),
+  const events = audited.map((a) => a.event);
+  expect(events.filter((e) => e === 'guild_boss.attempt')).toHaveLength(
+    GUILD_BOSS_ATTEMPTS_PER_WEEK,
   );
+  if (broken === 0) {
+    expect(events).toEqual(
+      Array.from({ length: GUILD_BOSS_ATTEMPTS_PER_WEEK }, () => 'guild_boss.attempt'),
+    );
+  } else {
+    expect(events).toContain('guild_boss.claim');
+  }
   return { counted };
 }
 
@@ -1473,6 +1502,10 @@ export async function playAshenPassStep(
   const back = await api('POST', `${base}/activity`, { areaId: 'ashenPass' });
   expect([200, 201]).toContain(back.statusCode);
 
+  // The level the server holds now (the contract's reward and the switch back can both add XP).
+  state.level = (await api('GET', `${base}/activity`)).json<{
+    character: { level: number };
+  }>().character.level;
   const watch = (await hero.world()).dungeons.find((d) => d.id === 'ashenWatch')!;
   const watchLevel = getDungeonTier('ashenWatch', 1).unlock.level;
   if (state.level >= watchLevel) {

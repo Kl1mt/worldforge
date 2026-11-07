@@ -12,12 +12,13 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { and, eq } from 'drizzle-orm';
+import { canClassUseItem, findItemBase, settleFarming } from '@worldforge/game-core';
 import { buildApp } from '../app.js';
 import { SESSION_COOKIE } from '../auth/index.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
 import type { SettleResponse } from '../activity/routes.js';
 import type { InventoryView } from '../inventory/routes.js';
-import { auditLog, characters, itemInstances } from '../db/schema.js';
+import { activities, auditLog, characters, itemInstances } from '../db/schema.js';
 import type { DatabaseHandle } from '../db/types.js';
 import { createTestDatabase } from '../test/db.js';
 
@@ -81,6 +82,23 @@ describe('Phase 1 exit criteria', () => {
     expect((await api('POST', `${base}/activity`, { areaId: 'abandonedFields' })).statusCode).toBe(
       201,
     );
+    // Step 5 needs a drop a warrior can wear within the half hour. With a random activity seed
+    // about 1 run in 17,000 drops none (or only other classes' gear), so pin a seed whose half
+    // hour does (searched with the same rules the server settles by).
+    const seed = Array.from({ length: 50 }, (_, n) => `exit-criteria:${n}`).find((s) =>
+      settleFarming({
+        character: { classId: 'warrior', level: 1, xp: 0 },
+        areaId: 'abandonedFields',
+        seed: s,
+        firstCycle: 0,
+        durationMs: 30 * MIN,
+        inventoryCount: 0,
+      }).items.some((item) => canClassUseItem(findItemBase(item.baseId)!, 'warrior')),
+    )!;
+    await database.db
+      .update(activities)
+      .set({ seedSecret: seed })
+      .where(eq(activities.characterId, characterId));
 
     // 4. Earn XP and loot from server time (polling settle during active play).
     let xp = 0;

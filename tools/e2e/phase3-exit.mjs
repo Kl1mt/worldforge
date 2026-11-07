@@ -151,8 +151,9 @@ async function visit(page, args) {
     const all = [...inv.equipped, ...inv.inventory];
     out.legendary = all.some((i) => i.rarityId === 'legendary' && i.setId === null);
     out.setPiece = all.some((i) => i.setId !== null);
-    // The first valuable drop in the pack, for the UI's lock (its index in the pack grid).
-    out.packValuable = inv.inventory.findIndex((i) => valuable(i) && !i.locked);
+    // The first valuable drop in the pack, for the UI's lock (found in the pack grid by id: the
+    // grid shows the newest first, and the tidy-up below can still sell items before it).
+    out.packValuableId = inv.inventory.find((i) => valuable(i) && !i.locked)?.id ?? null;
     out.lockedIds = all.filter((i) => i.locked).map((i) => i.id);
 
     if (a.tidy) {
@@ -393,18 +394,40 @@ async function main() {
       seen.filter = true;
       Object.assign(args, { upgrade: true, followContracts: true });
     }
-    if (seen.filter && !seen.locked && state.packValuable >= 0) {
+    if (seen.filter && !seen.locked && state.packValuableId) {
       log('Pack: lock a valuable drop (UI)');
-      await page.goto(`${baseUrl}/#/inventory`);
-      await page.getByRole('tab', { name: /^Items/ }).click();
+      const pack = () =>
+        page.evaluate(async () => {
+          const { activeCharacterId } = await (await fetch('/api/characters')).json();
+          const res = await fetch(`/api/characters/${activeCharacterId}/inventory`);
+          return (await res.json()).inventory;
+        });
+      // The item's place in the grid, in the grid's own order (newest first). The grid and the
+      // pack read must agree on the pack (a settle can land in between), else read both again.
       const grid = page.locator('.stash__grid button.item-frame');
-      await grid.first().waitFor();
-      await grid.nth(state.packValuable).click();
-      const lock = page.getByRole('button', { name: 'Lock', exact: true });
-      await lock.click();
-      await page.getByRole('button', { name: 'Unlock', exact: true }).waitFor();
-      await shoot(page, 'p3-pack-locked');
-      seen.locked = true;
+      let index = -1;
+      for (let attempt = 0; attempt < 5 && index < 0; attempt++) {
+        await page.goto(`${baseUrl}/#/inventory`);
+        await page.getByRole('tab', { name: /^Items/ }).click();
+        await grid.first().waitFor();
+        const items = await pack();
+        if ((await grid.count()) !== items.length) continue;
+        const shown = [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+        index = shown.findIndex((i) => i.id === state.packValuableId);
+        if (index < 0) break; // sold or gone since the visit; a later visit picks another
+      }
+      if (index < 0) {
+        log('   the valuable drop left the pack; trying again after the next visit');
+      } else {
+        await grid.nth(index).click();
+        const lock = page.getByRole('button', { name: 'Lock', exact: true });
+        await lock.click();
+        await page.getByRole('button', { name: 'Unlock', exact: true }).waitFor();
+        const locked = (await pack()).find((i) => i.id === state.packValuableId);
+        if (!locked?.locked) throw new Error('the UI locked another item than the valuable drop');
+        await shoot(page, 'p3-pack-locked');
+        seen.locked = true;
+      }
     }
     if (seen.filter && !seen.forgeUi && state.gold >= 3000) {
       log('Forge: upgrade until a failure, improve, rework (UI)');
