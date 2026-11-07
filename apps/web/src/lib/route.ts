@@ -20,6 +20,8 @@ export const GAME_ROUTES = [
   // Ticket D.3: the admin panel, `#/admin/<section>` (admins only; for everyone else it behaves
   // like an unknown address).
   'admin',
+  // Ticket 4.4: the Guild Hall, `#/guild` (your guild, or found/join one) or `#/guild/<handle>`.
+  'guild',
 ] as const;
 /** The gate: only shown to visitors without a session. */
 export const AUTH_ROUTES = ['login', 'register'] as const;
@@ -86,6 +88,17 @@ export function moderationCaseFromHash(hash: string): string | null {
   if (!/^#\/?moderation\?/.test(hash)) return null;
   const id = new URLSearchParams(hash.slice(hash.indexOf('?'))).get('case');
   return id && /^[0-9a-f-]{36}$/i.test(id) ? id.toLowerCase() : null;
+}
+
+/** Ticket 4.4: the guild handle in `#/guild/<handle>`, if any (only the shape is checked). */
+export function guildHandleFromHash(hash: string): string | null {
+  const m = /^#\/?guild\/([0-9a-z]{1,64})(?:[/?]|$)/i.exec(hash);
+  return m ? m[1]!.toLowerCase() : null;
+}
+
+/** A guild's public profile; without a handle, the Guild Hall (your own guild). */
+export function guildHref(handle?: string): string {
+  return handle ? `#/guild/${encodeURIComponent(handle)}` : routeHref('guild');
 }
 
 export function isGameRoute(route: Route): route is GameRoute {

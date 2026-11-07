@@ -58,7 +58,7 @@ It uses `DATABASE_URL`, locks the account row and writes `role.grant` / `role.re
 | moderator | 403 | allowed | 403 | 403 |
 | admin | 403 | allowed | allowed | 403 |
 
-Actions: `viewQueue` (allowed for staff, 404 for players), `dismissReport`, `mute`, `suspend`, `forceRename`, `hideContent`, `liftSanction`. Nobody acts on themselves; a subject of the actor's rank or higher is out of reach. Reports about admins are handled outside the app (the queue never shows a case its viewer cannot act on). Every action re-reads the actor's role under a share lock, so a revoke racing an action either precedes it (404) or follows it.
+Actions: `viewQueue` (allowed for staff, 404 for players), `dismissReport`, `mute`, `suspend`, `forceRename`, `hideContent`, `liftSanction`, and (ticket 4.4, on a reported guild whose leader is the subject) `renameGuild`, `disbandGuild`. Nobody acts on themselves; a subject of the actor's rank or higher is out of reach. Reports about admins are handled outside the app (the queue never shows a case its viewer cannot act on). Every action re-reads the actor's role under a share lock, so a revoke racing an action either precedes it (404) or follows it.
 
 **404 for non-staff:** `/api/mod/*` uses `app.requireStaff` as an `onRequest` hook, before body validation, so players and anonymous visitors get exactly the not-found handler's body, whatever they send. The web client treats `#/moderation` like an unknown address for players.
 
@@ -74,7 +74,7 @@ Actions: `viewQueue` (allowed for staff, 404 for players), `dismissReport`, `mut
 
 ## Reports
 
-`POST /api/reports` with a `ReportTarget`, a reason (`REPORT_REASONS`) and an optional note. Today's targets: `{ kind: 'player', handle }`, `{ kind: 'profileField', handle, field: 'displayName' }` and (ticket 4.2) `{ kind: 'characterName', handle, name }` (key `characterName:<character id>`, hideable: a hidden hero name shows as "Name withheld" on the profile; the queue's `current.value` is the hero's current name). One open report per reporter and target (partial unique index; a concurrent duplicate gets `409 report_open`). The report stores a context snapshot (the display name as seen), so later renames keep the evidence. A muted player can still report; self-reports are refused. Every report writes `report.create`.
+`POST /api/reports` with a `ReportTarget`, a reason (`REPORT_REASONS`) and an optional note. Today's targets: `{ kind: 'guild', handle }` (ticket 4.4: a guild's opaque handle; subject = its leader at the time; key `guild:<guild id>`; not hideable, see "Guilds"), `{ kind: 'player', handle }`, `{ kind: 'profileField', handle, field: 'displayName' }` and (ticket 4.2) `{ kind: 'characterName', handle, name }` (key `characterName:<character id>`, hideable: a hidden hero name shows as "Name withheld" on the profile; the queue's `current.value` is the hero's current name). One open report per reporter and target (partial unique index; a concurrent duplicate gets `409 report_open`). The report stores a context snapshot (the display name as seen), so later renames keep the evidence. A muted player can still report; self-reports are refused. Every report writes `report.create`.
 
 The moderator queue groups open reports by target into cases, oldest first, with the subject's handle, name, role, active sanctions and past-sanction count, and each report's reason, note and reporter. Acting on any report of a case (dismiss or a sanction) closes every open report on that target; a second moderator acting on the same report gets `409 report_closed`.
 
@@ -102,7 +102,7 @@ Ticket 4.2. Code: game-core `social/profiles.ts` (`PROFILE_VISIBILITIES`, `PROFI
 - **Reached** by display name (`GET /api/players/lookup?name=`, the search on the profile page and the report dialog) or handle (`?handle=`, `GET /api/players/:handle/profile`). Logged-in players only.
 - **Shows** the display name, the handle, every hero (name, class, level, banner portrait), the achievements the owner picked (up to `MAX_SHOWN_ACHIEVEMENTS` = 5, in their order, with the award day), and optionally one hero's equipped gear (the showcase; never the pack). No account id, email, character or item id, seed, or time finer than a day.
 - **Visibility** (`accounts.profile_visibility`): `public` (default), `friendsAndGuild`, `hidden`. The viewer's relation (`self`, `friend`, `guildmate`, `pending`, `stranger`, `blocked` either way) and `canViewProfile` decide; a `false` is `404 not_found` with the same body as an unknown player, for the profile and the lookup. The owner always sees their own.
-- **Relations come from 4.3** ("Relations"): `profileRelation` maps `relationBetween`: `blocked-by-me` / `blocked-by-them` → `blocked` (404 for the profile, the lookup and the showcase, either way), `friend` → `friend`, `requested-by-me` / `requested-by-them` → `pending` (treated like a stranger). Guilds arrive in 4.4, which maps a shared guild to `guildmate`; until then "friends and guild" means friends only. Names in the friends list link to the profile (blocked players' do not).
+- **Relations come from 4.3** ("Relations"): `profileRelation` maps `relationBetween`: `blocked-by-me` / `blocked-by-them` → `blocked` (404 for the profile, the lookup and the showcase, either way), `friend` → `friend`, `requested-by-me` / `requested-by-them` → `pending` (treated like a stranger). Ticket 4.4: a shared guild maps to `guildmate` (unless a friendship or a block decides first), so "friends and guild" includes guildmates; it is read live, so leaving or a kick closes the profile at once. Names in the friends list link to the profile (blocked players' do not).
 - **Settings:** `POST /api/account/profile` (social write `profile`, rate limited, audited `profile.update`; exempt from mutes because it carries no player text and a muted player must be able to hide their profile).
 - **Report action** on every other player's profile: the player, and each visible hero name (`characterName`). The display name is reported from the report dialog's "their display name".
 
@@ -159,7 +159,7 @@ Self: `422 cannot_target_self` (`cannot_report_self` for reports). A player who 
 
 ## Presence — ticket 4.3
 
-A bucket from the last authenticated request (any route behind `requireAccount`): `online` (≤ 10 min), `today` (≤ 24 h), `week` (≤ 7 days), `longer` (or never). Shown to friends only (guildmates from 4.4); the player can hide it (`POST /api/account/presence`), and then friends get `null`. **No timestamp leaves the server**: no route returns `last_seen_at`, and the friends list carries no times at all (tested: no date or epoch in the body).
+A bucket from the last authenticated request (any route behind `requireAccount`): `online` (≤ 10 min), `today` (≤ 24 h), `week` (≤ 7 days), `longer` (or never). A guildmate who blocks you, or whom you block, shows `null`. Shown to friends and (ticket 4.4) guildmates on the guild page; the player can hide it (one setting for both) (`POST /api/account/presence`), and then friends get `null`. **No timestamp leaves the server**: no route returns `last_seen_at`, and the friends list carries no times at all (tested: no date or epoch in the body).
 
 **Cheap recording:** `createPresenceRecorder` keeps the last write per account in process memory and upserts `account_presence` at most once every **3 minutes** per account (`PRESENCE_WRITE_INTERVAL_MS`), whatever the request rate: under 3.9's limit of 900 requests a minute that is still ≤ 0.34 writes a minute per account, and a busy game tab (settle every 8 s) costs one write per 3 min instead of 22. The upsert touches only `account_presence` (never the locked account row), never moves the time backwards (`greatest`), and a failure is logged without failing the request. A restart forgets the memory, so the first request after it writes once. `online` (10 min) covers several write intervals, so an active player never flickers.
 
@@ -172,3 +172,45 @@ A bucket from the last authenticated request (any route behind `requireAccount`)
 `apps/server/src/social/social.pg.test.ts` (real PostgreSQL, part of `test:pg`, three rounds each in varied orders, asserting only what holds in every order): concurrent duplicate reports on one target; a mute racing the target's social writes; a suspension racing the target's requests; several moderators acting on one report; a role revoke racing the moderator's actions; no deadlock or retry.
 
 `apps/server/src/social/friends.pg.test.ts` (ticket 4.3): both players of many pairs sending a request at once → one friendship each (one request and one accept audited); a block racing an accept → always blocked, never friends, with the block's audit saying whether it removed a friendship or a request; an unfriend or a cancel racing an accept → the final state matches the audit log; concurrent accepts and sends at the friend and inbox caps → exactly one succeeds. Without the social locks every one of these fails.
+
+## Guilds — ticket 4.4
+
+Code: game-core `social/guilds.ts` (roles, `guildDecision`, `GUILD_LIMITS`, `GUILD_CREATE_COST`, `GUILD_EMBLEMS`), server `apps/server/src/social/guild-model.ts` (helpers, locks, disband and forced rename) and `guilds.ts` (routes), web `screens/GuildScreen.tsx` (`#/guild`, `#/guild/<handle>`). Tables: `guilds`, `guild_members`, `guild_invites`, `guild_applications` (`DATA_MODEL.md`).
+
+**Owner-confirmed defaults:** founding costs **5,000 gold** from one of the founder's heroes (a sink; `gold.out guild_create`), **30 members** at most, **one guild per account** (the membership table's primary key is the account).
+
+**Founding** (`POST /api/guilds`): an `Idempotency-Key` value operation. Name (`guildName`, 3–24) and tag (`guildTag`, 2–5, upper-cased) go through the text module and are unique case-insensitively among existing guilds (a disbanded guild frees both). In one transaction: share lock on the account → the hero's lock (its activity settles first) → the founder's social lock → the name and tag locks; then the gold is charged, the guild and the leader's membership written, `guild.create` audited (hero, gold, gold after) and the telemetry recorded. Telemetry reconciles with the audit log (`reconcileWithAudit`: "guilds: founded", "guilds: founding gold").
+
+**The permission matrix** (game-core `guildDecision`, tested through the API for every standing × action × target in `guild-permissions.test.ts`, 140 cells plus the block cells; the client draws its buttons from the same function):
+
+| Action ↓ / actor → | leader | officer | member | not a member |
+|---|---|---|---|---|
+| create, apply, accept an invite | 409 already_in_guild | 409 | 409 | ✓ |
+| decline an invite, withdraw a petition | ✓ | ✓ | ✓ | ✓ |
+| see requests, invite, withdraw an invite, accept / decline a petition | ✓ | ✓ | 403 guild_forbidden | 404 not_in_guild |
+| kick | ✓ officer, member | ✓ member only | 403 | 404 |
+| promote (member → officer), demote (officer → member), transfer leadership | ✓ | 403 | 403 | 404 |
+| emblem, disband, rename (after a forced rename) | ✓ | 403 | 403 | 404 |
+| leave | 409 leader_must_hand_over | ✓ | ✓ | 404 |
+
+On oneself: `422 cannot_target_self`. A target outside the guild: `404 not_a_member`. A target of equal or higher rank: `403`. Promoting an officer `409 already_officer`, demoting a member `409 not_an_officer`. Transfer makes the leader an officer and the target the leader. A leader leaves by handing over first, or disbands (typing the guild's name).
+
+**Invites and applications:** an officer invites by handle or display name; the player answers from their Guild Hall. A player applies from a guild's profile; an officer takes them in. Applying while invited, or inviting an applicant, joins at once. Joining drops the joiner's other invites and applications. Caps (`GUILD_LIMITS`, exact under races): 30 members (`409 guild_full`, also checked when accepting), 30 invites waiting per guild, 20 per player, 30 applications per guild, 5 per player.
+
+**Blocks** (4.3's helpers): an officer cannot invite a player they block (`409 blocked_by_you`) or one who blocks them (`404 not_found`, like an unknown player). A guild is the leader's: to a player who blocks its leader, or is blocked by them, it does not exist (profile, search and apply all answer the unknown-guild `404`; an invitation from it is hidden). An officer does not see, and cannot answer, petitions from players they block or who block them; an invitation from an officer the invitee blocks since is gone (`404 no_invite`). Members who block each other stay guildmates: the blocker sees the other's row without a name or presence (officers still act on it), the blocked side sees no presence. Chat (4.5) will filter messages with `blockedEitherWay`.
+
+**Presence and profiles:** the guild page shows every member's presence bucket (`presenceOf`, `null` when hidden or blocked either way); outsiders see members and roles only. `profileRelation` maps a shared guild to `guildmate`, so "friends and guild" profiles open to guildmates. Everything reads membership live: a leave or a kick takes effect at once in every guild feature.
+
+**Locks:** a membership row changes only under the guild's advisory lock (`lockGuild`), and a join also under the joiner's social lock, so the cap and "one guild per account" are exact (the primary key and the one-leader index are the backstops). Order: actor's account (share, `socialWrite`) → social locks (sorted) → guild lock; founding: account → hero → social → name locks; moderators: actor → report → subject (update) → guild.
+
+**Social writes and mutes:** every guild write is a social write (rate limit, sanctions). A mute blocks reaching others (`guildCreate`, `guildInvite`, `guildApply`, `guildAcceptInvite`, `guildAcceptApplication`, kicks and role changes, the emblem) and leaves stepping away open (`guildLeave`, `guildDisband`, `guildDeclineInvite`, `guildCancelApplication`, `guildInviteCancel`, `guildDeclineApplication`) as well as the forced `guildRename`.
+
+**Moderation:** any player reports a guild from its profile (`{ kind: 'guild', handle }`). In the queue a guild case shows "Name [TAG]" and its leader; besides dismiss, mute and suspend (on the leader), staff may **rename the guild** (`renameGuild`: name and tag become placeholders such as "Nameless Company 482913" / "X4821" at once; the leader must pick new ones, not the removed name; the members see the reason on the guild page) or **disband it** (`disbandGuild`: everyone removed; members see "disbanded by the wardens" and the reason for a week). Both follow `moderationDecision` (rank rule against the leader) and close the case; audited as `guild.force_rename` (on the leader, issuer in the data) and `guild.disband` (`byModerator`, reason, members).
+
+**Audit events:** `guild.create`, `guild.invite`, `guild.invite_cancel`, `guild.invite_decline`, `guild.apply`, `guild.application_cancel`, `guild.application_decline`, `guild.join` (`via` invite or application, `by`), `guild.leave` (with the role), `guild.kick`, `guild.promote`, `guild.demote`, `guild.transfer`, `guild.emblem`, `guild.rename`, `guild.force_rename`, `guild.disband` (the members). The membership of a guild is exactly what these say (checked by the race tests).
+
+**Emblems** (`GUILD_EMBLEMS`; placeholders drawn as a glyph on a shield until A.8): `anvil`, `crow`, `tower`, `flame`, `skull`, `oak` (asset ids `guild-emblem.<id>`). Never rename or reuse an id.
+
+**Polling:** the Guild Hall polls `GET /api/guild` every 60 s with an `ETag` (`304` when unchanged).
+
+**Races** (`guilds.pg.test.ts`, real PostgreSQL, three rounds in varied orders, no retries): founders racing for one name (one guild, one charge; gold, audit and telemetry reconcile) and for one tag, one account founding twice; invites and applications accepted at once at 29 members (exactly one joins); one player accepted by several guilds at once (joins one); accepts racing a disband (the guild ends empty, every audited join was in the disband's member list); leaves racing promotions (a promotion that won shows in the leave's role); the leader handing over to an officer while each kicks or demotes the other and officers kick each other (always one leader, never both removed, the roster equals the audit log). Without the guild lock three of these fail.

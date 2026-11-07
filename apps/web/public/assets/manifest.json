@@ -1222,6 +1222,77 @@
       },
       "prompt": "dark fantasy pixel art crafting material icons, one item per icon: bundle of seasoned timber logs; sprig of grey ashwort herb; folded raw animal hide; chunk of rusty iron ore; glowing pale soul shard crystal; ingot of tarnished abbey silver; heavy wax seal of the gravewarden with skull emblem, weathered materials, muted palette, transparent background",
       "source": "art/source/pixellab/icons-batch-03-materials/51.png"
+    },
+    {
+      "id": "area.ashen-pass",
+      "path": "/assets/areas/ashen-pass.png",
+      "kind": "area",
+      "size": {
+        "width": 384,
+        "height": 216
+      },
+      "prompt": "dark fantasy pixel art, backdrop, Ashen Pass: a burnt mountain pass above a town, grey ash drifts on a rocky path, ruined stone watchtowers on the crags, charred smouldering pine trees, cold grey overcast sky with a faint ember glow on the horizon, drifting embers, muted desaturated palette, charcoal and ash grey, dim orange ember accents, gloomy light",
+      "source": "art/source/pixellab/area-ashen-pass-01/00.png"
+    },
+    {
+      "id": "enemy.ash-wraith",
+      "path": "/assets/enemies/ash-wraith.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view, enemies of the Ashen Pass: an ash wraith, a drifting spirit of grey ash and glowing cinders with a hollow hooded face, floating; a pyre cultist, a hooded fire cultist in soot-stained ragged robes swinging a smoking brass censer on a chain, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-ashen-pass-01/06.png",
+      "facing": "right"
+    },
+    {
+      "id": "enemy.cinder-hound",
+      "path": "/assets/enemies/cinder-hound.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view, enemies of the Ashen Pass: a cinder hound, a gaunt emaciated charred hound with smouldering orange cracks in its blackened hide; an ember golem, a hulking construct of black slag rock with glowing ember seams, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-ashen-pass-02/06.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.pyre-cultist",
+      "path": "/assets/enemies/pyre-cultist.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view, enemies of the Ashen Pass: an ash wraith, a drifting spirit of grey ash and glowing cinders with a hollow hooded face, floating; a pyre cultist, a hooded fire cultist in soot-stained ragged robes swinging a smoking brass censer on a chain, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-ashen-pass-01/13.png",
+      "facing": "right"
+    },
+    {
+      "id": "enemy.ember-golem",
+      "path": "/assets/enemies/ember-golem.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view, enemies of the Ashen Pass: a cinder hound, a gaunt emaciated charred hound with smouldering orange cracks in its blackened hide; an ember golem, a hulking construct of black slag rock with glowing ember seams, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-ashen-pass-02/10.png",
+      "facing": "front"
+    },
+    {
+      "id": "enemy.ashen-warden",
+      "path": "/assets/enemies/ashen-warden.png",
+      "kind": "enemy",
+      "size": {
+        "width": 128,
+        "height": 128
+      },
+      "prompt": "dark fantasy pixel art, full body, side view, boss: the Ashen Warden, the burned keeper of the mountain pass, a towering armoured knight in scorched blackened plate with ornate aged brass trim, a tall crested helm with a narrow visor glowing faintly, wreathed in drifting ash and embers, a long charred tabard, wielding a huge two-handed greatsword with a smouldering blade, massive silhouette, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/boss-ashen-warden-01/02.png",
+      "facing": "front"
     }
   ]
 }

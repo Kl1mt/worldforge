@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, backdrop, Ashen Pass: a burnt mountain pass above a town, grey ash drifts on a rocky path, ruined stone watchtowers on the crags, charred smouldering pine trees, cold grey overcast sky with a faint ember glow on the horizon, drifting embers, muted desaturated palette, charcoal and ash grey, dim orange ember accents, gloomy light",
+  "style_image": "apps/web/public/assets/areas/sunken-abbey.png",
+  "job_id": "1386b8ac-27b4-42a8-bee3-181b59261d0a",
+  "created_at": "2026-11-06T23:23:28.762488+00:00",
+  "seed": 1819345129,
+  "generations": 15.0,
+  "count": 1,
+  "width": 384,
+  "height": 216
+}

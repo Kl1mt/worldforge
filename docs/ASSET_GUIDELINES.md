@@ -15,6 +15,7 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | `art/preview-hub-map-layout.png` | Hub hotspots and map markers from the manifest, drawn over the art at ×3. |
 | `art/preview-boss-uniques.png` | The three Gravewarden unique icons (after) below the shared icons they replaced (before), at ×4. |
 | `art/preview-mythic-set-icons.png` | The six named Mythic icons and the three sets' pieces, below a row of tier-3 gear, at ×4. |
+| `art/preview-ashen-pass.png` | The Ashen Pass backdrop next to the Sunken Abbey, its four enemies below the existing ones, and the Ashen Warden next to the Gravewarden. |
 | `tools/art/pixellab_gen.py` | Generate/collect/contact-sheet helper. |
 
 Curated files are byte-for-byte copies of a raw variant. Do not hand-edit them in place. If an asset needs fixing, save the edit as a new file and record it in the manifest `source`.
@@ -163,3 +164,11 @@ The world map came out with opaque white pixels along its burnt edge (about 1,15
 - Two jobs, no regeneration. `icons-mythic-bloodmoon-01` (style image `gravewardens-cowl.png`) produced the Mythics and the Bloodmoon Hunt. `icons-sets-vigil-choir-01` (style image `knights-plate.png`) produced the Drowned Vigil and the Ashen Choir.
 - Non-named Legendary items keep their base icons. Their frame treatment comes from the UI (ticket 3.2).
 - Preview: `art/preview-mythic-set-icons.png`.
+
+## The Ashen Pass (ticket A.7)
+
+- Art for the top-end region that ticket 4.8 builds. The content ids are fixed: area `ashenPass` (levels 24–28), enemies `ashWraith`, `cinderHound`, `pyreCultist`, `emberGolem`, and boss `ashenWarden`. Their asset ids follow the usual rule: `area.ashen-pass`, `enemy.ash-wraith`, `enemy.cinder-hound`, `enemy.pyre-cultist`, `enemy.ember-golem` and `enemy.ashen-warden` (128×128).
+- The look is burnt and cold: ash-grey and charcoal with dim ember-orange accents (cracks, seams, embers). Orange stays a small accent, as crimson does elsewhere. The Ashen Warden is scorched black plate with brass trim and a smouldering greatsword on its shoulder. It has no shield, lantern or horns, so its silhouette differs from the Gravewarden's.
+- Four jobs and no regeneration. `area-ashen-pass-01` used `sunken-abbey.png` as its style image. `enemies-ashen-pass-01` (wraith and cultist) used `abbey-wraith.png`. `enemies-ashen-pass-02` (hound and golem) used `fallen-knight.png`. `boss-ashen-warden-01` used `gravewarden.png`.
+- The art is registered in the manifest and `assets.ts`, but no game content references it yet. 4.8 wires it by giving each enemy and the area these `assetId`s in game-core (`findAsset` in `apps/web/src/content/world.ts` then resolves them). It also needs a world-map marker for `ashenPass` in `MAP_MARKERS`, because the map art has no painted spot for the pass.
+- Preview: `art/preview-ashen-pass.png`.
