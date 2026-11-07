@@ -177,13 +177,18 @@ async function visit(page, args) {
       await post(`${c}/quests`, { kind: 'story', questId: board.story.next.questId });
       board = (await get(`${c}/quests`)).body;
     }
-    out.targetedOffer = false;
+    // A targeted ring contract is left to the UI; keep a contract slot free for it, or the
+    // other contracts taken on this visit can fill all of them first (the UI's button is then
+    // disabled: "You carry three contracts already").
+    const targetedRing =
+      !a.targetedTaken &&
+      board.contracts.offers.some((o) => !o.accepted && o.rewardSlots.includes('ring'));
+    const reserved = targetedRing ? 1 : 0;
     for (const offer of board.contracts.offers) {
-      if (offer.accepted || board.contracts.active >= board.contracts.maxActive) continue;
-      if (offer.rewardSlots.length > 0 && !a.targetedTaken) {
-        out.targetedOffer = offer.rewardSlots.includes('ring'); // left to the UI
+      if (offer.accepted || board.contracts.active + reserved >= board.contracts.maxActive)
         continue;
-      }
+      if (offer.rewardSlots.length > 0 && !a.targetedTaken) continue; // left to the UI
+
       const rewardSlot = offer.rewardSlots.includes('ring') ? 'ring' : offer.rewardSlots[0];
       const res = await post(`${c}/quests`, {
         kind: 'contract',
@@ -192,6 +197,7 @@ async function visit(page, args) {
       });
       if (res.status === 201) board = res.body;
     }
+    out.targetedOffer = targetedRing && board.contracts.active < board.contracts.maxActive;
 
     // The Forge's sink: upgrade worn gear, lowest level first; an item it can't pay for (gold, or
     // its tier's materials) is skipped for this visit.
