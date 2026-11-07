@@ -380,3 +380,170 @@
   color: var(--text-dim);
   font-size: var(--text-sm);
 }
+
+/* ── Standing (ticket 5.1): the four leaderboard scores, each a ledger line that opens into what
+   counts and why. Native <details>, so it works with a keyboard and without script state. ── */
+.standing__list {
+  display: grid;
+  margin-top: var(--space-3);
+}
+
+.standing__metric {
+  border-bottom: 1px solid var(--iron-700);
+}
+
+.standing__metric > summary {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  padding: var(--space-2) 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.standing__metric > summary::-webkit-details-marker {
+  display: none;
+}
+
+/* A brass diamond that turns when the line is open (no chevron glyph, no animation). */
+.standing__metric > summary::before {
+  content: '◇';
+  color: var(--brass-400);
+  font-size: var(--text-xs);
+}
+
+.standing__metric[open] > summary::before {
+  content: '◆';
+}
+
+.standing__metric > summary:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.standing__name {
+  display: flex;
+  flex: 1;
+  align-items: baseline;
+  gap: var(--space-2);
+  color: var(--text-muted);
+}
+
+.standing__name::after {
+  content: '';
+  flex: 1;
+  border-bottom: 1px dotted var(--iron-500);
+  transform: translateY(-4px);
+}
+
+.standing__value {
+  font-size: var(--text-lg);
+  font-weight: 700;
+  color: var(--bone-100);
+}
+
+.standing__value.is-zero {
+  color: var(--text-faint);
+}
+
+.standing__summary {
+  margin: 0 0 var(--space-2);
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+  font-style: italic;
+}
+
+.standing__lines {
+  display: grid;
+  gap: 2px;
+  margin: 0 0 var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  background: var(--ink-900);
+  border-left: 2px solid var(--brass-700);
+  list-style: none;
+}
+
+/* Twenty short trials read better in two columns where there is room. */
+@media (min-width: 900px) {
+  .standing__lines--power {
+    grid-template-columns: 1fr 1fr;
+    column-gap: var(--space-4);
+  }
+}
+
+.standing__line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+}
+
+.standing__label {
+  display: grid;
+  color: var(--bone-200);
+}
+
+.standing__detail {
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+
+.standing__points {
+  color: var(--bone-100);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.standing__line.is-zero .standing__label,
+.standing__line.is-zero .standing__points {
+  color: var(--text-faint);
+}
+
+.standing__line.is-zero .standing__detail {
+  color: var(--crimson-400);
+}
+
+.standing__lines--pveProgress .standing__line.is-zero .standing__detail,
+.standing__lines--power .standing__line.is-zero .standing__detail {
+  color: var(--text-faint);
+}
+
+.standing__empty,
+.standing__warn,
+.standing__note {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+}
+
+.standing__empty a {
+  color: var(--brass-400);
+}
+
+.standing__note {
+  margin-top: var(--space-3);
+  font-style: italic;
+}
+
+/* Grid children size to their content by default; long state text must wrap in the side column. */
+.standing {
+  min-width: 0;
+}
+
+.standing__state {
+  display: grid;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.standing__state .btn {
+  justify-self: start;
+  font-style: normal;
+}
+
+.standing__line--wide {
+  grid-column: 1 / -1;
+}

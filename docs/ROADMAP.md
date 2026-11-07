@@ -660,7 +660,7 @@ Not in this phase (owner decisions, Phase 4 follow-ups): content above level 28 
 
 **Order** (one or two sessions at a time): 5.1 → 5.2 → 5.3 and A.10 (parallel) → 5.4 → 5.5 → 5.6 → B.4 → 5.7 → T.1 → T.2 → T.3 → T.4 → T.5 → T.6 → T.7 → 5.8.
 
-### 5.1 Scoring model & published formulas (game-core + docs) — `todo`
+### 5.1 Scoring model & published formulas (game-core + docs) — `done (PR #82)`
 GDD: §10.2, §16.3. Read `docs/COMBAT.md`, `docs/LOOT.md`, `docs/EFFECTS.md`, the balance and build suites.
 - Versioned, data-driven formulas in game-core: **Character Level** (level, then XP within the level as tie-breaker), **Gear Score** (equipped items only: item level, rarity, upgrade level, Void; documented weights), **Character Power** (a broader snapshot: a deterministic combat evaluation against fixed reference opponents, so builds count, not just numbers) and **PvE Progress** (an ordered list of milestones: areas, crypt tiers, the Warden's Watch, guild boss stages).
 - A score breakdown ("what counts and why") that the UI can show; `docs/LEADERBOARDS.md` publishes each formula in plain words.

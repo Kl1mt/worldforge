@@ -1,0 +1,444 @@
+import { describe, expect, it } from 'vitest';
+import {
+  CLASS_IDS,
+  ITEM_BASES,
+  MAX_UPGRADE_LEVEL,
+  NO_WORLD_FLAGS,
+  RARITY_IDS,
+  canClassUseItem,
+  createRng,
+  equipmentSlotsForKind,
+  generateItem,
+  xpToNextLevel,
+  type ClassId,
+  type RarityId,
+} from '../index.js';
+import {
+  FORMULA_VERSIONS,
+  PVE_MILESTONES,
+  checkEquipment,
+  computeScores,
+  gearItemPoints,
+  gearScore,
+  levelScore,
+  powerScore,
+  pveProgressScore,
+  slotHands,
+  type ScoredItem,
+  type ScoringInput,
+} from './index.js';
+import { AREAS } from '../world/areas.js';
+import { DUNGEONS } from '../world/dungeons.js';
+
+/** One item per slot of the best tier the class can use (the balance suite's "geared" kit). */
+function kit(
+  classId: ClassId,
+  itemLevel: number,
+  rarityId: RarityId = 'common',
+  upgradeLevel = 0,
+): ScoredItem[] {
+  const rng = createRng(`score-kit:${classId}:${itemLevel}:${rarityId}`);
+  const bases = ITEM_BASES.filter(
+    (b) => !b.unique && b.minItemLevel <= itemLevel && canClassUseItem(b, classId),
+  ).sort((a, b) => b.tier - a.tier || b.minItemLevel - a.minItemLevel);
+  const out: ScoredItem[] = [];
+  const taken = new Set<string>();
+  for (const base of bases) {
+    if (taken.has(base.slot)) continue;
+    taken.add(base.slot);
+    for (const slot of equipmentSlotsForKind(base.slot)) {
+      const item = generateItem({
+        seed: rng.int(0, 2 ** 31),
+        itemLevel,
+        baseId: base.id,
+        rarityId,
+        classId,
+      })!;
+      out.push({ ...item, slot, upgradeLevel });
+    }
+  }
+  return out;
+}
+
+const hero = (over: Partial<ScoringInput> = {}): ScoringInput => ({
+  classId: 'warrior',
+  level: 20,
+  experience: 1234,
+  equipment: kit('warrior', 19, 'rare', 3),
+  progress: { gravewardenDefeated: true, cryptTierCleared: 2 },
+  world: NO_WORLD_FLAGS,
+  guildBossStage: 2,
+  ...over,
+});
+
+describe('determinism', () => {
+  it('gives the same scores in every call', () => {
+    const a = computeScores(hero());
+    const b = computeScores(JSON.parse(JSON.stringify(hero())) as ScoringInput);
+    expect(b).toEqual(a);
+  });
+
+  // Pinned values: the same in every process and on every machine (no clock, no Math.random, no
+  // ambient state). If one moves, a formula changed: bump its `FORMULA_VERSIONS` entry and update
+  // the pin and docs/LEADERBOARDS.md in the same change (5.2 recomputes stored values on a bump).
+  it('pins the values of reference heroes (bump FORMULA_VERSIONS when one moves)', () => {
+    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 1, power: 1, pveProgress: 1 });
+    const pinned = CLASS_IDS.map((classId) => {
+      const s = computeScores(hero({ classId, equipment: kit(classId, 19, 'rare', 3) }));
+      return [classId, s.level.sortKey, s.gearScore.value, s.power.value, s.pveProgress.sortKey];
+    });
+    expect(pinned).toMatchInlineSnapshot(`
+      [
+        [
+          "warrior",
+          [
+            20,
+            1234,
+          ],
+          2493,
+          1703,
+          [
+            7,
+            7,
+            2,
+          ],
+        ],
+        [
+          "mage",
+          [
+            20,
+            1234,
+          ],
+          2492,
+          1509,
+          [
+            7,
+            7,
+            2,
+          ],
+        ],
+        [
+          "hunter",
+          [
+            20,
+            1234,
+          ],
+          2492,
+          1647,
+          [
+            7,
+            7,
+            2,
+          ],
+        ],
+        [
+          "warlock",
+          [
+            20,
+            1234,
+          ],
+          2492,
+          1486,
+          [
+            7,
+            7,
+            2,
+          ],
+        ],
+      ]
+    `);
+  });
+});
+
+describe('Character Level', () => {
+  it('ranks by level, then by experience within the level', () => {
+    expect(levelScore(12, 500).sortKey).toEqual([12, 500]);
+    expect(levelScore(60, 0).sortKey).toEqual([60, 0]);
+  });
+
+  it('a level-up never lowers the score', () => {
+    for (let level = 1; level < 60; level++) {
+      const top = levelScore(level, xpToNextLevel(level) - 1).sortKey;
+      const next = levelScore(level + 1, 0).sortKey;
+      expect(next[0]! > top[0]!, `level ${level}`).toBe(true);
+    }
+  });
+
+  it('refuses values the server never stores', () => {
+    for (const [l, xp] of [
+      [0, 0],
+      [61, 0],
+      [1.5, 0],
+      [5, -1],
+      [5, xpToNextLevel(5)],
+      [5, 0.5],
+      [60, 1],
+      [Number.NaN, 0],
+    ] as const) {
+      expect(() => levelScore(l, xp), `${l}/${xp}`).toThrow(RangeError);
+    }
+  });
+});
+
+describe('Gear Score', () => {
+  it('counts equipped items by item level, rarity, upgrades and Void', () => {
+    const item = { itemLevel: 20, rarityId: 'legendary' as const, upgradeLevel: 5, variant: null };
+    expect(gearItemPoints(item).points).toBe(Math.round(20 * 10 * 1.75 * 1.2));
+    expect(gearItemPoints({ ...item, variant: 'void' }).points).toBe(
+      Math.round(20 * 10 * 1.75 * 1.2 * 1.1),
+    );
+    expect(gearScore('mage', []).value).toBe(0);
+  });
+
+  it('weighs a two-handed weapon as both hands, so every class can reach the same total', () => {
+    expect(slotHands('warrior', 'weapon')).toBe(1);
+    for (const c of ['mage', 'hunter', 'warlock'] as const) expect(slotHands(c, 'weapon')).toBe(2);
+    const totals = CLASS_IDS.map((c) => gearScore(c, kit(c, 22, 'epic')).value);
+    expect(Math.max(...totals) / Math.min(...totals)).toBeLessThan(1.001);
+  });
+
+  it('a strictly better item never lowers the score', () => {
+    // Every factor (item level, rarity, upgrade, Void) separately and all together.
+    let checks = 0;
+    for (const [r, rarityId] of RARITY_IDS.entries()) {
+      for (let itemLevel = 1; itemLevel <= 60; itemLevel++) {
+        for (let up = 0; up <= MAX_UPGRADE_LEVEL; up++) {
+          const variants =
+            rarityId === 'legendary' || rarityId === 'mythic' ? [null, 'void'] : [null];
+          for (const variant of variants as (null | 'void')[]) {
+            const base = gearItemPoints({ itemLevel, rarityId, upgradeLevel: up, variant }).points;
+            const better: Parameters<typeof gearItemPoints>[0][] = [];
+            if (itemLevel < 60)
+              better.push({ itemLevel: itemLevel + 1, rarityId, upgradeLevel: up, variant });
+            if (r < RARITY_IDS.length - 1)
+              better.push({
+                itemLevel,
+                rarityId: RARITY_IDS[r + 1]!,
+                upgradeLevel: up,
+                variant: null,
+              });
+            if (up < MAX_UPGRADE_LEVEL)
+              better.push({ itemLevel, rarityId, upgradeLevel: up + 1, variant });
+            if (variants.length > 1 && !variant)
+              better.push({ itemLevel, rarityId, upgradeLevel: up, variant: 'void' });
+            for (const b of better) {
+              expect(gearItemPoints(b).points, JSON.stringify(b)).toBeGreaterThanOrEqual(base);
+              checks++;
+            }
+          }
+        }
+      }
+    }
+    expect(checks).toBeGreaterThan(10_000);
+  });
+
+  it('replacing an item with a better one in its slot never lowers the total', () => {
+    for (const c of CLASS_IDS) {
+      const worse = kit(c, 18, 'rare', 2);
+      const better = kit(c, 18, 'epic', 2);
+      const total = gearScore(c, worse).value;
+      for (let i = 0; i < worse.length; i++) {
+        const swapped = worse.slice();
+        swapped[i] = better[i]!;
+        expect(gearScore(c, swapped).value, `${c} ${worse[i]!.slot}`).toBeGreaterThan(total);
+      }
+    }
+  });
+});
+
+describe('stat-inflation resistance', () => {
+  const base = () => kit('warrior', 22, 'legendary', 4);
+  const forge = (f: (i: ScoredItem) => ScoredItem, index = 0): ScoredItem[] => {
+    const items = base();
+    items[index] = f(items[index]!);
+    return items;
+  };
+  const cases: [string, ScoredItem[], string][] = [
+    [
+      'an affix above its tier',
+      forge((i) => ({ ...i, affixes: i.affixes.map((a) => ({ ...a, value: a.value * 50 })) })),
+      'invalid_item',
+    ],
+    [
+      'an extra affix',
+      forge((i) => ({ ...i, affixes: [...i.affixes, i.affixes[0]!] })),
+      'invalid_item',
+    ],
+    ['an item level above the cap', forge((i) => ({ ...i, itemLevel: 500 })), 'invalid_item'],
+    ['a non-finite item level', forge((i) => ({ ...i, itemLevel: Number.NaN })), 'invalid_item'],
+    ['an unknown base', forge((i) => ({ ...i, baseId: 'godslayer' })), 'wrong_slot'],
+    ['an unknown rarity', forge((i) => ({ ...i, rarityId: 'divine' as RarityId })), 'invalid_item'],
+    ['upgrade +11', forge((i) => ({ ...i, upgradeLevel: 11 })), 'invalid_upgrade'],
+    ['upgrade +2.5', forge((i) => ({ ...i, upgradeLevel: 2.5 })), 'invalid_upgrade'],
+    ['upgrade −1', forge((i) => ({ ...i, upgradeLevel: -1 })), 'invalid_upgrade'],
+    ['Void on a rare', forge((i) => ({ ...i, rarityId: 'rare', variant: 'void' })), 'invalid_item'],
+    [
+      'a forged effect',
+      forge((i) => ({ ...i, effectId: 'starfall', effectRoll: 1 })),
+      'invalid_item',
+    ],
+    ['a forged set', forge((i) => ({ ...i, setId: 'ashen-choir' })), 'invalid_item'],
+    ['an unknown slot', forge((i) => ({ ...i, slot: 'tail' })), 'wrong_slot'],
+    [
+      'an item in a slot it does not fit',
+      forge((i) => ({ ...i, slot: 'shoulders' })),
+      'wrong_slot',
+    ],
+  ];
+
+  it.each(cases)('%s counts 0 and does not fight', (_, items, reason) => {
+    const valid = base();
+    const without = valid.filter((_, i) => i !== 0);
+    const gear = gearScore('warrior', items);
+    const line = gear.lines.find((l) => !l.counted)!;
+    expect(line.reason).toBe(reason);
+    expect(gear.value).toBe(gearScore('warrior', without).value);
+    expect(gear.value).toBeLessThan(gearScore('warrior', valid).value);
+    expect(powerScore('warrior', 23, items).value).toBe(powerScore('warrior', 23, without).value);
+  });
+
+  it('a second item in one slot makes neither count', () => {
+    const items = base();
+    const weapon = items.find((i) => i.slot === 'weapon')!;
+    const doubled = [...items, { ...weapon, seed: weapon.seed + 1 }];
+    const checked = checkEquipment('warrior', doubled);
+    expect(checked.filter((c) => c.rejection === 'duplicate_slot')).toHaveLength(2);
+  });
+
+  it('a class item another class wears counts 0 (a shield on a mage)', () => {
+    const shield = kit('warrior', 22, 'epic').find((i) => i.slot === 'offhand')!;
+    const items = [...kit('mage', 22, 'epic'), shield];
+    expect(gearScore('mage', items).value).toBe(gearScore('mage', kit('mage', 22, 'epic')).value);
+  });
+
+  it('every generated item counts (no false rejections)', () => {
+    for (const c of CLASS_IDS) {
+      for (const r of RARITY_IDS) {
+        for (const il of [1, 9, 15, 22, 27]) {
+          for (const c2 of checkEquipment(c, kit(c, il, r, 10))) {
+            expect(c2.rejection, `${c} ${r} ${il} ${c2.item.baseId}`).toBeNull();
+          }
+        }
+      }
+    }
+  });
+});
+
+describe('Character Power', () => {
+  it('grows with level and with gear', () => {
+    for (const c of CLASS_IDS) {
+      let last = 0;
+      for (const level of [1, 5, 10, 15, 20, 25, 30, 35]) {
+        const p = powerScore(c, level, kit(c, Math.max(1, level - 1))).value;
+        expect(p, `${c} ${level}`).toBeGreaterThan(last);
+        last = p;
+      }
+      const tiers = [
+        powerScore(c, 23, []).value,
+        powerScore(c, 23, kit(c, 22, 'common')).value,
+        powerScore(c, 23, kit(c, 22, 'rare')).value,
+        powerScore(c, 23, kit(c, 22, 'epic', 5)).value,
+        powerScore(c, 23, kit(c, 22, 'legendary', 10)).value,
+      ];
+      expect(
+        [...tiers].sort((a, b) => a - b),
+        `${c}: ${tiers.join(' < ')}`,
+      ).toEqual(tiers);
+      expect(new Set(tiers).size).toBe(tiers.length);
+    }
+  });
+
+  // Power measures real strength, so it shows the class balance too (boards filter by class);
+  // with the same kind of kit no class is far ahead (measured up to × 1.21, hunter over warlock).
+  it('keeps the classes close with the same kind of kit', () => {
+    for (const level of [10, 20, 28]) {
+      const ps = CLASS_IDS.map((c) => powerScore(c, level, kit(c, level - 1, 'rare', 3)).value);
+      expect(Math.max(...ps) / Math.min(...ps), `${level}: ${ps.join(' / ')}`).toBeLessThan(1.3);
+    }
+  });
+
+  it('explains every trial', () => {
+    const s = powerScore('hunter', 22, kit('hunter', 21, 'epic'));
+    expect(s.lines).toHaveLength(20);
+    expect(s.lines.reduce((t, l) => t + l.points, 0)).toBeGreaterThan(s.value - 20);
+    expect(s.lines[0]!.detail).toMatch(/^Cleared in \d+ s$/);
+    expect(s.lines.at(-1)!.detail).toMatch(/fights won$/);
+  });
+
+  // Budget: computed on every equip and level-up (5.2). ~2 ms per call on a laptop; the bound is
+  // ten times that, so a slow CI runner still passes and a 10× regression fails.
+  it('stays within its performance budget', () => {
+    const items = kit('warlock', 27, 'legendary', 10);
+    const start = Date.now();
+    for (let i = 0; i < 100; i++) powerScore('warlock', 28, items);
+    expect((Date.now() - start) / 100).toBeLessThan(25);
+  });
+});
+
+describe('PvE Progress', () => {
+  const progress = (over: Partial<Parameters<typeof pveProgressScore>[0]> = {}) =>
+    pveProgressScore({
+      level: 1,
+      progress: { gravewardenDefeated: false },
+      guildBossStage: 0,
+      ...over,
+    });
+
+  it('lists every area and every crypt tier, once, in the order heroes meet them', () => {
+    const areas = PVE_MILESTONES.flatMap((m) => (m.kind === 'area' ? [m.areaId] : []));
+    expect([...areas].sort()).toEqual(AREAS.map((a) => a.id).sort());
+    const crypt = DUNGEONS.find((d) => d.id === 'namelessCrypt')!;
+    const tiers = PVE_MILESTONES.flatMap((m) => (m.kind === 'cryptTier' ? [m.tier] : []));
+    expect(tiers).toEqual(crypt.tiers.map((t) => t.tier));
+    expect(new Set(PVE_MILESTONES.map((m) => m.id)).size).toBe(PVE_MILESTONES.length);
+  });
+
+  it('a fresh hero has reached the first field', () => {
+    expect(progress().sortKey).toEqual([1, 1, 0]);
+  });
+
+  it('counts milestones; ties go to the furthest, then the guild boss stage', () => {
+    const tier2 = progress({
+      level: 20,
+      progress: { gravewardenDefeated: true, cryptTierCleared: 2 },
+    });
+    expect(tier2.sortKey).toEqual([7, 7, 0]);
+    // The Pass open (level 24 and the community's flag) without tiers II and III.
+    const pass = progress({
+      level: 24,
+      progress: { gravewardenDefeated: true, cryptTierCleared: 1 },
+      world: { ...NO_WORLD_FLAGS, ashenPassCleared: true },
+    });
+    expect(pass.sortKey).toEqual([7, 9, 0]);
+    const top = progress({
+      level: 28,
+      progress: { gravewardenDefeated: true, cryptTierCleared: 3, ashenWardenDefeated: true },
+      world: { ...NO_WORLD_FLAGS, ashenPassCleared: true },
+      guildBossStage: 5,
+    });
+    expect(top.sortKey).toEqual([10, 10, 5]);
+    expect(top.lines.every((l) => l.counted)).toBe(true);
+  });
+
+  it('never counts a guild boss stage that does not exist', () => {
+    for (const s of [-1, 1.5, Number.NaN])
+      expect(progress({ guildBossStage: s }).sortKey[2]).toBe(0);
+    expect(progress({ guildBossStage: 99 }).sortKey[2]).toBe(5);
+  });
+
+  it('progress only adds milestones (never lowers the score)', () => {
+    const steps = [
+      { level: 1, progress: { gravewardenDefeated: false } },
+      { level: 13, progress: { gravewardenDefeated: false } },
+      { level: 15, progress: { gravewardenDefeated: true, cryptTierCleared: 1 } },
+      { level: 18, progress: { gravewardenDefeated: true, cryptTierCleared: 2 } },
+      { level: 22, progress: { gravewardenDefeated: true, cryptTierCleared: 3 } },
+    ];
+    let last = 0;
+    for (const s of steps) {
+      const v = progress(s).value;
+      expect(v).toBeGreaterThanOrEqual(last);
+      last = v;
+    }
+  });
+});

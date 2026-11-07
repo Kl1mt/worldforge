@@ -24,6 +24,7 @@ import { ItemTooltip } from '../components/ItemTooltip';
 import { SetTracker } from '../components/SetTracker';
 import { LabeledMeter, Meter } from '../components/Meter';
 import { ProfessionsPanel } from './ProfessionsPanel';
+import { StandingPanel } from './StandingPanel';
 import { PixelSprite } from '../components/PixelSprite';
 import { useElementWidth } from '../components/useElementWidth';
 import { formatNumber, formatStatValue } from '../lib/format';
@@ -248,6 +249,8 @@ export function CharacterScreen() {
                 </div>
               ))}
           </section>
+
+          <StandingPanel characterId={hero.id} level={hero.level} />
 
           <section className="sets panel-iron" aria-labelledby="sets-title">
             <h2 id="sets-title" className="rule-heading">
