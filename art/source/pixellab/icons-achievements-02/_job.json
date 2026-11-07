@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour trophies: iron key in the lock of a restored oak door with new iron bands; wooden supply crate with a blacksmith hammer resting on it; brass warehouse key on a ring; cracked stone watchtower with a glowing ember at its top; broken iron chain lying over grey ash; ember-wreathed mountain pass gate, weathered aged brass, dark iron, old wood and deep crimson, muted desaturated palette, transparent background",
+  "style_image": "apps/web/public/assets/achievements/contracts-10.png",
+  "job_id": "1a951609-4328-44bb-ac8b-ece95c927db8",
+  "created_at": "2026-11-07T16:28:02.614754+00:00",
+  "seed": 126471408,
+  "generations": 10.0,
+  "count": 64,
+  "width": 32,
+  "height": 32
+}

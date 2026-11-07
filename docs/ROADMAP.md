@@ -608,7 +608,7 @@ Checked and holding: the permission matrices (re-run; the moderation matrix need
 - **Trading T.1–T.7** per `docs/TRADING.md` (owner places it; login throttling per account and email verification first).
 - **B.3's owner questions:** a level cap versus content above 28 (heroes level past the top content; the XP penalty is a soft cap around 35, `docs/COMBAT.md`); crypt tier III as the Legendary tier (decided in B.3 to keep; revisit with playtest data); trade limits versus the income spread (`docs/TRADING.md`, `docs/ECONOMY.md`).
 - **Ashen Pass contracts** (above): turn them on or remove the templates (owner, balance).
-- **Art:** icons for `warehouseRestorer` "Mender of Graumark" and `ashenPassBreaker` "Through the Ash" (`achievement.warehouse-restorer`, `achievement.ashen-pass-breaker`, 32×32 like A.8); both show the wax-seal placeholder today.
+- ~~**Art:** icons for `warehouseRestorer` "Mender of Graumark" and `ashenPassBreaker` "Through the Ash"~~ (done in A.9).
 - **Look-alike names** (a confusable skeleton) and a **reserved-names store** for forced renames (accepted risks above).
 - **Guild chat pruning** when the table grows; **shared limiters** before a second API instance.
 - **Playtest feedback:** `docs/PLAYTEST_FEEDBACK.md` is still the empty template; B.1–B.3 were tuned from simulations and telemetry only.
@@ -694,3 +694,9 @@ GDD: §3.1, §10.1. Needs 4.2 (achievement ids) and 4.4 (guild emblem choices). 
 - Icons for the achievements and a small set of guild emblems (about 12) players can choose from (no uploads: no user images in Phase 4).
 - Budget: one or two 32px jobs; at most one regeneration. Manifest and `assets.ts` updated.
 **Acceptance:** a contact sheet in the PR.
+
+### A.9 Community project achievement icons — `in progress`
+GDD: §3.1, §10.1. Follow-up from 4.6/4.11: `warehouseRestorer` and `ashenPassBreaker` still showed the wax-seal placeholder. Match A.8's achievement icons (32×32, one as `style_image`).
+- Two icons: the Graumark Warehouse restored (`achievement.warehouse-restorer`) and the Ashen Pass cleared (`achievement.ashen-pass-breaker`).
+- Budget: one 32px job; at most one regeneration. Manifest and `assets.ts` updated (in order); the ids leave the web test's awaiting-art list. No game-core or server changes.
+**Acceptance:** a contact sheet next to A.8's set in the PR.
