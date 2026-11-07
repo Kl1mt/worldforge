@@ -181,11 +181,12 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
     const t0 = Date.now();
     await Promise.all(
       Array.from({ length: 4 }, () =>
-        withTransaction(database.db, (tx) => tx.execute(sql`select pg_sleep(0.3)`)),
+        withTransaction(database.db, (tx) => tx.execute(sql`select pg_sleep(0.5)`)),
       ),
     );
-    // Serial execution would take ≥ 1.2 s.
-    expect(Date.now() - t0).toBeLessThan(1_000);
+    // Serial execution would take ≥ 2 s; parallel takes 0.5 s plus overhead, which a slow
+    // runner can stretch, so the bound sits between the two with room on both sides.
+    expect(Date.now() - t0).toBeLessThan(1_500);
   });
 
   it('credits a settlement window once under concurrent settles', async () => {
@@ -1665,7 +1666,13 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
       const id = await newCharacter(p);
       const base = `/api/characters/${id}`;
       const outcomes = { lockWon: 0, taken: 0 };
-      for (let round = 0; round < 6; round++) {
+      // At least six rounds, and more until both orders were seen (a slow runner can let the
+      // later request win despite its head start, so the head start grows with the rounds).
+      for (
+        let round = 0;
+        round < 6 || (round < 24 && !(outcomes.lockWon && outcomes.taken));
+        round++
+      ) {
         const target = await grant(id, 'barbute', 100 + round);
         const other = await grant(id, 'iron-helm', 200 + round);
         const [row] = await database.db
@@ -1675,8 +1682,9 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
         const before = await goldOf(id);
         // Which request reaches the character lock first depends on timing; every other round
         // the lock or the sales get a small head start, so both orders really happen.
-        const lockDelay = round % 2 === 0 ? 0 : 20;
-        const sellDelay = round % 2 === 0 ? 20 : 0;
+        const headStart = 20 * (1 + Math.floor(round / 6));
+        const lockDelay = round % 2 === 0 ? 0 : headStart;
+        const sellDelay = round % 2 === 0 ? headStart : 0;
         const later = <T>(ms: number, f: () => Promise<T>) =>
           new Promise<T>((resolve, reject) => setTimeout(() => f().then(resolve, reject), ms));
         const results = await Promise.all([
@@ -1713,7 +1721,7 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
         await call(p, 'POST', `${base}/items/${target}/unlock`);
         await database.db.delete(itemInstances).where(eq(itemInstances.characterId, id));
       }
-      // Both orders happened (the head starts above make this all but certain).
+      // Both orders happened (the growing head starts make this certain in practice).
       expect(outcomes.lockWon).toBeGreaterThan(0);
       expect(outcomes.taken).toBeGreaterThan(0);
     });

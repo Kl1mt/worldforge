@@ -627,6 +627,9 @@ GDD: §6.4, §11.1. Owner decision: switch the Pass's contracts on, but only whe
 - Offers stay deterministic; heroes who cannot reach the Pass keep exactly the offers they had (docs/QUESTS.md "Ashen Pass contracts"). No migration.
 - Tests: closed flag, under-level, open (offered, taken, finished, turned in), invariance; the API journey's Ashen Pass step takes and finishes one Pass contract.
 
+### F.2 Flake hunt — `in progress`
+Tests that pass on their PR keep failing later on `main` and block the auto-deploy. Measure every suite many times with fresh seeds and shuffled file order, fix each flaky test so it holds for every seed and order (no skips, no weakened checks), and add rules (`CLAUDE.md`, "Writing tests that don't flake") and a cheap nightly guard.
+
 ## Deployment
 
 ### D.1 Production deployment — `done (PR #52)`

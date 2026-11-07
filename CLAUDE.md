@@ -18,6 +18,16 @@ Browser-first dark-fantasy idle RPG: automatic combat, loot-driven builds, offli
 - Migrations: if `main` gained a migration while you worked, merge `main`, delete your generated migration (`.sql`, snapshot, journal entry) and re-run `pnpm db:generate`.
 - In `docs/ROADMAP.md`, set your ticket to `done (PR #n)`. In the PR description, report the changed files, decisions, test results and remaining risks.
 
+## Writing tests that don't flake
+A test that passes on its PR and fails later on `main` blocks the auto-deploy. Every flake so far was a test assuming a seed, timing, ordering or capacity (ROADMAP F.2).
+- **Random outcomes:** server seeds (activity, forge secrets, quest rewards, guild boss) come from `crypto`. Never assert an outcome that only *usually* happens (a drop, a level-up, a forge failure, a crit, a stage reached) on an unpinned seed. In this order: pin the seed (`seedSecret`/`forgeSecret` in the DB), or search for one that exhibits the case with game-core's own rules (`telemetry.test.ts` over-capacity, `exit-criteria.test.ts`); assert what holds in every outcome; retry on a fresh item (`forge/work.test.ts` upgrades). If unsure, measure the odds with game-core over a few thousand seeds.
+- **Races:** don't assume which request wins. Assert what holds in every order (reconciliation, at-most-once, audit = holdings). If both orders must be seen, keep going until they are, with a growing head start and a bound (`concurrency.pg.test.ts` sell vs lock).
+- **Time:** inject the clock (`now`); never wait on the wall clock where you can wait for state (Playwright `waitFor` on a locator, polling an API until a condition). A timing bound must sit well between the fast and the slow case, not just above the fast one. The e2e clock is scaled: a restock, a day or a week boundary can pass between two steps, so retry the step or read the state again rather than assuming it didn't.
+- **Area switches and cycles:** the first settlement after a switch can still finish the previous area's cycle; check area-specific drops only from the next one.
+- **Capacity:** a pack, a board or a cap can fill up (or not) depending on the seed; set it up explicitly (pre-fill the pack, seed the total) instead of hoping farming gets there.
+- **Order:** each server test file has its own database; tests must not depend on other files or shards. Don't rely on another `it` in the same file unless it's a deliberate sequential journey.
+- **Never** skip, quarantine, or weaken a test until it checks nothing. To check a fix, loop it: `for i in $(seq 20); do pnpm --filter @worldforge/server exec vitest run <file> --sequence.shuffle.files --sequence.seed=$RANDOM || break; done`. The **Flake hunt** workflow (nightly, or run it by hand) repeats the server and real-Postgres suites with shuffled order and fresh seeds.
+
 ## Token economy
 - Prefer targeted reads (grep, line ranges) over whole files. Don't paste large outputs.
 - For images, look at contact sheets instead of individual files.

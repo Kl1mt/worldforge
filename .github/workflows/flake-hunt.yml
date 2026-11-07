@@ -1,0 +1,96 @@
+name: Flake hunt
+
+# Ticket F.2: runs the server suite (with the API e2e journeys) and the real-PostgreSQL races
+# several times with shuffled file order and fresh random game seeds, to catch tests that pass
+# on their PR and fail later on `main`. Nightly and on demand; not on the per-PR path. Each run
+# prints its shuffle seed ("Running tests with seed …"): re-run a failure with
+# `vitest run --sequence.shuffle.files --sequence.seed=<seed>`.
+
+on:
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+    inputs:
+      runs:
+        description: Runs per job
+        default: '3'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: flake-hunt
+  cancel-in-progress: true
+
+jobs:
+  server:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
+    name: server ${{ matrix.shard }}/2 × runs
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Repeated runs
+        env:
+          RUNS: ${{ inputs.runs || '3' }}
+        run: |
+          failed=0
+          for i in $(seq 1 "$RUNS"); do
+            seed=$(( (RANDOM << 15) | RANDOM ))
+            echo "::group::run $i (shuffle seed $seed)"
+            pnpm --filter @worldforge/server exec vitest run --shard=${{ matrix.shard }}/2 \
+              --sequence.shuffle.files --sequence.seed=$seed || { failed=1; echo "::error::run $i failed (seed $seed)"; }
+            echo "::endgroup::"
+          done
+          exit $failed
+
+  postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: worldforge
+          POSTGRES_PASSWORD: worldforge
+          POSTGRES_DB: worldforge
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U worldforge -d worldforge"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://worldforge:worldforge@127.0.0.1:5432/worldforge
+      REQUIRE_PG_TESTS: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Repeated test:pg runs
+        env:
+          RUNS: ${{ inputs.runs || '3' }}
+        run: |
+          failed=0
+          for i in $(seq 1 $(( RUNS * 2 ))); do
+            seed=$(( (RANDOM << 15) | RANDOM ))
+            echo "::group::run $i (shuffle seed $seed)"
+            pnpm --filter @worldforge/server test:pg --sequence.shuffle.files --sequence.seed=$seed \
+              || { failed=1; echo "::error::run $i failed (seed $seed)"; }
+            echo "::endgroup::"
+          done
+          exit $failed
