@@ -637,7 +637,7 @@ Tests that passed on their PR kept failing later on `main` and blocked the auto-
 - **Real-Postgres timing** (`concurrency.pg.test.ts`): sell/salvage vs lock keeps going (with a growing head start) until both orders were seen; the parallel-transactions check got a wider margin.
 - Prevention: "Writing tests that don't flake" in `CLAUDE.md`; a nightly/manual **Flake hunt** workflow (`.github/workflows/flake-hunt.yml`) repeats the server suite and `test:pg` with shuffled order, off the per-PR path. No production code or gameplay numbers changed.
 
-### F.3 Patch notes & version numbers — `done (PR #n)`
+### F.3 Patch notes & version numbers — `done (PR #85)`
 Owner request: patch notes and version numbers in-game for every new thing.
 - One game version, `0.<phase>.<patch>`, in game-core's typed patch notes (`releases/notes.ts`, `GAME_VERSION`); the server returns it in `GET /api/health` (`version`), the web shows it quietly in the status bar ("v0.5.2") linking to the notes.
 - Backfilled history from this file: 0.1.0 (Phases 0–1), 0.2.0, 0.3.0, 0.4.0 (Phase 4 with the launch: invites and legal pages), 0.5.0 (F.1), 0.5.1 (5.1), 0.5.2 (5.2, plus the scoped-ledger-styles fix). Dates are the merge dates.
