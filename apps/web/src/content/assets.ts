@@ -1,4 +1,4 @@
-import type { ClassId } from '@worldforge/game-core';
+import type { ClassId, ScoreMetric } from '@worldforge/game-core';
 
 /**
  * Typed registry of the curated Phase 0 art. Mirrors apps/web/public/assets/manifest.json
@@ -34,6 +34,30 @@ const guildEmblem = (name: string): SpriteAsset => ({
   path: `/assets/guild-emblems/${name}.png`,
   width: 32,
   height: 32,
+});
+
+const badge = (name: string): SpriteAsset => ({
+  path: `/assets/badges/${name}.png`,
+  width: 32,
+  height: 32,
+});
+
+/**
+ * The content box of every season frame (A.10), in native frame pixels: fill it with the portrait
+ * or crest well and draw the frame on top. The bands cover its edges in every tier; the central
+ * 32×32 (16, 16) is always visible.
+ */
+export const SEASON_FRAME_WINDOW = { x: 14, y: 14, width: 36, height: 36 } as const;
+
+export interface SeasonFrameSprite extends SpriteAsset {
+  window: typeof SEASON_FRAME_WINDOW;
+}
+
+const seasonFrame = (tier: string): SeasonFrameSprite => ({
+  path: `/assets/frames/season-frame-${tier}.png`,
+  width: 64,
+  height: 64,
+  window: SEASON_FRAME_WINDOW,
 });
 
 const enemy = (name: string, facing: 'front' | 'left' | 'right', size = 64): SpriteAsset => ({
@@ -202,6 +226,17 @@ export const ASSETS = {
   'guild-emblem.moon': guildEmblem('moon'),
   'guild-emblem.serpent': guildEmblem('serpent'),
   'guild-emblem.chalice': guildEmblem('chalice'),
+  // Season prestige (A.10): profile frames by tier (best first), one title badge per board metric,
+  // and the duel arena backdrop. Ticket 5.3 wires the frames and badges, 5.5 the arena.
+  'frame.season-frame-champion': seasonFrame('champion'),
+  'frame.season-frame-exalted': seasonFrame('exalted'),
+  'frame.season-frame-renowned': seasonFrame('renowned'),
+  'frame.season-frame-veteran': seasonFrame('veteran'),
+  'badge.title-badge-level': badge('title-badge-level'),
+  'badge.title-badge-gear-score': badge('title-badge-gear-score'),
+  'badge.title-badge-power': badge('title-badge-power'),
+  'badge.title-badge-pve-progress': badge('title-badge-pve-progress'),
+  'area.arena': { path: '/assets/areas/arena.png', width: 384, height: 216 },
 } as const satisfies Record<string, SpriteAsset>;
 
 export type AssetId = keyof typeof ASSETS;
@@ -221,4 +256,37 @@ export function findSprite(id: string): SpriteAsset | null {
 /** The full-body portrait for a class (`character.<classId>`), used wherever a hero is drawn. */
 export function classPortrait(classId: ClassId): SpriteAsset {
   return ASSETS[`character.${classId}`];
+}
+
+/** Season frame tiers, best to least (A.10). Ticket 5.3 maps its prestige ranks onto these. */
+export const SEASON_FRAME_TIERS = ['champion', 'exalted', 'renowned', 'veteran'] as const;
+export type SeasonFrameTier = (typeof SEASON_FRAME_TIERS)[number];
+
+/**
+ * The 64×64 profile frame for a season tier. Draw it at an integer scale ×N over content that
+ * fills `window` × N (×1 around a 32 px charge, ×4 around a 128 px portrait).
+ */
+export function seasonFrameAsset(tier: SeasonFrameTier): SeasonFrameSprite {
+  return ASSETS[`frame.season-frame-${tier}`];
+}
+
+const TITLE_BADGE_NAMES = {
+  level: 'level',
+  gearScore: 'gear-score',
+  power: 'power',
+  pveProgress: 'pve-progress',
+} as const satisfies Record<ScoreMetric, string>;
+
+/**
+ * The 32×32 title badge for a leaderboard metric (A.10). Draw it at ×1 where there is room; in
+ * a 16–24 px slot (a board row, a name line) it may be shrunk with smooth filtering, the one
+ * exception to integer scaling (docs/ASSET_GUIDELINES.md).
+ */
+export function titleBadgeAsset(metric: ScoreMetric): SpriteAsset {
+  return ASSETS[`badge.title-badge-${TITLE_BADGE_NAMES[metric]}`];
+}
+
+/** The duel arena backdrop (A.10), 384×216 like the area backdrops. Ticket 5.5 draws it. */
+export function arenaBackdrop(): SpriteAsset {
+  return ASSETS['area.arena'];
 }

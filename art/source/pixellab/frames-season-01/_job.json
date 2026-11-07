@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, square ornamental portrait frame, front view, symmetrical, thick border around the edges only, large empty hollow centre, one frame per image, four ranks of prestige: plain riveted dark iron frame; iron frame with aged brass corner studs; engraved aged brass frame with small skull corners; ornate grave-gold frame with deep crimson gems and a small spiked crown at the top, weathered metal, dark near-black outline, muted desaturated palette, transparent background",
+  "style_image": "apps/web/public/assets/achievements/level-10.png",
+  "job_id": "09f24deb-a7cd-4744-8d60-67775e538b64",
+  "created_at": "2026-11-07T22:40:38.849218+00:00",
+  "seed": 562417654,
+  "generations": 10.0,
+  "count": 16,
+  "width": 64,
+  "height": 64
+}

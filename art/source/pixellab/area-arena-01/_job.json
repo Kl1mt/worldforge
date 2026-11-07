@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, backdrop, an empty duelling arena of a frontier town: a ruined round stone arena with a flat packed sand floor in the foreground, crumbling tiered stone stands, rusted iron spiked gates, tattered crimson and brass banners on poles, iron braziers with dim firelight, cold grey overcast sky, no people, muted desaturated palette, charcoal and stone grey, dim crimson accents, gloomy light",
+  "style_image": "apps/web/public/assets/areas/sunken-abbey.png",
+  "job_id": "f78722b9-feac-4737-bc78-dd2ad5b20ddf",
+  "created_at": "2026-11-07T22:40:39.013505+00:00",
+  "seed": 825245426,
+  "generations": 15.0,
+  "count": 1,
+  "width": 384,
+  "height": 216
+}

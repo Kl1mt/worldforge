@@ -1,13 +1,24 @@
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ACHIEVEMENTS, CLASS_IDS, GUILD_EMBLEMS } from '@worldforge/game-core';
-import { ASSETS, classPortrait, findSprite } from './assets';
+import { ACHIEVEMENTS, CLASS_IDS, GUILD_EMBLEMS, SCORE_METRICS } from '@worldforge/game-core';
+import {
+  ASSETS,
+  SEASON_FRAME_TIERS,
+  SEASON_FRAME_WINDOW,
+  arenaBackdrop,
+  classPortrait,
+  findSprite,
+  seasonFrameAsset,
+  titleBadgeAsset,
+  type SpriteAsset,
+} from './assets';
 
 interface ManifestEntry {
   id: string;
   path: string;
   size: { width: number; height: number };
   facing?: string;
+  window?: { x: number; y: number; width: number; height: number };
 }
 
 const manifest = JSON.parse(
@@ -66,5 +77,58 @@ describe('heraldry art (A.8)', () => {
   it('returns null for an unknown id, so the UI falls back to its placeholder', () => {
     expect(findSprite('achievement.not-drawn-yet')).toBeNull();
     expect(findSprite('toString')).toBeNull();
+  });
+});
+
+describe('season prestige art (A.10)', () => {
+  /** The manifest entry for a sprite, and the file it names under public/. */
+  const resolve = (sprite: SpriteAsset) => {
+    const entry = manifest.assets.find((m) => m.path === sprite.path);
+    const file = new URL(`../../public${sprite.path}`, import.meta.url);
+    return { entry, exists: existsSync(file) };
+  };
+
+  // The names ticket 5.3 (frames, badges) and 5.5 (arena) build on: keep them stable.
+  it('resolves every season frame, best tier first, to a 64×64 file with the shared window', () => {
+    expect(SEASON_FRAME_TIERS).toEqual(['champion', 'exalted', 'renowned', 'veteran']);
+    for (const tier of SEASON_FRAME_TIERS) {
+      const frame = seasonFrameAsset(tier);
+      expect(frame.path).toBe(`/assets/frames/season-frame-${tier}.png`);
+      const { entry, exists } = resolve(frame);
+      expect(exists, tier).toBe(true);
+      expect(entry, tier).toMatchObject({ size: { width: 64, height: 64 } });
+      expect(entry?.window, tier).toEqual(SEASON_FRAME_WINDOW);
+    }
+  });
+
+  it('keeps the frame window centred and inside the frame', () => {
+    const { x, y, width, height } = SEASON_FRAME_WINDOW;
+    expect(x * 2 + width).toBe(64);
+    expect(y * 2 + height).toBe(64);
+  });
+
+  it('resolves a 32×32 title badge for every leaderboard metric', () => {
+    const names = {
+      level: 'title-badge-level',
+      gearScore: 'title-badge-gear-score',
+      power: 'title-badge-power',
+      pveProgress: 'title-badge-pve-progress',
+    };
+    for (const metric of SCORE_METRICS) {
+      const badge = titleBadgeAsset(metric);
+      expect(badge.path).toBe(`/assets/badges/${names[metric]}.png`);
+      const { entry, exists } = resolve(badge);
+      expect(exists, metric).toBe(true);
+      expect(entry, metric).toMatchObject({ size: { width: 32, height: 32 } });
+    }
+  });
+
+  it('resolves the arena backdrop at the area backdrop size', () => {
+    const arena = arenaBackdrop();
+    expect(arena.path).toBe('/assets/areas/arena.png');
+    const { entry, exists } = resolve(arena);
+    expect(exists).toBe(true);
+    expect(entry).toMatchObject({ size: { width: 384, height: 216 } });
+    expect(entry?.size).toEqual(resolve(ASSETS['area.ashen-pass']).entry?.size);
   });
 });
