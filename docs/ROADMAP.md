@@ -695,7 +695,7 @@ GDD: §3.1, §10.1. Needs 4.2 (achievement ids) and 4.4 (guild emblem choices). 
 - Budget: one or two 32px jobs; at most one regeneration. Manifest and `assets.ts` updated.
 **Acceptance:** a contact sheet in the PR.
 
-### A.9 Community project achievement icons — `in progress`
+### A.9 Community project achievement icons — `done (PR #77)`
 GDD: §3.1, §10.1. Follow-up from 4.6/4.11: `warehouseRestorer` and `ashenPassBreaker` still showed the wax-seal placeholder. Match A.8's achievement icons (32×32, one as `style_image`).
 - Two icons: the Graumark Warehouse restored (`achievement.warehouse-restorer`) and the Ashen Pass cleared (`achievement.ashen-pass-breaker`).
 - Budget: one 32px job; at most one regeneration. Manifest and `assets.ts` updated (in order); the ids leave the web test's awaiting-art list. No game-core or server changes.
