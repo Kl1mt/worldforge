@@ -1278,7 +1278,11 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
       it('racing turn-ins of a targeted contract grant one item, the one its stored seed fixed', async () => {
         const p = await newPlayer();
         const id = await newCharacter(p);
-        await database.db.update(characters).set({ level: 20 }).where(eq(characters.id, id));
+        // A hero who can reach the Abbey (ticket F.1: a contract's area must be open at turn-in).
+        await database.db
+          .update(characters)
+          .set({ level: 20, progress: { gravewardenDefeated: true } })
+          .where(eq(characters.id, id));
         const questRowId = await readyTargetedContract(id);
         const sameKey = randomUUID();
         const results = await Promise.all([

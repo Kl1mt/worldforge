@@ -2,8 +2,9 @@ import { xpToNextLevel } from '../combat/progression.js';
 import type { ItemSlotKind } from '../items/bases.js';
 import { offersRewardSlot, targetedItemReward } from './targeted.js';
 import { createRng } from '../rng.js';
-import { AREAS, isAreaUnlocked } from '../world/areas.js';
-import type { WorldProgress } from '../world/unlocks.js';
+import { AREAS, areaUnlockBlockers, isAreaUnlocked } from '../world/areas.js';
+import type { WorldFlags } from '../world/projects.js';
+import type { UnlockBlocker, WorldProgress } from '../world/unlocks.js';
 import {
   CONTRACT_TEMPLATES,
   STORY_QUESTS,
@@ -93,17 +94,38 @@ export interface ContractOffer {
 }
 
 /**
+ * Ticket F.1: what keeps a contract's area closed to the character, by the map's own unlock rules
+ * (`areaUnlockBlockers`: level, Gravewarden, world flag). Empty when the hero can reach the area.
+ * Accepting and turning in a contract both require it empty.
+ */
+export function contractAreaBlockers(
+  template: ContractTemplate,
+  level: number,
+  progress: WorldProgress,
+  world?: WorldFlags,
+): UnlockBlocker[] {
+  return areaUnlockBlockers(template.areaId, { level, ...(world ? { world } : {}) }, progress);
+}
+
+/**
  * Today's contracts for a character: `CONTRACTS_PER_DAY` distinct templates from the areas the
  * character has unlocked, chosen by a seed derived server-side from the character and the day.
  * Newer areas weigh more, so the board follows the hero's progress.
+ *
+ * Ticket F.1: `world` (the server's world flags) opens the areas behind a world flag (the Ashen
+ * Pass) exactly when the map does. Without it those areas stay closed. Such areas come last in
+ * `AREAS`, so a hero who cannot reach them draws from the same pool, with the same weights and the
+ * same seed, as before: their offers do not change.
  */
 export function dailyContracts(
   characterId: string,
   day: string,
   level: number,
   progress: WorldProgress,
+  world?: WorldFlags,
 ): ContractOffer[] {
-  const unlocked = AREAS.filter((a) => isAreaUnlocked(a.id, { level }, progress)).map((a) => a.id);
+  const character = { level, ...(world ? { world } : {}) };
+  const unlocked = AREAS.filter((a) => isAreaUnlocked(a.id, character, progress)).map((a) => a.id);
   const pool = CONTRACT_TEMPLATES.filter((t) => unlocked.includes(t.areaId)).map((template) => ({
     template,
     weight: 1 + unlocked.indexOf(template.areaId) * 2,

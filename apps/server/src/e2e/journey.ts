@@ -12,16 +12,20 @@ import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { and, eq, inArray, like, sql } from 'drizzle-orm';
 import {
+  CONTRACT_TEMPLATES,
   GUILD_BOSS_ATTEMPTS_PER_WEEK,
   GUILD_CREATE_COST,
   MATERIAL_IDS,
   RARITY_IDS,
   canClassUseItem,
+  contractDay,
+  dailyContracts,
   equipmentSlotsForKind,
   findItemBase,
   getArea,
   getDungeonTier,
   getLootTable,
+  worldFlagsFrom,
   type AreaId,
   type ClassId,
   type MaterialId,
@@ -1360,8 +1364,9 @@ export async function playCommunityStep(database: DatabaseHandle, hero: Journey)
  * finishes the town's two projects with the 4.6 CLI (`completeProject`, the path of a last
  * contribution: world flag, achievements, audit); the pass opens and the hero farms it (its foes'
  * loot at its item levels, its materials); from level 26 it climbs the Warden's Watch once (won or
- * lost), otherwise the Watch shows only its level gate. Everything held reconciles with the audit
- * log. Running servers see a flag set by the CLI within the world-state TTL; the step invalidates
+ * lost), otherwise the Watch shows only its level gate. Ticket F.1: the Tavern offers no Pass
+ * contract while the pass is sealed; once it is open the hero takes one and finishes it there
+ * (`passContract`). Everything held reconciles with the audit log. Running servers see a flag set by the CLI within the world-state TTL; the step invalidates
  * the cache instead of waiting.
  */
 export async function playAshenPassStep(
@@ -1379,6 +1384,11 @@ export async function playAshenPassStep(
   const refused = await api('POST', `${base}/activity`, { areaId: 'ashenPass' });
   expect(refused.statusCode).toBe(409);
   expect(refused.json<{ error: { code: string } }>().error.code).toBe('area_locked');
+  const passContracts = new Set(
+    CONTRACT_TEMPLATES.filter((t) => t.areaId === 'ashenPass').map((t) => t.id),
+  );
+  const sealedBoard = await hero.board();
+  expect(sealedBoard.contracts.offers.some((o) => passContracts.has(o.templateId))).toBe(false);
 
   // The Warehouse project may already be done (the 4.7 step completes it too).
   expect(await completeProject(database.db, 'restoreWarehouse', now)).toMatch(
@@ -1414,6 +1424,55 @@ export async function playAshenPassStep(
   expect(kills).toBeGreaterThan(0);
   expect(state.areasFarmed.has('ashenPass')).toBe(true);
 
+  // Ticket F.1: a Pass contract, taken at the Tavern and finished in the pass. The board is the
+  // hero's own deterministic draw (random hero id), so the run finds the first day it holds one
+  // with game-core's board (the same pool at every level from 24 once the pass is open), plays
+  // Tavern visits until two days after it (room for the contracts already held to be finished),
+  // and never assumes today's draw.
+  const today = (await hero.board()).day;
+  const open = worldFlagsFrom(['warehouseRestored', 'ashenPassCleared']);
+  const passDay = Array.from({ length: 60 }, (_, i) =>
+    contractDay(new Date(Date.parse(`${today}T00:00:00Z`) + i * 24 * HOUR)),
+  ).find((day) =>
+    dailyContracts(hero.characterId, day, state.level, { gravewardenDefeated: true }, open).some(
+      (o) => passContracts.has(o.template.id),
+    ),
+  );
+  expect(passDay).toBeDefined();
+  const lastDay = contractDay(new Date(Date.parse(`${passDay}T00:00:00Z`) + 2 * 24 * HOUR));
+  // Farms where a held contract can be done, the pass first (`farmBestArea` stops at the Abbey).
+  const farmHeldContracts = async () => {
+    const held = (await hero.board()).quests.filter((q) => q.kind === 'contract');
+    const objectives = held.flatMap((q) =>
+      q.objectives.filter((o, n) => 'count' in o && q.progress[n]! < o.count),
+    );
+    const target =
+      (['ashenPass', ...[...AREA_ORDER].reverse()] as AreaId[]).find((id) =>
+        objectives.some((o) =>
+          o.kind === 'kill'
+            ? getArea(id).enemies.some((e) => e.enemyId === o.enemyId)
+            : o.kind === 'gather' && getArea(id).materials.includes(o.materialId),
+        ),
+      ) ?? 'ashenPass';
+    const w = await hero.world();
+    if ((w.current?.pendingAreaId ?? w.current?.areaId) === target) return;
+    const res = await api('POST', `${base}/activity`, { areaId: target });
+    expect([200, 201]).toContain(res.statusCode);
+  };
+  const passTurnedIn = () => state.turnedIn.filter((q) => passContracts.has(q.questId));
+  while (passTurnedIn().length === 0 && (await hero.board()).day <= lastDay) {
+    await hero.visitTavern();
+    if (passTurnedIn().length > 0) break;
+    await farmHeldContracts();
+    await hero.settle();
+    await hero.equipBetterDrops();
+    await hero.sellJunk(await hero.inventory());
+  }
+  expect(passTurnedIn().length).toBeGreaterThanOrEqual(1);
+  const passContract = passTurnedIn()[0]!.questId;
+  const back = await api('POST', `${base}/activity`, { areaId: 'ashenPass' });
+  expect([200, 201]).toContain(back.statusCode);
+
   const watch = (await hero.world()).dungeons.find((d) => d.id === 'ashenWatch')!;
   const watchLevel = getDungeonTier('ashenWatch', 1).unlock.level;
   if (state.level >= watchLevel) {
@@ -1425,7 +1484,7 @@ export async function playAshenPassStep(
     expect(watch.blockers).toEqual([{ kind: 'level', required: watchLevel }]);
   }
   await expectHoldingsMatchAudit(database, hero.characterId);
-  return { kills, level: state.level, watch: state.watch };
+  return { kills, level: state.level, watch: state.watch, passContract };
 }
 
 /**

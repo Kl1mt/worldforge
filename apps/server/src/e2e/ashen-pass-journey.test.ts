@@ -55,6 +55,7 @@ describe('journey: the Ashen Pass opens with the town (Phase 4)', () => {
     }
     expect(hero.state.level).toBeGreaterThanOrEqual(24);
     const out = await playAshenPassStep(app, database, hero, new Date(nowMs));
+    expect(out.passContract).toMatch(/^slay\./);
     console.info(JSON.stringify({ ashenPass: { ...out, hours: hero.state.farmedHours } }));
   }, 180_000);
 });

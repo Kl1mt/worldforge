@@ -585,7 +585,7 @@ Checked and holding: the permission matrices (re-run; the moderation matrix need
 - **Hidden profiles are not secret:** a hidden player's existence and handle can be learned by name from the friend-request and block paths (and the relation endpoint answers `stranger`), as registration already tells whether a display name is taken. Hiding a profile hides what it shows, not that the name exists (documented in SOCIAL.md).
 - **Blocking back tells you that you were blocked** (`POST /api/blocks` on a player who blocks you answers `200`, an unknown handle `404`); 4.3 chose that you may always block and report someone, so the block-back stays.
 - **Guild chat:** the blocked side's polls skip the blocker's sequence numbers and repeat them in `gone`, so a blocked member can tell the blocker is posting; a guild report is accepted from a player the leader blocks (block-and-report); a boss stage's `reachedAt` is exact. All three are by design or harmless.
-- **Ashen Pass contracts are never offered:** the daily contract board does not pass the world flags, so the Pass's contract templates stay closed even after the flag (fails safe). Turning them on changes the late-game contract offers and the gold and item income: a balance decision for the owner, not a hardening fix.
+- **Ashen Pass contracts are never offered** (fixed in F.1 below): the daily contract board does not pass the world flags, so the Pass's contract templates stay closed even after the flag (fails safe). Turning them on changes the late-game contract offers and the gold and item income: a balance decision for the owner, not a hardening fix.
 - **Warehouse moves during a crypt run** change the pack count the claim sees (as selling already did; drops never change). **Merchant stock** is seeded from the hero id and the day, so future stock can be computed by its owner (planning value only; purchases are checked).
 - **JSON bodies still coerce** (`amount: "5"`, `true` → 1; 3.9's accepted risk), now without non-finite values.
 - **The narrow race of an officer's invite and a block of the leader** is closed only because both take the invitee's social lock; a future path that creates invites must take it too (noted in the guild model).
@@ -606,12 +606,26 @@ Checked and holding: the permission matrices (re-run; the moderation matrix need
 
 **Open follow-ups.**
 - **Trading T.1–T.7** per `docs/TRADING.md` (owner places it; login throttling per account and email verification first).
-- **B.3's owner questions:** a level cap versus content above 28 (heroes level past the top content; the XP penalty is a soft cap around 35, `docs/COMBAT.md`); crypt tier III as the Legendary tier (decided in B.3 to keep; revisit with playtest data); trade limits versus the income spread (`docs/TRADING.md`, `docs/ECONOMY.md`).
-- **Ashen Pass contracts** (above): turn them on or remove the templates (owner, balance).
+- **B.3's owner questions** (level cap and crypt tier III decided, trading placed at the end of Phase 5: see the Phase 4 follow-ups' owner decisions; trade limits stay for the trading tickets): a level cap versus content above 28 (heroes level past the top content; the XP penalty is a soft cap around 35, `docs/COMBAT.md`); crypt tier III as the Legendary tier (decided in B.3 to keep; revisit with playtest data); trade limits versus the income spread (`docs/TRADING.md`, `docs/ECONOMY.md`).
+- **Ashen Pass contracts** (above): turn them on or remove the templates (owner, balance). Turned on in F.1.
 - ~~**Art:** icons for `warehouseRestorer` "Mender of Graumark" and `ashenPassBreaker` "Through the Ash"~~ (done in A.9).
 - **Look-alike names** (a confusable skeleton) and a **reserved-names store** for forced renames (accepted risks above).
 - **Guild chat pruning** when the table grows; **shared limiters** before a second API instance.
 - **Playtest feedback:** `docs/PLAYTEST_FEEDBACK.md` is still the empty template; B.1–B.3 were tuned from simulations and telemetry only.
+
+## Phase 4 follow-ups
+Small tickets from the Phase 4 retrospective, before Phase 5.
+
+**Owner decisions (2026-11-07, recorded in F.1; also GDD §17):**
+- **(a) Levels above 28:** more content later, not a hard level cap (the XP penalty stays the soft cap around 35, `docs/COMBAT.md`).
+- **(b) Trading** (`docs/TRADING.md`, T.1–T.7) is built at the end of the next phase (Phase 5).
+- **(c) Crypt tier III** stays "the Legendary tier" (Legendary/set kits win at 21; epic kits find it a wall) and is not made harder. A harder crypt mode (a tier IV or heroic crypt, tuned for upgraded Legendary kits) comes later as part of the content above level 28 (`docs/DUNGEONS.md`). No number changes.
+
+### F.1 Ashen Pass contracts — `done (PR #78)`
+GDD: §6.4, §11.1. Owner decision: switch the Pass's contracts on, but only when the hero can enter the Pass.
+- The contract board, the accept path and the turn-in get the world flags (`app.worldState.flags()`); a contract's area must pass the map's unlock rule (`UnlockRule.worldFlag` plus level and Gravewarden): before both hold, Pass contracts are neither offered nor acceptable, and one held while the flag closes again cannot be turned in (`422 contract_area_locked`).
+- Offers stay deterministic; heroes who cannot reach the Pass keep exactly the offers they had (docs/QUESTS.md "Ashen Pass contracts"). No migration.
+- Tests: closed flag, under-level, open (offered, taken, finished, turned in), invariance; the API journey's Ashen Pass step takes and finishes one Pass contract.
 
 ## Deployment
 
