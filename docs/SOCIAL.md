@@ -217,6 +217,10 @@ On oneself: `422 cannot_target_self`. A target outside the guild: `404 not_a_mem
 
 **Races** (`guilds.pg.test.ts`, real PostgreSQL, three rounds in varied orders, no retries): founders racing for one name (one guild, one charge; gold, audit and telemetry reconcile) and for one tag, one account founding twice; invites and applications accepted at once at 29 members (exactly one joins); one player accepted by several guilds at once (joins one); accepts racing a disband (the guild ends empty, every audited join was in the disband's member list); leaves racing promotions (a promotion that won shows in the leave's role); the leader handing over to an officer while each kicks or demotes the other and officers kick each other (always one leader, never both removed, the roster equals the audit log). Without the guild lock three of these fail.
 
+## Guild boss — ticket 4.9
+
+The weekly guild boss has its own file: `docs/GUILD_BOSS.md` (attempts, the week, stage rewards and who earns them, the permission matrix `guildBossDecision`, locks and races). It uses this file's pieces: attempts are social writes (`guildBossAttempt`, mute-exempt), membership is read under the guild lock, and the damage board hides players blocked either way.
+
 ## Guild chat — ticket 4.5
 
 Code: game-core `social/guild-chat.ts` (`guildChatDecision`, `GUILD_CHAT_LIMITS`, tombstones), server `apps/server/src/social/chat-model.ts` (`visibleMessage`, `messageTargetKey`, `latestSeq`) and `guild-chat.ts` (routes), web `social/guildChat.ts` (`useGuildChat`) and `screens/GuildChat.tsx` (the chronicle in the Guild Hall). Table: `guild_messages`, plus `guilds.notice_message_id` (`DATA_MODEL.md`). Endpoints in `API_CONVENTIONS.md`.

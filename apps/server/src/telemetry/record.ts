@@ -38,6 +38,8 @@ export const TELEMETRY_METRICS = [
   'crypt.claim',
   'quest.reward',
   'forge',
+  'guild_boss.attempt',
+  'guild_boss.stage',
   // Ticket 4.6: community projects.
   'community.contribute',
   'community.stage',

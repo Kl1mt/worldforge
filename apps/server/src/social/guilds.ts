@@ -142,7 +142,7 @@ async function summaries(executor: Executor, list: Guild[]): Promise<Map<string,
 }
 
 /** Handles and display names (null while a moderator hides the name) of accounts. */
-async function people(executor: Executor, ids: string[], now: Date) {
+export async function people(executor: Executor, ids: string[], now: Date) {
   if (ids.length === 0) return new Map<string, { handle: string; displayName: string | null }>();
   const [rows, hidden] = await Promise.all([
     executor

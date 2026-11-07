@@ -65,9 +65,16 @@ export async function historyFacts(
         where account_id = ${accountId} and event = 'forge.upgrade'
           and jsonb_typeof(data -> 'toLevel') = 'number'`,
   );
+  // Ticket 4.9: the highest guild boss stage whose reward the account earned.
+  const [boss] = await queryRows<{ stage: number | null }>(
+    executor,
+    sql`select max(stage) as stage from guild_boss_rewards
+        where account_id = ${accountId} and status = 'earned'`,
+  );
   return {
     maxRarity: rarest(rarities.map((r) => r.rarity)),
     maxUpgradeLevel: Number(upgrade?.level ?? 0),
+    guildBossStage: Number(boss?.stage ?? 0),
   };
 }
 

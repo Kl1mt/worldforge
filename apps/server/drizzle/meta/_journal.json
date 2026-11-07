@@ -162,6 +162,13 @@
       "when": 1794018969417,
       "tag": "0022_community_projects",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1794019839932,
+      "tag": "0023_guild_boss",
+      "breakpoints": true
     }
   ]
 }

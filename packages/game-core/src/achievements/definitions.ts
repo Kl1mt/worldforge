@@ -30,11 +30,14 @@ export type AchievementCriterion =
   /** A story quest turned in. */
   | { kind: 'storyQuest'; questId: string }
   /** Ticket 4.6: contributed to this community project, which then completed. */
-  | { kind: 'communityProject'; projectId: string };
+  | { kind: 'communityProject'; projectId: string }
+  /** Earned the reward of this guild boss stage or a higher one (ticket 4.9). */
+  | { kind: 'guildBossStage'; stage: number };
 
 export type AchievementCriterionKind = AchievementCriterion['kind'];
 
-export type AchievementCategory = 'loot' | 'forge' | 'hero' | 'crypt' | 'quests' | 'world';
+export type AchievementCategory =
+  'loot' | 'forge' | 'hero' | 'crypt' | 'quests' | 'guild' | 'world';
 
 export interface AchievementDefinition {
   id: string;
@@ -160,6 +163,23 @@ export const ACHIEVEMENTS: readonly AchievementDefinition[] = [
     criterion: { kind: 'contracts', count: 50 },
     assetId: 'achievement.contracts-50',
   },
+  // Ticket 4.9: the weekly guild boss (earned with a stage's reward, docs/GUILD_BOSS.md).
+  {
+    id: 'guildBossFirstStage',
+    name: 'Shoulder to Shoulder',
+    description: 'Fight the guild boss and see your guild crack it (its first stage).',
+    category: 'guild',
+    criterion: { kind: 'guildBossStage', stage: 1 },
+    assetId: 'achievement.guild-boss-first-stage',
+  },
+  {
+    id: 'guildBossLaidToRest',
+    name: 'Laid to Rest',
+    description: 'Fight the guild boss in a week your guild breaks its last stage.',
+    category: 'guild',
+    criterion: { kind: 'guildBossStage', stage: 5 },
+    assetId: 'achievement.guild-boss-laid-to-rest',
+  },
   // Ticket 4.6: community projects (awarded to every contributor when the project completes).
   {
     id: 'warehouseRestorer',
@@ -212,6 +232,8 @@ export interface AchievementFacts {
   fullSetWorn?: boolean;
   contractsTurnedIn?: number;
   storyQuestsTurnedIn?: readonly string[];
+  /** The highest guild boss stage whose reward the account earned (ticket 4.9). */
+  guildBossStage?: number;
   /** Ticket 4.6: completed community projects the account contributed to. */
   communityProjects?: readonly string[];
 }
@@ -226,6 +248,7 @@ export const CRITERION_FACT: Record<AchievementCriterionKind, keyof AchievementF
   fullSet: 'fullSetWorn',
   contracts: 'contractsTurnedIn',
   storyQuest: 'storyQuestsTurnedIn',
+  guildBossStage: 'guildBossStage',
   communityProject: 'communityProjects',
 };
 
@@ -247,6 +270,8 @@ export function criterionMet(c: AchievementCriterion, f: AchievementFacts): bool
       return (f.contractsTurnedIn ?? 0) >= c.count;
     case 'storyQuest':
       return f.storyQuestsTurnedIn?.includes(c.questId) ?? false;
+    case 'guildBossStage':
+      return (f.guildBossStage ?? 0) >= c.stage;
     case 'communityProject':
       return f.communityProjects?.includes(c.projectId) ?? false;
   }
@@ -276,6 +301,7 @@ export function mergeAchievementFacts(a: AchievementFacts, b: AchievementFacts):
   set('cryptTierCleared', max(a.cryptTierCleared, b.cryptTierCleared));
   set('fullSetWorn', or(a.fullSetWorn, b.fullSetWorn));
   set('contractsTurnedIn', max(a.contractsTurnedIn, b.contractsTurnedIn));
+  set('guildBossStage', max(a.guildBossStage, b.guildBossStage));
   if (a.storyQuestsTurnedIn || b.storyQuestsTurnedIn) {
     set('storyQuestsTurnedIn', [
       ...new Set([...(a.storyQuestsTurnedIn ?? []), ...(b.storyQuestsTurnedIn ?? [])]),

@@ -1449,6 +1449,28 @@
       "source": "art/source/pixellab/icons-achievements-01/62.png"
     },
     {
+      "id": "achievement.guild-boss-first-stage",
+      "path": "/assets/achievements/guild-boss-first-stage.png",
+      "kind": "achievement",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour medallions and trophies: violet gemstone set in an aged brass medallion; longsword blade wreathed in faint embers; blood-red relic chalice; iron helm resting on a breastplate; blacksmith hammer; iron anvil with crossed hammer; iron laurel wreath medal; sword through a brass laurel wreath; broken crypt key snapped in two; stone stairway descending into darkness; skull above an extinguished candle; sealed scroll with crimson wax seal; leather coin purse with gold coins; nailed contract parchment with a dagger, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-achievements-01/14.png"
+    },
+    {
+      "id": "achievement.guild-boss-laid-to-rest",
+      "path": "/assets/achievements/guild-boss-laid-to-rest.png",
+      "kind": "achievement",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour medallions and trophies: violet gemstone set in an aged brass medallion; longsword blade wreathed in faint embers; blood-red relic chalice; iron helm resting on a breastplate; blacksmith hammer; iron anvil with crossed hammer; iron laurel wreath medal; sword through a brass laurel wreath; broken crypt key snapped in two; stone stairway descending into darkness; skull above an extinguished candle; sealed scroll with crimson wax seal; leather coin purse with gold coins; nailed contract parchment with a dagger, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-achievements-01/43.png"
+    },
+    {
       "id": "guild-emblem.anvil",
       "path": "/assets/guild-emblems/anvil.png",
       "kind": "guild-emblem",

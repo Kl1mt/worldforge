@@ -91,6 +91,8 @@ export const SOCIAL_WRITE_ACTIONS = [
   'chat',
   'chatDelete',
   'guildNotice',
+  // Ticket 4.9: the weekly guild boss.
+  'guildBossAttempt',
 ] as const;
 export type SocialWriteAction = (typeof SOCIAL_WRITE_ACTIONS)[number] | (string & {});
 
@@ -122,6 +124,8 @@ export const MUTE_EXEMPT: readonly string[] = [
   // Ticket 4.5: removing a chat message (one's own, or an officer tidying up) adds nothing and
   // reaches no one. Posting (`chat`) and setting the notice (`guildNotice`) are blocked.
   'chatDelete',
+  // Ticket 4.9: fighting the guild boss carries no text and reaches no one; a mute is about speech.
+  'guildBossAttempt',
 ];
 
 /** The sanction that blocks this social write, if any (suspension first). */
