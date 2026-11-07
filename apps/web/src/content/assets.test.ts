@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { CLASS_IDS } from '@worldforge/game-core';
-import { ASSETS, classPortrait } from './assets';
+import { ACHIEVEMENTS, CLASS_IDS, GUILD_EMBLEMS } from '@worldforge/game-core';
+import { ASSETS, classPortrait, findSprite } from './assets';
 
 interface ManifestEntry {
   id: string;
@@ -37,5 +37,24 @@ describe('classPortrait', () => {
     for (const classId of CLASS_IDS) {
       expect(classPortrait(classId).path).toBe(`/assets/characters/${classId}.png`);
     }
+  });
+});
+
+describe('heraldry art (A.8)', () => {
+  it('has a 32×32 icon for every achievement', () => {
+    for (const a of ACHIEVEMENTS) {
+      expect(findSprite(a.assetId), a.id).toMatchObject({ width: 32, height: 32 });
+    }
+  });
+
+  it('has a 32×32 charge for every guild emblem', () => {
+    for (const e of GUILD_EMBLEMS) {
+      expect(findSprite(e.assetId), e.id).toMatchObject({ width: 32, height: 32 });
+    }
+  });
+
+  it('returns null for an unknown id, so the UI falls back to its placeholder', () => {
+    expect(findSprite('achievement.not-drawn-yet')).toBeNull();
+    expect(findSprite('toString')).toBeNull();
   });
 });

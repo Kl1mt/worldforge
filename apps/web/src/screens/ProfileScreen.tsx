@@ -15,6 +15,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { HeroPortrait } from '../characters/HeroPortrait';
 import { ItemFrame } from '../components/ItemFrame';
 import { ItemTooltip } from '../components/ItemTooltip';
+import { findSprite } from '../content/assets';
 import { slotName, toItemView, type ItemView } from '../game/items';
 import type { ApiFailure } from '../lib/api';
 import { guildHref, profileHandleFromHash, profileHref } from '../lib/route';
@@ -348,7 +349,28 @@ function Showcase({ showcase }: { showcase: NonNullable<Profile['showcase']> }) 
   );
 }
 
+/**
+ * A deed's seal: its 32×32 icon (art ticket A.8) in a sunken medallion ringed in the deed's kind.
+ * If the icon is not registered or fails to load, the wax disc with the deed's initial stands in.
+ */
 function Seal({ a }: { a: AchievementDefinition }) {
+  const sprite = findSprite(a.assetId);
+  const [failed, setFailed] = useState<string | null>(null);
+  if (sprite && failed !== sprite.path) {
+    return (
+      <span className={`seal seal--art seal--${a.category}`} aria-hidden="true">
+        <img
+          className="seal__icon pixel"
+          src={sprite.path}
+          alt=""
+          width={sprite.width}
+          height={sprite.height}
+          draggable={false}
+          onError={() => setFailed(sprite.path)}
+        />
+      </span>
+    );
+  }
   return (
     <span className={`seal seal--${a.category}`} aria-hidden="true">
       <span className="seal__glyph">{a.name.replace(/^The /, '').charAt(0)}</span>

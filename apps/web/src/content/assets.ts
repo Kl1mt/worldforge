@@ -24,6 +24,18 @@ const material = (name: string): SpriteAsset => ({
   height: 32,
 });
 
+const achievement = (name: string): SpriteAsset => ({
+  path: `/assets/achievements/${name}.png`,
+  width: 32,
+  height: 32,
+});
+
+const guildEmblem = (name: string): SpriteAsset => ({
+  path: `/assets/guild-emblems/${name}.png`,
+  width: 32,
+  height: 32,
+});
+
 const enemy = (name: string, facing: 'front' | 'left' | 'right', size = 64): SpriteAsset => ({
   path: `/assets/enemies/${name}.png`,
   width: size,
@@ -156,6 +168,34 @@ export const ASSETS = {
   'enemy.pyre-cultist': enemy('pyre-cultist', 'right'),
   'enemy.ember-golem': enemy('ember-golem', 'front'),
   'enemy.ashen-warden': enemy('ashen-warden', 'front', 128),
+  // Deeds (A.8): one 32×32 icon per achievement (`assetId` in game-core's ACHIEVEMENTS).
+  'achievement.first-epic': achievement('first-epic'),
+  'achievement.first-legendary': achievement('first-legendary'),
+  'achievement.first-mythic': achievement('first-mythic'),
+  'achievement.full-set': achievement('full-set'),
+  'achievement.forge-plus-5': achievement('forge-plus-5'),
+  'achievement.forge-plus-10': achievement('forge-plus-10'),
+  'achievement.level-10': achievement('level-10'),
+  'achievement.level-20': achievement('level-20'),
+  'achievement.gravewarden-slain': achievement('gravewarden-slain'),
+  'achievement.crypt-tier-2': achievement('crypt-tier-2'),
+  'achievement.crypt-tier-3': achievement('crypt-tier-3'),
+  'achievement.story-graumark': achievement('story-graumark'),
+  'achievement.contracts-10': achievement('contracts-10'),
+  'achievement.contracts-50': achievement('contracts-50'),
+  // Guild crests (A.8): the charge drawn on the dyed shield (`assetId` in GUILD_EMBLEMS).
+  'guild-emblem.anvil': guildEmblem('anvil'),
+  'guild-emblem.crow': guildEmblem('crow'),
+  'guild-emblem.tower': guildEmblem('tower'),
+  'guild-emblem.flame': guildEmblem('flame'),
+  'guild-emblem.skull': guildEmblem('skull'),
+  'guild-emblem.oak': guildEmblem('oak'),
+  'guild-emblem.wolf': guildEmblem('wolf'),
+  'guild-emblem.key': guildEmblem('key'),
+  'guild-emblem.crown': guildEmblem('crown'),
+  'guild-emblem.moon': guildEmblem('moon'),
+  'guild-emblem.serpent': guildEmblem('serpent'),
+  'guild-emblem.chalice': guildEmblem('chalice'),
 } as const satisfies Record<string, SpriteAsset>;
 
 export type AssetId = keyof typeof ASSETS;
@@ -165,6 +205,11 @@ export type MaterialAssetId = Extract<AssetId, `material.${string}`>;
 
 export function asset(id: AssetId): SpriteAsset {
   return ASSETS[id];
+}
+
+/** A registered sprite by a content asset id, or `null` when the art does not exist (yet). */
+export function findSprite(id: string): SpriteAsset | null {
+  return Object.hasOwn(ASSETS, id) ? ASSETS[id as AssetId] : null;
 }
 
 /** The full-body portrait for a class (`character.<classId>`), used wherever a hero is drawn. */

@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art heraldic charge icons, one bold simple emblem silhouette per icon, centred, for a guild shield: anvil; crow with spread wings; castle tower; flame; skull; oak tree; howling wolf head; iron key; spiked crown; crescent moon; coiled serpent; chalice, aged brass and bone-white with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+  "style_image": "apps/web/public/assets/items/raven-talisman.png",
+  "job_id": "7b9bd6bb-f676-49c2-b34d-d3eef2c40257",
+  "created_at": "2026-11-07T01:34:26.477465+00:00",
+  "seed": 1001779569,
+  "generations": 10.0,
+  "count": 64,
+  "width": 32,
+  "height": 32
+}
