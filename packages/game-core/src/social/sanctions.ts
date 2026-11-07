@@ -87,6 +87,10 @@ export const SOCIAL_WRITE_ACTIONS = [
   'guildRename',
   'guildLeave',
   'guildDisband',
+  // Ticket 4.5: guild chat.
+  'chat',
+  'chatDelete',
+  'guildNotice',
 ] as const;
 export type SocialWriteAction = (typeof SOCIAL_WRITE_ACTIONS)[number] | (string & {});
 
@@ -115,6 +119,9 @@ export const MUTE_EXEMPT: readonly string[] = [
   'guildLeave',
   'guildDisband',
   'guildRename',
+  // Ticket 4.5: removing a chat message (one's own, or an officer tidying up) adds nothing and
+  // reaches no one. Posting (`chat`) and setting the notice (`guildNotice`) are blocked.
+  'chatDelete',
 ];
 
 /** The sanction that blocks this social write, if any (suspension first). */

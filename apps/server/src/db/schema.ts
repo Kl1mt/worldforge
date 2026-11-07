@@ -941,6 +941,12 @@ export const guilds = pgTable(
     renameRequired: boolean('rename_required').notNull().default(false),
     renameReason: text('rename_reason'),
     renamedFrom: text('renamed_from'),
+    /**
+     * Ticket 4.5: the guild notice, a `guild_messages` row of kind `notice` (null: none). No
+     * foreign key (the two tables would reference each other); it only changes under the guild's
+     * lock, and messages are only deleted with their guild.
+     */
+    noticeMessageId: uuid('notice_message_id'),
   },
   (t) => [
     uniqueIndex('guilds_handle_key').on(t.handle),
@@ -1020,6 +1026,43 @@ export const guildApplications = pgTable(
     index('guild_applications_account_id_idx').on(t.accountId),
   ],
 );
+
+/**
+ * Guild chat (ticket 4.5, docs/SOCIAL.md "Guild chat"): messages and notices of one guild, in
+ * `seq` order. `seq` is allocated as `max + 1` under the guild's lock (`lockGuild`), and the lock
+ * is held until commit, so lines commit in `seq` order: a poller reading `seq > cursor` never
+ * misses a line that commits later with a lower number. The text stays stored after a removal
+ * (moderation evidence) but is never sent once `removed_at` is set or a `hide` sanction is active.
+ */
+export const guildMessages = pgTable(
+  'guild_messages',
+  {
+    id: uuid('id').primaryKey(),
+    guildId: uuid('guild_id')
+      .notNull()
+      .references(() => guilds.id, { onDelete: 'cascade' }),
+    seq: integer('seq').notNull(),
+    authorId: uuid('author_id').references(() => accounts.id, { onDelete: 'set null' }),
+    /** game-core `GuildMessageKind`: `chat` or `notice`. */
+    kind: text('kind').notNull(),
+    body: text('body').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    removedAt: timestamp('removed_at', { withTimezone: true }),
+    removedBy: uuid('removed_by').references(() => accounts.id, { onDelete: 'set null' }),
+    /** `withdrawn` (by its author) or `removed` (by an officer or the leader). */
+    removedAs: text('removed_as'),
+  },
+  (t) => [
+    uniqueIndex('guild_messages_guild_id_seq_key').on(t.guildId, t.seq),
+    check('guild_messages_kind_check', sql`${t.kind} in ('chat', 'notice')`),
+    check(
+      'guild_messages_removed_as_check',
+      sql`${t.removedAs} is null or ${t.removedAs} in ('withdrawn', 'removed')`,
+    ),
+  ],
+);
+
+export type GuildMessage = typeof guildMessages.$inferSelect;
 
 /**
  * Community projects (ticket 4.6, docs/COMMUNITY.md). One row per project that has been touched

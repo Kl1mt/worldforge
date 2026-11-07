@@ -27,6 +27,7 @@ Code: `packages/game-core/src/social/` (rules and data, usable by server and cli
 | `guildTag` | 2–5 | `A–Z`, `0–9` | yes | yes | no |
 | `profileField` | 0–160 | single line | yes | no | no |
 | `chatMessage` | 1–300 | single line | yes | no | no |
+| `guildNotice` | 1–400 | multiline (ticket 4.5) | yes | no | no |
 | `reportNote` | 0–500 | multiline | no (moderators need the words) | no | kept as plain text |
 | `sanctionReason` | 3–300 | single line, moderator-written | no | no | kept as plain text |
 
@@ -74,7 +75,7 @@ Actions: `viewQueue` (allowed for staff, 404 for players), `dismissReport`, `mut
 
 ## Reports
 
-`POST /api/reports` with a `ReportTarget`, a reason (`REPORT_REASONS`) and an optional note. Today's targets: `{ kind: 'guild', handle }` (ticket 4.4: a guild's opaque handle; subject = its leader at the time; key `guild:<guild id>`; not hideable, see "Guilds"), `{ kind: 'player', handle }`, `{ kind: 'profileField', handle, field: 'displayName' }` and (ticket 4.2) `{ kind: 'characterName', handle, name }` (key `characterName:<character id>`, hideable: a hidden hero name shows as "Name withheld" on the profile; the queue's `current.value` is the hero's current name). One open report per reporter and target (partial unique index; a concurrent duplicate gets `409 report_open`). The report stores a context snapshot (the display name as seen), so later renames keep the evidence. A muted player can still report; self-reports are refused. Every report writes `report.create`.
+`POST /api/reports` with a `ReportTarget`, a reason (`REPORT_REASONS`) and an optional note. Today's targets: `{ kind: 'guild', handle }` (ticket 4.4: a guild's opaque handle; subject = its leader at the time; key `guild:<guild id>`; not hideable, see "Guilds"), `{ kind: 'player', handle }`, `{ kind: 'profileField', handle, field: 'displayName' }` and (ticket 4.2) `{ kind: 'characterName', handle, name }` (key `characterName:<character id>`, hideable: a hidden hero name shows as "Name withheld" on the profile; the queue's `current.value` is the hero's current name), and (ticket 4.5) `{ kind: 'message', id }` (a guild chat line or notice; key `message:<message id>`; hideable: a hidden line is a tombstone; subject = its author; only a player who can see the line may report it, see "Guild chat"). One open report per reporter and target (partial unique index; a concurrent duplicate gets `409 report_open`). The report stores a context snapshot (the display name as seen), so later renames keep the evidence. A muted player can still report; self-reports are refused. Every report writes `report.create`.
 
 The moderator queue groups open reports by target into cases, oldest first, with the subject's handle, name, role, active sanctions and past-sanction count, and each report's reason, note and reporter. Acting on any report of a case (dismiss or a sanction) closes every open report on that target; a second moderator acting on the same report gets `409 report_closed`.
 
@@ -110,7 +111,7 @@ Ticket 4.2. Code: game-core `social/profiles.ts` (`PROFILE_VISIBILITIES`, `PROFI
 
 Ticket 4.2, GDD §5.3 (account-bound). Cosmetic only: no achievement grants power.
 
-- **Definitions** are data in game-core `achievements/definitions.ts` (`ACHIEVEMENTS`): id, name, description, category, an icon asset id for the art ticket A.8 (the client shows a wax-seal placeholder until then), and one typed criterion: `itemRarity`, `upgradeLevel`, `characterLevel`, `gravewardenDefeated`, `cryptTier`, `fullSet`, `contracts`, `storyQuest`. `achievementsEarned(facts)` is pure; a fact that was not collected earns nothing.
+- **Definitions** are data in game-core `achievements/definitions.ts` (`ACHIEVEMENTS`): id, name, description, category, an icon asset id (`achievement.<kebab-id>`, 32×32 art from ticket A.8; the client falls back to a wax-seal placeholder if an icon is missing), and one typed criterion: `itemRarity`, `upgradeLevel`, `characterLevel`, `gravewardenDefeated`, `cryptTier`, `fullSet`, `contracts`, `storyQuest`. `achievementsEarned(facts)` is pure; a fact that was not collected earns nothing.
 - **Community projects** (ticket 4.6, category `world`): criterion `communityProject` (fact `communityProjects`: completed projects the account gave to). Awarded to every contributor in the transaction that completes the project (`docs/COMMUNITY.md`), and by the backfill from `community_contributions`.
 - **Live awards** (`apps/server/src/achievements/award.ts`): the events that already exist call `refreshAchievements(tx, character, factKeys, now)` inside their own transaction, after their change: the settlement (drops, levels; only when it granted items or a level), the crypt claim (drops, level, boss, tier), the quest turn-in (story or contract count, level, reward item), the forge upgrade and craft, the merchant purchase, and equipping a set piece. Facts are read from the character's state in that transaction (contracts count across the account).
 - **At most once:** `account_achievements` has the primary key `(account_id, achievement_id)`; awards insert with `on conflict do nothing`, and only the transaction whose insert created the row writes the `achievement.award` audit row. Two heroes of one account, a live award and the backfill, or two backfills racing all end with one row and one audit row (real-PG test `achievements.pg.test.ts`).
@@ -136,7 +137,7 @@ Code: game-core `social/relations.ts` (the matrix, caps, presence buckets) and s
 
 game-core: `relationFromFacts`, `friendDecision(relation, action)`, `visibleRelation` (`blocked-by-them` → null: answer as for an unknown player), `isBlockRelation`, `FRIEND_LIMITS`, `presenceBucket`, `PRESENCE_LABELS`. The client can ask `GET /api/players/:handle/relation`.
 
-How later tickets use it: **4.2** profiles answer `404` when `isBlockedEitherWay`, and `friends and guild` privacy means `relation === 'friend'` (or a guildmate, 4.4). **4.4** guild invites refuse a block either way and show guildmates' presence through `presenceOf` (respecting `hidden`). **4.5** chat filters messages with `blockedEitherWay(viewer, authorIds)`.
+How later tickets use it: **4.2** profiles answer `404` when `isBlockedEitherWay`, and `friends and guild` privacy means `relation === 'friend'` (or a guildmate, 4.4). **4.4** guild invites refuse a block either way and show guildmates' presence through `presenceOf` (respecting `hidden`). **4.5** chat leaves out lines whose author is in `blockedEitherWay(viewer)`.
 
 **The relation matrix** (game-core `FRIEND_MATRIX`; tested per relation × action in `friends.test.ts` against a hand-written table). Codes are the error codes; ✓ is allowed, with the relation afterwards.
 
@@ -198,7 +199,7 @@ On oneself: `422 cannot_target_self`. A target outside the guild: `404 not_a_mem
 
 **Invites and applications:** an officer invites by handle or display name; the player answers from their Guild Hall. A player applies from a guild's profile; an officer takes them in. Applying while invited, or inviting an applicant, joins at once. Joining drops the joiner's other invites and applications. Caps (`GUILD_LIMITS`, exact under races): 30 members (`409 guild_full`, also checked when accepting), 30 invites waiting per guild, 20 per player, 30 applications per guild, 5 per player.
 
-**Blocks** (4.3's helpers): an officer cannot invite a player they block (`409 blocked_by_you`) or one who blocks them (`404 not_found`, like an unknown player). A guild is the leader's: to a player who blocks its leader, or is blocked by them, it does not exist (profile, search and apply all answer the unknown-guild `404`; an invitation from it is hidden). An officer does not see, and cannot answer, petitions from players they block or who block them; an invitation from an officer the invitee blocks since is gone (`404 no_invite`). Members who block each other stay guildmates: the blocker sees the other's row without a name or presence (officers still act on it), the blocked side sees no presence. Chat (4.5) will filter messages with `blockedEitherWay`.
+**Blocks** (4.3's helpers): an officer cannot invite a player they block (`409 blocked_by_you`) or one who blocks them (`404 not_found`, like an unknown player). A guild is the leader's: to a player who blocks its leader, or is blocked by them, it does not exist (profile, search and apply all answer the unknown-guild `404`; an invitation from it is hidden). An officer does not see, and cannot answer, petitions from players they block or who block them; an invitation from an officer the invitee blocks since is gone (`404 no_invite`). Members who block each other stay guildmates: the blocker sees the other's row without a name or presence (officers still act on it), the blocked side sees no presence. Chat (4.5) leaves out each other's lines (see "Guild chat").
 
 **Presence and profiles:** the guild page shows every member's presence bucket (`presenceOf`, `null` when hidden or blocked either way); outsiders see members and roles only. `profileRelation` maps a shared guild to `guildmate`, so "friends and guild" profiles open to guildmates. Everything reads membership live: a leave or a kick takes effect at once in every guild feature.
 
@@ -208,10 +209,56 @@ On oneself: `422 cannot_target_self`. A target outside the guild: `404 not_a_mem
 
 **Moderation:** any player reports a guild from its profile (`{ kind: 'guild', handle }`). In the queue a guild case shows "Name [TAG]" and its leader; besides dismiss, mute and suspend (on the leader), staff may **rename the guild** (`renameGuild`: name and tag become placeholders such as "Nameless Company 482913" / "X4821" at once; the leader must pick new ones, not the removed name; the members see the reason on the guild page) or **disband it** (`disbandGuild`: everyone removed; members see "disbanded by the wardens" and the reason for a week). Both follow `moderationDecision` (rank rule against the leader) and close the case; audited as `guild.force_rename` (on the leader, issuer in the data) and `guild.disband` (`byModerator`, reason, members).
 
-**Audit events:** `guild.create`, `guild.invite`, `guild.invite_cancel`, `guild.invite_decline`, `guild.apply`, `guild.application_cancel`, `guild.application_decline`, `guild.join` (`via` invite or application, `by`), `guild.leave` (with the role), `guild.kick`, `guild.promote`, `guild.demote`, `guild.transfer`, `guild.emblem`, `guild.rename`, `guild.force_rename`, `guild.disband` (the members). The membership of a guild is exactly what these say (checked by the race tests).
+**Audit events:** `guild.create`, `guild.invite`, `guild.invite_cancel`, `guild.invite_decline`, `guild.apply`, `guild.application_cancel`, `guild.application_decline`, `guild.join` (`via` invite or application, `by`), `guild.leave` (with the role and, ticket 4.5, `chatSeq`: the guild's newest chat line at that moment), `guild.kick` (also `chatSeq`), `guild.promote`, `guild.demote`, `guild.transfer`, `guild.emblem`, `guild.rename`, `guild.force_rename`, `guild.disband` (the members). The membership of a guild is exactly what these say (checked by the race tests).
 
-**Emblems** (`GUILD_EMBLEMS`; placeholders drawn as a glyph on a shield until A.8): `anvil`, `crow`, `tower`, `flame`, `skull`, `oak` (asset ids `guild-emblem.<id>`). Never rename or reuse an id.
+**Emblems** (`GUILD_EMBLEMS`, 32×32 charges from ticket A.8 drawn on the dyed shield; a glyph is the fallback): `anvil`, `crow`, `tower`, `flame`, `skull`, `oak`, and since A.8 `wolf`, `key`, `crown`, `moon`, `serpent`, `chalice` (asset ids `guild-emblem.<id>`). Never rename or reuse an id.
 
 **Polling:** the Guild Hall polls `GET /api/guild` every 60 s with an `ETag` (`304` when unchanged).
 
 **Races** (`guilds.pg.test.ts`, real PostgreSQL, three rounds in varied orders, no retries): founders racing for one name (one guild, one charge; gold, audit and telemetry reconcile) and for one tag, one account founding twice; invites and applications accepted at once at 29 members (exactly one joins); one player accepted by several guilds at once (joins one); accepts racing a disband (the guild ends empty, every audited join was in the disband's member list); leaves racing promotions (a promotion that won shows in the leave's role); the leader handing over to an officer while each kicks or demotes the other and officers kick each other (always one leader, never both removed, the roster equals the audit log). Without the guild lock three of these fail.
+
+## Guild chat — ticket 4.5
+
+Code: game-core `social/guild-chat.ts` (`guildChatDecision`, `GUILD_CHAT_LIMITS`, tombstones), server `apps/server/src/social/chat-model.ts` (`visibleMessage`, `messageTargetKey`, `latestSeq`) and `guild-chat.ts` (routes), web `social/guildChat.ts` (`useGuildChat`) and `screens/GuildChat.tsx` (the chronicle in the Guild Hall). Table: `guild_messages`, plus `guilds.notice_message_id` (`DATA_MODEL.md`). Endpoints in `API_CONVENTIONS.md`.
+
+**Owner-confirmed default:** guild chat is the only player-to-player communication in Phase 4. No global chat, no direct messages.
+
+**The permission matrix** (game-core `guildChatDecision`, tested through the API in `guild-chat.test.ts` against a hand-written table; the client draws its buttons from the same function). "Blocked" is an officer with a block either way with the line's author:
+
+| Action ↓ / actor → | leader | officer | member | not a member | blocked (either way) |
+|---|---|---|---|---|---|
+| read | ✓ | ✓ | ✓ | 404 not_in_guild | ✓, without the other's lines |
+| post | ✓ | ✓ | ✓ | 404 | ✓ |
+| set / take down the notice | ✓ | ✓ | 403 guild_forbidden | 404 | ✓ |
+| report a line | ✓ | ✓ | ✓ | 404 not_found | 404 not_found |
+| remove own line (`withdrawn`) | ✓ | ✓ | ✓ | 404 | — |
+| remove a member's or former member's line (`removed`) | ✓ | ✓ | 403 | 404 | 404 message_not_found |
+| remove an officer's line | ✓ | 403 | 403 | 404 | 404 message_not_found |
+| remove the leader's line | (own) | 403 | 403 | 404 | 404 message_not_found |
+
+Reporting one's own line: `422 cannot_report_self`. A line of another guild, or an unknown id: `404` like an unknown line. Removing twice: `409 message_removed`.
+
+**Text and writes:** posts use the text module's `chatMessage` (1–300, one line, block list, no links), the notice `guildNotice` (1–400, up to a few lines). Every write is a social write (rate limit, sanctions): `chat` and `guildNotice` are blocked by a mute (`403 muted` with the sanction; the chat shows the reason in place of the input), `chatDelete` is mute-exempt (removing a line adds nothing). Writes hold the guild's lock (`lockGuild`), the same lock every membership change takes, and re-read the membership under it: a post racing a kick lands before it or is refused.
+
+**Ordering and cursors:** each line's `seq` is `max(seq) + 1` for its guild, computed under the guild's lock and held to commit, so lines commit in `seq` order and the committed lines are always `1..n`. A poll asking for `seq > since` therefore never skips a line that commits later with a lower number. Pages: the newest 30 first ("Earlier entries" loads 30 more with `before`), polls return up to 50 new lines oldest first (`more` beyond that: the client reloads the newest page). Readable history: the newest **500** lines and none older than **30 days**; older rows stay stored for moderation, unserved (pruning is left to 4.11).
+
+**Reads in one snapshot:** `GET /api/guild/chat` runs in a read-only `repeatable read` transaction. The membership check, the blocks, the lines and the hidden keys come from the same moment, so a poll racing a kick either sees the member and only lines from before the kick, or answers `404 not_in_guild`; the web client then clears the chat at once and refreshes the hall. (`guild.kick` / `guild.leave` record `chatSeq`, the newest line at that moment; the race test checks no read or post of the departed reaches past it.)
+
+**Tombstones:** a line withdrawn by its author, removed by an officer, or hidden by a moderator (an active `hide` sanction on `message:<id>`, through the queue: report → "Hide content") is sent as `{ text: null, tombstone }` to everyone, the author included (they see the sanction and its reason in their standing). The words are never sent; they stay in the row and in the report's snapshot, and the queue shows them (marked "removed by an officer" if so). Removing the notice's line takes the notice down; a hidden notice shows as a tombstone on the parchment. A poll re-reads the removal state of up to 200 lines below its cursor (`from`) and returns those that turned into tombstones (`revised`); older lines held on screen update on the next reload.
+
+**Blocks** (4.3): lines by a player the viewer blocks, or who blocks the viewer, are left out of every page, poll and the notice, and acting on them answers `404 message_not_found` (a block is never announced). A poll returns the `seq`s of such lines below its cursor as `gone`, so a block made while the chat is open removes them at once. Other officers still see and moderate those lines.
+
+**Polling and load** (3.9 allows 900 requests and 300 actions a minute per account; 4.1's social class 12 writes a minute, 240 an hour):
+
+| | Per member | A busy guild (30 members, all with chat open) |
+|---|---|---|
+| Chat polls | every 5 s while visible = **12/min**; every 30 s while hidden = 2/min | 30 × 12 = **360 polls/min** (6 a second) |
+| Other polling while the hall is open | guild page 1/min, shell badge 0.5/min | 45/min |
+| Share of 3.9's limit | ≈ 14 of 900 requests a minute (1.5 %) | — |
+| Posts | ≤ 12/min, 240/h (social class) | worst case 360/min; a 5 s poll then holds ≤ 30 new lines, under the 50 per poll, so a polling client never falls behind |
+| Server reads per poll | ≤ 9 indexed reads in one snapshot: membership + guild, roster (≤ 30 rows), blocks, newest `seq`, active mute, the lines (`(guild_id, seq)` index, ≤ 51 rows), the removal window (polls only, ≤ 200 slim rows), the notice (if set), hidden keys (`sanctions.target_key` index); no writes (presence writes at most every 3 min) | ≈ 360 × 9 ≈ 3,240 reads/min (54/s) at the worst case; an unchanged answer is a `304` without a body |
+| Server work per post | the guild lock, two membership reads, `max(seq)` (index), one insert | — |
+
+**Moderation:** any member reports a line or the notice from the chat (the 4.1 dialog with a fixed `{ kind: 'message', id }`); the queue shows "Guild chat in <guild> · “<the words>” · by <author>" with dismiss, mute, suspend, force rename (the author's display name) and hide content. Audit: `guild.chat_remove` (message, author, `withdrawn`/`removed`), `guild.notice` (new and previous line). Posts are not audited one by one (the table is the record).
+
+**Races** (`guild-chat.pg.test.ts`, real PostgreSQL, three rounds in varied orders, no retries): eight members posting six lines each at once while the leader polls: `seq` is exactly `1..48`, the poller saw every line exactly once in `seq` order, each author's lines are in the order they were sent, and paging back from the newest page joins up exactly; a member polling and posting without pause while others post and the leader kicks them part-way: no read or post of theirs reaches past the kick's `chatSeq`, and afterwards they get `404`. Without the guild lock both fail (duplicate `seq`); with the reads outside one snapshot the kick race fails once the gap between the membership check and the line read is widened (checked by hand with a 20 ms delay; the snapshot version passes with the same delay).

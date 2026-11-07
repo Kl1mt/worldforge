@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour medallions and trophies: violet gemstone set in an aged brass medallion; longsword blade wreathed in faint embers; blood-red relic chalice; iron helm resting on a breastplate; blacksmith hammer; iron anvil with crossed hammer; iron laurel wreath medal; sword through a brass laurel wreath; broken crypt key snapped in two; stone stairway descending into darkness; skull above an extinguished candle; sealed scroll with crimson wax seal; leather coin purse with gold coins; nailed contract parchment with a dagger, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+  "style_image": "apps/web/public/assets/items/seal-of-the-nameless.png",
+  "job_id": "00fe60ce-cb7f-4656-bf59-fa63b917d2d9",
+  "created_at": "2026-11-07T01:34:26.448740+00:00",
+  "seed": 338724755,
+  "generations": 10.0,
+  "count": 64,
+  "width": 32,
+  "height": 32
+}

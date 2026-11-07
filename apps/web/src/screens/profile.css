@@ -230,8 +230,10 @@
   font-size: var(--text-xs);
 }
 
-/* Placeholder seal until the art ticket (A.8) draws the icons: a wax disc, its rim tinted by the
-   deed's kind, with the deed's initial pressed in. */
+/* A deed's seal. The fallback (no icon): a wax disc tinted by the deed's kind with its initial
+   pressed in. With the A.8 icon (`.seal--art`): a sunken dark medallion, a brass rim and an inner
+   ring in the kind's tint, the icon at an integer scale (`--s`: ×2 in the Deeds, ×1 in the ledger
+   and on phones). */
 .seal {
   --wax: var(--crimson-700);
   display: grid;
@@ -265,6 +267,25 @@
 }
 .seal--world {
   --wax: var(--brass-600);
+}
+
+.seal--art {
+  --s: 2;
+  width: calc(32px * var(--s) + 12px);
+  height: calc(32px * var(--s) + 12px);
+  background:
+    radial-gradient(circle at 50% 38%, rgb(255 255 255 / 0.07), transparent 62%), var(--ink-900);
+  box-shadow:
+    0 0 0 1px var(--outline-dark),
+    0 0 0 3px var(--brass-700),
+    0 0 0 4px var(--outline-dark),
+    inset 0 0 0 2px var(--wax),
+    inset 0 2px 6px rgb(0 0 0 / 0.55);
+}
+
+.seal__icon {
+  width: calc(32px * var(--s));
+  height: calc(32px * var(--s));
 }
 
 .seal__glyph {
@@ -333,6 +354,12 @@
   height: 32px;
 }
 
+.ledger-deed .seal--art {
+  --s: 1;
+  width: 40px;
+  height: 40px;
+}
+
 .ledger-deed .seal__glyph {
   font-size: var(--text-md);
 }
@@ -395,6 +422,9 @@
   }
   .herald__hero-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .deed .seal--art {
+    --s: 1;
   }
 }
 

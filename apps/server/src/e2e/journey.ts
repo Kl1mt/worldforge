@@ -957,7 +957,86 @@ export async function playGuildStep(app: FastifyInstance, database: DatabaseHand
       'guild.leave',
     ].sort(),
   );
-  return { guildHandle: guild.handle };
+  return { guildHandle: guild.handle, companion, recruit };
+}
+
+/**
+ * Phase 4 guild chat step (ticket 4.5), after `playGuildStep`: the leader pins a notice; the
+ * officer reads it, posts, and is refused a link; the leader's poll picks the line up (and an
+ * unchanged poll is a `304`), then strikes a line from the record, which every reader sees as a
+ * tombstone; the officer reports the leader's line; the recruit who left has no chat.
+ */
+export async function playGuildChatStep(
+  database: DatabaseHandle,
+  hero: Journey,
+  { guildHandle, companion, recruit }: Awaited<ReturnType<typeof playGuildStep>>,
+) {
+  type Line = {
+    id: string;
+    seq: number;
+    kind: string;
+    text: string | null;
+    tombstone: string | null;
+  };
+  type Chat = { notice: Line | null; messages: Line[]; revised: Line[]; next: number };
+  const read = async (who: { api: Journey['api'] }, query = '') => {
+    const res = await who.api('GET', `/api/guild/chat${query}`);
+    expect(res.statusCode, res.body).toBe(200);
+    return { body: res.json<Chat>() };
+  };
+
+  const notice = await hero.api('POST', '/api/guild/notice', {
+    text: 'Muster at the Ashen Pass at dusk.\nBring torches.',
+  });
+  expect(notice.statusCode, notice.body).toBe(200);
+  const first = (await read(companion)).body;
+  expect(first.notice?.text).toBe('Muster at the Ashen Pass at dusk.\nBring torches.');
+
+  const posted = await companion.api('POST', '/api/guild/chat', { text: 'Torches are ready.' });
+  expect(posted.statusCode, posted.body).toBe(201);
+  const line = posted.json<{ message: Line }>().message;
+  const link = await companion.api('POST', '/api/guild/chat', { text: 'see www.example.com' });
+  expect(link.statusCode).toBe(400);
+
+  const lead = (await read(hero)).body;
+  const poll = await read(hero, `?since=${first.next}&from=${lead.messages[0]!.seq}`);
+  expect(poll.body.messages.map((m) => m.id)).toEqual([line.id]);
+  const quiet = await hero.api('GET', `/api/guild/chat?since=${poll.body.next}`);
+  const unchanged = await hero.api('GET', `/api/guild/chat?since=${poll.body.next}`, undefined, {
+    'if-none-match': quiet.headers.etag as string,
+  });
+  expect(unchanged.statusCode).toBe(304);
+
+  const own = await hero.api('POST', '/api/guild/chat', { text: 'Well met, warden.' });
+  expect(own.statusCode).toBe(201);
+  const ownLine = own.json<{ message: Line }>().message;
+  expect((await hero.api('POST', `/api/guild/chat/${line.id}/remove`)).statusCode).toBe(200);
+  const after = (await read(companion)).body;
+  const struck = after.messages.find((m) => m.id === line.id)!;
+  expect(struck).toMatchObject({ text: null, tombstone: 'removed' });
+  expect(JSON.stringify(after)).not.toContain('Torches are ready');
+
+  const report = await companion.api('POST', '/api/reports', {
+    target: { kind: 'message', id: ownLine.id },
+    reason: 'other',
+  });
+  expect(report.statusCode, report.body).toBe(201);
+  expect((await recruit.api('GET', '/api/guild/chat')).statusCode).toBe(404);
+
+  const [g] = await database.db
+    .select({ id: guilds.id })
+    .from(guilds)
+    .where(eq(guilds.handle, guildHandle));
+  const events = await database.db
+    .select({ event: auditLog.event })
+    .from(auditLog)
+    .where(
+      and(
+        inArray(auditLog.event, ['guild.notice', 'guild.chat_remove']),
+        sql`${auditLog.data}->>'guildId' = ${g!.id}`,
+      ),
+    );
+  expect(events.map((e) => e.event).sort()).toEqual(['guild.chat_remove', 'guild.notice']);
 }
 
 /**

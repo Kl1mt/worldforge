@@ -1,5 +1,5 @@
 {
-  "id": "7f2acd96-a24e-4542-b0c0-9455ec353892",
+  "id": "4b7f9aca-b329-4c96-8eff-66eb2721bb4a",
   "prevId": "f4bc1bb1-50c0-489c-9cee-d868e68aa7de",
   "version": "7",
   "dialect": "postgresql",
@@ -1235,196 +1235,6 @@
       },
       "isRLSEnabled": false
     },
-    "public.community_contributions": {
-      "name": "community_contributions",
-      "schema": "",
-      "columns": {
-        "project_id": {
-          "name": "project_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "stage_id": {
-          "name": "stage_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "account_id": {
-          "name": "account_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "day": {
-          "name": "day",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "resource": {
-          "name": "resource",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount": {
-          "name": "amount",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {
-        "community_contributions_account_id_idx": {
-          "name": "community_contributions_account_id_idx",
-          "columns": [
-            {
-              "expression": "account_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        }
-      },
-      "foreignKeys": {
-        "community_contributions_account_id_accounts_id_fk": {
-          "name": "community_contributions_account_id_accounts_id_fk",
-          "tableFrom": "community_contributions",
-          "tableTo": "accounts",
-          "columnsFrom": [
-            "account_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {
-        "community_contributions_project_id_stage_id_account_id_day_resource_pk": {
-          "name": "community_contributions_project_id_stage_id_account_id_day_resource_pk",
-          "columns": [
-            "project_id",
-            "stage_id",
-            "account_id",
-            "day",
-            "resource"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "community_contributions_amount_check": {
-          "name": "community_contributions_amount_check",
-          "value": "\"community_contributions\".\"amount\" > 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.community_project_progress": {
-      "name": "community_project_progress",
-      "schema": "",
-      "columns": {
-        "project_id": {
-          "name": "project_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "stage_id": {
-          "name": "stage_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "resource": {
-          "name": "resource",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "amount": {
-          "name": "amount",
-          "type": "bigint",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {
-        "community_project_progress_project_id_stage_id_resource_pk": {
-          "name": "community_project_progress_project_id_stage_id_resource_pk",
-          "columns": [
-            "project_id",
-            "stage_id",
-            "resource"
-          ]
-        }
-      },
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "community_project_progress_amount_check": {
-          "name": "community_project_progress_amount_check",
-          "value": "\"community_project_progress\".\"amount\" >= 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
-    "public.community_projects": {
-      "name": "community_projects",
-      "schema": "",
-      "columns": {
-        "project_id": {
-          "name": "project_id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "stage_index": {
-          "name": "stage_index",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "default": 0
-        },
-        "completed_at": {
-          "name": "completed_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {
-        "community_projects_stage_index_check": {
-          "name": "community_projects_stage_index_check",
-          "value": "\"community_projects\".\"stage_index\" >= 0"
-        }
-      },
-      "isRLSEnabled": false
-    },
     "public.data_backfills": {
       "name": "data_backfills",
       "schema": "",
@@ -2037,6 +1847,150 @@
       },
       "isRLSEnabled": false
     },
+    "public.guild_messages": {
+      "name": "guild_messages",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "guild_id": {
+          "name": "guild_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "seq": {
+          "name": "seq",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "author_id": {
+          "name": "author_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "body": {
+          "name": "body",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "removed_at": {
+          "name": "removed_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "removed_by": {
+          "name": "removed_by",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "removed_as": {
+          "name": "removed_as",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "guild_messages_guild_id_seq_key": {
+          "name": "guild_messages_guild_id_seq_key",
+          "columns": [
+            {
+              "expression": "guild_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            },
+            {
+              "expression": "seq",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "guild_messages_guild_id_guilds_id_fk": {
+          "name": "guild_messages_guild_id_guilds_id_fk",
+          "tableFrom": "guild_messages",
+          "tableTo": "guilds",
+          "columnsFrom": [
+            "guild_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        },
+        "guild_messages_author_id_accounts_id_fk": {
+          "name": "guild_messages_author_id_accounts_id_fk",
+          "tableFrom": "guild_messages",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "author_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        },
+        "guild_messages_removed_by_accounts_id_fk": {
+          "name": "guild_messages_removed_by_accounts_id_fk",
+          "tableFrom": "guild_messages",
+          "tableTo": "accounts",
+          "columnsFrom": [
+            "removed_by"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "set null",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "guild_messages_kind_check": {
+          "name": "guild_messages_kind_check",
+          "value": "\"guild_messages\".\"kind\" in ('chat', 'notice')"
+        },
+        "guild_messages_removed_as_check": {
+          "name": "guild_messages_removed_as_check",
+          "value": "\"guild_messages\".\"removed_as\" is null or \"guild_messages\".\"removed_as\" in ('withdrawn', 'removed')"
+        }
+      },
+      "isRLSEnabled": false
+    },
     "public.guilds": {
       "name": "guilds",
       "schema": "",
@@ -2106,6 +2060,12 @@
         "renamed_from": {
           "name": "renamed_from",
           "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "notice_message_id": {
+          "name": "notice_message_id",
+          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         }
@@ -3226,37 +3186,6 @@
           "value": "\"telemetry_daily\".\"events\" >= 0"
         }
       },
-      "isRLSEnabled": false
-    },
-    "public.world_flags": {
-      "name": "world_flags",
-      "schema": "",
-      "columns": {
-        "flag_id": {
-          "name": "flag_id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true
-        },
-        "project_id": {
-          "name": "project_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "set_at": {
-          "name": "set_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
       "isRLSEnabled": false
     }
   },

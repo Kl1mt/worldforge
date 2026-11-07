@@ -7,7 +7,7 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | Path | Contents |
 |---|---|
 | `art/source/pixellab/<batch>/` | Raw generator output, unedited: `NN.png`, `_contact-sheet.png`, `_job.json` (prompt, size, seed, job id). Never served. |
-| `apps/web/public/assets/{items,enemies,characters,areas,hub,map}/` | Curated picks at **native resolution**, kebab-case names (`iron-helm.png`). |
+| `apps/web/public/assets/{items,enemies,characters,areas,hub,map,materials,achievements,guild-emblems}/` | Curated picks at **native resolution**, kebab-case names (`iron-helm.png`). |
 | `apps/web/public/assets/manifest.json` | One entry per curated asset (see below). |
 | `art/preview-phase-0.png` | Combined preview of all curated Phase 0 assets. |
 | `art/preview-class-portraits.png` | The four class portraits side by side at ×3. |
@@ -15,6 +15,7 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | `art/preview-hub-map-layout.png` | Hub hotspots and map markers from the manifest, drawn over the art at ×3. |
 | `art/preview-boss-uniques.png` | The three Gravewarden unique icons (after) below the shared icons they replaced (before), at ×4. |
 | `art/preview-mythic-set-icons.png` | The six named Mythic icons and the three sets' pieces, below a row of tier-3 gear, at ×4. |
+| `art/preview-heraldry.png` | The achievement icons and guild emblems at ×4, below a row of item icons for scale. |
 | `art/preview-ashen-pass.png` | The Ashen Pass backdrop next to the Sunken Abbey, its four enemies below the existing ones, and the Ashen Warden next to the Gravewarden. |
 | `tools/art/pixellab_gen.py` | Generate/collect/contact-sheet helper. |
 
@@ -25,6 +26,7 @@ Curated files are byte-for-byte copies of a raw variant. Do not hand-edit them i
 | Kind | Native size | Notes |
 |---|---|---|
 | Item icon | 32×32 | Transparent background, object centred, roughly 45° for weapons. |
+| Achievement icon, guild emblem | 32×32 | Same pixel scale as item icons. Emblems are a single charge, upright and centred. |
 | Enemy | 64×64 | Transparent background, full body, feet on the bottom rows. |
 | Character | 128×128 | Transparent background, full body. |
 | Area backdrop | 384×216 | Opaque, 16:9. It fills the scene. |
@@ -122,7 +124,7 @@ It uses only the async flow: it POSTs, then polls `GET /background-jobs/{id}` ev
 ```
 
 - `id` is `<kind>.<kebab-name>` and stays stable once referenced by content data.
-- `kind` is one of `item | enemy | character | area | hub | map`.
+- `kind` is one of `item | material | enemy | character | area | hub | map | achievement | guild-emblem`.
 - The optional fields are `slot` (items, using the GDD §7.1 slot family: `weapon`, `offhand`, `head`, `chest`, `hands`, `feet`, `neck`, `ring`) and `facing` (sprites).
 - `hotspots` (`hub` only): clickable buildings as `{ id, label, x, y, width, height }` rectangles in native image pixels (origin top-left). Building ids: `forge`, `merchant`, `tavern`, `guildHall`, `warehouse`, `summoningShrine`, `worldMap` (the signpost and map table). Rectangles do not overlap. Whether a building is locked is game state, not art data.
 - `markers` (`map` only): `{ id, x, y }` centre points in native image pixels, one per `AreaId` (including the dungeon `namelessCrypt`) plus `hub` for the town of Graumark.
@@ -172,3 +174,12 @@ The world map came out with opaque white pixels along its burnt edge (about 1,15
 - Four jobs and no regeneration. `area-ashen-pass-01` used `sunken-abbey.png` as its style image. `enemies-ashen-pass-01` (wraith and cultist) used `abbey-wraith.png`. `enemies-ashen-pass-02` (hound and golem) used `fallen-knight.png`. `boss-ashen-warden-01` used `gravewarden.png`.
 - The art is registered in the manifest and `assets.ts`, but no game content references it yet. 4.8 wires it by giving each enemy and the area these `assetId`s in game-core (`findAsset` in `apps/web/src/content/world.ts` then resolves them). It also needs a world-map marker for `ashenPass` in `MAP_MARKERS`, because the map art has no painted spot for the pass.
 - Preview: `art/preview-ashen-pass.png`.
+
+## Achievement & guild heraldry icons (ticket A.8)
+
+- Each achievement (`ACHIEVEMENTS`, ticket 4.2) has a 32×32 icon at `/assets/achievements/<kebab-id>.png` (manifest id = the definition's `assetId`, e.g. `achievement.gravewarden-slain`). Each is an emblematic object for the deed (a violet-gem medallion, an ember-wreathed blade, a blood chalice, a helm on its breastplate, hammer, anvil, iron and brass laurels, a snapped crypt key, the crypt stair, a candle-skull, a sealed scroll, a coin purse, a contract pinned by a dagger). They are slightly more medallion-like than items, but they use the same palette and pixel scale.
+- Each guild emblem (`GUILD_EMBLEMS`, ticket 4.4) has a 32×32 charge at `/assets/guild-emblems/<id>.png` (`guild-emblem.<id>`). They are bone-white and aged brass with a near-black outline and flat heraldic shading, so they read on every shield dye. A.8 added six emblems to the first six: `wolf`, `key`, `crown`, `moon`, `serpent`, `chalice` (data only; each also needs a `--dye` in `social/crest.css`).
+- Two jobs, no regeneration. `icons-achievements-01` (style image `seal-of-the-nameless.png`) and `emblems-guild-01` (style image `raven-talisman.png`).
+- Every key in the achievements batch came out whole, so the Gravewarden's "broken crypt key" is an edit: `icons-achievements-01/edits/48-broken.png` cuts brass key `48.png` across the shaft and knocks the bit end one pixel down-left, re-outlining the broken ends. The raw `48.png` is kept unchanged.
+- The UI draws them at integer scales (the crest at ×1/×2, deed seals at ×2/×1). If an id is not registered or the file fails to load, it falls back to the 4.2/4.4 placeholders (wax seal with an initial, glyph on the shield). A web test checks that every achievement and emblem has a 32×32 entry.
+- Preview: `art/preview-heraldry.png`. Screenshots: `docs/screenshots/phase-4/heraldry-*.png` (`node tools/screenshots/heraldry.mjs`, plus `guilds.mjs` for the crest choice).

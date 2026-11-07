@@ -152,8 +152,15 @@
     {
       "idx": 21,
       "version": "7",
-      "when": 1794017122555,
-      "tag": "0021_community_projects",
+      "when": 1794015454124,
+      "tag": "0021_guild_chat",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1794018969417,
+      "tag": "0022_community_projects",
       "breakpoints": true
     }
   ]

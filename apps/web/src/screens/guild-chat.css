@@ -1,0 +1,388 @@
+/* ── Guild chat (ticket 4.5): the hall's chronicle. The notice is a sheet of parchment nailed to
+   the iron plate; the chat a ruled ledger written oldest to newest, the time in the margin like a
+   scribe's hour mark. A struck chatline is a crimson rule through blank space: the words are gone,
+   not greyed. The quill sits at the foot, an inkwell field and a brass "Write". ── */
+.guildhall__main {
+  display: grid;
+  gap: var(--space-5);
+  min-width: 0;
+}
+
+.chronicle {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.chronicle__head .rule-heading {
+  margin: 0;
+}
+
+.chronicle__fine {
+  margin: var(--space-1) 0 0;
+  color: var(--text-faint);
+  font-size: var(--text-sm);
+}
+
+.chronicle__empty {
+  margin: 0;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+/* The notice: parchment, two nail heads, a slight tilt. */
+.noticeboard {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.parchment {
+  position: relative;
+  margin: 0 var(--space-2);
+  padding: var(--space-4) var(--space-5) var(--space-3);
+  color: var(--ink-850);
+  background:
+    var(--texture-grain),
+    radial-gradient(ellipse at 30% 20%, rgb(255 255 255 / 0.18), transparent 60%),
+    linear-gradient(#d8c8a4, #c4b088);
+  box-shadow:
+    0 2px 0 rgb(0 0 0 / 0.5),
+    inset 0 0 18px rgb(92 64 30 / 0.35);
+  transform: rotate(-0.4deg);
+}
+
+.parchment::before,
+.parchment::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 35%, var(--iron-500), var(--ink-900));
+}
+
+.parchment::before {
+  left: 10px;
+}
+
+.parchment::after {
+  right: 10px;
+}
+
+.parchment__label {
+  margin: 0;
+  color: var(--crimson-700);
+  font-size: var(--text-xs);
+  letter-spacing: 0.12em;
+}
+
+.parchment__text {
+  margin: var(--space-1) 0 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  line-height: 1.35;
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.parchment__by {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: #4a3a26;
+}
+
+.parchment .chatline__who a {
+  color: #3b2a14;
+}
+
+.parchment .chatline__act {
+  color: #5c3a20;
+}
+
+.parchment .chatline__rank {
+  color: #6b5232;
+}
+
+.parchment .chatline__struck {
+  color: #6a2a26;
+}
+
+.noticeboard__empty {
+  margin: 0;
+  color: var(--text-faint);
+  font-style: italic;
+  font-size: var(--text-sm);
+}
+
+.noticeboard__tools,
+.noticeboard__formacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.noticeboard__form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.chronicle__textarea {
+  resize: vertical;
+  min-height: 4.5em;
+  font: inherit;
+}
+
+/* The ledger. */
+.ledger {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.ledger__older {
+  margin: 0;
+  text-align: center;
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+}
+
+.ledger__older--start {
+  font-family: var(--font-display);
+  color: var(--text-faint);
+}
+
+.ledger__log {
+  list-style: none;
+  margin: 0;
+  padding: var(--space-1) var(--space-3);
+  max-height: 32rem;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background-color: var(--bg-sunken);
+  background-image: var(--texture-grain);
+  border-top: 2px solid var(--brass-700);
+  border-bottom: 2px solid var(--brass-700);
+}
+
+.ledger__log:empty {
+  display: none;
+}
+
+.ledger__log:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.chatline {
+  display: grid;
+  grid-template-columns: 4.6rem minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid rgb(99 91 83 / 0.22);
+}
+
+.chatline:last-child {
+  border-bottom: 0;
+}
+
+.chatline__time {
+  padding-top: 2px;
+  font-size: var(--text-xs);
+  font-variant-numeric: tabular-nums;
+  color: var(--text-faint);
+  text-align: right;
+  border-right: 1px solid var(--brass-700);
+  padding-right: var(--space-2);
+}
+
+.chatline__body {
+  min-width: 0;
+}
+
+.chatline__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-2);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.chatline__who {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font-weight: 700;
+}
+
+.chatline__who a {
+  color: var(--brass-400);
+  text-decoration: none;
+}
+
+.chatline__who a:hover,
+.chatline__who a:focus-visible {
+  text-decoration: underline;
+}
+
+.chatline--mine .chatline__who a {
+  color: var(--bone-100);
+}
+
+.chatline__who--gone {
+  color: var(--text-faint);
+  font-weight: 400;
+  font-style: italic;
+}
+
+.chatline__rank {
+  font-size: var(--text-xs);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.chatline__rank--leader {
+  color: var(--brass-300);
+}
+
+.chatline__rank--former {
+  font-style: italic;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-faint);
+}
+
+.chatline__tag {
+  font-size: var(--text-xs);
+  color: var(--crimson-400);
+}
+
+.chatline__text {
+  margin: 2px 0 0;
+  color: var(--text);
+  overflow-wrap: anywhere;
+  white-space: pre-line;
+}
+
+.chatline--notice .chatline__text {
+  font-family: var(--font-display);
+  color: var(--text-muted);
+}
+
+/* A struck chatline: a crimson rule through the space where the words were. */
+.chatline__struck {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 2px 0 0;
+  font-size: var(--text-sm);
+  font-style: italic;
+  color: var(--text-faint);
+}
+
+.chatline__struck::before {
+  content: '';
+  flex: 0 0 2.5rem;
+  height: 2px;
+  background: var(--crimson-500);
+}
+
+.chatline__struck--hidden::before {
+  background: repeating-linear-gradient(90deg, var(--crimson-500) 0 6px, transparent 6px 9px);
+}
+
+/* Line actions: quiet text buttons, shown on hover and focus (always on touch screens). */
+.chatline__acts {
+  display: inline-flex;
+  gap: var(--space-2);
+  margin-left: auto;
+  opacity: 0;
+  transition: opacity 120ms ease-out;
+}
+
+.chatline:hover .chatline__acts,
+.chatline:focus-within .chatline__acts,
+.parchment .chatline__acts {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .chatline__acts {
+    opacity: 1;
+  }
+}
+
+.chatline__act {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: var(--text-xs);
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.chatline__act:hover,
+.chatline__act:focus-visible {
+  color: var(--accent-strong);
+}
+
+.chatline__act--strike:hover,
+.chatline__act--strike:focus-visible {
+  color: var(--crimson-400);
+}
+
+.chatline__act:disabled {
+  opacity: 0.5;
+  cursor: progress;
+}
+
+/* The quill. */
+.quill {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-1) var(--space-3);
+  align-items: center;
+}
+
+.quill__msg {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.chronicle__muted {
+  margin: 0;
+}
+
+@media (max-width: 760px) {
+  .ledger__log {
+    max-height: 60vh;
+    padding: var(--space-1) var(--space-2);
+  }
+
+  .chatline {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0;
+  }
+
+  .chatline__time {
+    order: 2;
+    border-right: 0;
+    padding: 0;
+    text-align: left;
+  }
+
+  .parchment {
+    margin: 0;
+    transform: none;
+  }
+}
