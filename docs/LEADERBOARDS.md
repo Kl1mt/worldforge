@@ -1,4 +1,4 @@
-# Leaderboards: what is measured (ticket 5.1)
+# Leaderboards: what is measured (ticket 5.1) and the boards (ticket 5.2)
 
 GDD §10.2, §16.3; Phase 5 ground rules in `ROADMAP.md`. This ticket defines the four scores, their published formulas and a read-only breakdown on the character screen ("Standing"). Boards, storage and filters are ticket 5.2; seasons 5.3.
 
@@ -59,6 +59,30 @@ How far your hero has come. There are ten milestones, in the order heroes usuall
 
 Your score is how many of them you have reached ("7 of 10"). If two heroes have the same number, the one whose furthest milestone is further down the list is ahead; then the one who helped break the higher **guild boss stage** (a stage your account earned the reward for, in a week this hero fought the boss for that guild). On the boards (5.2), a remaining tie goes to whoever got there first.
 
+## Boards (ticket 5.2)
+
+Code: game-core `scoring/boards.ts` (board names, `BOARD_SCOPES`, `LEVEL_BRACKETS`, `compareBoardEntries`) and `scoring/scores.ts` (`computeScore`, `metricInput`); server `apps/server/src/leaderboards/` (`snapshot.ts` refresh and sweep, `check.ts` recompute check, `leaderboard-cli.ts`, `routes.ts` hook and `GET /api/leaderboards/:metric`); web `apps/web/src/screens/BoardsScreen.tsx` (`#/boards/<metric>?class=&bracket=`, the "Roll of Renown"; linked from the status bar and the Standing panel). Screenshots: `docs/screenshots/phase-5/boards-*.png` (`node tools/screenshots/boards.mjs` against `E2E_TIME_SCALE=3000 pnpm --filter @worldforge/server e2e:serve`).
+
+### Snapshots
+`leaderboard_entries` (`DATA_MODEL.md`) holds one row per hero and metric: `formula_version`, `value`, `sort_key`, `inputs_hash`, the full stored `input`, `achieved_at`, plus copies of class and level for the filters.
+- **When:** after every successful write a player makes to a hero (an `onSend` hook on every non-GET route under `/api/characters`: settle, stop, equip, unequip, forge, merchant, quests, crypt and Watch claims, warehouse, character creation; and `POST /api/guild/boss/attempts`, which can earn a stage for all the account's heroes). It runs after the value transaction has committed and before the answer is sent, so the player's next board read sees it. A failed refresh is logged and repaired by the sweep, never answered as an error.
+- **Debounce:** each metric's slice of the input (`metricInput`: Level reads level and XP; Gear Score class and equipment; Power class, level and equipment; PvE Progress level, progress, world flags and guild stage) is hashed; only metrics whose slice changed are recomputed. A settlement that only adds XP recomputes Character Level, never Power; an unchanged hero costs three small reads. A game-core test checks that a change outside a metric's slice never moves it.
+- **Window rule:** `achieved_at` is the game clock when the request that moved the score arrived (before its transaction), not the moment of the refresh; for changes the sweep finds, it is the sweep's time. It changes only when the `sort_key` changes (a formula bump that changes nothing in the input keeps it). Seasons (5.3) compare it with their boundaries.
+- **Races:** refreshes of one hero serialise on a transaction-scoped advisory lock (`leaderboard:<id>`) and re-read the state under it, so the last one writes the newest committed state; gameplay rows are only read, never locked. World flags are read once before the lock (from the 60 s cache); a refresh that read flags just before a project completes may write the old flags, which the next sweep corrects.
+- **Sweep and backfill:** each run of the settlement scheduler (`SETTLE_INTERVAL_SECONDS`) refreshes up to 200 heroes: first heroes without a current row for every metric (existing heroes after deploy, every hero after a formula bump), then a rotation over all heroes, which catches what no request of the hero's own saw (scheduled settlements while away, a world flag, a guild boss stage broken by a guildmate). A board read also backfills the viewer's own heroes. Rows of an older formula version are never shown.
+
+### Recompute check
+`checkLeaderboards` (CLI: `pnpm admin:leaderboards check`, `deploy/admin.sh leaderboards check`) recomputes every row: **wrong** (stored value or key differs from `computeScore(metric, stored input)`, or the hash does not match the stored input; exit 1), **outdated** (older formula version), **stale** (the hero's current state hashes differently), **missing**. `refresh` rewrites every hero's rows from current state. Tests: `leaderboards.test.ts` (after API events and the sweep, every row matches; tampering is told apart from a bump), the journey step (no wrong rows, the hero's rows current).
+
+### What a board shows
+- **Order:** `sort_key` (higher first, the metric's own tie-breakers included), then `achieved_at` (reached first wins), then the hero id. game-core's `compareBoardEntries` is the reference; a test checks the SQL order against it.
+- **Filters:** all-time (`scope=allTime`, the only scope until 5.3), class, level bracket (`LEVEL_BRACKETS`: 1–9, 10–19, 20–29, 30+, by the hero's level at its latest refresh). Pages of 25 (API: 1–100), with an offset cursor; ranks are recomputed on every read, so a page boundary can shift between reads while scores move.
+- **Your place:** each of your heroes that fits the filters, with its rank.
+- **Who is listed (owner decision):** every hero, by its player's display name, no opt-out; blocks hide no one. The name links to the profile only where `canViewProfile(visibility, relation)` allows it for this viewer, and the **hero's name is shown only there** (a hidden profile keeps its heroes' names private; the board shows class and level). Names a moderator hides read "Name withheld". **Accounts with any active sanction** (mute, suspend, rename, hide) are left out at read time and come back when it ends; their scores keep being stored.
+- **Report:** each other player's entry has Report → their display name (`profileField`), and the hero's name (`characterName`) where it is shown, through the shared report dialog.
+- **Polling:** the page re-reads once a minute with the `ETag` (`304` when unchanged); board reads have their own limit of 60 a minute per account, on top of 3.9's limits.
+- **Invariance:** boards only read. No gameplay number changes; the no-effects hashes and balance suites are untouched (`leaderboards.test.ts` "invariance").
+
 ## Technical spec (for 5.2)
 
 ### Versioning
@@ -102,4 +126,8 @@ Power is the only non-trivial score: 20 trials × 2 runs × at most 4 fights (�
 ## Tests
 - `packages/game-core/src/scoring/scoring.test.ts`: determinism and pinned values; Level order and refusals; Gear Score weights, the two-handed rule, monotonicity (over 10,000 item pairs: each better item level, rarity, upgrade and Void; and every slot swap to a better item); stat-inflation resistance (14 forged items count 0 and leave Power unchanged, duplicate slots, a class item on another class, no false rejections over generated kits); Power grows with level and gear tiers, class spread, breakdown, performance budget; PvE milestones cover every area and crypt tier, order, ties, guild stage bounds.
 - `packages/game-core/src/scoring/power-ranking.test.ts`: Power against the B.2 build search (48 builds per class at level 23): Spearman with boss time > 0.5, every top build (within 7 %) above the median, the slowest quarter below the best top build, +5 and +10 Void add Power.
+- `packages/game-core/src/scoring/boards.test.ts` (5.2): `computeScore` equals `computeScores`, each metric's slice covers what it reads, brackets cover every level once, board order.
+- `apps/server/src/leaderboards/leaderboards.test.ts` (5.2): refresh on equip with the request clock, XP-only debounce, bracket levels, sweep backfill and a world flag, wrong vs outdated, board order and pages, ties, filters and your rank, ETag, every sanction kind excluded and restored, no ids in answers, bad queries, read limit, viewer backfill, the profile-link matrix (each visibility × self, friend, guildmate, pending, stranger, blocked either way; the profile route agrees), invariance.
+- `apps/server/src/leaderboards/leaderboards.pg.test.ts` (5.2, real PostgreSQL): a score change racing board reads (old or new value, never another); equips and stray refreshes racing (every row current afterwards); no retries.
+- Journey: `playLeaderboardStep` (`e2e/journey.ts`; `leaderboard-journey.test.ts` and the Phase 4 exit run under its leak guard).
 - `apps/server/src/scores/scores.test.ts`: the route equals `computeScores` on the stored input, a forged item row counts 0, the guild boss stage rule, 404 for another account's hero, 401 without a session.

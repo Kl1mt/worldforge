@@ -147,7 +147,7 @@ export function StandingPanel({ characterId, level }: { characterId: string; lev
           </ul>
           <p className="standing__note">
             Counted by the server from what your hero has done and wears. Open a line to see what
-            counts and why.
+            counts and why. <a href={routeHref('boards')}>See the Roll of Renown</a>
           </p>
         </>
       ) : null}

@@ -1,0 +1,330 @@
+/* ── Leaderboards (ticket 5.2): the Roll of Renown in the town hall. Four rolls as brass name
+   plaques above a ledger slip of filters; the roll itself is an iron plate with each place carved
+   in the display face, the first three picked out in brass, your own heroes on a brass slip.
+   Every class here is scoped under `renown` (no shared names). ── */
+.renown {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.renown__eyebrow {
+  color: var(--brass-500);
+}
+
+.renown__head h1 {
+  font-size: var(--text-3xl);
+  color: var(--bone-100);
+}
+
+.renown__lede {
+  color: var(--text-dim);
+  max-width: 60ch;
+}
+
+.renown__rolls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  border-bottom: var(--border-hair);
+  padding-bottom: var(--space-2);
+}
+
+.renown__roll-tab {
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-iron);
+  background: var(--ink-850);
+  color: var(--text-muted);
+  font-family: var(--font-display);
+  text-decoration: none;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.renown__roll-tab:hover {
+  color: var(--bone-100);
+}
+
+.renown__roll-tab[aria-current='page'] {
+  border: var(--border-brass);
+  background: linear-gradient(var(--wood-700), var(--wood-800));
+  color: var(--brass-300);
+}
+
+.renown__filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+}
+
+.renown__filter {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.renown__filter select {
+  min-height: 44px;
+  min-width: 11rem;
+  padding: 0 var(--space-3);
+  border: var(--border-iron);
+  background: var(--ink-900);
+  color: var(--text);
+  font: inherit;
+}
+
+.renown__measured {
+  flex: 1 1 18rem;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.renown__measured > summary {
+  cursor: pointer;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  color: var(--brass-400);
+}
+
+.renown__measured p {
+  margin-top: var(--space-2);
+  max-width: 62ch;
+}
+
+.renown__wait {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.renown__alert {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+
+.renown__body {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(0, 3fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.renown__yours {
+  padding: var(--space-4);
+  border: var(--border-brass);
+  background: linear-gradient(rgb(163 130 74 / 0.12), rgb(163 130 74 / 0.04));
+  display: grid;
+  gap: var(--space-3);
+}
+
+.renown__yours h2 {
+  color: var(--brass-400);
+}
+
+.renown__yours-list {
+  list-style: none;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.renown__yours-list li {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0 var(--space-3);
+  align-items: baseline;
+}
+
+.renown__yours-rank {
+  grid-row: span 2;
+  font-size: var(--text-2xl);
+  color: var(--brass-300);
+  font-variant-numeric: tabular-nums;
+}
+
+.renown__yours-who {
+  color: var(--bone-100);
+}
+
+.renown__yours-value {
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.renown__plate {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.renown__count {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+  font-family: var(--font-body);
+}
+
+.renown__list {
+  list-style: none;
+  display: grid;
+}
+
+.renown__row {
+  display: grid;
+  grid-template-columns: 3.25rem minmax(0, 1fr) auto auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-2) 0;
+  border-top: var(--border-hair);
+}
+
+.renown__row:first-child {
+  border-top: 0;
+}
+
+.renown__rank {
+  font-size: var(--text-xl);
+  color: var(--text-muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.renown__row--podium .renown__rank {
+  color: var(--brass-400);
+}
+
+.renown__row--rank1 .renown__rank {
+  color: var(--brass-300);
+  font-size: var(--text-2xl);
+}
+
+.renown__row--you {
+  background: rgb(163 130 74 / 0.08);
+  box-shadow: inset 3px 0 0 var(--brass-500);
+}
+
+.renown__who {
+  display: grid;
+  min-width: 0;
+}
+
+.renown__name {
+  color: var(--bone-100);
+  overflow-wrap: anywhere;
+}
+
+a.renown__name {
+  color: var(--bone-100);
+  text-decoration-color: var(--brass-600);
+}
+
+.renown__name--withheld {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.renown__hero,
+.renown__dim {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.renown__you {
+  color: var(--brass-400);
+}
+
+.renown__value {
+  display: grid;
+  justify-items: end;
+  color: var(--bone-200);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--text-lg);
+}
+
+.renown__since {
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+}
+
+.renown__actions {
+  min-width: 5.5rem;
+  display: flex;
+  justify-content: end;
+}
+
+.renown__report {
+  position: relative;
+}
+
+.renown__report > summary {
+  list-style: none;
+}
+
+.renown__report > summary::-webkit-details-marker {
+  display: none;
+}
+
+.renown__report-menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + var(--space-1));
+  z-index: 2;
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: var(--border-iron);
+  background: var(--ink-900);
+  box-shadow: var(--shadow-drop);
+  white-space: nowrap;
+}
+
+.renown__empty,
+.renown__fine {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.renown__empty {
+  padding: var(--space-6) 0;
+  text-align: center;
+  font-style: italic;
+}
+
+.renown__pages {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-3);
+  padding-top: var(--space-2);
+  border-top: var(--border-hair);
+}
+
+@media (max-width: 760px) {
+  .renown__body {
+    grid-template-columns: 1fr;
+  }
+
+  .renown__row {
+    grid-template-columns: 2.5rem minmax(0, 1fr) auto;
+  }
+
+  .renown__actions {
+    grid-column: 2 / -1;
+    justify-content: start;
+    min-width: 0;
+  }
+
+  .renown__report-menu {
+    left: 0;
+    right: auto;
+  }
+
+  .renown__filter select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .renown__filter {
+    flex: 1 1 9rem;
+  }
+}

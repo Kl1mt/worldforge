@@ -183,6 +183,7 @@ A bucket from the last authenticated request (any route behind `requireAccount`)
 | Guild Hall, chat visible | + chat 12 (5 s; 2 when hidden) + hall 1 + siege plate 0.5 | ≈ 22 a minute: 2.4 % of 900 |
 | Friends | + 1 | `ETag`, `304` when unchanged |
 | Town works / hub | + board 1 | `ETag` |
+| Roll of Renown (ticket 5.2) | + board 1 | `ETag`; own class: 60 board reads a minute |
 | Worst case: three tabs on the Guild Hall | ≈ 66 a minute | 7 % of the request limit; polls are `GET`, so the action limit is untouched |
 
 Writes: chat at one line every 5 s is exactly the social class's 12 a minute; 240 an hour is a sustained line every 15 s, which only a flood reaches. Every Phase 4 write is a social write (reports, renames, profile, presence since 4.11, friends and blocks, every guild action, chat, notice, guild boss attempts), except community contributions, warehouse moves and upgrades and boss claims, which carry no text, reach no one and are value operations under the per-account action limit and `Idempotency-Key`. Reports have their own cap since 4.11 (20 waiting). Nothing in the exit run (`phase4-exit-criteria.test.ts`, defaults) was rate limited except where a player sends 12 social writes within one simulated minute (the run spaces its social steps by two minutes, as a player would).

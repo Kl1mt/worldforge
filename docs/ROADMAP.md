@@ -667,7 +667,7 @@ GDD: §10.2, §16.3. Read `docs/COMBAT.md`, `docs/LOOT.md`, `docs/EFFECTS.md`, t
 - Tests: determinism, monotonicity where it should hold (a better item never lowers Gear Score), stat-inflation resistance (forged or invalid items rejected), Power ranks the B.2 best builds sensibly, and fast.
 **Acceptance:** formulas documented; breakdown screenshots on the character screen.
 
-### 5.2 Leaderboards (vertical) — `todo`
+### 5.2 Leaderboards (vertical) — `done (PR #TBD)`
 GDD: §10.2. Needs 5.1.
 - Snapshot table (score, formula version, inputs hash, achieved-at) updated on the events that can change a score (debounced, inside the value transactions or right after them; window rule), plus a recompute check (CLI and a test) that every stored value matches its formula.
 - Board pages: the four metrics, filters (all-time now; seasons in 5.3; class; level bracket), your own rank, tie-breakers by achieved-at, pagination, ETag polling sized to the rate limits. Everyone is listed by name (owner decision); the name links to the profile only where profile privacy allows; sanctioned accounts excluded; report action from a board entry.
