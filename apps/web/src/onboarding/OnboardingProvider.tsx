@@ -12,7 +12,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { useActiveCharacter } from '../characters/CharactersProvider';
 import { useGame } from '../game/GameProvider';
 import type { WorldState } from '../game/api';
-import type { WorldFlags } from '@worldforge/game-core';
+import { GAME_VERSION, nextGuideStep, type WorldFlags } from '@worldforge/game-core';
 import type { GameRoute } from '../lib/route';
 import type { QuestBoard } from '../quests/api';
 import { useQuests } from '../quests/useQuests';
@@ -20,6 +20,7 @@ import { observedSteps } from './guide';
 import { levelNotice, questNotices, unlockNotices, worldNotices, type Notice } from './notices';
 import { useWorldView } from '../community/api';
 import { browserStore, newIds, questKeys, readSeen, seenKey, writeSeen } from './seen';
+import { notesSeenKey, notesUnread, releaseNotice, releaseNoticeId } from '../notes/unread';
 
 /** How long a notice stays before it fades on its own. */
 export const NOTICE_MS = 8_000;
@@ -41,6 +42,13 @@ interface OnboardingValue {
    * The server checks them on every route; screens read them only to show what is open.
    */
   worldFlags: WorldFlags | null;
+  /** Ticket F.3: the patch notes have a release this player has not read yet. */
+  notesUnread: boolean;
+  /**
+   * The version the player had read before opening the notes this visit (null: none), so the
+   * notes screen can mark what is new to them after the marker has cleared.
+   */
+  notesSeenBefore: string | null;
 }
 
 const OnboardingContext = createContext<OnboardingValue | null>(null);
@@ -121,6 +129,33 @@ export function OnboardingProvider({ route, children }: { route: GameRoute; chil
     lastBoard.current = board.value;
   }, [board, push]);
 
+  // --- Ticket F.3: "What's new". The slip never shows while the first-steps guide runs, and a
+  // player who has not read the notes since a release gets the status bar's "New" tag until
+  // they open `#/notes`.
+  const notesKey = accountId ? notesSeenKey(accountId) : null;
+  const [notesSeen, setNotesSeen] = useState(() => (notesKey ? store.get(notesKey) : null));
+  const [notesSeenBefore, setNotesSeenBefore] = useState<string | null>(null);
+  const guideActive = !!guide && !guide.dismissed && nextGuideStep(guide.steps) !== null;
+  const notes = notesUnread(notesSeen, guideActive);
+  // Adjusted during render (React's pattern for state derived from props), persisted below.
+  if (notes.baseline) setNotesSeen(GAME_VERSION);
+  else if (route === 'notes' && notes.unread) {
+    setNotesSeenBefore(notesSeen);
+    setNotesSeen(GAME_VERSION);
+  }
+  useEffect(() => {
+    if (notesKey && notesSeen) store.set(notesKey, notesSeen);
+  }, [notesKey, notesSeen, store]);
+  const announceNotes = notes.announce && route !== 'notes';
+  useEffect(() => {
+    if (announceNotes) push([releaseNotice()]);
+  }, [announceNotes, push]);
+  // Read (or read elsewhere): the slip goes with the marker.
+  const shownNotices = useMemo(
+    () => (notes.unread ? notices : notices.filter((n) => n.id !== releaseNoticeId())),
+    [notes.unread, notices],
+  );
+
   // --- "New" markers. A hero that has never fought starts with an empty seen list, so its
   // first drops and the Tavern's notices are marked; an older hero on a new device is not.
   const [fresh] = useState(() => hero.level === 1 && hero.experience === 0);
@@ -180,15 +215,27 @@ export function OnboardingProvider({ route, children }: { route: GameRoute; chil
 
   const value = useMemo<OnboardingValue>(
     () => ({
-      notices,
+      notices: shownNotices,
       dismissNotice,
       newItems,
       markItemsSeen,
       newQuests,
       markQuestsSeen,
       worldFlags: worldView?.flags ?? null,
+      notesUnread: notes.unread,
+      notesSeenBefore,
     }),
-    [notices, dismissNotice, newItems, markItemsSeen, newQuests, markQuestsSeen, worldView],
+    [
+      shownNotices,
+      dismissNotice,
+      newItems,
+      markItemsSeen,
+      newQuests,
+      markQuestsSeen,
+      worldView,
+      notes.unread,
+      notesSeenBefore,
+    ],
   );
   return <OnboardingContext.Provider value={value}>{children}</OnboardingContext.Provider>;
 }

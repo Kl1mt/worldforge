@@ -11,6 +11,8 @@ import { FirstSteps, ReopenGuide } from '../onboarding/FirstSteps';
 import { Notices } from '../onboarding/Notices';
 import { useOnboarding } from '../onboarding/OnboardingProvider';
 import { HealthLine } from './HealthLine';
+import { versionLabel } from '../notes/unread';
+import '../notes/notes.css';
 import { useLogout } from './useLogout';
 import { useStanding } from '../social/useStanding';
 import { describeSanction } from '../social/api';
@@ -44,7 +46,7 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
   const cls = getClass(character.classId);
   const { areaId } = useGame();
   const NAV = navEntries(getArea(areaId).name);
-  const { newItems, newQuests } = useOnboarding();
+  const { newItems, newQuests, notesUnread } = useOnboarding();
   // "New" counts on the nav (ticket 2.7): the Pack for unseen drops, the Town for the Tavern.
   const fresh: Partial<Record<GameRoute, number>> = {
     inventory: newItems.size,
@@ -204,6 +206,20 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
           </a>
         ) : null}
         <LegalLinks />
+        {/* Ticket F.3: the game version, linking to the patch notes. */}
+        <a
+          className="statusbar__link proclaim-version"
+          href={routeHref('notes')}
+          aria-current={route === 'notes' ? 'page' : undefined}
+        >
+          <span className="visually-hidden">What’s new, version </span>
+          {versionLabel()}
+          {notesUnread ? (
+            <span className="new-tag">
+              New<span className="visually-hidden"> notes to read</span>
+            </span>
+          ) : null}
+        </a>
       </footer>
 
       <nav className="bottombar" aria-label="Main (mobile)">

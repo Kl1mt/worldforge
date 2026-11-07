@@ -4,6 +4,7 @@ import { orderNotices, type Notice } from './notices';
 import './onboarding.css';
 
 const KIND_LABEL: Record<Notice['kind'], string> = {
+  release: 'The town crier',
   level: 'Level up',
   unlock: 'A road opens',
   quest: 'Quest',

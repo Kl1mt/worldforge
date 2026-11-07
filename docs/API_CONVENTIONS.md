@@ -79,7 +79,7 @@ Endpoints that grant, spend or move value and are **not** repeat-safe by state r
 
 | Method | Path           | Response                                                          |
 | ------ | -------------- | ----------------------------------------------------------------- |
-| GET    | `/api/health`  | `{ "status": "ok", "uptimeSeconds": number }`                     |
+| GET    | `/api/health`  | `{ "status": "ok" \| "degraded", "uptimeSeconds": number, "db": "up" \| "down", "version": "0.5.2" }` (`version`: the game version from game-core's patch notes, ticket F.3; `503` when the DB is down) |
 | GET    | `/api/config`  | Ticket D.2, public: `{ registration: { mode: 'open' \| 'invite' \| 'closed' } }` (`REGISTRATION_MODE`) |
 | GET    | `/api/legal/:page` | Ticket D.2, public. `page` is `impressum` or `datenschutz` → `{ page, markdown, template }` (`template`: still the shipped placeholder). Read from `LEGAL_DIR`, falling back to `content/legal/`; anything else `404 not_found` |
 | GET    | `/api/content` | `GameContent` from `@worldforge/game-core` (classes, resources, rarities, equipment slots, stats, `version`) |
