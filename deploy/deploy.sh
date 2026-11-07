@@ -75,6 +75,9 @@ for image in "${images[@]}"; do
   fi
 done
 log "building images"
+# Ticket D.3: the admin panel's server status shows the commit and build time.
+WORLDFORGE_GIT_SHA=$rev WORLDFORGE_BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+export WORLDFORGE_GIT_SHA WORLDFORGE_BUILD_TIME
 compose build --pull server web
 if ((tunnel)); then
   compose pull --quiet cloudflared || warn "could not pull a newer cloudflared image"

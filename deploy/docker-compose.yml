@@ -75,6 +75,10 @@ services:
       context: ..
       dockerfile: deploy/Dockerfile
       target: server
+      # Ticket D.3: shown in the admin panel's server status (deploy.sh exports them).
+      args:
+        WORLDFORGE_GIT_SHA: ${WORLDFORGE_GIT_SHA:-unknown}
+        WORLDFORGE_BUILD_TIME: ${WORLDFORGE_BUILD_TIME:-unknown}
     restart: unless-stopped
     init: true
     environment:

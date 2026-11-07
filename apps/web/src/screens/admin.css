@@ -1,0 +1,777 @@
+/* The admin panel (ticket D.3): the strongroom of the keep. Ledger tabs hang under the title
+   like bookmark ribbons (brass top edge and diamond on the open one); below them one folio at a
+   time: forms on the iron plate, lists as sunken ruled ledgers, the fresh invite code on a wax
+   keepseal slip, server gauges as a sunken tally board. Phones: tabs scroll sideways, one column. */
+.strong {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.strong__head .caps {
+  color: var(--brass-500);
+}
+
+.strong__head h1 {
+  font-size: var(--text-3xl);
+  color: var(--bone-100);
+}
+
+.strong__tabs {
+  display: flex;
+  gap: var(--space-1);
+  overflow-x: auto;
+  border-bottom: 2px solid var(--iron-600);
+  scrollbar-width: none;
+}
+
+.strong__tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.strong__tab {
+  position: relative;
+  display: grid;
+  flex: 0 0 auto;
+  gap: 2px;
+  min-width: 132px;
+  min-height: 56px;
+  padding: var(--space-2) var(--space-4) var(--space-3);
+  border: var(--border-hair);
+  border-bottom: 0;
+  border-top: 3px solid var(--iron-600);
+  background: var(--bg-sunken);
+  color: var(--text-dim);
+  text-decoration: none;
+}
+
+.strong__tab:hover {
+  color: var(--text);
+}
+
+.strong__tab[aria-current='page'] {
+  border-top-color: var(--brass-400);
+  background: var(--ink-850);
+  color: var(--bone-100);
+}
+
+.strong__tab[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  width: 9px;
+  height: 9px;
+  background: var(--brass-400);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.strong__tab-label {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+}
+
+.strong__tab-hint {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+}
+
+.strong__folio {
+  padding-top: var(--space-3);
+}
+
+.strong__split {
+  display: grid;
+  grid-template-columns: minmax(280px, 1fr) minmax(0, 2.2fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.strong__split--roles {
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+}
+
+.strong__side,
+.strong__main {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.strong__bar {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-3);
+}
+
+.strong__bar .rule-heading {
+  flex: 1;
+}
+
+.strong__wait {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.strong__alert {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  margin-top: 0;
+}
+
+.strong__empty {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-6);
+  text-align: center;
+}
+
+.strong__empty .display {
+  font-size: var(--text-xl);
+  color: var(--bone-100);
+}
+
+.strong__note {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+/* ---- Invites: the mint form, the keepseal slip, the ledger of codes ---------------------------- */
+.mint {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.mint .caps {
+  color: var(--brass-500);
+}
+
+.mint__title {
+  font-size: var(--text-xl);
+  color: var(--bone-100);
+}
+
+.mint__group {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.mint__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.keepseal {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+  border: 1px solid var(--brass-600);
+  border-left: 4px solid var(--brass-400);
+  background:
+    radial-gradient(circle at 100% 0, rgb(120 26 26 / 0.35), transparent 40%), var(--ink-900);
+  box-shadow: var(--shadow-drop);
+}
+
+.keepseal:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.keepseal__caps {
+  color: var(--crimson-400);
+}
+
+.keepseal__code {
+  font-size: var(--text-2xl);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--brass-300);
+  overflow-wrap: anywhere;
+}
+
+.keepseal__link {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.keepseal__link code {
+  padding: var(--space-2);
+  border: var(--border-hair);
+  background: var(--bg-sunken);
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.keepseal__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.keepseal__fine {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.invites {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: var(--border-hair);
+  background: var(--bg-sunken);
+}
+
+.invite {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-hair);
+  border-left: 3px solid var(--iron-600);
+}
+
+.invite:last-child {
+  border-bottom: 0;
+}
+
+.invite--active {
+  border-left-color: var(--moss-400);
+}
+
+.invite--revoked,
+.invite--expired {
+  color: var(--text-dim);
+}
+
+.invite__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: baseline;
+}
+
+.invite__status {
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.invite__status--active {
+  color: var(--moss-400);
+}
+
+.invite__status--used_up {
+  color: var(--brass-400);
+}
+
+.invite__status--expired,
+.invite__status--revoked {
+  color: var(--crimson-400);
+}
+
+.invite__note {
+  flex: 1;
+  color: var(--bone-100);
+  font-weight: 500;
+}
+
+.invite__uses {
+  color: var(--text-dim);
+}
+
+.invite__meta,
+.invite__redeemed {
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+}
+
+.invite__redeemed a,
+.invite__meta a {
+  color: var(--bone-200);
+}
+
+.invite__handle {
+  color: var(--text-faint);
+}
+
+.invite__act {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin-top: var(--space-1);
+  font-size: var(--text-sm);
+}
+
+.invite__revoke {
+  border-color: var(--crimson-500);
+  color: var(--bone-100);
+}
+
+/* ---- Players: the seek form and the dossier ------------------------------------------------ */
+.seek {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.seek__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--border-hair);
+}
+
+.seek__row {
+  display: grid;
+  gap: 2px;
+  min-height: 52px;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-hair);
+  border-left: 3px solid transparent;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.seek__row:hover,
+.seek__row[aria-current='true'] {
+  border-left-color: var(--brass-400);
+  background: rgb(60 48 30 / 0.35);
+}
+
+.seek__name {
+  font-weight: 700;
+  color: var(--bone-100);
+}
+
+.seek__meta {
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+}
+
+.dossier {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+}
+
+.dossier__head .caps {
+  color: var(--brass-500);
+}
+
+.dossier__head h2 {
+  font-size: var(--text-2xl);
+  color: var(--bone-100);
+}
+
+.dossier__sub,
+.dossier__dim {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.dossier__facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  border: var(--border-hair);
+  background: var(--iron-700);
+}
+
+.dossier__facts > div {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3);
+  background: var(--bg-sunken);
+}
+
+.dossier__facts dd {
+  margin: 0;
+  color: var(--bone-100);
+}
+
+.dossier__heroes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dossier__heroes li {
+  display: grid;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-hair);
+  border-top: 2px solid var(--wood-600);
+  background: var(--bg-sunken);
+}
+
+.dossier__hero {
+  font-weight: 700;
+  color: var(--bone-100);
+}
+
+.dossier__none {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.dossier__list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dossier__entry {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-hair);
+  border-left: 3px solid var(--iron-600);
+  background: var(--bg-sunken);
+}
+
+.dossier__entry--active {
+  border-left-color: var(--crimson-400);
+}
+
+.dossier__entry--open {
+  border-left-color: var(--brass-400);
+}
+
+.dossier__entry-head strong {
+  color: var(--bone-100);
+}
+
+.dossier__note {
+  font-style: italic;
+}
+
+/* ---- Telemetry: the almanac ---------------------------------------------------------------- */
+.almanac {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.almanac__form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-4);
+  align-items: end;
+}
+
+.almanac__form .field {
+  min-width: 170px;
+}
+
+.almanac__check {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: 44px;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.almanac__body {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.almanac__window {
+  color: var(--bone-200);
+}
+
+.almanac__section {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  min-width: 0;
+}
+
+.almanac__title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 400;
+  color: var(--bone-100);
+}
+
+.almanac__scroll {
+  overflow-x: auto;
+}
+
+.almanac__scroll:focus-visible {
+  outline: 2px solid var(--focus-ring);
+}
+
+.almanac__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+}
+
+.almanac__table th,
+.almanac__table td {
+  padding: var(--space-1) var(--space-3);
+  border-bottom: 1px solid rgb(90 84 72 / 0.35);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.almanac__table thead th {
+  color: var(--brass-500);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.almanac__table tbody th {
+  font-weight: 500;
+  color: var(--bone-200);
+}
+
+.almanac__table .num {
+  text-align: right;
+}
+
+.almanac__note {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.almanac__classes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-4);
+}
+
+.almanac__class {
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+  font-size: var(--text-sm);
+  overflow-wrap: anywhere;
+}
+
+.almanac__class .caps {
+  color: var(--brass-500);
+}
+
+.almanac__builds {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.almanac__builds code {
+  font-size: var(--text-xs);
+}
+
+.tally {
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--moss-400);
+  background: rgb(67 69 58 / 0.4);
+}
+
+.tally--bad {
+  border-left-color: var(--crimson-400);
+  background: rgb(90 26 26 / 0.35);
+}
+
+.tally__head {
+  font-weight: 700;
+}
+
+/* ---- Server status: the gauge board --------------------------------------------------------- */
+.gauges {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 1px;
+  border: var(--border-iron);
+  background: var(--iron-700);
+}
+
+.gauge {
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+  padding: var(--space-4);
+  border-top: 3px solid var(--iron-600);
+  background: var(--bg-sunken);
+}
+
+.gauge .caps {
+  color: var(--brass-500);
+}
+
+.gauge--wide {
+  grid-column: span 2;
+}
+
+.gauge--good {
+  border-top-color: var(--moss-400);
+}
+
+.gauge--bad {
+  border-top-color: var(--crimson-400);
+}
+
+.gauge__value {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  color: var(--bone-100);
+}
+
+.gauge__fine {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.gauge__counts {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.gauge__counts dt {
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+}
+
+.gauge__counts dd {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-2xl);
+  color: var(--bone-100);
+}
+
+/* ---- Roles: the roll and the CLI writ -------------------------------------------------------- */
+.staffroll {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border: var(--border-hair);
+  background: var(--bg-sunken);
+}
+
+.staffroll__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  align-items: baseline;
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-hair);
+}
+
+.staffroll__row:last-child {
+  border-bottom: 0;
+}
+
+.staffroll__role {
+  min-width: 88px;
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.staffroll__role--admin {
+  color: var(--brass-400);
+}
+
+.staffroll__role--moderator {
+  color: var(--moss-400);
+}
+
+.staffroll__name {
+  font-weight: 700;
+  color: var(--bone-100);
+}
+
+.staffroll__meta {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.writ-cli {
+  padding: var(--space-5);
+}
+
+.writ-cli .caps {
+  color: var(--brass-500);
+}
+
+.writ-cli .display {
+  font-size: var(--text-xl);
+  color: var(--bone-100);
+}
+
+.writ-cli__code {
+  margin: 0;
+  padding: var(--space-3);
+  border: var(--border-hair);
+  background: var(--ink-950);
+  font-size: var(--text-sm);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1080px) {
+  .strong__split,
+  .strong__split--roles {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gauges {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .strong__head h1 {
+    font-size: var(--text-2xl);
+  }
+
+  .strong__tab {
+    min-width: 112px;
+    padding-inline: var(--space-3);
+  }
+
+  .dossier {
+    padding: var(--space-4);
+  }
+
+  .dossier__facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gauges {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .gauge--wide {
+    grid-column: auto;
+  }
+
+  .gauge__counts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .keepseal__code {
+    font-size: var(--text-xl);
+  }
+}

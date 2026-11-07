@@ -17,6 +17,9 @@ export const GAME_ROUTES = [
   'profile',
   // Ticket 4.3: friends, requests, blocks and presence.
   'friends',
+  // Ticket D.3: the admin panel, `#/admin/<section>` (admins only; for everyone else it behaves
+  // like an unknown address).
+  'admin',
   // Ticket 4.4: the Guild Hall, `#/guild` (your guild, or found/join one) or `#/guild/<handle>`.
   'guild',
 ] as const;
@@ -56,6 +59,35 @@ export function profileHandleFromHash(hash: string): string | null {
 /** The profile page of a handle; without one, your own. */
 export function profileHref(handle?: string): string {
   return handle ? `#/profile/${encodeURIComponent(handle)}` : routeHref('profile');
+}
+
+/** Ticket D.3: the admin panel's sections, in tab order. */
+export const ADMIN_SECTIONS = ['invites', 'players', 'telemetry', 'status', 'roles'] as const;
+export type AdminSection = (typeof ADMIN_SECTIONS)[number];
+
+/** `#/admin/players/<handle>` → `{ section: 'players', arg: '<handle>' }`; default: invites. */
+export function adminLocation(hash: string): { section: AdminSection; arg: string | null } {
+  const m = /^#\/?admin(?:\/([a-z]+))?(?:\/([0-9a-z]{1,64}))?(?:[/?]|$)/i.exec(hash);
+  const section = (ADMIN_SECTIONS as readonly string[]).includes(m?.[1] ?? '')
+    ? (m![1] as AdminSection)
+    : 'invites';
+  return { section, arg: m?.[2]?.toLowerCase() ?? null };
+}
+
+export function adminHref(section: AdminSection, arg?: string): string {
+  return `#/admin/${section}${arg ? `/${encodeURIComponent(arg)}` : ''}`;
+}
+
+/** Ticket D.3: the moderator queue opened on the case holding this report. */
+export function moderationCaseHref(reportId: string): string {
+  return `${routeHref('moderation')}?case=${encodeURIComponent(reportId)}`;
+}
+
+/** The report id of `#/moderation?case=<id>`, if any. */
+export function moderationCaseFromHash(hash: string): string | null {
+  if (!/^#\/?moderation\?/.test(hash)) return null;
+  const id = new URLSearchParams(hash.slice(hash.indexOf('?'))).get('case');
+  return id && /^[0-9a-f-]{36}$/i.test(id) ? id.toLowerCase() : null;
 }
 
 /** Ticket 4.4: the guild handle in `#/guild/<handle>`, if any (only the shape is checked). */

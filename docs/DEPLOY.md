@@ -229,6 +229,19 @@ deploy/admin.sh invite revoke <invite id|code>                  # accounts it cr
 
 `create` prints the code and a ready link, `https://$DOMAIN/#/register?invite=CODE`, which opens the register screen with the code filled in. **Copy it right away**: the code is random and only its SHA-256 hash is stored, so it cannot be shown again (create a new one instead). `--expires` takes `14d`, `12h`, `30m` or `never`. A code is used up after `--uses` accounts; a failed registration (e.g. a taken email) does not use it up. Which code created which account is in the audit log (`account.register` with `data.inviteId`); the code itself never appears in logs. Wrong codes count against the per-IP registration limit (5 per hour). In development the same commands are `pnpm admin:invite …`.
 
+### Admin panel
+
+Signed in as an admin, the footer has an **Admin panel** link (`/#/admin`, ticket D.3). It covers what you would otherwise do with `deploy/admin.sh` and `pnpm report:telemetry` on the VPS:
+- **Invites:** create a code (uses, expiry, a note for yourself), shown once with a copy button for the code and the ready link; the list shows each code's status, uses, expiry, who created it and which accounts registered with it; revoke. The CLI above keeps working; both write the same audit rows.
+- **Players:** look someone up by display name or handle: account age, role, the invite they joined with, heroes, sanctions and reports, with links into the moderator queue. Emails are never shown.
+- **Telemetry:** the balance report for a date window, optionally checked against the audit log.
+- **Server:** the deployed commit and build time, uptime, database, registration mode, accounts, heroes, active players (24 h / 7 d, counts only) and whether migrations are pending.
+- **Roles:** who is moderator or admin. Granting and revoking stay on the server (`deploy/admin.sh grant|revoke`): there is deliberately no button, so a stolen admin session cannot create admins.
+
+Everything there is audited on your account. To other players and moderators `/api/admin/*` does not exist (`404`).
+
+The commit and build time come from `deploy/deploy.sh`, which passes them to the image build (`WORLDFORGE_GIT_SHA`, `WORLDFORGE_BUILD_TIME`); an image built another way shows "Not recorded".
+
 ### Legal pages
 
 The Impressum (`/#/impressum`) and the privacy policy (`/#/datenschutz`) are linked in the footer of every screen and in the consent line under the register button. Their text is **yours**: the image ships placeholder templates (`content/legal/*.md` in the repository, marked "Platzhalter" and shown with a "Template" note) that list what you must fill in. They are not legal advice.

@@ -44,6 +44,12 @@ RUN test ! -e dist/e2e && test ! -e dist/playtest && test -f dist/index.js \
   && test -f dist/db/migrate-cli.js && test -f dist/social/role-cli.js \
   && test -f dist/auth/invite-cli.js && test -f content/legal/impressum.md \
   && test -f content/legal/datenschutz.md
+# Ticket D.3: what this image was built from, for the admin panel's server status. Last, so a new
+# commit only changes these metadata layers. `deploy/deploy.sh` passes them; `unknown` reads as
+# "not recorded".
+ARG WORLDFORGE_GIT_SHA=unknown
+ARG WORLDFORGE_BUILD_TIME=unknown
+ENV WORLDFORGE_GIT_SHA=${WORLDFORGE_GIT_SHA} WORLDFORGE_BUILD_TIME=${WORLDFORGE_BUILD_TIME}
 USER node
 EXPOSE 3000
 HEALTHCHECK --interval=15s --timeout=4s --start-period=30s --retries=3 \
