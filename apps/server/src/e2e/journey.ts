@@ -283,8 +283,15 @@ export async function startJourney(options: JourneyOptions) {
         continue; // the reward item needs room; the next visit sells first
       }
       expect(res.statusCode, res.body).toBe(200);
-      const item = res.json<{ reward: { item: ItemView | null } }>().reward.item;
+      const turnedIn = res.json<{
+        reward: { item: ItemView | null };
+        character: { level: number };
+      }>();
+      const item = turnedIn.reward.item;
       state.turnedIn.push({ kind: q.kind, questId: q.questId, item });
+      // The reward's XP can level the hero (Ticket F.2: the Ashen Pass step then read a stale
+      // level and expected the Warden's Watch still locked).
+      state.level = turnedIn.character.level;
       // A retried turn-in replays the stored reward; a new key is refused by state.
       const replay = await keyed(`${base}/quests/${q.id}/turn-in`, undefined, key);
       expect(replay.headers['idempotency-replayed']).toBe('true');
@@ -1495,6 +1502,10 @@ export async function playAshenPassStep(
   const back = await api('POST', `${base}/activity`, { areaId: 'ashenPass' });
   expect([200, 201]).toContain(back.statusCode);
 
+  // The level the server holds now (the contract's reward and the switch back can both add XP).
+  state.level = (await api('GET', `${base}/activity`)).json<{
+    character: { level: number };
+  }>().character.level;
   const watch = (await hero.world()).dungeons.find((d) => d.id === 'ashenWatch')!;
   const watchLevel = getDungeonTier('ashenWatch', 1).unlock.level;
   if (state.level >= watchLevel) {
