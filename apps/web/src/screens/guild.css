@@ -1,6 +1,6 @@
 /* ── The Guild Hall (ticket 4.4). Heraldry, not cards: a guild is a dyed, swallow-tailed banner
-   hanging from an iron rod, its crest a brass-rimmed shield (placeholder glyph until A.8 draws
-   the emblems). The guild roll is the iron plate, ranks divided by rule headings, members with
+   hanging from an iron rod, its crest a brass-rimmed shield bearing the emblem's charge (A.8).
+   The guild roll is the iron plate, ranks divided by rule headings, members with
    the companions' presence lanterns; the officers' business sits on ledger slips beside it.
    Without a guild, the hall opens on the building niche and an iron charter form. ── */
 .guildhall {
@@ -324,6 +324,7 @@ select.field__input option {
 
   .guildbanner__cloth .crest--lg {
     --w: 44px;
+    --s: 1;
   }
 
   .guildbanner__title {

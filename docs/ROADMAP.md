@@ -630,7 +630,7 @@ GDD: §3.1, §4.3. Needs 4.6 (the region's content ids are fixed with its projec
 - **Fixed ids:** area `ashenPass` (levels 24–28); enemies `ashWraith`, `cinderHound`, `pyreCultist`, `emberGolem`; boss `ashenWarden` (128×128). Art ids `area.ashen-pass`, `enemy.ash-wraith`, `enemy.cinder-hound`, `enemy.pyre-cultist`, `enemy.ember-golem`, `enemy.ashen-warden`.
 **Acceptance:** a contact sheet next to the Abbey art in the PR.
 
-### A.8 Achievement & guild heraldry icons — `todo`
+### A.8 Achievement & guild heraldry icons — `done (PR #TBD)`
 GDD: §3.1, §10.1. Needs 4.2 (achievement ids) and 4.4 (guild emblem choices). Match the 32×32 item icons.
 - Icons for the achievements and a small set of guild emblems (about 12) players can choose from (no uploads: no user images in Phase 4).
 - Budget: one or two 32px jobs; at most one regeneration. Manifest and `assets.ts` updated.

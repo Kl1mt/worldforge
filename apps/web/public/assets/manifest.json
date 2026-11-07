@@ -1293,6 +1293,292 @@
       "prompt": "dark fantasy pixel art, full body, side view, boss: the Ashen Warden, the burned keeper of the mountain pass, a towering armoured knight in scorched blackened plate with ornate aged brass trim, a tall crested helm with a narrow visor glowing faintly, wreathed in drifting ash and embers, a long charred tabard, wielding a huge two-handed greatsword with a smouldering blade, massive silhouette, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
       "source": "art/source/pixellab/boss-ashen-warden-01/02.png",
       "facing": "front"
+    },
+    {
+      "id": "achievement.first-epic",
+      "path": "/assets/achievements/first-epic.png",
+      "kind": "achievement",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour medallions and trophies: violet gemstone set in an aged brass medallion; longsword blade wreathed in faint embers; blood-red relic chalice; iron helm resting on a breastplate; blacksmith hammer; iron anvil with crossed hammer; iron laurel wreath medal; sword through a brass laurel wreath; broken crypt key snapped in two; stone stairway descending into darkness; skull above an extinguished candle; sealed scroll with crimson wax seal; leather coin purse with gold coins; nailed contract parchment with a dagger, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-achievements-01/00.png"
+    },
+    {
+      "id": "achievement.first-legendary",
+      "path": "/assets/achievements/first-legendary.png",
+      "kind": "achievement",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour medallions and trophies: violet gemstone set in an aged brass medallion; longsword blade wreathed in faint embers; blood-red relic chalice; iron helm resting on a breastplate; blacksmith hammer; iron anvil with crossed hammer; iron laurel wreath medal; sword through a brass laurel wreath; broken crypt key snapped in two; stone stairway descending into darkness; skull above an extinguished candle; sealed scroll with crimson wax seal; leather coin purse with gold coins; nailed contract parchment with a dagger, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-achievements-01/09.png"
+    },
+    {
+      "id": "achievement.first-mythic",
+      "path": "/assets/achievements/first-mythic.png",
+      "kind": "achievement",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour medallions and trophies: violet gemstone set in an aged brass medallion; longsword blade wreathed in faint embers; blood-red relic chalice; iron helm resting on a breastplate; blacksmith hammer; iron anvil with crossed hammer; iron laurel wreath medal; sword through a brass laurel wreath; broken crypt key snapped in two; stone stairway descending into darkness; skull above an extinguished candle; sealed scroll with crimson wax seal; leather coin purse with gold coins; nailed contract parchment with a dagger, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-achievements-01/16.png"
+    },
+    {
+      "id": "achievement.full-set",
+      "path": "/assets/achievements/full-set.png",
+      "kind": "achievement",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour medallions and trophies: violet gemstone set in an aged brass medallion; longsword blade wreathed in faint embers; blood-red relic chalice; iron helm resting on a breastplate; blacksmith hammer; iron anvil with crossed hammer; iron laurel wreath medal; sword through a brass laurel wreath; broken crypt key snapped in two; stone stairway descending into darkness; skull above an extinguished candle; sealed scroll with crimson wax seal; leather coin purse with gold coins; nailed contract parchment with a dagger, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-achievements-01/25.png"
+    },
+    {
+      "id": "achievement.forge-plus-5",
+      "path": "/assets/achievements/forge-plus-5.png",
+      "kind": "achievement",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour medallions and trophies: violet gemstone set in an aged brass medallion; longsword blade wreathed in faint embers; blood-red relic chalice; iron helm resting on a breastplate; blacksmith hammer; iron anvil with crossed hammer; iron laurel wreath medal; sword through a brass laurel wreath; broken crypt key snapped in two; stone stairway descending into darkness; skull above an extinguished candle; sealed scroll with crimson wax seal; leather coin purse with gold coins; nailed contract parchment with a dagger, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-achievements-01/32.png"
+    },
+    {
+      "id": "achievement.forge-plus-10",
+      "path": "/assets/achievements/forge-plus-10.png",
+      "kind": "achievement",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour medallions and trophies: violet gemstone set in an aged brass medallion; longsword blade wreathed in faint embers; blood-red relic chalice; iron helm resting on a breastplate; blacksmith hammer; iron anvil with crossed hammer; iron laurel wreath medal; sword through a brass laurel wreath; broken crypt key snapped in two; stone stairway descending into darkness; skull above an extinguished candle; sealed scroll with crimson wax seal; leather coin purse with gold coins; nailed contract parchment with a dagger, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-achievements-01/34.png"
+    },
+    {
+      "id": "achievement.level-10",
+      "path": "/assets/achievements/level-10.png",
+      "kind": "achievement",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour medallions and trophies: violet gemstone set in an aged brass medallion; longsword blade wreathed in faint embers; blood-red relic chalice; iron helm resting on a breastplate; blacksmith hammer; iron anvil with crossed hammer; iron laurel wreath medal; sword through a brass laurel wreath; broken crypt key snapped in two; stone stairway descending into darkness; skull above an extinguished candle; sealed scroll with crimson wax seal; leather coin purse with gold coins; nailed contract parchment with a dagger, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-achievements-01/37.png"
+    },
+    {
+      "id": "achievement.level-20",
+      "path": "/assets/achievements/level-20.png",
+      "kind": "achievement",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour medallions and trophies: violet gemstone set in an aged brass medallion; longsword blade wreathed in faint embers; blood-red relic chalice; iron helm resting on a breastplate; blacksmith hammer; iron anvil with crossed hammer; iron laurel wreath medal; sword through a brass laurel wreath; broken crypt key snapped in two; stone stairway descending into darkness; skull above an extinguished candle; sealed scroll with crimson wax seal; leather coin purse with gold coins; nailed contract parchment with a dagger, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-achievements-01/46.png"
+    },
+    {
+      "id": "achievement.gravewarden-slain",
+      "path": "/assets/achievements/gravewarden-slain.png",
+      "kind": "achievement",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour medallions and trophies: violet gemstone set in an aged brass medallion; longsword blade wreathed in faint embers; blood-red relic chalice; iron helm resting on a breastplate; blacksmith hammer; iron anvil with crossed hammer; iron laurel wreath medal; sword through a brass laurel wreath; broken crypt key snapped in two; stone stairway descending into darkness; skull above an extinguished candle; sealed scroll with crimson wax seal; leather coin purse with gold coins; nailed contract parchment with a dagger, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-achievements-01/edits/48-broken.png"
+    },
+    {
+      "id": "achievement.crypt-tier-2",
+      "path": "/assets/achievements/crypt-tier-2.png",
+      "kind": "achievement",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour medallions and trophies: violet gemstone set in an aged brass medallion; longsword blade wreathed in faint embers; blood-red relic chalice; iron helm resting on a breastplate; blacksmith hammer; iron anvil with crossed hammer; iron laurel wreath medal; sword through a brass laurel wreath; broken crypt key snapped in two; stone stairway descending into darkness; skull above an extinguished candle; sealed scroll with crimson wax seal; leather coin purse with gold coins; nailed contract parchment with a dagger, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-achievements-01/52.png"
+    },
+    {
+      "id": "achievement.crypt-tier-3",
+      "path": "/assets/achievements/crypt-tier-3.png",
+      "kind": "achievement",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour medallions and trophies: violet gemstone set in an aged brass medallion; longsword blade wreathed in faint embers; blood-red relic chalice; iron helm resting on a breastplate; blacksmith hammer; iron anvil with crossed hammer; iron laurel wreath medal; sword through a brass laurel wreath; broken crypt key snapped in two; stone stairway descending into darkness; skull above an extinguished candle; sealed scroll with crimson wax seal; leather coin purse with gold coins; nailed contract parchment with a dagger, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-achievements-01/57.png"
+    },
+    {
+      "id": "achievement.story-graumark",
+      "path": "/assets/achievements/story-graumark.png",
+      "kind": "achievement",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour medallions and trophies: violet gemstone set in an aged brass medallion; longsword blade wreathed in faint embers; blood-red relic chalice; iron helm resting on a breastplate; blacksmith hammer; iron anvil with crossed hammer; iron laurel wreath medal; sword through a brass laurel wreath; broken crypt key snapped in two; stone stairway descending into darkness; skull above an extinguished candle; sealed scroll with crimson wax seal; leather coin purse with gold coins; nailed contract parchment with a dagger, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-achievements-01/59.png"
+    },
+    {
+      "id": "achievement.contracts-10",
+      "path": "/assets/achievements/contracts-10.png",
+      "kind": "achievement",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour medallions and trophies: violet gemstone set in an aged brass medallion; longsword blade wreathed in faint embers; blood-red relic chalice; iron helm resting on a breastplate; blacksmith hammer; iron anvil with crossed hammer; iron laurel wreath medal; sword through a brass laurel wreath; broken crypt key snapped in two; stone stairway descending into darkness; skull above an extinguished candle; sealed scroll with crimson wax seal; leather coin purse with gold coins; nailed contract parchment with a dagger, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-achievements-01/60.png"
+    },
+    {
+      "id": "achievement.contracts-50",
+      "path": "/assets/achievements/contracts-50.png",
+      "kind": "achievement",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour medallions and trophies: violet gemstone set in an aged brass medallion; longsword blade wreathed in faint embers; blood-red relic chalice; iron helm resting on a breastplate; blacksmith hammer; iron anvil with crossed hammer; iron laurel wreath medal; sword through a brass laurel wreath; broken crypt key snapped in two; stone stairway descending into darkness; skull above an extinguished candle; sealed scroll with crimson wax seal; leather coin purse with gold coins; nailed contract parchment with a dagger, weathered aged brass, dark iron and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-achievements-01/62.png"
+    },
+    {
+      "id": "guild-emblem.anvil",
+      "path": "/assets/guild-emblems/anvil.png",
+      "kind": "guild-emblem",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art heraldic charge icons, one bold simple emblem silhouette per icon, centred, for a guild shield: anvil; crow with spread wings; castle tower; flame; skull; oak tree; howling wolf head; iron key; spiked crown; crescent moon; coiled serpent; chalice, aged brass and bone-white with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/emblems-guild-01/07.png"
+    },
+    {
+      "id": "guild-emblem.crow",
+      "path": "/assets/guild-emblems/crow.png",
+      "kind": "guild-emblem",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art heraldic charge icons, one bold simple emblem silhouette per icon, centred, for a guild shield: anvil; crow with spread wings; castle tower; flame; skull; oak tree; howling wolf head; iron key; spiked crown; crescent moon; coiled serpent; chalice, aged brass and bone-white with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/emblems-guild-01/09.png"
+    },
+    {
+      "id": "guild-emblem.tower",
+      "path": "/assets/guild-emblems/tower.png",
+      "kind": "guild-emblem",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art heraldic charge icons, one bold simple emblem silhouette per icon, centred, for a guild shield: anvil; crow with spread wings; castle tower; flame; skull; oak tree; howling wolf head; iron key; spiked crown; crescent moon; coiled serpent; chalice, aged brass and bone-white with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/emblems-guild-01/17.png"
+    },
+    {
+      "id": "guild-emblem.flame",
+      "path": "/assets/guild-emblems/flame.png",
+      "kind": "guild-emblem",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art heraldic charge icons, one bold simple emblem silhouette per icon, centred, for a guild shield: anvil; crow with spread wings; castle tower; flame; skull; oak tree; howling wolf head; iron key; spiked crown; crescent moon; coiled serpent; chalice, aged brass and bone-white with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/emblems-guild-01/25.png"
+    },
+    {
+      "id": "guild-emblem.skull",
+      "path": "/assets/guild-emblems/skull.png",
+      "kind": "guild-emblem",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art heraldic charge icons, one bold simple emblem silhouette per icon, centred, for a guild shield: anvil; crow with spread wings; castle tower; flame; skull; oak tree; howling wolf head; iron key; spiked crown; crescent moon; coiled serpent; chalice, aged brass and bone-white with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/emblems-guild-01/28.png"
+    },
+    {
+      "id": "guild-emblem.oak",
+      "path": "/assets/guild-emblems/oak.png",
+      "kind": "guild-emblem",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art heraldic charge icons, one bold simple emblem silhouette per icon, centred, for a guild shield: anvil; crow with spread wings; castle tower; flame; skull; oak tree; howling wolf head; iron key; spiked crown; crescent moon; coiled serpent; chalice, aged brass and bone-white with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/emblems-guild-01/33.png"
+    },
+    {
+      "id": "guild-emblem.wolf",
+      "path": "/assets/guild-emblems/wolf.png",
+      "kind": "guild-emblem",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art heraldic charge icons, one bold simple emblem silhouette per icon, centred, for a guild shield: anvil; crow with spread wings; castle tower; flame; skull; oak tree; howling wolf head; iron key; spiked crown; crescent moon; coiled serpent; chalice, aged brass and bone-white with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/emblems-guild-01/40.png"
+    },
+    {
+      "id": "guild-emblem.key",
+      "path": "/assets/guild-emblems/key.png",
+      "kind": "guild-emblem",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art heraldic charge icons, one bold simple emblem silhouette per icon, centred, for a guild shield: anvil; crow with spread wings; castle tower; flame; skull; oak tree; howling wolf head; iron key; spiked crown; crescent moon; coiled serpent; chalice, aged brass and bone-white with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/emblems-guild-01/49.png"
+    },
+    {
+      "id": "guild-emblem.crown",
+      "path": "/assets/guild-emblems/crown.png",
+      "kind": "guild-emblem",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art heraldic charge icons, one bold simple emblem silhouette per icon, centred, for a guild shield: anvil; crow with spread wings; castle tower; flame; skull; oak tree; howling wolf head; iron key; spiked crown; crescent moon; coiled serpent; chalice, aged brass and bone-white with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/emblems-guild-01/54.png"
+    },
+    {
+      "id": "guild-emblem.moon",
+      "path": "/assets/guild-emblems/moon.png",
+      "kind": "guild-emblem",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art heraldic charge icons, one bold simple emblem silhouette per icon, centred, for a guild shield: anvil; crow with spread wings; castle tower; flame; skull; oak tree; howling wolf head; iron key; spiked crown; crescent moon; coiled serpent; chalice, aged brass and bone-white with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/emblems-guild-01/56.png"
+    },
+    {
+      "id": "guild-emblem.serpent",
+      "path": "/assets/guild-emblems/serpent.png",
+      "kind": "guild-emblem",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art heraldic charge icons, one bold simple emblem silhouette per icon, centred, for a guild shield: anvil; crow with spread wings; castle tower; flame; skull; oak tree; howling wolf head; iron key; spiked crown; crescent moon; coiled serpent; chalice, aged brass and bone-white with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/emblems-guild-01/59.png"
+    },
+    {
+      "id": "guild-emblem.chalice",
+      "path": "/assets/guild-emblems/chalice.png",
+      "kind": "guild-emblem",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art heraldic charge icons, one bold simple emblem silhouette per icon, centred, for a guild shield: anvil; crow with spread wings; castle tower; flame; skull; oak tree; howling wolf head; iron key; spiked crown; crescent moon; coiled serpent; chalice, aged brass and bone-white with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/emblems-guild-01/62.png"
     }
   ]
 }

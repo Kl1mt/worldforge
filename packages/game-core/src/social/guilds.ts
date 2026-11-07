@@ -205,8 +205,8 @@ export const GUILD_LIMIT_REFUSALS = {
 export const GUILD_CREATE_COST = 5_000;
 
 /**
- * Emblems a guild can choose (no uploads: no player images in Phase 4). Placeholders until the art
- * ticket A.8 draws the 32×32 icons (`assetId`); the client draws a glyph on a shield meanwhile.
+ * Emblems a guild can choose (no uploads: no player images in Phase 4). Each has a 32×32 charge
+ * (`assetId`, art ticket A.8); the client falls back to the glyph on the shield if the art is missing.
  * Never rename or reuse an id: guilds store it.
  */
 export const GUILD_EMBLEMS = [
@@ -216,6 +216,12 @@ export const GUILD_EMBLEMS = [
   { id: 'flame', label: 'Flame', glyph: 'F', assetId: 'guild-emblem.flame' },
   { id: 'skull', label: 'Skull', glyph: 'S', assetId: 'guild-emblem.skull' },
   { id: 'oak', label: 'Oak', glyph: 'O', assetId: 'guild-emblem.oak' },
+  { id: 'wolf', label: 'Wolf', glyph: 'W', assetId: 'guild-emblem.wolf' },
+  { id: 'key', label: 'Key', glyph: 'K', assetId: 'guild-emblem.key' },
+  { id: 'crown', label: 'Crown', glyph: 'R', assetId: 'guild-emblem.crown' },
+  { id: 'moon', label: 'Moon', glyph: 'M', assetId: 'guild-emblem.moon' },
+  { id: 'serpent', label: 'Serpent', glyph: 'N', assetId: 'guild-emblem.serpent' },
+  { id: 'chalice', label: 'Chalice', glyph: 'H', assetId: 'guild-emblem.chalice' },
 ] as const;
 export type GuildEmblemId = (typeof GUILD_EMBLEMS)[number]['id'];
 export const GUILD_EMBLEM_IDS = GUILD_EMBLEMS.map((e) => e.id) as GuildEmblemId[];
