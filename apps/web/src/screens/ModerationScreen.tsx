@@ -9,6 +9,7 @@ import {
   type SanctionAction,
 } from '@worldforge/game-core';
 import type { ApiFailure } from '../lib/api';
+import { moderationCaseFromHash } from '../lib/route';
 import {
   describeSocialFailure,
   formatWhen,
@@ -76,10 +77,23 @@ export function ModerationScreen() {
       (res) => {
         if (!res.ok) return setState({ kind: 'error', error: res.error });
         setState({ kind: 'ready', queue: res.value });
+        // Ticket D.3: `#/moderation?case=<report id>` (from the admin panel's player file) opens
+        // the case holding that report, once.
+        const wanted = moderationCaseFromHash(window.location.hash);
+        const linked = wanted
+          ? res.value.cases.find((c) => c.reports.some((r) => r.id === wanted))
+          : undefined;
+        if (wanted) {
+          window.history.replaceState(null, '', '#/moderation');
+          if (!linked)
+            setNotice('That report is no longer open, or not on this page of the queue.');
+        }
         setSelected((s) =>
-          res.value.cases.some((c) => c.reportId === s)
-            ? s
-            : (res.value.cases[0]?.reportId ?? null),
+          linked
+            ? linked.reportId
+            : res.value.cases.some((c) => c.reportId === s)
+              ? s
+              : (res.value.cases[0]?.reportId ?? null),
         );
       },
       () => {

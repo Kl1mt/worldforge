@@ -565,6 +565,275 @@ const sortedDesc = <K>(m: Map<K, number>) => [...m.entries()].sort(([, a], [, b]
 
 const SOURCE_ORDER = ['farming', 'crypt', 'crypt_hoard', 'quest', 'contract', 'merchant', 'craft'];
 
+/** A table of the report: a header row and body rows (numbers unformatted). */
+export interface TelemetryTable {
+  headers: string[];
+  rows: (string | number)[][];
+}
+
+/**
+ * One section of the report over the rollups (ticket D.3 split it out of the text renderer, so the
+ * CLI and the admin panel show the same numbers): a title, tables, then one-line notes.
+ */
+export interface TelemetrySection {
+  title: string;
+  tables: TelemetryTable[];
+  notes: string[];
+}
+
+/** The rollup sections in report order; empty when nothing was recorded in the window. */
+export function telemetrySections(report: TelemetryReport): TelemetrySection[] {
+  const rows = report.rollups;
+  const sections: TelemetrySection[] = [];
+  if (rows.length === 0) return sections;
+  const section = (title: string): TelemetrySection => {
+    const s: TelemetrySection = { title, tables: [], notes: [] };
+    sections.push(s);
+    return s;
+  };
+
+  // Gold
+  const goldIn = group(rows, 'gold.in', (d) => d[0], 'amount');
+  const goldOut = group(rows, 'gold.out', (d) => d[0], 'amount');
+  const totalIn = [...goldIn.values()].reduce((s, n) => s + n, 0);
+  const totalOut = [...goldOut.values()].reduce((s, n) => s + n, 0);
+  const gold = section(
+    `Gold  in ${fmt(totalIn)}  ·  out ${fmt(totalOut)}  ·  net ${fmt(totalIn - totalOut)}`,
+  );
+  gold.tables.push({
+    headers: ['source', 'gold', 'share'],
+    rows: sortedDesc(goldIn).map(([k, n]) => [k, n, pct(n, totalIn)]),
+  });
+  if (goldOut.size > 0) {
+    gold.tables.push({
+      headers: ['sink', 'gold', 'share'],
+      rows: sortedDesc(goldOut).map(([k, n]) => [k, n, pct(n, totalOut)]),
+    });
+  }
+
+  // Drops by source × rarity
+  const drops = rows.filter((r) => r.metric === 'item.drop');
+  if (drops.length > 0) {
+    const s = section('Drops by source and rarity (every rolled item, whatever became of it)');
+    const sources = [...new Set(drops.map((r) => r.dims[0]))].sort(
+      (a, b) => SOURCE_ORDER.indexOf(a) - SOURCE_ORDER.indexOf(b),
+    );
+    s.tables.push({
+      headers: ['source', 'items', ...RARITY_IDS],
+      rows: sources.map((src) => {
+        const bySource = drops.filter((r) => r.dims[0] === src);
+        const total = bySource.reduce((n, r) => n + r.events, 0);
+        return [
+          src,
+          total,
+          ...RARITY_IDS.map((rar) =>
+            pct(
+              bySource.filter((r) => r.dims[2] === rar).reduce((n, r) => n + r.events, 0),
+              total,
+            ),
+          ),
+        ];
+      }),
+    });
+    const special = (metric: TelemetryMetric, label: string) => {
+      const m = group(rows, metric, (d) => `${d[0]} · ${d[1]}`);
+      if (m.size === 0) return;
+      const list = sortedDesc(m);
+      const shown = list.slice(0, 12).map(([k, n]) => `${k} ${fmt(n)}`);
+      if (list.length > 12) shown.push(`+${list.length - 12} more (see --json)`);
+      s.notes.push(`${label}: ${shown.join(', ')}`);
+    };
+    special('item.variant', 'Void');
+    special('item.effect', 'Effects');
+    special('item.set', 'Set pieces');
+
+    // Drops by area / crypt tier
+    const where = section('Drops by area or crypt tier');
+    const contexts = group(
+      drops.filter((r) => ['farming', 'crypt', 'crypt_hoard'].includes(r.dims[0])),
+      'item.drop',
+      (d) => `${d[0] === 'farming' ? 'area' : d[0]} ${d[1]}`,
+    );
+    const legendaryPlus = group(
+      drops.filter(
+        (r) =>
+          ['farming', 'crypt', 'crypt_hoard'].includes(r.dims[0]) &&
+          (r.dims[2] === 'legendary' || r.dims[2] === 'mythic'),
+      ),
+      'item.drop',
+      (d) => `${d[0] === 'farming' ? 'area' : d[0]} ${d[1]}`,
+    );
+    const hours = group<string>(rows, 'farming.settle', (d) => `area ${d[0]}`, 'amount');
+    where.tables.push({
+      headers: ['where', 'items', 'legendary+', 'items/h'],
+      rows: [...contexts.entries()]
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([k, n]) => {
+          const h = (hours.get(k) ?? 0) / 3600;
+          return [k, n, legendaryPlus.get(k) ?? 0, h > 0 ? (n / h).toFixed(1) : '—'];
+        }),
+    });
+  }
+
+  // Fates: filter vs overflow vs manual
+  const fates = rows.filter((r) => r.metric === 'item.fate');
+  if (fates.length > 0) {
+    const s = section(
+      'What became of drops (loot filter and full pack are automatic; sells/salvages are manual)',
+    );
+    const byFate = (f: string) =>
+      fates
+        .filter((r) => r.dims[1] === f)
+        .reduce((a, r) => [a[0]! + r.events, a[1]! + r.amount], [0, 0]);
+    const sold = rows.filter((r) => r.metric === 'item.sold');
+    const salvaged = rows.filter((r) => r.metric === 'item.salvaged');
+    const sum = (rs: RollupRow[]) =>
+      rs.reduce((a, r) => [a[0]! + r.events, a[1]! + r.amount], [0, 0]);
+    const overflowRuns = group(rows, 'pack.overflow', (d) => d[0]);
+    const discarded = sumRollups(rows, 'item.discarded');
+    s.tables.push({
+      headers: ['fate', 'items', 'gold'],
+      rows: [
+        ['kept in the pack', byFate('kept')[0]!, '—'],
+        ['pack full: valuable, kept over capacity', byFate('kept_over_capacity')[0]!, '—'],
+        ['loot filter: sold', ...(byFate('filter_sold') as [number, number])],
+        ['loot filter: salvaged', ...(byFate('filter_salvaged') as [number, number])],
+        ['pack full: auto-salvaged', byFate('overflow_salvaged')[0]!, '(in gold.in *_overflow)'],
+        ['manual: sold to merchant', ...(sum(sold) as [number, number])],
+        ['manual: salvaged at forge', ...(sum(salvaged) as [number, number])],
+        ['manual: discarded', discarded, '—'],
+      ],
+    });
+    if (overflowRuns.size > 0) {
+      s.notes.push(
+        `Full-pack overflows: ${[...overflowRuns.entries()]
+          .map(([src, n]) => `${src} ${fmt(n)} settlements/claims`)
+          .join(', ')}`,
+      );
+    }
+    const overRuns = group(rows, 'pack.over_capacity', (d) => d[0]);
+    if (overRuns.size > 0) {
+      s.notes.push(
+        `Valuable drops kept over capacity: ${[...overRuns.entries()]
+          .map(([src, n]) => `${src} ${fmt(n)} settlements/claims`)
+          .join(', ')}`,
+      );
+    }
+  }
+
+  // Crypt
+  const claims = rows.filter((r) => r.metric === 'crypt.claim');
+  const starts = group(rows, 'crypt.start', (d) => d[0]);
+  if (claims.length > 0 || starts.size > 0) {
+    const tiers = [...new Set([...claims.map((r) => r.dims[0]), ...starts.keys()])].sort();
+    section('Crypt tiers').tables.push({
+      headers: ['tier', 'started', 'won', 'lost', 'win rate', 'hoards'],
+      rows: tiers.map((t) => {
+        const won = sumRollups(claims, 'crypt.claim', (d) => d[0] === t && d[1] === 'won');
+        const lost = sumRollups(claims, 'crypt.claim', (d) => d[0] === t && d[1] === 'lost');
+        const hoards = sumRollups(claims, 'crypt.claim', (d) => d[0] === t && d[2] === 'hoard');
+        return [t, starts.get(t) ?? 0, won, lost, pct(won, won + lost), hoards];
+      }),
+    });
+  }
+
+  // Quests
+  const quests = rows.filter((r) => r.metric === 'quest.reward');
+  if (quests.length > 0) {
+    const by = group(quests, 'quest.reward', (d) => `${d[0]} · ${d[2]} reward`);
+    section('Quest and contract turn-ins').tables.push({
+      headers: ['kind · item reward', 'turn-ins'],
+      rows: sortedDesc(by).map(([k, n]) => [k, n]),
+    });
+  }
+
+  // Forge
+  const forge = rows.filter((r) => r.metric === 'forge');
+  if (forge.length > 0) {
+    const s = section('Forge');
+    const actions = ['salvage', 'craft', 'upgrade', 'reroll', 'improve'];
+    s.tables.push({
+      headers: ['action', 'uses', 'gold', 'materials'],
+      rows: actions
+        .filter((a) => forge.some((r) => r.dims[0] === a))
+        .map((a) => [
+          a,
+          sumRollups(forge, 'forge', (d) => d[0] === a),
+          a === 'salvage'
+            ? `+${fmt(sumRollups(rows, 'gold.in', (d) => d[0] === 'forge_salvage', 'amount'))}`
+            : sumRollups(rows, 'gold.out', (d) => d[0] === `forge_${a}`, 'amount'),
+          a === 'salvage'
+            ? `+${fmt(sumRollups(rows, 'material.in', (d) => d[0] === 'forge_salvage', 'amount'))}`
+            : sumRollups(rows, 'material.out', (d) => d[0] === `forge_${a}`, 'amount'),
+        ]),
+    });
+    const upgrades = forge.filter((r) => r.dims[0] === 'upgrade');
+    if (upgrades.length > 0) {
+      const levels = [...new Set(upgrades.map((r) => r.dims[1]))].sort(
+        (a, b) => Number(a.slice(1)) - Number(b.slice(1)),
+      );
+      s.tables.push({
+        headers: ['upgrade to', 'tries', 'success', 'guaranteed', 'failure', 'success rate'],
+        rows: levels.map((l) => {
+          const at = (o: string) => sumRollups(upgrades, 'forge', (d) => d[1] === l && d[2] === o);
+          const tries = sumRollups(upgrades, 'forge', (d) => d[1] === l);
+          return [
+            l,
+            tries,
+            at('success'),
+            at('guaranteed'),
+            at('failure'),
+            pct(at('success') + at('guaranteed'), tries),
+          ];
+        }),
+      });
+    }
+  }
+
+  // Materials
+  const matIn = group(rows, 'material.in', (d) => d[1], 'amount');
+  const matOut = group(rows, 'material.out', (d) => d[1], 'amount');
+  if (matIn.size > 0 || matOut.size > 0) {
+    const ids = [...new Set([...matIn.keys(), ...matOut.keys()])].sort();
+    section('Materials').tables.push({
+      headers: ['material', 'in', 'out', 'net'],
+      rows: ids.map((id) => [
+        id,
+        matIn.get(id) ?? 0,
+        matOut.get(id) ?? 0,
+        (matIn.get(id) ?? 0) - (matOut.get(id) ?? 0),
+      ]),
+    });
+  }
+
+  // Farming
+  const settles = rows.filter((r) => r.metric === 'farming.settle');
+  if (settles.length > 0) {
+    const xp = group(rows, 'xp.in', (d) => (d[0] === 'farming' ? d[1] : ''), 'amount');
+    const goldByArea = group(
+      rows,
+      'gold.in',
+      (d) => (d[0].startsWith('farming_') ? d[1] : ''),
+      'amount',
+    );
+    section('Farming').tables.push({
+      headers: ['area', 'settlements', 'hours', 'xp/h', 'gold/h'],
+      rows: settles.map((r) => {
+        const h = r.amount / 3600;
+        const area = r.dims[0];
+        return [
+          area,
+          r.events,
+          h.toFixed(1),
+          h > 0 ? Math.round((xp.get(area) ?? 0) / h) : 0,
+          h > 0 ? Math.round((goldByArea.get(area) ?? 0) / h) : 0,
+        ];
+      }),
+    });
+  }
+  return sections;
+}
+
 export function renderTelemetryReport(report: TelemetryReport): string {
   const { rollups: rows, window, snapshot } = report;
   const out: string[] = [];
@@ -587,279 +856,10 @@ export function renderTelemetryReport(report: TelemetryReport): string {
     );
     out.push('');
   } else {
-    // Gold
-    const goldIn = group(rows, 'gold.in', (d) => d[0], 'amount');
-    const goldOut = group(rows, 'gold.out', (d) => d[0], 'amount');
-    const totalIn = [...goldIn.values()].reduce((s, n) => s + n, 0);
-    const totalOut = [...goldOut.values()].reduce((s, n) => s + n, 0);
-    out.push(
-      `Gold  in ${fmt(totalIn)}  ·  out ${fmt(totalOut)}  ·  net ${fmt(totalIn - totalOut)}`,
-    );
-    out.push(
-      ...table(
-        ['source', 'gold', 'share'],
-        sortedDesc(goldIn).map(([k, n]) => [k, n, pct(n, totalIn)]),
-      ),
-    );
-    if (goldOut.size > 0) {
-      out.push(
-        ...table(
-          ['sink', 'gold', 'share'],
-          sortedDesc(goldOut).map(([k, n]) => [k, n, pct(n, totalOut)]),
-        ),
-      );
-    }
-    out.push('');
-
-    // Drops by source × rarity
-    const drops = rows.filter((r) => r.metric === 'item.drop');
-    if (drops.length > 0) {
-      out.push('Drops by source and rarity (every rolled item, whatever became of it)');
-      const sources = [...new Set(drops.map((r) => r.dims[0]))].sort(
-        (a, b) => SOURCE_ORDER.indexOf(a) - SOURCE_ORDER.indexOf(b),
-      );
-      const body = sources.map((s) => {
-        const bySource = drops.filter((r) => r.dims[0] === s);
-        const total = bySource.reduce((n, r) => n + r.events, 0);
-        return [
-          s,
-          total,
-          ...RARITY_IDS.map((rar) =>
-            pct(
-              bySource.filter((r) => r.dims[2] === rar).reduce((n, r) => n + r.events, 0),
-              total,
-            ),
-          ),
-        ];
-      });
-      out.push(...table(['source', 'items', ...RARITY_IDS], body));
-      const special = (metric: TelemetryMetric, label: string) => {
-        const m = group(rows, metric, (d) => `${d[0]} · ${d[1]}`);
-        if (m.size === 0) return;
-        const list = sortedDesc(m);
-        const shown = list.slice(0, 12).map(([k, n]) => `${k} ${fmt(n)}`);
-        if (list.length > 12) shown.push(`+${list.length - 12} more (see --json)`);
-        out.push(`  ${label}: ${shown.join(', ')}`);
-      };
-      special('item.variant', 'Void');
-      special('item.effect', 'Effects');
-      special('item.set', 'Set pieces');
-      out.push('');
-
-      // Drops by area / crypt tier
-      out.push('Drops by area or crypt tier');
-      const contexts = group(
-        drops.filter((r) => ['farming', 'crypt', 'crypt_hoard'].includes(r.dims[0])),
-        'item.drop',
-        (d) => `${d[0] === 'farming' ? 'area' : d[0]} ${d[1]}`,
-      );
-      const legendaryPlus = group(
-        drops.filter(
-          (r) =>
-            ['farming', 'crypt', 'crypt_hoard'].includes(r.dims[0]) &&
-            (r.dims[2] === 'legendary' || r.dims[2] === 'mythic'),
-        ),
-        'item.drop',
-        (d) => `${d[0] === 'farming' ? 'area' : d[0]} ${d[1]}`,
-      );
-      const hours = group<string>(rows, 'farming.settle', (d) => `area ${d[0]}`, 'amount');
-      out.push(
-        ...table(
-          ['where', 'items', 'legendary+', 'items/h'],
-          [...contexts.entries()]
-            .sort(([a], [b]) => a.localeCompare(b))
-            .map(([k, n]) => {
-              const h = (hours.get(k) ?? 0) / 3600;
-              return [k, n, legendaryPlus.get(k) ?? 0, h > 0 ? (n / h).toFixed(1) : '—'];
-            }),
-        ),
-      );
-      out.push('');
-    }
-
-    // Fates: filter vs overflow vs manual
-    const fates = rows.filter((r) => r.metric === 'item.fate');
-    if (fates.length > 0) {
-      out.push(
-        'What became of drops (loot filter and full pack are automatic; sells/salvages are manual)',
-      );
-      const byFate = (f: string) =>
-        fates
-          .filter((r) => r.dims[1] === f)
-          .reduce((a, r) => [a[0]! + r.events, a[1]! + r.amount], [0, 0]);
-      const sold = rows.filter((r) => r.metric === 'item.sold');
-      const salvaged = rows.filter((r) => r.metric === 'item.salvaged');
-      const sum = (rs: RollupRow[]) =>
-        rs.reduce((a, r) => [a[0]! + r.events, a[1]! + r.amount], [0, 0]);
-      const overflowRuns = group(rows, 'pack.overflow', (d) => d[0]);
-      const discarded = sumRollups(rows, 'item.discarded');
-      out.push(
-        ...table(
-          ['fate', 'items', 'gold'],
-          [
-            ['kept in the pack', byFate('kept')[0]!, '—'],
-            ['pack full: valuable, kept over capacity', byFate('kept_over_capacity')[0]!, '—'],
-            ['loot filter: sold', ...(byFate('filter_sold') as [number, number])],
-            ['loot filter: salvaged', ...(byFate('filter_salvaged') as [number, number])],
-            [
-              'pack full: auto-salvaged',
-              byFate('overflow_salvaged')[0]!,
-              '(in gold.in *_overflow)',
-            ],
-            ['manual: sold to merchant', ...(sum(sold) as [number, number])],
-            ['manual: salvaged at forge', ...(sum(salvaged) as [number, number])],
-            ['manual: discarded', discarded, '—'],
-          ],
-        ),
-      );
-      if (overflowRuns.size > 0) {
-        out.push(
-          `  Full-pack overflows: ${[...overflowRuns.entries()]
-            .map(([s, n]) => `${s} ${fmt(n)} settlements/claims`)
-            .join(', ')}`,
-        );
-      }
-      const overRuns = group(rows, 'pack.over_capacity', (d) => d[0]);
-      if (overRuns.size > 0) {
-        out.push(
-          `  Valuable drops kept over capacity: ${[...overRuns.entries()]
-            .map(([s, n]) => `${s} ${fmt(n)} settlements/claims`)
-            .join(', ')}`,
-        );
-      }
-      out.push('');
-    }
-
-    // Crypt
-    const claims = rows.filter((r) => r.metric === 'crypt.claim');
-    const starts = group(rows, 'crypt.start', (d) => d[0]);
-    if (claims.length > 0 || starts.size > 0) {
-      out.push('Crypt tiers');
-      const tiers = [...new Set([...claims.map((r) => r.dims[0]), ...starts.keys()])].sort();
-      out.push(
-        ...table(
-          ['tier', 'started', 'won', 'lost', 'win rate', 'hoards'],
-          tiers.map((t) => {
-            const won = sumRollups(claims, 'crypt.claim', (d) => d[0] === t && d[1] === 'won');
-            const lost = sumRollups(claims, 'crypt.claim', (d) => d[0] === t && d[1] === 'lost');
-            const hoards = sumRollups(claims, 'crypt.claim', (d) => d[0] === t && d[2] === 'hoard');
-            return [t, starts.get(t) ?? 0, won, lost, pct(won, won + lost), hoards];
-          }),
-        ),
-      );
-      out.push('');
-    }
-
-    // Quests
-    const quests = rows.filter((r) => r.metric === 'quest.reward');
-    if (quests.length > 0) {
-      out.push('Quest and contract turn-ins');
-      const by = group(quests, 'quest.reward', (d) => `${d[0]} · ${d[2]} reward`);
-      out.push(
-        ...table(
-          ['kind · item reward', 'turn-ins'],
-          sortedDesc(by).map(([k, n]) => [k, n]),
-        ),
-      );
-      out.push('');
-    }
-
-    // Forge
-    const forge = rows.filter((r) => r.metric === 'forge');
-    if (forge.length > 0) {
-      out.push('Forge');
-      const actions = ['salvage', 'craft', 'upgrade', 'reroll', 'improve'];
-      out.push(
-        ...table(
-          ['action', 'uses', 'gold', 'materials'],
-          actions
-            .filter((a) => forge.some((r) => r.dims[0] === a))
-            .map((a) => [
-              a,
-              sumRollups(forge, 'forge', (d) => d[0] === a),
-              a === 'salvage'
-                ? `+${fmt(sumRollups(rows, 'gold.in', (d) => d[0] === 'forge_salvage', 'amount'))}`
-                : sumRollups(rows, 'gold.out', (d) => d[0] === `forge_${a}`, 'amount'),
-              a === 'salvage'
-                ? `+${fmt(sumRollups(rows, 'material.in', (d) => d[0] === 'forge_salvage', 'amount'))}`
-                : sumRollups(rows, 'material.out', (d) => d[0] === `forge_${a}`, 'amount'),
-            ]),
-        ),
-      );
-      const upgrades = forge.filter((r) => r.dims[0] === 'upgrade');
-      if (upgrades.length > 0) {
-        const levels = [...new Set(upgrades.map((r) => r.dims[1]))].sort(
-          (a, b) => Number(a.slice(1)) - Number(b.slice(1)),
-        );
-        out.push(
-          ...table(
-            ['upgrade to', 'tries', 'success', 'guaranteed', 'failure', 'success rate'],
-            levels.map((l) => {
-              const at = (o: string) =>
-                sumRollups(upgrades, 'forge', (d) => d[1] === l && d[2] === o);
-              const tries = sumRollups(upgrades, 'forge', (d) => d[1] === l);
-              return [
-                l,
-                tries,
-                at('success'),
-                at('guaranteed'),
-                at('failure'),
-                pct(at('success') + at('guaranteed'), tries),
-              ];
-            }),
-          ),
-        );
-      }
-      out.push('');
-    }
-
-    // Materials
-    const matIn = group(rows, 'material.in', (d) => d[1], 'amount');
-    const matOut = group(rows, 'material.out', (d) => d[1], 'amount');
-    if (matIn.size > 0 || matOut.size > 0) {
-      out.push('Materials');
-      const ids = [...new Set([...matIn.keys(), ...matOut.keys()])].sort();
-      out.push(
-        ...table(
-          ['material', 'in', 'out', 'net'],
-          ids.map((id) => [
-            id,
-            matIn.get(id) ?? 0,
-            matOut.get(id) ?? 0,
-            (matIn.get(id) ?? 0) - (matOut.get(id) ?? 0),
-          ]),
-        ),
-      );
-      out.push('');
-    }
-
-    // Farming
-    const settles = rows.filter((r) => r.metric === 'farming.settle');
-    if (settles.length > 0) {
-      out.push('Farming');
-      const xp = group(rows, 'xp.in', (d) => (d[0] === 'farming' ? d[1] : ''), 'amount');
-      const gold = group(
-        rows,
-        'gold.in',
-        (d) => (d[0].startsWith('farming_') ? d[1] : ''),
-        'amount',
-      );
-      out.push(
-        ...table(
-          ['area', 'settlements', 'hours', 'xp/h', 'gold/h'],
-          settles.map((r) => {
-            const h = r.amount / 3600;
-            const area = r.dims[0];
-            return [
-              area,
-              r.events,
-              h.toFixed(1),
-              h > 0 ? Math.round((xp.get(area) ?? 0) / h) : 0,
-              h > 0 ? Math.round((gold.get(area) ?? 0) / h) : 0,
-            ];
-          }),
-        ),
-      );
+    for (const section of telemetrySections(report)) {
+      out.push(section.title);
+      for (const t of section.tables) out.push(...table(t.headers, t.rows));
+      for (const note of section.notes) out.push(`  ${note}`);
       out.push('');
     }
   }

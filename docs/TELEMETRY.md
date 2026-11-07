@@ -75,12 +75,13 @@ pnpm report:telemetry -- --out telemetry.json      # text on screen, JSON to a f
 
 A sample dataset: `pnpm --filter @worldforge/server telemetry:simulate` plays 24 simulated heroes (six per class, levels 1–23, half with a loot filter, crypt tiers I–III) through the real API for three game days into `.telemetry-sample/` (git-ignored; about a minute), then `PLAYTEST_DATA_DIR=.telemetry-sample pnpm report:telemetry`. Seeds are server-random, so numbers vary slightly between runs. Since ticket B.2 the default player is **realistic** (`--play realistic`: an earned starting purse, five visits a day, and at every visit it wears its best finds, sells and salvages the rest and spends its gold on upgrades; `docs/ECONOMY.md` "Balance pass: loot depth & economy"), and `--days 7` gives the week B.2 measured (about 8 minutes). `--play crude` is 3.8's player (it sells commons, salvages rares, upgrades its first epic; a fat purse and a settle every 3 h around the clock), a smoke test only.
 
-## Exposing it later (admin view)
+## Admin view (ticket D.3)
 
-No roles exist yet, so there is no endpoint. When an admin role arrives:
-1. Add `accounts.role` (or a `roles` table) and an `app.requireAdmin` pre-handler next to `app.requireAccount`, refusing with `404` (not `403`) like other hidden resources.
-2. Serve `GET /api/admin/telemetry?from=&to=` returning exactly the JSON above (`buildTelemetryReport`), read-only, on a read replica if one exists. Add `?reconcile=1` only behind a stricter rate limit (it scans the audit log).
-3. A web screen in the design system renders the same sections as the text report. Keep the privacy rule: aggregate rows only; for small populations, suppress groups below a minimum count (e.g. builds with fewer than 5 characters) before exposing it beyond developers.
+The admin panel's Telemetry tab (`#/admin/telemetry`) shows this report in the browser:
+- `GET /api/admin/telemetry?from=&to=&reconcile=true` (admins only, the not-found `404` for everyone else) returns `{ report, sections }`: `report` is exactly `buildTelemetryReport`'s JSON; `sections` are the rollup sections as the text report prints them. Both the CLI text (`renderTelemetryReport`) and the page come from `telemetrySections(report)`, so they never disagree. Read-only, on the primary (no replica yet).
+- `reconcile=true` scans the audit log, so it has its own limit: 3 per 5 minutes per admin (`429 rate_limited`, `details.limit: 'reconcile'`).
+- The window is the same inclusive UTC game days; a malformed day or `from > to` is `400`.
+- Privacy: aggregate rows only, as before. Small-group suppression (e.g. builds with fewer than 5 heroes) is **not** applied, because only admins (the owner) see the page; add it before exposing any of this beyond admins.
 
 ## Limits
 

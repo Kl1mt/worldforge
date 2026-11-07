@@ -1,9 +1,9 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { and, desc, eq, gt, isNull, lt, or, sql } from 'drizzle-orm';
-import { inviteCodes, type InviteCode } from '../db/schema.js';
+import { and, asc, desc, eq, gt, inArray, isNull, lt, or, sql } from 'drizzle-orm';
+import { accounts, auditLog, inviteCodes, type InviteCode } from '../db/schema.js';
 import { writeAudit } from '../db/audit.js';
 import { withTransaction } from '../db/transaction.js';
-import type { Database, Executor } from '../db/types.js';
+import type { Database, Executor, Transaction } from '../db/types.js';
 import { uuidv7 } from '../db/uuid.js';
 
 /**
@@ -68,8 +68,16 @@ export interface CreateInviteInput {
   expiresAt: Date | null;
   note: string;
   createdByAccountId?: string | null;
-  via: 'cli';
+  /** `cli`: `pnpm admin:invite`; `admin`: the admin panel (ticket D.3). */
+  via: InviteVia;
+  /**
+   * Runs first inside the transaction (ticket D.3: the admin panel re-checks the actor's role
+   * under a share lock there, so a role revoked by the CLI stops the very next create).
+   */
+  guard?: (tx: Transaction) => Promise<void>;
 }
+
+export type InviteVia = 'cli' | 'admin';
 
 export interface CreatedInvite {
   /** The plain code. Returned once, never stored or logged. */
@@ -92,6 +100,7 @@ export async function createInvite(
   if (note.length > INVITE_NOTE_MAX) throw new Error(`Note too long (max ${INVITE_NOTE_MAX})`);
   const code = newInviteCode();
   const invite = await withTransaction(db, async (tx) => {
+    await input.guard?.(tx);
     const [row] = await tx
       .insert(inviteCodes)
       .values({
@@ -134,6 +143,17 @@ export async function revokeInvite(
   db: Database,
   idOrCode: string,
   now: Date,
+  {
+    via = 'cli',
+    actorAccountId = null,
+    guard,
+  }: {
+    via?: InviteVia;
+    /** The admin who revoked it (the panel); null from the CLI. */
+    actorAccountId?: string | null;
+    /** Like `CreateInviteInput.guard`. */
+    guard?: (tx: Transaction) => Promise<void>;
+  } = {},
 ): Promise<{ invite: InviteCode; changed: boolean } | null> {
   const s = idOrCode.trim();
   const normalized = UUID_RE.test(s) ? null : normalizeInviteCode(s);
@@ -142,6 +162,7 @@ export async function revokeInvite(
     ? eq(inviteCodes.codeHash, inviteCodeHash(normalized))
     : eq(inviteCodes.id, s.toLowerCase());
   return withTransaction(db, async (tx) => {
+    await guard?.(tx);
     const [row] = await tx.select().from(inviteCodes).where(where).for('update');
     if (!row) return null;
     if (row.revokedAt) return { invite: row, changed: false };
@@ -152,7 +173,8 @@ export async function revokeInvite(
       .returning();
     await writeAudit(tx, {
       event: 'invite.revoke',
-      data: { inviteId: row.id, uses: row.uses, via: 'cli' },
+      accountId: actorAccountId,
+      data: { inviteId: row.id, uses: row.uses, via },
     });
     return { invite: updated!, changed: true };
   });
@@ -181,4 +203,44 @@ export async function redeemInvite(tx: Executor, input: string, now: Date): Prom
     )
     .returning({ id: inviteCodes.id });
   return row?.id ?? null;
+}
+
+export interface InviteRedemption {
+  inviteId: string;
+  accountId: string;
+  handle: string;
+  displayName: string;
+  registeredAt: Date;
+}
+
+/**
+ * Which accounts each invite created (ticket D.3), from the `account.register` audit rows'
+ * `data.inviteId` (D.2 stores the id, never the code). Accounts deleted since are left out.
+ * Oldest first within an invite.
+ */
+export async function inviteRedemptions(
+  db: Executor,
+  inviteIds: string[],
+): Promise<Map<string, InviteRedemption[]>> {
+  const out = new Map<string, InviteRedemption[]>();
+  if (inviteIds.length === 0) return out;
+  const inviteId = sql<string>`${auditLog.data}->>'inviteId'`;
+  const rows = await db
+    .select({
+      inviteId,
+      accountId: accounts.id,
+      handle: accounts.handle,
+      displayName: accounts.displayName,
+      registeredAt: auditLog.createdAt,
+    })
+    .from(auditLog)
+    .innerJoin(accounts, eq(accounts.id, auditLog.accountId))
+    .where(and(eq(auditLog.event, 'account.register'), inArray(inviteId, inviteIds)))
+    .orderBy(asc(auditLog.createdAt), asc(auditLog.id));
+  for (const r of rows) {
+    const list = out.get(r.inviteId) ?? [];
+    list.push(r);
+    out.set(r.inviteId, list);
+  }
+  return out;
 }

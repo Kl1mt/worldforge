@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import {
+  adminHref,
+  adminLocation,
+  moderationCaseFromHash,
+  moderationCaseHref,
   AUTH_ROUTES,
   GAME_ROUTES,
   LEGAL_ROUTES,
@@ -106,5 +110,30 @@ describe('profile links (ticket 4.2)', () => {
   it('builds profile links', () => {
     expect(profileHref()).toBe('#/profile');
     expect(profileHref('abc123def456')).toBe('#/profile/abc123def456');
+  });
+});
+
+describe('admin panel links (ticket D.3)', () => {
+  it('parses the section and its argument', () => {
+    expect(parseRoute('#/admin')).toBe('admin');
+    expect(parseRoute('#/admin/players/abc')).toBe('admin');
+    expect(adminLocation('#/admin')).toEqual({ section: 'invites', arg: null });
+    expect(adminLocation('#/admin/status')).toEqual({ section: 'status', arg: null });
+    expect(adminLocation('#/admin/players/ABCDEFGHJKMN')).toEqual({
+      section: 'players',
+      arg: 'abcdefghjkmn',
+    });
+    expect(adminLocation('#/admin/nonsense')).toEqual({ section: 'invites', arg: null });
+    expect(adminHref('players', 'abc')).toBe('#/admin/players/abc');
+    expect(adminHref('roles')).toBe('#/admin/roles');
+  });
+
+  it('links into a moderator-queue case', () => {
+    const id = '0190a0b0-0000-7000-8000-000000000001';
+    expect(moderationCaseHref(id)).toBe(`#/moderation?case=${id}`);
+    expect(parseRoute(moderationCaseHref(id))).toBe('moderation');
+    expect(moderationCaseFromHash(moderationCaseHref(id))).toBe(id);
+    expect(moderationCaseFromHash('#/moderation')).toBeNull();
+    expect(moderationCaseFromHash('#/moderation?case=<x>')).toBeNull();
   });
 });

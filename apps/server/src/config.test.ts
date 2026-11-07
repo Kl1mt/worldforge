@@ -16,6 +16,7 @@ describe('loadConfig', () => {
       settleIntervalSeconds: 300,
       registrationMode: 'open',
       legalDir: undefined,
+      build: { gitSha: null, buildTime: null },
     });
   });
 
@@ -34,6 +35,8 @@ describe('loadConfig', () => {
         SETTLE_INTERVAL_SECONDS: '0',
         REGISTRATION_MODE: 'invite',
         LEGAL_DIR: '/srv/legal',
+        WORLDFORGE_GIT_SHA: '9fbd2cc',
+        WORLDFORGE_BUILD_TIME: '2026-11-06T12:00:00Z',
       }),
     ).toEqual({
       host: '0.0.0.0',
@@ -48,6 +51,7 @@ describe('loadConfig', () => {
       settleIntervalSeconds: 0,
       registrationMode: 'invite',
       legalDir: '/srv/legal',
+      build: { gitSha: '9fbd2cc', buildTime: '2026-11-06T12:00:00Z' },
     });
   });
 
@@ -58,6 +62,13 @@ describe('loadConfig', () => {
     expect(loadConfig({ REGISTRATION_MODE: 'closed' }).registrationMode).toBe('closed');
     expect(() => loadConfig({ REGISTRATION_MODE: 'invites' })).toThrow(/REGISTRATION_MODE/);
     expect(loadConfig({ LEGAL_DIR: '  ' }).legalDir).toBeUndefined();
+  });
+
+  it('reads the build labels (ticket D.3), ignoring unknown or malformed ones', () => {
+    expect(loadConfig({ WORLDFORGE_GIT_SHA: 'unknown', WORLDFORGE_BUILD_TIME: 'x' }).build).toEqual(
+      { gitSha: null, buildTime: null },
+    );
+    expect(loadConfig({ WORLDFORGE_GIT_SHA: '<script>' }).build.gitSha).toBeNull();
   });
 
   it('rejects an invalid port', () => {
