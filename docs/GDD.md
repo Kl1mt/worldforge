@@ -514,7 +514,7 @@ Track aggregate metrics such as session frequency, offline return rates, area ef
 | Item Awakening | Optional late-game feature; not an early commitment. |
 | Leaderboard formula | Open; define and publish understandable metrics before release. |
 | PvP format and normalization | Open; prototype asynchronous 1v1 first. |
-| Trading and item binding | Open; decide before enabling player-to-player trade. |
+| Trading and item binding | **Proposed in `docs/TRADING.md` (ticket 4.10), awaiting owner sign-off.** Not decided; trading stays off until the owner answers the document's questions. In short: items only (no gold or materials), fresh Epic/Legendary/set pieces tradeable once between friends or guildmates, Mythic, Void, boss-hoard and reward items account-bound, and a shared account shelf for moving items between one's own heroes. |
 | Monetization | Deferred; must preserve fair progression. |
 
 ## 18. Product Success Criteria
