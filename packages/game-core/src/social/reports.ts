@@ -2,7 +2,7 @@
  * Report targets and reasons (ticket 4.1, docs/SOCIAL.md "Reports").
  *
  * `ReportTarget` is a discriminated union that later tickets extend: 4.1 has `player` and
- * `profileField` (the display name); profiles (4.2) add `characterName`, guilds add `{ kind: 'guild', guildId }`, chat adds `{ kind: 'message', messageId }`.
+ * `profileField` (the display name); profiles (4.2) add `characterName`, guilds add `{ kind: 'guild', handle }`, guild chat (4.5) adds `{ kind: 'message', id }`.
  * Each new kind adds itself here and registers a resolver on the server
  * (`apps/server/src/social/targets.ts`). Targets name players by their public handle, never by
  * account id.
@@ -16,7 +16,9 @@ export type ReportTarget =
   /** Ticket 4.2: a character's name, as shown on its owner's profile (names are permanent). */
   | { kind: 'characterName'; handle: string; name: string }
   /** Ticket 4.4: a guild (its name and tag), by the guild's opaque handle. The subject is its leader. */
-  | { kind: 'guild'; handle: string };
+  | { kind: 'guild'; handle: string }
+  /** Ticket 4.5: a guild chat message or guild notice, by its id. The subject is its author. */
+  | { kind: 'message'; id: string };
 
 export type ReportTargetKind = ReportTarget['kind'];
 
@@ -32,6 +34,8 @@ export const REPORT_TARGET_KINDS: Record<ReportTargetKind, ReportTargetKindInfo>
   characterName: { hideable: true, label: 'Character name' },
   // Moderators rename or disband a guild (`renameGuild`, `disbandGuild`) rather than hide it.
   guild: { hideable: false, label: 'Guild' },
+  // Ticket 4.5: a hidden message renders as a tombstone for everyone in the guild.
+  message: { hideable: true, label: 'Guild chat message' },
 };
 
 export const REPORT_TARGET_KIND_IDS = Object.keys(REPORT_TARGET_KINDS) as ReportTargetKind[];

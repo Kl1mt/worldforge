@@ -11,6 +11,7 @@ export const PLAYER_TEXT_KINDS = [
   'guildTag',
   'profileField',
   'chatMessage',
+  'guildNotice',
   'reportNote',
   'sanctionReason',
 ] as const;
@@ -83,6 +84,15 @@ export const PLAYER_TEXT_RULES: Record<PlayerTextKind, PlayerTextRule> = {
     min: 1,
     max: 300,
     multiline: false,
+    blockList: true,
+    reserved: false,
+    links: 'deny',
+  },
+  // Ticket 4.5: the guild notice the leader and officers pin above the chat (a few short lines).
+  guildNotice: {
+    min: 1,
+    max: 400,
+    multiline: true,
     blockList: true,
     reserved: false,
     links: 'deny',

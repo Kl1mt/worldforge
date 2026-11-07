@@ -17,6 +17,7 @@ import { useCharacters } from '../characters/CharactersProvider';
 import { useAuth } from '../auth/AuthProvider';
 import { ReportDialog } from '../social/ReportDialog';
 import { Crest } from '../social/Crest';
+import { GuildChat } from './GuildChat';
 import {
   describeGuildFailure,
   guildApi,
@@ -197,7 +198,13 @@ function GuildHall() {
         </>
       ) : null}
       {state.kind === 'ready' && state.view.guild ? (
-        <MyGuildPage guild={state.view.guild} stale={state.stale} runner={runner} />
+        <MyGuildPage
+          key={state.view.guild.handle}
+          guild={state.view.guild}
+          stale={state.stale}
+          runner={runner}
+          reload={reload}
+        />
       ) : null}
       {state.kind === 'ready' && !state.view.guild ? (
         <HallBoard view={state.view} runner={runner} />
@@ -612,7 +619,17 @@ const RANKS: { role: GuildRole; title: string }[] = [
   { role: 'member', title: 'Sworn members' },
 ];
 
-function MyGuildPage({ guild, stale, runner }: { guild: MyGuild; stale: boolean; runner: Runner }) {
+function MyGuildPage({
+  guild,
+  stale,
+  runner,
+  reload,
+}: {
+  guild: MyGuild;
+  stale: boolean;
+  runner: Runner;
+  reload: () => void;
+}) {
   const { notice, busy, run } = runner;
   const [reporting, setReporting] = useState<GuildMemberEntry | null>(null);
   const me = guild.role;
@@ -649,45 +666,49 @@ function MyGuildPage({ guild, stale, runner }: { guild: MyGuild; stale: boolean;
       <NoticeLine notice={notice} />
 
       <div className="guildhall__body">
-        <div className="guildroll panel-iron">
-          {RANKS.map(({ role, title }) => {
-            const rows = guild.members.filter((m) => m.role === role);
-            if (rows.length === 0 && role !== 'member') return null;
-            return (
-              <section
-                key={role}
-                className={`guildroll__rank guildroll__rank--${role}`}
-                aria-label={title}
-              >
-                <h2 className="rule-heading">
-                  {title} <span className="guildroll__count">{rows.length}</span>
-                </h2>
-                {rows.length === 0 ? (
-                  <p className="fellowship__empty">
-                    No one has sworn in yet. Officers send for recruits.
-                  </p>
-                ) : (
-                  <ul className="roll">
-                    {rows.map((m) => (
-                      <MemberRow
-                        key={m.handle}
-                        member={m}
-                        self={m.handle === selfHandle}
-                        can={can}
-                        busy={busy}
-                        run={run}
-                        onReport={setReporting}
-                      />
-                    ))}
-                  </ul>
-                )}
-              </section>
-            );
-          })}
-          <p className="fellowship__fine">
-            Guildmates see each other’s lantern (“online now”, “today”, “this week”), never a time.
-            Hide yours on the Companions screen.
-          </p>
+        <div className="guildhall__main">
+          {/* Ticket 4.5: the chat. Leaving or a kick closes it at once and refreshes the hall. */}
+          <GuildChat onClosed={reload} />
+          <div className="guildroll panel-iron">
+            {RANKS.map(({ role, title }) => {
+              const rows = guild.members.filter((m) => m.role === role);
+              if (rows.length === 0 && role !== 'member') return null;
+              return (
+                <section
+                  key={role}
+                  className={`guildroll__rank guildroll__rank--${role}`}
+                  aria-label={title}
+                >
+                  <h2 className="rule-heading">
+                    {title} <span className="guildroll__count">{rows.length}</span>
+                  </h2>
+                  {rows.length === 0 ? (
+                    <p className="fellowship__empty">
+                      No one has sworn in yet. Officers send for recruits.
+                    </p>
+                  ) : (
+                    <ul className="roll">
+                      {rows.map((m) => (
+                        <MemberRow
+                          key={m.handle}
+                          member={m}
+                          self={m.handle === selfHandle}
+                          can={can}
+                          busy={busy}
+                          run={run}
+                          onReport={setReporting}
+                        />
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              );
+            })}
+            <p className="fellowship__fine">
+              Guildmates see each other’s lantern (“online now”, “today”, “this week”), never a
+              time. Hide yours on the Companions screen.
+            </p>
+          </div>
         </div>
 
         <aside className="guildhall__side">

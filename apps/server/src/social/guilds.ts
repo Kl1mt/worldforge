@@ -59,6 +59,7 @@ import {
   relationsFor,
 } from './relations.js';
 import { hiddenTargetKeys } from './sanctions.js';
+import { latestSeq } from './chat-model.js';
 import { assertSocialWriteAllowed, socialWrite } from './social-write.js';
 import { profileFieldKey } from './targets.js';
 import { assertPlayerText } from './text.js';
@@ -1223,6 +1224,8 @@ export async function registerGuilds(
       guildName: guild.name,
       target: them.id,
       targetRole: theirRole,
+      // Ticket 4.5: the last chat line they could have read (the chat is read under this lock).
+      chatSeq: await latestSeq(tx, guild.id),
     });
   });
 
@@ -1261,7 +1264,11 @@ export async function registerGuilds(
       memberWrite(request, reply, 'guildLeave', none, async ({ tx, me, guild, standing }) => {
         decide(standing, 'leave');
         await tx.delete(guildMembers).where(eq(guildMembers.accountId, me.id));
-        await auditGuild(tx, 'guild.leave', me.id, { guildId: guild!.id, role: standing });
+        await auditGuild(tx, 'guild.leave', me.id, {
+          guildId: guild!.id,
+          role: standing,
+          chatSeq: await latestSeq(tx, guild!.id),
+        });
         return { ok: true };
       }),
   );

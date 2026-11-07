@@ -6,3 +6,4 @@ export * from './sanctions.js';
 export * from './profiles.js';
 export * from './relations.js';
 export * from './guilds.js';
+export * from './guild-chat.js';

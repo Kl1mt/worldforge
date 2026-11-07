@@ -356,6 +356,7 @@ A separate table so the frequent upsert never waits on the account row's locks. 
 | created_at | timestamptz | |
 | disbanded_at | timestamptz? | set on disband; the row stays (reports, audit) and frees the name and tag |
 | rename_required, rename_reason, renamed_from | boolean, text?, text? | a moderator's forced rename: the leader must choose a new name (not `renamed_from`) |
+| notice_message_id | uuid? | ticket 4.5: the current guild notice, a `guild_messages` row of kind `notice` (no FK: the tables would reference each other; changed only under the guild's lock) |
 
 No leader column: the leader is the guild's one `guild_members` row with role `leader`.
 
@@ -369,6 +370,20 @@ No leader column: the leader is the guild's one `guild_members` row with role `l
 
 ### guild_invites, guild_applications — implemented (4.4)
 `guild_invites (guild_id, account_id, invited_by?, created_at)` and `guild_applications (guild_id, account_id, created_at)`, primary key `(guild_id, account_id)`, indexed on `account_id`, cascading with the guild and the account. Joining a guild deletes the joiner's other invites and applications; disbanding deletes the guild's.
+
+### guild_messages — implemented (4.5)
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid PK | uuidv7; the public message id (report target `{ kind: 'message', id }`, key `message:<id>`) |
+| guild_id | uuid FK | → `guilds.id` `ON DELETE CASCADE` |
+| seq | integer | per guild, `max + 1` under the guild's lock, so lines commit in `seq` order; unique `(guild_id, seq)` (the cursor index) |
+| author_id | uuid? FK | → `accounts.id` `ON DELETE SET NULL` |
+| kind | text | `chat` or `notice` (check) |
+| body | text | text module `chatMessage` (1–300) or `guildNotice` (1–400, multiline); kept after a removal as evidence, never sent once removed or hidden |
+| created_at | timestamptz | |
+| removed_at, removed_by, removed_as | timestamptz?, uuid? FK (`SET NULL`), text? | `withdrawn` (the author) or `removed` (an officer or the leader), check |
+
+Readable: the newest 500 lines of a guild and none older than 30 days (`GUILD_CHAT_LIMITS`); older rows stay stored, unserved. A moderator's `hide` is a sanction on the key, not a column.
 
 ## Relationships
 
@@ -386,6 +401,7 @@ account 1─* reports (as reporter and as subject), 1─* sanctions
 account 1─* account_achievements (≤ 1 per achievement); account 0..1─1 showcase character
 account *─* account via friendships (one row per pair) and blocks (directional); account 1─0..1 account_presence
 account 1─0..1 guild_members *─1 guild 1─* guild_invites, guild_applications
+guild 1─* guild_messages *─0..1 account (author); guild 0..1─1 guild_messages (the notice)
 character 1─* merchant_purchases
 ```
 
