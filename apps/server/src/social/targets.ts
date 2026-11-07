@@ -6,8 +6,9 @@ import {
   type ReportTarget,
   type ReportTargetKind,
 } from '@worldforge/game-core';
-import { accounts, characters, type Account } from '../db/schema.js';
+import { accounts, characters, guilds, type Account } from '../db/schema.js';
 import type { Executor } from '../db/types.js';
+import { guildByHandle, guildLeaderId, guildTargetKey } from './guild-model.js';
 
 /**
  * Report target registry (ticket 4.1, docs/SOCIAL.md "Reports"). Each kind of game-core
@@ -80,6 +81,27 @@ const RESOLVERS: { [K in ReportTargetKind]: Resolver<K> } = {
       context: { displayName: subject.displayName, value: hero.name },
     };
   },
+  // Ticket 4.4: a guild (name and tag). The subject is its leader at the time of the report.
+  guild: async (executor, t) => {
+    if (typeof t.handle !== 'string') return null;
+    const guild = await guildByHandle(executor, t.handle);
+    if (!guild) return null;
+    const leaderId = await guildLeaderId(executor, guild.id);
+    if (!leaderId) return null;
+    const [subject] = await executor.select().from(accounts).where(eq(accounts.id, leaderId));
+    if (!subject) return null;
+    return {
+      subject,
+      key: guildTargetKey(guild.id),
+      target: { kind: 'guild', handle: guild.handle },
+      context: {
+        displayName: subject.displayName,
+        value: `${guild.name} [${guild.tag}]`,
+        name: guild.name,
+        tag: guild.tag,
+      },
+    };
+  },
 };
 
 export function characterNameKey(characterId: string): string {
@@ -99,6 +121,21 @@ export async function currentTargetValues(
     .map((r) => r.key)
     .filter((k) => k.startsWith('characterName:'))
     .map((k) => k.slice('characterName:'.length));
+  const guildIds = rows
+    .map((r) => r.key)
+    .filter((k) => k.startsWith('guild:'))
+    .map((k) => k.slice('guild:'.length));
+  const guildRows = guildIds.length
+    ? await executor
+        .select({
+          id: guilds.id,
+          name: guilds.name,
+          tag: guilds.tag,
+          disbandedAt: guilds.disbandedAt,
+        })
+        .from(guilds)
+        .where(inArray(guilds.id, guildIds))
+    : [];
   const heroes = heroIds.length
     ? await executor
         .select({ id: characters.id, name: characters.name })
@@ -109,6 +146,12 @@ export async function currentTargetValues(
     if (r.key.startsWith('characterName:')) {
       const hero = heroes.find((h) => characterNameKey(h.id) === r.key);
       out.set(r.key, hero?.name ?? '(character deleted)');
+    } else if (r.key.startsWith('guild:')) {
+      const g = guildRows.find((x) => guildTargetKey(x.id) === r.key);
+      out.set(
+        r.key,
+        !g ? '(guild gone)' : `${g.name} [${g.tag}]${g.disbandedAt ? ' (disbanded)' : ''}`,
+      );
     } else out.set(r.key, r.subject.displayName);
   }
   return out;
@@ -160,6 +203,12 @@ export const reportTargetSchema = {
         handle: handleSchema,
         name: { type: 'string', minLength: 1, maxLength: 64 },
       },
+    },
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['kind', 'handle'],
+      properties: { kind: { const: 'guild' }, handle: handleSchema },
     },
   ],
 } as const;

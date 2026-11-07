@@ -2,13 +2,15 @@
  * Permission matrix (ticket 4.1, docs/SOCIAL.md "Roles"): every account role × every moderation
  * action, through the HTTP API, including acting on oneself, on another moderator and on an admin.
  * The expected table is written out by hand, so a rule change has to change it here too.
+ * Ticket 4.4: `renameGuild` and `disbandGuild` act on a reported guild whose leader is the subject.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { eq } from 'drizzle-orm';
 import { MODERATION_ACTIONS, type AccountRole, type ModerationAction } from '@worldforge/game-core';
 import { buildApp } from '../app.js';
-import { reports, sanctions } from '../db/schema.js';
+import { guildMembers, guilds, reports, sanctions } from '../db/schema.js';
+import { insertGuild } from '../test/guilds.js';
 import type { DatabaseHandle } from '../db/types.js';
 import { uuidv7 } from '../db/uuid.js';
 import { createTestDatabase } from '../test/db.js';
@@ -62,11 +64,23 @@ describe('moderation permission matrix', () => {
     return s === 'self' ? actor : insertAccount(database.db, { role: s });
   }
 
+  /** The handle of a guild the subject leads (one per account: reused for the self cases). */
+  async function guildLedBy(subject: TestAccount): Promise<string> {
+    const [row] = await database.db
+      .select({ handle: guilds.handle })
+      .from(guildMembers)
+      .innerJoin(guilds, eq(guilds.id, guildMembers.guildId))
+      .where(eq(guildMembers.accountId, subject.id));
+    return row?.handle ?? (await insertGuild(database.db, subject.id)).handle;
+  }
+
   async function openReport(subject: TestAccount, action: ModerationAction): Promise<string> {
     const target =
       action === 'hideContent'
         ? { kind: 'profileField', handle: subject.handle, field: 'displayName' }
-        : { kind: 'player', handle: subject.handle };
+        : action === 'renameGuild' || action === 'disbandGuild'
+          ? { kind: 'guild', handle: await guildLedBy(subject) }
+          : { kind: 'player', handle: subject.handle };
     const res = await call(reporter, 'POST', '/api/reports', { target, reason: 'other' });
     if (res.statusCode === 201) return res.json().report.id;
     // Self cases reuse the actor, so the open report from an earlier case is still there.
@@ -94,7 +108,9 @@ describe('moderation permission matrix', () => {
     const body =
       action === 'dismissReport'
         ? { action: 'dismiss' }
-        : { action, reason: 'Matrix test', durationHours: 24 };
+        : action === 'renameGuild' || action === 'disbandGuild'
+          ? { action, reason: 'Matrix test' }
+          : { action, reason: 'Matrix test', durationHours: 24 };
     const res = await call(actor, 'POST', `/api/mod/reports/${reportId}/resolve`, body);
     const [row] = await database.db.select().from(reports).where(eq(reports.id, reportId));
     return { res, changed: row!.status !== 'open' };

@@ -10,6 +10,7 @@ import {
   type CharacterAppearance,
   type ClassId,
   type EquipmentSlotId,
+  type GuildRole,
   type ProfileRelation,
   type ProfileVisibility,
   type Relation,
@@ -26,9 +27,10 @@ import { writeAudit } from '../db/audit.js';
 import type { Executor } from '../db/types.js';
 import { ApiError } from '../errors.js';
 import { normalizeDisplayName } from '../auth/validation.js';
-import { relationBetween } from './relations.js';
+import { isBlockedEitherWay, relationBetween } from './relations.js';
 import { hiddenTargetKeys } from './sanctions.js';
 import { socialWrite } from './social-write.js';
+import { areGuildmates, guildLeaderId, publicGuildOf } from './guild-model.js';
 import { characterNameKey, profileFieldKey } from './targets.js';
 
 /**
@@ -39,16 +41,20 @@ import { characterNameKey, profileFieldKey } from './targets.js';
 
 /**
  * The viewer's relation to the owner, from 4.3's relationship model (`relationBetween`): a block
- * in either direction is `blocked` (404, like an unknown player), a friendship is `friend`, a
- * pending request either way is `pending` (not a friend). Guilds arrive in 4.4.
- * TODO(4.4): a shared guild → `guildmate`.
+ * in either direction is `blocked` (404, like an unknown player), a friendship is `friend`; else
+ * (ticket 4.4) a shared guild is `guildmate`, and a pending request either way is `pending` (not a
+ * friend). Leaving or a kick takes effect at once: the guild is read live.
  */
 export async function profileRelation(
   executor: Executor,
   viewerId: string,
   ownerId: string,
 ): Promise<ProfileRelation> {
-  return PROFILE_RELATION_OF[await relationBetween(executor, viewerId, ownerId)];
+  const relation = PROFILE_RELATION_OF[await relationBetween(executor, viewerId, ownerId)];
+  if (relation === 'stranger' || relation === 'pending') {
+    if (await areGuildmates(executor, viewerId, ownerId)) return 'guildmate';
+  }
+  return relation;
 }
 
 const PROFILE_RELATION_OF: Record<Relation, ProfileRelation> = {
@@ -126,6 +132,8 @@ export interface ProfileView {
   /** The achievements the owner chose to show, in their order; `awardedOn` is the UTC day. */
   achievements: { id: string; awardedOn: string }[];
   showcase: (ProfileCharacterView & { equipped: ShowcaseItemView[] }) | null;
+  /** Ticket 4.4: the owner's guild, unless it is hidden from the viewer (a block with its leader). */
+  guild: { handle: string; name: string; tag: string; emblem: string; role: GuildRole } | null;
 }
 
 function showcaseItem(i: ItemInstance): ShowcaseItemView {
@@ -208,7 +216,27 @@ export async function profileView(
       awardedOn: a.awardedAt.toISOString().slice(0, 10),
     })),
     showcase,
+    guild: await profileGuild(executor, owner.id, viewerId),
   };
+}
+
+async function profileGuild(executor: Executor, ownerId: string, viewerId: string) {
+  const guild = await publicGuildOf(executor, ownerId);
+  if (!guild) return null;
+  const visible = {
+    handle: guild.handle,
+    name: guild.name,
+    tag: guild.tag,
+    emblem: guild.emblem,
+    role: guild.role,
+  };
+  if (ownerId === viewerId) return visible;
+  const leaderId = await guildLeaderId(executor, guild.id);
+  const sameGuild = await areGuildmates(executor, ownerId, viewerId);
+  if (!sameGuild && leaderId && (await isBlockedEitherWay(executor, viewerId, leaderId))) {
+    return null;
+  }
+  return visible;
 }
 
 const playerRefSchema = {
@@ -285,8 +313,25 @@ const profileSchema = {
     'characters',
     'achievements',
     'showcase',
+    'guild',
   ],
   properties: {
+    guild: {
+      anyOf: [
+        { type: 'null' },
+        {
+          type: 'object',
+          required: ['handle', 'name', 'tag', 'emblem', 'role'],
+          properties: {
+            handle: { type: 'string' },
+            name: { type: 'string' },
+            tag: { type: 'string' },
+            emblem: { type: 'string' },
+            role: { type: 'string' },
+          },
+        },
+      ],
+    },
     handle: { type: 'string' },
     displayName: { type: ['string', 'null'] },
     self: { type: 'boolean' },

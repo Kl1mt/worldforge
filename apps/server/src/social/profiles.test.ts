@@ -19,6 +19,7 @@ import { caller, insertAccount, type TestAccount } from '../test/social.js';
 import { refreshAchievements } from '../achievements/award.js';
 import { profileRelation } from './profiles.js';
 import { relationBetween } from './relations.js';
+import { insertGuild } from '../test/guilds.js';
 
 describe('public profiles (ticket 4.2)', () => {
   let database: DatabaseHandle;
@@ -66,8 +67,13 @@ describe('public profiles (ticket 4.2)', () => {
 
   describe('privacy: each setting × each viewer relation', () => {
     // The viewer's side of 4.3's relation, set up through 4.3's API; the server maps it onto
-    // game-core's `ProfileRelation` and asks `canViewProfile` (guildmates arrive in 4.4).
-    const RELATIONS: [Relation, ProfileRelation][] = [
+    // game-core's `ProfileRelation` and asks `canViewProfile`. Ticket 4.4: guildmates (set up
+    // as a shared guild; a block between guildmates still wins, a friendship comes first).
+    type ViewerRelation = Relation | 'guildmate' | 'guildmate-blocked-by-them' | 'guildmate-friend';
+    const RELATIONS: [ViewerRelation, ProfileRelation][] = [
+      ['guildmate', 'guildmate'],
+      ['guildmate-blocked-by-them', 'blocked'],
+      ['guildmate-friend', 'friend'],
       ['self', 'self'],
       ['stranger', 'stranger'],
       ['requested-by-me', 'pending'],
@@ -80,9 +86,20 @@ describe('public profiles (ticket 4.2)', () => {
       const r = await p;
       expect(r.statusCode, r.body).toBe(200);
     };
-    async function viewerWith(owner: TestAccount, relation: Relation): Promise<TestAccount> {
-      if (relation === 'self') return owner;
+    async function viewerWith(owner: TestAccount, rel: ViewerRelation): Promise<TestAccount> {
+      if (rel === 'self') return owner;
       const viewer = await player();
+      if (rel.startsWith('guildmate')) {
+        await insertGuild(db(), owner.id, { members: [{ accountId: viewer.id }] });
+      }
+      const relation: Relation =
+        rel === 'guildmate'
+          ? 'stranger'
+          : rel === 'guildmate-blocked-by-them'
+            ? 'blocked-by-them'
+            : rel === 'guildmate-friend'
+              ? 'friend'
+              : rel;
       const request = (from: TestAccount, to: TestAccount) =>
         ok(call(from, 'POST', '/api/friends/requests', { handle: to.handle }));
       if (relation === 'requested-by-me') await request(viewer, owner);
@@ -115,7 +132,9 @@ describe('public profiles (ticket 4.2)', () => {
           const visible = canViewProfile(visibility, profileRel);
           // Blocks hide the profile whatever the setting; friends see "friends and guild".
           if (profileRel === 'blocked') expect(visible).toBe(false);
-          if (profileRel === 'friend') expect(visible).toBe(visibility !== 'hidden');
+          if (profileRel === 'friend' || profileRel === 'guildmate') {
+            expect(visible).toBe(visibility !== 'hidden');
+          }
           const byHandle = await profile(viewer, acc.handle);
           const byName = await call(
             viewer,

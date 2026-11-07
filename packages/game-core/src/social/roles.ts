@@ -30,6 +30,9 @@ export const MODERATION_ACTIONS = [
   'forceRename',
   'hideContent',
   'liftSanction',
+  // Ticket 4.4: on a reported guild (the subject is its leader).
+  'renameGuild',
+  'disbandGuild',
 ] as const;
 export type ModerationAction = (typeof MODERATION_ACTIONS)[number];
 

@@ -45,7 +45,7 @@ const NOT_FOUND: FriendRefusal = {
   message: 'No player by that name.',
 };
 
-async function accountBy(
+export async function accountBy(
   executor: Executor,
   by: { handle: string } | { name: string },
   now: Date,

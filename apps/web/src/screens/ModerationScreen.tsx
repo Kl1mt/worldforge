@@ -29,7 +29,9 @@ const REASON_LABEL = Object.fromEntries(REPORT_REASONS.map((r) => [r.id, r.label
   string
 >;
 
-const ACTIONS: { id: 'dismiss' | SanctionAction; label: string; hint: string }[] = [
+type CaseAction = 'dismiss' | SanctionAction | 'renameGuild' | 'disbandGuild';
+
+const ACTIONS: { id: CaseAction; label: string; hint: string }[] = [
   { id: 'dismiss', label: 'Dismiss', hint: 'Nothing wrong. Closes the case.' },
   { id: 'mute', label: 'Mute', hint: 'No posts or social actions; play and reports still work.' },
   { id: 'suspend', label: 'Suspend', hint: 'No login; every session stops at once.' },
@@ -43,7 +45,34 @@ const ACTIONS: { id: 'dismiss' | SanctionAction; label: string; hint: string }[]
     label: 'Hide content',
     hint: 'Hides the reported field from other players.',
   },
+  // Ticket 4.4: guild cases (mute and suspend still act on the leader).
+  {
+    id: 'renameGuild',
+    label: 'Rename the guild',
+    hint: 'Name and tag replaced now; the leader picks new ones.',
+  },
+  {
+    id: 'disbandGuild',
+    label: 'Disband the guild',
+    hint: 'Removes every member at once; members see your reason.',
+  },
 ];
+
+const GUILD_ONLY: CaseAction[] = ['renameGuild', 'disbandGuild'];
+
+/** The decisions a case offers: guild cases rename or disband instead of force-rename/hide. */
+function actionsFor(kind: ModCase['target']['kind']) {
+  const guild = kind === 'guild';
+  return ACTIONS.filter((a) => {
+    if (GUILD_ONLY.includes(a.id)) return guild;
+    if (a.id === 'forceRename') return !guild;
+    if (a.id === 'hideContent') return REPORT_TARGET_KINDS[kind].hideable;
+    return true;
+  });
+}
+
+const isGuildAction = (a: CaseAction): a is 'renameGuild' | 'disbandGuild' =>
+  GUILD_ONLY.includes(a);
 
 function hoursLabel(h: number): string {
   if (h % (24 * 365) === 0) return `${h / (24 * 365)} year`;
@@ -56,6 +85,7 @@ function targetLabel(c: ModCase): string {
     return PROFILE_FIELD_LABELS[c.target.field];
   }
   if (c.target.kind === 'characterName') return `Hero name · ${c.target.name}`;
+  if (c.target.kind === 'guild') return `Guild · ${c.current.value} · led by`;
   return REPORT_TARGET_KINDS[c.target.kind].label;
 }
 
@@ -179,14 +209,13 @@ export function ModerationScreen() {
 
 function CaseFile({ c, onResolved }: { c: ModCase; onResolved: (message: string) => void }) {
   const ids = useId();
-  const [action, setAction] = useState<'dismiss' | SanctionAction>('dismiss');
-  const kind = action === 'dismiss' ? null : SANCTION_FOR_ACTION[action];
+  const [action, setAction] = useState<CaseAction>('dismiss');
+  const kind = action === 'dismiss' || isGuildAction(action) ? null : SANCTION_FOR_ACTION[action];
   const presets = kind ? SANCTION_DURATIONS[kind].presets : [];
   const [hours, setHours] = useState<number | null>(null);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const hideable = REPORT_TARGET_KINDS[c.target.kind].hideable;
   const duration = hours !== null && presets.includes(hours) ? hours : (presets[0] ?? 0);
 
   const submit = async (e: FormEvent) => {
@@ -194,7 +223,9 @@ function CaseFile({ c, onResolved }: { c: ModCase; onResolved: (message: string)
     const body: ResolveBody =
       action === 'dismiss'
         ? { action, ...(text.trim() ? { note: text } : {}) }
-        : { action, reason: text, durationHours: duration };
+        : isGuildAction(action)
+          ? { action, reason: text }
+          : { action, reason: text, durationHours: duration };
     setBusy(true);
     setError(null);
     const res = await socialApi.resolve(c.reportId, body);
@@ -207,7 +238,11 @@ function CaseFile({ c, onResolved }: { c: ModCase; onResolved: (message: string)
     onResolved(
       res.value.sanction
         ? `${SANCTION_LABELS[res.value.sanction.kind]}: ${c.subject.displayName} until ${formatWhen(res.value.sanction.expiresAt)}. ${closed}.`
-        : `Dismissed. ${closed}.`,
+        : action === 'renameGuild'
+          ? `The guild is renamed; its leader chooses a new name. ${closed}.`
+          : action === 'disbandGuild'
+            ? `The guild is disbanded. ${closed}.`
+            : `Dismissed. ${closed}.`,
     );
   };
 
@@ -266,7 +301,7 @@ function CaseFile({ c, onResolved }: { c: ModCase; onResolved: (message: string)
         <fieldset className="report__group">
           <legend className="caps">Decision</legend>
           <div className="case__actions">
-            {ACTIONS.filter((a) => a.id !== 'hideContent' || hideable).map((a) => (
+            {actionsFor(c.target.kind).map((a) => (
               <label key={a.id} className="report__choice">
                 <input
                   type="radio"
@@ -305,7 +340,11 @@ function CaseFile({ c, onResolved }: { c: ModCase; onResolved: (message: string)
         ) : null}
         <div className="field">
           <label className="field__label caps" htmlFor={`${ids}-text`}>
-            {kind ? 'Reason (shown to the player)' : 'Note (moderators only, optional)'}
+            {action === 'dismiss'
+              ? 'Note (moderators only, optional)'
+              : isGuildAction(action)
+                ? 'Reason (shown to the guild)'
+                : 'Reason (shown to the player)'}
           </label>
           <div className="field__well">
             <input
@@ -323,7 +362,13 @@ function CaseFile({ c, onResolved }: { c: ModCase; onResolved: (message: string)
           </p>
         ) : null}
         <button type="submit" className="btn btn--brass" disabled={busy} aria-busy={busy}>
-          {busy ? 'Recording…' : action === 'dismiss' ? 'Dismiss the case' : 'Issue sanction'}
+          {busy
+            ? 'Recording…'
+            : action === 'dismiss'
+              ? 'Dismiss the case'
+              : isGuildAction(action)
+                ? ACTIONS.find((a) => a.id === action)!.label
+                : 'Issue sanction'}
         </button>
       </form>
     </article>

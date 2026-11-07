@@ -11,7 +11,7 @@ import {
   type ModerationAction,
   type SanctionAction,
 } from '@worldforge/game-core';
-import { accounts, reports, sanctions, type Account, type Sanction } from '../db/schema.js';
+import { accounts, guilds, reports, sanctions, type Account, type Sanction } from '../db/schema.js';
 import { withTransaction } from '../db/transaction.js';
 import type { Executor, Transaction } from '../db/types.js';
 import { writeAudit } from '../db/audit.js';
@@ -24,6 +24,7 @@ import {
   sanctionViewSchema,
 } from './sanctions.js';
 import { currentTargetValues, isHideable, reportTargetViewSchema } from './targets.js';
+import { disbandGuildTx, forceRenameGuildTx, guildLeaderId, lockGuild } from './guild-model.js';
 import { assertPlayerText } from './text.js';
 
 /**
@@ -177,12 +178,28 @@ const resolveBodySchema = {
         durationHours: { type: 'integer', minimum: 1, maximum: 24 * 366 },
       },
     },
+    // Ticket 4.4: on a reported guild.
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['action', 'reason'],
+      properties: {
+        action: { type: 'string', enum: ['renameGuild', 'disbandGuild'] },
+        reason: { type: 'string', maxLength: 2000 },
+      },
+    },
   ],
 } as const;
 
+type GuildModerationAction = 'renameGuild' | 'disbandGuild';
+
 type ResolveBody =
   | { action: 'dismiss'; note?: string }
-  | { action: SanctionAction; reason: string; durationHours: number };
+  | { action: SanctionAction; reason: string; durationHours: number }
+  | { action: GuildModerationAction; reason: string };
+
+const isGuildAction = (a: ResolveBody['action']): a is GuildModerationAction =>
+  a === 'renameGuild' || a === 'disbandGuild';
 
 const caseSchema = {
   type: 'object',
@@ -426,9 +443,50 @@ export async function registerModeration(app: FastifyInstance): Promise<void> {
         assertAllowed(actor, action, subject);
 
         let sanction: Sanction | null = null;
-        if (body.action !== 'dismiss') {
-          const kind = SANCTION_FOR_ACTION[body.action];
-          if (!validSanctionDuration(kind, body.durationHours)) {
+        let guildActed = false;
+        if (isGuildAction(body.action)) {
+          // Ticket 4.4: rename or disband the reported guild (the subject is its leader).
+          if (report.targetKind !== 'guild') {
+            throw new ApiError(
+              422,
+              'not_a_guild',
+              'Only a reported guild can be renamed or disbanded.',
+            );
+          }
+          const guildId = report.targetKey.slice('guild:'.length);
+          await lockGuild(tx, guildId);
+          const [guild] = await tx.select().from(guilds).where(eq(guilds.id, guildId));
+          if (!guild || guild.disbandedAt) {
+            throw new ApiError(409, 'guild_gone', 'This guild was disbanded already.');
+          }
+          const leaderId = (await guildLeaderId(tx, guild.id)) ?? subject.id;
+          if (body.action === 'renameGuild') {
+            await forceRenameGuildTx(tx, guild, {
+              moderatorId: actor.id,
+              leaderId,
+              reason: reasonText,
+              reportId,
+            });
+          } else {
+            await disbandGuildTx(
+              tx,
+              guild,
+              { accountId: actor.id, moderator: true, reason: reasonText, reportId },
+              now,
+            );
+          }
+          guildActed = true;
+        } else if (body.action !== 'dismiss') {
+          const b = body as { action: SanctionAction; reason: string; durationHours: number };
+          if (report.targetKind === 'guild' && b.action === 'forceRename') {
+            throw new ApiError(
+              422,
+              'use_rename_guild',
+              'To rename a reported guild, use “rename the guild”.',
+            );
+          }
+          const kind = SANCTION_FOR_ACTION[b.action];
+          if (!validSanctionDuration(kind, b.durationHours)) {
             throw new ApiError(
               400,
               'validation_failed',
@@ -444,9 +502,9 @@ export async function registerModeration(app: FastifyInstance): Promise<void> {
           sanction = await issueSanction(tx, {
             actor,
             subject,
-            action: body.action,
+            action: b.action,
             reason: reasonText,
-            durationHours: body.durationHours,
+            durationHours: b.durationHours,
             targetKey: report.targetKey,
             target: report.target,
             now,
@@ -455,7 +513,7 @@ export async function registerModeration(app: FastifyInstance): Promise<void> {
         const closed = await tx
           .update(reports)
           .set({
-            status: sanction ? 'actioned' : 'dismissed',
+            status: sanction || guildActed ? 'actioned' : 'dismissed',
             resolvedAt: now,
             resolvedBy: actor.id,
             sanctionId: sanction?.id ?? null,
