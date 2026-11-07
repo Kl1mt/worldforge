@@ -195,6 +195,11 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
             Moderator queue
           </a>
         ) : null}
+        {account?.role === 'admin' ? (
+          <a className="statusbar__link" href={routeHref('admin')}>
+            Admin panel
+          </a>
+        ) : null}
         <LegalLinks />
       </footer>
 

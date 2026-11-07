@@ -1,0 +1,336 @@
+/* ── The Guild Hall (ticket 4.4). Heraldry, not cards: a guild is a dyed, swallow-tailed banner
+   hanging from an iron rod, its crest a brass-rimmed shield (placeholder glyph until A.8 draws
+   the emblems). The guild roll is the iron plate, ranks divided by rule headings, members with
+   the companions' presence lanterns; the officers' business sits on ledger slips beside it.
+   Without a guild, the hall opens on the building niche and an iron charter form. ── */
+.guildhall {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.guildhall__body {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(280px, 2fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.guildhall__side {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.guild-tag {
+  font-family: var(--font-body);
+  font-weight: 700;
+  font-size: 0.6em;
+  letter-spacing: 0.08em;
+  color: var(--brass-400);
+  vertical-align: 0.15em;
+}
+
+/* The hanging banner that heads a guild page. */
+.guildbanner {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: end;
+}
+
+.guildbanner__cloth {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  align-content: start;
+  width: 120px;
+  height: 176px;
+  padding-top: var(--space-8);
+  background:
+    var(--texture-grain),
+    linear-gradient(90deg, rgb(0 0 0 / 0.28), transparent 18%, transparent 82%, rgb(0 0 0 / 0.28)),
+    var(--dye, var(--banner-ash));
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%);
+}
+
+/* The iron rod it hangs from, with brass finials. */
+.guildbanner__cloth::before {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 0;
+  right: 0;
+  height: 6px;
+  background: linear-gradient(var(--iron-500), var(--iron-800));
+  box-shadow: inset 0 -1px 0 var(--brass-700);
+}
+
+.guildbanner__where {
+  color: var(--brass-500);
+}
+
+.guildbanner__title {
+  margin: 0;
+  font-size: var(--text-3xl);
+  color: var(--bone-100);
+  overflow-wrap: anywhere;
+}
+
+.guildbanner__meta {
+  color: var(--text-dim);
+}
+
+.guildbanner__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+  margin-top: var(--space-3);
+}
+
+/* Strips under the banner: a forced rename (brass), a removal (crimson). */
+.guild-strip {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--brass-400);
+  background: rgb(199 161 94 / 0.1);
+}
+
+.guild-strip p {
+  margin: 0;
+}
+
+.guild-strip--crimson {
+  border-left-color: var(--crimson-400);
+  background: rgb(63 23 31 / 0.55);
+}
+
+.guild-strip__reason {
+  color: var(--text-dim);
+}
+
+.guild-strip__form {
+  display: grid;
+  grid-template-columns: auto minmax(0, 2fr) auto minmax(0, 1fr) auto;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+}
+
+.guild-strip__form .field__error {
+  grid-column: 1 / -1;
+}
+
+/* The guild roll. */
+.guildroll {
+  display: grid;
+  justify-items: stretch;
+  gap: var(--space-5);
+}
+
+.guildroll__rank {
+  width: 100%;
+}
+
+/* The public roll: names only, so several to a line. */
+.guildroll--public .roll {
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  column-gap: var(--space-5);
+}
+
+.guildline__meta {
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+}
+
+.guildroll__rank {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.guildroll__count {
+  font-family: var(--font-body);
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+}
+
+.guildroll__rank--leader .fellow__name {
+  color: var(--brass-300);
+}
+
+.guildroll__row--public {
+  grid-template-columns: 12px minmax(0, 1fr);
+}
+
+/* A small iron diamond where the lantern would be (no presence for outsiders). */
+.guildroll__pip {
+  width: 7px;
+  height: 7px;
+  margin-left: 2px;
+  background: var(--iron-500);
+  transform: rotate(45deg);
+}
+
+.guildroll__rank--leader .guildroll__pip,
+.guildroll__rank:first-child .guildroll__pip {
+  background: var(--brass-500);
+}
+
+/* A guild in a list: crest, name and tag, member count. */
+.guildline {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  min-width: 0;
+}
+
+.guildline__count {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+  white-space: nowrap;
+}
+
+/* The charter form. */
+.founding {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.founding__crest {
+  display: flex;
+  gap: var(--space-4);
+  align-items: center;
+  padding: var(--space-3) var(--space-4);
+  background: var(--ink-900);
+  box-shadow: inset 0 0 0 1px var(--iron-700);
+}
+
+.founding__preview {
+  margin: 0;
+  font-size: var(--text-xl);
+  color: var(--bone-100);
+  overflow-wrap: anywhere;
+}
+
+.field__input--tag {
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+select.field__input {
+  appearance: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+select.field__input option {
+  background: var(--ink-850);
+}
+
+.emblems {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.emblems__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.emblems__chip {
+  position: relative;
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: 40px;
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+  border: 1px solid var(--iron-600);
+  background: var(--ink-900);
+  color: var(--bone-200);
+  font: inherit;
+  font-size: var(--text-sm);
+  cursor: pointer;
+}
+
+.emblems__chip input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.emblems__chip:focus-within,
+.emblems__chip:focus-visible {
+  outline: 2px solid var(--brass-400);
+  outline-offset: 2px;
+}
+
+.emblems__chip--on {
+  border-color: var(--brass-500);
+  color: var(--bone-100);
+  box-shadow: inset 0 -2px 0 var(--brass-500);
+}
+
+.findguild {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.findguild__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.departure summary {
+  cursor: pointer;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  color: var(--text-dim);
+}
+
+.departure__form {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+}
+
+.departure__form .field__well {
+  width: 100%;
+}
+
+@media (max-width: 760px) {
+  .guildhall__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .guildbanner {
+    grid-template-columns: 84px minmax(0, 1fr);
+    gap: var(--space-4);
+    align-items: start;
+  }
+
+  .guildbanner__cloth {
+    width: 84px;
+    height: 124px;
+    padding-top: var(--space-6);
+  }
+
+  .guildbanner__cloth .crest--lg {
+    --w: 44px;
+  }
+
+  .guildbanner__title {
+    font-size: var(--text-2xl);
+  }
+
+  .guild-strip__form {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

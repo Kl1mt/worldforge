@@ -14,6 +14,8 @@
  * - with `E2E_SEED_MODERATOR=<email>` (ticket 4.1) a moderator account with that email (password
  *   `ashes-and-iron-42`, display name "Warden Brann") is created at start, the way the owner would
  *   with `pnpm admin:role`, for the moderator-queue screenshots and browser runs.
+ * - with `E2E_SEED_ADMIN=<email>` (ticket D.3) likewise an admin ("Castellan Ysolde"), for the admin
+ *   panel screenshots; `WORLDFORGE_GIT_SHA` / `WORLDFORGE_BUILD_TIME` fill its server status.
  * Auth, validation and rate limits are unchanged.
  *
  *   pnpm --filter @worldforge/server e2e:serve
@@ -49,6 +51,7 @@ const app = buildApp({
     sessionTtlMs: config.sessionTtlHours * 60 * 60 * 1000,
     cookieSecure: config.sessionCookieSecure,
   },
+  admin: { build: config.build },
   activity: {
     offlineCapMs: config.offlineCapSeconds * 1000,
     // The scheduler fires on real time; "due" is measured on the scaled clock.
@@ -74,6 +77,17 @@ if (seedModerator) {
   });
   if (res.statusCode !== 201) throw new Error(`seeding the moderator failed: ${res.body}`);
   await setAccountRole(database.db, seedModerator, 'moderator');
+}
+
+const seedAdmin = process.env.E2E_SEED_ADMIN;
+if (seedAdmin) {
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/auth/register',
+    payload: { email: seedAdmin, displayName: 'Castellan Ysolde', password: 'ashes-and-iron-42' },
+  });
+  if (res.statusCode !== 201) throw new Error(`seeding the admin failed: ${res.body}`);
+  await setAccountRole(database.db, seedAdmin, 'admin');
 }
 
 await app.listen({ host: config.host, port: config.port });

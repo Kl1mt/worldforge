@@ -3,6 +3,7 @@ import type {
   BannerId,
   ClassId,
   EquipmentSlotId,
+  GuildRole,
   ProfileVisibility,
   RarityId,
   RolledAffix,
@@ -66,6 +67,8 @@ export interface Profile {
   characters: ProfileHero[];
   achievements: { id: string; awardedOn: string }[];
   showcase: (ProfileHero & { equipped: ShowcaseItem[] }) | null;
+  /** Ticket 4.4: the owner's guild (null when none, or hidden from you). */
+  guild: { handle: string; name: string; tag: string; emblem: string; role: GuildRole } | null;
 }
 
 export interface ProfileSettings {
@@ -115,7 +118,9 @@ export interface ModQueue {
 
 export type ResolveBody =
   | { action: 'dismiss'; note?: string }
-  | { action: SanctionAction; reason: string; durationHours: number };
+  | { action: SanctionAction; reason: string; durationHours: number }
+  /** Ticket 4.4: on a reported guild. */
+  | { action: 'renameGuild' | 'disbandGuild'; reason: string };
 
 export const socialApi = {
   standing: (signal?: AbortSignal): Promise<ApiResult<Standing>> =>
@@ -222,6 +227,12 @@ export function describeSocialFailure(error: ApiFailure): string {
       return 'Only content can be hidden, not a whole player. Report the name instead.';
     case 'sanction_inactive':
       return 'That sanction has already ended.';
+    // Ticket 4.4: guild cases.
+    case 'guild_gone':
+      return 'This guild was disbanded already.';
+    case 'not_a_guild':
+    case 'use_rename_guild':
+      return error.message;
     case 'validation_failed':
       return Object.values(error.fields)[0] ?? 'Some fields need attention.';
     case 'network':

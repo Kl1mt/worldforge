@@ -1,0 +1,67 @@
+/* ── Guild crests (ticket 4.4): a brass-rimmed heater shield dyed per emblem, with a placeholder
+   glyph until the art ticket A.8 draws the 32×32 emblems. The `--dye` tokens are shared with the
+   guild banner (`screens/guild.css`). ── */
+/* Emblem dyes: muted cloth tones from the banner tokens. */
+.crest--anvil,
+.guildbanner--anvil {
+  --dye: var(--banner-ash);
+}
+.crest--crow,
+.guildbanner--crow {
+  --dye: var(--banner-dusk);
+}
+.crest--tower,
+.guildbanner--tower {
+  --dye: #3f4a52;
+}
+.crest--flame,
+.guildbanner--flame {
+  --dye: var(--banner-ember);
+}
+.crest--skull,
+.guildbanner--skull {
+  --dye: #2e2a27;
+}
+.crest--oak,
+.guildbanner--oak {
+  --dye: var(--banner-moss);
+}
+
+/* The crest: a heater shield, brass rim (the outer layer) around the dyed field. */
+.crest {
+  --w: 36px;
+  position: relative;
+  display: inline-grid;
+  place-items: center;
+  flex: none;
+  width: var(--w);
+  height: calc(var(--w) * 1.18);
+  background: linear-gradient(160deg, var(--brass-300), var(--brass-700));
+  clip-path: polygon(0 0, 100% 0, 100% 58%, 50% 100%, 0 58%);
+}
+
+.crest::before {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: var(--texture-grain), var(--dye, var(--iron-700));
+  clip-path: polygon(0 0, 100% 0, 100% 58%, 50% 100%, 0 58%);
+}
+
+.crest__glyph {
+  position: relative;
+  margin-top: -18%;
+  font-family: var(--font-display);
+  font-size: calc(var(--w) * 0.5);
+  line-height: 1;
+  color: var(--bone-100);
+  text-shadow: 0 1px 0 rgb(0 0 0 / 0.6);
+}
+
+.crest--sm {
+  --w: 22px;
+}
+
+.crest--lg {
+  --w: 64px;
+}

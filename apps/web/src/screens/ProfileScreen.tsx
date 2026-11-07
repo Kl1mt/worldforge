@@ -1,5 +1,6 @@
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import {
+  GUILD_ROLE_LABELS,
   ACHIEVEMENTS,
   MAX_SHOWN_ACHIEVEMENTS,
   PROFILE_VISIBILITIES,
@@ -16,7 +17,8 @@ import { ItemFrame } from '../components/ItemFrame';
 import { ItemTooltip } from '../components/ItemTooltip';
 import { slotName, toItemView, type ItemView } from '../game/items';
 import type { ApiFailure } from '../lib/api';
-import { profileHandleFromHash, profileHref } from '../lib/route';
+import { guildHref, profileHandleFromHash, profileHref } from '../lib/route';
+import { Crest } from '../social/Crest';
 import {
   describeSocialFailure,
   socialApi,
@@ -101,6 +103,17 @@ export function ProfileScreen() {
                   Seen by: {PROFILE_VISIBILITY_LABELS[profile.visibility]}
                 </span>
               ) : null}
+            </p>
+          ) : null}
+          {profile?.guild ? (
+            <p className="herald__guild">
+              <Crest emblem={profile.guild.emblem} size="sm" />
+              <span>
+                {GUILD_ROLE_LABELS[profile.guild.role]} of{' '}
+                <a href={guildHref(profile.guild.handle)}>
+                  {profile.guild.name} [{profile.guild.tag}]
+                </a>
+              </span>
             </p>
           ) : null}
         </div>

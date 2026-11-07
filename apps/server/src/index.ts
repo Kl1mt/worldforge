@@ -18,6 +18,7 @@ const app = buildApp({
     registrationMode: config.registrationMode,
   },
   legal: { dir: config.legalDir },
+  admin: { build: config.build },
   activity: {
     offlineCapMs: config.offlineCapSeconds * 1000,
     settleIntervalMs: config.settleIntervalSeconds * 1000,

@@ -26,7 +26,7 @@ const BUILDINGS: Record<BuildingId, Building> = {
   forge: { route: 'forge', purpose: 'Salvage and craft gear.' },
   merchant: { route: 'merchant', purpose: 'Buy and sell goods.' },
   tavern: { route: 'tavern', purpose: 'Quests, contracts and notices.' },
-  guildHall: { route: null, purpose: 'Guilds gather here in a later age.' },
+  guildHall: { route: 'guild', purpose: 'Found a guild, or find one to join.' },
   warehouse: { route: null, purpose: 'Storage, once the doors are mended.' },
   summoningShrine: { route: null, purpose: 'The shrine is cold for now.' },
 };

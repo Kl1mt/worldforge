@@ -487,7 +487,7 @@ GDD: §10.1. Needs 4.1. May run in parallel with 4.2.
 - Friends list in the UI with presence, the requests inbox, and a link to each profile.
 **Acceptance:** permission/relation matrix (stranger, requested, friend, blocked either way); request races (both send at once → one friendship); presence never reveals exact times; screenshots.
 
-### 4.4 Guilds (vertical) — `todo`
+### 4.4 Guilds (vertical) — `done (PR #59)`
 GDD: §10.1, §4.2 (Guild Hall). Needs 4.1 (and 4.3 for presence).
 - **Create** (gold cost; name and tag through the text module; unique case-insensitively), **invite / apply / accept**, **leave**, **kick**, **promote / demote** (leader, officer, member), **transfer leadership**, **disband**. Up to 30 members; one guild per account.
 - **The Guild Hall** in the hub opens (it is shown locked today): the guild page with members, roles and presence, plus a guild profile reachable by others (report action).
@@ -569,6 +569,16 @@ Goal: the live site can be limited to invited players and has the legally requir
 - `REGISTRATION_MODE=open|invite|closed` (server config; `open` by default for dev, tests, playtest and e2e; `invite` in `deploy/.env.example`). Login, accounts and sessions are unaffected.
 - Invite codes: random, stored hashed, single- or multi-use with expiry, created/listed/revoked only by admins (`pnpm admin:invite`, `deploy/admin.sh invite …`), redeemed atomically at registration (real-Postgres race test), audited without exposing codes. Register UI: invite field, `?invite=CODE` links, closed message, public `GET /api/config`.
 - Impressum and Datenschutzerklärung pages from owner-editable Markdown (`content/legal/` templates, overridden by the mounted `deploy/legal/` on the VPS), linked in every footer, consent line at registration. Templates are placeholders, not legal advice.
+
+### D.3 Admin panel — `done (PR #58)`
+Goal: the owner administers the live site from the browser instead of the VPS shell, without widening what a stolen admin session could do. Read `CLAUDE.md`, `docs/SOCIAL.md`, `docs/TELEMETRY.md`, `docs/DEPLOY.md`, `docs/API_CONVENTIONS.md`.
+- `#/admin` (footer link for admins only) on `/api/admin/*`, which answers the not-found `404` to everyone but admins, before body validation, inside the per-account rate limits. No migration.
+- **Invites:** create (uses, expiry, note) with the code and the `#/register?invite=CODE` link shown once with copy buttons; list with status, uses, expiry, note, creator and the accounts each code created (from the audit `inviteId`); revoke. Reuses D.2's invite module (the CLI is unchanged).
+- **Telemetry:** 3.8's report as a page (the same builder and sections as `pnpm report:telemetry`), date window, reconcile behind a stricter limit.
+- **Players:** search by name or handle → account age, role, registration invite, heroes, sanctions, reports, links into the moderator queue's cases. No emails.
+- **Server status:** git sha and build time (baked into the image by `deploy.sh`), uptime, DB, registration mode, counts (active 24 h / 7 d from presence, counts only), pending migrations.
+- **Roles:** read-only list; granting stays CLI-only, said in the UI.
+- Every admin request audited (no codes, emails, IPs or search text); permission-matrix and invite API tests; screenshots in `docs/screenshots/deploy/admin-*`.
 
 ## Art tickets (run alongside the phases)
 

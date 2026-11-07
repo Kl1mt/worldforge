@@ -16,9 +16,11 @@ import { LegalScreen } from './legal/LegalScreen';
 import { AreaScreen } from './screens/AreaScreen';
 import { AuthScreen, GateStatus, SuspendedGate } from './screens/AuthScreen';
 import { AccountScreen } from './screens/AccountScreen';
+import { AdminScreen } from './screens/AdminScreen';
 import { ModerationScreen } from './screens/ModerationScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { FriendsScreen } from './screens/FriendsScreen';
+import { GuildScreen } from './screens/GuildScreen';
 import { isStaff } from '@worldforge/game-core';
 import { TavernScreen } from './screens/TavernScreen';
 import { CharacterScreen } from './screens/CharacterScreen';
@@ -57,9 +59,11 @@ function Routes() {
   }
   // Ticket 4.1: the moderator queue does not exist for players (like an unknown address).
   const staff = auth.state.kind === 'authenticated' && isStaff(auth.state.account.role);
+  // Ticket D.3: the admin panel likewise, for everyone but admins.
+  const admin = auth.state.kind === 'authenticated' && auth.state.account.role === 'admin';
+  const hidden = (route === 'moderation' && !staff) || (route === 'admin' && !admin);
   const redirect = standing
-    ? (guardRoute(route, standing) ??
-      (route === 'moderation' && standing === 'playing' && !staff ? DEFAULT_ROUTE : null))
+    ? (guardRoute(route, standing) ?? (hidden && standing === 'playing' ? DEFAULT_ROUTE : null))
     : null;
   // Ticket D.2: an invite link (`?invite=CODE`) opens the register screen for visitors, with the
   // code carried in the hash.
@@ -105,8 +109,10 @@ function Routes() {
             {route === 'inventory' ? <InventoryScreen /> : null}
             {route === 'account' ? <AccountScreen /> : null}
             {route === 'moderation' && staff ? <ModerationScreen /> : null}
+            {route === 'admin' && admin ? <AdminScreen /> : null}
             {route === 'profile' ? <ProfileScreen /> : null}
             {route === 'friends' ? <FriendsScreen /> : null}
+            {route === 'guild' ? <GuildScreen /> : null}
           </Shell>
         </OnboardingProvider>
       </QuestsProvider>

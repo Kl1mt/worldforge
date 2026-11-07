@@ -34,6 +34,12 @@ export interface ServerConfig {
    * falls back to the template shipped in `content/legal/`. Unset: templates only.
    */
   legalDir: string | undefined;
+  /**
+   * Ticket D.3: what the running image was built from, for the admin panel's server status.
+   * `deploy/Dockerfile` bakes `WORLDFORGE_GIT_SHA` and `WORLDFORGE_BUILD_TIME` in; null when unset
+   * (development).
+   */
+  build: { gitSha: string | null; buildTime: string | null };
 }
 
 function intEnv(env: NodeJS.ProcessEnv, name: string, fallback: number, min: number, max: number) {
@@ -82,7 +88,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     settleIntervalSeconds: intEnv(env, 'SETTLE_INTERVAL_SECONDS', 300, 0, 24 * 60 * 60),
     registrationMode: registrationModeEnv(env),
     legalDir: env.LEGAL_DIR?.trim() || undefined,
+    build: {
+      gitSha: buildEnv(env.WORLDFORGE_GIT_SHA, /^[0-9a-f]{7,40}$/i),
+      buildTime: buildEnv(env.WORLDFORGE_BUILD_TIME, /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/),
+    },
   };
+}
+
+/** A build label, or null when unset, `unknown` or malformed (never fails the start). */
+function buildEnv(raw: string | undefined, shape: RegExp): string | null {
+  const v = raw?.trim();
+  return v && shape.test(v) ? v : null;
 }
 
 /** Like `loadConfig`, but fails fast when `DATABASE_URL` is missing. */

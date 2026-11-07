@@ -26,6 +26,7 @@ import type {
   DungeonId,
   DungeonTier,
   EquipmentSlotId,
+  GuildRole,
   GuideState,
   LootFilterRules,
   MaterialId,
@@ -913,3 +914,109 @@ export const dataBackfills = pgTable('data_backfills', {
   completedAt: timestamp('completed_at', { withTimezone: true }).notNull(),
   data: jsonb('data').$type<Record<string, unknown>>().notNull().default({}),
 });
+
+/**
+ * Guilds (ticket 4.4, docs/SOCIAL.md "Guilds"). `handle` is the guild's public, opaque reference
+ * (like account handles: random, permanent, unrelated to the id). Names and tags are unique
+ * case-insensitively among guilds that exist (`disbanded_at is null`); a disbanded guild keeps its
+ * row (reports and audit rows point at it) but frees its name. The leader is not a column: it is
+ * the one `guild_members` row with role `leader` (a partial unique index keeps it to one).
+ * `rename_required` is set by a moderator's forced rename (the name becomes a placeholder and the
+ * leader chooses a new one, not `renamed_from`).
+ */
+export const guilds = pgTable(
+  'guilds',
+  {
+    id: uuid('id').primaryKey(),
+    handle: text('handle')
+      .notNull()
+      .$defaultFn(() => newHandle()),
+    name: text('name').notNull(),
+    tag: text('tag').notNull(),
+    /** game-core `GuildEmblemId`. */
+    emblem: text('emblem').notNull(),
+    createdBy: uuid('created_by').references(() => accounts.id, { onDelete: 'set null' }),
+    ...timestamps,
+    disbandedAt: timestamp('disbanded_at', { withTimezone: true }),
+    renameRequired: boolean('rename_required').notNull().default(false),
+    renameReason: text('rename_reason'),
+    renamedFrom: text('renamed_from'),
+  },
+  (t) => [
+    uniqueIndex('guilds_handle_key').on(t.handle),
+    uniqueIndex('guilds_name_lower_key')
+      .on(sql`lower(${t.name})`)
+      .where(sql`${t.disbandedAt} is null`),
+    uniqueIndex('guilds_tag_key')
+      .on(t.tag)
+      .where(sql`${t.disbandedAt} is null`),
+  ],
+);
+
+export type Guild = typeof guilds.$inferSelect;
+
+/**
+ * Guild membership (ticket 4.4). The primary key is the account: one guild per account, by
+ * construction. Rows change only under the guild's lock (and a join also under the joiner's
+ * social lock), so the member cap is exact.
+ */
+export const guildMembers = pgTable(
+  'guild_members',
+  {
+    accountId: uuid('account_id')
+      .primaryKey()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    guildId: uuid('guild_id')
+      .notNull()
+      .references(() => guilds.id, { onDelete: 'cascade' }),
+    /** game-core `GuildRole`. */
+    role: text('role').$type<GuildRole>().notNull(),
+    joinedAt: timestamp('joined_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    index('guild_members_guild_id_idx').on(t.guildId),
+    uniqueIndex('guild_members_one_leader_key')
+      .on(t.guildId)
+      .where(sql`${t.role} = 'leader'`),
+    check('guild_members_role_check', sql`${t.role} in ('leader', 'officer', 'member')`),
+  ],
+);
+
+export type GuildMember = typeof guildMembers.$inferSelect;
+
+/** Waiting invites (ticket 4.4): the guild asks a player. `invited_by` is the officer who asked. */
+export const guildInvites = pgTable(
+  'guild_invites',
+  {
+    guildId: uuid('guild_id')
+      .notNull()
+      .references(() => guilds.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    invitedBy: uuid('invited_by').references(() => accounts.id, { onDelete: 'set null' }),
+    ...timestamps,
+  },
+  (t) => [
+    primaryKey({ columns: [t.guildId, t.accountId] }),
+    index('guild_invites_account_id_idx').on(t.accountId),
+  ],
+);
+
+/** Waiting applications (ticket 4.4): a player asks a guild. */
+export const guildApplications = pgTable(
+  'guild_applications',
+  {
+    guildId: uuid('guild_id')
+      .notNull()
+      .references(() => guilds.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    ...timestamps,
+  },
+  (t) => [
+    primaryKey({ columns: [t.guildId, t.accountId] }),
+    index('guild_applications_account_id_idx').on(t.accountId),
+  ],
+);

@@ -22,7 +22,9 @@ import { registerSafety } from './social/routes.js';
 import { registerProfiles } from './social/profiles.js';
 import { registerModeration } from './social/moderation.js';
 import { registerFriends } from './social/friends.js';
+import { registerGuilds } from './social/guilds.js';
 import { registerLegal, type LegalOptions } from './legal/routes.js';
+import { registerAdmin, type AdminOptions } from './admin/routes.js';
 import type { Database, DatabaseHandle } from './db/types.js';
 
 declare module 'fastify' {
@@ -47,6 +49,8 @@ export interface AppOptions extends FastifyServerOptions {
   activity?: Partial<ActivityOptions>;
   /** Legal pages (ticket D.2): the owner's directory; default templates only. */
   legal?: LegalOptions;
+  /** Admin panel (ticket D.3): build info for the server status, the reconcile limit. */
+  admin?: AdminOptions;
   /**
    * Tests only: extra routes registered inside the `/api` scope after the game routes, so they see
    * its decorators (`requireAccount`, `socialWriteLimit`, …). Used to test shared helpers before a
@@ -60,6 +64,7 @@ export function buildApp({
   auth,
   activity,
   legal,
+  admin,
   testRoutes,
   ...options
 }: AppOptions): FastifyInstance {
@@ -91,7 +96,9 @@ export function buildApp({
       await registerProfiles(api);
       await registerModeration(api);
       await registerFriends(api);
+      await registerGuilds(api, activityOptions);
       await registerLegal(api, legal ?? {});
+      await registerAdmin(api, admin ?? {});
       if (testRoutes) await testRoutes(api);
 
       api.get('/health', async (request, reply): Promise<HealthResponse> => {

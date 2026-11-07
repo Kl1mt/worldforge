@@ -98,7 +98,7 @@ The hub is an illustrated, non-walkable town screen. Players select buildings fr
 | Forge | Upgrade equipment and, later, reroll or improve affixes. |
 | Merchant | Buy and sell selected goods; economy functions to be balanced. |
 | Tavern | Quests, contracts, and activity notices. |
-| Guild Hall | Guild management and social systems in a later phase. |
+| Guild Hall | Guilds: found one, join one, manage members and roles (ticket 4.4). |
 | Warehouse | Storage; shared account storage is a possible later feature. |
 | Summoning Shrine | Cosmetic-only draws, deferred until the core game works. |
 | World Map | Choose regions, farming areas, dungeons, and other activities. |
@@ -249,7 +249,7 @@ The server is authoritative for character state, combat outcomes, loot generatio
 ### 10.1 Social Online Features
 Online features are part of the long-term vision. The game should be designed as an online service from the beginning, but social systems should be introduced only after account persistence, server-authoritative gameplay, and basic progression are reliable.
 
-Potential features include public player profiles, selected achievements, friends and presence indicators, guilds and guild communication, global community progress, group activities, and carefully controlled trading. Moderation and abuse-prevention tools must accompany social features. Phase 4 default (ticket 4.1, owner-confirmed): the owner is the first admin, roles are granted only by a CLI command, and moderators work in a minimal in-app queue (`docs/SOCIAL.md`). Presence default (ticket 4.3, owner-confirmed): coarse buckets only (online now / today / this week / longer) from the last authenticated request, shown to friends (guildmates from 4.4), hideable by the player; no exact time ever leaves the server. Ticket 4.2 default: profiles are visible to every logged-in player unless the owner chooses "friends and guild" or "only me"; achievements are account-bound and cosmetic, and nothing is shown until the player picks it (up to five, plus an optional showcase of one hero's equipped gear).
+Potential features include public player profiles, selected achievements, friends and presence indicators, guilds and guild communication, global community progress, group activities, and carefully controlled trading. Moderation and abuse-prevention tools must accompany social features. Phase 4 default (ticket 4.1, owner-confirmed): the owner is the first admin, roles are granted only by a CLI command, and moderators work in a minimal in-app queue (`docs/SOCIAL.md`). Presence default (ticket 4.3, owner-confirmed): coarse buckets only (online now / today / this week / longer) from the last authenticated request, shown to friends (guildmates from 4.4), hideable by the player; no exact time ever leaves the server. Ticket 4.2 default: profiles are visible to every logged-in player unless the owner chooses "friends and guild" or "only me"; achievements are account-bound and cosmetic, and nothing is shown until the player picks it (up to five, plus an optional showcase of one hero's equipped gear). Guild default (ticket 4.4, owner-confirmed): founding a guild costs 5,000 gold from one of the founder's heroes (a sink), up to 30 members, one guild per account; roles are leader, officer and member, and a leader must hand over or disband before leaving.
 
 ### 10.2 Leaderboards
 Leaderboards allow players to compare progress and provide aspirational goals. Initial leaderboard concepts:

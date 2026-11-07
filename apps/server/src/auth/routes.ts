@@ -112,6 +112,13 @@ declare module 'fastify' {
      * staff (moderator or admin), logged in or not, gets the same `404` as an unknown route.
      */
     requireStaff: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+    /**
+     * `onRequest` hook for the admin panel's routes (ticket D.3): like `requireStaff`, but only
+     * for admins; moderators, players and anonymous visitors get the not-found handler's `404`.
+     */
+    requireAdmin: (request: FastifyRequest, reply: FastifyReply) => Promise<void>;
+    /** Ticket D.3: the configured registration mode, for the admin panel's server status. */
+    registrationMode: RegistrationMode;
   }
 }
 
@@ -286,6 +293,18 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
     }
     await app.requireAccount(request, reply);
   });
+  app.decorate('requireAdmin', async (request: FastifyRequest, reply: FastifyReply) => {
+    const token = request.cookies[SESSION_COOKIE];
+    const resolved = token ? await resolveSession(app.db, token, now()) : null;
+    if (!resolved || resolved.account.role !== 'admin') {
+      return reply
+        .code(404)
+        .send(errorBody('not_found', `Route ${request.method} ${request.url} not found`));
+    }
+    // The per-account limits, the suspension check and presence, like every account route.
+    await app.requireAccount(request, reply);
+  });
+  app.decorate('registrationMode', options.registrationMode);
 
   const rateLimitConfig = (limit: RateLimit) => ({
     rateLimit: { max: limit.max, timeWindow: limit.timeWindowMs },

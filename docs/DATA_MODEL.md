@@ -344,6 +344,32 @@ Index: `(blocked_id)`. Inserting a block deletes the pair's `friendships` row in
 
 A separate table so the frequent upsert never waits on the account row's locks. No row = never seen since 4.3 shipped (shown as "away for a while").
 
+### guilds — implemented (4.4)
+| Column | Type | Notes |
+| --- | --- | --- |
+| id | uuid PK | uuidv7 |
+| handle | text | opaque public reference (12 random characters, like account handles), unique |
+| name | text | text module `guildName`; unique on `lower(name)` among guilds with `disbanded_at is null` |
+| tag | text | text module `guildTag` (A–Z, 0–9, 2–5); unique among existing guilds |
+| emblem | text | game-core `GuildEmblemId` |
+| created_by | uuid? FK | → `accounts.id` `ON DELETE SET NULL` |
+| created_at | timestamptz | |
+| disbanded_at | timestamptz? | set on disband; the row stays (reports, audit) and frees the name and tag |
+| rename_required, rename_reason, renamed_from | boolean, text?, text? | a moderator's forced rename: the leader must choose a new name (not `renamed_from`) |
+
+No leader column: the leader is the guild's one `guild_members` row with role `leader`.
+
+### guild_members — implemented (4.4)
+| Column | Type | Notes |
+| --- | --- | --- |
+| account_id | uuid PK FK | → `accounts.id` `ON DELETE CASCADE`; the primary key makes it one guild per account |
+| guild_id | uuid FK | → `guilds.id` `ON DELETE CASCADE`; indexed |
+| role | text | `leader`, `officer`, `member` (check); partial unique index `(guild_id) where role = 'leader'` |
+| joined_at | timestamptz | |
+
+### guild_invites, guild_applications — implemented (4.4)
+`guild_invites (guild_id, account_id, invited_by?, created_at)` and `guild_applications (guild_id, account_id, created_at)`, primary key `(guild_id, account_id)`, indexed on `account_id`, cascading with the guild and the account. Joining a guild deletes the joiner's other invites and applications; disbanding deletes the guild's.
+
 ## Relationships
 
 ```
@@ -359,6 +385,7 @@ account 1─* idempotency_keys
 account 1─* reports (as reporter and as subject), 1─* sanctions
 account 1─* account_achievements (≤ 1 per achievement); account 0..1─1 showcase character
 account *─* account via friendships (one row per pair) and blocks (directional); account 1─0..1 account_presence
+account 1─0..1 guild_members *─1 guild 1─* guild_invites, guild_applications
 character 1─* merchant_purchases
 ```
 
