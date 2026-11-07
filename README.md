@@ -64,3 +64,7 @@ Run a single package with a filter, e.g. `pnpm --filter @worldforge/server test`
 Production server: `pnpm build`, then `pnpm --filter @worldforge/server db:migrate:prod` and `node apps/server/dist/index.js` (env: `DATABASE_URL`, `DATABASE_POOL_MAX`, `PORT`, `HOST`, `LOG_LEVEL`, `SESSION_TTL_HOURS`, `SESSION_COOKIE_SECURE`, `TRUST_PROXY`; see `apps/server/.env.example`).
 
 CI (`.github/workflows/ci.yml`) runs install, format check, lint, typecheck, test and build on every PR and on `main`, then applies the migrations to a fresh PostgreSQL 16 service container.
+
+## License and security
+
+This repository is public for viewing only. It is **not open source**: all rights are reserved, including the code, game content and art (see [`LICENSE`](LICENSE)). Please report security problems privately as described in [`SECURITY.md`](SECURITY.md), never in a public issue.
