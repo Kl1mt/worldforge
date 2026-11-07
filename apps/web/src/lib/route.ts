@@ -30,6 +30,8 @@ export const GAME_ROUTES = [
   'warehouse',
   // Ticket 5.2: the leaderboards, `#/boards/<metric>?class=<classId>&bracket=<id>`.
   'boards',
+  // Ticket F.3: the patch notes ("What's new"), `#/notes`.
+  'notes',
 ] as const;
 /** The gate: only shown to visitors without a session. */
 export const AUTH_ROUTES = ['login', 'register'] as const;

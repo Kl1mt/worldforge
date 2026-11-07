@@ -637,6 +637,14 @@ Tests that passed on their PR kept failing later on `main` and blocked the auto-
 - **Real-Postgres timing** (`concurrency.pg.test.ts`): sell/salvage vs lock keeps going (with a growing head start) until both orders were seen; the parallel-transactions check got a wider margin.
 - Prevention: "Writing tests that don't flake" in `CLAUDE.md`; a nightly/manual **Flake hunt** workflow (`.github/workflows/flake-hunt.yml`) repeats the server suite and `test:pg` with shuffled order, off the per-PR path. No production code or gameplay numbers changed.
 
+### F.3 Patch notes & version numbers — `done (PR #85)`
+Owner request: patch notes and version numbers in-game for every new thing.
+- One game version, `0.<phase>.<patch>`, in game-core's typed patch notes (`releases/notes.ts`, `GAME_VERSION`); the server returns it in `GET /api/health` (`version`), the web shows it quietly in the status bar ("v0.5.2") linking to the notes.
+- Backfilled history from this file: 0.1.0 (Phases 0–1), 0.2.0, 0.3.0, 0.4.0 (Phase 4 with the launch: invites and legal pages), 0.5.0 (F.1), 0.5.1 (5.1), 0.5.2 (5.2, plus the scoped-ledger-styles fix). Dates are the merge dates.
+- "What's new" (`#/notes`): the town crier's proclamations, newest first, grouped New / Changed / Fixed; releases new to the reader are marked and open, older ones fold. Unread marker: a "New" tag on the version and a "New in v…" herald slip (the least important notice; never while the first-steps guide runs; a brand-new player starts at the current version). Last seen version per account in localStorage, so no migration.
+- Process: the patch notes rule and its collision rule in `CLAUDE.md`, `docs/DEVELOPMENT.md` "Versions and patch notes"; game-core tests enforce valid, unique, increasing versions, ordered dates, the current version, non-empty releases and player language.
+- Tests: game-core ordering, `/api/health` version, route, unread logic, the screen's markup; screenshots `docs/screenshots/phase-5/notes-*`. No gameplay changes.
+
 ## Phase 5 — Leaderboards, competitive systems & trading
 GDD §15 Phase 5, §10.2, §10.3, §16.3, §16.4; trading per `docs/TRADING.md` (owner decision: built at the end of this phase). **Exit:** leaderboard values are reproducible and server-authoritative; PvP matches are understandable, reasonably fair, and do not damage core PvE progression; trading (if switched on) creates and destroys no value, and every trade is auditable and reversible within its window.
 

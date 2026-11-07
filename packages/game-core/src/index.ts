@@ -21,3 +21,4 @@ export * from './social/index.js';
 export * from './achievements/index.js';
 export * from './guild-boss/index.js';
 export * from './scoring/index.js';
+export * from './releases/index.js';

@@ -1,5 +1,5 @@
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
-import { getGameContent } from '@worldforge/game-core';
+import { GAME_VERSION, getGameContent } from '@worldforge/game-core';
 import { registerErrorHandling } from './errors.js';
 import { DEFAULT_AUTH_OPTIONS, registerAuth, type AuthOptions } from './auth/index.js';
 import { registerCharacters } from './characters/routes.js';
@@ -46,6 +46,8 @@ export interface HealthResponse {
   status: 'ok' | 'degraded';
   uptimeSeconds: number;
   db: 'up' | 'down';
+  /** Ticket F.3: the game version of this build (game-core's patch notes). */
+  version: string;
 }
 
 export interface AppOptions extends FastifyServerOptions {
@@ -137,6 +139,7 @@ export function buildApp({
           status: db === 'up' ? 'ok' : 'degraded',
           uptimeSeconds: Math.round(process.uptime()),
           db,
+          version: GAME_VERSION,
         };
       });
 

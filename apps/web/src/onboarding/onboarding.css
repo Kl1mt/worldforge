@@ -158,6 +158,11 @@
   --herald: var(--brass-300);
 }
 
+/* Ticket F.3: "New in v…", the quietest slip (a pale iron edge). */
+.notice--release {
+  --herald: var(--bone-300);
+}
+
 .notice__kind {
   margin: 0;
   color: var(--herald);

@@ -1,6 +1,12 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { CLASS_IDS, EQUIPMENT_SLOT_IDS, RARITY_IDS, type GameContent } from '@worldforge/game-core';
+import {
+  CLASS_IDS,
+  EQUIPMENT_SLOT_IDS,
+  GAME_VERSION,
+  RARITY_IDS,
+  type GameContent,
+} from '@worldforge/game-core';
 import { buildApp, type HealthResponse } from './app.js';
 import type { DatabaseHandle } from './db/types.js';
 import { createTestDatabase } from './test/db.js';
@@ -28,6 +34,8 @@ describe('GET /api/health', () => {
     expect(body.status).toBe('ok');
     expect(body.db).toBe('up');
     expect(body.uptimeSeconds).toBeGreaterThanOrEqual(0);
+    // Ticket F.3: the version comes from game-core's patch notes.
+    expect(body.version).toBe(GAME_VERSION);
   });
 
   it('reports 503 degraded when the database does not answer', async () => {
@@ -39,7 +47,11 @@ describe('GET /api/health', () => {
     });
     const res = await local.inject({ method: 'GET', url: '/api/health' });
     expect(res.statusCode).toBe(503);
-    expect(res.json<HealthResponse>()).toMatchObject({ status: 'degraded', db: 'down' });
+    expect(res.json<HealthResponse>()).toMatchObject({
+      status: 'degraded',
+      db: 'down',
+      version: GAME_VERSION,
+    });
     await local.close();
   });
 });
