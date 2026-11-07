@@ -17,7 +17,7 @@
  *   gives more than the cap; every stage has several givers); the hero uses the Warehouse.
  * - A guild boss week: attempts, a stage broken, rewards claimed, a leaver keeps theirs, a late
  *   joiner earns nothing for it.
- * - The players give to the Ashen Pass; the owner finishes it; the hero farms the pass and fights
+ * - The players give to the Ashen Pass; the owner finishes it; the hero farms the pass and climbs
  *   the Warden's Watch.
  * - The admin panel's read paths; nobody else reaches them.
  *
