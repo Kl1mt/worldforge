@@ -370,6 +370,15 @@ No leader column: the leader is the guild's one `guild_members` row with role `l
 ### guild_invites, guild_applications — implemented (4.4)
 `guild_invites (guild_id, account_id, invited_by?, created_at)` and `guild_applications (guild_id, account_id, created_at)`, primary key `(guild_id, account_id)`, indexed on `account_id`, cascading with the guild and the account. Joining a guild deletes the joiner's other invites and applications; disbanding deletes the guild's.
 
+### community_projects, community_project_progress, community_contributions, world_flags — implemented (4.6)
+`docs/COMMUNITY.md`. Definitions are game-core data; these hold state only.
+- `community_projects (project_id text PK, stage_index int ≥ 0, completed_at timestamptz?, updated_at timestamptz)`: one row per touched project, created by its first contribution. `stage_index` is the stage being filled (the number of stages once complete). **The lock:** every contribution and completion selects it `for update`. Times are the game clock.
+- `community_project_progress (project_id, stage_id, resource, amount bigint ≥ 0)`, PK `(project_id, stage_id, resource)`: delivered totals (`resource` is `gold` or a material id). Never above the need.
+- `community_contributions (project_id, stage_id, account_id FK → accounts ON DELETE CASCADE, day date, resource, amount bigint > 0)`, PK `(project_id, stage_id, account_id, day, resource)`, indexed on `account_id`: what each account gave per contribution window (the game-clock UTC day). Caps read it under the project lock; "you gave" sums it. A deleted account's rows go; the totals and the audit log stay.
+- `world_flags (flag_id text PK, project_id text?, set_at timestamptz)`: the global world flags (game-core `WorldFlagId`), the one source of truth for what completed projects opened. Written once, never removed.
+
+All four stamp game time and are part of the playtest clock floor (`latestStoredTimeMs`).
+
 ## Relationships
 
 ```
@@ -386,6 +395,7 @@ account 1─* reports (as reporter and as subject), 1─* sanctions
 account 1─* account_achievements (≤ 1 per achievement); account 0..1─1 showcase character
 account *─* account via friendships (one row per pair) and blocks (directional); account 1─0..1 account_presence
 account 1─0..1 guild_members *─1 guild 1─* guild_invites, guild_applications
+account 1─* community_contributions *─1 community_projects 1─* community_project_progress
 character 1─* merchant_purchases
 ```
 

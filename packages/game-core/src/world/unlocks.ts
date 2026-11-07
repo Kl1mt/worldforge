@@ -1,3 +1,5 @@
+import type { WorldFlagId, WorldFlags } from './projects.js';
+
 /**
  * Unlock rules for areas and dungeons (ticket 2.1). Pure; the server checks them before it
  * starts an activity (ticket 2.2). Never trust a client's claim that something is unlocked.
@@ -11,11 +13,21 @@ export interface UnlockRule {
   gravewardenDefeated?: boolean;
   /** Ticket 3.6: this Nameless Crypt tier must have been cleared (`cryptTierCleared`). */
   cryptTierCleared?: number;
+  /**
+   * Ticket 4.6: a global world flag (set by a completed community project) must be set. Read from
+   * `UnlockCharacter.world`; without it the place stays closed (the safe default).
+   */
+  worldFlag?: WorldFlagId;
 }
 
 /** The character facts unlocks depend on. */
 export interface UnlockCharacter {
   level: number;
+  /**
+   * Ticket 4.6: the global world flags (the server's world state). Only rules with a `worldFlag`
+   * read them; callers that omit them see those places closed.
+   */
+  world?: WorldFlags;
 }
 
 /** Persistent world progress of a character (persisted by ticket 2.2). */
@@ -40,7 +52,9 @@ export type UnlockBlocker =
   | { kind: 'level'; required: number }
   | { kind: 'gravewardenDefeated' }
   /** Ticket 3.6: clear this crypt tier first. */
-  | { kind: 'cryptTier'; tier: number };
+  | { kind: 'cryptTier'; tier: number }
+  /** Ticket 4.6: a community project must complete first (it sets this flag). */
+  | { kind: 'worldFlag'; flag: WorldFlagId };
 
 /** Unmet conditions of `rule`, in a stable order (level first). Empty means unlocked. */
 export function unlockBlockers(
@@ -58,6 +72,9 @@ export function unlockBlockers(
   }
   if (rule.cryptTierCleared !== undefined && cryptTierCleared(progress) < rule.cryptTierCleared) {
     blockers.push({ kind: 'cryptTier', tier: rule.cryptTierCleared });
+  }
+  if (rule.worldFlag !== undefined && character.world?.[rule.worldFlag] !== true) {
+    blockers.push({ kind: 'worldFlag', flag: rule.worldFlag });
   }
   return blockers;
 }

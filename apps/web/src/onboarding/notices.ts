@@ -1,4 +1,12 @@
-import { getArea, getDungeon, type AreaId, type DungeonId } from '@worldforge/game-core';
+import {
+  findCommunityProject,
+  getArea,
+  getDungeon,
+  getWorldFlag,
+  type AreaId,
+  type DungeonId,
+} from '@worldforge/game-core';
+import type { WorldView } from '../community/api';
 import type { WorldState } from '../game/api';
 import type { QuestBoard } from '../quests/api';
 import { questTitle } from '../quests/text';
@@ -7,7 +15,7 @@ import { questTitle } from '../quests/text';
 export interface Notice {
   /** Stable per event, so the same notice is never shown twice. */
   id: string;
-  kind: 'level' | 'unlock' | 'quest';
+  kind: 'level' | 'unlock' | 'quest' | 'world';
   title: string;
   text: string;
   /** Where to go about it. */
@@ -19,7 +27,7 @@ export interface Notice {
  * Render order, least important first. Phones show only the last slip (onboarding.css), so a
  * quest completing in the same update as a level-up must not be hidden behind it.
  */
-const KIND_RANK: Record<Notice['kind'], number> = { level: 0, unlock: 1, quest: 2 };
+const KIND_RANK: Record<Notice['kind'], number> = { level: 0, unlock: 1, quest: 2, world: 3 };
 
 /** Notices in render order: by importance, then by arrival (`sort` is stable). */
 export function orderNotices(notices: readonly Notice[]): Notice[] {
@@ -93,4 +101,33 @@ export function questNotices(prev: QuestBoard | null, next: QuestBoard): Notice[
       href: '#/tavern',
       linkLabel: 'To the Tavern',
     }));
+}
+
+/** How long after a project completes a returning player still gets its world notice. */
+export const WORLD_NOTICE_DAYS = 7;
+
+/**
+ * Ticket 4.6: a world notice for each community project completed in the last week that this
+ * device has not announced yet (`seen`, per account). Shown once, whoever was online at the time.
+ */
+export function worldNotices(view: WorldView, seen: ReadonlySet<string>, nowMs: number): Notice[] {
+  const out: Notice[] = [];
+  for (const c of view.completed) {
+    const id = `world:${c.projectId}`;
+    if (seen.has(id)) continue;
+    if (nowMs - Date.parse(`${c.completedOn}T00:00:00Z`) > (WORLD_NOTICE_DAYS + 1) * 86_400_000) {
+      continue;
+    }
+    const project = findCommunityProject(c.projectId);
+    if (!project) continue;
+    out.push({
+      id,
+      kind: 'world',
+      title: `${project.name}: done`,
+      text: `The town finished the work together. ${getWorldFlag(project.grantsFlag).opens} stands open to every hero.`,
+      href: '#/works',
+      linkLabel: 'To the town works',
+    });
+  }
+  return out;
 }

@@ -9,7 +9,14 @@ import {
   type RarityId,
   type WorldProgress,
 } from '@worldforge/game-core';
-import { accountAchievements, characterQuests, characters, itemInstances } from '../db/schema.js';
+import {
+  accountAchievements,
+  characterQuests,
+  characters,
+  communityContributions,
+  communityProjects,
+  itemInstances,
+} from '../db/schema.js';
 import { writeAudit } from '../db/audit.js';
 import type { Executor } from '../db/types.js';
 
@@ -35,6 +42,7 @@ export const ALL_FACTS: readonly FactKey[] = [
   'fullSetWorn',
   'contractsTurnedIn',
   'storyQuestsTurnedIn',
+  'communityProjects',
 ];
 
 /** The character fields the facts read (pass the row as it is after the event's change). */
@@ -117,6 +125,23 @@ export async function characterFacts(
         ),
       );
     facts.storyQuestsTurnedIn = rows.map((r) => r.questId);
+  }
+  if (want.has('communityProjects')) {
+    // Ticket 4.6: completed projects the account gave to (account-wide, like contracts).
+    const rows = await executor
+      .selectDistinct({ projectId: communityContributions.projectId })
+      .from(communityContributions)
+      .innerJoin(
+        communityProjects,
+        eq(communityProjects.projectId, communityContributions.projectId),
+      )
+      .where(
+        and(
+          eq(communityContributions.accountId, character.accountId),
+          isNotNull(communityProjects.completedAt),
+        ),
+      );
+    facts.communityProjects = rows.map((r) => r.projectId);
   }
   return facts;
 }

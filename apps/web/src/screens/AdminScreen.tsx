@@ -1090,6 +1090,34 @@ function StatusView({ s }: { s: ServerStatus }) {
           <p className="gauge__fine">Could not be read.</p>
         )}
       </div>
+      {s.projects && s.projects.length > 0 ? (
+        <div className="gauge gauge--wide">
+          <p className="caps">Town works</p>
+          <dl className="gauge__counts">
+            {s.projects.map((p) => (
+              <div key={p.id}>
+                <dt>{p.name}</dt>
+                <dd>
+                  {p.status === 'complete'
+                    ? `Done ${p.completedOn ?? ''}`
+                    : p.status === 'locked'
+                      ? 'Not begun'
+                      : `Stage ${p.stage}/${p.stages}: ${p.current
+                          .map(
+                            (n) =>
+                              `${n.resource} ${n.delivered.toLocaleString('en-GB')}/${n.required.toLocaleString('en-GB')}`,
+                          )
+                          .join(', ')}`}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <p className="gauge__fine">
+            Contributors: {s.projects.map((p) => p.contributors).join(' · ')}. Playtest only:{' '}
+            <code>deploy/admin.sh project complete &lt;id&gt;</code>.
+          </p>
+        </div>
+      ) : null}
     </div>
   );
 }

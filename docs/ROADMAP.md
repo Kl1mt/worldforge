@@ -503,7 +503,7 @@ GDD: §10.1. Needs 4.4.
 - Polling stays within the rate limits for a busy guild (document the numbers).
 **Acceptance:** permission matrix (roles × post/delete/notice/report); ordering and pagination under concurrent posts (real PG); filter and mute enforced server-side; screenshots.
 
-### 4.6 Community projects & world state (vertical) — `todo`
+### 4.6 Community projects & world state (vertical) — `done (PR #TBD)`
 GDD: §12.1, §12.2. Needs 4.1.
 - **Global projects:** data-driven, with stages that need materials and gold. Any player contributes from their own holdings. Totals and stage completion are exact under concurrency (same transaction, audited).
 - **No monopoly:** per-player daily caps or diminishing returns per stage; individual rewards for contributors (e.g. a title or achievement from 4.2, never power) alongside the shared unlock.

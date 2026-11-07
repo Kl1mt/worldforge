@@ -263,6 +263,9 @@
 .seal--quests {
   --wax: var(--crimson-700);
 }
+.seal--world {
+  --wax: var(--brass-600);
+}
 
 .seal__glyph {
   font-family: var(--font-display);

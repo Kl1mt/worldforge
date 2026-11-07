@@ -9,7 +9,10 @@ import { useMediaQuery } from '../components/useMediaQuery';
 import { useGame } from '../game/GameProvider';
 import { PHONE_QUERY, pixelScale } from '../lib/pixel';
 import { routeHref, type GameRoute } from '../lib/route';
+import { Meter } from '../components/Meter';
+import { projectProgress, useProjectBoard, type BoardState } from '../community/api';
 import './hub.css';
+import './works.css';
 
 const HUB = asset('hub.graumark');
 
@@ -27,7 +30,7 @@ const BUILDINGS: Record<BuildingId, Building> = {
   merchant: { route: 'merchant', purpose: 'Buy and sell goods.' },
   tavern: { route: 'tavern', purpose: 'Quests, contracts and notices.' },
   guildHall: { route: 'guild', purpose: 'Found a guild, or find one to join.' },
-  warehouse: { route: null, purpose: 'Storage, once the doors are mended.' },
+  warehouse: { route: null, purpose: 'Storage, once the town mends the doors (Town works).' },
   summoningShrine: { route: null, purpose: 'The shrine is cold for now.' },
 };
 
@@ -37,9 +40,50 @@ const ORDERED: Hotspot[] = [
   ...HUB_HOTSPOTS.filter((h) => h.id !== 'worldMap'),
 ];
 
-function accessibleLabel(h: Hotspot): string {
-  const b = BUILDINGS[h.id];
+/** Ticket 4.6: the Warehouse's line once the town has restored it (4.7 opens the doors). */
+const RESTORED_WAREHOUSE = 'Restored by the town. The keeper is still sorting the shelves.';
+
+function accessibleLabel(h: Hotspot, buildings: Record<BuildingId, Building>): string {
+  const b = buildings[h.id];
   return b.route ? `${h.label}: ${b.purpose}` : `${h.label}, opens later. ${b.purpose}`;
+}
+
+/**
+ * Ticket 4.6: the town works slip under the picture — the community project under way (or the
+ * last one finished), with the town's progress and a link to the board.
+ */
+function WorksSlip({ state }: { state: BoardState }) {
+  if (state.kind === 'loading') return null;
+  if (state.kind === 'error') {
+    return (
+      <p className="works-slip panel-ledger works-slip__meta">
+        The works ledger cannot be read right now. <a href={routeHref('works')}>Town works</a>
+      </p>
+    );
+  }
+  const projects = state.board.projects;
+  const open = projects.find((p) => p.status === 'open');
+  const shown = open ?? projects.filter((p) => p.status === 'complete').at(-1);
+  if (!shown) return null;
+  const pct = Math.round(projectProgress(shown) * 100);
+  const stage = shown.stages[shown.stageIndex];
+  return (
+    <section className="works-slip panel-ledger" aria-label="Town works">
+      <div>
+        <p className="caps works__eyebrow">Town works</p>
+        <p className="works-slip__title">{shown.name}</p>
+        <p className="works-slip__meta">
+          {shown.status === 'complete'
+            ? `Finished on ${shown.completedOn}.`
+            : `${pct} % · now: ${stage?.name ?? ''} (stage ${shown.stageIndex + 1} of ${shown.stages.length}). Every hero may give a share a day.`}
+        </p>
+      </div>
+      <a className="btn btn--small" href={routeHref('works')}>
+        {shown.status === 'complete' ? 'See the works' : 'Lend a hand'}
+      </a>
+      <Meter variant="xp" label={`${shown.name}: ${pct} % done`} current={pct} max={100} />
+    </section>
+  );
 }
 
 function HeroWhereabouts() {
@@ -68,6 +112,13 @@ function HeroWhereabouts() {
 
 export function HubScreen() {
   const phone = useMediaQuery(PHONE_QUERY);
+  const { state: works } = useProjectBoard();
+  const restored =
+    works.kind === 'ready' &&
+    works.board.projects.some((p) => p.id === 'restoreWarehouse' && p.status === 'complete');
+  const buildings: Record<BuildingId, Building> = restored
+    ? { ...BUILDINGS, warehouse: { ...BUILDINGS.warehouse, purpose: RESTORED_WAREHOUSE } }
+    : BUILDINGS;
   const [ref, width] = useElementWidth<HTMLDivElement>(1152);
   const [notice, setNotice] = useState<string | null>(null);
   const [focus, setFocus] = useState<BuildingId | null>(null);
@@ -75,9 +126,9 @@ export function HubScreen() {
   const scale = pixelScale(width, HUB.width, { min: 1, max: 3 });
   const stageWidth = Math.min(Math.floor(width), HUB.width * scale);
   const left = Math.round((stageWidth - HUB.width * scale) / 2);
-  const inscription = focus ? BUILDINGS[focus].purpose : null;
+  const inscription = focus ? buildings[focus].purpose : null;
 
-  const later = (h: Hotspot) => setNotice(`The ${h.label} opens later. ${BUILDINGS[h.id].purpose}`);
+  const later = (h: Hotspot) => setNotice(`The ${h.label} opens later. ${buildings[h.id].purpose}`);
 
   return (
     <div className="hub">
@@ -101,7 +152,7 @@ export function HubScreen() {
             style={{ left }}
           />
           {ORDERED.map((h) => {
-            const b = BUILDINGS[h.id];
+            const b = buildings[h.id];
             const cx = (h.x + h.width / 2) / HUB.width;
             const align = cx < 0.12 ? 'start' : cx > 0.88 ? 'end' : 'center';
             const style = {
@@ -113,7 +164,7 @@ export function HubScreen() {
             const common = {
               className: `hotspot hotspot--${align}${b.route ? '' : ' hotspot--later'}`,
               style,
-              'aria-label': accessibleLabel(h),
+              'aria-label': accessibleLabel(h, buildings),
               onMouseEnter: () => setFocus(h.id),
               onFocus: () => setFocus(h.id),
               onBlur: () => setFocus(null),
@@ -154,11 +205,13 @@ export function HubScreen() {
         {notice}
       </p>
 
+      <WorksSlip state={works} />
+
       {phone ? (
         <nav className="signpost" aria-label="Buildings">
           <ul>
             {ORDERED.map((h) => {
-              const b = BUILDINGS[h.id];
+              const b = buildings[h.id];
               const body = (
                 <>
                   <span className="signpost__name display">{h.label}</span>
@@ -177,7 +230,7 @@ export function HubScreen() {
                       type="button"
                       className="signpost__board signpost__board--later"
                       aria-disabled="true"
-                      aria-label={accessibleLabel(h)}
+                      aria-label={accessibleLabel(h, buildings)}
                       onClick={() => later(h)}
                     >
                       {body}

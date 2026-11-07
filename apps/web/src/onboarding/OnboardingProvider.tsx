@@ -16,7 +16,8 @@ import type { GameRoute } from '../lib/route';
 import type { QuestBoard } from '../quests/api';
 import { useQuests } from '../quests/useQuests';
 import { observedSteps } from './guide';
-import { levelNotice, questNotices, unlockNotices, type Notice } from './notices';
+import { levelNotice, questNotices, unlockNotices, worldNotices, type Notice } from './notices';
+import { useWorldView } from '../community/api';
 import { browserStore, newIds, questKeys, readSeen, seenKey, writeSeen } from './seen';
 
 /** How long a notice stays before it fades on its own. */
@@ -93,6 +94,19 @@ export function OnboardingProvider({ route, children }: { route: GameRoute; chil
     push(unlockNotices(lastWorld.current, world.value));
     lastWorld.current = world.value;
   }, [world, push]);
+
+  // Ticket 4.6: a community project finished (shown once per device and account).
+  const worldView = useWorldView();
+  const accountId = auth.state.kind === 'authenticated' ? auth.state.account.id : null;
+  useEffect(() => {
+    if (!worldView || !accountId) return;
+    const key = `wf.seen.world.${accountId}`;
+    const seen = readSeen(store, key) ?? new Set<string>();
+    const fresh = worldNotices(worldView, seen, Date.now());
+    if (fresh.length === 0) return;
+    push(fresh);
+    writeSeen(store, key, [...seen, ...fresh.map((n) => n.id)]);
+  }, [worldView, accountId, store, push]);
 
   const lastBoard = useRef<QuestBoard | null>(null);
   useEffect(() => {

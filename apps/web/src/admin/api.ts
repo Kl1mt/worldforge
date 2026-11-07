@@ -116,6 +116,19 @@ export interface ServerStatus {
     latest: string | null;
     pending: string[];
   } | null;
+  /** Ticket 4.6: community project progress (aggregates only); absent on older servers. */
+  projects?:
+    | {
+        id: string;
+        name: string;
+        status: 'locked' | 'open' | 'complete';
+        stage: number;
+        stages: number;
+        completedOn: string | null;
+        contributors: number;
+        current: { resource: string; delivered: number; required: number }[];
+      }[]
+    | null;
 }
 
 export interface StaffMember extends PlayerRef {

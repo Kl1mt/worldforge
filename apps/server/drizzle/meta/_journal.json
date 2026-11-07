@@ -148,6 +148,13 @@
       "when": 1794007766326,
       "tag": "0020_guilds",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1794017122555,
+      "tag": "0021_community_projects",
+      "breakpoints": true
     }
   ]
 }
