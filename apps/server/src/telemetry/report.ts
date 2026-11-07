@@ -503,6 +503,27 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
       audit('guild.create', num(sql`data->>'gold'`)),
       sumRollups(rows, 'gold.out', src('guild_create'), 'amount'),
     ],
+    // Community projects (ticket 4.6): contributions spend gold and materials.
+    [
+      'community: contributions',
+      audit('community.contribute', sql`count(*)`),
+      sumRollups(rows, 'community.contribute'),
+    ],
+    [
+      'community: gold',
+      audit('community.contribute', num(sql`data->>'gold'`)),
+      sumRollups(rows, 'gold.out', src('community_project'), 'amount'),
+    ],
+    [
+      'community: materials',
+      bundle('community.contribute', sql`a.data->'materials'`),
+      sumRollups(rows, 'material.out', src('community_project'), 'amount'),
+    ],
+    [
+      'community: stages completed',
+      audit('community.stage_complete', sql`count(*)`),
+      sumRollups(rows, 'community.stage'),
+    ],
     // Discards
     ['items discarded', audit('item.discard', sql`count(*)`), sumRollups(rows, 'item.discarded')],
   ];

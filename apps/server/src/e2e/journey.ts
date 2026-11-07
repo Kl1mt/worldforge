@@ -514,6 +514,11 @@ export async function expectHoldingsMatchAudit(database: DatabaseHandle, charact
       case 'guild.create':
         gold -= d.gold!;
         break;
+      // Ticket 4.6: contributions to a community project spend gold and materials.
+      case 'community.contribute':
+        gold -= d.gold!;
+        addMaterials(d.materials, -1);
+        break;
     }
   }
   const [row] = await database.db.select().from(characters).where(eq(characters.id, characterId));
@@ -1032,4 +1037,99 @@ export async function playGuildChatStep(
       ),
     );
   expect(events.map((e) => e.event).sort()).toEqual(['guild.chat_remove', 'guild.notice']);
+}
+
+/**
+ * Phase 4 community step (ticket 4.6): the hero reads the project board (the Warehouse open, the
+ * Ashen Pass waiting on it), farms until it holds gold and timber, and gives to the Warehouse's
+ * current stage: more than the daily cap is offered, the cap is taken and the rest stays with the
+ * hero; a retry with the same `Idempotency-Key` replays; a second gift the same day is refused
+ * (`contribution_capped`). Gold and materials reconcile with the audit log, the contributions with
+ * the telemetry rollups. 4.11 finishes the project with several players.
+ */
+export async function playCommunityStep(database: DatabaseHandle, hero: Journey) {
+  type Need = {
+    resource: string;
+    required: number;
+    delivered: number;
+    cap: number;
+    givenToday: number;
+  };
+  type Board = {
+    projects: {
+      id: string;
+      status: string;
+      stageIndex: number;
+      stages: { id: string; status: string; needs: Need[] }[];
+      yours: { resource: string; amount: number }[];
+    }[];
+  };
+  const board = async () => (await hero.api('GET', '/api/community/projects')).json<Board>();
+  const first = await board();
+  expect(first.projects.map((p) => [p.id, p.status])).toEqual([
+    ['restoreWarehouse', 'open'],
+    ['clearAshenPass', 'locked'],
+  ]);
+  const stage = first.projects[0]!.stages[first.projects[0]!.stageIndex]!;
+  const goldNeed = stage.needs.find((n) => n.resource === 'gold')!;
+  const holdings = async () => {
+    const gold = (await hero.api('GET', '/api/characters'))
+      .json<{ characters: { id: string; gold: number }[] }>()
+      .characters.find((c) => c.id === hero.characterId)!.gold;
+    const mats = (await hero.api('GET', `/api/characters/${hero.characterId}/materials`)).json<{
+      materials: { materialId: string; quantity: number }[];
+    }>().materials;
+    return { gold, mats: Object.fromEntries(mats.map((m) => [m.materialId, m.quantity])) };
+  };
+  await hero.farmBestArea();
+  for (let i = 0; i < 120 && (await holdings()).gold < goldNeed.cap * 2; i++) {
+    await hero.settle();
+    await hero.sellJunk(await hero.inventory());
+    await hero.farmBestArea();
+  }
+  const before = await holdings();
+  expect(before.gold).toBeGreaterThanOrEqual(goldNeed.cap * 2);
+  // Offer twice the cap of gold and whatever the stage's materials the hero holds.
+  const offer = [
+    { resource: 'gold', amount: goldNeed.cap * 2 },
+    ...stage.needs
+      .filter((n) => n.resource !== 'gold' && (before.mats[n.resource] ?? 0) > 0)
+      .map((n) => ({ resource: n.resource, amount: before.mats[n.resource]! })),
+  ];
+  const body = { characterId: hero.characterId, stageId: stage.id, offer };
+  const key = randomUUID();
+  const url = '/api/community/projects/restoreWarehouse/contribute';
+  const gave = await hero.keyed(url, body, key);
+  expect(gave.statusCode, gave.body).toBe(200);
+  const result = gave.json<{
+    accepted: { resource: string; amount: number }[];
+    limited: Record<string, string>;
+  }>();
+  const goldGiven = result.accepted.find((a) => a.resource === 'gold')!.amount;
+  expect(goldGiven).toBe(goldNeed.cap);
+  expect(result.limited.gold).toBe('cap');
+  const replay = await hero.keyed(url, body, key);
+  expect(replay.headers['idempotency-replayed']).toBe('true');
+  const after = await holdings();
+  expect(after.gold).toBe(before.gold - goldGiven);
+  for (const a of result.accepted.filter((a) => a.resource !== 'gold')) {
+    expect(after.mats[a.resource] ?? 0).toBe(before.mats[a.resource]! - a.amount);
+  }
+  const again = await hero.keyed(
+    url,
+    { ...body, offer: [{ resource: 'gold', amount: 1 }] },
+    randomUUID(),
+  );
+  expect(again.statusCode).toBe(409);
+  expect(again.json<{ error: { code: string } }>().error.code).toBe('contribution_capped');
+  const now = (await board()).projects[0]!;
+  expect(now.yours).toEqual(result.accepted);
+  expect(now.stages[0]!.needs.find((n) => n.resource === 'gold')!.givenToday).toBe(goldNeed.cap);
+
+  await expectHoldingsMatchAudit(database, hero.characterId);
+  const checks = await reconcileWithAudit(database.db);
+  for (const c of checks.filter((c) => c.check.startsWith('community:'))) {
+    expect(c, c.check).toMatchObject({ ok: true });
+  }
+  return { accepted: result.accepted };
 }

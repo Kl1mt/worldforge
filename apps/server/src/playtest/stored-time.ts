@@ -12,6 +12,7 @@ import { queryRows } from '../db/query.js';
  * "in progress" until real time caught up with its end (days with `--fast`).
  *
  * Ticket 3.8: telemetry rollups stamp the game day (its start, UTC, is a safe lower bound).
+ * Ticket 4.6: community projects (last change), contribution windows and world flags.
  */
 export async function latestStoredTimeMs(db: Database): Promise<number | null> {
   const rows = await queryRows<{ ms: number | null }>(
@@ -24,7 +25,10 @@ export async function latestStoredTimeMs(db: Database): Promise<number | null> {
       (select max(created_at) from merchant_purchases),
       (select max(created_at) from item_instances),
       (select max(created_at) from idempotency_keys),
-      (select max(day)::timestamp at time zone 'UTC' from telemetry_daily)
+      (select max(day)::timestamp at time zone 'UTC' from telemetry_daily),
+      (select max(updated_at) from community_projects),
+      (select max(day)::timestamp at time zone 'UTC' from community_contributions),
+      (select max(set_at) from world_flags)
     )) * 1000)::float8 as ms`,
   );
   const ms = rows[0]?.ms;

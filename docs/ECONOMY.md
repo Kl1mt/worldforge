@@ -131,6 +131,9 @@ Upgrades move the cliff like the boss effects do: a +7 kit of commons (≈ 9 × 
 - Real-PostgreSQL races (`concurrency.pg.test.ts`): N upgrades of one item with different keys (each counter drawn once; the item equals a sequential replay of the audit log), one key raced (one attempt, the rest replay), upgrades, rerolls and improvements mixed on one item, forge actions racing a sell and a salvage of the same item (one order wins; gold reconciles with the audit log), and forge actions on an equipped item racing settles (time credited once).
 - The crypt run snapshot stores each worn item's `upgradeLevel` (older snapshots replay at +0).
 
+## Community projects (ticket 4.6)
+A shared sink: the two projects take 114,000 gold and ~2,400 materials in all, at most 20 % of each stage's need per player and day (`docs/COMMUNITY.md` "Numbers"). Telemetry: `gold.out community_project`, `material.out community_project`.
+
 ## Balance pass: loot depth & economy (ticket B.2)
 The owner's playtest feedback had not arrived (`docs/PLAYTEST_FEEDBACK.md` is still the template), so B.2 balances on simulations and telemetry. Build diversity, effects and sets: `docs/COMBAT.md` "Build diversity"; crypt tiers: `docs/DUNGEONS.md` "Farmed gear"; drop rates: `docs/EFFECTS.md`.
 

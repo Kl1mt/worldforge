@@ -149,6 +149,11 @@
   --herald: var(--moss-400);
 }
 
+.notice--world {
+  --herald: var(--brass-300);
+  border-top: 2px solid var(--brass-500);
+}
+
 .notice--quest {
   --herald: var(--brass-300);
 }

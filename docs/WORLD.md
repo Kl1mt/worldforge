@@ -29,6 +29,8 @@ Enemy damage was retuned in ticket B.1 (`docs/COMBAT.md`): each later area hits 
 Yields, gathering and profession levels (ticket 2.3): `packages/game-core/src/professions/`, rules in `docs/FARMING.md` ("Gathering & professions").
 
 ## Unlocks
+Ticket 4.6: a rule may also need a global world flag (`UnlockRule.worldFlag`, set by a completed community project, `docs/COMMUNITY.md`); the caller passes the flags as `character.world`, and without them such a place stays closed (blocker `{ kind: 'worldFlag', flag }`, after the others). No place uses one yet (4.8: `ashenPass`).
+
 `isAreaUnlocked(areaId, character, progress)` and `isDungeonUnlocked(…)` with `character = { level }` and `progress = { gravewardenDefeated }`. `areaUnlockBlockers` / `dungeonUnlockBlockers` return the unmet conditions in a stable order (`{ kind: 'level', required }`, then `{ kind: 'gravewardenDefeated' }`) for the world map. A non-integer or < 1 level throws. The rules live in `UnlockRule` on each place (data), so new places need no code.
 
 ## Item tiers

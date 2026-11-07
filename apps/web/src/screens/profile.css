@@ -265,6 +265,9 @@
 .seal--quests {
   --wax: var(--crimson-700);
 }
+.seal--world {
+  --wax: var(--brass-600);
+}
 
 .seal--art {
   --s: 2;

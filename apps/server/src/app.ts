@@ -26,6 +26,8 @@ import { registerGuilds } from './social/guilds.js';
 import { registerGuildChat } from './social/guild-chat.js';
 import { registerLegal, type LegalOptions } from './legal/routes.js';
 import { registerAdmin, type AdminOptions } from './admin/routes.js';
+import { registerCommunity } from './community/routes.js';
+import { WorldStateCache } from './community/world-state.js';
 import type { Database, DatabaseHandle } from './db/types.js';
 
 declare module 'fastify' {
@@ -58,6 +60,8 @@ export interface AppOptions extends FastifyServerOptions {
    * real route uses them.
    */
   testRoutes?: (api: FastifyInstance) => Promise<void> | void;
+  /** Ticket 4.6: how long the cached world state is served (default 60 s, docs/COMMUNITY.md). */
+  worldStateTtlMs?: number;
 }
 
 export function buildApp({
@@ -67,6 +71,7 @@ export function buildApp({
   legal,
   admin,
   testRoutes,
+  worldStateTtlMs,
   ...options
 }: AppOptions): FastifyInstance {
   const app = Fastify({
@@ -76,6 +81,7 @@ export function buildApp({
     ...options,
   });
   app.decorate('db', database.db);
+  app.decorate('worldState', new WorldStateCache(database.db, worldStateTtlMs));
   registerErrorHandling(app);
   const activityOptions: ActivityOptions = { ...DEFAULT_ACTIVITY_OPTIONS, ...activity };
   registerSettlementScheduler(app, activityOptions);
@@ -99,6 +105,7 @@ export function buildApp({
       await registerFriends(api);
       await registerGuilds(api, activityOptions);
       await registerGuildChat(api);
+      await registerCommunity(api, activityOptions);
       await registerLegal(api, legal ?? {});
       await registerAdmin(api, admin ?? {});
       if (testRoutes) await testRoutes(api);

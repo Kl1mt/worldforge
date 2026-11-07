@@ -4,6 +4,7 @@ import {
   DUNGEONS,
   getArea,
   getEnemy,
+  getWorldFlag,
   type AreaId,
   type DungeonId,
   type UnlockBlocker,
@@ -79,7 +80,10 @@ function places(world: WorldState | null, current: AreaId | null, pending: AreaI
 }
 
 function blockerText(b: UnlockBlocker): string {
-  return b.kind === 'level' ? `Reach level ${b.required}` : 'Defeat the Gravewarden';
+  if (b.kind === 'level') return `Reach level ${b.required}`;
+  // Ticket 4.6: a community project must finish first.
+  if (b.kind === 'worldFlag') return getWorldFlag(b.flag).lockedText;
+  return 'Defeat the Gravewarden';
 }
 
 const STATE_LABEL: Record<PlaceState, string> = {
