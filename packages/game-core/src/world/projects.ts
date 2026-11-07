@@ -10,8 +10,10 @@ import { MATERIAL_IDS, type MaterialId } from './materials.js';
  * building in 4.7, the Ashen Pass area in 4.8). Flags are global, never per character.
  *
  * No monopoly (GDD §12.2): one player (account, all heroes together) may give at most
- * `capShare` of each need of a stage per contribution window (the UTC day of the game clock), so
- * a stage takes at least `1 / capShare` player-days whoever plays. Contributor rewards are
+ * `capShare` of each need of a stage per contribution window (the UTC day of the game clock).
+ * Ticket B.3: the share grows by `capGrowthPerDay` for every day the stage has stood since its
+ * first gift, up to `capShareMax`, so a stage still needs five players on its first day (a big
+ * town can't hand it to a few), while a small town is not held for weeks. Contributor rewards are
  * achievements only (cosmetic, ticket 4.2), never power.
  *
  * Tuning (ticket B.3): the needs, `capShare` (per stage, or the default in
@@ -105,17 +107,31 @@ export interface CommunityProjectDefinition {
 
 export const COMMUNITY_PROJECT_CONFIG = {
   /**
-   * Default per-player cap: the share of each need of a stage one account may give per window.
-   * 0.2 → a stage takes at least five player-days, whoever plays.
+   * Default per-player cap on a stage's first day: the share of each need of a stage one account
+   * may give per window. 0.2 → five players are needed to finish a stage on its first day.
    */
   capShare: 0.2,
+  /**
+   * Ticket B.3: added to the share for every whole day (window) since the stage's first gift
+   * (0.2 → 20 %, 40 %, 60 % …): one player alone finishes a stage in three days instead of five.
+   */
+  capGrowthPerDay: 0.2,
+  /** Ticket B.3: the share never grows past this (no single account gives more of a need a day). */
+  capShareMax: 0.6,
 } as const;
+
+export interface CommunityProjectConfig {
+  capShare: number;
+  capGrowthPerDay: number;
+  capShareMax: number;
+}
 
 /**
  * Sizing (docs/COMMUNITY.md "Numbers"): a realistic hero earns ~300–1,650 gold and gathers
- * ~40–60 units of its area's materials per hour of farming (docs/ECONOMY.md). With the 20 % daily
- * cap a stage needs ≥ 5 player-days; the Warehouse (3 stages) is done in ~4 days by four players
- * who each give their daily share, the Ashen Pass in about the same once players reach the Abbey.
+ * ~40–60 units of its area's materials per hour of farming (docs/ECONOMY.md). Ticket B.3 left the
+ * needs alone (they are a one-off sink, and lowering a need under what a live stage holds would
+ * strand it) and made the cap grow with a stage's age: days per stage are 3 for one player, 2 for
+ * two to four, 1 from five (`balance/community-balance.test.ts`).
  */
 export const COMMUNITY_PROJECTS: readonly CommunityProjectDefinition[] = [
   {
@@ -131,28 +147,31 @@ export const COMMUNITY_PROJECTS: readonly CommunityProjectDefinition[] = [
         id: 'clearRubble',
         name: 'Clear the rubble',
         description: 'Haul out the rot and shore up the frame with fresh timber.',
+        // Ticket B.3: timber 400 → 250 (a small town is held by materials, not the cap).
         needs: [
           { resource: 'gold', amount: 4_000 },
-          { resource: 'timber', amount: 400 },
+          { resource: 'timber', amount: 250 },
         ],
       },
       {
         id: 'raiseRoof',
         name: 'Raise the roof',
         description: 'New beams, and hides stretched and tarred against the rain.',
+        // Ticket B.3: timber and raw hide 300 → 200 each.
         needs: [
           { resource: 'gold', amount: 8_000 },
-          { resource: 'timber', amount: 300 },
-          { resource: 'rawHide', amount: 300 },
+          { resource: 'timber', amount: 200 },
+          { resource: 'rawHide', amount: 200 },
         ],
       },
       {
         id: 'ironDoors',
         name: 'Hang the iron doors',
         description: 'Hinges, bands and locks from the smith, and a keeper to mind them.',
+        // Ticket B.3: iron ore 250 → 200.
         needs: [
           { resource: 'gold', amount: 12_000 },
-          { resource: 'ironOre', amount: 250 },
+          { resource: 'ironOre', amount: 200 },
         ],
       },
     ],
@@ -208,12 +227,41 @@ export function findCommunityProject(id: string): CommunityProjectDefinition | u
   return COMMUNITY_PROJECTS.find((p) => p.id === id);
 }
 
+/**
+ * The share of each need one account may give to a stage in one window, `ageDays` whole windows
+ * after the stage's first gift (ticket B.3; 0 on the first day and for a stage nobody gave to yet).
+ */
+export function stageCapShare(
+  stage: ProjectStageDefinition,
+  ageDays = 0,
+  config: CommunityProjectConfig = COMMUNITY_PROJECT_CONFIG,
+): number {
+  if (!Number.isInteger(ageDays) || ageDays < 0) throw new RangeError(`Invalid age: ${ageDays}`);
+  const base = stage.capShare ?? config.capShare;
+  const grown = base + config.capGrowthPerDay * ageDays;
+  return Math.min(Math.max(base, config.capShareMax), grown);
+}
+
 /** The per-window cap of one account on one need of a stage (at least 1). */
-export function stageCap(stage: ProjectStageDefinition, resource: ProjectResource): number {
+export function stageCap(
+  stage: ProjectStageDefinition,
+  resource: ProjectResource,
+  ageDays = 0,
+  config: CommunityProjectConfig = COMMUNITY_PROJECT_CONFIG,
+): number {
   const need = stage.needs.find((n) => n.resource === resource);
   if (!need) return 0;
-  const share = stage.capShare ?? COMMUNITY_PROJECT_CONFIG.capShare;
-  return Math.max(1, Math.ceil(need.amount * share));
+  return Math.max(1, Math.ceil(need.amount * stageCapShare(stage, ageDays, config)));
+}
+
+/**
+ * Whole windows (UTC days) from the stage's first gift (`firstDay`, null if none yet) to `day`
+ * (both `YYYY-MM-DD`): the age `stageCap` grows with (ticket B.3).
+ */
+export function stageAgeDays(firstDay: string | null, day: string): number {
+  if (firstDay === null) return 0;
+  const ms = Date.parse(`${day}T00:00:00Z`) - Date.parse(`${firstDay}T00:00:00Z`);
+  return Math.max(0, Math.round(ms / 86_400_000));
 }
 
 /**
@@ -258,6 +306,8 @@ export function planContribution(
   delivered: ResourceAmounts,
   givenInWindow: ResourceAmounts,
   offer: ResourceAmounts,
+  /** Ticket B.3: whole days since the stage's first gift (`stageAgeDays`); the cap grows with it. */
+  ageDays = 0,
 ): ContributionPlan {
   const accepted: ResourceAmounts = {};
   const limited: ContributionPlan['limited'] = {};
@@ -268,7 +318,10 @@ export function planContribution(
       throw new RangeError(`Invalid amount of ${resource}: ${amount}`);
     }
     const remaining = Math.max(0, need.amount - (delivered[resource] ?? 0));
-    const capLeft = Math.max(0, stageCap(stage, resource) - (givenInWindow[resource] ?? 0));
+    const capLeft = Math.max(
+      0,
+      stageCap(stage, resource, ageDays) - (givenInWindow[resource] ?? 0),
+    );
     const take = Math.min(amount, remaining, capLeft);
     if (take < amount) limited[resource] = remaining <= capLeft ? 'stage' : 'cap';
     if (take > 0) accepted[resource] = take;

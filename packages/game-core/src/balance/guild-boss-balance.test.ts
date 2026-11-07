@@ -103,6 +103,23 @@ describe('guild boss balance (ticket 4.9)', () => {
     expect(weekTotal('small-3', three, 1)).toBeLessThan(threshold(1));
   });
 
+  it('a small guild of late-game heroes breaks the second stage in a week (ticket B.3)', () => {
+    // Three heroes at the Pass's entry in Legendaries, or five at the Abbey's top in epics.
+    const three = guildOf(3, (c) => ({
+      classId: c,
+      level: 24,
+      equipment: kit(c, 23, 'legendary'),
+    }));
+    expect(guildBossStageOf(boss, weekTotal('pass-3', three))).toBeGreaterThanOrEqual(2);
+    const five = guildOf(5, (c) => ({ classId: c, level: 21, equipment: kit(c, 20, 'epic') }));
+    expect(guildBossStageOf(boss, weekTotal('abbey-5', five))).toBeGreaterThanOrEqual(2);
+    // Mid-game heroes stop at the first stage: three level-18 heroes in rares.
+    const rares = guildOf(3, (c) => ({ classId: c, level: 18, equipment: kit(c, 17, 'rare') }));
+    expect(guildBossStageOf(boss, weekTotal('rares-3', rares))).toBe(1);
+    // The second stage stays above one capped hero's week (3 × the cap): no hero carries it.
+    expect(threshold(2)).toBeGreaterThan(GUILD_BOSS_ATTEMPTS_PER_WEEK * boss.attemptDamageCap);
+  });
+
   it('a full guild of the strongest builds cannot trivialise every stage', () => {
     const top = guildOf(30, (c) => ({ classId: c, level: 28, equipment: bestInSlot(c) }));
     // Everyone hits the per-attempt cap…

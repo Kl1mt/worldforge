@@ -53,7 +53,7 @@ import {
   guildBossSecret,
   heroSnapshot,
   lockGuildBossAccount,
-  stagesBetween,
+  stagesAfter,
   type EarnedReward,
 } from './model.js';
 
@@ -463,7 +463,8 @@ export async function registerGuildBoss(
               bossId: boss.id,
               total: fight.counted,
               attempts: 1,
-              stage: guildBossStageOf(boss, fight.counted),
+              // Recorded below with the stages this attempt broke.
+              stage: 0,
               updatedAt: now,
             })
             .onConflictDoUpdate({
@@ -476,7 +477,8 @@ export async function registerGuildBoss(
             })
             .returning();
           const total = counter!.total;
-          const newStages = stagesBetween(boss, total - fight.counted, total);
+          // From the stage recorded so far (0 for the week's first attempt): ticket B.3.
+          const newStages = stagesAfter(boss, counter!.stage, total);
           if (newStages.length > 0) {
             await tx
               .update(guildBossWeeks)

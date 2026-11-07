@@ -27,6 +27,7 @@ import {
   characters,
   guildBossAttempts,
   guildBossRewards,
+  guildBossStages,
   guildBossStreams,
   guildBossWeeks,
   guildMembers,
@@ -298,6 +299,33 @@ describe('guild boss', () => {
   });
 
   describe('rewards', () => {
+    it('a threshold lowered mid-week is reached at the next attempt (ticket B.3)', async () => {
+      const { guild, leader, heroOf } = await guildOf();
+      // Before B.3 stage 2 stood at 120,000: a week at 110,000 had recorded stage 1 only.
+      await db().insert(guildBossWeeks).values({
+        guildId: guild.id,
+        week: WEEK,
+        bossId: boss.id,
+        total: 110_000,
+        attempts: 0,
+        stage: 1,
+        updatedAt: now(),
+      });
+      expect(boss.stages[1]!.threshold).toBeLessThanOrEqual(110_000);
+      const next = await fought(leader, heroOf(leader));
+      expect(next.newStages).toEqual([2]);
+      const [week] = await db()
+        .select()
+        .from(guildBossWeeks)
+        .where(eq(guildBossWeeks.guildId, guild.id));
+      expect(week!.stage).toBe(2);
+      expect(
+        (
+          await db().select().from(guildBossStages).where(eq(guildBossStages.guildId, guild.id))
+        ).map((r) => r.stage),
+      ).toEqual([2]);
+    });
+
     it('a stage pays everyone who fought; members who have not fought earn it with their first attempt', async () => {
       const { guild, leader, others, heroOf } = await guildOf(['member', 'member']);
       const [early, later] = others as [TestAccount, TestAccount];

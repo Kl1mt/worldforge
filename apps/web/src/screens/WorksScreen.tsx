@@ -39,7 +39,8 @@ export function WorksScreen() {
     <div className="shop works">
       <ShopHeader building="warehouse" title="Town works">
         What the town builds together. Every hero may give gold and materials, a fair share a day,
-        so no single hand finishes the work. When a work is done, it opens for everyone.
+        so no single hand finishes the work; the share grows each day a stage stands unfinished.
+        When a work is done, it opens for everyone.
       </ShopHeader>
       {state.kind === 'loading' ? (
         <p className="works__wait">Reading the works ledger…</p>

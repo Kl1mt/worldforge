@@ -15,18 +15,34 @@ Never rename or reuse a project, stage or flag id: progress rows, contributions,
 
 ### Numbers
 
-Each stage needs gold and one to three materials. The **cap** is the share of each need one player (account, all heroes together) may give per window: `COMMUNITY_PROJECT_CONFIG.capShare` = **20 %** (rounded up, at least 1; a stage may override it with `capShare`). So every stage takes at least **five player-days**, whoever plays, and a project of three stages at least fifteen.
+Each stage needs gold and one to three materials. The **cap** is the share of each need one player (account, all heroes together) may give per window (the UTC game day). On a stage's first day it is `COMMUNITY_PROJECT_CONFIG.capShare` = **20 %** (rounded up, at least 1; a stage may override it with `capShare`), so **five players are needed to finish a stage on the day it opens**. Since ticket B.3 the share **grows by `capGrowthPerDay` = 20 points for every day the stage has stood since its first gift**, up to `capShareMax` = **60 %** (20 → 40 → 60 %; game-core `stageCapShare`, `stageAgeDays`; the server reads the stage's first gift day under the project lock, no new column). A big town finishes each stage on its first day under the 20 % rule; a small one is no longer held five days per stage.
 
-| Stage | Needs | Cap per player and day |
+| Stage | Needs (B.3: before → after) | Cap per player, day 1 · day 2 · day 3+ |
 | --- | --- | --- |
-| Warehouse 1 · Clear the rubble | 4,000 gold · 400 timber | 800 gold · 80 timber |
-| Warehouse 2 · Raise the roof | 8,000 gold · 300 timber · 300 raw hide | 1,600 · 60 · 60 |
-| Warehouse 3 · Hang the iron doors | 12,000 gold · 250 iron ore | 2,400 · 50 |
-| Ashen Pass 1 · Scout the pass | 15,000 gold · 300 soul shards · 200 ashwort | 3,000 · 60 · 40 |
-| Ashen Pass 2 · Raise the wardstones | 30,000 gold · 500 iron ore · 40 Abbey silver | 6,000 · 100 · 8 |
-| Ashen Pass 3 · Break the warden's ward | 45,000 gold · 60 Abbey silver · 10 Gravewarden's seals | 9,000 · 12 · 2 |
+| Warehouse 1 · Clear the rubble | 4,000 gold · timber 400 → **250** | 800 · 1,600 · 2,400 gold; 50 · 100 · 150 timber |
+| Warehouse 2 · Raise the roof | 8,000 gold · timber 300 → **200** · raw hide 300 → **200** | 1,600 · 3,200 · 4,800; 40 · 80 · 120 each |
+| Warehouse 3 · Hang the iron doors | 12,000 gold · iron ore 250 → **200** | 2,400 · 4,800 · 7,200; 40 · 80 · 120 |
+| Ashen Pass 1 · Scout the pass | 15,000 gold · 300 soul shards · 200 ashwort | 3,000 · 6,000 · 9,000; 60 · 120 · 180; 40 · 80 · 120 |
+| Ashen Pass 2 · Raise the wardstones | 30,000 gold · 500 iron ore · 40 Abbey silver | 6,000 · 12,000 · 18,000; 100 · 200 · 300; 8 · 16 · 24 |
+| Ashen Pass 3 · Break the warden's ward | 45,000 gold · 60 Abbey silver · 10 Gravewarden's seals | 9,000 · 18,000 · 27,000; 12 · 24 · 36; 2 · 4 · 6 |
 
-**Why these sizes (small live player base).** A realistic hero earns ~300 gold an hour in the Fields and ~1,650 in the Abbey and gathers 40–60 units of its area's materials an hour (`ECONOMY.md`); an idle player farms most of the day. The Warehouse's daily share (at most 2,400 gold and 80 materials per stage) is a few hours of income for a mid-level hero and is gathered in the early areas, so newer players can help. With **four players** giving their full share each day the Warehouse is done in **about 4 days** (15 player-days); with two, in about 8; one player alone can never finish a stage in a day and needs at least 15 days. The Ashen Pass is a late-game gold sink (90,000 gold in all, where B.2 found gold piling up past +10) and needs Abbey materials and crypt seals; four Abbey-level players finish it in about the same 4 days. All of it is data in `projects.ts` for B.3 to tune with playtest numbers.
+**Why these sizes (small live player base).** A realistic hero earns ~300 gold an hour in the Fields and ~1,650 in the Abbey (~2,000 in the Ashen Pass) and gathers 30–36 units of each of its area's materials an hour (`ECONOMY.md`); an idle player farms most of the day. The Warehouse is gathered in the early areas, so newer players can help; the Ashen Pass is a late-game sink (90,000 gold) that needs Abbey materials and crypt seals. All of it is data in `projects.ts`.
+
+### How long a stage takes (ticket B.3)
+`balance/community-balance.test.ts` plays a town day by day with the real caps: every player gives what the current stage still needs, up to its cap that day and what it can spare, and a stage finished mid-day opens the next at once (as on the server). Two views: **cap-bound** (players with endless means: the fastest a town of that size can go) and **with gathering** (what a player spares a day: about a third of its area's gathering and a quarter of a newcomer's or a third of a veteran's gold, see the test; a third of the town are veterans, at least one). Days until the Warehouse opens + days from there until the Ashen Pass opens (the test pins this table):
+
+| Active players | Cap-bound, before → after | With gathering, before → after | Days per stage after (cap-bound) |
+| --- | --- | --- | --- |
+| 1 | 13 + 12 → **7 + 6** | 16 + 13 → **10 + 11** | 3 (was 5) |
+| 3 | 5 + 4 → **4 + 3** | 5 + 10 → **4 + 6** | 2 (was 2–3) |
+| 10 | 2 + 1 → 2 + 1 | 2 + 3 → 2 + 2 | 1–2 |
+| 30 | 1 + 0 → 1 + 0 | 1 + 1 → 1 + 1 | 1 |
+
+**Reading.** The flat 20 % cap was the whole delay for a solo player (five days a stage, 25 days for both projects) and half of it for three; past ten players the caps never bind. With gathering, materials and gold bind instead: one player alone still needs about three weeks for both projects (the Pass's 45,000 gold and the seals at one per crypt hoard), three players about ten days. The telemetry run (28 accounts, all giving a daily share) finished both projects on its first two days.
+
+**No monopoly** (asserted): on a stage's first day nobody gives more than a fifth of a need, so a stage finished that day had at least five givers; four players with endless means can't finish any stage on its first day; nobody ever gives more than 60 % of a need in a day. The growth only matters where a stage stands unfinished, which is a small town by definition.
+
+**The trade-off, and what was not done.** *Scaling needs* to the number of active players (from presence) would keep a stage the same number of days for any town, but the target moves while people give, a few active players make it small enough to finish alone, and the total sink changes with the population. *Decaying needs* would do the same as the growing cap with less gold sunk. The growing cap keeps every need and the total sink fixed and changes only how fast a small town may pay it. The Warehouse's material needs were trimmed (it is the first project and the live town is tiny; materials are plentiful in the economy, e.g. 240k iron ore surplus in the telemetry week), the Ashen Pass's left alone. **Lowering a need is safe on live:** a stage that already holds its new needs is finished at the next contribution attempt, in its own transaction (`catchUpProject`; that attempt answers `stage_changed` and the board shows the next stage); anything given above the new need stays given.
 
 ## Contributing
 
@@ -35,7 +51,7 @@ Each stage needs gold and one to three materials. The **cap** is the share of ea
 1. **Hero lock** (`lockOwnedCharacter`): the hero's farming settles first, so gold and materials earned offline count (settle before spending, like every value path).
 2. **Project lock** (`community_projects` row `for update`, created on first use): every contribution, stage change and completion of the project serialises here.
 3. The project must be open (its prerequisite complete: `409 project_locked`), not finished (`409 project_complete`), and the stage must be the one the client saw (`409 stage_changed` with `details.currentStageId`: nothing is spent when the stage moved on meanwhile). Each offered resource must be needed (`422 not_needed`) and **held in full** (`422 insufficient_gold` / `insufficient_materials`).
-4. game-core `planContribution` takes, per resource, the least of the offer, what the stage still needs (**no over-fill**) and what the account may still give in this window (**the cap**). The rest is not taken and stays with the hero (`limited: { gold: 'stage' | 'cap' }` says why). Nothing taken at all: `409 contribution_capped` with `details.resetsAt`.
+4. game-core `planContribution` takes, per resource, the least of the offer, what the stage still needs (**no over-fill**) and what the account may still give in this window (**the cap**, grown by the stage's age since B.3). The rest is not taken and stays with the hero (`limited: { gold: 'stage' | 'cap' }` says why). Nothing taken at all: `409 contribution_capped` with `details.resetsAt`.
 5. Gold and materials leave the hero; the stage totals and the account's window row grow; `community.contribute` is audited (project, stage, day, gold, materials, gold after) and telemetry recorded (`community.contribute`, `gold.out community_project`, `material.out community_project`).
 6. If every need of the stage is met, the project moves on (`community.stage_complete`, telemetry `community.stage`). After the last stage: `completed_at` is set, the world flag is written, every account that ever gave to the project is awarded its achievement (at most once: the achievements primary key), and `community.project_complete` is audited (flag, contributor count).
 
@@ -43,7 +59,7 @@ After the commit the route invalidates the world-state cache, so the next read s
 
 **Exact under concurrency.** Totals, caps and completion are decided under the project lock, so contributions racing at a stage boundary never over-fill it, a contribution that loses the race spends nothing (`stage_changed`) or only what still fitted, and exactly one transaction completes each stage and the project. Several heroes of one account racing share the cap exactly.
 
-**No monopoly.** Caps per account per window (above); rewards for contributors are cosmetic only (achievements, 4.2), never power. Every contributor gets the same mark, however much they gave. Mutes do not block contributions (no player text, nobody is reached).
+**No monopoly.** Caps per account per window, growing with a stage's age (above); rewards for contributors are cosmetic only (achievements, 4.2), never power. Every contributor gets the same mark, however much they gave. Mutes do not block contributions (no player text, nobody is reached).
 
 ### The window
 

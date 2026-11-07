@@ -7,6 +7,7 @@ import {
   contributionWindow,
   isProjectOpen,
   planContribution,
+  stageAgeDays,
   type MaterialId,
   type ProjectResource,
   type ResourceAmounts,
@@ -30,6 +31,8 @@ import {
   lockProject,
   projectBoard,
   projectOrThrow,
+  catchUpProject,
+  stageFirstDay,
   stageTotals,
 } from './model.js';
 
@@ -185,6 +188,10 @@ export async function registerCommunity(
         offer[o.resource] = o.amount;
       }
       let completed = false;
+      // Ticket B.3: a stage whose needs were lowered (a balance change) to what it already holds
+      // is finished first, in its own transaction, so it never stands stuck at its need (the
+      // contribution below then answers `stage_changed` for it, and the board shows the next).
+      if (await catchUpProject(app.db, def, activity.now())) app.worldState.invalidate();
       const result = await idempotentTransaction(
         app,
         request,
@@ -237,6 +244,7 @@ export async function registerCommunity(
             await stageTotals(tx, def.id, stage.id),
             await givenInWindow(tx, def.id, stage.id, me.id, day),
             offer,
+            stageAgeDays(await stageFirstDay(tx, def.id, stage.id), day),
           );
           const accepted = plan.accepted;
           if (Object.keys(accepted).length === 0) {

@@ -87,7 +87,10 @@ export const GUILD_BOSSES: readonly GuildBossDefinition[] = [
       {
         stage: 2,
         name: 'Staggered',
-        threshold: 120_000,
+        // Ticket B.3: 120,000 → 100,000, so a small guild breaks it in a week (three heroes at the
+        // Pass's entry in Legendaries, or five at the Abbey's top in epics; docs/GUILD_BOSS.md
+        // "Balance"), while one best-in-slot hero's capped week (3 × 30,000) still falls short.
+        threshold: 100_000,
         reward: { gold: 400, materials: { soulShard: 5 } },
       },
       {
