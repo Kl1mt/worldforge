@@ -1481,6 +1481,28 @@
       "source": "art/source/pixellab/icons-achievements-01/43.png"
     },
     {
+      "id": "achievement.warehouse-restorer",
+      "path": "/assets/achievements/warehouse-restorer.png",
+      "kind": "achievement",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour trophies: iron key in the lock of a restored oak door with new iron bands; wooden supply crate with a blacksmith hammer resting on it; brass warehouse key on a ring; cracked stone watchtower with a glowing ember at its top; broken iron chain lying over grey ash; ember-wreathed mountain pass gate, weathered aged brass, dark iron, old wood and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-achievements-02/00.png"
+    },
+    {
+      "id": "achievement.ashen-pass-breaker",
+      "path": "/assets/achievements/ashen-pass-breaker.png",
+      "kind": "achievement",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour trophies: iron key in the lock of a restored oak door with new iron bands; wooden supply crate with a blacksmith hammer resting on it; brass warehouse key on a ring; cracked stone watchtower with a glowing ember at its top; broken iron chain lying over grey ash; ember-wreathed mountain pass gate, weathered aged brass, dark iron, old wood and deep crimson, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-achievements-02/28.png"
+    },
+    {
       "id": "guild-emblem.anvil",
       "path": "/assets/guild-emblems/anvil.png",
       "kind": "guild-emblem",

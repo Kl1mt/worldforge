@@ -16,6 +16,7 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | `art/preview-boss-uniques.png` | The three Gravewarden unique icons (after) below the shared icons they replaced (before), at ×4. |
 | `art/preview-mythic-set-icons.png` | The six named Mythic icons and the three sets' pieces, below a row of tier-3 gear, at ×4. |
 | `art/preview-heraldry.png` | The achievement icons and guild emblems at ×4, below a row of item icons for scale. |
+| `art/preview-project-achievements.png` | The two community-project achievement icons (A.9) below A.8's achievement set, at ×4. |
 | `art/preview-ashen-pass.png` | The Ashen Pass backdrop next to the Sunken Abbey, its four enemies below the existing ones, and the Ashen Warden next to the Gravewarden. |
 | `tools/art/pixellab_gen.py` | Generate/collect/contact-sheet helper. |
 
@@ -183,3 +184,9 @@ The world map came out with opaque white pixels along its burnt edge (about 1,15
 - Every key in the achievements batch came out whole, so the Gravewarden's "broken crypt key" is an edit: `icons-achievements-01/edits/48-broken.png` cuts brass key `48.png` across the shaft and knocks the bit end one pixel down-left, re-outlining the broken ends. The raw `48.png` is kept unchanged.
 - The UI draws them at integer scales (the crest at ×1/×2, deed seals at ×2/×1). If an id is not registered or the file fails to load, it falls back to the 4.2/4.4 placeholders (wax seal with an initial, glyph on the shield). A web test checks that every achievement and emblem has a 32×32 entry.
 - Preview: `art/preview-heraldry.png`. Screenshots: `docs/screenshots/phase-4/heraldry-*.png` (`node tools/screenshots/heraldry.mjs`, plus `guilds.mjs` for the crest choice).
+
+## Community project achievement icons (ticket A.9)
+
+- The two 4.6 project deeds have icons now, so every achievement in `ACHIEVEMENTS` is drawn: `achievement.warehouse-restorer` ("Mender of Graumark", an iron key in the lock of a restored, iron-banded oak door) and `achievement.ashen-pass-breaker` ("Through the Ash", a cracked watchtower with an ember at its broken top).
+- One 32px job, no regeneration: `icons-achievements-02` (style image `achievements/contracts-10.png`). Picks `00.png` and `28.png`, unedited. The batch also holds a crate with a hammer, key rings, broken chains on ash and an ember-wreathed gate, unused.
+- Preview: `art/preview-project-achievements.png`.
