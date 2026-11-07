@@ -4,7 +4,7 @@ import { HANDLE_RE } from '@worldforge/game-core';
 import { accounts, inviteCodes, type InviteCode } from '../db/schema.js';
 import { writeAudit } from '../db/audit.js';
 import type { Executor, Transaction } from '../db/types.js';
-import { ApiError } from '../errors.js';
+import { ApiError, notFoundBody } from '../errors.js';
 import {
   INVITE_NOTE_MAX,
   MAX_INVITE_USES,
@@ -312,10 +312,15 @@ export async function registerAdmin(app: FastifyInstance, options: AdminOptions 
     async (admin) => {
       // Before body validation: non-admins cannot tell these routes from missing ones.
       admin.addHook('onRequest', app.requireAdmin);
-      admin.addHook('onSend', async (_request, reply, payload) => {
-        void reply.header('cache-control', 'no-store');
+      // Only on an admin's answers (ticket 4.11: the 404 for everyone else carries no header the
+      // not-found handler's does not).
+      admin.addHook('onSend', async (request, reply, payload) => {
+        if (request.auth) void reply.header('cache-control', 'no-store');
         return payload;
       });
+      // Ticket 4.11: every other path under /api/admin answers like a missing route, after the
+      // same onRequest 404 (so a malformed body cannot tell real routes from missing ones).
+      admin.all('/*', async (request, reply) => reply.code(404).send(notFoundBody(request)));
 
       // ---- Invites (D.2's module: hashing, redemption and audit stay there) ----------------
       admin.get(

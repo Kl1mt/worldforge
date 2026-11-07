@@ -32,6 +32,8 @@ export interface PlayerTextRule {
   reserved: boolean;
   /** `deny`: no links or domain-like text (the Phase 4 link policy). `allow`: kept as plain text. */
   links: 'deny' | 'allow';
+  /** Multiline kinds: at most this many lines (ticket 4.11). */
+  maxLines?: number;
 }
 
 // Letters (any script), digits, single spaces, hyphens, apostrophes and underscores, starting and
@@ -93,6 +95,8 @@ export const PLAYER_TEXT_RULES: Record<PlayerTextKind, PlayerTextRule> = {
     min: 1,
     max: 400,
     multiline: true,
+    // Ticket 4.11: "a few short lines" (it used to take a 150-line column of single letters).
+    maxLines: 8,
     blockList: true,
     reserved: false,
     links: 'deny',
@@ -171,11 +175,17 @@ export function validatePlayerText(kind: PlayerTextKind, raw: string): PlayerTex
     );
   }
   if (length > rule.max) return fail('too_long', `Use at most ${rule.max} characters.`);
+  if (rule.maxLines && value.split('\n').length > rule.maxLines) {
+    return fail('too_long', `Use at most ${rule.maxLines} lines.`);
+  }
   if (rule.pattern && !rule.pattern.re.test(value)) return fail('pattern', rule.pattern.message);
   if (rule.links === 'deny' && containsLink(value)) {
     return fail('link', 'Links and web addresses are not allowed.');
   }
-  if (rule.reserved && matchesAny(value, RESERVED_NAME_TERMS)) {
+  if (
+    rule.reserved &&
+    (matchesAny(value, RESERVED_NAME_TERMS) || PLACEHOLDER_NAMES.some((re) => re.test(value)))
+  ) {
     return fail('reserved', 'That name is reserved. Choose another.');
   }
   if (rule.blockList && matchesAny(value, BLOCKED_TERMS)) {
@@ -246,6 +256,67 @@ const LOOKALIKES: Record<string, string> = {
   χ: 'x',
   ω: 'w',
 };
+/**
+ * Ticket 4.11: capital letters of other scripts that look like Latin capitals ("ΑDΜΙΝ" in Greek,
+ * "МОDЕRАТОR" in Cyrillic, Cherokee "Ꮪ"). Folded before lower-casing: their own lower-case forms
+ * look different ("Ν" → "ν" reads as "v").
+ */
+const CAPITAL_LOOKALIKES: Record<string, string> = {
+  Α: 'a',
+  Β: 'b',
+  Ε: 'e',
+  Ζ: 'z',
+  Η: 'h',
+  Ι: 'i',
+  Κ: 'k',
+  Μ: 'm',
+  Ν: 'n',
+  Ο: 'o',
+  Ρ: 'p',
+  Τ: 't',
+  Υ: 'y',
+  Χ: 'x',
+  А: 'a',
+  В: 'b',
+  Е: 'e',
+  К: 'k',
+  М: 'm',
+  Н: 'h',
+  О: 'o',
+  Р: 'p',
+  С: 'c',
+  Т: 't',
+  У: 'y',
+  Х: 'x',
+  Ѕ: 's',
+  І: 'i',
+  Ј: 'j',
+  Ꭺ: 'a',
+  Ᏼ: 'b',
+  Ꮯ: 'c',
+  Ꭼ: 'e',
+  Ꮋ: 'h',
+  Ꭻ: 'j',
+  Ꮶ: 'k',
+  Ꮇ: 'm',
+  Ꮲ: 'p',
+  Ꮪ: 's',
+  Ꭲ: 't',
+  Ꮤ: 'w',
+};
+/** Ticket 4.11: more lower-case look-alikes (Armenian, small capitals). */
+const MORE_LOOKALIKES: Record<string, string> = {
+  ս: 'u',
+  օ: 'o',
+  ց: 'g',
+  հ: 'h',
+  ո: 'n',
+  ꜰ: 'f',
+  ǫ: 'q',
+};
+/** The server's placeholder names (a forced rename), which nobody may choose (ticket 4.11). */
+const PLACEHOLDER_NAMES = [/^wanderer\s*\d{6}$/i, /^nameless\s*company\s*\d{6}$/i];
+
 /** Digits and symbols used for letters ("sh1t", "@ss", "$lut"). */
 const LEET: Record<string, string> = {
   '0': 'o',
@@ -266,10 +337,18 @@ const LEET: Record<string, string> = {
 
 /** Lowercase Latin letters only, with look-alikes and leetspeak folded; everything else is a
  * separator (space). Accents are removed ("fück" → "fuck"). */
+/** NFKD without marks, capital look-alikes folded, lower-cased, then the other look-alikes. */
+function foldScripts(text: string): string[] {
+  const capitals = [...text.normalize('NFKD').replace(/\p{M}/gu, '')]
+    .map((c) => CAPITAL_LOOKALIKES[c] ?? c)
+    .join('');
+  return [...capitals.toLowerCase()].map((c) => LOOKALIKES[c] ?? MORE_LOOKALIKES[c] ?? c);
+}
+
 export function foldForMatching(text: string): string {
-  return [...text.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase()]
+  return foldScripts(text)
     .map((c) => {
-      const mapped = LOOKALIKES[c] ?? LEET[c] ?? c;
+      const mapped = LEET[c] ?? c;
       return /^[a-z]$/.test(mapped) ? mapped : ' ';
     })
     .join('');
@@ -310,31 +389,56 @@ function wordsOf(folded: string): string[] {
 /** Whether the text contains one of the terms (see `BlockMatch`). */
 export function matchesAny(text: string, terms: readonly BlockedTerm[]): boolean {
   const folded = foldForMatching(text);
-  const letters = folded.replace(/ /g, '');
-  const words = wordsOf(folded);
-  return terms.some((t) => {
-    const re = termPattern(t);
-    return t.match === 'anywhere' ? re.test(letters) : words.some((w) => re.test(w));
-  });
+  const test = (f: string, list: readonly BlockedTerm[]) => {
+    const letters = f.replace(/ /g, '');
+    const words = wordsOf(f);
+    return list.some((t) => {
+      const re = termPattern(t);
+      return t.match === 'anywhere' ? re.test(letters) : words.some((w) => re.test(w));
+    });
+  };
+  if (test(folded, terms)) return true;
+  // Ticket 4.11: a capital "I" and a small "l" look alike ("ADMlN", "WorIdforge"): match again
+  // with both read as "i", in the text and the terms alike.
+  if (!/[il]/.test(folded)) return false;
+  return test(
+    folded.replace(/l/g, 'i'),
+    terms.map((t) => ({ ...t, term: t.term.replace(/l/g, 'i') })),
+  );
 }
 
 // ---------------------------------------------------------------------------------------------
 // Link policy: no links in Phase 4.
 
 const TLDS =
-  'com|net|org|io|gg|co|me|ru|de|uk|us|eu|xyz|info|biz|tv|app|dev|link|ly|to|cc|online|site|shop|top|club|live|stream|store|fun|pw|tk';
+  'com|net|org|io|gg|co|me|ru|de|uk|us|eu|xyz|info|biz|tv|app|dev|link|ly|to|cc|online|site|shop|top|club|live|stream|store|fun|pw|tk|' +
+  // Ticket 4.11: country and short-link domains that are not English words.
+  'fr|ca|ws|ai|gl|nl|pl|es|se|ch|au|nz|br|jp|cn|kr|su|cz|sk|fi|dk|gd|ml|ga|cf|gq|ua|by|kz|lt|lv|ee|ro|hu|gr|pt|mx|ar|cl|vn|th|id|ph|sg|hk|tw';
+/**
+ * A dot as written (ticket 4.11: also the ideographic and half-width full stops, the one-dot
+ * leader, the middle dots, and "(.)", "[.]", "{.}", "(dot)", "[dot]").
+ */
+const DOT = String.raw`(?:[.。｡︒․·・]|\(\.\)|\[\.\]|\{\.\}|\(dot\)|\[dot\])`;
 const LINK_RES = [
-  /\b(?:https?|ftp)\s*:\s*\/\//,
-  /\bwww\s*(?:\.|\(dot\)|\[dot\])/,
-  new RegExp(`[a-z0-9-]{2,}\\s*(?:\\.|\\(dot\\)|\\[dot\\]|\\sdot\\s)\\s*(?:${TLDS})\\b`),
-  /\bdiscord(?:app)?\s*(?:\.\s*)?(?:gg|com)\s*\//,
+  // "http://", "hxxp://", "h t t p s : / /".
+  /\bh\s*[tx]\s*[tx]\s*p\s*s?\s*:\s*\/\s*\//,
+  /\bftp\s*:\s*\/\//,
+  new RegExp(String.raw`\bwww\s*${DOT}`),
+  // A name and a top-level domain joined by a dot ("t.me", "evil。com", "shop(dot)com").
+  new RegExp(String.raw`[a-z0-9-]+${DOT}(?:${TLDS})\b`),
+  // Spelled apart ("example . com", "shop dot com"): only when the domain ends the text or a path
+  // or port follows, so a sentence such as "Done. Me next" stays a sentence (ticket 4.11).
+  new RegExp(
+    String.raw`[a-z0-9-]+(?:\s+${DOT}\s*|${DOT}\s+|\s+dot\s+)(?:${TLDS})(?=\s*(?:$|[/:]))`,
+  ),
+  // A bare IPv4 address.
+  /\b\d{1,3}(?:\s*\.\s*\d{1,3}){3}\b/,
+  /\bdiscord(?:app)?\s*(?:[.\s]\s*)?(?:gg|com)\b/,
 ];
 
 /** Whether the text holds something that reads as a link or web address ("discord . gg/x",
  * "shop(dot)com"). */
 export function containsLink(text: string): boolean {
-  const s = [...text.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase()]
-    .map((c) => LOOKALIKES[c] ?? c)
-    .join('');
+  const s = foldScripts(text).join('');
   return LINK_RES.some((re) => re.test(s));
 }

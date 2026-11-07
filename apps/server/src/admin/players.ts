@@ -118,7 +118,9 @@ export async function playerDetail(db: Executor, handle: string, now: Date) {
       .from(reports)
       .innerJoin(reporter, eq(reporter.id, reports.reporterId))
       .leftJoin(resolver, eq(resolver.id, reports.resolvedBy))
-      .where(eq(reports.subjectId, account.id))
+      // Ticket 4.11: reports about admins are handled outside the app (docs/SOCIAL.md), so an
+      // admin's file (one's own included) never shows who reported them or why.
+      .where(and(eq(reports.subjectId, account.id), sql`${account.role} <> 'admin'`))
       .orderBy(desc(reports.createdAt), desc(reports.id))
       .limit(REPORTS_LIMIT + 1),
   ]);

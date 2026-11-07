@@ -10,7 +10,7 @@
     "start": "node --env-file-if-exists=.env dist/index.js",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run",
-    "test:pg": "vitest run src/concurrency.pg.test.ts src/social/social.pg.test.ts src/auth/invites.pg.test.ts src/social/friends.pg.test.ts src/achievements/achievements.pg.test.ts src/social/guilds.pg.test.ts src/social/guild-chat.pg.test.ts src/community/community.pg.test.ts src/guild-boss/guild-boss.pg.test.ts src/warehouse/warehouse.pg.test.ts",
+    "test:pg": "vitest run src/concurrency.pg.test.ts src/social/social.pg.test.ts src/auth/invites.pg.test.ts src/social/friends.pg.test.ts src/achievements/achievements.pg.test.ts src/social/guilds.pg.test.ts src/social/guild-chat.pg.test.ts src/community/community.pg.test.ts src/guild-boss/guild-boss.pg.test.ts src/warehouse/warehouse.pg.test.ts src/hardening.pg.test.ts",
     "e2e:serve": "tsx --conditions=source src/e2e/serve.ts",
     "playtest:serve": "tsx --conditions=source src/playtest/serve.ts",
     "report:telemetry": "tsx --conditions=source src/telemetry/report-cli.ts",

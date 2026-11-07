@@ -16,7 +16,7 @@ import { withTransaction } from '../db/transaction.js';
 import type { Executor, Transaction } from '../db/types.js';
 import { writeAudit } from '../db/audit.js';
 import { uuidv7 } from '../db/uuid.js';
-import { ApiError } from '../errors.js';
+import { ApiError, notFoundBody } from '../errors.js';
 import {
   activeSanctions,
   hiddenTargetKeys,
@@ -247,6 +247,12 @@ const caseSchema = {
 } as const;
 
 export async function registerModeration(app: FastifyInstance): Promise<void> {
+  // Ticket 4.11: every other path under /api/mod answers like a missing route, after the same
+  // onRequest 404 as the real ones (so a malformed body cannot tell them apart).
+  app.all('/mod/*', { onRequest: app.requireStaff }, async (request, reply) =>
+    reply.code(404).send(notFoundBody(request)),
+  );
+
   const reporter = alias(accounts, 'reporter');
 
   // The queue: one case per reported target with open reports, oldest first, for subjects the
@@ -287,18 +293,24 @@ export async function registerModeration(app: FastifyInstance): Promise<void> {
         ne(reports.subjectId, actor.id),
         inArray(accounts.role, roles),
       );
+      // Ticket 4.11: a case is one target *and* one subject. A guild's reports name its leader at
+      // the time, so after a handover one guild can hold reports about different players; each
+      // is its own case, and a viewer never sees (or closes) reports about themselves or a rank
+      // they cannot act on.
       const firstId = sql<string>`min(${reports.id}::text)`;
       const caseRows = await app.db
-        .select({ targetKey: reports.targetKey, firstId })
+        .select({ targetKey: reports.targetKey, subjectId: reports.subjectId, firstId })
         .from(reports)
         .innerJoin(accounts, eq(accounts.id, reports.subjectId))
         .where(visible)
-        .groupBy(reports.targetKey)
+        .groupBy(reports.targetKey, reports.subjectId)
         .having(cursor ? sql`min(${reports.id}::text) > ${cursor}` : undefined)
         .orderBy(asc(firstId))
         .limit(limit + 1);
       const [total] = await app.db
-        .select({ n: sql<number>`count(distinct ${reports.targetKey})::int` })
+        .select({
+          n: sql<number>`count(distinct (${reports.targetKey}, ${reports.subjectId}))::int`,
+        })
         .from(reports)
         .innerJoin(accounts, eq(accounts.id, reports.subjectId))
         .where(visible);
@@ -310,7 +322,7 @@ export async function registerModeration(app: FastifyInstance): Promise<void> {
             .from(reports)
             .innerJoin(accounts, eq(accounts.id, reports.subjectId))
             .innerJoin(reporter, eq(reporter.id, reports.reporterId))
-            .where(and(inArray(reports.targetKey, keys), eq(reports.status, 'open')))
+            .where(and(inArray(reports.targetKey, keys), visible))
             .orderBy(asc(reports.id))
         : [];
       const subjectIds = [...new Set(rows.map((r) => r.subject.id))];
@@ -343,14 +355,18 @@ export async function registerModeration(app: FastifyInstance): Promise<void> {
           app.db,
           page.map((c) => ({
             key: c.targetKey,
-            subject: rows.find((r) => r.report.targetKey === c.targetKey)?.subject ?? {
+            subject: rows.find(
+              (r) => r.report.targetKey === c.targetKey && r.subject.id === c.subjectId,
+            )?.subject ?? {
               displayName: '',
             },
           })),
         ),
       ]);
       const cases = page.map((c) => {
-        const own = rows.filter((r) => r.report.targetKey === c.targetKey);
+        const own = rows.filter(
+          (r) => r.report.targetKey === c.targetKey && r.subject.id === c.subjectId,
+        );
         const first = own[0]!;
         const subject = first.subject;
         return {
@@ -422,12 +438,25 @@ export async function registerModeration(app: FastifyInstance): Promise<void> {
       const now = app.authNow();
       return withTransaction(app.db, async (tx) => {
         const actor = await lockActor(tx, request.auth!.account.id);
-        const [report] = await tx
+        const [unlocked] = await tx.select().from(reports).where(eq(reports.id, reportId));
+        if (!unlocked) throw new ApiError(404, 'not_found', 'No such report.');
+        // Ticket 4.11: lock the whole case (its open reports and this one) in id order before the
+        // subject, so two moderators answering different reports of one case queue up instead of
+        // deadlocking (each held its own report and waited for the other's). Target and subject
+        // never change, so the unlocked read finds the right case.
+        const locked = await tx
           .select()
           .from(reports)
-          .where(eq(reports.id, reportId))
+          .where(
+            and(
+              eq(reports.targetKey, unlocked.targetKey),
+              eq(reports.subjectId, unlocked.subjectId),
+              or(eq(reports.status, 'open'), eq(reports.id, reportId)),
+            ),
+          )
+          .orderBy(asc(reports.id))
           .for('update');
-        if (!report) throw new ApiError(404, 'not_found', 'No such report.');
+        const report = locked.find((r) => r.id === reportId)!;
         if (report.status !== 'open') {
           throw new ApiError(
             409,
@@ -460,6 +489,13 @@ export async function registerModeration(app: FastifyInstance): Promise<void> {
             throw new ApiError(409, 'guild_gone', 'This guild was disbanded already.');
           }
           const leaderId = (await guildLeaderId(tx, guild.id)) ?? subject.id;
+          // Ticket 4.11: the rank rule applies to the leader *now* (the report named the leader
+          // at the time; leadership may have passed to staff since). Under the guild lock the
+          // leadership cannot change; the role is read without a lock (it changes only by CLI).
+          if (leaderId !== subject.id) {
+            const [leader] = await tx.select().from(accounts).where(eq(accounts.id, leaderId));
+            if (leader) assertAllowed(actor, action, leader);
+          }
           if (body.action === 'renameGuild') {
             await forceRenameGuildTx(tx, guild, {
               moderatorId: actor.id,
@@ -518,7 +554,14 @@ export async function registerModeration(app: FastifyInstance): Promise<void> {
             resolvedBy: actor.id,
             sanctionId: sanction?.id ?? null,
           })
-          .where(and(eq(reports.targetKey, report.targetKey), eq(reports.status, 'open')))
+          // The case: open reports on this target about this subject (ticket 4.11).
+          .where(
+            and(
+              eq(reports.targetKey, report.targetKey),
+              eq(reports.subjectId, report.subjectId),
+              eq(reports.status, 'open'),
+            ),
+          )
           .returning({ id: reports.id });
         await writeAudit(tx, {
           event: 'report.resolve',

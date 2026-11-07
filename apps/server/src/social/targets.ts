@@ -10,6 +10,7 @@ import { accounts, characters, guildMessages, guilds, type Account } from '../db
 import type { Executor } from '../db/types.js';
 import { guildByHandle, guildLeaderId, guildTargetKey } from './guild-model.js';
 import { messageById, messageTargetKey, visibleMessage } from './chat-model.js';
+import { viewableProfileOwner } from './profiles.js';
 
 /**
  * Report target registry (ticket 4.1, docs/SOCIAL.md "Reports"). Each kind of game-core
@@ -63,8 +64,12 @@ const RESOLVERS: { [K in ReportTargetKind]: Resolver<K> } = {
     };
   },
   // Ticket 4.2: a character's name on its owner's profile. Names are unique and permanent.
-  characterName: async (executor, t) => {
-    const subject = await accountByHandle(executor, t.handle);
+  characterName: async (executor, t, viewerId) => {
+    const owner = await accountByHandle(executor, t.handle);
+    // Ticket 4.11: hero names are shown only on the profile, so only a player who can see the
+    // profile may report one (otherwise a report would confirm a guessed name of a hidden hero).
+    const subject =
+      owner && viewerId ? await viewableProfileOwner(executor, viewerId, owner) : owner;
     if (!subject || typeof t.name !== 'string') return null;
     const [hero] = await executor
       .select({ id: characters.id, name: characters.name })

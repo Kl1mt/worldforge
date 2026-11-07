@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { and, eq } from 'drizzle-orm';
+import { and, count, eq } from 'drizzle-orm';
 import { REPORT_REASON_IDS, type ReportReasonId, type ReportTarget } from '@worldforge/game-core';
 import { accounts, reports, sanctions, type Report } from '../db/schema.js';
 import { constraintOf, sqlStateOf } from '../db/transaction.js';
@@ -8,9 +8,16 @@ import { uuidv7 } from '../db/uuid.js';
 import { ApiError } from '../errors.js';
 import { displayNameError, normalizeDisplayName } from '../auth/validation.js';
 import { activeSanctions, sanctionView, sanctionViewSchema } from './sanctions.js';
+import { lockSocialAccounts } from './relations.js';
 import { socialWrite } from './social-write.js';
 import { reportTargetSchema, reportTargetViewSchema, resolveReportTarget } from './targets.js';
 import { assertPlayerText } from './text.js';
+
+/**
+ * Ticket 4.11: reports one player may have waiting for a moderator at once (each field, hero name
+ * or message is its own target, so one-per-target alone let a player fill the queue).
+ */
+export const MAX_OPEN_REPORTS = 20;
 
 /** A report as its reporter sees it. */
 export function reportView(r: Report) {
@@ -72,6 +79,21 @@ export async function registerSafety(app: FastifyInstance): Promise<void> {
           if (!resolved) throw new ApiError(404, 'not_found', 'Nothing to report there.');
           if (resolved.subject.id === account.id) {
             throw new ApiError(422, 'cannot_report_self', 'You cannot report yourself.');
+          }
+          // Ticket 4.11: at most MAX_OPEN_REPORTS waiting per reporter (under their social lock,
+          // so the cap is exact); a moderator's answer frees a slot.
+          await lockSocialAccounts(tx, [account.id]);
+          const [waiting] = await tx
+            .select({ n: count() })
+            .from(reports)
+            .where(and(eq(reports.reporterId, account.id), eq(reports.status, 'open')));
+          if ((waiting?.n ?? 0) >= MAX_OPEN_REPORTS) {
+            throw new ApiError(
+              409,
+              'report_limit',
+              `You have ${MAX_OPEN_REPORTS} reports waiting for a moderator. Wait for an answer first.`,
+              { limit: MAX_OPEN_REPORTS },
+            );
           }
           const [row] = await tx
             .insert(reports)

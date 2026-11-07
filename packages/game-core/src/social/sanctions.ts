@@ -93,6 +93,8 @@ export const SOCIAL_WRITE_ACTIONS = [
   'guildNotice',
   // Ticket 4.9: the weekly guild boss.
   'guildBossAttempt',
+  // Ticket 4.11: the presence setting (it was unlimited and audited every call).
+  'presence',
 ] as const;
 export type SocialWriteAction = (typeof SOCIAL_WRITE_ACTIONS)[number] | (string & {});
 
@@ -112,6 +114,8 @@ export const MUTE_EXEMPT: readonly string[] = [
   // Ticket 4.2: profile settings carry no player text, and a muted player must still be able to
   // hide their profile.
   'profile',
+  // Ticket 4.11: hiding one's presence reaches no one.
+  'presence',
   // Ticket 4.4: stepping away from a guild, or withdrawing an offer, is always allowed; so is the
   // rename a moderator forced on the guild (the text filter still applies).
   'guildInviteCancel',

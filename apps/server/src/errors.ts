@@ -29,11 +29,42 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * Ticket 4.11: the first non-finite number in a validated request part (`1e309`, `Infinity` and
+ * `-Infinity` pass Ajv's `integer`, even with a `maximum`, once coerced from a query string or
+ * parsed from JSON), as a dotted path, or null.
+ */
+export function nonFinitePath(value: unknown, path = ''): string | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? null : path || 'value';
+  if (value && typeof value === 'object') {
+    for (const [k, v] of Object.entries(value)) {
+      const found = nonFinitePath(v, path ? `${path}.${k}` : k);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+/** The not-found handler's body (ticket 4.11: also sent by the staff scopes' catch-alls). */
+export function notFoundBody(request: { method: string; url: string }) {
+  return errorBody('not_found', `Route ${request.method} ${request.url} not found`);
+}
+
 export function registerErrorHandling(app: FastifyInstance): void {
+  // Ticket 4.11: refuse non-finite numbers after validation, before any route work (they used to
+  // reach the database as `Infinity` and answer 500).
+  app.addHook('preHandler', async (request) => {
+    for (const part of ['query', 'params', 'body'] as const) {
+      const at = nonFinitePath(request[part]);
+      if (at) {
+        throw new ApiError(400, 'validation_failed', `${part} ${at} must be a finite number.`, {
+          fields: { [at]: 'Must be a finite number.' },
+        });
+      }
+    }
+  });
   app.setNotFoundHandler((request, reply) => {
-    void reply
-      .code(404)
-      .send(errorBody('not_found', `Route ${request.method} ${request.url} not found`));
+    void reply.code(404).send(notFoundBody(request));
   });
 
   app.setErrorHandler((err: FastifyError | ApiError, request, reply) => {
