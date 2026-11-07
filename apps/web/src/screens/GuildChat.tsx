@@ -384,9 +384,9 @@ function Ledger({
   };
 
   return (
-    <div className="ledger">
+    <div className="chat-ledger">
       {hasOlder ? (
-        <p className="ledger__older">
+        <p className="chat-ledger__older">
           <button
             type="button"
             className="btn btn--small"
@@ -398,12 +398,18 @@ function Ledger({
           {older === 'failed' ? <span role="alert"> Could not load them. Try again.</span> : null}
         </p>
       ) : lines.length ? (
-        <p className="ledger__older ledger__older--start">The chronicle begins here.</p>
+        <p className="chat-ledger__older ledger__older--start">The chronicle begins here.</p>
       ) : null}
       {lines.length === 0 ? (
         <p className="chronicle__empty">The chronicle is blank. Be the first to write in it.</p>
       ) : null}
-      <ol ref={log} className="ledger__log" aria-label="Guild chat" aria-live="polite" tabIndex={0}>
+      <ol
+        ref={log}
+        className="chat-ledger__log"
+        aria-label="Guild chat"
+        aria-live="polite"
+        tabIndex={0}
+      >
         {lines.map((l) => {
           const t = when(l.sentAt);
           return (

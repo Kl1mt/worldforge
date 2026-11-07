@@ -160,15 +160,15 @@
   gap: var(--space-6);
 }
 
-.ledger__group {
+.char .ledger__group {
   margin-top: var(--space-4);
 }
 
-.ledger__group h3 {
+.char .ledger__group h3 {
   margin-bottom: var(--space-1);
 }
 
-.ledger__row {
+.char .ledger__row {
   display: flex;
   align-items: baseline;
   gap: var(--space-2);
@@ -176,7 +176,7 @@
 }
 
 /* Dotted leader between label and value, like an old ledger. */
-.ledger__row dt {
+.char .ledger__row dt {
   display: flex;
   flex: 1;
   align-items: baseline;
@@ -184,14 +184,14 @@
   color: var(--text-muted);
 }
 
-.ledger__row dt::after {
+.char .ledger__row dt::after {
   content: '';
   flex: 1;
   border-bottom: 1px dotted var(--iron-500);
   transform: translateY(-4px);
 }
 
-.ledger__row dd {
+.char .ledger__row dd {
   min-width: 4.5em;
   text-align: right;
   font-size: var(--text-lg);
@@ -199,8 +199,8 @@
   color: var(--bone-100);
 }
 
-.ledger__row.is-zero dd,
-.ledger__row.is-zero dt {
+.char .ledger__row.is-zero dd,
+.char .ledger__row.is-zero dt {
   color: var(--text-faint);
 }
 
@@ -215,7 +215,7 @@
   color: var(--brass-400);
 }
 
-.ledger__state {
+.char .ledger__state {
   display: grid;
   gap: var(--space-3);
   justify-items: start;
