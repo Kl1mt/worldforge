@@ -547,7 +547,7 @@ GDD: §8.3, §12.2, §16.4. Needs 4.6–4.9.
 - Address the owner's playtest feedback if it has arrived.
 **Acceptance:** extended balance tests green and fast; before/after tables in the docs.
 
-### 4.11 Phase 4 hardening & exit — `done (PR #PRNUM)`
+### 4.11 Phase 4 hardening & exit — `done (PR #74)`
 GDD: §15 Phase 4 exit, §16.3.
 - **Exit-criteria e2e** with several players: profiles and achievements, friends and block, a guild with chat and moderation, a report handled by a moderator, contributions finishing a community project (warehouse opens), the Ashen Pass unlock, and a guild boss week, all reconciled with the audit log and telemetry. Browser run included.
 - **Exploit and abuse review** of every Phase 4 endpoint: permissions, privacy leaks (block, hidden profiles, presence), spam and flooding, text-filter evasion, contribution and guild-boss races, ownership, client-trusted values.
