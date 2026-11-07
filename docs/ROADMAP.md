@@ -487,7 +487,7 @@ GDD: §10.1. Needs 4.1. May run in parallel with 4.2.
 - Friends list in the UI with presence, the requests inbox, and a link to each profile.
 **Acceptance:** permission/relation matrix (stranger, requested, friend, blocked either way); request races (both send at once → one friendship); presence never reveals exact times; screenshots.
 
-### 4.4 Guilds (vertical) — `in review`
+### 4.4 Guilds (vertical) — `done (PR #59)`
 GDD: §10.1, §4.2 (Guild Hall). Needs 4.1 (and 4.3 for presence).
 - **Create** (gold cost; name and tag through the text module; unique case-insensitively), **invite / apply / accept**, **leave**, **kick**, **promote / demote** (leader, officer, member), **transfer leadership**, **disband**. Up to 30 members; one guild per account.
 - **The Guild Hall** in the hub opens (it is shown locked today): the guild page with members, roles and presence, plus a guild profile reachable by others (report action).
