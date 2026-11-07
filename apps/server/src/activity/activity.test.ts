@@ -729,7 +729,7 @@ describe('areas & unlocks (ticket 2.2)', () => {
     );
     expect(a.gathered.professions.length).toBeGreaterThan(0);
     expect(a).toEqual(b);
-  });
+  }, 30_000); // Settles hundreds of times on purpose; the 5 s default is too tight on a busy CI runner.
 });
 
 describe('materials & professions (ticket 2.3)', () => {
