@@ -28,6 +28,8 @@ export const GAME_ROUTES = [
   'works',
   // Ticket 4.7: the Warehouse, `#/warehouse` (per-character storage; shown locked until restored).
   'warehouse',
+  // Ticket 5.2: the leaderboards, `#/boards/<metric>?class=<classId>&bracket=<id>`.
+  'boards',
 ] as const;
 /** The gate: only shown to visitors without a session. */
 export const AUTH_ROUTES = ['login', 'register'] as const;
@@ -155,4 +157,30 @@ export function guardRoute(route: Route, standing: Standing): Route | null {
   if (standing === 'anonymous') return isAuthRoute(route) ? null : LOGIN_ROUTE;
   if (standing === 'account') return route === ROSTER_ROUTE ? null : ROSTER_ROUTE;
   return isAuthRoute(route) ? DEFAULT_ROUTE : null;
+}
+
+/** Ticket 5.2: a board's address (metric, class filter, level bracket). */
+export interface BoardLocation {
+  metric: string | null;
+  classId: string | null;
+  bracket: string | null;
+}
+
+/** `#/boards/power?class=mage&bracket=20-29` → its parts (only the shape is checked). */
+export function boardLocation(hash: string): BoardLocation {
+  const m = /^#\/?boards(?:\/([a-zA-Z]{1,32}))?(?:\?(.*))?$/.exec(hash);
+  const q = new URLSearchParams(m?.[2] ?? '');
+  const ok = (v: string | null) => (v && /^[0-9a-z-]{1,32}$/i.test(v) ? v : null);
+  return { metric: m?.[1] ?? null, classId: ok(q.get('class')), bracket: ok(q.get('bracket')) };
+}
+
+export function boardHref(
+  metric: string,
+  { classId, bracket }: { classId?: string | null; bracket?: string | null } = {},
+): string {
+  const q = new URLSearchParams();
+  if (classId) q.set('class', classId);
+  if (bracket) q.set('bracket', bracket);
+  const qs = q.toString();
+  return `#/boards/${encodeURIComponent(metric)}${qs ? `?${qs}` : ''}`;
 }

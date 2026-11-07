@@ -5,3 +5,4 @@ export * from './gear.js';
 export * from './power.js';
 export * from './progress.js';
 export * from './scores.js';
+export * from './boards.js';

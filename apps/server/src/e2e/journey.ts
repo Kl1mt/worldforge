@@ -61,6 +61,8 @@ import type {
 } from '../guild-boss/routes.js';
 import type { TelemetryReport } from '../telemetry/report.js';
 import { createInvite } from '../auth/invites.js';
+import { checkLeaderboards } from '../leaderboards/check.js';
+import { cliDeps } from '../leaderboards/leaderboard-cli.js';
 
 export const MIN = 60_000;
 export const HOUR = 60 * MIN;
@@ -2105,4 +2107,88 @@ export async function playAdminPanelStep(
     expect(events.has(e), e).toBe(true);
   }
   return { checks: report.reconcile!.length };
+}
+
+/**
+ * Phase 5 leaderboard step (ticket 5.2, docs/LEADERBOARDS.md "Boards"): the hero's scores are on
+ * every board, equal to its own breakdown (`GET …/scores`); a better item moves Gear Score on the
+ * board at once; another player finds the hero listed by display name, with a profile link only
+ * where the hero's profile settings allow it, and reports the display name from the entry. The
+ * recompute check finds no stored value that differs from its formula.
+ */
+export async function playLeaderboardStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  hero: Journey,
+  cast: StepCast = {},
+) {
+  type Entry = {
+    rank: number;
+    you: boolean;
+    value: number;
+    player: { handle: string; displayName: string | null; profile: boolean };
+    hero: { name: string | null; classId: string; level: number };
+  };
+  type Board = { total: number; entries: Entry[]; yours: Entry[]; nextCursor: string | null };
+  const boardOf = async (who: { api: Journey['api'] }, path: string) => {
+    const res = await who.api('GET', `/api/leaderboards/${path}`);
+    expect(res.statusCode, res.body).toBe(200);
+    return res.json<{ board: Board }>().board;
+  };
+  const me = (await hero.api('GET', '/api/account')).json<{
+    account: { handle: string; displayName: string };
+  }>().account;
+  const scores = async () =>
+    (await hero.api('GET', `/api/characters/${hero.characterId}/scores`)).json<{
+      scores: Record<'level' | 'gearScore' | 'power' | 'pveProgress', { value: number }>;
+    }>().scores;
+  const own = await scores();
+  for (const metric of ['level', 'gearScore', 'power', 'pveProgress'] as const) {
+    const board = await boardOf(hero, metric);
+    const mine = board.yours.find((e) => e.hero.level === hero.state.level);
+    expect(mine, metric).toBeDefined();
+    expect(mine!.value, metric).toBe(own[metric].value);
+    expect(mine!.rank).toBeGreaterThanOrEqual(1);
+  }
+
+  // A better item shows on the board as soon as it is worn.
+  await hero.settle();
+  await hero.equipBetterDrops();
+  const gear = (await boardOf(hero, 'gearScore')).yours[0]!;
+  expect(gear.value).toBe((await scores()).gearScore.value);
+
+  // Another player sees the hero by name; the link follows the hero's profile settings.
+  const visitor =
+    cast.companion ?? (await newPlayer(app, 'ranker@graumark.test', 'Board Watcher', cast.invite));
+  const { visibility } = (await hero.api('GET', '/api/account/profile')).json<{
+    visibility: string;
+  }>();
+  let entry: Entry | undefined;
+  for (let cursor: string | null = ''; entry === undefined && cursor !== null;) {
+    const page: Board = await boardOf(
+      visitor,
+      `level?limit=100${cursor ? `&cursor=${cursor}` : ''}`,
+    );
+    entry = page.entries.find((e) => e.player.handle === me.handle);
+    cursor = page.nextCursor;
+  }
+  expect(entry).toBeDefined();
+  expect(entry!.player.displayName).toBe(me.displayName);
+  if (visibility === 'public') expect(entry!.player.profile).toBe(true);
+  if (visibility === 'hidden') {
+    expect(entry!.player.profile).toBe(false);
+    expect(entry!.hero.name).toBeNull();
+  }
+  const filed = await visitor.api('POST', '/api/reports', {
+    target: { kind: 'profileField', handle: me.handle, field: 'displayName' },
+    reason: 'other',
+    note: 'Reported from the leaderboard.',
+  });
+  expect([201, 409], filed.body).toContain(filed.statusCode);
+
+  // Every stored value equals its formula (nothing wrong; other heroes may wait for the sweep).
+  const report = await checkLeaderboards(cliDeps(database.db));
+  expect(report.problems.filter((p) => p.kind === 'wrong')).toEqual([]);
+  expect(report.problems.filter((p) => p.characterId === hero.characterId)).toEqual([]);
+  return { entry: entry!, visibility };
 }

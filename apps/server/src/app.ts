@@ -30,6 +30,8 @@ import { registerLegal, type LegalOptions } from './legal/routes.js';
 import { registerAdmin, type AdminOptions } from './admin/routes.js';
 import { registerCommunity } from './community/routes.js';
 import { registerWarehouse } from './warehouse/routes.js';
+import { registerLeaderboardRefresh, registerLeaderboards } from './leaderboards/routes.js';
+import { sweepLeaderboards } from './leaderboards/snapshot.js';
 import { WorldStateCache } from './community/world-state.js';
 import type { Database, DatabaseHandle } from './db/types.js';
 
@@ -65,6 +67,8 @@ export interface AppOptions extends FastifyServerOptions {
   testRoutes?: (api: FastifyInstance) => Promise<void> | void;
   /** Ticket 4.6: how long the cached world state is served (default 60 s, docs/COMMUNITY.md). */
   worldStateTtlMs?: number;
+  /** Ticket 5.2: the board read limit per account (default `DEFAULT_BOARD_READ_LIMIT`). */
+  leaderboards?: { readLimit?: { max: number; windowMs: number } };
 }
 
 export function buildApp({
@@ -75,6 +79,7 @@ export function buildApp({
   admin,
   testRoutes,
   worldStateTtlMs,
+  leaderboards,
   ...options
 }: AppOptions): FastifyInstance {
   const app = Fastify({
@@ -88,6 +93,7 @@ export function buildApp({
   registerErrorHandling(app);
   const activityOptions: ActivityOptions = { ...DEFAULT_ACTIVITY_OPTIONS, ...activity };
   registerSettlementScheduler(app, activityOptions);
+  registerLeaderboardRefresh(app, activityOptions.now);
 
   void app.register(
     async (api) => {
@@ -114,6 +120,7 @@ export function buildApp({
       await registerLegal(api, legal ?? {});
       await registerAdmin(api, admin ?? {});
       await registerScores(api);
+      await registerLeaderboards(api, { now: activityOptions.now, ...leaderboards });
       if (testRoutes) await testRoutes(api);
 
       api.get('/health', async (request, reply): Promise<HealthResponse> => {
@@ -143,11 +150,14 @@ export function buildApp({
 }
 
 const PRUNE_EVERY_MS = 60 * 60 * 1000;
+/** Heroes the leaderboard sweep refreshes per scheduler run (ticket 5.2). */
+const LEADERBOARD_SWEEP_BATCH = 200;
 
 /**
  * Periodically settles activities the client has not settled for one interval, so rewards and the
  * world stay current while players are away. Each run settles at most one batch; overlapping runs
- * are skipped. Also prunes expired idempotency keys (ticket 2.6).
+ * are skipped. Also prunes expired idempotency keys (ticket 2.6) and sweeps the leaderboard
+ * snapshots (ticket 5.2).
  */
 function registerSettlementScheduler(app: FastifyInstance, options: ActivityOptions): void {
   const intervalMs = options.settleIntervalMs;
@@ -155,6 +165,7 @@ function registerSettlementScheduler(app: FastifyInstance, options: ActivityOpti
   let timer: NodeJS.Timeout | undefined;
   let running = false;
   let lastPrune = 0;
+  let sweepCursor: string | null = null;
   app.addHook('onReady', async () => {
     timer = setInterval(() => {
       if (running) return;
@@ -173,6 +184,17 @@ function registerSettlementScheduler(app: FastifyInstance, options: ActivityOpti
           if (n > 0) app.log.info({ pruned: n }, 'pruned idempotency keys');
         })
         .catch((err: unknown) => app.log.error({ err }, 'idempotency key pruning failed'))
+        .then(async () => {
+          // Ticket 5.2: the leaderboard sweep (backfill, then a rotation over every hero).
+          const out = await sweepLeaderboards(
+            { db: app.db, worldFlags: () => app.worldState.flags() },
+            options.now(),
+            { batch: LEADERBOARD_SWEEP_BATCH, cursor: sweepCursor },
+          );
+          sweepCursor = out.cursor;
+          if (out.updated > 0) app.log.info({ updated: out.updated }, 'leaderboard sweep');
+        })
+        .catch((err: unknown) => app.log.error({ err }, 'leaderboard sweep failed'))
         .finally(() => {
           running = false;
         });

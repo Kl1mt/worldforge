@@ -19,6 +19,7 @@ import {
   accountAchievements,
   accounts,
   characters,
+  guildMembers,
   itemInstances,
   type Account,
   type ItemInstance,
@@ -27,7 +28,7 @@ import { writeAudit } from '../db/audit.js';
 import type { Executor } from '../db/types.js';
 import { ApiError } from '../errors.js';
 import { normalizeDisplayName } from '../auth/validation.js';
-import { isBlockedEitherWay, relationBetween } from './relations.js';
+import { isBlockedEitherWay, relationBetween, relationsFor } from './relations.js';
 import { hiddenTargetKeys } from './sanctions.js';
 import { socialWrite } from './social-write.js';
 import { areGuildmates, guildLeaderId, publicGuildOf } from './guild-model.js';
@@ -66,6 +67,41 @@ const PROFILE_RELATION_OF: Record<Relation, ProfileRelation> = {
   'blocked-by-me': 'blocked',
   'blocked-by-them': 'blocked',
 };
+
+/**
+ * Ticket 5.2: `profileRelation` for a list of owners (a board page), in three queries whatever its
+ * length; the same rules as the one-owner form.
+ */
+export async function profileRelationsFor(
+  executor: Executor,
+  viewerId: string,
+  ownerIds: readonly string[],
+): Promise<Map<string, ProfileRelation>> {
+  const ids = [...new Set(ownerIds)];
+  const relations = await relationsFor(executor, viewerId, ids);
+  const [mine] = await executor
+    .select({ guildId: guildMembers.guildId })
+    .from(guildMembers)
+    .where(eq(guildMembers.accountId, viewerId));
+  const mates = new Set<string>();
+  const others = ids.filter((id) => id !== viewerId);
+  if (mine && others.length > 0) {
+    const rows = await executor
+      .select({ accountId: guildMembers.accountId })
+      .from(guildMembers)
+      .where(and(eq(guildMembers.guildId, mine.guildId), inArray(guildMembers.accountId, others)));
+    for (const r of rows) mates.add(r.accountId);
+  }
+  const out = new Map<string, ProfileRelation>();
+  for (const id of ids) {
+    const relation = PROFILE_RELATION_OF[relations.get(id)!];
+    out.set(
+      id,
+      (relation === 'stranger' || relation === 'pending') && mates.has(id) ? 'guildmate' : relation,
+    );
+  }
+  return out;
+}
 
 /** The owner if `viewerId` may see their profile, else null (the caller answers 404). */
 export async function viewableProfileOwner(

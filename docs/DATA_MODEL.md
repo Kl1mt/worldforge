@@ -409,6 +409,9 @@ Rules: `docs/GUILD_BOSS.md`. All additive; `week` is a `date`, the Monday (UTC) 
 
 All four stamp game time and are part of the playtest clock floor (`latestStoredTimeMs`).
 
+### leaderboard_entries — implemented (5.2)
+One row per hero and metric (`level`, `gearScore`, `power`, `pveProgress`; primary key `(character_id, metric)`, both FKs cascade): `account_id`, `class_id`, `level` (copies for the board filters), `formula_version`, `value`, `sort_key bigint[]`, `inputs_hash` (SHA-256 of the canonical JSON of the metric's slice of the input, `metricInput`), `input` (the full `ScoringInput`, never sent to clients), `achieved_at` (game clock; moves only when `sort_key` does) and `updated_at`. Index `(metric, sort_key desc, achieved_at, character_id)` for ranking. Written only by `refreshHeroScores` (`apps/server/src/leaderboards/snapshot.ts`); sanctions apply at read time. Additive migration `0025_leaderboards`; existing heroes are backfilled lazily by the sweep (or `admin:leaderboards refresh`). See `LEADERBOARDS.md`.
+
 ## Relationships
 
 ```

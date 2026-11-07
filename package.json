@@ -25,6 +25,7 @@
     "admin:role": "pnpm --silent --filter @worldforge/server admin:role",
     "admin:invite": "pnpm --silent --filter @worldforge/server admin:invite",
     "admin:project": "pnpm --silent --filter @worldforge/server admin:project",
+    "admin:leaderboards": "pnpm --silent --filter @worldforge/server admin:leaderboards",
     "report:telemetry": "pnpm --silent --filter @worldforge/server report:telemetry"
   },
   "devDependencies": {

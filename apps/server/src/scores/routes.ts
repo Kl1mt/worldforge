@@ -5,6 +5,7 @@ import {
   type ScoredItem,
   type Scores,
   type ScoringInput,
+  type WorldFlags,
 } from '@worldforge/game-core';
 import {
   characters,
@@ -45,7 +46,7 @@ export async function heroGuildBossStage(db: Executor, hero: Character): Promise
 
 /** Everything the scores read, from the hero's own rows (5.2 stores this next to each value). */
 export async function scoringInput(
-  app: FastifyInstance,
+  app: { worldState: { flags: () => Promise<WorldFlags> } },
   db: Executor,
   hero: Character,
 ): Promise<ScoringInput> {

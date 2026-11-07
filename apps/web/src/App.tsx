@@ -23,6 +23,7 @@ import { FriendsScreen } from './screens/FriendsScreen';
 import { GuildScreen } from './screens/GuildScreen';
 import { WorksScreen } from './screens/WorksScreen';
 import { WarehouseScreen } from './screens/WarehouseScreen';
+import { BoardsScreen } from './screens/BoardsScreen';
 import { isStaff } from '@worldforge/game-core';
 import { TavernScreen } from './screens/TavernScreen';
 import { CharacterScreen } from './screens/CharacterScreen';
@@ -118,6 +119,7 @@ function Routes() {
             {route === 'guild' ? <GuildScreen /> : null}
             {route === 'works' ? <WorksScreen /> : null}
             {route === 'warehouse' ? <WarehouseScreen /> : null}
+            {route === 'boards' ? <BoardsScreen /> : null}
           </Shell>
         </OnboardingProvider>
       </QuestsProvider>

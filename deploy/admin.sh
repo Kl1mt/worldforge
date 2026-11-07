@@ -10,12 +10,14 @@
 #   deploy/admin.sh invite revoke <invite id|code>
 #   deploy/admin.sh project status            (community projects, ticket 4.6)
 #   deploy/admin.sh project complete <projectId>   (finishes it for everyone; cannot be undone)
+#   deploy/admin.sh leaderboards check         (recompute every board row, ticket 5.2)
+#   deploy/admin.sh leaderboards refresh       (rewrite every hero's rows from current state)
 set -euo pipefail
 # shellcheck source=SCRIPTDIR/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 if (($# == 0)) || [[ $1 == -h || $1 == --help ]]; then
-  sed -n '2,12p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,14p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 0
 fi
 require_setup
@@ -26,6 +28,9 @@ if [[ $1 == invite ]]; then
 elif [[ $1 == project ]]; then
   shift
   compose exec -T server node dist/community/project-cli.js "$@"
+elif [[ $1 == leaderboards ]]; then
+  shift
+  compose exec -T server node dist/leaderboards/leaderboard-cli.js "$@"
 else
   compose exec -T server node dist/social/role-cli.js "$@"
 fi

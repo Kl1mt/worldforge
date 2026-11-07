@@ -10,6 +10,8 @@ import {
   guardRoute,
   inviteFromLocation,
   parseRoute,
+  boardHref,
+  boardLocation,
   profileHandleFromHash,
   profileHref,
   registerHref,
@@ -135,5 +137,18 @@ describe('admin panel links (ticket D.3)', () => {
     expect(moderationCaseFromHash(moderationCaseHref(id))).toBe(id);
     expect(moderationCaseFromHash('#/moderation')).toBeNull();
     expect(moderationCaseFromHash('#/moderation?case=<x>')).toBeNull();
+  });
+});
+
+describe('board locations (ticket 5.2)', () => {
+  it('round-trips metric and filters', () => {
+    const href = boardHref('power', { classId: 'mage', bracket: '20-29' });
+    expect(href).toBe('#/boards/power?class=mage&bracket=20-29');
+    expect(boardLocation(href)).toEqual({ metric: 'power', classId: 'mage', bracket: '20-29' });
+    expect(parseRoute(href)).toBe('boards');
+  });
+  it('ignores what is not shaped like a filter', () => {
+    expect(boardLocation('#/boards')).toEqual({ metric: null, classId: null, bracket: null });
+    expect(boardLocation('#/boards/level?class=%3Cscript%3E').classId).toBeNull();
   });
 });
