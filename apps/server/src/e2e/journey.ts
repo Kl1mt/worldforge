@@ -49,6 +49,14 @@ import { setAccountRole } from '../social/roles.js';
 import { reconcileWithAudit } from '../telemetry/report.js';
 import { completeProject } from '../community/project-cli.js';
 import type { WarehouseMoveResponse, WarehouseView } from '../warehouse/routes.js';
+import type {
+  GuildBossAttemptResponse,
+  GuildBossAttemptView,
+  GuildBossClaimResponse,
+  GuildBossStateResponse,
+} from '../guild-boss/routes.js';
+import type { TelemetryReport } from '../telemetry/report.js';
+import { createInvite } from '../auth/invites.js';
 
 export const MIN = 60_000;
 export const HOUR = 60 * MIN;
@@ -100,23 +108,35 @@ export interface JourneyOptions {
    * it without an item (the Phase 2 player).
    */
   rewardSlot?: (slots: string[]) => string | undefined;
+  /** Ticket 4.11: the invite code to register with (`REGISTRATION_MODE=invite`). */
+  inviteCode?: string;
 }
 
 export type Journey = Awaited<ReturnType<typeof startJourney>>;
 
+/**
+ * Each player of a run comes from their own address (registration is limited to 5 an hour per
+ * IP, ticket 1.2; the multi-player exit run registers more than that).
+ */
+let addresses = 0;
+const nextAddress = () => `10.4.${Math.floor(++addresses / 250)}.${(addresses % 250) + 1}`;
+
 export async function startJourney(options: JourneyOptions) {
   const { app, clock, classId } = options;
+  const remoteAddress = nextAddress();
   // 1. Register (real account, session cookie) and create a character.
   const reg = await app.inject({
+    remoteAddress,
     method: 'POST',
     url: '/api/auth/register',
     payload: {
       email: options.email,
       password: 'ashes-and-iron-42',
       displayName: options.displayName,
+      ...(options.inviteCode ? { inviteCode: options.inviteCode } : {}),
     },
   });
-  expect(reg.statusCode).toBe(201);
+  expect(reg.statusCode, reg.body).toBe(201);
   const token = reg.cookies.find((c) => c.name === SESSION_COOKIE)!.value;
   const api = (
     method: Method,
@@ -125,6 +145,7 @@ export async function startJourney(options: JourneyOptions) {
     headers: Record<string, string> = {},
   ): Promise<LightMyRequestResponse> =>
     app.inject({
+      remoteAddress,
       method,
       url,
       headers,
@@ -168,9 +189,13 @@ export async function startJourney(options: JourneyOptions) {
   const inventory = async () => (await api('GET', `${base}/inventory`)).json<InventoryView>();
   const board = async () => (await api('GET', `${base}/quests`)).json<QuestBoardResponse>();
 
-  /** Advances the clock by one visit and settles: the return summary. */
-  const settle = async (): Promise<SettleResponse> => {
-    clock.set(clock.now() + STEP);
+  /**
+   * Advances the clock by one visit and settles: the return summary. Ticket 4.11: with several
+   * players on one clock, `advance: false` settles a visit the caller has already moved the clock
+   * for (`townVisit`), so nobody's offline time runs past the cap.
+   */
+  const settle = async ({ advance = true } = {}): Promise<SettleResponse> => {
+    if (advance) clock.set(clock.now() + STEP);
     state.farmedHours += STEP / HOUR;
     const res = await api('POST', `${base}/activity/settle`);
     expect(res.statusCode, res.body).toBe(200);
@@ -558,12 +583,27 @@ export async function expectHoldingsMatchAudit(database: DatabaseHandle, charact
   return { row: row!, events };
 }
 
-/** A second account played through the API (register only), for the social steps. */
-async function newPlayer(app: FastifyInstance, email: string, displayName: string) {
+/**
+ * A second account played through the API (register only), for the social steps. Ticket 4.11:
+ * with `inviteCode` (invite-only registration).
+ */
+export async function newPlayer(
+  app: FastifyInstance,
+  email: string,
+  displayName: string,
+  inviteCode?: string,
+) {
+  const remoteAddress = nextAddress();
   const reg = await app.inject({
+    remoteAddress,
     method: 'POST',
     url: '/api/auth/register',
-    payload: { email, password: 'ashes-and-iron-42', displayName },
+    payload: {
+      email,
+      password: 'ashes-and-iron-42',
+      displayName,
+      ...(inviteCode ? { inviteCode } : {}),
+    },
   });
   expect(reg.statusCode, reg.body).toBe(201);
   const token = reg.cookies.find((c) => c.name === SESSION_COOKIE)!.value;
@@ -575,6 +615,7 @@ async function newPlayer(app: FastifyInstance, email: string, displayName: strin
     headers: Record<string, string> = {},
   ) =>
     app.inject({
+      remoteAddress,
       method,
       url,
       headers,
@@ -582,6 +623,26 @@ async function newPlayer(app: FastifyInstance, email: string, displayName: strin
       cookies: { [SESSION_COOKIE]: token },
     });
   return { account, api };
+}
+
+export type Player = Awaited<ReturnType<typeof newPlayer>>;
+
+/** A journey's account as a `Player` for the social steps (ticket 4.11). */
+export async function playerOf(hero: Journey): Promise<Player> {
+  const { account } = (await hero.api('GET', '/api/account')).json<{
+    account: { id: string; handle: string; displayName: string };
+  }>();
+  return { account, api: hero.api };
+}
+
+/**
+ * Who a social step meets (ticket 4.11): the invite code new players register with, and players
+ * the exit run brings along instead of the step registering its own.
+ */
+export interface StepCast {
+  invite?: string;
+  companion?: Player;
+  recruit?: Player;
 }
 
 /**
@@ -594,12 +655,13 @@ export async function playSafetyStep(
   app: FastifyInstance,
   database: DatabaseHandle,
   hero: Journey,
+  cast: StepCast = {},
 ) {
   const heroAccount = (await hero.api('GET', '/api/account')).json<{
     account: { id: string; handle: string };
   }>().account;
-  const offender = await newPlayer(app, 'heckler@graumark.test', 'Hedda Is Slow');
-  const warden = await newPlayer(app, 'warden@graumark.test', 'Warden Brann');
+  const offender = await newPlayer(app, 'heckler@graumark.test', 'Hedda Is Slow', cast.invite);
+  const warden = await newPlayer(app, 'warden@graumark.test', 'Warden Brann', cast.invite);
   // Not a moderator yet: the queue does not exist for them.
   expect((await warden.api('GET', '/api/mod/queue')).statusCode).toBe(404);
   expect(await setAccountRole(database.db, 'warden@graumark.test', 'moderator')).toMatchObject({
@@ -692,7 +754,7 @@ export async function playSafetyStep(
     .from(sanctions)
     .where(eq(sanctions.id, row!.sanctionId!));
   expect(sanction).toMatchObject({ kind: 'rename', liftReason: 'renamed' });
-  return { reportId, offender: offender.account, moderator: warden.account };
+  return { reportId, offender: offender.account, moderator: warden.account, warden };
 }
 
 /**
@@ -705,17 +767,21 @@ export async function playFriendsStep(
   app: FastifyInstance,
   database: DatabaseHandle,
   hero: Journey,
+  cast: StepCast = {},
 ) {
   type Entry = { handle: string; displayName: string | null; presence?: string | null };
   type Friends = { friends: Entry[]; incoming: Entry[]; outgoing: Entry[]; blocked: Entry[] };
   const heroAccount = (await hero.api('GET', '/api/account')).json<{
     account: { id: string; handle: string; displayName: string };
   }>().account;
-  const companion = await newPlayer(app, 'companion@graumark.test', 'Ysolde Ash');
-  const pest = await newPlayer(app, 'pest@graumark.test', 'Pest Of Graumark');
+  const companion =
+    cast.companion ?? (await newPlayer(app, 'companion@graumark.test', 'Ysolde Ash', cast.invite));
+  const pest = await newPlayer(app, 'pest@graumark.test', 'Pest Of Graumark', cast.invite);
 
   // The hero adds the companion by name; it waits in the companion's inbox.
-  const asked = await hero.api('POST', '/api/friends/requests', { name: 'ysolde ash' });
+  const asked = await hero.api('POST', '/api/friends/requests', {
+    name: companion.account.displayName.toLowerCase(),
+  });
   expect(asked.statusCode, asked.body).toBe(200);
   expect(asked.json()).toEqual({ relation: 'requested-by-me' });
   const inbox = (await companion.api('GET', '/api/friends')).json<Friends>();
@@ -731,7 +797,11 @@ export async function playFriendsStep(
   // The hero sees the companion online; once hidden, no presence at all.
   const list = async () => (await hero.api('GET', '/api/friends')).json<Friends>();
   expect((await list()).friends).toEqual([
-    { handle: companion.account.handle, displayName: 'Ysolde Ash', presence: 'online' },
+    {
+      handle: companion.account.handle,
+      displayName: companion.account.displayName,
+      presence: 'online',
+    },
   ]);
   expect((await companion.api('POST', '/api/account/presence', { hidden: true })).statusCode).toBe(
     200,
@@ -768,7 +838,7 @@ export async function playFriendsStep(
   expect(events.sort()).toEqual(
     ['friend.request:0', 'friend.accept:1', 'friend.request:2', 'friend.block:0'].sort(),
   );
-  return { companion: companion.account, pest: pest.account };
+  return { companion: companion.account, pest: pest.account, pestPlayer: pest };
 }
 
 /**
@@ -781,6 +851,7 @@ export async function playProfileStep(
   app: FastifyInstance,
   database: DatabaseHandle,
   hero: Journey,
+  cast: StepCast = {},
 ) {
   const me = (await hero.api('GET', '/api/account')).json<{
     account: { id: string; handle: string; displayName: string };
@@ -805,7 +876,7 @@ export async function playProfileStep(
   });
   expect(saved.statusCode, saved.body).toBe(200);
 
-  const visitor = await newPlayer(app, 'visitor@graumark.test', 'Curious Visitor');
+  const visitor = await newPlayer(app, 'visitor@graumark.test', 'Curious Visitor', cast.invite);
   const found = await visitor.api(
     'GET',
     `/api/players/lookup?name=${encodeURIComponent(me.displayName)}`,
@@ -864,7 +935,12 @@ export async function playProfileStep(
  * recruit leaves. A stranger views and reports the guild; a player who blocks the hero cannot find
  * it. Gold reconciles with the audit log and the telemetry rollups.
  */
-export async function playGuildStep(app: FastifyInstance, database: DatabaseHandle, hero: Journey) {
+export async function playGuildStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  hero: Journey,
+  cast: StepCast = {},
+) {
   const me = (await hero.api('GET', '/api/account')).json<{
     account: { id: string; handle: string; displayName: string };
   }>().account;
@@ -879,6 +955,8 @@ export async function playGuildStep(app: FastifyInstance, database: DatabaseHand
     await hero.sellJunk(await hero.inventory());
     await hero.farmBestArea();
   }
+  // Founding settles the hero's farming first; settle now so the purse read is current.
+  expect((await hero.api('POST', `${hero.base}/activity/settle`)).statusCode).toBe(200);
   const before = await gold();
   expect(before).toBeGreaterThanOrEqual(GUILD_CREATE_COST);
 
@@ -907,7 +985,8 @@ export async function playGuildStep(app: FastifyInstance, database: DatabaseHand
     (await who.api('GET', '/api/guild')).json<Page>();
 
   // A companion finds the guild and applies; the hero takes them in.
-  const companion = await newPlayer(app, 'warden@graumark.test', 'Wren Of Ash');
+  const companion =
+    cast.companion ?? (await newPlayer(app, 'warden@graumark.test', 'Wren Of Ash', cast.invite));
   const search = (await companion.api('GET', '/api/guilds?q=ashen')).json<{
     guilds: { handle: string }[];
   }>();
@@ -922,10 +1001,15 @@ export async function playGuildStep(app: FastifyInstance, database: DatabaseHand
   ).toBe(200);
 
   // A recruit is invited by name and accepts, then leaves again.
-  const recruit = await newPlayer(app, 'recruit@graumark.test', 'Brannoc Vell');
-  expect((await hero.api('POST', '/api/guild/invites', { name: 'brannoc vell' })).statusCode).toBe(
-    200,
-  );
+  const recruit =
+    cast.recruit ?? (await newPlayer(app, 'recruit@graumark.test', 'Brannoc Vell', cast.invite));
+  expect(
+    (
+      await hero.api('POST', '/api/guild/invites', {
+        name: recruit.account.displayName.toLowerCase(),
+      })
+    ).statusCode,
+  ).toBe(200);
   expect((await recruit.api('POST', `/api/guilds/${guild.handle}/invite/accept`)).statusCode).toBe(
     200,
   );
@@ -938,14 +1022,16 @@ export async function playGuildStep(app: FastifyInstance, database: DatabaseHand
     [companion.account.handle, 'officer'],
     [recruit.account.handle, 'member'],
   ]);
-  expect(roster.every((m) => m.presence === 'online')).toBe(true);
+  // A bucket, never a time; null for a member who hides it (the friends step's companion may).
+  expect(roster.every((m) => m.presence === 'online' || m.presence === null)).toBe(true);
+  expect(roster.find((m) => m.handle === me.handle)!.presence).toBe('online');
   expect((await recruit.api('POST', '/api/guild/leave')).statusCode).toBe(200);
   expect((await page(recruit)).guild).toBeNull();
   // The leader cannot simply walk away.
   expect((await hero.api('POST', '/api/guild/leave')).statusCode).toBe(409);
 
   // Others see the guild's profile and can report it; a player who blocks the hero cannot see it.
-  const stranger = await newPlayer(app, 'stranger@graumark.test', 'Odo Marrow');
+  const stranger = await newPlayer(app, 'stranger@graumark.test', 'Odo Marrow', cast.invite);
   const profile = await stranger.api('GET', `/api/guilds/${guild.handle}`);
   expect(profile.statusCode).toBe(200);
   expect(profile.json<{ members: unknown[] }>().members).toHaveLength(2);
@@ -1351,15 +1437,18 @@ export async function playWarehouseStep(
   database: DatabaseHandle,
   hero: Journey,
   now: () => Date,
+  /** Ticket 4.11: `town` when the players' contributions already restored it (no CLI step). */
+  restoredBy: 'cli' | 'town' = 'cli',
 ) {
   const url = `${hero.base}/warehouse`;
-  const closed = await hero.api('GET', url);
-  expect(closed.statusCode).toBe(409);
-  expect(closed.json<{ error: { code: string } }>().error.code).toBe('warehouse_closed');
-
-  const done = await completeProject(database.db, 'restoreWarehouse', now());
-  expect(done).toContain('completed');
-  app.worldState.invalidate();
+  if (restoredBy === 'cli') {
+    const closed = await hero.api('GET', url);
+    expect(closed.statusCode).toBe(409);
+    expect(closed.json<{ error: { code: string } }>().error.code).toBe('warehouse_closed');
+    const done = await completeProject(database.db, 'restoreWarehouse', now());
+    expect(done).toContain('completed');
+    app.worldState.invalidate();
+  }
   const open = await hero.api('GET', url);
   expect(open.statusCode, open.body).toBe(200);
   expect(open.json<WarehouseView>()).toMatchObject({ level: 0, items: [] });
@@ -1429,4 +1518,495 @@ export async function playWarehouseStep(
   }
   expect(checks.filter((c) => !c.ok)).toEqual([]);
   return { stored: stored.length - 1, level: 1 };
+}
+
+// ---------------------------------------------------------------------------------------------
+// Ticket 4.11: the Phase 4 exit run with several players on one clock.
+// ---------------------------------------------------------------------------------------------
+
+/**
+ * One visit for a whole town on one clock: the clock moves once and every hero settles that
+ * visit, equips, tidies its pack and goes on farming (so nobody's offline time passes the cap).
+ */
+export async function townVisit(clock: Clock, heroes: Journey[]) {
+  clock.set(clock.now() + STEP);
+  for (const h of heroes) {
+    await h.settle({ advance: false });
+    await h.equipBetterDrops();
+    await h.sellJunk(await h.inventory());
+    await h.farmBestArea();
+  }
+}
+
+/** A hero's gold and materials as the client sees them. */
+export async function holdingsOf(hero: Journey) {
+  const gold = (await hero.api('GET', '/api/characters'))
+    .json<{ characters: { id: string; gold: number }[] }>()
+    .characters.find((c) => c.id === hero.characterId)!.gold;
+  const mats = (await hero.api('GET', `${hero.base}/materials`)).json<{
+    materials: { materialId: string; quantity: number }[];
+  }>().materials;
+  return {
+    gold,
+    mats: Object.fromEntries(mats.map((m) => [m.materialId, m.quantity])) as Record<string, number>,
+  };
+}
+
+export interface ProjectBoardView {
+  projects: {
+    id: string;
+    status: string;
+    stageIndex: number;
+    stages: {
+      id: string;
+      status: string;
+      needs: {
+        resource: string;
+        required: number;
+        delivered: number;
+        cap: number;
+        givenToday: number;
+      }[];
+    }[];
+    yours: { resource: string; amount: number }[];
+  }[];
+}
+
+/**
+ * The player's daily share (ticket 4.11): gives the open project's current stage what the hero
+ * holds, up to what the stage still needs and what the account may still give today, keeping
+ * `reserve` gold. The server takes exactly that (nothing is capped or over-filled because the
+ * board said so). Returns what was given, or null when there was nothing to give.
+ */
+export async function contributeShare(hero: Journey, reserve = 0) {
+  const board = (await hero.api('GET', '/api/community/projects')).json<ProjectBoardView>();
+  const project = board.projects.find((p) => p.status === 'open');
+  if (!project) return null;
+  const stage = project.stages[project.stageIndex]!;
+  const held = await holdingsOf(hero);
+  const offer = stage.needs
+    .map((n) => ({
+      resource: n.resource,
+      amount: Math.min(
+        n.cap - n.givenToday,
+        n.required - n.delivered,
+        n.resource === 'gold' ? held.gold - reserve : (held.mats[n.resource] ?? 0),
+      ),
+    }))
+    .filter((o) => o.amount > 0);
+  if (offer.length === 0) return null;
+  const res = await hero.keyed(`/api/community/projects/${project.id}/contribute`, {
+    characterId: hero.characterId,
+    stageId: stage.id,
+    offer,
+  });
+  expect(res.statusCode, res.body).toBe(200);
+  const { accepted } = res.json<{ accepted: { resource: string; amount: number }[] }>();
+  const taken = Object.fromEntries(accepted.map((a) => [a.resource, a.amount]));
+  for (const o of offer) expect(taken[o.resource], o.resource).toBe(o.amount);
+  return { projectId: project.id, stageId: stage.id, accepted };
+}
+
+/**
+ * Invite-only registration (ticket D.2) as the owner opens the live town: the config says
+ * `invite`; registering without a code is refused; the owner creates a single-use code with the
+ * CLI (`pnpm admin:invite`, here its `createInvite`), registers with it and makes themselves admin
+ * with the CLI (`setAccountRole`); the code is spent. The admin then creates the players' invite in
+ * the admin panel (shown once) and a second one they revoke, which no longer registers anyone.
+ */
+export async function openInviteOnlyTown(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  now: Date,
+) {
+  expect((await app.inject({ method: 'GET', url: '/api/config' })).json()).toMatchObject({
+    registration: { mode: 'invite' },
+  });
+  const register = (email: string, displayName: string, inviteCode?: string) =>
+    app.inject({
+      remoteAddress: nextAddress(),
+      method: 'POST',
+      url: '/api/auth/register',
+      payload: {
+        email,
+        displayName,
+        password: 'ashes-and-iron-42',
+        ...(inviteCode ? { inviteCode } : {}),
+      },
+    });
+  const uninvited = await register('drifter@graumark.test', 'Drifter');
+  expect(uninvited.statusCode).toBe(400);
+  expect(
+    uninvited.json<{ error: { details: { fields: object } } }>().error.details.fields,
+  ).toHaveProperty('inviteCode');
+
+  const { code: ownerCode } = await createInvite(
+    database.db,
+    { maxUses: 1, expiresAt: null, note: 'the owner', via: 'cli' },
+    now,
+  );
+  const admin = await newPlayer(app, 'castellan@graumark.test', 'Castellan Ysolde', ownerCode);
+  expect(await setAccountRole(database.db, 'castellan@graumark.test', 'admin')).toMatchObject({
+    changed: true,
+  });
+  const spent = await register('second@graumark.test', 'Second Comer', ownerCode);
+  expect(spent.statusCode).toBe(403);
+  expect(spent.json<{ error: { code: string } }>().error.code).toBe('invite_invalid');
+
+  const created = await admin.api('POST', '/api/admin/invites', {
+    maxUses: 20,
+    expiresInHours: null,
+    note: 'Graumark players',
+  });
+  expect(created.statusCode, created.body).toBe(201);
+  const { code } = created.json<{ code: string; invite: { id: string } }>();
+  const spare = await admin.api('POST', '/api/admin/invites', {
+    maxUses: 1,
+    expiresInHours: 24,
+    note: 'spare',
+  });
+  const spareId = spare.json<{ invite: { id: string } }>().invite.id;
+  const spareCode = spare.json<{ code: string }>().code;
+  expect((await admin.api('POST', `/api/admin/invites/${spareId}/revoke`)).statusCode).toBe(200);
+  const revoked = await register('third@graumark.test', 'Third Comer', spareCode);
+  expect(revoked.statusCode).toBe(403);
+  // The codes are shown once: the list carries ids only.
+  const list = await admin.api('GET', '/api/admin/invites');
+  expect(list.body).not.toContain(code);
+  expect(list.body).not.toContain(spareCode);
+  return { admin, invite: code, inviteId: created.json<{ invite: { id: string } }>().invite.id };
+}
+
+/**
+ * Guild chat moderation (ticket 4.11, after `playGuildStep`): a member taunts a guildmate in the
+ * chronicle (it passes the text filter: words, not slurs); the leader reports the line, a moderator
+ * mutes its author from the queue; the muted player is refused with the reason and sees it in
+ * their standing, while play goes on. The officer reports the same line, and the moderator hides it:
+ * every reader, the author included, sees a tombstone and never the words. Audited once each.
+ */
+export async function playChatModerationStep(
+  database: DatabaseHandle,
+  {
+    leader,
+    officer,
+    offender,
+    moderator,
+  }: { leader: Player; officer: Player; offender: Player; moderator: Player },
+) {
+  type Line = { id: string; text: string | null; tombstone: string | null };
+  const taunt = 'Brannoc fights like a drowned rat, the whole hall laughs at him.';
+  const posted = await offender.api('POST', '/api/guild/chat', { text: taunt });
+  expect(posted.statusCode, posted.body).toBe(201);
+  const line = posted.json<{ message: Line }>().message;
+
+  type Case = {
+    reportId: string;
+    target: { kind: string };
+    subject: { handle: string };
+    current: { value: string };
+    reports: { note: string | null }[];
+  };
+  const queue = async () =>
+    (await moderator.api('GET', '/api/mod/queue')).json<{ cases: Case[] }>().cases;
+  const report = async (who: Player, note: string) => {
+    const res = await who.api('POST', '/api/reports', {
+      target: { kind: 'message', id: line.id },
+      reason: 'harassment',
+      note,
+    });
+    expect(res.statusCode, res.body).toBe(201);
+    return res.json<{ report: { id: string } }>().report.id;
+  };
+
+  const first = await report(leader, 'Mocking a guildmate in the chronicle.');
+  const c = (await queue()).find((x) => x.reportId === first)!;
+  expect(c).toMatchObject({
+    target: { kind: 'message' },
+    subject: { handle: offender.account.handle },
+    current: { value: taunt },
+  });
+  const muteReason = 'Taunting guildmates in the guild chronicle.';
+  const muted = await moderator.api('POST', `/api/mod/reports/${first}/resolve`, {
+    action: 'mute',
+    reason: muteReason,
+    durationHours: 24,
+  });
+  expect(muted.statusCode, muted.body).toBe(200);
+
+  // The muted player sees why, in the refusal and in their standing.
+  const refused = await offender.api('POST', '/api/guild/chat', { text: 'Why can I not post?' });
+  expect(refused.statusCode).toBe(403);
+  expect(refused.json()).toMatchObject({
+    error: { code: 'muted', details: { sanction: { kind: 'mute', reason: muteReason } } },
+  });
+  const standing = (await offender.api('GET', '/api/account/standing')).json<{
+    sanctions: { kind: string; reason: string; expiresAt: string }[];
+  }>();
+  expect(standing.sanctions).toEqual([
+    expect.objectContaining({ kind: 'mute', reason: muteReason }),
+  ]);
+  // Reading goes on; reporting stays open to the muted (not used here).
+  expect((await offender.api('GET', '/api/guild/chat')).statusCode).toBe(200);
+
+  const second = await report(officer, 'Still up in the chronicle.');
+  const hidden = await moderator.api('POST', `/api/mod/reports/${second}/resolve`, {
+    action: 'hideContent',
+    reason: 'Taunts are taken down.',
+    durationHours: 7 * 24,
+  });
+  expect(hidden.statusCode, hidden.body).toBe(200);
+  for (const who of [leader, officer, offender]) {
+    const res = await who.api('GET', '/api/guild/chat');
+    expect(res.body).not.toContain('drowned rat');
+    const seen = res.json<{ messages: Line[] }>().messages.find((m) => m.id === line.id)!;
+    expect(seen.text).toBeNull();
+    expect(seen.tombstone).not.toBeNull();
+  }
+  expect((await queue()).filter((x) => [first, second].includes(x.reportId))).toEqual([]);
+
+  const ids = [leader.account.id, officer.account.id, offender.account.id, moderator.account.id];
+  const events = (
+    await database.db
+      .select({ event: auditLog.event, accountId: auditLog.accountId })
+      .from(auditLog)
+      .where(
+        and(
+          inArray(auditLog.accountId, ids),
+          inArray(auditLog.event, ['report.create', 'report.resolve', 'sanction.issue']),
+          // The sanctions are on the offender's history (their first ones); reports by id.
+          sql`(${auditLog.data}->>'reportId' in (${first}, ${second}) or ${auditLog.event} = 'sanction.issue')`,
+        ),
+      )
+  ).map((r) => `${r.event}:${ids.indexOf(r.accountId!)}`);
+  expect(events.sort()).toEqual(
+    [
+      'report.create:0',
+      'report.create:1',
+      'report.resolve:3',
+      'report.resolve:3',
+      'sanction.issue:2',
+      'sanction.issue:2',
+    ].sort(),
+  );
+  return { messageId: line.id, muteReason };
+}
+
+/**
+ * A guild boss week with several members (ticket 4.11): a member and the officer fight first, the
+ * leader breaks a stage; a member who never fought only has it pending; the member who fought
+ * leaves and still claims their reward (their damage stays on the guild's board as a former
+ * member's); a player who joins after the stage fights and earns nothing for it; the leader and
+ * officer claim. Totals, rewards and holdings reconcile with the audit log and the telemetry.
+ */
+export async function playGuildBossWeek(
+  database: DatabaseHandle,
+  {
+    leader,
+    officer,
+    member,
+    idle,
+    late,
+  }: { leader: Journey; officer: Journey; member: Journey; idle: Player; late: Journey },
+) {
+  type State = GuildBossStateResponse;
+  const state = async (who: { api: Journey['api'] }) => {
+    const res = await who.api('GET', '/api/guild/boss');
+    expect(res.statusCode, res.body).toBe(200);
+    return res.json<State>();
+  };
+  const fight = async (who: Journey) => {
+    const res = await who.keyed('/api/guild/boss/attempts', { characterId: who.characterId });
+    expect(res.statusCode, res.body).toBe(201);
+    return res.json<GuildBossAttemptResponse>().attempt;
+  };
+  const start = await state(leader);
+  const week = start.week.key;
+  expect(start.guild).toMatchObject({ total: 0, stage: 0 });
+  const firstStage = start.boss.stages[0]!;
+  for (const h of [leader, officer, member, late]) {
+    expect(h.state.level, 'boss level').toBeGreaterThanOrEqual(start.boss.minLevel);
+  }
+
+  let counted: number;
+  const attempts: GuildBossAttemptView[] = [];
+  for (const who of [member, officer]) {
+    for (let n = 0; n < GUILD_BOSS_ATTEMPTS_PER_WEEK; n++) attempts.push(await fight(who));
+  }
+  for (let n = 0; n < GUILD_BOSS_ATTEMPTS_PER_WEEK; n++) {
+    attempts.push(await fight(leader));
+    if ((await state(leader)).guild!.stage >= 1) break;
+  }
+  counted = attempts.reduce((s, a) => s + a.counted, 0);
+  const broken = await state(leader);
+  expect(broken.guild!.total).toBe(counted);
+  expect(broken.guild!.stage).toBeGreaterThanOrEqual(1);
+  expect(attempts.filter((a) => a.newStages.includes(1))).toHaveLength(1);
+  expect(attempts.every((a) => a.week === week && a.counted <= start.boss.attemptDamageCap)).toBe(
+    true,
+  );
+  const stages = broken.guild!.stage;
+  const rewardGold = start.boss.stages.slice(0, stages).reduce((s, x) => s + x.reward.gold, 0);
+
+  // The member who never fought has the stage pending, nothing to claim.
+  const idleState = await state(idle);
+  expect(idleState.me.pendingStages).toContain(1);
+  expect(idleState.me.rewards).toEqual([]);
+
+  // The member who fought leaves, keeps the reward and claims it to their hero.
+  const before = (await state(member)).me.rewards;
+  expect(before.map((r) => r.stage).sort()).toEqual(
+    Array.from({ length: stages }, (_, n) => n + 1),
+  );
+  expect((await member.api('POST', '/api/guild/leave')).statusCode).toBe(200);
+  const outside = await state(member);
+  expect(outside.guild).toBeNull();
+  expect(outside.me.rewards).toEqual(before);
+  const memberGold = (await holdingsOf(member)).gold;
+  const claim = await member.keyed('/api/guild/boss/claim', { characterId: member.characterId });
+  expect(claim.statusCode, claim.body).toBe(200);
+  expect(claim.json<GuildBossClaimResponse>().claimed.gold).toBe(rewardGold);
+  expect((await holdingsOf(member)).gold).toBe(memberGold + rewardGold);
+  expect((await state(member)).me.rewards).toEqual([]);
+
+  // A player who joins after the stage fights for the guild but earns nothing for it.
+  const lateHandle = (await playerOf(late)).account;
+  expect(
+    (await leader.api('POST', '/api/guild/invites', { handle: lateHandle.handle })).statusCode,
+  ).toBe(200);
+  expect(
+    (await late.api('POST', `/api/guilds/${broken.guild!.handle}/invite/accept`)).statusCode,
+  ).toBe(200);
+  const lateAttempt = await fight(late);
+  counted += lateAttempt.counted;
+  expect(lateAttempt.earnedStages.filter((s) => s <= stages)).toEqual([]);
+  const lateState = await state(late);
+  expect(lateState.me.rewards.filter((r) => r.week === week && r.stage <= stages)).toEqual([]);
+
+  // The leader and the officer claim.
+  for (const who of [leader, officer]) {
+    const res = await who.keyed('/api/guild/boss/claim', { characterId: who.characterId });
+    expect(res.statusCode, res.body).toBe(200);
+    expect(res.json<GuildBossClaimResponse>().claimed.gold).toBeGreaterThanOrEqual(rewardGold);
+  }
+
+  // The board keeps the leaver's damage as a former member's; the total is every counted blow.
+  const end = await state(leader);
+  expect(end.guild!.total).toBe(counted);
+  const former = end.guild!.board.filter((r) => r.former);
+  expect(former).toHaveLength(1);
+  expect(former[0]!.player).toBeNull();
+  expect(end.guild!.board.reduce((s, r) => s + r.damage, 0)).toBe(counted);
+
+  for (const h of [leader, officer, member, late]) {
+    await expectHoldingsMatchAudit(database, h.characterId);
+  }
+  const checks = (await reconcileWithAudit(database.db)).filter((c) =>
+    c.check.startsWith('guild boss:'),
+  );
+  for (const c of checks) expect(c, c.check).toMatchObject({ ok: true });
+  return { week, stages, counted, attempts: attempts.length + 1, rewardGold, firstStage };
+}
+
+/**
+ * The admin panel's read paths (ticket D.3) at the end of the exit run: everyone else gets the
+ * not-found 404 on every route; the admin sees the invite with the accounts it created, the
+ * telemetry report with every reconcile check matching, a player's file (sanctions and reports,
+ * no email), the server status with both projects done, and the staff list. Every view audited.
+ */
+export async function playAdminPanelStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  {
+    admin,
+    others,
+    inviteId,
+    registered,
+    subject,
+  }: {
+    admin: Player;
+    others: Player[];
+    inviteId: string;
+    registered: string[];
+    subject: Player;
+  },
+) {
+  // The not-found handler's own body for that method and path.
+  const notFound = (method: string, url: string) => ({
+    error: { code: 'not_found', message: `Route ${method} ${url} not found` },
+  });
+  expect((await app.inject({ method: 'GET', url: '/api/no-such-route' })).json()).toEqual(
+    notFound('GET', '/api/no-such-route'),
+  );
+  const reads = [
+    ['GET', '/api/admin/invites'],
+    ['GET', '/api/admin/telemetry'],
+    ['GET', '/api/admin/status'],
+    ['GET', '/api/admin/roles'],
+    ['GET', `/api/admin/players/${subject.account.handle}`],
+    ['POST', '/api/admin/players/search'],
+  ] as const;
+  for (const who of others) {
+    for (const [method, url] of reads) {
+      const res = await who.api(method, url, method === 'POST' ? { query: 'x' } : undefined);
+      expect(res.statusCode, `${method} ${url}`).toBe(404);
+      expect(res.json()).toEqual(notFound(method, url));
+    }
+  }
+
+  const invites = (await admin.api('GET', '/api/admin/invites')).json<{
+    invites: { id: string; uses: number; redeemedBy: { handle: string }[] }[];
+  }>().invites;
+  const invite = invites.find((i) => i.id === inviteId)!;
+  expect(invite.uses).toBe(registered.length);
+  expect(invite.redeemedBy.map((r) => r.handle).sort()).toEqual([...registered].sort());
+
+  const telemetry = await admin.api('GET', '/api/admin/telemetry?reconcile=true');
+  expect(telemetry.statusCode, telemetry.body).toBe(200);
+  const { report } = telemetry.json<{ report: TelemetryReport }>();
+  expect(report.reconcile!.length).toBeGreaterThan(0);
+  expect(report.reconcile!.filter((c) => !c.ok)).toEqual([]);
+
+  const search = await admin.api('POST', '/api/admin/players/search', {
+    query: subject.account.displayName.slice(0, 6),
+  });
+  expect(search.json<{ players: { handle: string }[] }>().players.map((p) => p.handle)).toContain(
+    subject.account.handle,
+  );
+  const file = await admin.api('GET', `/api/admin/players/${subject.account.handle}`);
+  expect(file.statusCode, file.body).toBe(200);
+  expect(file.body).not.toMatch(/@graumark\.test/);
+  const player = file.json<{
+    player: { sanctions: { kind: string }[]; reports: unknown[] };
+  }>().player;
+  expect(player.sanctions.map((s) => s.kind)).toContain('mute');
+  expect(player.reports.length).toBeGreaterThan(0);
+
+  const status = (await admin.api('GET', '/api/admin/status')).json<{
+    registrationMode: string;
+    projects: { id: string; status: string }[];
+  }>();
+  expect(status.registrationMode).toBe('invite');
+  expect(status.projects.map((p) => [p.id, p.status])).toEqual([
+    ['restoreWarehouse', 'complete'],
+    ['clearAshenPass', 'complete'],
+  ]);
+  const roles = (await admin.api('GET', '/api/admin/roles')).json<{
+    staff: { role: string }[];
+  }>();
+  expect(roles.staff.map((s) => s.role).sort()).toEqual(['admin', 'moderator']);
+
+  const audited = await database.db
+    .select({ event: auditLog.event })
+    .from(auditLog)
+    .where(and(eq(auditLog.accountId, admin.account.id), like(auditLog.event, 'admin.%')));
+  const events = new Set(audited.map((a) => a.event));
+  for (const e of [
+    'admin.view',
+    'admin.player.search',
+    'admin.player.view',
+    'admin.telemetry.reconcile',
+  ]) {
+    expect(events.has(e), e).toBe(true);
+  }
+  return { checks: report.reconcile!.length };
 }
