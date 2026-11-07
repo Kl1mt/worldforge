@@ -41,6 +41,8 @@ export const TELEMETRY_METRICS = [
   // Ticket 4.6: community projects.
   'community.contribute',
   'community.stage',
+  'warehouse.move',
+  'warehouse.upgrade',
 ] as const;
 export type TelemetryMetric = (typeof TELEMETRY_METRICS)[number];
 

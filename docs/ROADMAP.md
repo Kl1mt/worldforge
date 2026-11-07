@@ -512,7 +512,7 @@ GDD: §12.1, §12.2. Needs 4.1.
 - UI: a project board in the hub showing progress, your contribution and the remaining cap; a world notice when a project completes.
 **Acceptance:** contribution races at the stage boundary (real PG: no over-fill, no lost contribution, exactly one completion); caps enforced per window; reconcile with the audit log and telemetry; screenshots.
 
-### 4.7 Warehouse (vertical) — `todo`
+### 4.7 Warehouse (vertical) — `done (PR #TBD)`
 GDD: §4.2 (Warehouse). Needs 4.6 (unlocked by its first project). Phase 3 follow-up.
 - **Per-character storage** in the Warehouse building: move items between the pack and the warehouse; locked and valuable items allowed. Capacity with upgrades (gold sink).
 - **Over-capacity follow-up:** valuables kept beyond the pack (B.2) can be moved to the warehouse; the pack banner points there.

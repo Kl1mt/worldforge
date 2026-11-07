@@ -211,6 +211,11 @@ export const characters = pgTable(
      * and the crypt claim under the character lock, so each window uses one well-defined set.
      */
     lootFilter: jsonb('loot_filter').$type<LootFilterRules>(),
+    /**
+     * Warehouse upgrades bought (ticket 4.7): capacity is game-core `warehouseCapacity(level)`.
+     * Written only by `POST …/warehouse/upgrade` under the character lock.
+     */
+    warehouseLevel: integer('warehouse_level').notNull().default(0),
     /** Optimistic-concurrency counter for later value-changing writes. */
     version: integer('version').notNull().default(0),
     ...timestamps,
@@ -222,6 +227,7 @@ export const characters = pgTable(
     check('characters_level_check', sql`${t.level} >= 1`),
     check('characters_experience_check', sql`${t.experience} >= 0`),
     check('characters_gold_check', sql`${t.gold} >= 0`),
+    check('characters_warehouse_level_check', sql`${t.warehouseLevel} >= 0`),
   ],
 );
 
@@ -275,6 +281,12 @@ export const itemInstances = pgTable(
     mythicId: text('mythic_id'),
     /** Locked items can't be sold, salvaged or discarded (ticket 3.7). */
     locked: boolean('locked').notNull().default(false),
+    /**
+     * Ticket 4.7: the item is in its character's warehouse, not the pack. Never equipped while
+     * stored (check below). Stored items take no pack slot and are never touched by the loot filter,
+     * settlement or crypt placement, sell, salvage, discard or the forge until moved back.
+     */
+    inWarehouse: boolean('in_warehouse').notNull().default(false),
     ...timestamps,
   },
   (t) => [
@@ -296,6 +308,7 @@ export const itemInstances = pgTable(
       'item_instances_effect_roll_check',
       sql`${t.effectRoll} is null or (${t.effectRoll} >= 0 and ${t.effectRoll} <= 1)`,
     ),
+    check('item_instances_warehouse_check', sql`not ${t.inWarehouse} or ${t.equippedSlot} is null`),
   ],
 );
 

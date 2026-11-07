@@ -83,6 +83,7 @@ Written only by `pnpm admin:invite` (create, revoke) and by registration in `REG
 | gold           | bigint      | default 0, `CHECK (>= 0)`                        |
 | farm_state     | jsonb?      | `{ seedSecret, cycleIndex, health, areaId? }` saved when the character's activity ends and restored when it starts again (ticket 1.9), so stop → start neither heals nor re-rolls. `areaId` (ticket 2.2) is the area of a cycle left unfinished by the stop; the next start replays that cycle there before travelling on. Never sent to clients |
 | progress       | jsonb       | game-core `WorldProgress`, default `{"gravewardenDefeated": false}` (ticket 2.2). Unlock facts besides the level; written only by the server (the Gravewarden kill arrives with ticket 2.5). Ticket 3.6 adds `cryptTierCleared` (the deepest crypt tier cleared; absent before it, and a Gravewarden kill counts as tier I) |
+| warehouse_level | integer    | 4.7 (migration `0023_warehouse`). Warehouse upgrades bought, default 0, `CHECK (>= 0)`; capacity is game-core `warehouseCapacity(level)`. Written only by `POST …/warehouse/upgrade` under the character lock |
 | loot_filter    | jsonb?      | game-core `LootFilterRules` (ticket 3.7, migration `0014_loot_filter`); null = no filter. Written only by `POST …/loot-filter` (validated, after settling with the old rules); read under the character lock by settlement and the crypt claim (`docs/LOOT.md` "Loot filter"). Stamps no game time |
 | version        | integer     | default 0; optimistic concurrency counter for later value-changing writes |
 | created_at / updated_at | timestamptz | default `now()`                         |
@@ -103,7 +104,7 @@ Append-only (the server never updates or deletes rows) for valuable or security-
 Indexes: `(account_id, created_at)`, `(event, created_at)`.
 
 ### item_instances — implemented (1.6 / 1.7; item model v2 in 3.1)
-One owned item, created from a game-core `GeneratedItem`. Location is a column, not a separate table: `equipped_slot` null = in the inventory, otherwise equipped in that slot.
+One owned item, created from a game-core `GeneratedItem`. Location is a column, not a separate table: `equipped_slot` set = equipped in that slot; otherwise in the pack, or in the character's warehouse when `in_warehouse` (ticket 4.7; the same row moves, so identity, lock, forge state and audit history are kept).
 | Column        | Type        | Notes                                                              |
 | ------------- | ----------- | ------------------------------------------------------------------ |
 | id            | uuid PK     | UUIDv7                                                             |
@@ -127,6 +128,7 @@ One owned item, created from a game-core `GeneratedItem`. Location is a column, 
 | set_id        | text?       | 3.1 (3.3). Set id of a set piece                                   |
 | mythic_id     | text?       | 3.1 (3.2). Named Mythic item id                                    |
 | locked        | boolean     | 3.1 (3.7). Locked items can't be sold, salvaged or discarded; default false |
+| in_warehouse  | boolean     | 4.7 (migration `0023_warehouse`). In the character's warehouse, not the pack; default false. Check `item_instances_warehouse_check`: never equipped while stored. Stored items take no pack slot and are out of reach of sell, salvage, discard, the forge, the loot filter and placement until moved back (`docs/WAREHOUSE.md`) |
 
 Indexes: `(character_id)`; partial unique `(character_id, equipped_slot) where equipped_slot is not null`. Checks: `item_level >= 1`, `upgrade_level` 0–10, the three counters `>= 0`, `variant`, `effect_roll`.
 
@@ -400,7 +402,7 @@ All four stamp game time and are part of the playtest clock floor (`latestStored
 account 1─* sessions
 account 1─* character 1─1 activity
                      1─* dungeon_runs (≤ 1 unclaimed per account)
-                     1─* item_instance (equipped_slot null = inventory)
+                     1─* item_instance (equipped_slot set = worn; else pack, or warehouse when in_warehouse)
                      1─* character_materials, 1─* character_professions
                      1─* character_quests
                      1─* currency_ledger

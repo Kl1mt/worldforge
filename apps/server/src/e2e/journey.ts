@@ -44,6 +44,8 @@ import {
 import type { DatabaseHandle } from '../db/types.js';
 import { setAccountRole } from '../social/roles.js';
 import { reconcileWithAudit } from '../telemetry/report.js';
+import { completeProject } from '../community/project-cli.js';
+import type { WarehouseMoveResponse, WarehouseView } from '../warehouse/routes.js';
 
 export const MIN = 60_000;
 export const HOUR = 60 * MIN;
@@ -518,6 +520,10 @@ export async function expectHoldingsMatchAudit(database: DatabaseHandle, charact
       case 'community.contribute':
         gold -= d.gold!;
         addMaterials(d.materials, -1);
+        break;
+      // Ticket 4.7: warehouse upgrades spend gold; moves keep every item (no count change).
+      case 'warehouse.upgrade':
+        gold -= d.gold!;
         break;
     }
   }
@@ -1132,4 +1138,97 @@ export async function playCommunityStep(database: DatabaseHandle, hero: Journey)
     expect(c, c.check).toMatchObject({ ok: true });
   }
   return { accepted: result.accepted };
+}
+
+/**
+ * Phase 4 warehouse step (ticket 4.7): before the town restores it, the hero's warehouse answers
+ * `warehouse_closed`; the owner CLI then completes "Restore the Graumark Warehouse" (4.11 does it
+ * with several players' contributions). The hero farms until it has gold and loot, stores a locked
+ * item and a few others (bulk), finds them out of the merchant's reach, farms on (stored items are
+ * untouched and take no pack slot), buys an upgrade (replayed with the same key), takes one item
+ * back, and everything reconciles with the audit log and telemetry.
+ */
+export async function playWarehouseStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  hero: Journey,
+  now: () => Date,
+) {
+  const url = `${hero.base}/warehouse`;
+  const closed = await hero.api('GET', url);
+  expect(closed.statusCode).toBe(409);
+  expect(closed.json<{ error: { code: string } }>().error.code).toBe('warehouse_closed');
+
+  const done = await completeProject(database.db, 'restoreWarehouse', now());
+  expect(done).toContain('completed');
+  app.worldState.invalidate();
+  const open = await hero.api('GET', url);
+  expect(open.statusCode, open.body).toBe(200);
+  expect(open.json<WarehouseView>()).toMatchObject({ level: 0, items: [] });
+
+  const gold = async () =>
+    (await hero.api('GET', '/api/characters'))
+      .json<{ characters: { id: string; gold: number }[] }>()
+      .characters.find((c) => c.id === hero.characterId)!.gold;
+  const upgradeCost = open.json<WarehouseView>().nextUpgrade!.gold;
+  await hero.farmBestArea();
+  for (let i = 0; i < 120; i++) {
+    const inv = await hero.inventory();
+    if (inv.inventory.length >= 4 && (await gold()) >= upgradeCost) break;
+    await hero.settle();
+    await hero.farmBestArea();
+  }
+  const pack = (await hero.inventory()).inventory;
+  expect(pack.length).toBeGreaterThanOrEqual(4);
+  // Lock the first item (locked items may be stored), then store it with two more in one move.
+  const [lockedItem, ...rest] = pack;
+  const lock = await hero.api('POST', `${hero.base}/items/${lockedItem!.id}/lock`, {});
+  expect(lock.statusCode, lock.body).toBe(200);
+  const storing = [lockedItem!.id, ...rest.slice(0, 2).map((i) => i.id)];
+  const dep = await hero.api('POST', `${url}/deposit`, { itemIds: storing });
+  expect(dep.statusCode, dep.body).toBe(200);
+  const moved = dep.json<WarehouseMoveResponse>();
+  expect(moved.moved).toBe(3);
+  expect(moved.inventory.inventory.map((i) => i.id)).not.toContain(lockedItem!.id);
+  expect(moved.warehouse.items.find((i) => i.id === lockedItem!.id)!.locked).toBe(true);
+  const sell = await hero.keyed(`${hero.base}/merchant/sell`, { itemIds: [storing[1]!] });
+  expect(sell.json<{ error: { code: string } }>().error.code).toBe('item_in_warehouse');
+
+  // Farming on never touches the stored items.
+  const stored = moved.warehouse.items;
+  await hero.settle();
+  await hero.farmBestArea();
+  await hero.settle();
+  const after = (await hero.api('GET', url)).json<WarehouseView>();
+  expect(after.items).toEqual(stored);
+
+  // A gold sink: the upgrade is paid once per key.
+  const key = randomUUID();
+  const before = await gold();
+  const up = await hero.keyed(`${url}/upgrade`, { level: 0 }, key);
+  expect(up.statusCode, up.body).toBe(200);
+  const replay = await hero.keyed(`${url}/upgrade`, { level: 0 }, key);
+  expect(replay.headers['idempotency-replayed']).toBe('true');
+  expect(await gold()).toBe(before - upgradeCost);
+
+  // Taking it back needs a free pack slot: a pack that filled meanwhile refuses first.
+  const withdraw = () => hero.api('POST', `${url}/withdraw`, { itemIds: [lockedItem!.id] });
+  let back = await withdraw();
+  if (back.statusCode === 422) {
+    expect(back.json<{ error: { code: string } }>().error.code).toBe('inventory_full');
+    await hero.sellJunk(await hero.inventory());
+    back = await withdraw();
+  }
+  expect(back.statusCode, back.body).toBe(200);
+  expect(back.json<WarehouseMoveResponse>().inventory.inventory.map((i) => i.id)).toContain(
+    lockedItem!.id,
+  );
+
+  await expectHoldingsMatchAudit(database, hero.characterId);
+  const checks = await reconcileWithAudit(database.db);
+  for (const c of checks.filter((c) => c.check.startsWith('warehouse:'))) {
+    expect(c, c.check).toMatchObject({ ok: true });
+  }
+  expect(checks.filter((c) => !c.ok)).toEqual([]);
+  return { stored: stored.length - 1, level: 1 };
 }

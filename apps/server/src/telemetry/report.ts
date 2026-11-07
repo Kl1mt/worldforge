@@ -524,6 +524,22 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
       audit('community.stage_complete', sql`count(*)`),
       sumRollups(rows, 'community.stage'),
     ],
+    // Warehouse (ticket 4.7): moves are counted per item; upgrades spend gold.
+    ...(['deposit', 'withdraw'] as const).map((direction): [string, Promise<number>, number] => [
+      `warehouse: items ${direction === 'deposit' ? 'deposited' : 'withdrawn'}`,
+      audit(`warehouse.${direction}`, num(sql`jsonb_array_length(data->'items')`)),
+      sumRollups(rows, 'warehouse.move', src(direction), 'amount'),
+    ]),
+    [
+      'warehouse: upgrades',
+      audit('warehouse.upgrade', sql`count(*)`),
+      sumRollups(rows, 'warehouse.upgrade'),
+    ],
+    [
+      'warehouse: upgrade gold',
+      audit('warehouse.upgrade', num(sql`data->>'gold'`)),
+      sumRollups(rows, 'gold.out', src('warehouse_upgrade'), 'amount'),
+    ],
     // Discards
     ['items discarded', audit('item.discard', sql`count(*)`), sumRollups(rows, 'item.discarded')],
   ];

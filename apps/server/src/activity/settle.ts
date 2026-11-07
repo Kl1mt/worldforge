@@ -1,6 +1,7 @@
 import { refreshAchievements, type FactKey } from '../achievements/award.js';
+import { packItemsWhere } from '../inventory/location.js';
 import { randomBytes } from 'node:crypto';
-import { and, asc, count, eq, isNotNull, isNull, lt, sql } from 'drizzle-orm';
+import { and, asc, count, eq, isNotNull, lt, sql } from 'drizzle-orm';
 import {
   DEFAULT_ACTIVITY_CONFIG,
   PROFESSION_IDS,
@@ -211,7 +212,8 @@ export async function settleActivityTx(
     const [inventory] = await tx
       .select({ n: count() })
       .from(itemInstances)
-      .where(and(eq(itemInstances.characterId, characterId), isNull(itemInstances.equippedSlot)));
+      // Ticket 4.7: warehouse items take no pack slot.
+      .where(packItemsWhere(characterId));
 
     // Safe to read before settling: the character lock above serialises settlements.
     const professionsBefore = await loadProfessions(tx, characterId);

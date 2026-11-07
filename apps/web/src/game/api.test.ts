@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activityApi, describeGameFailure, inventoryApi, worldApi } from './api';
+import { activityApi, describeGameFailure, inventoryApi, warehouseApi, worldApi } from './api';
 
 function recorder() {
   const calls: { url: string; method: string; body: unknown }[] = [];
@@ -58,5 +58,51 @@ describe('describeGameFailure', () => {
     expect(describeGameFailure({ code: 'area_locked' })).toMatch(/not ready/);
     expect(describeGameFailure({ code: 'network' })).toMatch(/cannot be reached/);
     expect(describeGameFailure({ code: 'something_new' })).toMatch(/on our side/);
+  });
+});
+
+describe('warehouse api (ticket 4.7)', () => {
+  it('sends item ids and the seen level only; upgrades carry an Idempotency-Key', async () => {
+    const calls: { url: string; method: string; body: unknown; key: string | null }[] = [];
+    const f = (async (url: string, init: RequestInit) => {
+      calls.push({
+        url,
+        method: init.method ?? 'GET',
+        body: init.body ? JSON.parse(String(init.body)) : undefined,
+        key: new Headers(init.headers).get('idempotency-key'),
+      });
+      return Response.json({});
+    }) as unknown as typeof fetch;
+    await warehouseApi.get(C, {}, f);
+    await warehouseApi.move(C, 'deposit', [I], f);
+    await warehouseApi.move(C, 'withdraw', [I], f);
+    await warehouseApi.upgrade(C, 2, 'k-1', f);
+    expect(calls).toEqual([
+      { url: `/api/characters/${C}/warehouse`, method: 'GET', body: undefined, key: null },
+      {
+        url: `/api/characters/${C}/warehouse/deposit`,
+        method: 'POST',
+        body: { itemIds: [I] },
+        key: null,
+      },
+      {
+        url: `/api/characters/${C}/warehouse/withdraw`,
+        method: 'POST',
+        body: { itemIds: [I] },
+        key: null,
+      },
+      {
+        url: `/api/characters/${C}/warehouse/upgrade`,
+        method: 'POST',
+        body: { level: 2 },
+        key: 'k-1',
+      },
+    ]);
+  });
+
+  it('explains the warehouse refusals in plain words', () => {
+    expect(describeGameFailure({ code: 'warehouse_closed' })).toMatch(/not open yet/);
+    expect(describeGameFailure({ code: 'item_in_warehouse' })).toMatch(/Take it out first/);
+    expect(describeGameFailure({ code: 'warehouse_full' })).toMatch(/no room/);
   });
 });

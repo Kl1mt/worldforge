@@ -38,6 +38,7 @@ import {
   lockOwnedCharacter,
   type InventoryView,
   type ItemView,
+  itemInWarehouse,
 } from '../inventory/routes.js';
 import { changeMaterialsTx, loadMaterialBundle } from '../materials/store.js';
 import { idempotentTransaction } from '../idempotency/index.js';
@@ -285,6 +286,8 @@ async function lockItem(
     .where(and(eq(itemInstances.id, itemId), eq(itemInstances.characterId, characterId)))
     .for('update');
   if (!row) throw itemNotFound();
+  // Ticket 4.7: the Forge works on worn and packed items, not on stored ones.
+  if (row.inWarehouse) throw itemInWarehouse(row.id);
   return row;
 }
 
@@ -538,6 +541,7 @@ export async function registerForgeWork(
         .from(itemInstances)
         .where(and(eq(itemInstances.id, itemId), eq(itemInstances.characterId, characterId)));
       if (!row) throw itemNotFound();
+      if (row.inWarehouse) throw itemInWarehouse(row.id);
       const held = await loadMaterialBundle(db, characterId);
       return {
         characterId,

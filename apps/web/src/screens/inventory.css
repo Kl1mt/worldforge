@@ -392,3 +392,9 @@
     flex: 1 1 auto;
   }
 }
+
+/* Ticket 4.7: where the full-pack banner points once the Warehouse is open. */
+.pack__full-hint {
+  margin-top: var(--space-2);
+  color: var(--text-muted);
+}

@@ -8,7 +8,7 @@ Code: game-core `world/projects.ts` (definitions, caps, the contribution plan, w
 
 | Project | Opens after | Sets flag | Used by | Contributor reward |
 | --- | --- | --- | --- | --- |
-| `restoreWarehouse` — Restore the Graumark Warehouse | — | `warehouseRestored` | 4.7 opens the Warehouse building (the hub shows it locked until then; once restored the hub says so) | achievement `warehouseRestorer` "Mender of Graumark" |
+| `restoreWarehouse` — Restore the Graumark Warehouse | — | `warehouseRestored` | 4.7 opens the Warehouse building (`docs/WAREHOUSE.md`: every warehouse route answers `409 warehouse_closed` and the hub shows it locked until then) | achievement `warehouseRestorer` "Mender of Graumark" |
 | `clearAshenPass` — Clear the Ashen Pass | `restoreWarehouse` | `ashenPassCleared` | 4.8 opens the area `ashenPass` (`UnlockRule.worldFlag: 'ashenPassCleared'`) | achievement `ashenPassBreaker` "Through the Ash" |
 
 Never rename or reuse a project, stage or flag id: progress rows, contributions, flags and achievements keep them. Adding a project: append a definition (stages, needs, `grantsFlag`, `rewardAchievementId`), a flag in `WORLD_FLAG_IDS`/`WORLD_FLAGS`, and the achievement (criterion `communityProject`).
@@ -54,7 +54,7 @@ The contribution window is the **game-clock UTC day** (`contributionWindow(now)`
 - **One source of truth:** the `world_flags` table. A flag is written only in the transaction that completes its project (or by the owner's CLI, below), never removed.
 - **Read** through `app.worldState` (`WorldStateCache`): `get()` → `{ flags, completed }`, `flags()` → game-core `WorldFlags`. Cached per server process, **invalidated** after a completing commit, with a **60 s TTL** as the backstop for changes by another process (the CLI). A load that started before an invalidation is returned but not stored (generation check), so a read racing a completion cannot cache the old flags. A restart starts empty and reads the table: nothing is lost or stale across restarts.
 - Inside a value transaction that must be exact, read the table (`loadWorldState(tx)`, `completedProjectIds(tx)`), not the cache.
-- **Content reads it** through game-core: `UnlockRule.worldFlag` with `UnlockCharacter.world` (the flags). A rule with a flag stays closed when the caller passes no flags (the safe default); `unlockBlockers` then reports `{ kind: 'worldFlag', flag }`, and the map and crypt show the flag's `lockedText`. No place uses a flag yet: 4.8 sets `worldFlag: 'ashenPassCleared'` on `ashenPass` and passes `await app.worldState.flags()` where it checks unlocks; 4.7 checks `warehouseRestored` on its routes.
+- **Content reads it** through game-core: `UnlockRule.worldFlag` with `UnlockCharacter.world` (the flags). A rule with a flag stays closed when the caller passes no flags (the safe default); `unlockBlockers` then reports `{ kind: 'worldFlag', flag }`, and the map and crypt show the flag's `lockedText`. No place uses a flag yet: 4.8 sets `worldFlag: 'ashenPassCleared'` on `ashenPass` and passes `await app.worldState.flags()` where it checks unlocks; 4.7 checks `warehouseRestored` on its routes (`WAREHOUSE_UNLOCK`, `docs/WAREHOUSE.md`).
 
 ## UI
 

@@ -23,6 +23,9 @@ import { recordTelemetry } from '../telemetry/record.js';
 import { disposalCounts } from '../telemetry/counts.js';
 import { ApiError } from '../errors.js';
 import { settleActivityTx, type ActivityOptions } from '../activity/settle.js';
+import { isPackItem, itemInWarehouse } from './location.js';
+
+export { isPackItem, itemInWarehouse, packItemsWhere } from './location.js';
 
 /**
  * Inventory & equipment (ticket 1.7, GDD §7.1, §14 steps 4–5). Items are created only by the
@@ -56,7 +59,7 @@ export interface ItemView {
 export interface InventoryView {
   /** Equipped items in canonical slot order. */
   equipped: ItemView[];
-  /** Unequipped items, oldest first. */
+  /** Unequipped items in the pack (not the warehouse, ticket 4.7), oldest first. */
   inventory: ItemView[];
   /** Effective stats with the equipped items, derived server-side. */
   stats: StatBlock;
@@ -87,7 +90,7 @@ export function inventoryView(character: Character, items: readonly ItemInstance
   const equipped = items
     .filter((i) => i.equippedSlot !== null)
     .sort((a, b) => slotOrder(a.equippedSlot!) - slotOrder(b.equippedSlot!));
-  const inventory = items.filter((i) => i.equippedSlot === null);
+  const inventory = items.filter(isPackItem);
   // Items whose base no longer exists in content can't contribute; they stay listed.
   const usable = equipped.filter((i) => findItemBase(i.baseId) !== undefined);
   return {
@@ -239,6 +242,8 @@ function findItem(items: readonly ItemInstance[], itemId: string): ItemInstance 
   const item = items.find((i) => i.id === itemId);
   // Same answer for "doesn't exist" and "belongs to another character": ids can't be probed.
   if (!item) throw new ApiError(404, 'not_found', 'No such item.');
+  // Ticket 4.7: equip, unequip, lock and discard act on the pack and the worn gear only.
+  if (item.inWarehouse) throw itemInWarehouse(item.id);
   return item;
 }
 
