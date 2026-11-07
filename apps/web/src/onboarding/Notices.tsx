@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { NOTICE_MS, useOnboarding } from './OnboardingProvider';
 import { orderNotices, type Notice } from './notices';
+import { reloadPage } from '../notes/chunks';
 import './onboarding.css';
 
 const KIND_LABEL: Record<Notice['kind'], string> = {
+  reload: 'Word from the gate',
   release: 'The town crier',
   level: 'Level up',
   unlock: 'A road opens',
@@ -18,9 +20,13 @@ export function Notices() {
     <section className="notices" aria-label="Notices" aria-live="polite">
       {notices.length > 0 ? (
         <ul className="notices__list">
-          {orderNotices(notices).map((n) => (
-            <NoticeSlip key={n.id} notice={n} dismiss={dismissNotice} />
-          ))}
+          {orderNotices(notices).map((n) =>
+            n.kind === 'reload' ? (
+              <ReloadSlip key={n.id} notice={n} later={dismissNotice} reload={reloadPage} />
+            ) : (
+              <NoticeSlip key={n.id} notice={n} dismiss={dismissNotice} />
+            ),
+          )}
         </ul>
       ) : null}
     </section>
@@ -62,6 +68,36 @@ function NoticeSlip({ notice, dismiss }: { notice: Notice; dismiss: (id: string)
       >
         <span aria-hidden="true">×</span>
       </button>
+    </li>
+  );
+}
+
+/**
+ * Ticket F.4: the reload hint. It does not fade (fading must not count as "Later"), takes no
+ * focus and never reloads by itself: the player picks Reload or Later when it suits them.
+ */
+export function ReloadSlip({
+  notice,
+  later,
+  reload,
+}: {
+  notice: Notice;
+  later: (id: string) => void;
+  reload: () => void;
+}) {
+  return (
+    <li className="notice notice--reload">
+      <p className="caps notice__kind">{KIND_LABEL.reload}</p>
+      <p className="notice__title display">{notice.title}</p>
+      <p className="notice__text">{notice.text}</p>
+      <p className="reload-hint__actions">
+        <button type="button" className="btn btn--small reload-hint__go" onClick={reload}>
+          Reload
+        </button>
+        <button type="button" className="reload-hint__later" onClick={() => later(notice.id)}>
+          Later
+        </button>
+      </p>
     </li>
   );
 }

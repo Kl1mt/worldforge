@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GAME_VERSION, PATCH_NOTES } from './notes.js';
-import { compareVersions, parseVersion } from './version.js';
+import { compareVersions, isNewerVersion, parseVersion } from './version.js';
 
 // Ticket F.3: the patch notes are the one source of the game's version. These checks keep the
 // list well-formed as every player-visible PR adds an entry (CLAUDE.md, docs/DEVELOPMENT.md).
@@ -76,5 +76,40 @@ describe('compareVersions', () => {
     expect(compareVersions('x', 'y')).toBe(0);
     expect(parseVersion('0.05.1')).toBeNull();
     expect(parseVersion('0.5')).toBeNull();
+  });
+});
+
+describe('isNewerVersion (ticket F.4)', () => {
+  it('is true only for a strictly newer version', () => {
+    expect(isNewerVersion('0.5.3', '0.5.2')).toBe(true);
+    expect(isNewerVersion('0.6.0', '0.5.9')).toBe(true);
+    expect(isNewerVersion('0.5.10', '0.5.9')).toBe(true);
+    expect(isNewerVersion('1.0.0', '0.99.99')).toBe(true);
+  });
+
+  it('is false for an equal or older version', () => {
+    expect(isNewerVersion('0.5.2', '0.5.2')).toBe(false);
+    expect(isNewerVersion('0.5.1', '0.5.2')).toBe(false);
+    expect(isNewerVersion('0.4.9', '0.5.0')).toBe(false);
+    expect(isNewerVersion('0.5.9', '0.5.10')).toBe(false);
+  });
+
+  it('is false for anything malformed, on either side', () => {
+    for (const bad of [
+      '',
+      'garbage',
+      '0.5',
+      '0.5.3.1',
+      'v0.5.3',
+      '0.05.3',
+      ' 0.5.3',
+      '0.5.3-beta',
+    ]) {
+      expect(isNewerVersion(bad, '0.5.2'), bad).toBe(false);
+    }
+    for (const bad of [undefined, null, 53, {}, ['0.5.3']]) {
+      expect(isNewerVersion(bad, '0.5.2')).toBe(false);
+    }
+    expect(isNewerVersion('0.5.3', 'garbage')).toBe(false);
   });
 });

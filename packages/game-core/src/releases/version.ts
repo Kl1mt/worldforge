@@ -27,3 +27,14 @@ export function compareVersions(a: string, b: string): number {
   if (!pa || !pb) return (pa ? 1 : 0) - (pb ? 1 : 0);
   return pa.major - pb.major || pa.minor - pb.minor || pa.patch - pb.patch;
 }
+
+/**
+ * Ticket F.4: whether `candidate` (e.g. the server's version from `GET /api/health`) is strictly
+ * newer than `current` (the version this build was made at). Anything that is not a plain
+ * `x.y.z` string on either side is never newer, so a malformed or missing answer never prompts.
+ */
+export function isNewerVersion(candidate: unknown, current: string): boolean {
+  if (typeof candidate !== 'string') return false;
+  if (!parseVersion(candidate) || !parseVersion(current)) return false;
+  return compareVersions(candidate, current) > 0;
+}
