@@ -637,6 +637,90 @@ Tests that passed on their PR kept failing later on `main` and blocked the auto-
 - **Real-Postgres timing** (`concurrency.pg.test.ts`): sell/salvage vs lock keeps going (with a growing head start) until both orders were seen; the parallel-transactions check got a wider margin.
 - Prevention: "Writing tests that don't flake" in `CLAUDE.md`; a nightly/manual **Flake hunt** workflow (`.github/workflows/flake-hunt.yml`) repeats the server suite and `test:pg` with shuffled order, off the per-PR path. No production code or gameplay numbers changed.
 
+## Phase 5 — Leaderboards, competitive systems & trading
+GDD §15 Phase 5, §10.2, §10.3, §16.3, §16.4; trading per `docs/TRADING.md` (owner decision: built at the end of this phase). **Exit:** leaderboard values are reproducible and server-authoritative; PvP matches are understandable, reasonably fair, and do not damage core PvE progression; trading (if switched on) creates and destroys no value, and every trade is auditable and reversible within its window.
+
+Not in this phase (owner decisions, Phase 4 follow-ups): content above level 28 and a harder crypt mode (tier IV/heroic) belong to Phase 6 (endgame expansion).
+
+**Ground rules for Phase 5** (all Phase 1–4 rules still apply, including `CLAUDE.md` "Writing tests that don't flake")
+- **Scores are recomputed, never submitted.** Every leaderboard value comes from a versioned game-core formula over server state; a stored snapshot carries its formula version and inputs, so any value can be recomputed and must match. Items are validated (`validateItem`) before they count; sanctioned accounts don't appear.
+- **Published formulas.** Each metric is explained to players in plain words (a "how is this measured" view and `docs/LEADERBOARDS.md`). Character Power and Gear Score stay distinct (GDD §10.2).
+- **Rewards are prestige only.** Titles, profile frames and cosmetics; never stats, drop rates or gold that would leave non-competitive players behind (GDD §13.3).
+- **PvP is optional and harmless.** A loss never removes items, gold or progress. PvP balance lives in its own normalisation layer, so PvP tuning never changes a PvE number (the no-effects hashes and balance suites stay untouched).
+- **Snapshots, not live heroes.** Leaderboards and duels use server-side snapshots taken at defined moments; a defender's gear changing mid-fight changes nothing, and replays use the stored snapshot (like crypt runs).
+- **Privacy carries over.** A hidden profile or a block hides a player on boards and in matchmaking the same way it does elsewhere (`docs/SOCIAL.md`).
+- **Abuse first.** Win-trading, multi-accounts and score farming are designed against in the ticket that adds the feature, with tests, not left to hardening.
+
+**Defaults the owner can override** (recorded in the GDD when the ticket lands):
+- **Seasons:** 8 weeks, plus all-time boards; season boards are archived, never reset away.
+- **Boards:** Character Level, Character Power, Gear Score and PvE Progress; filters for season/all-time, class and level bracket. Players with a hidden profile are listed as "a hidden hero" (rank kept, name and profile hidden), and anyone can opt out of boards entirely in their settings.
+- **PvP:** asynchronous 1v1 duels against a saved defence snapshot; matches only within a level bracket, with stats normalised toward the bracket (so gear matters, but not overwhelmingly); 10 rated duels a day; friendly challenges with friends and guildmates (no rating, no rewards).
+- **Rating:** a Glicko-2-style rating per season, separate from Power and Gear Score.
+- **Account security before trading:** per-account login throttling, email verification and password reset (open since Phase 1). Email needs a sending provider: the owner chooses one (e.g. an SMTP service) and provides its credentials on the VPS.
+
+**Order** (one or two sessions at a time): 5.1 → 5.2 → 5.3 and A.10 (parallel) → 5.4 → 5.5 → 5.6 → B.4 → 5.7 → T.1 → T.2 → T.3 → T.4 → T.5 → T.6 → T.7 → 5.8.
+
+### 5.1 Scoring model & published formulas (game-core + docs) — `todo`
+GDD: §10.2, §16.3. Read `docs/COMBAT.md`, `docs/LOOT.md`, `docs/EFFECTS.md`, the balance and build suites.
+- Versioned, data-driven formulas in game-core: **Character Level** (level, then XP within the level as tie-breaker), **Gear Score** (equipped items only: item level, rarity, upgrade level, Void; documented weights), **Character Power** (a broader snapshot: a deterministic combat evaluation against fixed reference opponents, so builds count, not just numbers) and **PvE Progress** (an ordered list of milestones: areas, crypt tiers, the Warden's Watch, guild boss stages).
+- A score breakdown ("what counts and why") that the UI can show; `docs/LEADERBOARDS.md` publishes each formula in plain words.
+- Tests: determinism, monotonicity where it should hold (a better item never lowers Gear Score), stat-inflation resistance (forged or invalid items rejected), Power ranks the B.2 best builds sensibly, and fast.
+**Acceptance:** formulas documented; breakdown screenshots on the character screen.
+
+### 5.2 Leaderboards (vertical) — `todo`
+GDD: §10.2. Needs 5.1.
+- Snapshot table (score, formula version, inputs hash, achieved-at) updated on the events that can change a score (debounced, inside the value transactions or right after them; window rule), plus a recompute check (CLI and a test) that every stored value matches its formula.
+- Board pages: the four metrics, filters (all-time now; seasons in 5.3; class; level bracket), your own rank, tie-breakers by achieved-at, pagination, ETag polling sized to the rate limits; privacy per the defaults (hidden heroes, opt-out); sanctioned accounts excluded; report action from a board entry.
+- Tests: recompute equality, privacy matrix, races (a score change racing a read), invariance (boards change no gameplay number), journey step, screenshots.
+
+### 5.3 Seasons & prestige rewards (vertical) — `todo`
+GDD: §10.2, §13. Needs 5.2.
+- Season model (start/end in UTC, archive, admin panel controls and an owner CLI), season boards next to all-time ones.
+- Prestige rewards: titles and profile frames shown on profiles, boards and in guilds; awarded exactly once at season end (real-PG races, a restart mid-award), cosmetic only.
+- Tests: the season boundary (window rule), award idempotency, archive integrity; screenshots.
+
+### A.10 Profile frames, title badges & arena art — `todo`
+GDD: §3.1, §13.1. Needs 5.3's reward ids (and 5.5's arena screen for the arena art).
+- A set of profile frames by tier, small title badges, and an arena backdrop for the duel screen, matching the existing style.
+- Budget: one or two 32px jobs plus one backdrop job; at most one regeneration. Manifest and `assets.ts` updated.
+**Acceptance:** a contact sheet in the PR.
+
+### 5.4 PvP combat model & normalisation (game-core) — `todo`
+GDD: §10.3 (guardrails). Needs 5.1.
+- A deterministic hero-vs-hero duel simulation on the existing combat engine (both sides' effects, sets and skills), seeded from server-only secrets, with a readable combat log.
+- A **PvP normalisation layer** (level brackets; stats pulled toward the bracket by a documented factor) that never changes PvE numbers.
+- Balance tests: class matchups within bands per bracket (no class far above even in a mirror bracket), gear still matters but a fresh hero isn't hopeless inside its bracket; fast.
+
+### 5.5 Async duels & friendly challenges (vertical) — `todo`
+GDD: §10.3. Needs 5.4.
+- Set a defence loadout (a snapshot of a hero); challenge a defender in your bracket (opponent list from the server, never client-chosen ids outside it); instant resolution; result and combat log screens; daily rated-duel limit; friendly challenges with friends and guildmates (no rating, no rewards); a loss changes nothing you own.
+- Abuse: Idempotency-Key, no re-roll by retry or replay, blocked players never matched, rate limits, audit and telemetry.
+- Tests: permission matrix, races (two challengers vs one defender, a defender changing gear mid-challenge), invariance, journey step with two players, screenshots.
+
+### 5.6 Arena rating & matchmaking (vertical) — `todo`
+GDD: §10.3. Needs 5.5.
+- A seasonal rating (Glicko-2-style), rated ladder board, matchmaking by rating within the level bracket and a power range; modest prestige rewards via 5.3.
+- Anti win-trading: diminishing returns against the same opponent, friends/guildmates and accounts sharing signals excluded from rated matches, a pattern report for moderators.
+- Tests: rating maths, matchmaking fairness bands, win-trading rules, season reset into the archive.
+
+### B.4 Balance pass: competitive systems — `todo`
+GDD: §10.2, §10.3, §16.4. Needs 5.1–5.6.
+- Leaderboard distributions with the realistic player (telemetry), PvP class matchups and bracket fairness, prestige reward pacing; no PvE number changes unless separately justified.
+- Address the owner's playtest feedback if it has arrived.
+
+### 5.7 Account security: login throttling, email verification & password reset (vertical) — `todo`
+GDD: §16.3. Carry-overs since 1.2; required before trading (`docs/TRADING.md`).
+- Per-account login throttling (on top of per-IP), email sending through a provider the owner chooses (configuration on the VPS, never in git), email verification (unverified accounts can play but not trade), password reset with single-use, short-lived tokens, "log out other devices", pruning of expired sessions.
+- Tests: token single-use and expiry races, enumeration resistance (same answers for known and unknown emails), throttling; screenshots.
+
+### T.1–T.7 Trading — `todo`
+Per `docs/TRADING.md` ("Ticket outline" and "Test strategy"), in order: T.1 item binding & provenance → T.2 trading settings (admin) → T.3 shared account shelf → T.4 trade rules, eligibility & sanctions → T.5 trade offers → T.6 moderation, reversal & pattern report → T.7 trading hardening, exploit review & balance. Every switch starts off; the owner turns trading on from the admin panel when ready. Each ticket gets its own heading here when it starts.
+
+### 5.8 Phase 5 hardening & exit — `todo`
+GDD: §15 Phase 5 exit, §16.3.
+- Exit-criteria e2e with several players: boards and recompute, a season ending with prestige awarded, rated and friendly duels, account security flows, and (with the switches on in the test) a full trade cycle with a reversal; everything reconciled with the audit log and telemetry. Browser run for the key flows.
+- Exploit review of every Phase 5 endpoint; rate limits reviewed; Phase 5 retrospective in this file.
+
 ## Deployment
 
 ### D.1 Production deployment — `done (PR #52)`
