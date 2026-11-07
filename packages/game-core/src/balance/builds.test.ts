@@ -134,6 +134,33 @@ describe('build diversity (ticket B.2)', () => {
     );
   });
 
+  // Ticket B.3: the breakpoint fix holds with the strongest power sources and past the content's
+  // top level (realistic heroes reach ~35 in a week; the XP penalty makes that a soft cap).
+  it.each(CLASS_IDS)(
+    '%s: the Pass stays off the cap with +10 Void and for heroes past level 28',
+    (c) => {
+      const abbeyBest = farm.get(c)![0]!.score;
+      const top = topBuilds(pass.get(c)!, SHARE).slice(0, 3);
+      const rates = top.map((t) =>
+        farmRate(
+          c,
+          buildItems({ ...t.build, upgradeLevel: 10, void: true }, PASS_FARM_JOB.itemLevel),
+          PASS_FARM_JOB,
+        ),
+      );
+      const label = `${c}: Abbey ${abbeyBest.toFixed(1)}; Pass +10 Void ${rates.map((r) => r.toFixed(1)).join(' / ')}`;
+      for (const r of rates) expect(r, label).toBeLessThan(abbeyBest * 0.97);
+      // Thirty-five in item-level-27 gear (the Pass's best drops) is no faster than 26 by much:
+      // levels add little next to gear, so over-levelling does not bring the one-shot back.
+      const best = buildItems({ ...top[0]!.build, upgradeLevel: 10, void: true }, 27);
+      const at = (level: number) => farmRate(c, best, { ...PASS_FARM_JOB, level, itemLevel: 27 });
+      const [r26, r35] = [at(26), at(35)];
+      expect(r35 / r26, `${label}; L26 ${r26.toFixed(1)} L35 ${r35.toFixed(1)}`).toBeLessThan(1.05);
+      expect(r35, label).toBeLessThan(abbeyBest * 0.97);
+    },
+    60_000,
+  );
+
   describe('the Ashen Warden (level 28, item level 27)', () => {
     it.each(CLASS_IDS)(
       '%s: several distinct builds within 7 % of the fastest, none needing one set',

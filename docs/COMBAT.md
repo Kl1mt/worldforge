@@ -155,6 +155,24 @@ The B.2 build search (`builds.test.ts`, the same 48 builds per class: 12 set lay
 
 **Existing players.** Nothing else changes for them: every Graumark area, crypt tiers I and II, loot rolls and the merchant's stock are bit-identical (hashes compared with `main`; the B.1/B.2 bands now name Graumark's areas, `GRAUMARK`, and pass unchanged). The Pass and the Watch stay closed until the community sets `ashenPassCleared`.
 
+## The top end, checked (ticket B.3)
+No combat number changed in B.3. What was checked (`tools/balance/top-end.ts`, guarded in `builds.test.ts`):
+
+**The Pass breakpoint holds with upgrades and Void.** The three best Pass builds per class (4.8's search) at +0 · +5 · +10 · +10 Void, kills per minute at level 26 (item level 25) and level 28 (item level 27):
+
+| Class (best build) | Level 26 | Level 28 | Abbey 19 best (the cap) |
+| --- | --- | --- | --- |
+| Warrior (Bloodmoon 4, speed) | 20.5 · 21.1 · 21.6 · 21.9 | 20.5 · 20.8 · 21.6 · 22.1 | 23.4 |
+| Mage (Bloodmoon 4, speed) | 18.5 · 19.4 · 20.1 · 20.1 | 18.3 · 18.9 · 20.1 · 20.1 | 22.8 |
+| Hunter (Vigil 4, Ambush, speed) | 21.5 · 21.9 · 22.4 · 22.6 | 21.5 · 21.7 · 22.3 · 22.5 | 23.8 |
+| Warlock (Bloodmoon 4, speed) | 18.6 · 18.9 · 20.0 · 20.3 | 18.4 · 19.1 · 19.8 · 20.4 | 23.0 |
+
++10 Void adds 5–9 % and no build returns to the Abbey's one-shot cap (asserted: the top three at +10 Void stay below 0.97 × the class's Abbey best; the hunter's Ambush build is the closest, at 0.95 ×).
+
+**Heroes past the content's top.** Realistic heroes keep levelling past 28 (B.3's telemetry week ended at levels 26–37; the cap is 60). Levels add little next to gear: the best +10 Void build in item-level-27 gear makes the same kills at 26, 30 and 38 (warrior 22.4 · 22.1 · 22.6, mage 20.1 throughout, hunter 22.7 · 22.4 · 22.9, warlock 20.4 throughout; asserted: 35 is < 1.05 × 26). XP slows the climb: the Pass pays 210–250k XP an hour up to 30 (2–3 h a level), 160–180k at 32, 56–63k at 35 (14–15 h a level) and 23–26k at 38 (40–45 h a level), the B.1 XP penalty working as a soft cap around 35. A hard level cap or content above 28 is a design decision for a later phase (owner).
+
+**Crypt tier III** stays the Legendary tier (decided, no change: `docs/DUNGEONS.md` "Tier III is the Legendary tier").
+
 ## Open points
 - Balance is tuned (ticket B.1, above) against simulations; the owner's playtest feedback may still move it. Keep `src/balance/balance.test.ts` green when adding content.
 - Item stats are only an input; the loot module (ticket 1.5) produces them.

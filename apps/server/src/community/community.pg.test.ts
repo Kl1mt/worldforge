@@ -135,12 +135,12 @@ describe.skipIf(!url)('real PostgreSQL: community projects race safely', () => {
     const retries = transactionStats.retries;
     for (let round = 0; round < ROUNDS; round++) {
       await resetWorld();
-      // 1,000 gold and 100 timber left; eight patrons each offer their full cap (800 / 80).
-      await seedStage(0, RUBBLE.id, { gold: 3_000, timber: 300 });
+      // 1,000 gold and 100 timber left; eight patrons each offer their full cap (800 / 50).
+      await seedStage(0, RUBBLE.id, { gold: 3_000, timber: 150 });
       const patrons = await Promise.all(Array.from({ length: N }, () => insertPatron(db(), START)));
       const results = await Promise.all(
         shuffled(patrons, round).map((p) =>
-          contribute(p, WAREHOUSE.id, RUBBLE.id, { gold: 800, timber: 80 }).then((r) => ({ p, r })),
+          contribute(p, WAREHOUSE.id, RUBBLE.id, { gold: 800, timber: 50 }).then((r) => ({ p, r })),
         ),
       );
       const statuses = results.map(({ r }) =>
@@ -153,7 +153,7 @@ describe.skipIf(!url)('real PostgreSQL: community projects race safely', () => {
       const bodies = ok.map(({ r }) => r.json<ContributeBody>());
       expect(bodies.filter((b) => b.stagesCompleted.includes('clearRubble'))).toHaveLength(1);
       // No over-fill.
-      expect(await delivered(RUBBLE.id)).toEqual({ gold: 4_000, timber: 400 });
+      expect(await delivered(RUBBLE.id)).toEqual({ gold: 4_000, timber: 250 });
       // No lost contribution: paid = accepted = audited, and the accepted amounts sum to the gap.
       const heroIds = patrons.map((p) => p.heroId);
       const gold = await goldOf(heroIds);
@@ -223,8 +223,8 @@ describe.skipIf(!url)('real PostgreSQL: community projects race safely', () => {
     const retries = transactionStats.retries;
     for (let round = 0; round < ROUNDS; round++) {
       await resetWorld();
-      // 2,400 gold and 50 iron ore left (one patron's cap each); eight patrons race for it.
-      await seedStage(2, DOORS.id, { gold: 9_600, ironOre: 200 });
+      // 2,400 gold and 40 iron ore left (one patron's cap each); eight patrons race for it.
+      await seedStage(2, DOORS.id, { gold: 9_600, ironOre: 160 });
       const patrons = await Promise.all(Array.from({ length: N }, () => insertPatron(db(), START)));
       const results = await Promise.all(
         shuffled(patrons, round).map((p) =>
@@ -241,7 +241,7 @@ describe.skipIf(!url)('real PostgreSQL: community projects race safely', () => {
         }
       }
       expect(ok.filter(({ r }) => r.json<ContributeBody>().projectCompleted)).toHaveLength(1);
-      expect(await delivered(DOORS.id)).toEqual({ gold: 12_000, ironOre: 250 });
+      expect(await delivered(DOORS.id)).toEqual({ gold: 12_000, ironOre: 200 });
       expect(await db().select().from(worldFlags)).toHaveLength(1);
       expect((await app.worldState.flags()).warehouseRestored).toBe(true);
       const [row] = await db()

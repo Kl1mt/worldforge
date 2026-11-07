@@ -109,7 +109,7 @@ describe('community projects: the board', () => {
     expect(warehouse!.stages.map((s) => s.status)).toEqual(['current', 'upcoming', 'upcoming']);
     expect(warehouse!.stages[0]!.needs).toEqual([
       { resource: 'gold', required: 4000, delivered: 0, cap: 800, givenToday: 0 },
-      { resource: 'timber', required: 400, delivered: 0, cap: 80, givenToday: 0 },
+      { resource: 'timber', required: 250, delivered: 0, cap: 50, givenToday: 0 },
     ]);
     // Reads never create rows.
     expect(await db().select().from(communityProjects)).toHaveLength(0);
@@ -255,11 +255,11 @@ describe('community projects: no monopoly (caps per window)', () => {
     const alt: Patron = { who: p.who, heroId: second.id };
 
     nowMs = Date.parse('2031-03-10T23:59:00Z');
-    const big = await contribute(p, WAREHOUSE.id, RUBBLE!.id, { gold: 5000, timber: 50 });
+    const big = await contribute(p, WAREHOUSE.id, RUBBLE!.id, { gold: 5000, timber: 30 });
     expect(big.json()).toMatchObject({
       accepted: [
         { resource: 'gold', amount: 800 },
-        { resource: 'timber', amount: 50 },
+        { resource: 'timber', amount: 30 },
       ],
       limited: { gold: 'cap' },
     });
@@ -267,7 +267,7 @@ describe('community projects: no monopoly (caps per window)', () => {
     // The account's other hero shares the cap.
     const more = await contribute(alt, WAREHOUSE.id, RUBBLE!.id, { gold: 10, timber: 100 });
     expect(more.json()).toMatchObject({
-      accepted: [{ resource: 'timber', amount: 30 }],
+      accepted: [{ resource: 'timber', amount: 20 }],
       limited: { gold: 'cap', timber: 'cap' },
     });
     const capped = await contribute(alt, WAREHOUSE.id, RUBBLE!.id, { gold: 10 });
@@ -286,7 +286,7 @@ describe('community projects: no monopoly (caps per window)', () => {
       .where(eq(communityContributions.accountId, p.who.id));
     expect(days.sort((a, b) => (a.day + a.resource < b.day + b.resource ? -1 : 1))).toEqual([
       { day: '2031-03-10', resource: 'gold', amount: 800 },
-      { day: '2031-03-10', resource: 'timber', amount: 80 },
+      { day: '2031-03-10', resource: 'timber', amount: 50 },
       { day: '2031-03-11', resource: 'gold', amount: 10 },
     ]);
     nowMs = Date.parse('2031-03-10T12:00:00Z');
@@ -297,33 +297,87 @@ describe('community projects: no monopoly (caps per window)', () => {
     await contribute(p, WAREHOUSE.id, RUBBLE!.id, { gold: 4000, timber: 400 });
     const b = await board(p);
     expect(b.projects[0]!.stageIndex).toBe(0);
-    expect(b.projects[0]!.stages[0]!.needs.map((n) => n.delivered)).toEqual([800, 80]);
+    expect(b.projects[0]!.stages[0]!.needs.map((n) => n.delivered)).toEqual([800, 50]);
+  });
+
+  it('the cap grows each day a stage stands unfinished, up to its ceiling (ticket B.3)', async () => {
+    const p = await insertPatron(db(), RICH);
+    const capOf = async () => (await board(p)).projects[0]!.stages[0]!.needs.map((n) => n.cap);
+    // A stage nobody has given to yet: the first-day cap, whatever the date.
+    expect(await capOf()).toEqual([800, 50]);
+    await contribute(p, WAREHOUSE.id, RUBBLE!.id, { gold: 100 });
+    expect(await capOf()).toEqual([800, 50]);
+    // One, two and three days after its first gift: 40 %, 60 %, and no further (the ceiling).
+    const at = async (day: string, gold: number, expected: number[], accepted: number) => {
+      nowMs = Date.parse(`${day}T09:00:00Z`);
+      expect(await capOf(), day).toEqual(expected);
+      const res = await contribute(p, WAREHOUSE.id, RUBBLE!.id, { gold });
+      expect(res.json(), day).toMatchObject({ accepted: [{ resource: 'gold', amount: accepted }] });
+    };
+    await at('2031-03-11', 5000, [1600, 100], 1600);
+    await at('2031-03-12', 5000, [2400, 150], 2300);
+    // The gold is in (100 + 1,600 + 2,300). Four days on, the cap stops at its 60 % ceiling.
+    nowMs = Date.parse('2031-03-14T09:00:00Z');
+    expect(await capOf()).toEqual([2400, 150]);
+    const res = await contribute(p, WAREHOUSE.id, RUBBLE!.id, { timber: 500 });
+    expect(res.json()).toMatchObject({
+      accepted: [{ resource: 'timber', amount: 150 }],
+      limited: { timber: 'cap' },
+    });
+    nowMs = Date.parse('2031-03-10T12:00:00Z');
   });
 });
 
 describe('community projects: stages and completion', () => {
+  it('a stage already holding its (lowered) needs moves on at the next contribution (ticket B.3)', async () => {
+    // A balance change lowered a need below what a live stage holds: as if 4,000 gold and 300
+    // timber were in, while the stage now asks 250.
+    await db()
+      .insert(communityProjects)
+      .values({ projectId: WAREHOUSE.id, stageIndex: 0, updatedAt: new Date(nowMs) });
+    await db()
+      .insert(communityProjectProgress)
+      .values([
+        { projectId: WAREHOUSE.id, stageId: RUBBLE!.id, resource: 'gold', amount: 4000 },
+        { projectId: WAREHOUSE.id, stageId: RUBBLE!.id, resource: 'timber', amount: 300 },
+      ]);
+    const p = await insertPatron(db(), RICH);
+    const res = await contribute(p, WAREHOUSE.id, RUBBLE!.id, { gold: 10 });
+    expect([res.statusCode, code(res)]).toEqual([409, 'stage_changed']);
+    expect(await gold(p)).toBe(RICH.gold);
+    const b = await board(p);
+    expect(b.projects[0]!.stageIndex).toBe(1);
+    const next = await contribute(p, WAREHOUSE.id, 'raiseRoof', { gold: 10 });
+    expect(next.json()).toMatchObject({ accepted: [{ resource: 'gold', amount: 10 }] });
+    const audits = await db()
+      .select()
+      .from(auditLog)
+      .where(sql`event = 'community.stage_complete'`);
+    expect(audits).toHaveLength(1);
+  });
+
   it('fills a stage exactly at the boundary, moves on, and takes no more than the remaining need', async () => {
     const patrons = await Promise.all([1, 2, 3, 4, 5, 6].map(() => insertPatron(db(), RICH)));
     for (const p of patrons.slice(0, 4)) {
-      await contribute(p, WAREHOUSE.id, RUBBLE!.id, { gold: 800, timber: 80 });
+      await contribute(p, WAREHOUSE.id, RUBBLE!.id, { gold: 800, timber: 50 });
     }
-    // Remaining: 800 gold, 80 timber. The fifth gives all the gold and part of the timber.
+    // Remaining: 800 gold, 50 timber. The fifth gives all the gold and part of the timber.
     const fifth = await contribute(patrons[4]!, WAREHOUSE.id, RUBBLE!.id, {
       gold: 800,
-      timber: 50,
+      timber: 30,
     });
     expect(fifth.json()).toMatchObject({ stagesCompleted: [] });
     const sixth = await contribute(patrons[5]!, WAREHOUSE.id, RUBBLE!.id, {
       gold: 300,
-      timber: 80,
+      timber: 50,
     });
     expect(sixth.json()).toMatchObject({
-      accepted: [{ resource: 'timber', amount: 30 }],
+      accepted: [{ resource: 'timber', amount: 20 }],
       limited: { gold: 'stage', timber: 'stage' },
       stagesCompleted: ['clearRubble'],
     });
     expect(await gold(patrons[5]!)).toBe(RICH.gold);
-    expect(await material(patrons[5]!, 'timber')).toBe(10_000 - 30);
+    expect(await material(patrons[5]!, 'timber')).toBe(10_000 - 20);
     const b = await board(patrons[0]!);
     expect(b.projects[0]!.stageIndex).toBe(1);
     expect(b.projects[0]!.stages.map((s) => s.status)).toEqual(['done', 'current', 'upcoming']);

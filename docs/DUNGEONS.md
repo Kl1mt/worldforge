@@ -122,6 +122,20 @@ Farmed gear (`tools/balance/crypt-farmed.ts`, Abbey drops, 12 seeds), before →
 
 **The exit runs** (`phase3-exit-criteria.test.ts`, one run per class, after 4.8): the warrior, mage and hunter still won tier III at 21 on the first attempt; the warlock lost at 21 and 22 and won at 23. Those heroes wear mostly Legendaries and set pieces at +3 to +6 by 21 (contracts, crypt hoards and Abbey drops: e.g. the warrior's kit was 5 Legendary/set pieces +5–6 and 3 epics +5), which is the Legendary tier's job: 3.6 made tier III the tier where Legendaries make the run reliable. Making those kits uncertain at 21 would need ~1.5 × boss health, which would also slow every best-in-slot build by half and break B.2's build diversity (the Ashen Choir's rot grows with fight length). B.3 may revisit it with playtest data. B.2's build search on the tier III boss is unchanged except the warlock (best 11.6 s, 5 builds within 7 % → 11.4 s, 4 builds).
 
+### Tier III is the Legendary tier (ticket B.3: decided)
+4.8's exit runs still saw 3 of 4 heroes beat tier III on the first try at 21, wearing 5+ Legendary or set pieces at +3 to +6. B.3 looked for a lever that makes those kits uncertain without the ~1.5 × boss health 4.8 rejected. The B.2 build search, every one of its 48 layouts per class (sets, Legendaries, affix packages) worn at the entry (`tools/balance/top-end.ts tier3`, 16 runs each):
+
+| Level 21, +0 · +3 · +6 | fastest build | middle build | slowest build (`guard` package) |
+| --- | --- | --- | --- |
+| warrior | 100 % in 14 · 13 · 13 s | 100 % in 18 · 18 · 17 s | 100 % in 27 · 25 · 25 s |
+| mage | 100 % in 13 · 12 · 11 s | 100 % in 19 · 18 · 17 s | 100 % in 27 · 26 · 25 s |
+| hunter | 100 % in 12 · 12 · 11 s | 100 % in 16 · 15 · 14 s | 100 % in 26 · 25 · 23 s |
+| warlock | 100 % in 14 · 13 · 13 s | 100 % in 20 · 19 · 18 s | 100 % in 28 · 27 · 26 s |
+
+Every all-Legendary/set build kills the boss before the earliest enrage (30 s), so the enrage lever 4.8 used cannot touch them, and an earlier enrage would only reach the slowest builds (the defensive ones) while leaving the crit builds untouched: it would pick a winner. Making them uncertain at 21 needs the boss to survive past 30 s against the 11–14 s builds, i.e. roughly 2.5 × health, which halves the speed of every best-in-slot build at the boss and breaks B.2's build diversity (the Ashen Choir's rot grows with fight length; 4.8 measured it at 1.5 ×). **Decision: accepted, no change.** Tier III is where Legendaries and sets make the run reliable (3.6's design); what it gates is *having* such a kit, and the gear below it is uncertain there as intended (upgraded epics 16–45 % at 21, farmed Abbey gear at +8 33–50 %, 4.8's tables). The lever, if the owner's playtests want tier III harder for Legendary kits, is the supply of Legendaries before 21 (Abbey contracts' targeted rewards, crypt hoards), not the boss. Nothing in this section changes any number.
+
+**The Ashen Warden's material (decided: none).** The Warden's hoard stays items and gold. A boss material needs a sink to mean anything: the Gravewarden's seal has one (the Ashen Pass project); nothing is planned to use a Warden material before Item Awakening (GDD §8.2, optional) or trading (`TRADING.md`), it would need a new icon (an art ticket), and the Pass already feeds the upgrade track (iron ore, soul shards). Add it with the first content that consumes it.
+
 ## The Warden's Watch (ticket 4.8)
 The Ashen Pass's boss (`docs/WORLD.md` "The Ashen Pass"), fought like the Gravewarden in a dungeon run, but **boss-only**: no chambers, a 30 s climb, then the Ashen Warden. Same engine and rules as the crypt (`simulateDungeonRun`: snapshot, server-only seed streams, enrage window, claim with `Idempotency-Key`, one unclaimed run per account across both dungeons, the farming stopped while it runs). Data: `DUNGEONS` entry `ashenWatch` (one tier), enemy `ashenWarden`. Screen: `#/watch` (the map marker beside the Pass, and a link in the Pass's description).
 

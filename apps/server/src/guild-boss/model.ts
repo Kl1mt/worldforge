@@ -196,9 +196,12 @@ export async function earnPendingRewards(
   }));
 }
 
-/** Stages newly reached when a total goes from `before` to `after`. */
-export function stagesBetween(boss: GuildBossDefinition, before: number, after: number): number[] {
-  const from = guildBossStageOf(boss, before);
-  const to = guildBossStageOf(boss, after);
-  return Array.from({ length: to - from }, (_, i) => from + 1 + i);
+/**
+ * Stages newly reached when a guild's week, with `recorded` stages already reached, has `total`
+ * (ticket B.3). Reads the stored stage instead of the total before the attempt, so a threshold
+ * lowered mid-week (a balance change) is paid at the guild's next attempt instead of never.
+ */
+export function stagesAfter(boss: GuildBossDefinition, recorded: number, total: number): number[] {
+  const to = guildBossStageOf(boss, total);
+  return Array.from({ length: Math.max(0, to - recorded) }, (_, i) => recorded + 1 + i);
 }

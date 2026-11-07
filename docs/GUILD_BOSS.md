@@ -17,7 +17,7 @@ A week runs from **Monday 00:00:00.000 UTC** (inclusive) to the next Monday 00:0
 - **What counts:** damage dealt (blows and thorns). One attempt counts at most **30,000** for the guild (`attemptDamageCap`, the no-monopoly rule); the rest is shown, not counted.
 
 ## Stages and rewards
-The guild's weekly total (`guild_boss_weeks.total`, written in the attempt's transaction under the guild's lock) climbs five stages: **Cracked** 18,000 · **Staggered** 120,000 · **Broken** 400,000 · **Shattered** 1,000,000 · **Laid to Rest** 2,200,000. Each stage pays every participant a personal reward: 250 / 400 / 600 / 800 / 1,000 gold, 3 / 5 / 6 / 8 / 10 Soul Shards and a Gravewarden Seal at stages 3 and 5 (at most 3,050 gold a week, about four hours of Sunken Abbey farming gold: no outsized power). Achievements (4.2): **Shoulder to Shoulder** (a stage-1 reward earned) and **Laid to Rest** (stage 5), awarded when the reward is earned.
+The guild's weekly total (`guild_boss_weeks.total`, written in the attempt's transaction under the guild's lock) climbs five stages: **Cracked** 18,000 · **Staggered** 100,000 (120,000 before ticket B.3) · **Broken** 400,000 · **Shattered** 1,000,000 · **Laid to Rest** 2,200,000. Each stage pays every participant a personal reward: 250 / 400 / 600 / 800 / 1,000 gold, 3 / 5 / 6 / 8 / 10 Soul Shards and a Gravewarden Seal at stages 3 and 5 (at most 3,050 gold a week, about four hours of Sunken Abbey farming gold: no outsized power). Achievements (4.2): **Shoulder to Shoulder** (a stage-1 reward earned) and **Laid to Rest** (stage 5), awarded when the reward is earned.
 
 **When a reward is earned.** A stage's reward is earned by an account that **was a member of the guild when the guild reached the stage and fought for that guild in that week** (before or after the stage was reached):
 - When an attempt breaks a stage, every current member gets a reward row: `earned` if they have already fought for the guild this week, else `pending`.
@@ -43,9 +43,30 @@ Order: the account row (share, the sanction check) → the account's guild boss 
 ## Balance (`balance/guild-boss-balance.test.ts`)
 Measured damage per attempt (24 seeds, warrior / mage / hunter / warlock): level 10 naked ≈ 650; level 12 commons ≈ 1,900; level 14 commons ≈ 2,200; level 18 rares ≈ 5,200; level 21 epics ≈ 7,400; level 24 Legendaries ≈ 15,600; level 28 Legendaries +10 ≈ 27,000; best-in-slot ≈ 86,000 (counted 30,000). Asserted:
 - **A small guild finishes the first stage in a week**: three level-14 heroes in commons with all their attempts (but not with one attempt each), and five level-12 heroes in commons.
+- **A small guild of late-game heroes breaks the second stage** (ticket B.3): three heroes at the Pass's entry (level 24, Legendaries) or five at the Abbey's top (level 21, epics); three level-18 heroes in rares stop at the first.
 - **A large guild cannot trivialise every stage**: 30 best-in-slot heroes all hit the cap, so the last stage needs more than three quarters of every attempt a full guild has (they reach it with all attempts, not with two each, and twenty of them fall short). 30 level-24 Legendary heroes reach stage 3–4, not the last; 30 level-18 rare heroes stage 3.
-- **One hero cannot carry a guild**: a best-in-slot hero's whole week is below stage 2.
+- **One hero cannot carry a guild**: a best-in-slot hero's whole week (3 × the cap = 90,000) is below stage 2.
 - Every class deals a useful share from the minimum level.
+
+### Ticket B.3: the cap and the thresholds
+4.9 flagged the per-attempt cap and the thresholds for tuning. Weekly counted damage with every attempt (`tools/balance/guild-boss.ts`, generated kits, 12 seeds per class; the stage reached before → after B.3, where it differs):
+
+| Heroes (gear) | per attempt | 1 hero | 3 | 4 | 5 | 10 | 30 |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| level 14, commons | 2,400 | 7k (–) | 21k (1) | 28k (1) | 35k (1) | 71k (1) | 213k (2) |
+| level 18, rares | 5,100 | 15k (–) | 46k (1) | 62k (1) | 77k (1) | 154k (2) | 462k (3) |
+| level 18, rares +5 | 6,200 | 18k (1) | 55k (1) | 74k (1) | 92k (1) | 185k (2) | 554k (3) |
+| level 21, epics | 8,100 | 24k (1) | 73k (1) | 97k (1) | 122k (2) | 244k (2) | 731k (3) |
+| level 21, epics +5 | 9,800 | 29k (1) | 88k (1) | 118k (1 → **2**) | 147k (2) | 295k (2) | 884k (3) |
+| level 24, Legendaries | 17,700 | 53k (1) | 159k (2) | 212k (2) | 265k (2) | 530k (3) | 1.59M (4) |
+| level 26, Legendaries +5 | 21,600 | 65k (1) | 195k (2) | 260k (2) | 324k (2) | 649k (3) | 1.95M (4) |
+| best-in-slot (capped) | 30,000 | 90k (1) | 270k (2) | 360k (2) | 450k (3) | 900k (3) | 2.7M (5) |
+
+**Changed: stage 2 120,000 → 100,000.** Before, a guild of 3–5 needed five Abbey-top heroes in epics (122k, barely) or three at the Pass to break it; now four upgraded Abbey heroes or six level-18 heroes with +5 rares do too, and the margins of the asserted guilds are wider. 100,000 stays above one capped hero's week (90,000), so a lone best-in-slot hero still can't take stage 2 alone. A threshold lowered mid-week is paid at the guild's next attempt: new stages are counted from the stage the week has recorded, not from the total before the attempt (`stagesAfter`, tested), so a guild that stood between 100,000 and 120,000 when this shipped gets stage 2 with its next blow.
+
+**Kept: the 30,000 cap and stages 1, 3–5.** Only best-in-slot builds reach the cap (Legendaries +5 at 26 average 21,600), so it does what it is for: past it gear stops mattering for the guild, and a full guild of the strongest builds needs 82 % of its attempts for the last stage. Lowering it would push stage 5 out of reach of anything but a full best-in-slot roster; raising it would let one hero take stage 2 alone. Stage 1 can be taken by one geared Abbey hero (an epic kit at 21): that is a solo guild's 250 gold and 3 soul shards a week, harmless.
+
+**Rewards against the economy** (kept). At most 3,050 gold a week (stages 1–5) against ≈ 25,000–35,000 gold a *day* of realistic income at the Abbey and the Pass: 1–2 % of a late-game week, a garnish, not a source. In the B.3 telemetry week (two guilds of 4 and 20) the guild boss paid 0.5 % of all gold. Its materials matter more than its gold: soul shards for the +8 → +10 steps and two Gravewarden's seals a week at stages 3 and 5 (the Pass project needs 10).
 
 ## UI
 The Guild Hall shows the **siege plate** above the chat (`screens/GuildBoss.tsx`): the boss in a stone niche with the week and when it rises again; the chain of five stage seals with the total; the attempt diamonds, the week's own attempts, the hero picker and "Face the boss"; the last attempt blow by blow (damage, how much counted, crits, the rage, how the hero ended, a broken stage); the guild-only damage board; and "Spoils waiting" with the claim. A player without a guild sees their unclaimed spoils on the hall page. Loading, error (Try again), stale, empty board and no-ready-hero states. Polled every 2 min while open (≈ 6 indexed reads, well inside the per-account limits). Screenshots: `docs/screenshots/phase-4/guild-boss-*` (`node tools/screenshots/guild-boss.mjs`).
@@ -55,5 +76,5 @@ Audit: `guild_boss.attempt` (attempt id, guild, week, number, boss, level, damag
 
 ## Accepted risks
 - An attempt is resolved instantly; the client replays the log. Its result is visible at once, which is harmless because an attempt can neither be undone nor re-rolled.
-- The best builds hit the per-attempt cap, so past it gear stops mattering for the guild (by design: no monopoly). B.3 should revisit the cap and thresholds with real data.
+- The best builds hit the per-attempt cap, so past it gear stops mattering for the guild (by design: no monopoly). B.3 revisited the cap and thresholds on simulations (above); real guild data may move them again (all data in `GUILD_BOSSES`).
 - Accounts deleted later keep their damage in the guild's total (`account_id` set null); their rewards go with the account.

@@ -11,7 +11,9 @@ import {
   isProjectOpen,
   isStageComplete,
   planContribution,
+  stageAgeDays,
   stageCap,
+  stageCapShare,
   worldFlagsFrom,
   type ProjectStageDefinition,
 } from './projects.js';
@@ -62,7 +64,7 @@ describe('community project data', () => {
     expect(isProjectOpen(pass, new Set(['restoreWarehouse']))).toBe(true);
   });
 
-  it('no monopoly: every stage takes at least five player-days at the default cap', () => {
+  it('no monopoly: on its first day every stage needs at least five accounts', () => {
     expect(COMMUNITY_PROJECT_CONFIG.capShare).toBe(0.2);
     for (const p of COMMUNITY_PROJECTS) {
       for (const s of p.stages) {
@@ -70,6 +72,43 @@ describe('community project data', () => {
         expect(days, `${p.id}/${s.id}`).toBeGreaterThanOrEqual(5);
       }
     }
+  });
+});
+
+describe('the cap grows with the stage (ticket B.3)', () => {
+  it('adds the growth per whole day since the first gift, up to the ceiling', () => {
+    const { capShare, capGrowthPerDay, capShareMax } = COMMUNITY_PROJECT_CONFIG;
+    expect([capShare, capGrowthPerDay, capShareMax]).toEqual([0.2, 0.2, 0.6]);
+    expect([0, 1, 2, 3, 10].map((d) => stageCapShare(STAGE, d))).toEqual([0.2, 0.4, 0.6, 0.6, 0.6]);
+    expect([0, 1, 2, 3].map((d) => stageCap(STAGE, 'gold', d))).toEqual([200, 400, 600, 600]);
+    expect(stageCap(STAGE, 'timber', 1)).toBe(40); // ceil(39.6)
+    // A stage's own share starts the growth; a share above the ceiling is kept, never cut.
+    expect(stageCapShare({ ...STAGE, capShare: 0.1 }, 1)).toBeCloseTo(0.3);
+    expect(stageCapShare({ ...STAGE, capShare: 0.8 }, 3)).toBe(0.8);
+    // Another config (the balance test's "before"): no growth.
+    const flat = { capShare: 0.2, capGrowthPerDay: 0, capShareMax: 0.2 };
+    expect(stageCapShare(STAGE, 5, flat)).toBe(0.2);
+    expect(() => stageCapShare(STAGE, -1)).toThrow(RangeError);
+    expect(() => stageCapShare(STAGE, 1.5)).toThrow(RangeError);
+  });
+
+  it('counts the age in UTC days from the first gift', () => {
+    expect(stageAgeDays(null, '2031-03-10')).toBe(0);
+    expect(stageAgeDays('2031-03-10', '2031-03-10')).toBe(0);
+    expect(stageAgeDays('2031-03-10', '2031-03-11')).toBe(1);
+    expect(stageAgeDays('2031-02-27', '2031-03-02')).toBe(3);
+    expect(stageAgeDays('2031-03-11', '2031-03-10')).toBe(0);
+  });
+
+  it('planContribution takes the grown cap', () => {
+    expect(planContribution(STAGE, {}, { gold: 200 }, { gold: 500 }, 1)).toEqual({
+      accepted: { gold: 200 },
+      limited: { gold: 'cap' },
+    });
+    expect(planContribution(STAGE, {}, {}, { gold: 500 }, 2)).toEqual({
+      accepted: { gold: 500 },
+      limited: {},
+    });
   });
 });
 

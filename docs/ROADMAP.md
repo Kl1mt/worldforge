@@ -539,7 +539,7 @@ GDD: §10.1, §17 (trading and item binding), §16.3. No trading code.
 - Record the decision in GDD §17 and a ticket outline for the phase that builds it. The owner signs off.
 **Acceptance:** the owner approves the decision document in the PR.
 
-### B.3 Balance pass: top end & social economy — `todo`
+### B.3 Balance pass: top end & social economy — `done (PR #73)`
 GDD: §8.3, §12.2, §16.4. Needs 4.6–4.9.
 - The top end with the Ashen Pass (levels 24–28, the breakpoint, crypt tier III).
 - New gold and material sinks and sources (guild creation, project contributions, warehouse upgrades, guild boss rewards) measured with 3.8's telemetry and the realistic player.

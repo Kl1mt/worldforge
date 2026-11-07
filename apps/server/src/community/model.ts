@@ -5,6 +5,7 @@ import {
   findCommunityProject,
   isProjectOpen,
   isStageComplete,
+  stageAgeDays,
   stageCap,
   type CommunityProjectDefinition,
   type ProjectResource,
@@ -16,7 +17,8 @@ import {
   communityProjects,
   worldFlags,
 } from '../db/schema.js';
-import type { Executor, Transaction } from '../db/types.js';
+import type { Database, Executor, Transaction } from '../db/types.js';
+import { withTransaction } from '../db/transaction.js';
 import { writeAudit } from '../db/audit.js';
 import { ApiError } from '../errors.js';
 import { awardAchievements } from '../achievements/award.js';
@@ -114,6 +116,27 @@ export async function givenInWindow(
       ),
     );
   return Object.fromEntries(rows.map((r) => [r.resource, r.amount])) as ResourceAmounts;
+}
+
+/**
+ * The day of the stage's first gift (null if none yet): the cap grows with the days since
+ * (ticket B.3, game-core `stageAgeDays`). Read under the project lock, like the totals.
+ */
+export async function stageFirstDay(
+  db: Executor,
+  projectId: string,
+  stageId: string,
+): Promise<string | null> {
+  const [row] = await db
+    .select({ first: sql<string | null>`min(${communityContributions.day})::text` })
+    .from(communityContributions)
+    .where(
+      and(
+        eq(communityContributions.projectId, projectId),
+        eq(communityContributions.stageId, stageId),
+      ),
+    );
+  return row?.first ?? null;
 }
 
 /** Adds what was accepted to the stage totals and to the account's row for this window. */
@@ -235,6 +258,37 @@ export async function advanceProject(
   return out;
 }
 
+/**
+ * Ticket B.3: finishes the stages of an open project whose needs are already met by what they
+ * hold. That only happens when a balance change lowered a need below a live stage's totals; then
+ * no contribution could ever finish it (nothing more is taken). Reads without a lock first, so a
+ * normal contribution pays one indexed read; the advance itself runs under the project lock, in
+ * its own transaction (it must stand even if the contribution after it is refused). Returns
+ * whether the project completed.
+ */
+export async function catchUpProject(
+  db: Database,
+  def: CommunityProjectDefinition,
+  now: Date,
+): Promise<boolean> {
+  const [peek] = await db
+    .select({
+      stageIndex: communityProjects.stageIndex,
+      completedAt: communityProjects.completedAt,
+    })
+    .from(communityProjects)
+    .where(eq(communityProjects.projectId, def.id));
+  if (!peek || peek.completedAt !== null) return false;
+  const stage = def.stages[peek.stageIndex];
+  if (!stage || !isStageComplete(stage, await stageTotals(db, def.id, stage.id))) return false;
+  return withTransaction(db, async (tx) => {
+    const row = await lockProject(tx, def.id, now);
+    if (row.completedAt !== null || !isProjectOpen(def, await completedProjectIds(tx)))
+      return false;
+    return (await advanceProject(tx, def, row, now)).projectCompleted;
+  });
+}
+
 // --- Views.
 
 export interface NeedView {
@@ -287,7 +341,7 @@ export async function projectBoard(
 ): Promise<ProjectBoard> {
   const { day, endsAt } = contributionWindow(now);
   const ids = COMMUNITY_PROJECTS.map((p) => p.id);
-  const [rows, totals, mine, contributors] = await Promise.all([
+  const [rows, totals, mine, contributors, firstDays] = await Promise.all([
     db
       .select({
         projectId: communityProjects.projectId,
@@ -319,7 +373,18 @@ export async function projectBoard(
       })
       .from(communityContributions)
       .groupBy(communityContributions.projectId),
+    // Ticket B.3: each stage's first day, for the cap that grows with the stage's age.
+    db
+      .select({
+        projectId: communityContributions.projectId,
+        stageId: communityContributions.stageId,
+        first: sql<string>`min(${communityContributions.day})::text`,
+      })
+      .from(communityContributions)
+      .groupBy(communityContributions.projectId, communityContributions.stageId),
   ]);
+  const ageOf = (p: string, s: string) =>
+    stageAgeDays(firstDays.find((f) => f.projectId === p && f.stageId === s)?.first ?? null, day);
   const rowOf = new Map(rows.map((r) => [r.projectId, r]));
   const completed = new Set(rows.filter((r) => r.completedAt !== null).map((r) => r.projectId));
   const total = (p: string, s: string, r: string) =>
@@ -356,7 +421,7 @@ export async function projectBoard(
           resource: n.resource,
           required: n.amount,
           delivered: Math.min(n.amount, total(def.id, stage.id, n.resource)),
-          cap: stageCap(stage, n.resource),
+          cap: stageCap(stage, n.resource, ageOf(def.id, stage.id)),
           givenToday:
             mine.find(
               (m) =>
