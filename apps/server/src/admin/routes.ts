@@ -16,6 +16,7 @@ import {
 import { buildTelemetryReport, parseDay, telemetrySections } from '../telemetry/report.js';
 import { PLAYER_SEARCH_LIMIT, playerDetail, searchPlayers, staffList } from './players.js';
 import { databaseStatus, migrationStatus, statusCounts, type BuildInfo } from './status.js';
+import { projectProgressSummary } from '../community/model.js';
 
 /**
  * The admin panel's API (ticket D.3, docs/API_CONVENTIONS.md "Admin"), all under `/api/admin`.
@@ -666,6 +667,33 @@ export async function registerAdmin(app: FastifyInstance, options: AdminOptions 
                       pending: { type: 'array', items: { type: 'string' } },
                     },
                   },
+                  // Ticket 4.6: community project progress (aggregates only).
+                  projects: {
+                    type: ['array', 'null'],
+                    items: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'string' },
+                        name: { type: 'string' },
+                        status: { type: 'string' },
+                        stage: { type: 'integer' },
+                        stages: { type: 'integer' },
+                        completedOn: { type: ['string', 'null'] },
+                        contributors: { type: 'integer' },
+                        current: {
+                          type: 'array',
+                          items: {
+                            type: 'object',
+                            properties: {
+                              resource: { type: 'string' },
+                              delivered: { type: 'integer' },
+                              required: { type: 'integer' },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
                 },
               },
             },
@@ -675,13 +703,14 @@ export async function registerAdmin(app: FastifyInstance, options: AdminOptions 
           const now = app.authNow();
           const uptimeSeconds = Math.round(process.uptime());
           const db = await databaseStatus(app.db);
-          const [counts, migrations] =
+          const [counts, migrations, projects] =
             db.status === 'up'
               ? await Promise.all([
                   statusCounts(app.db, now).catch(() => null),
                   migrationStatus(app.db),
+                  projectProgressSummary(app.db).catch(() => null),
                 ])
-              : [null, null];
+              : [null, null, null];
           await audit(request.auth!.account.id, 'admin.view', { section: 'status' }).catch(
             (err: unknown) => request.log.warn({ err }, 'admin audit failed'),
           );
@@ -693,6 +722,7 @@ export async function registerAdmin(app: FastifyInstance, options: AdminOptions 
             registrationMode: app.registrationMode,
             counts,
             migrations,
+            projects,
           };
         },
       );

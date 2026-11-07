@@ -22,6 +22,8 @@ export const GAME_ROUTES = [
   'admin',
   // Ticket 4.4: the Guild Hall, `#/guild` (your guild, or found/join one) or `#/guild/<handle>`.
   'guild',
+  // Ticket 4.6: the town works (community projects), `#/works`.
+  'works',
 ] as const;
 /** The gate: only shown to visitors without a session. */
 export const AUTH_ROUTES = ['login', 'register'] as const;

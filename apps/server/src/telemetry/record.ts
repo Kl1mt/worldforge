@@ -40,6 +40,9 @@ export const TELEMETRY_METRICS = [
   'forge',
   'guild_boss.attempt',
   'guild_boss.stage',
+  // Ticket 4.6: community projects.
+  'community.contribute',
+  'community.stage',
 ] as const;
 export type TelemetryMetric = (typeof TELEMETRY_METRICS)[number];
 

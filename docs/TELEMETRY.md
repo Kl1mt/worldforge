@@ -9,7 +9,7 @@ Every value path already writes an audit row in its own transaction. Next to tha
 Why not derive the numbers from the audit log instead:
 - **The audit log does not hold what telemetry needs.** It lists Epic+ farming drops individually and everything else as totals; drop rarity, Void, effects and sets per drop, upgrade outcomes per level and the hoard/chamber split would all have to be added to every audit row. Fatter audit rows on the hottest path (farming settlement) cost more than a few counter upserts, and the audit log is a ledger, not an analytics store.
 - **Reports stay cheap.** A report sums a few hundred rollup rows per day instead of scanning and parsing every `jsonb` audit row ever written.
-- **Consistency is the same.** The counters commit or roll back with the audit row they mirror, so they cannot drift from it. `reconcileWithAudit` proves it: it recomputes 55 totals from the audit log (gold, items kept/overflowed/filtered, materials, crypt wins/losses/hoards, turn-ins, merchant and forge counts and spending) and compares them with the rollups, exactly.
+- **Consistency is the same.** The counters commit or roll back with the audit row they mirror, so they cannot drift from it. `reconcileWithAudit` proves it: it recomputes its totals from the audit log (gold, items kept/overflowed/filtered, materials, crypt wins/losses/hoards, turn-ins, merchant and forge counts and spending, guild founding, and since 4.6 community contributions, their gold and materials and the stages completed) and compares them with the rollups, exactly.
 
 Guarantees:
 - **Commit together, roll back together.** A refused request (`4xx`), a thrown error and a rolled-back attempt leave no counts. A deadlock/serialization retry re-runs the callback on a fresh transaction, whose counts start empty.
@@ -46,6 +46,12 @@ The audit log is stamped by the database clock, the rollups by the game clock, s
 | `gold.out` | `merchant_buy`, `forge_craft`, `forge_upgrade`, `forge_reroll`, `forge_improve`, `guild_create` (ticket 4.4, context empty) | rarity or recipe id | | / gold |
 | `material.in` | `farming_gather`, `farming_filter`, `crypt_loot`, `crypt_filter`, `quest`, `contract`, `forge_salvage`, `guild_boss` | material id | | / quantity |
 | `material.out` | `forge_craft`, `forge_upgrade`, `forge_reroll`, `forge_improve` | material id | | / quantity |
+| `gold.in` | `farming_loot`, `farming_overflow`, `farming_filter`, `crypt_loot`, `crypt_overflow`, `crypt_filter`, `quest`, `contract`, `merchant_sell`, `forge_salvage` | area, tier or quest id | | / gold |
+| `gold.out` | `merchant_buy`, `forge_craft`, `forge_upgrade`, `forge_reroll`, `forge_improve`, `guild_create` (ticket 4.4, context empty), `community_project` (ticket 4.6, context the project id) | rarity, recipe or project id | | / gold |
+| `material.in` | `farming_gather`, `farming_filter`, `crypt_loot`, `crypt_filter`, `quest`, `contract`, `forge_salvage` | material id | | / quantity |
+| `material.out` | `forge_craft`, `forge_upgrade`, `forge_reroll`, `forge_improve`, `community_project` (ticket 4.6) | material id | | / quantity |
+| `community.contribute` | project id | stage id | | contributions (ticket 4.6) |
+| `community.stage` | project id | stage id | | stages completed (ticket 4.6) |
 | `xp.in` | `farming`, `crypt`, `quest`, `contract` | area, tier or quest id | | / XP |
 | `farming.settle` | area | | | settlements with a reward (one per `activity.reward` row) / simulated seconds |
 | `crypt.start` | `<dungeon>:<tier>` | `hoard_eligible` or `on_cooldown` | | runs entered |

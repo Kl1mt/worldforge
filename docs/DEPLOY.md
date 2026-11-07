@@ -227,6 +227,8 @@ deploy/admin.sh invite list                                     # id, status, us
 deploy/admin.sh invite revoke <invite id|code>                  # accounts it created stay
 ```
 
+Community projects (ticket 4.6, `docs/COMMUNITY.md`): `deploy/admin.sh project status` prints each project's progress; `deploy/admin.sh project complete <projectId>` finishes an open project for everyone (playtesting only: it sets the world flag, cannot be undone, and is audited). The admin panel's status page shows the progress too.
+
 `create` prints the code and a ready link, `https://$DOMAIN/#/register?invite=CODE`, which opens the register screen with the code filled in. **Copy it right away**: the code is random and only its SHA-256 hash is stored, so it cannot be shown again (create a new one instead). `--expires` takes `14d`, `12h`, `30m` or `never`. A code is used up after `--uses` accounts; a failed registration (e.g. a taken email) does not use it up. Which code created which account is in the audit log (`account.register` with `data.inviteId`); the code itself never appears in logs. Wrong codes count against the per-IP registration limit (5 per hour). In development the same commands are `pnpm admin:invite …`.
 
 ### Admin panel

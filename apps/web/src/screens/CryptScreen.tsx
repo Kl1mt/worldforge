@@ -4,6 +4,7 @@ import {
   getDungeon,
   getDungeonTier,
   getEnemy,
+  getWorldFlag,
   type DungeonRunProgress,
   type DungeonTier,
   type EnemyId,
@@ -55,6 +56,8 @@ function blockerText(b: UnlockBlocker): string {
       return `Reach level ${b.required}`;
     case 'cryptTier':
       return `Clear Tier ${ROMAN[b.tier - 1]}`;
+    case 'worldFlag':
+      return getWorldFlag(b.flag).lockedText;
     default:
       return 'Defeat the Gravewarden';
   }

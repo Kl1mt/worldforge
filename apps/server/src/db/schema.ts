@@ -1203,3 +1203,75 @@ export const guildBossRewards = pgTable(
 );
 
 export type GuildBossReward = typeof guildBossRewards.$inferSelect;
+
+/**
+ * Community projects (ticket 4.6, docs/COMMUNITY.md). One row per project that has been touched
+ * (created by its first contribution); the definitions are game-core data. `stage_index` is the
+ * stage being filled (the number of stages once complete). Every contribution locks this row
+ * (`for update`), so totals, caps and stage completion are exact under concurrency.
+ */
+export const communityProjects = pgTable(
+  'community_projects',
+  {
+    /** game-core `CommunityProjectDefinition.id`. */
+    projectId: text('project_id').primaryKey(),
+    stageIndex: integer('stage_index').notNull().default(0),
+    /** Game clock. */
+    completedAt: timestamp('completed_at', { withTimezone: true }),
+    /** Game clock: the last contribution or stage change. */
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [check('community_projects_stage_index_check', sql`${t.stageIndex} >= 0`)],
+);
+
+/** Delivered totals per project, stage and resource (gold or a material id). */
+export const communityProjectProgress = pgTable(
+  'community_project_progress',
+  {
+    projectId: text('project_id').notNull(),
+    stageId: text('stage_id').notNull(),
+    /** `gold` or a game-core material id. */
+    resource: text('resource').notNull(),
+    amount: bigint('amount', { mode: 'number' }).notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.projectId, t.stageId, t.resource] }),
+    check('community_project_progress_amount_check', sql`${t.amount} >= 0`),
+  ],
+);
+
+/**
+ * What each account gave, per project, stage, contribution window (the game-clock UTC day) and
+ * resource. Caps are read from here under the project lock; "your contribution" sums it.
+ */
+export const communityContributions = pgTable(
+  'community_contributions',
+  {
+    projectId: text('project_id').notNull(),
+    stageId: text('stage_id').notNull(),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    day: date('day', { mode: 'string' }).notNull(),
+    resource: text('resource').notNull(),
+    amount: bigint('amount', { mode: 'number' }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.projectId, t.stageId, t.accountId, t.day, t.resource] }),
+    index('community_contributions_account_id_idx').on(t.accountId),
+    check('community_contributions_amount_check', sql`${t.amount} > 0`),
+  ],
+);
+
+/**
+ * Global world flags (ticket 4.6): the one source of truth for what completed projects opened.
+ * Written only in the transaction that completes a project (or by the owner's audited CLI).
+ */
+export const worldFlags = pgTable('world_flags', {
+  /** game-core `WorldFlagId`. */
+  flagId: text('flag_id').primaryKey(),
+  /** The project that set it. */
+  projectId: text('project_id'),
+  /** Game clock. */
+  setAt: timestamp('set_at', { withTimezone: true }).notNull(),
+});

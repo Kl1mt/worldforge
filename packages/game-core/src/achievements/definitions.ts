@@ -29,12 +29,15 @@ export type AchievementCriterion =
   | { kind: 'contracts'; count: number }
   /** A story quest turned in. */
   | { kind: 'storyQuest'; questId: string }
+  /** Ticket 4.6: contributed to this community project, which then completed. */
+  | { kind: 'communityProject'; projectId: string }
   /** Earned the reward of this guild boss stage or a higher one (ticket 4.9). */
   | { kind: 'guildBossStage'; stage: number };
 
 export type AchievementCriterionKind = AchievementCriterion['kind'];
 
-export type AchievementCategory = 'loot' | 'forge' | 'hero' | 'crypt' | 'quests' | 'guild';
+export type AchievementCategory =
+  'loot' | 'forge' | 'hero' | 'crypt' | 'quests' | 'guild' | 'world';
 
 export interface AchievementDefinition {
   id: string;
@@ -177,6 +180,23 @@ export const ACHIEVEMENTS: readonly AchievementDefinition[] = [
     criterion: { kind: 'guildBossStage', stage: 5 },
     assetId: 'achievement.guild-boss-laid-to-rest',
   },
+  // Ticket 4.6: community projects (awarded to every contributor when the project completes).
+  {
+    id: 'warehouseRestorer',
+    name: 'Mender of Graumark',
+    description: 'Help restore the Graumark Warehouse.',
+    category: 'world',
+    criterion: { kind: 'communityProject', projectId: 'restoreWarehouse' },
+    assetId: 'achievement.warehouse-restorer',
+  },
+  {
+    id: 'ashenPassBreaker',
+    name: 'Through the Ash',
+    description: 'Help clear the Ashen Pass.',
+    category: 'world',
+    criterion: { kind: 'communityProject', projectId: 'clearAshenPass' },
+    assetId: 'achievement.ashen-pass-breaker',
+  },
 ];
 
 export type AchievementId = string;
@@ -214,6 +234,8 @@ export interface AchievementFacts {
   storyQuestsTurnedIn?: readonly string[];
   /** The highest guild boss stage whose reward the account earned (ticket 4.9). */
   guildBossStage?: number;
+  /** Ticket 4.6: completed community projects the account contributed to. */
+  communityProjects?: readonly string[];
 }
 
 /** The fact a criterion reads (for collecting only what is needed). */
@@ -227,6 +249,7 @@ export const CRITERION_FACT: Record<AchievementCriterionKind, keyof AchievementF
   contracts: 'contractsTurnedIn',
   storyQuest: 'storyQuestsTurnedIn',
   guildBossStage: 'guildBossStage',
+  communityProject: 'communityProjects',
 };
 
 export function criterionMet(c: AchievementCriterion, f: AchievementFacts): boolean {
@@ -249,6 +272,8 @@ export function criterionMet(c: AchievementCriterion, f: AchievementFacts): bool
       return f.storyQuestsTurnedIn?.includes(c.questId) ?? false;
     case 'guildBossStage':
       return (f.guildBossStage ?? 0) >= c.stage;
+    case 'communityProject':
+      return f.communityProjects?.includes(c.projectId) ?? false;
   }
 }
 
@@ -280,6 +305,11 @@ export function mergeAchievementFacts(a: AchievementFacts, b: AchievementFacts):
   if (a.storyQuestsTurnedIn || b.storyQuestsTurnedIn) {
     set('storyQuestsTurnedIn', [
       ...new Set([...(a.storyQuestsTurnedIn ?? []), ...(b.storyQuestsTurnedIn ?? [])]),
+    ]);
+  }
+  if (a.communityProjects || b.communityProjects) {
+    set('communityProjects', [
+      ...new Set([...(a.communityProjects ?? []), ...(b.communityProjects ?? [])]),
     ]);
   }
   return out;

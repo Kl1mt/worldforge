@@ -15,6 +15,7 @@ import { queryRows } from '../db/query.js';
  * Ticket 4.9: guild boss attempts and rewards stamp the game clock (the week of an attempt is
  * derived from it); `guild_boss_weeks.updated_at` and `guild_boss_stages.reached_at` equal an
  * attempt's `created_at`.
+ * Ticket 4.6: community projects (last change), contribution windows and world flags.
  */
 export async function latestStoredTimeMs(db: Database): Promise<number | null> {
   const rows = await queryRows<{ ms: number | null }>(
@@ -30,6 +31,10 @@ export async function latestStoredTimeMs(db: Database): Promise<number | null> {
       (select max(day)::timestamp at time zone 'UTC' from telemetry_daily),
       (select max(created_at) from guild_boss_attempts),
       (select max(greatest(earned_at, claimed_at, created_at)) from guild_boss_rewards)
+,
+      (select max(updated_at) from community_projects),
+      (select max(day)::timestamp at time zone 'UTC' from community_contributions),
+      (select max(set_at) from world_flags)
     )) * 1000)::float8 as ms`,
   );
   const ms = rows[0]?.ms;

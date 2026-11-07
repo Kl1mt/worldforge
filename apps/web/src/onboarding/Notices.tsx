@@ -7,6 +7,7 @@ const KIND_LABEL: Record<Notice['kind'], string> = {
   level: 'Level up',
   unlock: 'A road opens',
   quest: 'Quest',
+  world: 'Graumark',
 };
 
 /** Progression notices (ticket 2.7): small herald slips under the top bar that fade. */

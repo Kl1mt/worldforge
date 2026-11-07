@@ -6,7 +6,14 @@ import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
 import type { DatabaseHandle } from '../db/types.js';
 import { createTestDatabase } from '../test/db.js';
 import { makeCryptReady } from '../test/dungeon.js';
-import { guildBossAttempts, guildBossRewards, telemetryDaily } from '../db/schema.js';
+import {
+  communityContributions,
+  communityProjects,
+  guildBossAttempts,
+  guildBossRewards,
+  telemetryDaily,
+  worldFlags,
+} from '../db/schema.js';
 import { uuidv7 } from '../db/uuid.js';
 import { insertGuild } from '../test/guilds.js';
 import { insertAccount } from '../test/social.js';
@@ -118,5 +125,26 @@ describe('latestStoredTimeMs (playtest clock floor)', () => {
       createdAt: new Date(at),
     });
     expect(await latestStoredTimeMs(database.db)).toBe(claimed);
+  });
+
+  it('counts community projects, contribution days and world flags (ticket 4.6)', async () => {
+    await database.db
+      .insert(communityProjects)
+      .values({ projectId: 'restoreWarehouse', updatedAt: new Date('2032-01-01T10:00:00Z') });
+    expect(await latestStoredTimeMs(database.db)).toBe(Date.parse('2032-01-01T10:00:00Z'));
+    const who = await insertAccount(database.db);
+    await database.db.insert(communityContributions).values({
+      projectId: 'restoreWarehouse',
+      stageId: 'clearRubble',
+      accountId: who.id,
+      day: '2032-02-02',
+      resource: 'gold',
+      amount: 1,
+    });
+    expect(await latestStoredTimeMs(database.db)).toBe(Date.parse('2032-02-02T00:00:00Z'));
+    await database.db
+      .insert(worldFlags)
+      .values({ flagId: 'warehouseRestored', setAt: new Date('2032-03-03T03:00:00Z') });
+    expect(await latestStoredTimeMs(database.db)).toBe(Date.parse('2032-03-03T03:00:00Z'));
   });
 });

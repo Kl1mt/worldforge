@@ -327,6 +327,8 @@ Players contribute resources or other activity to shared projects, such as resto
 
 Contribution systems should avoid allowing a tiny number of high-power players to monopolize all meaningful progress. Individual contribution rewards can coexist with global milestones.
 
+**Phase 4 defaults (ticket 4.6, `docs/COMMUNITY.md`; the owner can override):** projects are global and staged; each stage needs gold and materials given from a hero's holdings. One player may give at most 20 % of each need of a stage per day (UTC), so a stage takes at least five player-days. Contributors earn a cosmetic achievement, never power. The first project, *Restore the Graumark Warehouse*, opens the Warehouse for everyone; the second, *Clear the Ashen Pass*, begins after it and opens the Ashen Pass.
+
 ## 13. Cosmetics and Monetization
 
 ### 13.1 Cosmetic Content
