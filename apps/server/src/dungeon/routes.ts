@@ -1,4 +1,5 @@
 import { refreshAchievements } from '../achievements/award.js';
+import { packItemsWhere } from '../inventory/routes.js';
 import type { FastifyInstance } from 'fastify';
 import { and, count, desc, eq, gt, isNotNull, isNull, sql } from 'drizzle-orm';
 import {
@@ -622,9 +623,8 @@ export async function registerDungeons(
           const [inventory] = await tx
             .select({ n: count() })
             .from(itemInstances)
-            .where(
-              and(eq(itemInstances.characterId, characterId), isNull(itemInstances.equippedSlot)),
-            );
+            // Ticket 4.7: warehouse items take no pack slot.
+            .where(packItemsWhere(characterId));
           // Ticket 3.7: the loot filter in force now, read with the locked character row.
           const r = replayRun(run, inventory?.n ?? 0, character.lootFilter);
           const filter = filteredTotals(r.filtered);

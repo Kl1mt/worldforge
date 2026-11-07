@@ -399,6 +399,50 @@ export const merchantApi = {
     apiRequest(`${c(id)}/merchant/sell`, { method: 'POST', body: { itemIds }, ...keyed(key) }, f),
 };
 
+/** Ticket 4.7: the Warehouse (per-character storage). */
+export interface WarehouseState {
+  characterId: string;
+  level: number;
+  maxLevel: number;
+  capacity: number;
+  items: ItemDto[];
+  nextUpgrade: { toLevel: number; gold: number; slots: number; capacity: number } | null;
+  gold: number;
+  pack: { count: number; capacity: number };
+}
+
+export interface WarehouseMoveResult {
+  warehouse: WarehouseState;
+  inventory: InventoryDto;
+  moved: number;
+}
+
+export interface WarehouseUpgradeResult {
+  warehouse: WarehouseState;
+  character: Character;
+  goldSpent: number;
+}
+
+export const warehouseApi = {
+  get: (id: string, o: Signal = {}, f?: typeof fetch): Promise<ApiResult<WarehouseState>> =>
+    apiRequest(`${c(id)}/warehouse`, o, f),
+  /** Moves move no value: no key; a repeated move finds the items moved and changes nothing. */
+  move: (
+    id: string,
+    direction: 'deposit' | 'withdraw',
+    itemIds: string[],
+    f?: typeof fetch,
+  ): Promise<ApiResult<WarehouseMoveResult>> =>
+    apiRequest(`${c(id)}/warehouse/${direction}`, { method: 'POST', body: { itemIds } }, f),
+  upgrade: (
+    id: string,
+    level: number,
+    key: string,
+    f?: typeof fetch,
+  ): Promise<ApiResult<WarehouseUpgradeResult>> =>
+    apiRequest(`${c(id)}/warehouse/upgrade`, { method: 'POST', body: { level }, ...keyed(key) }, f),
+};
+
 export const forgeApi = {
   get: (id: string, o: Signal = {}, f?: typeof fetch): Promise<ApiResult<ForgeState>> =>
     apiRequest(`${c(id)}/forge`, o, f),
@@ -499,6 +543,17 @@ export function describeGameFailure(error: Pick<ApiFailure, 'code'>): string {
       return 'Your hero is not experienced enough for this recipe yet.';
     case 'inventory_full':
       return 'The pack is full. Sell or salvage something first.';
+    // Ticket 4.7: the Warehouse.
+    case 'warehouse_closed':
+      return 'The Warehouse is not open yet. The town must restore it first (Town works).';
+    case 'warehouse_full':
+      return 'The warehouse has no room for that many. Take something out or extend it.';
+    case 'item_in_warehouse':
+      return 'That item is in the warehouse. Take it out first.';
+    case 'level_changed':
+      return 'The warehouse was extended meanwhile. The view has been refreshed.';
+    case 'warehouse_max_level':
+      return 'The warehouse is fully extended.';
     case 'offer_sold_out':
       return 'You already bought that today.';
     case 'offer_expired':

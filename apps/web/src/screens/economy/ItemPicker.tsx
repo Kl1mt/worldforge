@@ -15,13 +15,20 @@ export function ItemPicker({
   onChange,
   label,
   emptyText,
+  lockedPickable = false,
+  emptyAction = 'farm',
 }: {
   items: readonly ItemView[];
   picked: ReadonlySet<string>;
   onChange: (next: Set<string>) => void;
   label: string;
   emptyText: string;
+  /** Ticket 4.7: the warehouse moves locked items too (a lock only guards sell/salvage/discard). */
+  lockedPickable?: boolean;
+  /** What the empty state offers: a link to the map, or nothing. */
+  emptyAction?: 'farm' | 'none';
 }) {
+  const blocked = (i: ItemView) => i.locked && !lockedPickable;
   // Newest first, like the pack.
   const sorted = useMemo(
     () => [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
@@ -30,10 +37,10 @@ export function ItemPicker({
   const upTo = (rarity: RarityId) =>
     onChange(
       new Set(
-        sorted.filter((i) => !i.locked && compareRarity(i.rarity, rarity) <= 0).map((i) => i.id),
+        sorted.filter((i) => !blocked(i) && compareRarity(i.rarity, rarity) <= 0).map((i) => i.id),
       ),
     );
-  const locked = sorted.filter((i) => i.locked).length;
+  const locked = sorted.filter(blocked).length;
   const toggle = (id: string) => {
     const next = new Set(picked);
     if (next.has(id)) next.delete(id);
@@ -46,9 +53,11 @@ export function ItemPicker({
       <div className="picker__empty">
         <p className="display">Nothing to offer.</p>
         <p>{emptyText}</p>
-        <a className="btn" href={routeHref('map')}>
-          Go farming
-        </a>
+        {emptyAction === 'farm' ? (
+          <a className="btn" href={routeHref('map')}>
+            Go farming
+          </a>
+        ) : null}
       </div>
     );
   }
@@ -76,9 +85,9 @@ export function ItemPicker({
             <ItemFrame
               item={item}
               scale={2}
-              selected={picked.has(item.id) && !item.locked}
+              selected={picked.has(item.id) && !blocked(item)}
               onSelect={() => toggle(item.id)}
-              disabled={item.locked}
+              disabled={blocked(item)}
               context={`Level ${item.itemLevel}`}
             />
           </li>

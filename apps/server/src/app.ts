@@ -28,6 +28,7 @@ import { registerGuildBoss } from './guild-boss/routes.js';
 import { registerLegal, type LegalOptions } from './legal/routes.js';
 import { registerAdmin, type AdminOptions } from './admin/routes.js';
 import { registerCommunity } from './community/routes.js';
+import { registerWarehouse } from './warehouse/routes.js';
 import { WorldStateCache } from './community/world-state.js';
 import type { Database, DatabaseHandle } from './db/types.js';
 
@@ -108,6 +109,7 @@ export function buildApp({
       await registerGuildChat(api);
       await registerGuildBoss(api, activityOptions);
       await registerCommunity(api, activityOptions);
+      await registerWarehouse(api, activityOptions);
       await registerLegal(api, legal ?? {});
       await registerAdmin(api, admin ?? {});
       if (testRoutes) await testRoutes(api);

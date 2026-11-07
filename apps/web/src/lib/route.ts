@@ -26,6 +26,8 @@ export const GAME_ROUTES = [
   'guild',
   // Ticket 4.6: the town works (community projects), `#/works`.
   'works',
+  // Ticket 4.7: the Warehouse, `#/warehouse` (per-character storage; shown locked until restored).
+  'warehouse',
 ] as const;
 /** The gate: only shown to visitors without a session. */
 export const AUTH_ROUTES = ['login', 'register'] as const;

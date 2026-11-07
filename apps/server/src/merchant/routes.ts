@@ -33,6 +33,7 @@ import {
   lockOwnedCharacter,
   type InventoryView,
   type ItemView,
+  isPackItem,
 } from '../inventory/routes.js';
 import { idempotentTransaction } from '../idempotency/index.js';
 import {
@@ -213,9 +214,7 @@ export async function registerMerchant(
           price: o.price,
           soldOut: sold.has(o.offerId),
         })),
-        sellPrices: items
-          .filter((i) => i.equippedSlot === null)
-          .map((i) => ({ itemId: i.id, price: sellPrice(i) })),
+        sellPrices: items.filter(isPackItem).map((i) => ({ itemId: i.id, price: sellPrice(i) })),
       };
     },
   );
@@ -268,7 +267,7 @@ export async function registerMerchant(
             throw new ApiError(409, 'offer_sold_out', 'You bought this one already today.');
           }
           const items = await loadItems(tx, characterId);
-          if (items.filter((i) => i.equippedSlot === null).length >= capacity) {
+          if (items.filter(isPackItem).length >= capacity) {
             throw inventoryFull(capacity);
           }
           if (locked.gold < offer.price) throw insufficientGold(offer.price, locked.gold);

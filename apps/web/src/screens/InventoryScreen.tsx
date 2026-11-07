@@ -81,7 +81,9 @@ export function InventoryScreen() {
     refreshMaterials,
   } = useGame();
   const { updateCharacter } = useCharacters();
-  const { newItems, markItemsSeen } = useOnboarding();
+  const { newItems, markItemsSeen, worldFlags } = useOnboarding();
+  // Ticket 4.7: the banner points to the Warehouse once the town has restored it.
+  const warehouseOpen = worldFlags?.warehouseRestored === true;
   const [tab, setTab] = useState<Tab>('items');
   const [filter, setFilter] = useState<Filter>('all');
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -434,7 +436,23 @@ export function InventoryScreen() {
                 <button type="button" className="btn btn--small" onClick={() => setTab('filter')}>
                   Set the loot filter
                 </button>
+                {warehouseOpen ? (
+                  <a className="btn btn--small" href={routeHref('warehouse')}>
+                    Store in the Warehouse
+                  </a>
+                ) : null}
               </div>
+              {warehouseOpen && over > 0 ? (
+                <p className="pack__full-hint">
+                  The Warehouse takes what you are keeping beyond the limit: stored items take no
+                  room in the pack.
+                </p>
+              ) : !warehouseOpen ? (
+                <p className="pack__full-hint">
+                  Storage opens when the town restores the Warehouse (
+                  <a href={routeHref('works')}>Town works</a>).
+                </p>
+              ) : null}
             </div>
           ) : null}
 

@@ -12,6 +12,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { useActiveCharacter } from '../characters/CharactersProvider';
 import { useGame } from '../game/GameProvider';
 import type { WorldState } from '../game/api';
+import type { WorldFlags } from '@worldforge/game-core';
 import type { GameRoute } from '../lib/route';
 import type { QuestBoard } from '../quests/api';
 import { useQuests } from '../quests/useQuests';
@@ -35,6 +36,11 @@ interface OnboardingValue {
   /** Quest keys (`questKeys`) this device has not shown yet. */
   newQuests: ReadonlySet<string>;
   markQuestsSeen: () => void;
+  /**
+   * Ticket 4.7: the global world flags from the 120 s world poll (null until the first answer).
+   * The server checks them on every route; screens read them only to show what is open.
+   */
+  worldFlags: WorldFlags | null;
 }
 
 const OnboardingContext = createContext<OnboardingValue | null>(null);
@@ -180,8 +186,9 @@ export function OnboardingProvider({ route, children }: { route: GameRoute; chil
       markItemsSeen,
       newQuests,
       markQuestsSeen,
+      worldFlags: worldView?.flags ?? null,
     }),
-    [notices, dismissNotice, newItems, markItemsSeen, newQuests, markQuestsSeen],
+    [notices, dismissNotice, newItems, markItemsSeen, newQuests, markQuestsSeen, worldView],
   );
   return <OnboardingContext.Provider value={value}>{children}</OnboardingContext.Provider>;
 }

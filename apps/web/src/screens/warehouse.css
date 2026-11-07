@@ -1,0 +1,45 @@
+/* The Warehouse (ticket 4.7). Builds on shop.css: two iron panels, pack and shelves. */
+.warehouse__closed {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  max-width: 64ch;
+  padding: var(--space-5);
+}
+
+.warehouse__locked {
+  color: var(--crimson-400);
+}
+
+.warehouse__closed-title {
+  font-size: var(--text-2xl);
+  line-height: var(--leading-tight);
+  color: var(--accent-strong);
+}
+
+.warehouse__closed p:not(.display):not(.caps) {
+  color: var(--text-muted);
+}
+
+.warehouse__over,
+.warehouse__full {
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--brass-500);
+  background: var(--ink-900);
+  color: var(--text);
+}
+
+.warehouse__extend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+  color: var(--text-muted);
+}
+
+.warehouse__extend .display {
+  color: var(--text);
+}
