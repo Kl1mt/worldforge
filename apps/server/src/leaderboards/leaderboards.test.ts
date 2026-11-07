@@ -449,7 +449,7 @@ describe('boards', () => {
     expect((await board(viewer, 'gold')).statusCode).toBe(400);
     expect((await board(viewer, 'level?class=bard')).statusCode).toBe(400);
     expect((await board(viewer, 'level?bracket=40-49')).statusCode).toBe(400);
-    expect((await board(viewer, 'level?scope=season')).statusCode).toBe(400);
+    expect((await board(viewer, 'level?scope=weekly')).statusCode).toBe(400);
     expect((await board(viewer, 'level?cursor=bm9wZQ')).statusCode).toBe(400);
     expect((await board(viewer, 'level?limit=500')).statusCode).toBe(400);
     expect((await app.inject({ method: 'GET', url: '/api/leaderboards/level' })).statusCode).toBe(

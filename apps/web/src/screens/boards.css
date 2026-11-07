@@ -328,3 +328,34 @@ a.renown__name {
     flex: 1 1 9rem;
   }
 }
+
+/* Ticket 5.3: the player's chosen frame mark and title beside the name; the season slip. */
+.renown__nameline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+}
+
+.renown__season {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--brass-500);
+  background: var(--ink-850);
+  color: var(--bone-200);
+}
+
+.renown__season--closing,
+.renown__season--closed {
+  border-left-color: var(--iron-500);
+}
+
+.renown__season-span {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}

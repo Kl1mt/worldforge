@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GuildRole, PresenceBucket } from '@worldforge/game-core';
 import { apiRequest, type ApiFailure, type ApiResult } from '../lib/api';
+import type { PrestigeShown } from './seasons';
 import type { Character } from '../characters/api';
 import { describeSanction, describeSocialFailure, sanctionOf } from './api';
 
@@ -28,6 +29,8 @@ export interface GuildMemberEntry extends GuildPerson {
   joinedOn: string;
   /** You block this member: the name is withheld, the row stays so officers can act. */
   blocked: boolean;
+  /** Ticket 5.3: the member's season title and frame. */
+  prestige: PrestigeShown;
 }
 
 export interface MyGuild extends GuildSummary {
@@ -66,7 +69,7 @@ export type GuildStandingView = 'member' | 'invited' | 'applied' | 'otherGuild' 
 
 export interface GuildProfile {
   guild: GuildSummary;
-  members: (GuildPerson & { role: GuildRole })[];
+  members: (GuildPerson & { role: GuildRole; prestige: PrestigeShown })[];
   standing: GuildStandingView;
 }
 

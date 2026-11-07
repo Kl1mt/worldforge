@@ -32,6 +32,8 @@ import { registerCommunity } from './community/routes.js';
 import { registerWarehouse } from './warehouse/routes.js';
 import { registerLeaderboardRefresh, registerLeaderboards } from './leaderboards/routes.js';
 import { sweepLeaderboards } from './leaderboards/snapshot.js';
+import { registerSeasons } from './seasons/routes.js';
+import { runSeasonJobs } from './seasons/model.js';
 import { WorldStateCache } from './community/world-state.js';
 import type { Database, DatabaseHandle } from './db/types.js';
 
@@ -94,7 +96,8 @@ export function buildApp({
   app.decorate('worldState', new WorldStateCache(database.db, worldStateTtlMs));
   registerErrorHandling(app);
   const activityOptions: ActivityOptions = { ...DEFAULT_ACTIVITY_OPTIONS, ...activity };
-  registerSettlementScheduler(app, activityOptions);
+  const authNow = auth?.now ?? DEFAULT_AUTH_OPTIONS.now;
+  registerSettlementScheduler(app, activityOptions, authNow);
   registerLeaderboardRefresh(app, activityOptions.now);
 
   void app.register(
@@ -120,9 +123,10 @@ export function buildApp({
       await registerCommunity(api, activityOptions);
       await registerWarehouse(api, activityOptions);
       await registerLegal(api, legal ?? {});
-      await registerAdmin(api, admin ?? {});
+      await registerAdmin(api, { gameNow: activityOptions.now, ...admin });
       await registerScores(api);
       await registerLeaderboards(api, { now: activityOptions.now, ...leaderboards });
+      await registerSeasons(api, { now: activityOptions.now });
       if (testRoutes) await testRoutes(api);
 
       api.get('/health', async (request, reply): Promise<HealthResponse> => {
@@ -162,7 +166,11 @@ const LEADERBOARD_SWEEP_BATCH = 200;
  * are skipped. Also prunes expired idempotency keys (ticket 2.6) and sweeps the leaderboard
  * snapshots (ticket 5.2).
  */
-function registerSettlementScheduler(app: FastifyInstance, options: ActivityOptions): void {
+function registerSettlementScheduler(
+  app: FastifyInstance,
+  options: ActivityOptions,
+  authNow: () => Date,
+): void {
   const intervalMs = options.settleIntervalMs;
   if (intervalMs <= 0) return;
   let timer: NodeJS.Timeout | undefined;
@@ -198,6 +206,13 @@ function registerSettlementScheduler(app: FastifyInstance, options: ActivityOpti
           if (out.updated > 0) app.log.info({ updated: out.updated }, 'leaderboard sweep');
         })
         .catch((err: unknown) => app.log.error({ err }, 'leaderboard sweep failed'))
+        .then(async () => {
+          // Ticket 5.3: the next season, then every ended season's archive and awards.
+          const out = await runSeasonJobs(app.db, options.now(), authNow());
+          if (out.created !== null || out.archived.length > 0 || out.awarded.length > 0)
+            app.log.info(out, 'season jobs');
+        })
+        .catch((err: unknown) => app.log.error({ err }, 'season jobs failed'))
         .finally(() => {
           running = false;
         });

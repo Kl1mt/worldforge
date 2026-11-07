@@ -689,11 +689,12 @@ GDD: §10.2. Needs 5.1.
 - Board pages: the four metrics, filters (all-time now; seasons in 5.3; class; level bracket), your own rank, tie-breakers by achieved-at, pagination, ETag polling sized to the rate limits. Everyone is listed by name (owner decision); the name links to the profile only where profile privacy allows; sanctioned accounts excluded; report action from a board entry.
 - Tests: recompute equality, the profile-link privacy matrix (each profile setting × viewer relation), races (a score change racing a read), invariance (boards change no gameplay number), journey step, screenshots.
 
-### 5.3 Seasons & prestige rewards (vertical) — `todo`
+### 5.3 Seasons & prestige rewards (vertical) — `done (PR #88)`
 GDD: §10.2, §13. Needs 5.2.
 - Season model (start/end in UTC, archive, admin panel controls and an owner CLI), season boards next to all-time ones.
 - Prestige rewards: titles and profile frames shown on profiles, boards and in guilds; awarded exactly once at season end (real-PG races, a restart mid-award), cosmetic only.
 - Tests: the season boundary (window rule), award idempotency, archive integrity; screenshots.
+- Done: 8-week UTC seasons; a season board lists heroes whose score rose in the season, ranked by their score at its end (season rows written in the refresh transaction by the request clock); the archive is sealed under a season lock 5 minutes after the end; awards are exactly-once on `(season, account, metric)` and resumable. Tiers: Champion (1st), Exalted (top 10), Renowned (top 100), Veteran (on the board, hero level ≥ 10); one title per board. Admin panel Seasons tab, `pnpm admin:seasons` / `deploy/admin.sh seasons`. The first season is scheduled by the owner; later ones follow back to back. Migration `0026_seasons`; version 0.5.4. `docs/LEADERBOARDS.md` "Seasons and prestige".
 
 ### A.10 Profile frames, title badges & arena art — `done (PR #87)`
 GDD: §3.1, §13.1. Needs 5.3's reward ids (and 5.5's arena screen for the arena art).

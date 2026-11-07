@@ -23,9 +23,20 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.5.3';
+export const GAME_VERSION = '0.5.4';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.5.4',
+    date: '2026-11-07',
+    title: 'Seasons of renown',
+    new: [
+      'Seasons: the Roll of Renown can now show one season at a time. A season lasts eight weeks and lists the heroes who rose on each board during it, ranked by where they stand when it ends.',
+      'When a season ends, its rolls are sealed for good and every hero on them is honoured by place: Champion for first, Exalted for the top 10, Renowned for the top 100, and Veteran for the rest at level 10 or above.',
+      'Honours are titles and profile frames. Choose which ones to show on your profile; they appear beside your name on the boards, your profile and your guild’s roster. They are for glory only and change nothing in a fight.',
+    ],
+    tickets: ['5.3'],
+  },
   {
     version: '0.5.3',
     date: '2026-11-07',

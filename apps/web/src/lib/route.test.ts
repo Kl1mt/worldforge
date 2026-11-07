@@ -144,11 +144,28 @@ describe('board locations (ticket 5.2)', () => {
   it('round-trips metric and filters', () => {
     const href = boardHref('power', { classId: 'mage', bracket: '20-29' });
     expect(href).toBe('#/boards/power?class=mage&bracket=20-29');
-    expect(boardLocation(href)).toEqual({ metric: 'power', classId: 'mage', bracket: '20-29' });
+    expect(boardLocation(href)).toEqual({
+      metric: 'power',
+      classId: 'mage',
+      bracket: '20-29',
+      season: null,
+    });
     expect(parseRoute(href)).toBe('boards');
   });
+  it('round-trips the season (ticket 5.3)', () => {
+    expect(boardLocation(boardHref('level', { season: 3 })).season).toBe(3);
+    expect(boardLocation(boardHref('level', { season: 'current' })).season).toBe('current');
+    expect(boardHref('level', { season: null })).toBe('#/boards/level');
+  });
   it('ignores what is not shaped like a filter', () => {
-    expect(boardLocation('#/boards')).toEqual({ metric: null, classId: null, bracket: null });
+    expect(boardLocation('#/boards')).toEqual({
+      metric: null,
+      classId: null,
+      bracket: null,
+      season: null,
+    });
     expect(boardLocation('#/boards/level?class=%3Cscript%3E').classId).toBeNull();
+    expect(boardLocation('#/boards/level?season=0').season).toBeNull();
+    expect(boardLocation('#/boards/level?season=-1').season).toBeNull();
   });
 });

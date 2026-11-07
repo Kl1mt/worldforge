@@ -14,6 +14,7 @@ import { and, eq, inArray, like, sql } from 'drizzle-orm';
 import {
   CONTRACT_TEMPLATES,
   GUILD_BOSS_ATTEMPTS_PER_WEEK,
+  prestigeTierFor,
   GUILD_CREATE_COST,
   MATERIAL_IDS,
   RARITY_IDS,
@@ -63,6 +64,7 @@ import type { TelemetryReport } from '../telemetry/report.js';
 import { createInvite } from '../auth/invites.js';
 import { checkLeaderboards } from '../leaderboards/check.js';
 import { cliDeps } from '../leaderboards/leaderboard-cli.js';
+import { runSeasonJobs } from '../seasons/model.js';
 
 export const MIN = 60_000;
 export const HOUR = 60 * MIN;
@@ -2191,4 +2193,110 @@ export async function playLeaderboardStep(
   expect(report.problems.filter((p) => p.kind === 'wrong')).toEqual([]);
   expect(report.problems.filter((p) => p.characterId === hero.characterId)).toEqual([]);
   return { entry: entry!, visibility };
+}
+
+/**
+ * Phase 5 season step (ticket 5.3, docs/LEADERBOARDS.md "Seasons"): the owner (an admin, the role
+ * granted by the CLI) schedules a one-day season in the admin panel; the hero farms inside it and
+ * is on the season board with its score at that moment; past the end the server archives the
+ * standings and awards prestige by place, once; the hero shows the earned title and frame, which
+ * another player sees on the board and the hero's profile. Awards change no score.
+ */
+export async function playSeasonStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  hero: Journey,
+  clock: Clock,
+  cast: StepCast & { ownerEmail?: string } = {},
+) {
+  type Entry = {
+    rank: number;
+    value: number;
+    you: boolean;
+    player: {
+      handle: string;
+      prestige: { title: { tier: string } | null; frame: { tier: string } | null };
+    };
+  };
+  type Board = {
+    total: number;
+    entries: Entry[];
+    yours: Entry[];
+    season: { number: number; status: string } | null;
+  };
+  const boardOf = async (who: { api: Journey['api'] }, path: string) => {
+    const res = await who.api('GET', `/api/leaderboards/${path}`);
+    expect(res.statusCode, res.body).toBe(200);
+    return res.json<{ board: Board }>().board;
+  };
+  const ownerEmail = cast.ownerEmail ?? 'season-keeper@graumark.test';
+  const owner = await newPlayer(app, ownerEmail, 'Season Keeper', cast.invite);
+  expect(await setAccountRole(database.db, ownerEmail, 'admin')).toMatchObject({ to: 'admin' });
+
+  // The owner schedules a season from now for one day (the shortest allowed).
+  const startsAt = new Date(clock.now()).toISOString();
+  const endsAt = new Date(clock.now() + 24 * HOUR).toISOString();
+  const planned = await owner.api('POST', '/api/admin/seasons', { startsAt, endsAt });
+  expect(planned.statusCode, planned.body).toBe(200);
+  const number = planned.json<{ current: { number: number } | null }>().current!.number;
+
+  // The hero plays in the season and is on its board with its score at that moment.
+  await hero.farmBestArea();
+  await hero.settle();
+  const seasons = (await hero.api('GET', '/api/seasons')).json<{
+    current: { number: number } | null;
+  }>();
+  expect(seasons.current?.number).toBe(number);
+  const live = await boardOf(hero, `level?scope=season&season=${number}`);
+  expect(live.season).toMatchObject({ number, status: 'active' });
+  const scores = (await hero.api('GET', `/api/characters/${hero.characterId}/scores`)).json<{
+    scores: Record<'level' | 'gearScore' | 'power' | 'pveProgress', { value: number }>;
+  }>().scores;
+  const mine = live.yours.find((e) => e.value === scores.level.value);
+  expect(mine, 'the hero on the season board').toBeDefined();
+
+  // Past the end (and the grace), the server takes the standings and awards prestige once.
+  clock.set(Date.parse(endsAt) + 10 * MIN);
+  const jobs = await runSeasonJobs(database.db, new Date(clock.now()), new Date(clock.now()));
+  expect(jobs.archived).toContain(number);
+  expect(
+    (await runSeasonJobs(database.db, new Date(clock.now()), new Date(clock.now()))).archived,
+  ).toEqual([]);
+  const final = await boardOf(hero, `level?scope=season&season=${number}`);
+  expect(final.season).toMatchObject({ number, status: 'closed' });
+  const place = final.yours[0]!;
+  expect(place.rank).toBe(mine!.rank);
+  const tier = prestigeTierFor(place.rank, hero.state.level);
+  const prestige = (await hero.api('GET', '/api/account/prestige')).json<{
+    earned: { season: number; metric: string; tier: string; rank: number }[];
+    shown: { title: { metric: string; tier: string } | null };
+  }>();
+  if (tier) {
+    expect(prestige.earned).toContainEqual(
+      expect.objectContaining({ season: number, metric: 'level', tier }),
+    );
+  }
+  expect(prestige.earned.length).toBeGreaterThan(0);
+  expect(prestige.shown.title).not.toBeNull();
+
+  // The hero chooses a title and frame; another player sees them on the board and the profile.
+  const pick = prestige.earned[0]!;
+  const chose = await hero.api('POST', '/api/account/prestige', {
+    title: { season: pick.season, metric: pick.metric },
+    frame: { season: pick.season, metric: pick.metric },
+  });
+  expect(chose.statusCode, chose.body).toBe(200);
+  const visitor = cast.companion ?? owner;
+  const seen = await boardOf(visitor, `level?scope=season&season=${number}&limit=100`);
+  const entry = seen.entries.find((e) => e.rank === place.rank)!;
+  expect(entry.player.prestige.title).toMatchObject({ tier: pick.tier });
+  expect(entry.player.prestige.frame).toMatchObject({ tier: pick.tier });
+
+  // Prestige is cosmetic: the hero's scores are what they were.
+  const after = (await hero.api('GET', `/api/characters/${hero.characterId}/scores`)).json<{
+    scores: typeof scores;
+  }>().scores;
+  expect(after.power.value).toBe(scores.power.value);
+  expect(after.gearScore.value).toBe(scores.gearScore.value);
+  return { season: number, rank: place.rank, tier: pick.tier };
 }

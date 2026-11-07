@@ -15,13 +15,16 @@ import { boardHref, boardLocation, profileHref, routeHref } from '../lib/route';
 import { ReportDialog } from '../social/ReportDialog';
 import type { ApiFailure } from '../lib/api';
 import { useBoard, type BoardEntry, type BoardView } from '../social/boards';
+import { FrameMark, TitleBadge } from '../social/Prestige';
+import { daysLeft, seasonSpan, seasonsApi, type SeasonList } from '../social/seasons';
 import './gate.css';
 import './boards.css';
 
 /**
  * The leaderboards (ticket 5.2, docs/LEADERBOARDS.md "Boards"): the Roll of Renown in the town
  * hall. Four rolls (Character Level, Gear Score, Character Power, PvE Progress), filtered by class
- * and level bracket, all-time for now (seasons come later). Every player is listed by display
+ * and level bracket, all time or one season (ticket 5.3: the season under way, or a past season's
+ * sealed final standings). Players show their chosen season title and frame. Every player is listed by display
  * name; the name opens the profile only where its owner's settings allow it for you, and the hero's
  * name shows only there. Your own heroes' places sit on a brass slip above the roll. Each entry can
  * be reported (the display name, and the hero's name where shown). Scores are the server's; the
@@ -66,24 +69,31 @@ export function BoardsScreen() {
   const metric: ScoreMetric = isMetric(loc.metric) ? loc.metric : 'level';
   const classId: ClassId | null = loc.classId && isClassId(loc.classId) ? loc.classId : null;
   const bracket = loc.bracket && findLevelBracket(loc.bracket) ? loc.bracket : null;
+  const season = loc.season;
+  const seasons = useSeasonList();
   // Cursors of the pages before this one, so "back" works with forward-only cursors.
   const [pages, setPages] = useState<(string | null)[]>([null]);
-  const filterKey = `${metric}|${classId}|${bracket}`;
+  const filterKey = `${metric}|${classId}|${bracket}|${season}`;
   const [pagesFor, setPagesFor] = useState(filterKey);
   if (pagesFor !== filterKey) {
     setPagesFor(filterKey);
     setPages([null]);
   }
   const cursor = pages.at(-1) ?? null;
-  const { state, reload } = useBoard({ metric, classId, bracket, cursor });
+  const { state, reload } = useBoard({ metric, classId, bracket, season, cursor });
   const [reporting, setReporting] = useState<Reporting>(null);
   const name = BOARD_METRICS.find((m) => m.id === metric)!.name;
 
-  const go = (next: { classId?: ClassId | null; bracket?: string | null }) => {
+  const go = (next: {
+    classId?: ClassId | null;
+    bracket?: string | null;
+    season?: 'current' | number | null;
+  }) => {
     window.location.assign(
       boardHref(metric, {
         classId: next.classId === undefined ? classId : next.classId,
         bracket: next.bracket === undefined ? bracket : next.bracket,
+        season: next.season === undefined ? season : next.season,
       }),
     );
   };
@@ -96,7 +106,8 @@ export function BoardsScreen() {
           Roll of Renown
         </h1>
         <p className="renown__lede">
-          Every hero of the town, ranked by what the server counts. All time; seasons come later.
+          Every hero of the town, ranked by what the server counts: all time, or one season at a
+          time. At a season&rsquo;s end the best are honoured with titles and frames.
         </p>
       </header>
 
@@ -105,7 +116,7 @@ export function BoardsScreen() {
           <a
             key={m.id}
             className="renown__roll-tab"
-            href={boardHref(m.id, { classId, bracket })}
+            href={boardHref(m.id, { classId, bracket, season })}
             aria-current={m.id === metric ? 'page' : undefined}
           >
             {m.name}
@@ -114,6 +125,29 @@ export function BoardsScreen() {
       </nav>
 
       <div className="renown__filters panel-ledger">
+        <label className="renown__filter">
+          <span className="caps">Time</span>
+          <select
+            value={season === null ? '' : String(season)}
+            onChange={(e) => {
+              const v = e.target.value;
+              go({ season: v === '' ? null : v === 'current' ? 'current' : Number(v) });
+            }}
+          >
+            <option value="">All time</option>
+            <option value="current">
+              {seasons?.current ? `This season (Season ${seasons.current.number})` : 'This season'}
+            </option>
+            {(seasons?.past ?? []).map((p) => (
+              <option key={p.number} value={p.number}>
+                Season {p.number}
+              </option>
+            ))}
+            {typeof season === 'number' && !seasons?.past.some((p) => p.number === season) ? (
+              <option value={season}>Season {season}</option>
+            ) : null}
+          </select>
+        </label>
         <label className="renown__filter">
           <span className="caps">Class</span>
           <select
@@ -146,6 +180,13 @@ export function BoardsScreen() {
             Ties go to whoever got there first. Your own breakdown is under Standing on the{' '}
             <a href={routeHref('character')}>character screen</a>.
           </p>
+          <p>
+            A season roll lists the heroes whose score on it rose during the season, ranked by their
+            score at its end. When a season ends, its roll is sealed and the best are honoured:
+            Champion for first place, Exalted for the top 10, Renowned for the top 100, Veteran for
+            every other hero of level 10 or more on the roll. Honours are titles and frames only;
+            they change nothing in a fight.
+          </p>
         </details>
       </div>
 
@@ -161,6 +202,9 @@ export function BoardsScreen() {
             Try again
           </button>
         </div>
+      ) : null}
+      {state.kind === 'ready' && state.board.scope === 'season' ? (
+        <SeasonBanner board={state.board} now={seasons?.now ?? null} />
       ) : null}
       {state.kind === 'ready' ? (
         <Roll
@@ -232,7 +276,11 @@ function Roll({ board, stale, metric, pageIndex, onNext, onPrev, onReport }: Rol
           <p className="renown__fine">
             {filtered
               ? 'None of your heroes fits these filters.'
-              : 'Your heroes are not on this roll yet.'}
+              : board.scope === 'season' && board.season === null
+                ? 'No season has begun yet.'
+                : board.scope === 'season'
+                  ? 'None of your heroes has risen on this roll this season.'
+                  : 'Your heroes are not on this roll yet.'}
           </p>
         ) : (
           <ul className="renown__yours-list">
@@ -267,9 +315,13 @@ function Roll({ board, stale, metric, pageIndex, onNext, onPrev, onReport }: Rol
         ) : null}
         {board.entries.length === 0 ? (
           <p className="renown__empty">
-            {filtered
-              ? 'No hero fits these filters yet. Widen the class or the levels.'
-              : 'The roll is still blank. The first names go up as heroes fight.'}
+            {board.scope === 'season' && board.season === null
+              ? 'No season has begun yet. The first season roll opens when the town calls it.'
+              : filtered
+                ? 'No hero fits these filters yet. Widen the class or the levels.'
+                : board.scope === 'season'
+                  ? 'No hero has risen on this roll this season yet. The first to gain a step goes up.'
+                  : 'The roll is still blank. The first names go up as heroes fight.'}
           </p>
         ) : (
           <ol className="renown__list" start={first}>
@@ -324,15 +376,21 @@ function Row({
         {e.rank}
       </span>
       <span className="renown__who">
-        {e.player.profile ? (
-          <a className="renown__name" href={profileHref(e.player.handle)}>
-            {name}
-          </a>
-        ) : (
-          <span className={`renown__name${e.player.displayName ? '' : ' renown__name--withheld'}`}>
-            {name}
-          </span>
-        )}
+        <span className="renown__nameline">
+          <FrameMark frame={e.player.prestige.frame} />
+          {e.player.profile ? (
+            <a className="renown__name" href={profileHref(e.player.handle)}>
+              {name}
+            </a>
+          ) : (
+            <span
+              className={`renown__name${e.player.displayName ? '' : ' renown__name--withheld'}`}
+            >
+              {name}
+            </span>
+          )}
+          <TitleBadge badge={e.player.prestige.title} compact />
+        </span>
         <span className="renown__hero">
           {e.hero.name ? `${e.hero.name}, ` : ''}level {e.hero.level} {cls}
           {e.you ? <span className="renown__you caps"> You</span> : null}
@@ -383,4 +441,47 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 function formatDay(day: string): string {
   const [y, m, d] = day.split('-').map(Number);
   return `${d} ${MONTHS[(m ?? 1) - 1]} ${y}`;
+}
+
+/** The season list for the Time filter (and the clock for "days left"); null while loading. */
+function useSeasonList(): SeasonList | null {
+  const [list, setList] = useState<SeasonList | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    seasonsApi.list(controller.signal).then(
+      (res) => {
+        if (res.ok) setList(res.value);
+      },
+      () => undefined,
+    );
+    return () => controller.abort();
+  }, []);
+  return list;
+}
+
+/** Which season a season roll shows, and how it stands: under way, sealing, or sealed. */
+function SeasonBanner({ board, now }: { board: BoardView; now: string | null }) {
+  const s = board.season;
+  if (!s) return null;
+  let state: string;
+  if (s.status === 'active') {
+    const left = now ? daysLeft(s.endsAt, now) : null;
+    state =
+      left === null
+        ? 'Under way.'
+        : left <= 1
+          ? 'Ends within a day.'
+          : `Under way, ${left} days left.`;
+  } else if (s.archivedAt) {
+    state = 'Ended. These are its sealed final standings; honours have been given.';
+  } else {
+    state = 'Ended. The clerks are sealing the final standings.';
+  }
+  return (
+    <p className={`renown__season renown__season--${s.status}`} role="status">
+      <span className="caps">Season {s.number}</span>
+      <span className="renown__season-span">{seasonSpan(s)} (UTC)</span>
+      <span>{state}</span>
+    </p>
+  );
 }

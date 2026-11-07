@@ -412,6 +412,15 @@ All four stamp game time and are part of the playtest clock floor (`latestStored
 ### leaderboard_entries — implemented (5.2)
 One row per hero and metric (`level`, `gearScore`, `power`, `pveProgress`; primary key `(character_id, metric)`, both FKs cascade): `account_id`, `class_id`, `level` (copies for the board filters), `formula_version`, `value`, `sort_key bigint[]`, `inputs_hash` (SHA-256 of the canonical JSON of the metric's slice of the input, `metricInput`), `input` (the full `ScoringInput`, never sent to clients), `achieved_at` (game clock; moves only when `sort_key` does) and `updated_at`. Index `(metric, sort_key desc, achieved_at, character_id)` for ranking. Written only by `refreshHeroScores` (`apps/server/src/leaderboards/snapshot.ts`); sanctions apply at read time. Additive migration `0025_leaderboards`; existing heroes are backfilled lazily by the sweep (or `admin:leaderboards refresh`). See `LEADERBOARDS.md`.
 
+### seasons, season_entries, season_standings, season_awards, prestige_displays — implemented (5.3)
+- `seasons (number int PK ≥ 1, starts_at, ends_at timestamptz, check ends_at > starts_at, created_at, archived_at?, awarded_at?)`: the season windows `[starts_at, ends_at)` (UTC, game clock). Never deleted.
+- `season_entries (season FK, character_id FK cascade, metric, account_id FK cascade, class_id, level, formula_version, value bigint, sort_key bigint[], base_sort_key bigint[]?, achieved_at, updated_at)`, PK `(season, character_id, metric)`, index `(season, metric, sort_key desc, achieved_at, character_id)`: a hero's standing on one board within one season, written by `refreshHeroScores` in the same transaction as `leaderboard_entries` (the window rule). `base_sort_key` is the standing before the first in-season change; listed when `sort_key > base_sort_key` or it is null.
+- `season_standings (season FK, metric, rank int, character_id, account_id, class_id, level, formula_version, value, sort_key, achieved_at)`, PK `(season, metric, character_id)`, unique `(season, metric, rank)`: the archive, written once per season in one transaction.
+- `season_awards (season FK, account_id FK cascade, metric, tier, rank, character_id FK set null?, awarded_at)`, PK `(season, account_id, metric)` (the exactly-once key), tier `champion|exalted|renowned|veteran`.
+- `prestige_displays (account_id PK FK cascade, title_season?, title_metric?, frame_season?, frame_metric?, updated_at)`, composite FKs `(title_season, account_id, title_metric)` and `(frame_season, …)` → `season_awards`: the chosen title and frame (no row: never chosen; nulls: none).
+
+Additive migration `0026_seasons` (new tables only; nothing to backfill: seasons start when the owner schedules the first). See `LEADERBOARDS.md` "Seasons and prestige".
+
 ## Relationships
 
 ```
@@ -432,6 +441,7 @@ guild 1─* guild_messages *─0..1 account (author); guild 0..1─1 guild_messa
 guild 1─* guild_boss_weeks, guild_boss_stages, guild_boss_attempts *─0..1 account; account 1─* guild_boss_rewards; account 1─0..1 guild_boss_streams
 account 1─* community_contributions *─1 community_projects 1─* community_project_progress
 character 1─* merchant_purchases
+season 1─* season_entries, season_standings *─1 character; season 1─* season_awards *─1 account 1─0..1 prestige_displays
 ```
 
 ## Open questions

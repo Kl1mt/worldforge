@@ -1,5 +1,6 @@
 import type { AccountRole, ClassId, ReportTarget, SanctionKind } from '@worldforge/game-core';
 import { apiRequest, type ApiFailure, type ApiResult } from '../lib/api';
+import type { SeasonList } from '../social/seasons';
 
 /** Client side of `/api/admin/*` (ticket D.3). Every route answers 404 to non-admins. */
 
@@ -173,7 +174,22 @@ export const adminApi = {
     get<{ player: PlayerFile }>(`/admin/players/${encodeURIComponent(handle)}`, signal),
   status: (signal?: AbortSignal) => get<ServerStatus>('/admin/status', signal),
   roles: (signal?: AbortSignal) => get<{ staff: StaffMember[] }>('/admin/roles', signal),
+  // Ticket 5.3: the season plan.
+  seasons: (signal?: AbortSignal) => get<AdminSeasons>('/admin/seasons', signal),
+  scheduleSeason: (input: { startsAt: string; endsAt: string }) =>
+    apiRequest<AdminSeasons>('/admin/seasons', { method: 'POST', body: input }),
+  /** `endsAt` omitted: end the season now. */
+  endSeason: (number: number, endsAt?: string) =>
+    apiRequest<AdminSeasons>(`/admin/seasons/${number}/end`, {
+      method: 'POST',
+      body: endsAt ? { endsAt } : {},
+    }),
 };
+
+/** Ticket 5.3: the admin panel's season view (`GET /api/admin/seasons`). */
+export interface AdminSeasons extends SeasonList {
+  counts: { season: number; entries: number; standings: number; awards: number }[];
+}
 
 /** The register link an invite code opens (D.2's hash form), on this site's own address. */
 export function inviteLink(code: string, origin: string): string {

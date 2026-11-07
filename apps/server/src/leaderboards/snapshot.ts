@@ -14,6 +14,7 @@ import { withTransaction } from '../db/transaction.js';
 import type { Database, Executor } from '../db/types.js';
 import { canonicalJson } from '../idempotency/index.js';
 import { scoringInput } from '../scores/routes.js';
+import { writeSeasonRows, type SeasonChange } from '../seasons/model.js';
 
 /**
  * Leaderboard snapshots (ticket 5.2, docs/LEADERBOARDS.md "Boards"). A hero's four rows are
@@ -117,11 +118,15 @@ export async function refreshHeroScores(
       .from(leaderboardEntries)
       .where(eq(leaderboardEntries.characterId, characterId));
     let wrote = false;
+    let levelChanged = false;
+    // Ticket 5.3: what moved, for the season rows (written after the loop, same transaction).
+    const changes: SeasonChange[] = [];
     for (const metric of SCORE_METRICS) {
       const row = rows.find((r) => r.metric === metric);
       if (row && isCurrent(row, current)) {
         // The score did not move, but the bracket filter needs the hero's level on every row.
         if (row.level !== fresh.level) {
+          levelChanged = true;
           await tx
             .update(leaderboardEntries)
             .set({ level: fresh.level, updatedAt: now })
@@ -145,6 +150,10 @@ export async function refreshHeroScores(
         canonicalJson(metricInput(metric, row.input)) ===
           canonicalJson(metricInput(metric, current));
       const achievedAt = row && (!keyMoved || versionOnly) ? row.achievedAt : now;
+      if (row && row.level !== fresh.level) levelChanged = true;
+      if (versionOnly) changes.push({ metric, score, previousKey: row.sortKey, versionOnly: true });
+      else if (keyMoved)
+        changes.push({ metric, score, previousKey: row?.sortKey ?? null, versionOnly: false });
       const values = {
         characterId,
         metric,
@@ -179,6 +188,9 @@ export async function refreshHeroScores(
         });
       wrote = true;
     }
+    // Ticket 5.3: the window rule. `now` is the request's arrival, so a change counts in the
+    // season whose window holds it, even when its refresh commits just after the end.
+    await writeSeasonRows(tx, fresh, now, changes, levelChanged);
     return wrote ? 'updated' : 'unchanged';
   });
 }

@@ -31,6 +31,12 @@ import { normalizeDisplayName } from '../auth/validation.js';
 import { isBlockedEitherWay, relationBetween, relationsFor } from './relations.js';
 import { hiddenTargetKeys } from './sanctions.js';
 import { socialWrite } from './social-write.js';
+import {
+  NO_PRESTIGE_SHOWN,
+  prestigeFor,
+  prestigeShownSchema,
+  type PrestigeShown,
+} from '../seasons/model.js';
 import { areGuildmates, guildLeaderId, publicGuildOf } from './guild-model.js';
 import { characterNameKey, profileFieldKey } from './targets.js';
 
@@ -170,6 +176,8 @@ export interface ProfileView {
   showcase: (ProfileCharacterView & { equipped: ShowcaseItemView[] }) | null;
   /** Ticket 4.4: the owner's guild, unless it is hidden from the viewer (a block with its leader). */
   guild: { handle: string; name: string; tag: string; emblem: string; role: GuildRole } | null;
+  /** Ticket 5.3: the season title and frame the owner shows (cosmetic). */
+  prestige: PrestigeShown;
 }
 
 function showcaseItem(i: ItemInstance): ShowcaseItemView {
@@ -253,6 +261,7 @@ export async function profileView(
     })),
     showcase,
     guild: await profileGuild(executor, owner.id, viewerId),
+    prestige: (await prestigeFor(executor, [owner.id])).get(owner.id) ?? NO_PRESTIGE_SHOWN,
   };
 }
 
@@ -350,8 +359,10 @@ const profileSchema = {
     'achievements',
     'showcase',
     'guild',
+    'prestige',
   ],
   properties: {
+    prestige: prestigeShownSchema,
     guild: {
       anyOf: [
         { type: 'null' },

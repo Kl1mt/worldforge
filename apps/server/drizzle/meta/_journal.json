@@ -183,6 +183,13 @@
       "when": 1794082889800,
       "tag": "0025_leaderboards",
       "breakpoints": true
+    },
+    {
+      "idx": 26,
+      "version": "7",
+      "when": 1794091554344,
+      "tag": "0026_seasons",
+      "breakpoints": true
     }
   ]
 }
