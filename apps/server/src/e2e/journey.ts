@@ -1392,17 +1392,21 @@ export async function playAshenPassStep(
   expect([200, 201]).toContain(go.statusCode);
   const table = getLootTable(getArea('ashenPass').lootTableId);
   let kills = 0;
-  // Two visits: a cycle in progress elsewhere finishes first (area switches, ticket 2.2).
-  for (let i = 0; i < 2; i++) {
+  // Three visits. The first settlement can still finish a cycle that was in progress in the
+  // previous area (area switches, ticket 2.2), with that area's drops and materials, so only the
+  // later visits are checked against the Pass's loot table.
+  for (let i = 0; i < 3; i++) {
     const { summary, activity } = await hero.settle();
     expect(activity!.areaId).toBe('ashenPass');
     kills += summary.kills;
-    for (const item of summary.items) {
-      expect(item.itemLevel).toBeGreaterThanOrEqual(table.itemLevel!.min);
-      expect(item.itemLevel).toBeLessThanOrEqual(table.itemLevel!.max);
-    }
-    for (const id of Object.keys(summary.materials ?? {})) {
-      expect(getArea('ashenPass').materials as readonly string[]).toContain(id);
+    if (i > 0) {
+      for (const item of summary.items) {
+        expect(item.itemLevel).toBeGreaterThanOrEqual(table.itemLevel!.min);
+        expect(item.itemLevel).toBeLessThanOrEqual(table.itemLevel!.max);
+      }
+      for (const id of Object.keys(summary.materials ?? {})) {
+        expect(getArea('ashenPass').materials as readonly string[]).toContain(id);
+      }
     }
     await hero.equipBetterDrops();
     await hero.sellJunk(await hero.inventory());
