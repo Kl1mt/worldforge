@@ -10,6 +10,7 @@ import type {
 } from '@worldforge/game-core';
 import { AUTO_SKILLS, getEnemy, type ClassId } from '@worldforge/game-core';
 import type { Character } from '../characters/api';
+import { DUNGEON_WORDS } from '../content/dungeons';
 import { formatNumber } from '../lib/format';
 import { apiRequest, type ApiFailure, type ApiResult } from '../lib/api';
 import type { LootFilterTally, SummaryItem } from './api';
@@ -163,6 +164,8 @@ export interface CryptLogContext {
   classId: ClassId;
   /** The foe of the current encounter (from the last `spawn`). */
   foe: EnemyId | null;
+  /** Ticket 4.8: whose boss lines to use (default the crypt's). */
+  dungeonId?: DungeonId;
 }
 
 /**
@@ -173,8 +176,9 @@ export function cryptLog(
   events: readonly DungeonEvent[],
   totalRooms: number,
   classId: ClassId,
+  dungeonId: DungeonId = 'namelessCrypt',
 ): CryptLogLine[] {
-  const ctx: CryptLogContext = { totalRooms, classId, foe: null };
+  const ctx: CryptLogContext = { totalRooms, classId, foe: null, dungeonId };
   const lines: CryptLogLine[] = [];
   for (const e of events) {
     if (e.type === 'spawn') ctx.foe = e.enemyId;
@@ -186,13 +190,14 @@ export function cryptLog(
 
 export function cryptLogLine(e: DungeonEvent, ctx: CryptLogContext): CryptLogLine | null {
   const { totalRooms } = ctx;
+  const words = DUNGEON_WORDS[ctx.dungeonId ?? 'namelessCrypt'];
   switch (e.type) {
     case 'enter':
       return e.room === null
         ? {
             t: e.t,
             tone: 'boss',
-            text: 'The Gravewarden’s chamber. The door grinds shut behind you.',
+            text: words.bossEnter,
           }
         : { t: e.t, tone: 'note', text: `Descending to chamber ${e.room + 1} of ${totalRooms}…` };
     case 'spawn':
@@ -229,7 +234,7 @@ export function cryptLogLine(e: DungeonEvent, ctx: CryptLogContext): CryptLogLin
       return {
         t: e.t,
         tone: 'boss',
-        text: 'The Gravewarden enrages! Its blows fall faster and harder.',
+        text: words.enrage,
       };
     case 'kill':
       return { t: e.t, tone: 'kill', text: `${name(e.enemyId)} falls. +${e.xp} XP` };
@@ -241,11 +246,7 @@ export function cryptLogLine(e: DungeonEvent, ctx: CryptLogContext): CryptLogLin
       return { t: e.t, tone: 'fall', text: `${name(e.enemyId)} outlasts you. You retreat.` };
     case 'end':
       return e.outcome === 'cleared'
-        ? { t: e.t, tone: 'boss', text: 'The Gravewarden is no more. The crypt falls silent.' }
-        : {
-            t: e.t,
-            tone: 'fall',
-            text: 'The crypt keeps its warden. You crawl back to the light.',
-          };
+        ? { t: e.t, tone: 'boss', text: words.won }
+        : { t: e.t, tone: 'fall', text: words.lost };
   }
 }

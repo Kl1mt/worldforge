@@ -163,3 +163,6 @@ The owner's playtest feedback had not arrived (`docs/PLAYTEST_FEEDBACK.md` is st
 | The Phase 2 purse (25–30k at 17) | a kit to +5 and one or two items to +10 | a kit to +5 and one item most of the way to +10 |
 
 How to reproduce: `pnpm --filter @worldforge/server telemetry:simulate -- --days 7` (about 8 minutes), then `PLAYTEST_DATA_DIR=.telemetry-sample pnpm report:telemetry`. Seeds are server-random, so numbers move by a few percent between runs.
+
+## The top end (ticket 4.8)
+The Ashen Pass (`docs/WORLD.md`) pays more per hour than the Abbey's top for the gear that farms it: rares +5 earn 900–1,260 kill gold an hour at 24 (Abbey 22, same kit: 790–1,020), Legendary +10 kits 2,100–2,850 at 26. Its kills are slower (7–9 a minute), so its loot table multiplies kill gold by 1.6 (`goldMultiplier`; no other table is touched). It yields the upgrade track's materials: 27–36 iron ore and 3–5 soul shards an hour (the wraiths are undead), so the Pass feeds the +8 → +10 soul-shard step that bound Abbey farmers in B.2. The Ashen Warden's purse is 700–1,000 gold per hoard (20 h cooldown). Its merchant stock (item level 26) costs about 12 minutes (common) and 25 minutes (uncommon) of its kill gold. Forge costs are unchanged; B.3 measures the new income against the sinks with the realistic player.

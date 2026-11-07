@@ -280,6 +280,8 @@ describe('crypt tiers (ticket 3.6)', () => {
       equipment: cryptGear(classId, level - 1).map((i) => ({
         ...i,
         rarityId: 'legendary' as const,
+        // Ticket 4.8: tier III's boss is tougher (health × 3); +10 keeps this hero a sure winner.
+        upgradeLevel: 10,
       })),
     });
 

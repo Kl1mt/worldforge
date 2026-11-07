@@ -434,7 +434,16 @@ export function AreaScreen() {
           </p>
         </div>
         <h1 className="area__title display">{area.name}</h1>
-        <p className="area__desc">{area.description}</p>
+        <p className="area__desc">
+          {area.description}
+          {/* Ticket 4.8: the pass's boss waits in its own run, the Warden's Watch. */}
+          {area.id === 'ashenPass' ? (
+            <>
+              {' '}
+              Above the road stands <a href={routeHref('watch')}>the Warden’s Watch</a>.
+            </>
+          ) : null}
+        </p>
         {pending ? (
           <p className="area__travel" role="status">
             Travelling to <strong>{pending.name}</strong> once this fight is over.

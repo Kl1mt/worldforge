@@ -39,6 +39,11 @@ export interface WorldProgress {
    * Gravewarden kill as tier I.
    */
   cryptTierCleared?: number;
+  /**
+   * Ticket 4.8: the Ashen Warden (the Warden's Watch) has fallen to this character. Nothing is
+   * gated on it yet; absent on characters that never fought it.
+   */
+  ashenWardenDefeated?: boolean;
 }
 
 /** The deepest crypt tier cleared (ticket 3.6); a pre-3.6 Gravewarden kill counts as tier I. */

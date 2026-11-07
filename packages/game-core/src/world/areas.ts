@@ -19,6 +19,8 @@ export const AREA_IDS = [
   'oldBurialGrounds',
   'blackwater',
   'sunkenAbbey',
+  // Ticket 4.8: the top-end region, opened for everyone by the community (world flag).
+  'ashenPass',
 ] as const;
 
 export type AreaId = (typeof AREA_IDS)[number];
@@ -132,6 +134,28 @@ export const AREAS: readonly AreaDefinition[] = [
     ],
     materials: ['ironOre', 'abbeySilver'],
     lootTableId: 'sunkenAbbey',
+  },
+  {
+    // Ticket 4.8. Closed for everyone until the community clears the pass (project
+    // `clearAshenPass`, world flag `ashenPassCleared`, docs/COMMUNITY.md). Its range starts two
+    // levels above the Abbey's top: crypt tier III (21–24) bridges the gap.
+    id: 'ashenPass',
+    name: 'The Ashen Pass',
+    region: 'Graumark',
+    description:
+      'The old road over the mountains, burnt to the rock. The watchtowers still burn, and something keeps them lit.',
+    assetId: 'area.ashen-pass',
+    minLevel: 24,
+    maxLevel: 28,
+    unlock: { level: 24, gravewardenDefeated: true, worldFlag: 'ashenPassCleared' },
+    enemies: [
+      { enemyId: 'ashWraith', weight: 30 },
+      { enemyId: 'cinderHound', weight: 30 },
+      { enemyId: 'pyreCultist', weight: 25 },
+      { enemyId: 'emberGolem', weight: 15 },
+    ],
+    materials: ['ironOre', 'soulShard'],
+    lootTableId: 'ashenPass',
   },
 ];
 

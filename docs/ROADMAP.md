@@ -519,7 +519,7 @@ GDD: §4.2 (Warehouse). Needs 4.6 (unlocked by its first project). Phase 3 follo
 - Items in the warehouse are never touched by the loot filter, settlement or crypt placement.
 **Acceptance:** move races (move vs sell vs settle on one item, real PG); capacity at the boundary; invariance (an empty warehouse changes nothing); screenshots.
 
-### 4.8 The Ashen Pass: top-end region (vertical) — `todo`
+### 4.8 The Ashen Pass: top-end region (vertical) — `done (PR #TBD)`
 GDD: §4.3, §12.2. Needs 4.6 (unlocked by its second project) and A.7 (art). Phase 3 follow-up: content ends at 24 while heroes reach 28, and B.2's farming breakpoint leaves nothing to farm toward at the top.
 - **A new area for levels 24–28** (enemies, loot table, materials) and a **boss**, as data. It is a world-state unlock: closed until the community finishes the project.
 - **Address the top end:** an area level and rewards that keep late-game builds meaningful past the Abbey breakpoint; tune crypt tier III against upgraded gear (3.9 saw it fall at 21 to every upgraded hero).

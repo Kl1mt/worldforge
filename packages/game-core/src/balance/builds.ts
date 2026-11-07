@@ -29,7 +29,10 @@ import {
   legendaryEffectPool,
   settleFarming,
   simulateDungeonRun,
+  type AreaId,
   type ClassId,
+  type DungeonId,
+  type DungeonTier,
   type EquippedItem,
   type GeneratedItem,
   type RarityId,
@@ -271,15 +274,42 @@ export const describeBuild = (b: Build) => {
 
 /* --- Jobs ------------------------------------------------------------------------------------ */
 
+export interface BossJob {
+  dungeonId: DungeonId;
+  tier: DungeonTier;
+  level: number;
+  itemLevel: number;
+  runs: number;
+}
+
 /** The tier III Gravewarden at level 23 (item level 22): mean boss fight time, a loss = 150 s. */
-export const BOSS_JOB = { level: 23, itemLevel: 22, tier: 3 as const, runs: 16 };
-export function bossTime(c: ClassId, items: EquippedItem[], runs = BOSS_JOB.runs): number {
+export const BOSS_JOB: BossJob = {
+  dungeonId: 'namelessCrypt',
+  level: 23,
+  itemLevel: 22,
+  tier: 3,
+  runs: 16,
+};
+/** Ticket 4.8: the Ashen Warden at level 28 (item level 27), the top-end boss. */
+export const WARDEN_JOB: BossJob = {
+  dungeonId: 'ashenWatch',
+  level: 28,
+  itemLevel: 27,
+  tier: 1,
+  runs: 16,
+};
+export function bossTime(
+  c: ClassId,
+  items: EquippedItem[],
+  runs = BOSS_JOB.runs,
+  job: BossJob = BOSS_JOB,
+): number {
   let total = 0;
   for (let i = 0; i < runs; i++) {
     const r = simulateDungeonRun({
-      dungeonId: 'namelessCrypt',
-      tier: BOSS_JOB.tier,
-      character: { classId: c, level: BOSS_JOB.level, xp: 0 },
+      dungeonId: job.dungeonId,
+      tier: job.tier,
+      character: { classId: c, level: job.level, xp: 0 },
       equipment: items,
       seed: `b2-build:${i}`,
       bossLootEligible: false,
@@ -291,22 +321,44 @@ export function bossTime(c: ClassId, items: EquippedItem[], runs = BOSS_JOB.runs
   return total / runs;
 }
 
+export interface FarmJob {
+  areaId: AreaId;
+  level: number;
+  itemLevel: number;
+  minutes: number;
+  seeds: string[];
+}
+
 /** Farming the Sunken Abbey at level 19 (item level 18): kills per minute. */
-export const FARM_JOB = { level: 19, itemLevel: 18, minutes: 40, seeds: ['b2-a', 'b2-b'] };
-export function farmRate(c: ClassId, items: EquippedItem[]): number {
+export const FARM_JOB: FarmJob = {
+  areaId: 'sunkenAbbey',
+  level: 19,
+  itemLevel: 18,
+  minutes: 40,
+  seeds: ['b2-a', 'b2-b'],
+};
+/** Ticket 4.8: farming the Ashen Pass at level 26 (item level 25), past the Abbey's breakpoint. */
+export const PASS_FARM_JOB: FarmJob = {
+  ...FARM_JOB,
+  areaId: 'ashenPass',
+  level: 26,
+  itemLevel: 25,
+  minutes: 20,
+};
+export function farmRate(c: ClassId, items: EquippedItem[], job: FarmJob = FARM_JOB): number {
   let kills = 0;
-  for (const seed of FARM_JOB.seeds) {
+  for (const seed of job.seeds) {
     kills += settleFarming({
-      character: { classId: c, level: FARM_JOB.level, xp: 0 },
+      character: { classId: c, level: job.level, xp: 0 },
       equipment: items,
-      areaId: 'sunkenAbbey',
+      areaId: job.areaId,
       seed,
       firstCycle: 0,
-      durationMs: FARM_JOB.minutes * 60_000,
+      durationMs: job.minutes * 60_000,
       inventoryCount: 0,
     }).kills;
   }
-  return kills / (FARM_JOB.minutes * FARM_JOB.seeds.length);
+  return kills / (job.minutes * job.seeds.length);
 }
 
 export interface Scored {

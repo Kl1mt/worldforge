@@ -75,6 +75,11 @@ export interface LootTableDefinition {
    */
   affixTierBias?: number;
   /**
+   * Ticket 4.8: multiplies the kill gold rolled here (after the roll, so no extra draw). Default 1.
+   * The Ashen Pass's foes take longer to kill; this keeps its gold per hour above the Abbey's.
+   */
+  goldMultiplier?: number;
+  /**
    * Ticket 3.2: a Mythic rarity roll here picks a named Mythic (`MYTHIC_ITEMS`). Only late-game
    * sources set it; elsewhere a Mythic roll becomes a Legendary.
    */

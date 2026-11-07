@@ -594,10 +594,17 @@ describe('areas & unlocks (ticket 2.2)', () => {
       ['oldBurialGrounds', false],
       ['blackwater', false],
       ['sunkenAbbey', false],
+      ['ashenPass', false],
     ]);
     expect(w.areas[4]!.blockers).toEqual([
       { kind: 'level', required: 17 },
       { kind: 'gravewardenDefeated' },
+    ]);
+    // Ticket 4.8: closed for everyone until the community clears the pass.
+    expect(w.areas[5]!.blockers).toEqual([
+      { kind: 'level', required: 24 },
+      { kind: 'gravewardenDefeated' },
+      { kind: 'worldFlag', flag: 'ashenPassCleared' },
     ]);
     expect(w.dungeons).toEqual([
       {
@@ -605,6 +612,16 @@ describe('areas & unlocks (ticket 2.2)', () => {
         unlocked: false,
         available: true,
         blockers: [{ kind: 'level', required: 12 }],
+      },
+      {
+        id: 'ashenWatch',
+        unlocked: false,
+        available: true,
+        blockers: [
+          { kind: 'level', required: 26 },
+          { kind: 'gravewardenDefeated' },
+          { kind: 'worldFlag', flag: 'ashenPassCleared' },
+        ],
       },
     ]);
     expect((await call(await newPlayer(), 'GET', `/api/characters/${id}/world`)).statusCode).toBe(

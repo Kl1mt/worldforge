@@ -4,6 +4,8 @@ export const GAME_ROUTES = [
   'map',
   'area',
   'crypt',
+  // Ticket 4.8: the Warden's Watch (the Ashen Pass's boss).
+  'watch',
   'character',
   'inventory',
   'tavern',

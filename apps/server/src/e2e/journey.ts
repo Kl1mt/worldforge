@@ -20,6 +20,8 @@ import {
   equipmentSlotsForKind,
   findItemBase,
   getArea,
+  getDungeonTier,
+  getLootTable,
   type AreaId,
   type ClassId,
   type MaterialId,
@@ -45,6 +47,7 @@ import {
 import type { DatabaseHandle } from '../db/types.js';
 import { setAccountRole } from '../social/roles.js';
 import { reconcileWithAudit } from '../telemetry/report.js';
+import { completeProject } from '../community/project-cli.js';
 
 export const MIN = 60_000;
 export const HOUR = 60 * MIN;
@@ -148,6 +151,8 @@ export async function startJourney(options: JourneyOptions) {
     turnedIn: [] as { kind: string; questId: string; item: ItemView | null }[],
     economy: { bought: false, sold: false, salvaged: false, crafted: false },
     crypt: [] as { tier: number; level: number; outcome: string; bossDefeated: boolean }[],
+    /** Ticket 4.8: runs of the Warden's Watch. */
+    watch: [] as { level: number; outcome: string; bossDefeated: boolean }[],
     abbeyLockedBeforeBoss: false,
     /** Pause the junk sale (Phase 3 lets the pack fill to see drops kept over capacity). */
     tidy: true,
@@ -344,11 +349,12 @@ export async function startJourney(options: JourneyOptions) {
   };
 
   /**
-   * One crypt run: enter (tier 1–3), wait it out on the server clock, settle, claim (and replay the
-   * claim). Returns the claim result.
+   * One dungeon run: enter (the crypt: tier 1–3; ticket 4.8: the Warden's Watch, tier 1), wait it
+   * out on the server clock, settle, claim (and replay the claim). Returns the claim result.
    */
-  const runCrypt = async (tier = 1) => {
-    const start = await api('POST', `${base}/dungeon`, { dungeonId: 'namelessCrypt', tier });
+  const runCrypt = async (tier = 1) => runDungeon('namelessCrypt', tier);
+  const runDungeon = async (dungeonId: 'namelessCrypt' | 'ashenWatch', tier = 1) => {
+    const start = await api('POST', `${base}/dungeon`, { dungeonId, tier });
     expect(start.statusCode, start.body).toBe(201);
     const { run } = start.json<{ run: DungeonRunView }>();
     expect(run.tier).toBe(tier);
@@ -371,12 +377,14 @@ export async function startJourney(options: JourneyOptions) {
     expect(replay.headers['idempotency-replayed']).toBe('true');
     expect(replay.json()).toEqual(claim.json());
     expect((await keyed(`${base}/dungeon/claim`)).statusCode).toBe(409);
-    state.crypt.push({
-      tier,
+    expect(result.dungeonId).toBe(dungeonId);
+    const record = {
       level: state.level,
       outcome: result.outcome,
       bossDefeated: result.bossDefeated,
-    });
+    };
+    if (dungeonId === 'namelessCrypt') state.crypt.push({ tier, ...record });
+    else state.watch.push(record);
     state.level = character.level;
     return result;
   };
@@ -441,6 +449,7 @@ export async function startJourney(options: JourneyOptions) {
     visitTown,
     sellJunk,
     runCrypt,
+    runDungeon,
     resumeFarming,
     playPhase2,
   };
@@ -1252,4 +1261,71 @@ export async function playCommunityStep(database: DatabaseHandle, hero: Journey)
     expect(c, c.check).toMatchObject({ ok: true });
   }
   return { accepted: result.accepted };
+}
+
+/**
+ * Phase 4 Ashen Pass step (ticket 4.8): a hero of level 24+ who has slain the Gravewarden finds the
+ * Ashen Pass sealed (the world map's blocker, and the server refuses to send it there); the owner
+ * finishes the town's two projects with the 4.6 CLI (`completeProject`, the path of a last
+ * contribution: world flag, achievements, audit); the pass opens and the hero farms it (its foes'
+ * loot at its item levels, its materials); from level 26 it climbs the Warden's Watch once (won or
+ * lost), otherwise the Watch shows only its level gate. Everything held reconciles with the audit
+ * log. Running servers see a flag set by the CLI within the world-state TTL; the step invalidates
+ * the cache instead of waiting.
+ */
+export async function playAshenPassStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  hero: Journey,
+  now: Date,
+) {
+  const { api, base, state } = hero;
+  const passView = async () => (await hero.world()).areas.find((a) => a.id === 'ashenPass')!;
+  expect(state.level).toBeGreaterThanOrEqual(getArea('ashenPass').unlock.level);
+  const sealed = await passView();
+  expect(sealed.unlocked).toBe(false);
+  expect(sealed.blockers).toEqual([{ kind: 'worldFlag', flag: 'ashenPassCleared' }]);
+  const refused = await api('POST', `${base}/activity`, { areaId: 'ashenPass' });
+  expect(refused.statusCode).toBe(409);
+  expect(refused.json<{ error: { code: string } }>().error.code).toBe('area_locked');
+
+  expect(await completeProject(database.db, 'restoreWarehouse', now)).toMatch(/completed/);
+  expect(await completeProject(database.db, 'clearAshenPass', now)).toMatch(/completed/);
+  app.worldState.invalidate();
+  expect(await passView()).toEqual({ id: 'ashenPass', unlocked: true, blockers: [] });
+
+  const go = await api('POST', `${base}/activity`, { areaId: 'ashenPass' });
+  expect([200, 201]).toContain(go.statusCode);
+  const table = getLootTable(getArea('ashenPass').lootTableId);
+  let kills = 0;
+  // Two visits: a cycle in progress elsewhere finishes first (area switches, ticket 2.2).
+  for (let i = 0; i < 2; i++) {
+    const { summary, activity } = await hero.settle();
+    expect(activity!.areaId).toBe('ashenPass');
+    kills += summary.kills;
+    for (const item of summary.items) {
+      expect(item.itemLevel).toBeGreaterThanOrEqual(table.itemLevel!.min);
+      expect(item.itemLevel).toBeLessThanOrEqual(table.itemLevel!.max);
+    }
+    for (const id of Object.keys(summary.materials ?? {})) {
+      expect(getArea('ashenPass').materials as readonly string[]).toContain(id);
+    }
+    await hero.equipBetterDrops();
+    await hero.sellJunk(await hero.inventory());
+  }
+  expect(kills).toBeGreaterThan(0);
+  expect(state.areasFarmed.has('ashenPass')).toBe(true);
+
+  const watch = (await hero.world()).dungeons.find((d) => d.id === 'ashenWatch')!;
+  const watchLevel = getDungeonTier('ashenWatch', 1).unlock.level;
+  if (state.level >= watchLevel) {
+    expect(watch.unlocked).toBe(true);
+    await hero.runDungeon('ashenWatch');
+    expect(state.watch).toHaveLength(1);
+    expect((await api('POST', `${base}/activity`, { areaId: 'ashenPass' })).statusCode).toBe(201);
+  } else {
+    expect(watch.blockers).toEqual([{ kind: 'level', required: watchLevel }]);
+  }
+  await expectHoldingsMatchAudit(database, hero.characterId);
+  return { kills, level: state.level, watch: state.watch };
 }

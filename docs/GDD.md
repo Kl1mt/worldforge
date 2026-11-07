@@ -116,6 +116,8 @@ Graumark is an abandoned, gloomy borderland and the initial progression region.
 
 First dungeon: **The Nameless Crypt**. First named boss: **The Gravewarden**. Names and content are working titles.
 
+**Top end (ticket 4.8):** beyond Graumark's areas, **the Ashen Pass** (levels 24–28; ash wraiths, cinder hounds, pyre cultists, ember golems; iron ore and soul shards) is a global unlock (§12.2): closed for everyone until the community clears it. Its boss, **the Ashen Warden**, is fought alone at the top of the Warden's Watch. Details: `docs/WORLD.md`, `docs/DUNGEONS.md`.
+
 ## 5. Characters and Classes
 
 ### 5.1 Character Creation

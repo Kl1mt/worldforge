@@ -92,7 +92,7 @@ export const MATERIALS: readonly MaterialDefinition[] = [
     rarity: 'uncommon',
     source: 'gathering',
     profession: 'mining',
-    areas: ['blackwater', 'sunkenAbbey'],
+    areas: ['blackwater', 'sunkenAbbey', 'ashenPass'],
   },
   {
     id: 'soulShard',
@@ -102,7 +102,7 @@ export const MATERIALS: readonly MaterialDefinition[] = [
     rarity: 'uncommon',
     source: 'undeadDrop',
     profession: null,
-    areas: ['oldBurialGrounds'],
+    areas: ['oldBurialGrounds', 'ashenPass'],
   },
   {
     id: 'abbeySilver',

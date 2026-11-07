@@ -3,7 +3,6 @@ import type { FastifyInstance } from 'fastify';
 import { and, count, desc, eq, gt, isNotNull, isNull, sql } from 'drizzle-orm';
 import {
   DUNGEON_IDS,
-  DUNGEON_TIERS,
   applyXp,
   cryptTierCleared,
   dungeonRunProgress,
@@ -11,6 +10,7 @@ import {
   filteredTotals,
   getDungeon,
   getLootTable,
+  hasDungeonTier,
   isDungeonId,
   isDungeonTier,
   normalizeProfessions,
@@ -25,6 +25,7 @@ import {
   type MaterialId,
   type QuestEvent,
   type UnlockBlocker,
+  type WorldProgress,
 } from '@worldforge/game-core';
 import {
   accounts,
@@ -301,6 +302,12 @@ export function runView(run: DungeonRun, now: Date): DungeonRunView {
   };
 }
 
+/** The deepest tier of a dungeon the character has cleared (ticket 4.8: per dungeon). */
+function tierClearedIn(dungeonId: DungeonId, progress: WorldProgress): number {
+  if (dungeonId === 'namelessCrypt') return cryptTierCleared(progress);
+  return progress.ashenWardenDefeated === true ? 1 : 0;
+}
+
 /** Start of the last run that granted boss loot in this dungeon, if still within the cooldown. */
 async function bossLootReadyAt(
   db: Executor,
@@ -359,12 +366,14 @@ export async function registerDungeons(
     if (!character) throw notFound();
     const now = options.now();
     const open = await openRunOfAccount(app.db, accountId);
+    // Ticket 4.8: world flags open dungeons for everyone (the Warden's Watch).
+    const world = await app.worldState.flags();
     const dungeons: DungeonEntryView[] = [];
     for (const id of DUNGEON_IDS) {
       const tiers = getDungeon(id).tiers.map((t): DungeonTierView => {
         const blockers = dungeonUnlockBlockers(
           id,
-          { level: character.level },
+          { level: character.level, world },
           character.progress,
           t.tier,
         );
@@ -389,7 +398,7 @@ export async function registerDungeons(
         blockers: tiers[0]!.blockers,
         bossLootReadyAt: ready?.toISOString() ?? null,
         tiers,
-        tierCleared: cryptTierCleared(character.progress),
+        tierCleared: tierClearedIn(id, character.progress),
       });
     }
     return {
@@ -424,11 +433,14 @@ export async function registerDungeons(
           fields: { dungeonId: `Choose one of: ${DUNGEON_IDS.join(', ')}.` },
         });
       }
-      if (!isDungeonTier(tier)) {
+      // Ticket 4.8: a tier the dungeon has (the Warden's Watch has only tier I).
+      if (!isDungeonTier(tier) || !hasDungeonTier(dungeonId, tier)) {
+        const tiers = getDungeon(dungeonId).tiers.map((t) => t.tier);
         throw new ApiError(400, 'validation_failed', 'Some fields need attention.', {
-          fields: { tier: `Choose one of: ${DUNGEON_TIERS.join(', ')}.` },
+          fields: { tier: `Choose one of: ${tiers.join(', ')}.` },
         });
       }
+      const world = await app.worldState.flags();
       const result = await withTransaction(app.db, async (tx) => {
         // Same lock order as the activity start: account, then character.
         const [account] = await tx
@@ -476,7 +488,7 @@ export async function registerDungeons(
         const character = await lockOwnedCharacter(tx, accountId, characterId);
         const blockers = dungeonUnlockBlockers(
           dungeonId,
-          { level: character.level },
+          { level: character.level, world },
           character.progress,
           tier,
         );
@@ -649,25 +661,31 @@ export async function registerDungeons(
           await recordQuestEventsTx(tx, characterId, r.questEvents, { acceptedBy: run.startedAt });
 
           const gold = r.goldLooted + r.goldSalvaged + filter.gold;
-          const firstBossKill = r.bossDefeated && !character.progress.gravewardenDefeated;
+          // Ticket 4.8: each dungeon keeps its own boss progress (the crypt's gates the Abbey and
+          // the deeper tiers; the Watch's gates nothing yet).
+          const crypt = run.dungeonId === 'namelessCrypt';
+          const firstBossKill =
+            r.bossDefeated &&
+            !(crypt
+              ? character.progress.gravewardenDefeated
+              : character.progress.ashenWardenDefeated);
           // Ticket 3.6: a boss kill clears the run's tier (the next tier's gate).
-          const clearedBefore = cryptTierCleared(character.progress);
+          const clearedBefore = tierClearedIn(run.dungeonId, character.progress);
           const firstTierClear = r.bossDefeated && run.tier > clearedBefore;
+          const progress: WorldProgress = crypt
+            ? {
+                ...character.progress,
+                gravewardenDefeated: true,
+                cryptTierCleared: Math.max(clearedBefore, run.tier),
+              }
+            : { ...character.progress, ashenWardenDefeated: true };
           const [written] = await tx
             .update(characters)
             .set({
               level,
               experience: xp,
               gold: sql`${characters.gold} + ${gold}`,
-              ...(r.bossDefeated
-                ? {
-                    progress: {
-                      ...character.progress,
-                      gravewardenDefeated: true,
-                      cryptTierCleared: Math.max(clearedBefore, run.tier),
-                    },
-                  }
-                : {}),
+              ...(r.bossDefeated ? { progress } : {}),
               version: sql`${characters.version} + 1`,
               updatedAt: now,
             })
@@ -680,7 +698,9 @@ export async function registerDungeons(
             [
               'maxRarity',
               'maxCharacterLevel',
-              ...(r.bossDefeated ? (['gravewardenDefeated', 'cryptTierCleared'] as const) : []),
+              ...(r.bossDefeated && crypt
+                ? (['gravewardenDefeated', 'cryptTierCleared'] as const)
+                : []),
             ],
             now,
           );

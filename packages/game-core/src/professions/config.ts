@@ -83,5 +83,10 @@ export const DEFAULT_PROFESSION_CONFIG: ProfessionConfig = {
       ],
       undeadDrops: [],
     },
+    // Ticket 4.8: the upgrade materials of the +10 track (iron ore; soul shards from the wraiths).
+    ashenPass: {
+      yields: [{ materialId: 'ironOre', chance: 0.06 }],
+      undeadDrops: [{ materialId: 'soulShard', chance: 0.03 }],
+    },
   },
 };

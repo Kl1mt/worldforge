@@ -58,6 +58,15 @@ export const CRYPT_LOOT_FOCI = {
   },
 } as const satisfies Record<1 | 2 | 3, LootFocus>;
 
+/** Ticket 4.8: the loot focus of the Ashen Warden's hoard (docs/DUNGEONS.md, "The Warden's Watch"). */
+export const ASHEN_WARDEN_FOCUS = {
+  id: 'ashen-warden',
+  name: 'The Warden’s armoury',
+  description: 'Weapons and off-hands drop three times as often.',
+  slots: ['weapon', 'offhand'],
+  slotWeight: 3,
+} as const satisfies LootFocus;
+
 /**
  * Loot tables of the Phase 2 areas and dungeon (ticket 2.1). Higher areas shift the weight to
  * higher tiers; each base is still gated by its `minItemLevel`. The item-level range is the
@@ -142,6 +151,22 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
     entries: tierEntries({ 3: 1 }),
     focus: CRYPT_LOOT_FOCI[3],
   },
+  // Ticket 4.8: the Ashen Pass (levels 24–28). Tier-3 bases only, at item levels above every other
+  // source (23–29: tier-4 affixes unlock at 25), with the crypt II chambers' affix bias. Legendary,
+  // set, Mythic and Void odds are the Abbey's: the Pass pays in item level, affix depth and gold
+  // (× 1.6 per kill: its foes take longer to kill, so a kill pays more).
+  {
+    id: 'ashenPass',
+    affixTierBias: 0.8,
+    goldMultiplier: 1.6,
+    mythics: true,
+    setShare: SET_SHARE,
+    legendaryWeight: LEGENDARY_WEIGHT,
+    voidChance: VOID_CHANCE,
+    itemDropChance: 0.06,
+    itemLevel: { min: 23, max: 29 },
+    entries: tierEntries({ 3: 1 }),
+  },
 ];
 
 const BOSS_EXCLUSIVE: readonly LootTableEntry[] = [
@@ -191,5 +216,19 @@ export const BOSS_LOOT_TABLES: readonly LootTableDefinition[] = [
     itemLevel: { min: 23, max: 25 },
     entries: [...tierEntries({ 3: 1 }), ...BOSS_EXCLUSIVE],
     focus: CRYPT_LOOT_FOCI[3],
+  },
+  // Ticket 4.8: the Ashen Warden's hoard (the Warden's Watch). Tier-3 bases at the top item levels
+  // (27–29), the best affix bias, and its armoury as the loot focus: weapons and off-hands.
+  {
+    id: 'ashenWarden',
+    affixTierBias: 1.4,
+    mythics: true,
+    setShare: SET_SHARE,
+    legendaryWeight: LEGENDARY_WEIGHT,
+    voidChance: VOID_CHANCE,
+    itemDropChance: 1,
+    itemLevel: { min: 27, max: 29 },
+    entries: tierEntries({ 3: 1 }),
+    focus: ASHEN_WARDEN_FOCUS,
   },
 ];

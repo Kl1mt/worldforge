@@ -137,6 +137,24 @@ Every top boss build of every class carries Tyrant's Bane, Emberbrand and crit c
 
 **The ticket's suspects.** *Ambush* (the strongest farming Legendary) works through the same one-shot breakpoint as the Bloodmoon opener: a levelling advantage that ends at the farming cap; at the boss it is not in the hunter's top builds. *The hunter's perfect Legendary build* stacked Unbroken; with copies counting once, Legendaries alone are not among the hunter's top boss builds, but on the tier I boss with a common kit the six-Legendary build stays × 1.46 faster than the best set build (was × 1.28; `balance.test.ts` records it). *Crit-dependent effects* (Mana Surge, Emberbrand, Starfall, Ashen Choir 2/4), evaluated with crit kits, are strong, not weak: Emberbrand is in every top boss build, Mana Surge in every mage one, the Choir in most. *Mage kits in tier III* were the slowest with farmed gear (with best-in-slot builds the warlock was): fixed for both casters with the tier II/III Gravewarden's lower resistance.
 
+## The top end (ticket 4.8)
+The Phase 3 retrospective: content ended at 24 while heroes reached 22–28, and past ~22 every late-game build one-shot the Abbey, so kills per minute were capped near 23–24 (the 2 s search) whatever the build. The Ashen Pass (levels 24–28, `docs/WORLD.md`) answers it: its foes have about twice the health per level of the Abbey's at similar damage, tuned against Phase 3 gear (rares +5 farm it at 7–9 kills a minute with no deaths; commons fall 35–50 times an hour), so the late-game builds need several blows again.
+
+The B.2 build search (`builds.test.ts`, the same 48 builds per class: 12 set layouts × 4 affix packages, greedy Legendary effects) on the Abbey at 19 (item level 18) and on the Pass at 26 (item level 25), kills per minute:
+
+| Class | Abbey 19: best · builds within 7 % | Pass 26: best · builds within 7 % | Rares +5 at the Pass |
+|---|---|---|---|
+| Warrior | 23.4 (at the cap) · 12 | 20.9 · 7 | 7.4 |
+| Mage | 22.8 · 12 | 18.6 · 7 | 8.6 |
+| Hunter | 23.8 · 42 (all layouts tie) | 21.8 · 29 | 9.1 |
+| Warlock | 23.0 · 10 | 18.7 · 5 | 7.0 |
+
+**Asserted** (Pass job, 2 × 20 min per build): every class's best build stays below 0.95 × its Abbey best (off the cap), fewer builds tie within 7 % than at the Abbey (< 0.8 ×), the best still makes > 15 kills a minute, and the B.2 diversity rules hold (three distinct builds within 7 % from two layouts; the farming set may be in all, as at the Abbey). The Bloodmoon Hunt's opener still leads the farming builds of three classes; the hunter's Ambush build is still the closest to the cap (its first-hit bonus), but no longer ties with almost everything. A Legendary +10 kit kills 1.25–2 × as fast as rares +5 there (`balance.test.ts`). A **third job**, the Ashen Warden at 28 (item level 27), joins the boss diversity check: several distinct builds within 7 % per class, no set in all, and every class's best build needs longer than at the tier III Gravewarden.
+
+**Crypt tier III** (`docs/DUNGEONS.md` "Tier III against upgraded gear"): the boss's damage × 1.5 → × 2.4, so upgraded epics (3.9's "upgraded Abbey gear") have a chance at the entry instead of a certainty; Legendary and best-in-slot kits are unchanged.
+
+**Existing players.** Nothing else changes for them: every Graumark area, crypt tiers I and II, loot rolls and the merchant's stock are bit-identical (hashes compared with `main`; the B.1/B.2 bands now name Graumark's areas, `GRAUMARK`, and pass unchanged). The Pass and the Watch stay closed until the community sets `ashenPassCleared`.
+
 ## Open points
 - Balance is tuned (ticket B.1, above) against simulations; the owner's playtest feedback may still move it. Keep `src/balance/balance.test.ts` green when adding content.
 - Item stats are only an input; the loot module (ticket 1.5) produces them.
