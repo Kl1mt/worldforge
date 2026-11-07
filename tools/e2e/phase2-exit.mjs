@@ -330,14 +330,25 @@ async function main() {
       await page.getByText(/^Sold /).waitFor();
       done.sell = true;
       const buy = page.getByRole('button', { name: /^Buy / });
-      await buy.first().waitFor();
-      for (let i = 0; i < (await buy.count()) && state.gold >= 200; i++) {
-        if (await buy.nth(i).isEnabled()) {
-          await buy.nth(i).click();
-          await page.getByText(/^Bought /).waitFor();
-          done.buy = true;
-          await shoot(page, DESKTOP, 'exit-merchant');
-          break;
+      // The e2e clock runs fast (a game day is about a minute), so the merchant can restock
+      // between loading the wares and the click; the server then refuses the stale offer and
+      // the page refreshes the wares. That is correct behaviour: just try the fresh wares.
+      for (let attempt = 0; attempt < 3 && !done.buy; attempt++) {
+        await buy.first().waitFor();
+        for (let i = 0; i < (await buy.count()) && state.gold >= 200; i++) {
+          if (await buy.nth(i).isEnabled()) {
+            await buy.nth(i).click();
+            const bought = page.getByText(/^Bought /);
+            const restocked = page.getByText(/merchant has restocked/i);
+            await bought.or(restocked).first().waitFor();
+            if (await bought.isVisible()) {
+              done.buy = true;
+              await shoot(page, DESKTOP, 'exit-merchant');
+            } else {
+              log('Merchant restocked during the purchase; trying the fresh wares');
+            }
+            break;
+          }
         }
       }
     }
