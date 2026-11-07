@@ -27,7 +27,7 @@ Code: game-core `economy/warehouse.ts` (capacity, upgrades, the move plan, `WARE
 | 5 | 105 | 30,000 |
 | 6 | 120 | 50,000 |
 
-106,500 gold in all: the first step is about three hours of early farming gold, the last ones are late-game sinks next to the forge's +5 → +10 (`docs/ECONOMY.md`). Data for B.3 to tune.
+106,500 gold in all: the first step is about three hours of early farming gold, the last ones are late-game sinks next to the forge's +5 → +10 (`docs/ECONOMY.md`). Measured in B.3 and kept: a top hero stores ≤ 24 keepsakes a week, so the upgrades are bought over weeks (`docs/ECONOMY.md` "Balance pass: top end & social economy").
 
 - **An upgrade** is a value operation: `Idempotency-Key` required, the body names the level the client saw (`{ level }`; another stored level is `409 level_changed`, so a double click with a fresh key never buys twice), the hero settles first (gold earned offline counts), `422 insufficient_gold`, `409 warehouse_max_level`. Gold leaves under the character lock (`gold >= 0` check as the backstop) and the level moves only from the level checked (`where warehouse_level = <read>`). Audited `warehouse.upgrade` (from, to, capacity, gold, gold after); telemetry `warehouse.upgrade` and `gold.out warehouse_upgrade`.
 - **Audit and telemetry of moves.** Each move that changes something writes `warehouse.deposit` / `warehouse.withdraw` (the moved items: id, base, rarity, level, locked; the stored and packed counts after) and telemetry `warehouse.move` (`dim1` the direction, `amount` the items). `reconcileWithAudit` compares items deposited, withdrawn, upgrades and upgrade gold with the rollups. Moves don't change what a character owns, so `expectHoldingsMatchAudit` (e2e) counts every row, stored or not.

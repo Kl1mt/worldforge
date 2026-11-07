@@ -132,7 +132,7 @@ Upgrades move the cliff like the boss effects do: a +7 kit of commons (≈ 9 × 
 - The crypt run snapshot stores each worn item's `upgradeLevel` (older snapshots replay at +0).
 
 ## Community projects (ticket 4.6)
-A shared sink: the two projects take 114,000 gold and ~2,400 materials in all, at most 20 % of each stage's need per player and day (`docs/COMMUNITY.md` "Numbers"). Telemetry: `gold.out community_project`, `material.out community_project`.
+A shared sink: the two projects take 114,000 gold and ~2,150 materials in all (B.3 trimmed the Warehouse's materials), at most 20 % of each stage's need per player on its first day, growing 20 points a day to 60 % (B.3) (`docs/COMMUNITY.md` "Numbers"). Telemetry: `gold.out community_project`, `material.out community_project`.
 
 ## The Warehouse (ticket 4.7)
 A gold sink with a use: six upgrades from 30 to 120 shelves cost 1,000 · 3,000 · 7,500 · 15,000 · 30,000 · 50,000 gold (106,500 in all, `docs/WAREHOUSE.md`). Stored items are never sold or salvaged until moved back; they keep their sell and salvage prices. Telemetry: `gold.out warehouse_upgrade`.
@@ -169,3 +169,44 @@ How to reproduce: `pnpm --filter @worldforge/server telemetry:simulate -- --days
 
 ## The top end (ticket 4.8)
 The Ashen Pass (`docs/WORLD.md`) pays more per hour than the Abbey's top for the gear that farms it: rares +5 earn 900–1,260 kill gold an hour at 24 (Abbey 22, same kit: 790–1,020), Legendary +10 kits 2,100–2,850 at 26. Its kills are slower (7–9 a minute), so its loot table multiplies kill gold by 1.6 (`goldMultiplier`; no other table is touched). It yields the upgrade track's materials: 27–36 iron ore and 3–5 soul shards an hour (the wraiths are undead), so the Pass feeds the +8 → +10 soul-shard step that bound Abbey farmers in B.2. The Ashen Warden's purse is 700–1,000 gold per hoard (20 h cooldown). Its merchant stock (item level 26) costs about 12 minutes (common) and 25 minutes (uncommon) of its kill gold. Forge costs are unchanged; B.3 measures the new income against the sinks with the realistic player.
+
+## Balance pass: top end & social economy (ticket B.3)
+The owner's playtest feedback had not arrived (`docs/PLAYTEST_FEEDBACK.md` is still the template), so B.3 balances on simulations and telemetry. Top end: `docs/COMBAT.md` "The top end, checked" and `docs/DUNGEONS.md` "Tier III is the Legendary tier"; projects: `docs/COMMUNITY.md` "How long a stage takes"; guild boss: `docs/GUILD_BOSS.md` "Ticket B.3".
+
+**Measuring the Phase 4 economy.** `telemetry:simulate`'s realistic player now plays the new sinks and sources (`docs/TELEMETRY.md`): it moves up areas and crypt tiers as it levels, gives a daily share to the community projects (which open the Warehouse, the Ashen Pass and the Warden's Watch through the real API), stores keepsakes and buys shelves, founds or joins one of two guilds (4 and 20 members) and fights the guild boss three times a week, and farms the Pass and runs the Watch once open. 28 heroes (7 profiles × 4 classes, levels 1–25 at the start), 7 game days, the same simulator on `main` (before) and on this branch (after). Both runs reconcile with the audit log (all 70 checks).
+
+| 7 game days, 28 heroes, ~3,100 farming hours | Before B.3 (main) | After B.3 |
+| --- | --- | --- |
+| Gold in · out · sunk | 6.11M · 5.23M · 86 % | 6.21M · 5.11M · 82 % |
+| Farming hours (gold/h) at the Ashen Pass · Abbey · Blackwater | 2,018 h (2,007) · 643 h (1,417) · 249 h (941) | 2,013 h (2,043) · 645 h (1,430) · 249 h (943) |
+| Forge upgrades (sink share) | 5.10M (97.4 %) | 4.98M (97.4 %) |
+| Community projects · guild founding · warehouse upgrades | 114,000 · 10,000 · 0 | 114,000 · 10,000 · 0 |
+| Guild boss rewards (gold in) | 27,600 (0.45 %) | 27,600 (0.44 %) |
+| Both projects done · the Pass reached by its first hero | day 2 · day 2 | day 2 · day 2 |
+| Guild boss: small (4) · large (20) guild | stage 2 · stage 3 | stage 2 · stage 3 |
+| Heroes with a whole kit at +10 · median gold left | 7 of 28 · 29.6k | 9 of 28 · 21.5k |
+| Keepsakes stored in warehouses (most by one hero) | 427 (24) | 383 (24) |
+
+The two columns differ only by seed noise: with 28 accounts every project stage closes on its first day and both guilds clear their stages either way, so B.3's changes (the growing cap, the trimmed Warehouse needs, guild boss stage 2) don't bind; they matter for small towns and small guilds, which the timeline model and the guild-boss table measure.
+
+**Reading.**
+- **The social sinks are small next to the Forge.** Projects (a one-off 114,000 gold for the whole town), guild founding (5,000 per guild, ~2–3 h of mid-game income) and the guild boss's rewards (≤ 3,050 a week each) together move under 3 % of the gold. The Forge stays the economy's sink (97 % of gold out).
+- **The Ashen Pass's × 1.6 kill gold** makes it the best gold an hour (≈ 2,000 against the Abbey's ≈ 1,400 at the same kits), as 4.8 intended: about a third more for the players who reached it, and it also yields the +8 → +10 materials. Kept.
+- **"The sink works without a grind wall" still holds at the Pass.** A whole kit +0 → +10 at item level 27 costs about 1.3 × the Abbey's (the cost scales with `(itemLevel + 5) / 25`): ≈ 300k gold, ≈ 140 h of realistic Pass income, inside B.2's 90–220 h band. 7–9 of 28 heroes finished a whole +10 kit in the week (all of them heroes that started at 21–25; B.2's week had 2 of 24 without the Pass); the median hero still has upgrades to buy. The heroes with 70k–150k gold left are B.2's accepted material gate (old tier-2 pieces that need raw hide and timber while they farm the Pass, where neither drops), not a missing sink. No Forge number changed.
+- **The warehouse upgrades were not bought in the week.** A top hero stores ≤ 24 keepsakes in seven days, under the 30 free shelves, so the first upgrade (1,000) comes in week 2 and 120 shelves after roughly 5–8 weeks. The 106,500 gold in all is ≈ 3–4 days of Pass income or ≈ 6 days of Blackwater income, spread over those weeks: a sink with a use, not a wall. **Kept as is** (4.7's "untuned" prices are now measured).
+- **Materials are plentiful** at the top (≈ 265k iron ore, 26k soul shards, 6k Abbey silver net in the week): the projects' material needs are a small-town problem, not an economy one, which is why the Warehouse's were trimmed (`docs/COMMUNITY.md`).
+
+| Social sink or source (B.3) | Before | After | Why |
+| --- | --- | --- | --- |
+| Project cap per player and day | 20 % of each need | 20 % on a stage's first day, + 20 points a day it stands, ≤ 60 % | small towns not held 5 days a stage; five players still needed on day one |
+| Warehouse needs | timber 400 · 300, raw hide 300, iron ore 250 | 250 · 200, 200, 200 (gold unchanged) | the solo / tiny-town time was material-bound |
+| Ashen Pass needs | — | unchanged | |
+| Guild boss stage 2 | 120,000 | 100,000 | 3–5 late-game heroes break it weekly; one capped hero still can't |
+| Guild boss cap, other stages, rewards | 30,000; 18k / 400k / 1M / 2.2M; ≤ 3,050 gold a week | unchanged | measured, fit |
+| Guild founding | 5,000 | unchanged | ~2–3 h of mid-game income |
+| Warehouse upgrades | 1,000 … 50,000 (106,500) | unchanged | used over weeks, not a wall |
+| Ashen Pass kill gold | × 1.6 | unchanged | best gold an hour at the top, as intended |
+
+**Input for trading (`docs/TRADING.md`, a later phase).** When trading opens, gold will flow between players whose incomes differ by × 5–6 (Fields ≈ 350/h against the Pass ≈ 2,000/h), and high-level players end weeks with 20k–150k spare gold and large material surpluses (iron ore, soul shards). Price limits, listing fees or a trade tax should be sized against that; the material surplus means material trades will be cheap, so they're no RMT lever. The project caps and the guild boss rewards are per account and need no change for trading (gifts to projects are not tradeable). Re-run this simulation with trading included when it's built.
+
+How to reproduce: `pnpm --filter @worldforge/server telemetry:simulate -- --days 7` (about 9 minutes, `--social off` for B.2's player), `PLAYTEST_DATA_DIR=.telemetry-sample pnpm report:telemetry`, and `tools/balance/sim-state.ts` for the end state of each hero.
