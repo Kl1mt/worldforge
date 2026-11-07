@@ -5,12 +5,14 @@ import { RARITY_IDS } from '../rarity.js';
 import { AREA_IDS, isAreaId } from '../world/areas.js';
 import { getEnemy, isEnemyId } from '../world/enemies.js';
 import { isMaterialId } from '../world/materials.js';
+import { worldFlagsFrom } from '../world/projects.js';
 import {
   CONTRACTS_PER_DAY,
   CONTRACT_TEMPLATES,
   STORY_QUESTS,
   STORY_QUEST_IDS,
   applyQuestEvents,
+  contractAreaBlockers,
   contractDay,
   contractReward,
   dailyContracts,
@@ -340,5 +342,82 @@ describe('targeted contract rewards (ticket 3.6)', () => {
     const id = '0190f5d2-7c1e-7a3b-9d4e-5f6a7b8c9d0e';
     expect(targetedRewardSeed(id)).toBe(targetedRewardSeed(id));
     expect(targetedRewardSeed(id)).not.toBe(targetedRewardSeed(`${id.slice(0, -1)}f`));
+  });
+});
+
+describe('Ashen Pass contracts (ticket F.1)', () => {
+  const pass = CONTRACT_TEMPLATES.filter((t) => t.areaId === 'ashenPass');
+  const passIds = new Set(pass.map((t) => t.id));
+  const open = worldFlagsFrom(['warehouseRestored', 'ashenPassCleared']);
+  const closed = worldFlagsFrom(['warehouseRestored']);
+  const slayer = { gravewardenDefeated: true };
+  const days = Array.from({ length: 60 }, (_, i) =>
+    contractDay(new Date(Date.UTC(2026, 10, 1 + i))),
+  );
+  const ids = ['char-1', 'char-2', '0190f0aa-0000-7000-8000-000000000001', 'hero-x'];
+  const hasPass = (offers: { template: { id: string } }[]) =>
+    offers.some((o) => passIds.has(o.template.id));
+
+  it('the Pass has contract templates, all for its own foes', () => {
+    expect(pass.length).toBeGreaterThan(0);
+    for (const t of pass) expect(t.objective.kind).toBe('kill');
+  });
+
+  it('never offers them while the flag is closed or the hero is under the level', () => {
+    for (const id of ids) {
+      for (const day of days) {
+        for (const level of [17, 23, 24, 28, 35]) {
+          expect(hasPass(dailyContracts(id, day, level, slayer))).toBe(false);
+          expect(hasPass(dailyContracts(id, day, level, slayer, closed))).toBe(false);
+        }
+        expect(hasPass(dailyContracts(id, day, 23, slayer, open))).toBe(false);
+        // The Pass's own rule also needs the Gravewarden, as on the map.
+        expect(hasPass(dailyContracts(id, day, 30, { gravewardenDefeated: false }, open))).toBe(
+          false,
+        );
+      }
+    }
+  });
+
+  it('offers them, deterministically, once flag and level both hold', () => {
+    for (const id of ids) {
+      const offered = days.filter((day) => hasPass(dailyContracts(id, day, 24, slayer, open)));
+      // Pass contracts weigh most; they come up on most days (not on a single lucky one).
+      expect(offered.length).toBeGreaterThan(days.length / 2);
+      for (const day of days) {
+        expect(dailyContracts(id, day, 24, slayer, open)).toEqual(
+          dailyContracts(id, day, 24, slayer, open),
+        );
+      }
+    }
+  });
+
+  it('leaves the offers of every hero who cannot reach the Pass unchanged', () => {
+    for (const id of ids) {
+      for (const day of days) {
+        for (const level of [1, 5, 9, 13, 17, 20, 23]) {
+          const before = dailyContracts(id, day, level, slayer);
+          expect(dailyContracts(id, day, level, slayer, open)).toEqual(before);
+          expect(dailyContracts(id, day, level, slayer, closed)).toEqual(before);
+        }
+        const noBoss = dailyContracts(id, day, 30, { gravewardenDefeated: false });
+        expect(dailyContracts(id, day, 30, { gravewardenDefeated: false }, open)).toEqual(noBoss);
+      }
+    }
+  });
+
+  it('contractAreaBlockers uses the map rules', () => {
+    const t = pass[0]!;
+    expect(contractAreaBlockers(t, 24, slayer, open)).toEqual([]);
+    expect(contractAreaBlockers(t, 24, slayer, closed)).toEqual([
+      { kind: 'worldFlag', flag: 'ashenPassCleared' },
+    ]);
+    expect(contractAreaBlockers(t, 24, slayer)).toEqual([
+      { kind: 'worldFlag', flag: 'ashenPassCleared' },
+    ]);
+    expect(contractAreaBlockers(t, 23, slayer, open)).toEqual([{ kind: 'level', required: 24 }]);
+    expect(contractAreaBlockers(findContractTemplate('slay.risenFarmhand')!, 1, slayer)).toEqual(
+      [],
+    );
   });
 });

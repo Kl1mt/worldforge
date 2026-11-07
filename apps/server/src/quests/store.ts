@@ -7,9 +7,11 @@ import {
   STORY_QUEST_IDS,
   applyQuestEvents,
   applyXp,
+  contractAreaBlockers,
   contractDay,
   contractReward,
   dailyContracts,
+  findContractTemplate,
   generateItem,
   generateTargetedItem,
   getStoryQuest,
@@ -29,6 +31,7 @@ import {
   type QuestReward,
   type StoryBlocker,
   type StoryQuestId,
+  type WorldFlags,
   type WorldProgress,
 } from '@worldforge/game-core';
 import {
@@ -179,10 +182,15 @@ interface BoardCharacter {
   progress: WorldProgress;
 }
 
+/**
+ * The Tavern board. `world` (ticket F.1): the server's world flags (`app.worldState.flags()`), so
+ * contracts for an area behind a world flag (the Ashen Pass) are offered once the hero can enter it.
+ */
 export async function questBoard(
   db: Db,
   character: BoardCharacter,
   now: Date,
+  world: WorldFlags,
 ): Promise<QuestBoardResponse> {
   const rows = await db
     .select()
@@ -199,7 +207,7 @@ export async function questBoard(
   const takenSlots = new Set(
     rows.filter((r) => r.kind === 'contract' && r.contractDay === day).map((r) => r.contractSlot),
   );
-  const offers = dailyContracts(character.id, day, character.level, character.progress);
+  const offers = dailyContracts(character.id, day, character.level, character.progress, world);
   return {
     characterId: character.id,
     day,
@@ -251,6 +259,7 @@ export async function acceptQuestTx(
   character: Character,
   request: AcceptRequest,
   now: Date,
+  world: WorldFlags,
 ): Promise<CharacterQuest> {
   const rows = await tx
     .select()
@@ -296,10 +305,26 @@ export async function acceptQuestTx(
     };
   } else {
     const day = contractDay(now);
-    const offer = dailyContracts(character.id, day, character.level, character.progress).find(
-      (o) => o.slot === request.slot,
-    );
+    const offer = dailyContracts(
+      character.id,
+      day,
+      character.level,
+      character.progress,
+      world,
+    ).find((o) => o.slot === request.slot);
     if (!offer) throw new ApiError(404, 'not_found', 'No such contract.');
+    // Ticket F.1: the board only offers reachable areas; checked again here, by the map's rules.
+    const blockers = contractAreaBlockers(
+      offer.template,
+      character.level,
+      character.progress,
+      world,
+    );
+    if (blockers.length > 0) {
+      throw new ApiError(422, 'contract_area_locked', 'You cannot reach this contract’s area.', {
+        blockers,
+      });
+    }
     if (
       rows.some(
         (r) => r.kind === 'contract' && r.contractDay === day && r.contractSlot === offer.slot,
@@ -389,7 +414,7 @@ export async function turnInQuestTx(
   tx: Transaction,
   character: Character,
   questRowId: string,
-  { inventoryCapacity, now }: { inventoryCapacity: number; now: Date },
+  { inventoryCapacity, now, world }: { inventoryCapacity: number; now: Date; world: WorldFlags },
 ): Promise<TurnInOutcome> {
   const [quest] = await tx
     .select()
@@ -402,6 +427,16 @@ export async function turnInQuestTx(
   }
   if (!isQuestComplete(quest.objectives, quest.progress)) {
     throw new ApiError(422, 'quest_incomplete', 'The quest is not complete yet.');
+  }
+  // Ticket F.1: a contract for an area the hero cannot reach (a world flag closed again) waits.
+  const template = quest.kind === 'contract' ? findContractTemplate(quest.questId) : undefined;
+  if (template) {
+    const blockers = contractAreaBlockers(template, character.level, character.progress, world);
+    if (blockers.length > 0) {
+      throw new ApiError(422, 'contract_area_locked', 'You cannot reach this contract’s area.', {
+        blockers,
+      });
+    }
   }
   const { reward } = quest;
 

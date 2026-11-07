@@ -83,7 +83,7 @@ export async function registerQuests(
         )
         .limit(1);
       if (!character) throw characterNotFound();
-      return questBoard(app.db, character, activity.now());
+      return questBoard(app.db, character, activity.now(), await app.worldState.flags());
     },
   );
 
@@ -124,11 +124,12 @@ export async function registerQuests(
           'Send { kind: "story", questId } or { kind: "contract", slot, rewardSlot? }.',
         );
       }
+      const world = await app.worldState.flags();
       const board = await withTransaction(app.db, async (tx) => {
         const now = activity.now();
         const character = await lockAndSettle(tx, accountId, request.params.characterId, activity);
-        await acceptQuestTx(tx, character, accept, now);
-        return questBoard(tx, character, now);
+        await acceptQuestTx(tx, character, accept, now, world);
+        return questBoard(tx, character, now, world);
       });
       return reply.code(201).send(board);
     },
@@ -140,15 +141,17 @@ export async function registerQuests(
     async (request, reply) => {
       const accountId = request.auth!.account.id;
       const { characterId, questId } = request.params;
+      const world = await app.worldState.flags();
       return idempotentTransaction(app, request, reply, { now: activity.now }, async (tx) => {
         const now = activity.now();
         const character = await lockAndSettle(tx, accountId, characterId, activity);
         const outcome = await turnInQuestTx(tx, character, questId, {
           inventoryCapacity: activity.rules.inventory.capacity,
           now,
+          world,
         });
         return {
-          quests: await questBoard(tx, outcome.character, now),
+          quests: await questBoard(tx, outcome.character, now, world),
           character: characterView(outcome.character),
           reward: outcome.reward,
         };

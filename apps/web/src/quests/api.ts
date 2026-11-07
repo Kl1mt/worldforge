@@ -107,6 +107,8 @@ export function describeQuestFailure(error: Pick<ApiFailure, 'code'>): string {
       return 'That reward is not offered for this contract. The board has been refreshed.';
     case 'quest_incomplete':
       return 'The work is not done yet.';
+    case 'contract_area_locked':
+      return 'The road to that contract is closed to you. It waits until you can reach the area.';
     case 'quest_already_turned_in':
       return 'You were already paid for that one.';
     case 'inventory_full':
