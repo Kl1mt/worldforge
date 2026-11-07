@@ -98,6 +98,20 @@ The rest of Graumark (Phase 2; it takes about 30 hours of farming at real time t
 
 To see step 6 and the later steps without waiting hours, use fast time (next section).
 
+The social town (Phase 4; play it with a second browser or a private window as a second player):
+
+12. **Profiles and achievements.** Your profile (`#/profile`): choose who sees it and which achievements to show; find other players by name.
+13. **Friends.** Add a friend by display name, accept in the other window, see each other's presence (a bucket such as "online now", never a time); try blocking.
+14. **A guild.** The Guild Hall in the town: founding costs 5,000 gold from one hero; invite the other window's player, write in the chronicle (chat), pin a notice, and face the weekly guild boss (heroes from level 10).
+15. **Town works.** The project board in the town: give gold and materials to *Restore the Graumark Warehouse* (each player may give a share a day). When it is done the **Warehouse** opens; the second project opens the **Ashen Pass** (level 24 and the Gravewarden) and its boss run, the Warden's Watch.
+16. **Reports and moderation.** Report a name or a chat line; as a moderator or admin (below) handle it in the moderator queue (`#/moderation`) and see the admin panel (`#/admin`, footer link).
+
+**Make yourself admin or moderator, or finish the town's projects without waiting.** These are the owner's commands; they work on the playtest database while the game is stopped (it allows one program at a time):
+1. Register in the game, then stop it (Ctrl+C).
+2. Run, with the email you registered: `pnpm admin:role grant me@test.local admin` (or `moderator`; `pnpm admin:role revoke me@test.local` undoes it).
+3. To open the Warehouse or the Ashen Pass at once: `pnpm admin:project status` shows the projects; `pnpm admin:project complete restoreWarehouse`, then `pnpm admin:project complete clearAshenPass` (one after the other: the second opens only after the first; this cannot be undone except by starting over, section 6).
+4. Start the game again with `pnpm playtest`. Reload the page: the footer shows the moderator queue and, for an admin, the admin panel.
+
 ---
 
 ## 4. Fast time (see offline progress in minutes)
@@ -185,4 +199,5 @@ Fill in [`docs/PLAYTEST_FEEDBACK.md`](PLAYTEST_FEEDBACK.md) as you play (make a 
 - `serve.ts` is the real `buildApp()` on PGlite persisted to `PLAYTEST_DATA_DIR` (default `.playtest-data/`, git-ignored), migrated on every start. Like the e2e server it is excluded from the production build and refuses `NODE_ENV=production`. Auth, validation, rate limits and game rules are unchanged. Differences: `SESSION_COOKIE_SECURE` defaults to `0` (plain http on this machine only; Safari), scheduled settlement every `PLAYTEST_SETTLE_INTERVAL_SECONDS` (default 30), and `PLAYTEST_TIME_SCALE` (default 1).
 - Fast time is a server-side clock (`apps/server/src/playtest/clock.ts`) injected as `activity.now`; its offset from real time is saved in `.playtest-data/clock.json` and floored by the newest game timestamp stored (farming, crypt runs, quests, purchases, items: `playtest/stored-time.ts`, ticket 2.8), so it never runs backwards across restarts, even with a hero in the crypt.
 - A `server.lock` file (pid) prevents two servers from opening the same PGlite files; `pnpm playtest:reset` refuses while that pid runs and only deletes a folder containing playtest files.
+- `pnpm admin:role` and `pnpm admin:project` (ticket 4.11) use `DATABASE_URL` when it is set, else (never in production) this PGlite folder (`PLAYTEST_DATA_DIR`), and refuse while the server's `server.lock` pid runs (`apps/server/src/db/cli-database.ts`). A completion by the CLI is stamped with the real clock, not the fast one.
 - `pnpm run doctor` (`tools/doctor.mjs`) needs no dependencies, so `node tools/doctor.mjs` works before `pnpm install`.

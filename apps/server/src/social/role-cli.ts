@@ -1,8 +1,8 @@
 // `pnpm admin:role <grant|revoke> <email|handle> [moderator|admin]` (ticket 4.1, docs/SOCIAL.md).
-// The only way to change an account role: there is no API path for it. Uses DATABASE_URL.
+// The only way to change an account role: there is no API path for it. Uses DATABASE_URL, else (outside production) the playtest database (ticket 4.11).
 import { isAccountRole } from '@worldforge/game-core';
-import { loadConfig, requireDatabaseUrl } from '../config.js';
-import { createPostgresDatabase } from '../db/client.js';
+import { loadConfig } from '../config.js';
+import { openCliDatabase } from '../db/cli-database.js';
 import { setAccountRole } from './roles.js';
 
 const USAGE = `Usage:
@@ -22,7 +22,14 @@ if (
 }
 
 const config = loadConfig();
-const database = createPostgresDatabase({ url: requireDatabaseUrl(config), poolMax: 1 });
+let cli: Awaited<ReturnType<typeof openCliDatabase>>;
+try {
+  cli = await openCliDatabase(config.databaseUrl);
+} catch (err) {
+  console.error((err as Error).message);
+  process.exit(2);
+}
+const { database } = cli;
 try {
   const change = await setAccountRole(database.db, identifier, role);
   if (!change) {
@@ -37,5 +44,5 @@ try {
   console.error('Role change failed:', err);
   process.exitCode = 1;
 } finally {
-  await database.close();
+  await cli.close();
 }

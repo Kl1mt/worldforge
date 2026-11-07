@@ -923,6 +923,12 @@ export async function registerGuilds(
           // A player who blocks you is answered like an unknown one (a block is never announced).
           if (relation === 'blocked-by-them') refuse(NO_PLAYER);
           const g = guild!;
+          // Ticket 4.11: the guild is its leader's; to a player blocked either way with the leader
+          // it does not exist, so an officer's invite would only sit hidden in their inbox.
+          const leaderId = await guildLeaderId(tx, g.id);
+          if (leaderId && leaderId !== me.id && (await isBlockedEitherWay(tx, leaderId, t.id))) {
+            refuse(NO_PLAYER);
+          }
           if (await membershipOf(tx, t.id)) {
             refuse({
               status: 409,
@@ -1008,6 +1014,9 @@ export async function registerGuilds(
     'guildInviteCancel',
     'cancelInvite',
     async ({ tx, me, guild, them }) => {
+      // Ticket 4.11: like answering a petition, an invite to a player blocked either way is
+      // invisible to this officer (another officer may still withdraw it).
+      if (await isBlockedEitherWay(tx, me.id, them.id)) refuse(NO_INVITE);
       const gone = await tx
         .delete(guildInvites)
         .where(and(eq(guildInvites.guildId, guild.id), eq(guildInvites.accountId, them.id)))

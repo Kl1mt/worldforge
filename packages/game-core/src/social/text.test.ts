@@ -180,3 +180,71 @@ describe('link policy', () => {
     expect(problem('reportNote', 'he posted cheapgold.com')).toBeNull();
   });
 });
+
+describe('ticket 4.11: evasions found in the Phase 4 review', () => {
+  it('folds capital look-alikes of other scripts before lower-casing, and I/l', () => {
+    for (const name of ['ΑDΜΙΝ', 'ΜΟDΕRΑΤΟR', 'ADMlN', 'WorIdforge', 'Ꮪupport']) {
+      expect(problem('displayName', name), name).toBe('reserved');
+    }
+    for (const text of ['ΝIGGER', 'fսck', 'ꜰuck']) {
+      expect(problem('chatMessage', text), text).toBe('blocked');
+    }
+    for (const name of ['Lily', 'Illidan', 'Allison', 'Wanderer', 'Wanda Rer']) {
+      expect(validatePlayerText('displayName', name).ok, name).toBe(true);
+    }
+    for (const text of ['Hello all', 'I love lilies', 'Silly little lad']) {
+      expect(validatePlayerText('chatMessage', text).ok, text).toBe(true);
+    }
+  });
+
+  it("reserves the server's placeholder names", () => {
+    expect(problem('displayName', 'Wanderer 123456')).toBe('reserved');
+    expect(problem('displayName', 'wanderer 482913')).toBe('reserved');
+    expect(validatePlayerText('displayName', 'Wanderer 9').ok).toBe(true);
+    expect(problem('guildName', 'Nameless Company 482913')).toBe('reserved');
+  });
+
+  it('catches more spellings of a link', () => {
+    for (const text of [
+      'join t.me/evilchan',
+      'see evil。com',
+      'example｡com',
+      'goo.gl/abc',
+      'evil.fr',
+      'evil.ca/x',
+      'evil(.)com',
+      'example[.]com',
+      'evil·com',
+      'evil . com',
+      'example . com/x',
+      'h t t p s : / / x',
+      'hxxp://evil',
+      'discord gg abc',
+      'discord。gg/abc',
+      '192.168.1.20:8080',
+    ]) {
+      expect(containsLink(text), text).toBe(true);
+    }
+  });
+
+  it('no longer reads a sentence end as a link ("Done. Me next")', () => {
+    for (const text of [
+      'Done. Me next',
+      'see you. To the pass',
+      'Ok. Co-op tonight?',
+      'top. Club meets at dusk',
+      'gg all, well fought',
+      'The discord between us',
+      'at 3.30 pm',
+      'v1.2.3 is out',
+      'Mr. Smith',
+    ]) {
+      expect(containsLink(text), text).toBe(false);
+    }
+  });
+
+  it('keeps the guild notice to a few lines', () => {
+    expect(validatePlayerText('guildNotice', Array(8).fill('line').join('\n')).ok).toBe(true);
+    expect(problem('guildNotice', Array(9).fill('line').join('\n'))).toBe('too_long');
+  });
+});

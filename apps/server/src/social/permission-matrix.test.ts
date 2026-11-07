@@ -81,7 +81,13 @@ describe('moderation permission matrix', () => {
         : action === 'renameGuild' || action === 'disbandGuild'
           ? { kind: 'guild', handle: await guildLedBy(subject) }
           : { kind: 'player', handle: subject.handle };
-    const res = await call(reporter, 'POST', '/api/reports', { target, reason: 'other' });
+    let res = await call(reporter, 'POST', '/api/reports', { target, reason: 'other' });
+    // Ticket 4.11: a reporter may have 20 reports waiting; the matrix files more, so it takes a
+    // fresh reporter when one is full.
+    if (res.statusCode === 409 && res.json().error.code === 'report_limit') {
+      reporter = await insertAccount(database.db);
+      res = await call(reporter, 'POST', '/api/reports', { target, reason: 'other' });
+    }
     if (res.statusCode === 201) return res.json().report.id;
     // Self cases reuse the actor, so the open report from an earlier case is still there.
     expect(res.json().error.code).toBe('report_open');

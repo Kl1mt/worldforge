@@ -43,12 +43,8 @@ The audit log is stamped by the database clock, the rollups by the game clock, s
 | `pack.overflow` | `farming` or `crypt` | area or tier | | settlements/claims that hit a full pack / items auto-salvaged |
 | `pack.over_capacity` | `farming` or `crypt` | area or tier | | settlements/claims that kept valuable drops beyond the capacity (B.2) / those items |
 | `gold.in` | `farming_loot`, `farming_overflow`, `farming_filter`, `crypt_loot`, `crypt_overflow`, `crypt_filter`, `quest`, `contract`, `merchant_sell`, `forge_salvage`, `guild_boss` (ticket 4.9, context empty) | area, tier or quest id | | / gold |
-| `gold.out` | `merchant_buy`, `forge_craft`, `forge_upgrade`, `forge_reroll`, `forge_improve`, `guild_create` (ticket 4.4, context empty) | rarity or recipe id | | / gold |
 | `material.in` | `farming_gather`, `farming_filter`, `crypt_loot`, `crypt_filter`, `quest`, `contract`, `forge_salvage`, `guild_boss` | material id | | / quantity |
-| `material.out` | `forge_craft`, `forge_upgrade`, `forge_reroll`, `forge_improve` | material id | | / quantity |
-| `gold.in` | `farming_loot`, `farming_overflow`, `farming_filter`, `crypt_loot`, `crypt_overflow`, `crypt_filter`, `quest`, `contract`, `merchant_sell`, `forge_salvage` | area, tier or quest id | | / gold |
 | `gold.out` | `merchant_buy`, `forge_craft`, `forge_upgrade`, `forge_reroll`, `forge_improve`, `guild_create` (ticket 4.4, context empty), `community_project` (ticket 4.6, context the project id), `warehouse_upgrade` (ticket 4.7, context empty) | rarity, recipe or project id | | / gold |
-| `material.in` | `farming_gather`, `farming_filter`, `crypt_loot`, `crypt_filter`, `quest`, `contract`, `forge_salvage` | material id | | / quantity |
 | `material.out` | `forge_craft`, `forge_upgrade`, `forge_reroll`, `forge_improve`, `community_project` (ticket 4.6) | material id | | / quantity |
 | `community.contribute` | project id | stage id | | contributions (ticket 4.6) |
 | `community.stage` | project id | stage id | | stages completed (ticket 4.6) |

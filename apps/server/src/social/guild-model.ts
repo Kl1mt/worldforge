@@ -237,3 +237,52 @@ export async function publicGuildOf(executor: Executor, accountId: string) {
     role: mine.member.role,
   };
 }
+
+/**
+ * Ticket 4.11: when one player blocks another, the guild offers between them that the block hides
+ * are dropped, so they no longer fill anyone's caps unseen: invites from one to the other, invites
+ * from a guild either leads to the other, and applications by one to a guild the other leads (a
+ * guild is its leader's, docs/SOCIAL.md "Blocks"). An application an officer can no longer see
+ * stays: the guild's other officers can still answer it. Runs under both players' social locks
+ * (the block's), which every invite between them also takes. Returns how many rows went.
+ */
+export async function dropGuildOffersBetween(
+  tx: Transaction,
+  a: string,
+  b: string,
+): Promise<{ invites: number; applications: number }> {
+  const ledBy = (id: string) =>
+    tx
+      .select({ guildId: guildMembers.guildId })
+      .from(guildMembers)
+      .where(and(eq(guildMembers.accountId, id), eq(guildMembers.role, 'leader')));
+  const [aLeads, bLeads] = await Promise.all([ledBy(a), ledBy(b)]);
+  const guildsOf = (rows: { guildId: string }[]) => rows.map((r) => r.guildId);
+  const pair = (x: string, y: string, ledByY: string[]) =>
+    and(
+      eq(guildInvites.accountId, x),
+      ledByY.length
+        ? sql`(${guildInvites.invitedBy} = ${y} or ${inArray(guildInvites.guildId, ledByY)})`
+        : eq(guildInvites.invitedBy, y),
+    );
+  const invites = await tx
+    .delete(guildInvites)
+    .where(sql`(${pair(a, b, guildsOf(bLeads))}) or (${pair(b, a, guildsOf(aLeads))})`)
+    .returning({ accountId: guildInvites.accountId });
+  const applied = (x: string, ledByY: string[]) =>
+    ledByY.length
+      ? and(eq(guildApplications.accountId, x), inArray(guildApplications.guildId, ledByY))
+      : undefined;
+  const conditions = [applied(a, guildsOf(bLeads)), applied(b, guildsOf(aLeads))].filter(
+    (c) => c !== undefined,
+  );
+  const applications = conditions.length
+    ? await tx
+        .delete(guildApplications)
+        .where(
+          conditions.length === 1 ? conditions[0] : sql`(${conditions[0]}) or (${conditions[1]})`,
+        )
+        .returning({ accountId: guildApplications.accountId })
+    : [];
+  return { invites: invites.length, applications: applications.length };
+}

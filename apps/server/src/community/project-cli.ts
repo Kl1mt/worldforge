@@ -2,10 +2,10 @@
 // The owner's playtest tool: `status` prints every project's progress; `complete <projectId>`
 // finishes an open project's remaining stages through the normal completion path (world flag,
 // contributor achievements, audit rows marked `by: admin`, telemetry), in one transaction under
-// the project lock. There is no API path for it and no way to undo a completion. Uses DATABASE_URL.
+// the project lock. There is no API path for it and no way to undo a completion. Uses DATABASE_URL, else (outside production) the playtest database (ticket 4.11).
 import { findCommunityProject, isProjectOpen } from '@worldforge/game-core';
-import { loadConfig, requireDatabaseUrl } from '../config.js';
-import { createPostgresDatabase } from '../db/client.js';
+import { loadConfig } from '../config.js';
+import { openCliDatabase } from '../db/cli-database.js';
 import { writeAudit } from '../db/audit.js';
 import { withTransaction } from '../db/transaction.js';
 import type { Database } from '../db/types.js';
@@ -63,7 +63,14 @@ if (isMain) {
     process.exit(2);
   }
   const config = loadConfig();
-  const database = createPostgresDatabase({ url: requireDatabaseUrl(config), poolMax: 1 });
+  let cli: Awaited<ReturnType<typeof openCliDatabase>>;
+  try {
+    cli = await openCliDatabase(config.databaseUrl);
+  } catch (err) {
+    console.error((err as Error).message);
+    process.exit(2);
+  }
+  const { database } = cli;
   try {
     if (command === 'status') await printStatus(database.db);
     else console.log(await completeProject(database.db, projectId!, new Date()));
@@ -71,6 +78,6 @@ if (isMain) {
     console.error('Project command failed:', err);
     process.exitCode = 1;
   } finally {
-    await database.close();
+    await cli.close();
   }
 }

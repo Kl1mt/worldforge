@@ -15,9 +15,9 @@ import {
   type SocialWriteAction,
 } from '@worldforge/game-core';
 import { accountPresence, accounts, blocks, friendships, type Account } from '../db/schema.js';
-import { withTransaction } from '../db/transaction.js';
 import type { Executor, Transaction } from '../db/types.js';
 import { writeAudit } from '../db/audit.js';
+import { dropGuildOffersBetween } from './guild-model.js';
 import { ApiError } from '../errors.js';
 import { normalizeDisplayName } from '../auth/validation.js';
 import { hiddenTargetKeys } from './sanctions.js';
@@ -407,10 +407,16 @@ export async function registerFriends(app: FastifyInstance): Promise<void> {
           if (counts.blocks >= FRIEND_LIMITS.blocks) refuse(FRIEND_LIMIT_REFUSALS.blocks);
           const removed = await deletePair(tx, me.id, them.id);
           await tx.insert(blocks).values({ blockerId: me.id, blockedId: them.id, createdAt: now });
+          // Ticket 4.11: guild invites and applications the block hides go with it.
+          const dropped = await dropGuildOffersBetween(tx, me.id, them.id);
           await writeAudit(tx, {
             event: 'friend.block',
             accountId: me.id,
-            data: { blocked: them.id, removed: removed[0]?.status ?? null },
+            data: {
+              blocked: them.id,
+              removed: removed[0]?.status ?? null,
+              ...(dropped.invites || dropped.applications ? { guildOffers: dropped } : {}),
+            },
           });
           return 'blocked-by-me';
         },
@@ -448,10 +454,16 @@ export async function registerFriends(app: FastifyInstance): Promise<void> {
         },
       },
     },
-    async (request) => {
-      const me = request.auth!.account;
+    async (request, reply) => {
       const { hidden } = request.body as { hidden: boolean };
-      await withTransaction(app.db, async (tx) => {
+      // Ticket 4.11: a social write (its rate limit; mute-exempt), audited only when it changes.
+      await socialWrite(app, request, reply, 'presence', async (tx, { account: me }) => {
+        const [before] = await tx
+          .select({ hidden: accountPresence.hidden })
+          .from(accountPresence)
+          .where(eq(accountPresence.accountId, me.id))
+          .for('update');
+        if ((before?.hidden ?? false) === hidden) return;
         await tx
           .insert(accountPresence)
           .values({ accountId: me.id, hidden })
