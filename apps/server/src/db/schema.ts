@@ -38,6 +38,8 @@ import type {
   ReportTarget,
   ReportTargetKind,
   SanctionKind,
+  ScoreMetric,
+  ScoringInput,
   RolledAffix,
   ProfileVisibility,
   WorldProgress,
@@ -1288,3 +1290,54 @@ export const worldFlags = pgTable('world_flags', {
   /** Game clock. */
   setAt: timestamp('set_at', { withTimezone: true }).notNull(),
 });
+
+/**
+ * Leaderboard snapshots (ticket 5.2, docs/LEADERBOARDS.md "Boards"): one row per hero and metric,
+ * written only by `refreshHeroScores` after the event that can move the score. `value` and
+ * `sort_key` are game-core `computeScore(metric, input)` of the stored `input` at
+ * `formula_version`; `inputs_hash` is the SHA-256 of the canonical JSON of the metric's slice of
+ * that input (`metricInput`), so a refresh whose slice did not change rewrites nothing and the
+ * recompute check (`pnpm admin:leaderboards check`) can tell a stale row from a wrong one.
+ * `achieved_at` (game clock) changes only when the `sort_key` does: the board's last tie-breaker.
+ * `account_id`, `class_id` and `level` are copies for the board's filters; sanctions are applied
+ * at read time, never by changing a score.
+ */
+export const leaderboardEntries = pgTable(
+  'leaderboard_entries',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    metric: text('metric').$type<ScoreMetric>().notNull(),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    classId: text('class_id').$type<ClassId>().notNull(),
+    /** The hero's level at the latest refresh (all four rows), for the level-bracket filter. */
+    level: integer('level').notNull(),
+    formulaVersion: integer('formula_version').notNull(),
+    value: bigint('value', { mode: 'number' }).notNull(),
+    sortKey: bigint('sort_key', { mode: 'number' }).array().notNull(),
+    inputsHash: text('inputs_hash').notNull(),
+    /** The full `ScoringInput` the value was computed from (never sent to clients: item seeds). */
+    input: jsonb('input').$type<ScoringInput>().notNull(),
+    /** Game clock: when the hero reached this `sort_key`. */
+    achievedAt: timestamp('achieved_at', { withTimezone: true }).notNull(),
+    /** Game clock: the last write of this row. */
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.characterId, t.metric] }),
+    index('leaderboard_entries_rank_idx').on(
+      t.metric,
+      sql`${t.sortKey} desc`,
+      t.achievedAt,
+      t.characterId,
+    ),
+    index('leaderboard_entries_account_id_idx').on(t.accountId),
+    check(
+      'leaderboard_entries_metric_check',
+      sql`${t.metric} in ('level', 'gearScore', 'power', 'pveProgress')`,
+    ),
+  ],
+);

@@ -176,6 +176,13 @@
       "when": 1794021588901,
       "tag": "0024_warehouse",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1794082889800,
+      "tag": "0025_leaderboards",
+      "breakpoints": true
     }
   ]
 }

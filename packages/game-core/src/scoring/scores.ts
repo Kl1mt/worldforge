@@ -32,18 +32,56 @@ export interface Scores {
   pveProgress: Score;
 }
 
+/**
+ * The part of the input each metric reads (ticket 5.2). The server hashes each slice to tell which
+ * scores an event can have moved, so a farming settlement that only adds XP recomputes Character
+ * Level and not Power. Keep in sync with `computeScore`: `scoring.test.ts` checks that changing a
+ * field outside a metric's slice never changes that metric.
+ */
+export function metricInput(metric: ScoreMetric, input: ScoringInput): unknown {
+  switch (metric) {
+    case 'level':
+      return { level: input.level, experience: input.experience };
+    case 'gearScore':
+      return { classId: input.classId, equipment: input.equipment };
+    case 'power':
+      return { classId: input.classId, level: input.level, equipment: input.equipment };
+    case 'pveProgress':
+      return {
+        level: input.level,
+        progress: input.progress,
+        world: input.world ?? null,
+        guildBossStage: input.guildBossStage,
+      };
+  }
+}
+
+/** One metric's score of a hero. Pure and deterministic. */
+export function computeScore(metric: ScoreMetric, input: ScoringInput): Score {
+  switch (metric) {
+    case 'level':
+      return levelScore(input.level, input.experience);
+    case 'gearScore':
+      return gearScore(input.classId, input.equipment);
+    case 'power':
+      return powerScore(input.classId, input.level, input.equipment);
+    case 'pveProgress':
+      return pveProgressScore({
+        level: input.level,
+        progress: input.progress,
+        ...(input.world ? { world: input.world } : {}),
+        guildBossStage: input.guildBossStage,
+      });
+  }
+}
+
 /** All four scores of a hero. Pure and deterministic. */
 export function computeScores(input: ScoringInput): Scores {
   return {
     formulaVersions: FORMULA_VERSIONS,
-    level: levelScore(input.level, input.experience),
-    gearScore: gearScore(input.classId, input.equipment),
-    power: powerScore(input.classId, input.level, input.equipment),
-    pveProgress: pveProgressScore({
-      level: input.level,
-      progress: input.progress,
-      ...(input.world ? { world: input.world } : {}),
-      guildBossStage: input.guildBossStage,
-    }),
+    level: computeScore('level', input),
+    gearScore: computeScore('gearScore', input),
+    power: computeScore('power', input),
+    pveProgress: computeScore('pveProgress', input),
   };
 }

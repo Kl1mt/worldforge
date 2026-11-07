@@ -53,6 +53,7 @@ import {
   playGuildBossWeek,
   playGuildChatStep,
   playGuildStep,
+  playLeaderboardStep,
   playProfileStep,
   playSafetyStep,
   playWarehouseStep,
@@ -292,6 +293,9 @@ describe('Phase 4 exit criteria', () => {
     }
     const pass = await playAshenPassStep(app, database, hero, now());
     expect(pass.watch).toHaveLength(1);
+
+    // Phase 5 (ticket 5.2): the hero on the boards, seen and reported by the companion.
+    await playLeaderboardStep(app, database, hero, { companion: companionPlayer });
 
     // 9. The admin panel's read paths.
     // Everyone but the owner registered with the players' invite.
