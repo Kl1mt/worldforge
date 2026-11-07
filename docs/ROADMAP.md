@@ -648,12 +648,12 @@ Not in this phase (owner decisions, Phase 4 follow-ups): content above level 28 
 - **Rewards are prestige only.** Titles, profile frames and cosmetics; never stats, drop rates or gold that would leave non-competitive players behind (GDD §13.3).
 - **PvP is optional and harmless.** A loss never removes items, gold or progress. PvP balance lives in its own normalisation layer, so PvP tuning never changes a PvE number (the no-effects hashes and balance suites stay untouched).
 - **Snapshots, not live heroes.** Leaderboards and duels use server-side snapshots taken at defined moments; a defender's gear changing mid-fight changes nothing, and replays use the stored snapshot (like crypt runs).
-- **Privacy carries over.** A hidden profile or a block hides a player on boards and in matchmaking the same way it does elsewhere (`docs/SOCIAL.md`).
+- **Privacy (owner decision):** everyone on a leaderboard is shown by name, with no opt-out and no anonymous entries. A hidden profile still can't be opened from a board, and blocked players can't interact. Blocks keep players apart in matchmaking and friendly challenges (`docs/SOCIAL.md`).
 - **Abuse first.** Win-trading, multi-accounts and score farming are designed against in the ticket that adds the feature, with tests, not left to hardening.
 
 **Defaults the owner can override** (recorded in the GDD when the ticket lands):
 - **Seasons:** 8 weeks, plus all-time boards; season boards are archived, never reset away.
-- **Boards:** Character Level, Character Power, Gear Score and PvE Progress; filters for season/all-time, class and level bracket. Players with a hidden profile are listed as "a hidden hero" (rank kept, name and profile hidden), and anyone can opt out of boards entirely in their settings.
+- **Boards:** Character Level, Character Power, Gear Score and PvE Progress; filters for season/all-time, class and level bracket. **Owner decision (2026-11-07): every player is listed by display name, with no opt-out.** Profile privacy only governs whether the name links to the profile. The privacy policy must mention the public leaderboards; the owner updates it on the VPS.
 - **PvP:** asynchronous 1v1 duels against a saved defence snapshot; matches only within a level bracket, with stats normalised toward the bracket (so gear matters, but not overwhelmingly); 10 rated duels a day; friendly challenges with friends and guildmates (no rating, no rewards).
 - **Rating:** a Glicko-2-style rating per season, separate from Power and Gear Score.
 - **Account security before trading:** per-account login throttling, email verification and password reset (open since Phase 1). Email needs a sending provider: the owner chooses one (e.g. an SMTP service) and provides its credentials on the VPS.
@@ -670,8 +670,8 @@ GDD: §10.2, §16.3. Read `docs/COMBAT.md`, `docs/LOOT.md`, `docs/EFFECTS.md`, t
 ### 5.2 Leaderboards (vertical) — `todo`
 GDD: §10.2. Needs 5.1.
 - Snapshot table (score, formula version, inputs hash, achieved-at) updated on the events that can change a score (debounced, inside the value transactions or right after them; window rule), plus a recompute check (CLI and a test) that every stored value matches its formula.
-- Board pages: the four metrics, filters (all-time now; seasons in 5.3; class; level bracket), your own rank, tie-breakers by achieved-at, pagination, ETag polling sized to the rate limits; privacy per the defaults (hidden heroes, opt-out); sanctioned accounts excluded; report action from a board entry.
-- Tests: recompute equality, privacy matrix, races (a score change racing a read), invariance (boards change no gameplay number), journey step, screenshots.
+- Board pages: the four metrics, filters (all-time now; seasons in 5.3; class; level bracket), your own rank, tie-breakers by achieved-at, pagination, ETag polling sized to the rate limits. Everyone is listed by name (owner decision); the name links to the profile only where profile privacy allows; sanctioned accounts excluded; report action from a board entry.
+- Tests: recompute equality, the profile-link privacy matrix (each profile setting × viewer relation), races (a score change racing a read), invariance (boards change no gameplay number), journey step, screenshots.
 
 ### 5.3 Seasons & prestige rewards (vertical) — `todo`
 GDD: §10.2, §13. Needs 5.2.
