@@ -232,7 +232,8 @@ describe('set piece generation', () => {
         expect(setForBase(item.baseId)?.id).toBe(item.setId);
       }
       // Ticket 3.6: the deeper crypt tiers are late-game sources too.
-      const lateGame = ['sunkenAbbey', 'namelessCrypt', 'gravewarden'];
+      // Ticket 4.8: the Ashen Pass and the Ashen Warden's hoard too.
+      const lateGame = ['sunkenAbbey', 'namelessCrypt', 'gravewarden', 'ashenPass', 'ashenWarden'];
       if (lateGame.some((id) => tableId.startsWith(id))) {
         // Ticket B.2: a third of the Legendary rolls (was half).
         expect(sets / n, tableId).toBeGreaterThan(SET_SHARE - 0.06);

@@ -18,6 +18,7 @@ import {
   getArea,
   getDungeonTier,
   getItemBase,
+  getLootTable,
   getMaterial,
   legendaryEffectPool,
   settleFarming,
@@ -133,6 +134,12 @@ function geared(classId: ClassId, level: number, areaId: AreaId, lag = 1): FarmS
 
 const mid = (a: AreaDefinition) => a.minLevel + 2;
 
+/**
+ * Ticket 4.8: the B.1 bands are Graumark's (a common kit is what a player wears there). The Ashen
+ * Pass is top-end content with its own bands against Phase 3 gear ("the Ashen Pass" below).
+ */
+const GRAUMARK = AREAS.filter((a) => a.id !== 'ashenPass');
+
 /** The kit with its first ring replaced by a synthetic Legendary ring carrying one effect. */
 function wearRing(gear: GeneratedItem[], effectId: string): GeneratedItem[] {
   const out = [...gear];
@@ -161,7 +168,7 @@ describe('balance (ticket B.1)', () => {
     });
 
     it('a geared hero farms every area at its level with a low death rate', () => {
-      for (const a of AREAS) {
+      for (const a of GRAUMARK) {
         for (const level of [a.minLevel, mid(a), a.maxLevel]) {
           for (const s of stats(a.id, level)) {
             const label = `${s.classId} ${a.id} L${level}`;
@@ -173,7 +180,7 @@ describe('balance (ticket B.1)', () => {
     });
 
     it('casters survive like the other classes (similar damage share and deaths)', () => {
-      for (const a of AREAS) {
+      for (const a of GRAUMARK) {
         for (const level of [a.minLevel, mid(a)]) {
           const s = stats(a.id, level);
           const shares = s.map((x) => x.damageShare);
@@ -186,7 +193,7 @@ describe('balance (ticket B.1)', () => {
     });
 
     it('gear three levels behind costs deaths in the middle of an area, but not constant ones', () => {
-      for (const a of AREAS) {
+      for (const a of GRAUMARK) {
         for (const c of CLASS_IDS) {
           const s = geared(c, mid(a), a.id, 3);
           expect(s.deathsPerHour, `${c} ${a.id}`).toBeLessThanOrEqual(10);
@@ -195,9 +202,9 @@ describe('balance (ticket B.1)', () => {
     });
 
     it('each later area is a step up: its entry hits harder than the previous area at its top', () => {
-      for (let i = 1; i < AREAS.length; i++) {
-        const prev = AREAS[i - 1]!;
-        const next = AREAS[i]!;
+      for (let i = 1; i < GRAUMARK.length; i++) {
+        const prev = GRAUMARK[i - 1]!;
+        const next = GRAUMARK[i]!;
         for (const c of CLASS_IDS) {
           const top = geared(c, prev.maxLevel, prev.id).damageShare;
           const entry = geared(c, next.minLevel, next.id).damageShare;
@@ -211,7 +218,7 @@ describe('balance (ticket B.1)', () => {
 
   describe('pacing', () => {
     it('kills arrive at an idle-friendly rate everywhere', () => {
-      for (const a of AREAS) {
+      for (const a of GRAUMARK) {
         for (const s of stats(a.id, mid(a))) {
           expect(s.killsPerMin, `${s.classId} ${a.id}`).toBeGreaterThan(7);
           expect(s.killsPerMin, `${s.classId} ${a.id}`).toBeLessThan(12);
@@ -270,7 +277,7 @@ describe('balance (ticket B.1)', () => {
     });
 
     it('one offline window (3 h) does not out-level an area', () => {
-      for (const a of AREAS) {
+      for (const a of GRAUMARK) {
         for (const c of CLASS_IDS) {
           const r = settleFarming({
             character: { classId: c, level: a.minLevel, xp: 0 },
@@ -297,7 +304,7 @@ describe('balance (ticket B.1)', () => {
     };
 
     it('a merchant item costs 10–30 minutes of farming gold at its level', () => {
-      for (const a of AREAS) {
+      for (const a of GRAUMARK) {
         const perMin = stats(a.id, mid(a)).reduce((s, x) => s + x.goldPerHour, 0) / 4 / 60;
         // A common offer is at the cheap end, an uncommon one at the dear end.
         const common = offerPrice(a.id, 'common') / perMin;
@@ -310,7 +317,7 @@ describe('balance (ticket B.1)', () => {
     });
 
     it('farming gold per hour stays in the hundreds, not thousands', () => {
-      for (const a of AREAS) {
+      for (const a of GRAUMARK) {
         for (const s of stats(a.id, mid(a))) {
           expect(s.goldPerHour, `${s.classId} ${a.id}`).toBeGreaterThan(80);
           expect(s.goldPerHour, `${s.classId} ${a.id}`).toBeLessThan(1_000);
@@ -321,7 +328,7 @@ describe('balance (ticket B.1)', () => {
     it('a Forge recipe takes about an hour of farming in the areas that yield its materials', () => {
       // Best hourly yield of each material across the areas at their middle level (warrior).
       const best: Partial<Record<MaterialId, number>> = {};
-      for (const a of AREAS) {
+      for (const a of GRAUMARK) {
         const s = geared('warrior', mid(a), a.id);
         for (const [id, n] of Object.entries(s.materialsPerHour) as [MaterialId, number][])
           best[id] = Math.max(best[id] ?? 0, n);
@@ -372,7 +379,7 @@ describe('balance (ticket B.1)', () => {
     });
 
     it('gathering yields stay near a recipe per hour (no hundreds of units per window)', () => {
-      for (const a of AREAS) {
+      for (const a of GRAUMARK) {
         const s = geared('warrior', mid(a), a.id);
         for (const [id, n] of Object.entries(s.materialsPerHour) as [MaterialId, number][]) {
           const cap = getMaterial(id).rarity === 'common' ? 60 : 45;
@@ -380,6 +387,169 @@ describe('balance (ticket B.1)', () => {
         }
       }
       expect(DEFAULT_PROFESSION_CONFIG.maxLevel).toBe(50);
+    });
+  });
+
+  describe('the Ashen Pass (ticket 4.8)', () => {
+    const pass = getArea('ashenPass');
+    const plus = (items: GeneratedItem[], upgradeLevel: number) =>
+      items.map((i) => ({ ...i, upgradeLevel }));
+    /**
+     * The Pass's "geared": rares at +5, item level = level − 1. A hero who reaches it has cleared
+     * crypt tier II (where rares +5 win 50–100 %) and spends Abbey gold on upgrades (3.9's runs).
+     */
+    const passKit = (c: ClassId, level: number) => plus(kit(c, level - 1, 'rare'), 5);
+    const passMemo = new Map<string, FarmStats>();
+    const at = (c: ClassId, level: number, areaId: AreaId = 'ashenPass') => {
+      const key = `${c}:${level}:${areaId}`;
+      let s = passMemo.get(key);
+      if (!s) passMemo.set(key, (s = farm(c, level, areaId, passKit(c, level))));
+      return s;
+    };
+    const levels = [pass.minLevel, mid(pass), pass.maxLevel];
+
+    it('a hero in upgraded rares farms it at every level with a low death rate', () => {
+      for (const level of levels) {
+        const shares: number[] = [];
+        for (const c of CLASS_IDS) {
+          const s = at(c, level);
+          expect(s.deathsPerHour, `${c} L${level}`).toBeLessThanOrEqual(2);
+          expect(s.damageShare, `${c} L${level}`).toBeLessThan(0.21);
+          shares.push(s.damageShare);
+        }
+        // Casters survive like the other classes.
+        expect(Math.max(...shares) / Math.min(...shares), `L${level}`).toBeLessThan(1.45);
+      }
+    });
+
+    it('is top-end content: commons fall again and again, and it is a step up from the Abbey', () => {
+      for (const c of CLASS_IDS) {
+        expect(
+          farm(c, pass.minLevel, pass.id, kit(c, pass.minLevel - 1)).deathsPerHour,
+          c,
+        ).toBeGreaterThan(20);
+        // The same gear at the Abbey's top takes far less per fight than at the Pass's entry.
+        const abbeyTop = at(c, getArea('sunkenAbbey').maxLevel, 'sunkenAbbey').damageShare;
+        const entry = at(c, pass.minLevel).damageShare;
+        expect(entry, c).toBeGreaterThan(abbeyTop * 1.15);
+        expect(entry, c).toBeGreaterThan(0.12);
+      }
+    });
+
+    it('kills arrive at an idle-friendly rate, and better gear shows in the rate', () => {
+      for (const c of CLASS_IDS) {
+        const s = at(c, mid(pass));
+        expect(s.killsPerMin, c).toBeGreaterThan(6.5);
+        expect(s.killsPerMin, c).toBeLessThan(12);
+        // Past the Abbey's one-shot breakpoint: a Legendary +10 kit kills clearly faster here
+        // (the build search: builds.test.ts).
+        const top = farm(c, mid(pass), pass.id, plus(kit(c, mid(pass) - 1, 'legendary'), 10));
+        expect(top.killsPerMin / s.killsPerMin, c).toBeGreaterThan(1.25);
+        // +10 on the rares is still a moderate edge over +5 (GDD §8.1).
+        const ten = farm(c, mid(pass), pass.id, plus(kit(c, mid(pass) - 1, 'rare'), 10));
+        expect(ten.deathsPerHour, c).toBeLessThanOrEqual(2);
+        expect(ten.damageShare, c).toBeLessThanOrEqual(s.damageShare);
+        expect(ten.killsPerMin, c).toBeGreaterThanOrEqual(s.killsPerMin * 0.99);
+        expect(ten.killsPerMin / s.killsPerMin, c).toBeLessThan(1.2);
+      }
+    });
+
+    it('pays more XP and gold an hour than the Abbey’s top, and levels 24 → 28 take days', () => {
+      const abbeyTop = getArea('sunkenAbbey').maxLevel;
+      const mean = (f: (c: ClassId) => number) =>
+        CLASS_IDS.reduce((sum, c) => sum + f(c), 0) / CLASS_IDS.length;
+      for (const c of CLASS_IDS) {
+        expect(at(c, pass.minLevel).xpPerHour, c).toBeGreaterThan(
+          at(c, abbeyTop, 'sunkenAbbey').xpPerHour,
+        );
+        expect(at(c, mid(pass)).goldPerHour, c).toBeLessThan(2_500);
+      }
+      expect(mean((c) => at(c, pass.minLevel).goldPerHour)).toBeGreaterThan(
+        1.05 * mean((c) => at(c, abbeyTop, 'sunkenAbbey').goldPerHour),
+      );
+      for (const c of CLASS_IDS) {
+        let level = pass.minLevel;
+        let xp = 0;
+        let hours = 0;
+        let firstCycle = 0;
+        while (level < pass.maxLevel) {
+          // Re-equip every half hour, as in the Graumark pacing test.
+          const r = settleFarming({
+            character: { classId: c, level, xp },
+            equipment: passKit(c, level),
+            areaId: pass.id,
+            seed: `pace:${c}:${pass.id}`,
+            firstCycle,
+            durationMs: HOUR / 2,
+            inventoryCount: 0,
+          });
+          firstCycle += r.encounters;
+          hours += 0.5;
+          level = r.level;
+          xp = r.xp;
+        }
+        expect(hours, c).toBeGreaterThanOrEqual(15);
+        expect(hours, c).toBeLessThanOrEqual(35);
+        // One offline window (3 h) from the entry does not out-level it.
+        const w = settleFarming({
+          character: { classId: c, level: pass.minLevel, xp: 0 },
+          equipment: passKit(c, pass.minLevel),
+          areaId: pass.id,
+          seed: `window:${c}`,
+          firstCycle: 0,
+          durationMs: 3 * HOUR,
+          inventoryCount: 0,
+        });
+        expect(w.level, c).toBeLessThanOrEqual(pass.minLevel + 2);
+      }
+    });
+
+    it('yields the +10 track’s materials at a gathering pace, never hundreds an hour', () => {
+      for (const c of CLASS_IDS) {
+        const m = at(c, mid(pass)).materialsPerHour;
+        expect(Object.keys(m).sort(), c).toEqual(['ironOre', 'soulShard']);
+        expect(m.ironOre!, c).toBeGreaterThan(15);
+        expect(m.ironOre!, c).toBeLessThanOrEqual(60);
+        expect(m.soulShard!, c).toBeGreaterThan(1);
+        expect(m.soulShard!, c).toBeLessThanOrEqual(45);
+      }
+    });
+
+    it('rewards the top end: the highest item levels of any area, and tier-4 affixes', () => {
+      const table = getLootTable(pass.lootTableId);
+      for (const a of GRAUMARK) {
+        const other = getLootTable(a.lootTableId);
+        expect(table.itemLevel!.max, a.id).toBeGreaterThan(other.itemLevel!.max);
+        expect(table.affixTierBias ?? 0, a.id).toBeGreaterThanOrEqual(other.affixTierBias ?? 0);
+      }
+      expect(table.itemLevel!.max).toBeGreaterThan(getLootTable('namelessCryptIII').itemLevel!.max);
+      // Tier-4 affixes unlock at item level 25: Pass drops reach them, Abbey drops never do.
+      const maxTier = (tableId: string, itemLevel: number) => {
+        const rng = createRng(`tier4:${tableId}`);
+        let best = 0;
+        for (let i = 0; i < 400; i++) {
+          const item = generateItem({
+            seed: rng.int(0, 2 ** 31),
+            itemLevel,
+            lootTable: getLootTable(tableId),
+            rarityId: 'rare',
+            classId: 'warrior',
+          })!;
+          for (const a of item.affixes) best = Math.max(best, a.tier);
+        }
+        return best;
+      };
+      expect(maxTier(pass.lootTableId, 27)).toBe(4);
+      expect(maxTier('sunkenAbbey', getLootTable('sunkenAbbey').itemLevel!.max)).toBeLessThan(4);
+    });
+
+    it('its merchant stock costs minutes of its farming gold, not hours', () => {
+      const perMin = CLASS_IDS.reduce((s, c) => s + at(c, mid(pass)).goldPerHour, 0) / 4 / 60;
+      const price = (rarityId: RarityId) =>
+        buyPrice({ rarityId, itemLevel: mid(pass) }, DEFAULT_ECONOMY_CONFIG) / perMin;
+      expect(price('common')).toBeGreaterThanOrEqual(3);
+      expect(price('common')).toBeLessThanOrEqual(20);
+      expect(price('uncommon')).toBeLessThanOrEqual(35);
     });
   });
 
@@ -558,26 +728,38 @@ describe('balance (ticket B.1)', () => {
       }
     });
 
-    it('tier III: needs Phase 3 gear; epics with upgrades have a chance, BiS is reliable', () => {
+    it('tier III: needs Phase 3 gear; upgraded epics have a chance, BiS is reliable', () => {
       const t = getDungeonTier('namelessCrypt', 3);
       const entry = t.unlock.level;
-      const at = (gear: (c: ClassId) => GeneratedItem[]) =>
-        rates((c) => winRate(runs(c, entry, gear(c), 3, 32)));
+      const at = (gear: (c: ClassId) => GeneratedItem[], level = entry) =>
+        rates((c) => winRate(runs(c, level, gear(c), 3, 32)));
       for (const c of CLASS_IDS) expect(winRate(runs(c, t.bossLevel, [], 3, 16)), c).toBe(0);
       expect(at((c) => kit(c, entry - 1)).mean).toBe(0);
       expect(at((c) => kit(c, entry - 1, 'rare')).mean).toBeLessThanOrEqual(0.1);
+      // Ticket 4.8 (3.9 saw tier III fall at its entry to every upgrading hero): upgraded Abbey
+      // rares are not enough any more, and upgraded epics are a chance at the entry, not a given.
+      expect(at((c) => upgraded(kit(c, entry - 1, 'rare'), 5)).mean).toBeLessThanOrEqual(0.1);
       const epic = at((c) => kit(c, entry - 1, 'epic'));
       expect(epic.mean).toBeLessThanOrEqual(0.4);
       const epic5 = at((c) => upgraded(kit(c, entry - 1, 'epic'), 5));
       expect(epic5.mean).toBeGreaterThan(epic.mean);
-      expect(epic5.mean).toBeGreaterThanOrEqual(0.3);
-      expect(epic5.mean).toBeLessThanOrEqual(0.85);
+      expect(epic5.mean).toBeGreaterThanOrEqual(0.05);
+      expect(epic5.mean).toBeLessThanOrEqual(0.35);
+      const epic8 = at((c) => upgraded(kit(c, entry - 1, 'epic'), 8));
+      expect(epic8.mean).toBeGreaterThan(epic5.mean);
+      expect(epic8.mean).toBeGreaterThanOrEqual(0.3);
+      expect(epic8.mean).toBeLessThanOrEqual(0.75);
+      // Two levels on (and two item levels of gear), the same upgraded epics win most runs.
+      expect(at((c) => upgraded(kit(c, entry + 1, 'epic'), 8), entry + 2).mean).toBeGreaterThan(
+        Math.max(0.7, epic8.mean),
+      );
       // Deeper is harder: the same epics do worse than in tier II at its entry.
       const t2 = getDungeonTier('namelessCrypt', 2).unlock.level;
       const epicII = rates((c) => winRate(runs(c, t2, kit(c, t2 - 1, 'epic'), 2, 32)));
       expect(epic.mean).toBeLessThan(epicII.mean);
-      // Legendaries make it likely, the best-in-slot builds reliable.
-      expect(at((c) => legendaryKit(c, entry - 1)).mean).toBeGreaterThanOrEqual(0.9);
+      // Legendaries make it likely (sure two levels on), the best-in-slot builds reliable.
+      expect(at((c) => legendaryKit(c, entry - 1)).mean).toBeGreaterThanOrEqual(0.7);
+      expect(at((c) => legendaryKit(c, entry + 1), entry + 2).mean).toBeGreaterThanOrEqual(0.95);
       for (const c of CLASS_IDS) {
         for (const [label, gear] of bestInSlot(c, entry - 1).slice(1)) {
           expect(winRate(runs(c, entry, gear, 3, 32)), `${c} ${label}`).toBeGreaterThanOrEqual(
@@ -622,6 +804,82 @@ describe('balance (ticket B.1)', () => {
           expect(xpPerHour / farming, `${tier} ${c}`).toBeLessThan(2.2);
         }
       }
+    });
+
+    describe('the Ashen Warden (ticket 4.8)', () => {
+      const watch = getDungeonTier('ashenWatch', 1);
+      const entry = watch.unlock.level;
+      const wardenRuns = (c: ClassId, level: number, gear: GeneratedItem[], n = 24) =>
+        Array.from({ length: n }, (_, i) =>
+          simulateDungeonRun({
+            dungeonId: 'ashenWatch',
+            character: { classId: c, level, xp: 0 },
+            equipment: gear,
+            seed: `warden-balance:${i}`,
+            bossLootEligible: true,
+            inventoryCount: 0,
+          }),
+        );
+      const at = (gear: (c: ClassId) => GeneratedItem[], level = entry, n = 24) =>
+        rates((c) => winRate(wardenRuns(c, level, gear(c), n)));
+
+      it('is the top-end goal: Legendaries a good chance, upgraded Legendaries and BiS reliable', () => {
+        for (const c of CLASS_IDS)
+          expect(winRate(wardenRuns(c, watch.bossLevel, [], 8)), c).toBe(0);
+        // The gear that farms the Ashen Pass does not beat its warden.
+        expect(at((c) => upgraded(kit(c, entry - 1, 'rare'), 5)).mean).toBe(0);
+        expect(at((c) => upgraded(kit(c, entry - 1, 'epic'), 5)).mean).toBe(0);
+        // Epics at +10 a small chance; Legendaries a good one; +5 on them makes it likely.
+        const epic10 = at((c) => upgraded(kit(c, entry - 1, 'epic'), 10));
+        expect(epic10.mean).toBeLessThanOrEqual(0.3);
+        const legendary = at((c) => legendaryKit(c, entry - 1));
+        expect(legendary.mean).toBeGreaterThan(epic10.mean);
+        expect(legendary.mean).toBeGreaterThanOrEqual(0.5);
+        expect(legendary.mean).toBeLessThanOrEqual(0.9);
+        const legendary5 = at((c) => upgraded(legendaryKit(c, entry - 1), 5));
+        expect(legendary5.mean).toBeGreaterThanOrEqual(0.9);
+        // Harder than tier III for the same hero: Legendaries at tier III's top level.
+        const t3 = getDungeonTier('namelessCrypt', 3);
+        expect(
+          rates((c) => winRate(runs(c, entry, legendaryKit(c, entry - 1), 3, 24))).mean,
+        ).toBeGreaterThan(legendary.mean);
+        expect(t3.bossLevel).toBeLessThan(watch.bossLevel);
+        // Every best-in-slot build at the boss's level is reliable (plain Legendaries: above): on
+        // average over the classes, and for each class but for a poor roll of its generated kit.
+        const builds = bestInSlot('warrior', 1)
+          .slice(1)
+          .map(([label]) => label);
+        for (const [i, label] of builds.entries()) {
+          const r = rates((c) =>
+            winRate(
+              wardenRuns(c, watch.bossLevel, bestInSlot(c, watch.bossLevel - 1)[i + 1]![1], 16),
+            ),
+          );
+          expect(r.mean, label).toBeGreaterThanOrEqual(0.95);
+          for (const c of CLASS_IDS) expect(r.per[c], `${c} ${label}`).toBeGreaterThanOrEqual(0.85);
+        }
+      });
+
+      it('no build trivialises it, and a run pays about the XP of farming the Pass', () => {
+        for (const c of CLASS_IDS) {
+          for (const [label, gear] of bestInSlot(c, watch.bossLevel + 1)) {
+            for (const r of wardenRuns(c, watch.bossLevel, gear, 8)) {
+              const boss = r.encounters.at(-1)!;
+              expect(r.encounters.length, label).toBe(1);
+              expect(boss.endMs - boss.startMs, `${c} ${label}`).toBeGreaterThan(
+                watch.bossEnrage.atMs.min * 0.4,
+              );
+            }
+          }
+          const gear = upgraded(legendaryKit(c, 26), 5);
+          const rs = wardenRuns(c, 27, gear, 16);
+          const xpPerHour =
+            rs.reduce((s, r) => s + r.xpGained / (r.durationMs / HOUR), 0) / rs.length;
+          const farming = farm(c, 27, 'ashenPass', gear).xpPerHour;
+          expect(xpPerHour / farming, c).toBeGreaterThan(0.8);
+          expect(xpPerHour / farming, c).toBeLessThan(2.2);
+        }
+      });
     });
   });
 
@@ -1194,7 +1452,7 @@ describe('balance (ticket B.1)', () => {
       );
 
     it('a +10 kit stays within the death and kill bands everywhere', () => {
-      for (const a of AREAS) {
+      for (const a of GRAUMARK) {
         for (const level of [mid(a), a.maxLevel]) {
           for (const c of CLASS_IDS) {
             const gear = kit(c, level - 1);
@@ -1259,7 +1517,7 @@ describe('balance (ticket B.1)', () => {
       };
       const bestMaterialsPerHour = () => {
         const best: Partial<Record<MaterialId, number>> = {};
-        for (const b of AREAS) {
+        for (const b of GRAUMARK) {
           const s = geared('warrior', mid(b), b.id);
           for (const [id, n] of Object.entries(s.materialsPerHour) as [MaterialId, number][])
             best[id] = Math.max(best[id] ?? 0, n);
@@ -1276,7 +1534,7 @@ describe('balance (ticket B.1)', () => {
       const REALISTIC_INCOME = 2.5;
 
       it('the first steps are cheap, the last ones a real project', () => {
-        for (const a of AREAS) {
+        for (const a of GRAUMARK) {
           const { item, goldPerHour } = sample(a);
           const hours = (from: number, to: number) =>
             upgradePathCost(item, from, to).expected.gold / (goldPerHour * REALISTIC_INCOME);
@@ -1289,7 +1547,7 @@ describe('balance (ticket B.1)', () => {
       });
 
       it('a whole kit to +10 is a long-term sink that a full purse cannot buy outright', () => {
-        for (const a of AREAS) {
+        for (const a of GRAUMARK) {
           const { gear, goldPerHour } = sample(a);
           const income = goldPerHour * REALISTIC_INCOME;
           const kitTo = (to: number) =>
@@ -1309,7 +1567,7 @@ describe('balance (ticket B.1)', () => {
       });
 
       it('failure is never punishing: pity caps the bad luck of a whole track at about twice the mean', () => {
-        for (const a of AREAS) {
+        for (const a of GRAUMARK) {
           const { item } = sample(a);
           for (let n = 0; n < 10; n++) {
             const c = upgradePathCost(item, n, n + 1);
@@ -1323,7 +1581,7 @@ describe('balance (ticket B.1)', () => {
 
       it('materials: +5 takes about an hour of gathering, +10 a few evenings', () => {
         const best = bestMaterialsPerHour();
-        for (const a of AREAS) {
+        for (const a of GRAUMARK) {
           const { item } = sample(a);
           const hours = (to: number) => {
             const m = upgradePathCost(item, 0, to).expected.materials;
@@ -1344,6 +1602,6 @@ describe('balance (ticket B.1)', () => {
 
 /** The highest unlocked area below the abbey for a character level. */
 function farmingAreaFor(level: number): AreaId {
-  const open = AREAS.filter((a) => a.id !== 'sunkenAbbey' && a.unlock.level <= level);
+  const open = GRAUMARK.filter((a) => a.id !== 'sunkenAbbey' && a.unlock.level <= level);
   return open[open.length - 1]!.id;
 }

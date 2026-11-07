@@ -52,6 +52,7 @@ function farmedKit(
   }
   return kit.map((i) => ({ ...i, upgradeLevel: up }));
 }
+const ONLY = process.env.TIER ? Number(process.env.TIER) : 0;
 const tiers: [1 | 2 | 3, number, G.AreaId][] = [
   [1, 12, 'oldBurialGrounds'],
   [1, 13, 'oldBurialGrounds'],
@@ -66,7 +67,7 @@ const tiers: [1 | 2 | 3, number, G.AreaId][] = [
 const hoursList = (process.env.HOURS ?? '10,30').split(',').map(Number);
 const ups = (process.env.UPS ?? '0,5,8').split(',').map(Number);
 const N = 12;
-for (const [tier, level, area] of tiers) {
+for (const [tier, level, area] of tiers.filter((t) => !ONLY || t[0] === ONLY)) {
   const row: string[] = [];
   for (const h of hoursList)
     for (const up of ups) {

@@ -25,6 +25,13 @@ export const ENEMY_IDS = [
   'cryptGhoul',
   'boneAcolyte',
   'gravewarden',
+  // The Ashen Pass (ticket 4.8; appended so earlier ids keep their order).
+  'ashWraith',
+  'cinderHound',
+  'pyreCultist',
+  'emberGolem',
+  // The Warden's Watch (ticket 4.8).
+  'ashenWarden',
 ] as const;
 
 export type EnemyId = (typeof ENEMY_IDS)[number];
@@ -260,6 +267,81 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     armor: { base: 20, perLevel: 3.5 },
     resistance: { base: 14, perLevel: 2.5 },
     xp: { base: 600, perLevel: 160 },
+  },
+  // — The Ashen Pass (levels 24–28, ticket 4.8; docs/WORLD.md "The Ashen Pass"). The top-end area:
+  // tuned against Phase 3 gear (rares +5 upward), not commons. Health grows faster per level than in
+  // Graumark, so late-game builds need several blows again (the Abbey's one-shot breakpoint).
+  {
+    id: 'ashWraith',
+    name: 'Ash Wraith',
+    assetId: 'enemy.ash-wraith',
+    damageType: 'magic',
+    undead: true,
+    rank: 'normal',
+    attackSpeed: 1,
+    health: { base: 50, perLevel: 32 },
+    damage: { base: 7.9, perLevel: 2.28 },
+    armor: { base: 6, perLevel: 1.3 },
+    resistance: { base: 16, perLevel: 2.8 },
+    xp: { base: 24, perLevel: 5.7 },
+  },
+  {
+    id: 'cinderHound',
+    name: 'Cinder Hound',
+    assetId: 'enemy.cinder-hound',
+    damageType: 'physical',
+    undead: false,
+    rank: 'normal',
+    attackSpeed: 1.4,
+    health: { base: 40, perLevel: 27 },
+    damage: { base: 5.6, perLevel: 1.66 },
+    armor: { base: 10, perLevel: 2 },
+    resistance: { base: 10, perLevel: 2 },
+    xp: { base: 23, perLevel: 5.4 },
+  },
+  {
+    id: 'pyreCultist',
+    name: 'Pyre Cultist',
+    assetId: 'enemy.pyre-cultist',
+    damageType: 'magic',
+    undead: false,
+    rank: 'normal',
+    attackSpeed: 0.8,
+    health: { base: 56, perLevel: 34 },
+    damage: { base: 9.2, perLevel: 2.61 },
+    armor: { base: 8, perLevel: 1.6 },
+    resistance: { base: 18, perLevel: 3 },
+    xp: { base: 26, perLevel: 5.9 },
+  },
+  {
+    id: 'emberGolem',
+    name: 'Ember Golem',
+    assetId: 'enemy.ember-golem',
+    damageType: 'physical',
+    undead: false,
+    rank: 'normal',
+    attackSpeed: 0.6,
+    health: { base: 96, perLevel: 45 },
+    damage: { base: 11.8, perLevel: 3.28 },
+    armor: { base: 24, perLevel: 4.2 },
+    resistance: { base: 12, perLevel: 2 },
+    xp: { base: 32, perLevel: 7.3 },
+  },
+  // — The Warden's Watch (ticket 4.8): the Ashen Pass's boss, fought alone at the top of the
+  // watchtower (a boss-only dungeon run, docs/DUNGEONS.md "The Warden's Watch").
+  {
+    id: 'ashenWarden',
+    name: 'The Ashen Warden',
+    assetId: 'enemy.ashen-warden',
+    damageType: 'magic',
+    undead: true,
+    rank: 'boss',
+    attackSpeed: 0.7,
+    health: { base: 1900, perLevel: 460 },
+    damage: { base: 8, perLevel: 1.6 },
+    armor: { base: 30, perLevel: 4.5 },
+    resistance: { base: 20, perLevel: 2.5 },
+    xp: { base: 600, perLevel: 105 },
   },
 ];
 

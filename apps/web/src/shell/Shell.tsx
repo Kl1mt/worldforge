@@ -29,7 +29,7 @@ interface NavEntry {
 function navEntries(areaName: string): NavEntry[] {
   return [
     { route: 'hub', label: 'Town', hint: 'Graumark', also: ['tavern', 'forge', 'merchant'] },
-    { route: 'map', label: 'Map', hint: 'Choose an area', also: ['crypt'] },
+    { route: 'map', label: 'Map', hint: 'Choose an area', also: ['crypt', 'watch'] },
     { route: 'area', label: 'Area', hint: areaName },
     { route: 'character', label: 'Character', hint: 'Equipment & stats' },
     { route: 'inventory', label: 'Pack', hint: 'Inventory' },

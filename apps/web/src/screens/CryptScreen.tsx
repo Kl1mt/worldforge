@@ -5,6 +5,8 @@ import {
   getDungeonTier,
   getEnemy,
   getWorldFlag,
+  type DungeonDefinition,
+  type DungeonId,
   type DungeonRunProgress,
   type DungeonTier,
   type EnemyId,
@@ -12,6 +14,7 @@ import {
 } from '@worldforge/game-core';
 import { useActiveCharacter, useCharacters } from '../characters/CharactersProvider';
 import { classPortrait } from '../content/assets';
+import { DUNGEON_WORDS } from '../content/dungeons';
 import { findAsset } from '../content/world';
 import { ItemFrame } from '../components/ItemFrame';
 import { LabeledMeter } from '../components/Meter';
@@ -42,8 +45,6 @@ import './crypt.css';
 /** How often a running crypt is settled (the server reveals the fixed run as time passes). */
 export const CRYPT_POLL_MS = 2_000;
 
-const CRYPT = getDungeon('namelessCrypt');
-const BACKDROP = findAsset(CRYPT.assetId);
 const BACKDROP_SIZE = { width: 384, height: 216 };
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
 
@@ -64,8 +65,8 @@ function blockerText(b: UnlockBlocker): string {
 }
 
 /** The enrage window of a tier in seconds, e.g. "30 and 70". */
-function enrageWindow(tier: DungeonTier): string {
-  const { min, max } = getDungeonTier(CRYPT.id, tier).bossEnrage.atMs;
+function enrageWindow(dungeonId: DungeonId, tier: DungeonTier): string {
+  const { min, max } = getDungeonTier(dungeonId, tier).bossEnrage.atMs;
   return `${Math.round(min / 1000)} and ${Math.round(max / 1000)}`;
 }
 
@@ -123,8 +124,16 @@ function clock(ms: number): string {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-/** The crypt stage: backdrop, hero on the left, the foe of the moment (or the warden, waiting). */
-function CryptScene({ progress }: { progress: DungeonRunProgress | null }) {
+/** The stage: backdrop, hero on the left, the foe of the moment (or the warden, waiting). */
+function CryptScene({
+  dungeon,
+  progress,
+}: {
+  dungeon: DungeonDefinition;
+  progress: DungeonRunProgress | null;
+}) {
+  const BACKDROP = findAsset(dungeon.assetId);
+  const words = DUNGEON_WORDS[dungeon.id];
   const hero = useActiveCharacter();
   const phone = useMediaQuery(PHONE_QUERY);
   const [ref, width] = useElementWidth<HTMLDivElement>(768);
@@ -136,7 +145,7 @@ function CryptScene({ progress }: { progress: DungeonRunProgress | null }) {
 
   const foe = progress?.foe ?? null;
   // Idle: the warden waits at the far end of the crypt. Between fights: the next room is empty.
-  const shownId: EnemyId | null = progress ? (foe?.enemyId ?? null) : CRYPT.bossId;
+  const shownId: EnemyId | null = progress ? (foe?.enemyId ?? null) : dungeon.bossId;
   const shown = shownId ? getEnemy(shownId) : null;
   const sprite = shown ? findAsset(shown.assetId) : null;
   const isBoss = shown?.rank === 'boss';
@@ -153,8 +162,8 @@ function CryptScene({ progress }: { progress: DungeonRunProgress | null }) {
           foe
             ? `${hero.name} fights ${getEnemy(foe.enemyId).name}`
             : progress
-              ? `${hero.name} in the Nameless Crypt`
-              : 'The Nameless Crypt. The Gravewarden waits in the dark.'
+              ? `${hero.name} in ${dungeon.name}`
+              : words.waiting
         }
       >
         {BACKDROP ? (
@@ -218,7 +227,9 @@ function CryptScene({ progress }: { progress: DungeonRunProgress | null }) {
               </span>
             ) : null}
             {fighting ? (
-              <span className="crypt-hud__time caps">In the crypt {clock(progress.elapsedMs)}</span>
+              <span className="crypt-hud__time caps">
+                {words.inside} {clock(progress.elapsedMs)}
+              </span>
             ) : null}
           </figcaption>
         ) : null}
@@ -229,14 +240,16 @@ function CryptScene({ progress }: { progress: DungeonRunProgress | null }) {
 
 /** Chamber I … IV, then the warden: carved steps down the side of the screen. */
 function Descent({
+  dungeon,
   progress,
   bossLevel,
 }: {
+  dungeon: DungeonDefinition;
   progress: DungeonRunProgress | null;
   bossLevel: number;
 }) {
   const steps = [
-    ...CRYPT.rooms.map((r, i) => ({
+    ...dungeon.rooms.map((r, i) => ({
       key: `r${i}`,
       label: `Chamber ${ROMAN[i]}`,
       note: `${r.enemies} foes`,
@@ -244,14 +257,14 @@ function Descent({
     })),
     {
       key: 'boss',
-      label: 'The Gravewarden',
+      label: getEnemy(dungeon.bossId).name,
       note: `Lv ${bossLevel}`,
       stage: 'boss' as const,
     },
   ];
   const fell = progress?.finished && progress.outcome === 'failed';
   return (
-    <ol className="descent" aria-label="The descent">
+    <ol className="descent" aria-label={dungeon.rooms.length > 0 ? 'The descent' : 'The climb'}>
       {steps.map((s, i) => {
         let state: 'done' | 'here' | 'ahead' | 'fell' = 'ahead';
         if (progress) {
@@ -284,19 +297,20 @@ function Descent({
   );
 }
 
-function CryptLog({ progress }: { progress: DungeonRunProgress }) {
+function CryptLog({ dungeonId, progress }: { dungeonId: DungeonId; progress: DungeonRunProgress }) {
   const { classId } = useActiveCharacter();
-  const lines = cryptLog(progress.events, progress.totalRooms, classId).reverse();
+  const words = DUNGEON_WORDS[dungeonId];
+  const lines = cryptLog(progress.events, progress.totalRooms, classId, dungeonId).reverse();
   return (
     <section className="log panel-ledger crypt-log" aria-labelledby="crypt-log-title">
       <header className="log__head">
         <h2 id="crypt-log-title" className="display">
-          Echoes from below
+          {words.logTitle}
         </h2>
         <span className="caps">Newest first</span>
       </header>
       {lines.length === 0 ? (
-        <p className="log__empty">Torchlight on wet stone. The stair goes down.</p>
+        <p className="log__empty">{words.logEmpty}</p>
       ) : (
         <ol className="log__list" aria-live="polite" aria-relevant="additions">
           {lines.map((l, i) => (
@@ -312,14 +326,17 @@ function CryptLog({ progress }: { progress: DungeonRunProgress }) {
 }
 
 function Reckoning({
+  dungeon,
   result,
   onAgain,
   busy,
 }: {
+  dungeon: DungeonDefinition;
   result: DungeonResult;
   onAgain: () => void;
   busy: boolean;
 }) {
+  const words = DUNGEON_WORDS[dungeon.id];
   const won = result.outcome === 'cleared';
   const items = result.items.map(summaryItemView);
   const mats = materialCounts(result.materials);
@@ -329,29 +346,34 @@ function Reckoning({
       aria-labelledby="reckoning-title"
     >
       <p className="caps">
-        The crypt’s reckoning · Tier {ROMAN[(result.tier ?? 1) - 1]} ·{' '}
+        {words.reckoning} ·{' '}
+        {dungeon.tiers.length > 1 ? `Tier ${ROMAN[(result.tier ?? 1) - 1]} · ` : ''}
         {formatDuration(result.durationMs)}
       </p>
       <h2 id="reckoning-title" className="display reckoning__title">
-        {won ? 'The Gravewarden falls' : 'The crypt keeps its warden'}
+        {won ? words.wonTitle : words.lostTitle}
       </h2>
       <p className="reckoning__line">
         {won
           ? result.bossLoot
-            ? 'Its seal is yours, and its hoard with it.'
+            ? dungeon.bossDrops.length > 0
+              ? 'Its seal is yours, and its hoard with it.'
+              : 'His hoard is yours.'
             : 'It falls, but its hoard is spent. Boss loot returns after the cooldown.'
-          : `You cleared ${result.roomsCleared} of ${result.totalRooms} chambers. What you took on the way down is yours.`}
+          : result.totalRooms > 0
+            ? `You cleared ${result.roomsCleared} of ${result.totalRooms} chambers. What you took on the way down is yours.`
+            : 'The warden stands. A fall costs nothing but the climb.'}
       </p>
-      {result.firstBossKill ? (
+      {result.firstBossKill && dungeon.id === 'namelessCrypt' ? (
         <p className="reckoning__unlock" role="status">
           The way to the <strong>Sunken Abbey</strong> lies open.
         </p>
       ) : null}
-      {result.firstTierClear && (result.tier ?? 1) < CRYPT.tiers.length ? (
+      {result.firstTierClear && (result.tier ?? 1) < dungeon.tiers.length ? (
         <p className="reckoning__unlock" role="status">
           A deeper stair opens: <strong>Tier {ROMAN[result.tier ?? 1]}</strong>
           {(() => {
-            const next = getDungeonTier(CRYPT.id, ((result.tier ?? 1) + 1) as DungeonTier);
+            const next = getDungeonTier(dungeon.id, ((result.tier ?? 1) + 1) as DungeonTier);
             return `, from level ${next.unlock.level}.`;
           })()}
         </p>
@@ -416,14 +438,27 @@ function Reckoning({
           Open the pack
         </a>
         <button type="button" className="btn btn--brass" onClick={onAgain} disabled={busy}>
-          Descend again
+          {words.again}
         </button>
       </div>
     </section>
   );
 }
 
+/** The Nameless Crypt (`#/crypt`, ticket 2.5). */
 export function CryptScreen() {
+  return <DungeonScreen dungeonId="namelessCrypt" />;
+}
+
+/** Ticket 4.8: the Warden's Watch in the Ashen Pass (`#/watch`). */
+export function WatchScreen() {
+  return <DungeonScreen dungeonId="ashenWatch" />;
+}
+
+/** A dungeon's door, run and reckoning (ticket 2.5; one screen for every dungeon since 4.8). */
+function DungeonScreen({ dungeonId }: { dungeonId: DungeonId }) {
+  const dungeon = getDungeon(dungeonId);
+  const words = DUNGEON_WORDS[dungeonId];
   const hero = useActiveCharacter();
   const { updateCharacter } = useCharacters();
   const game = useGame();
@@ -454,8 +489,11 @@ export function CryptScreen() {
     };
   }, [load]);
 
-  const run = state.kind === 'ready' ? state.value.run : null;
-  const running = run !== null && !run.progress.finished;
+  const anyRun = state.kind === 'ready' ? state.value.run : null;
+  // Ticket 4.8: the hero's open run may be in the other dungeon; this screen shows only its own.
+  const run = anyRun && anyRun.dungeonId === dungeonId ? anyRun : null;
+  const elsewhere = anyRun && anyRun.dungeonId !== dungeonId ? anyRun : null;
+  const running = anyRun !== null && !anyRun.progress.finished;
 
   // Settle while the run is under way: the server reveals what has happened so far.
   useEffect(() => {
@@ -478,7 +516,7 @@ export function CryptScreen() {
     setError(null);
     setResult(null);
     setChosenTier(tier);
-    const res = await dungeonApi.enter(hero.id, CRYPT.id, tier);
+    const res = await dungeonApi.enter(hero.id, dungeon.id, tier);
     setBusy(false);
     if (!res.ok) {
       setError(describeDungeonFailure(res.error));
@@ -522,11 +560,11 @@ export function CryptScreen() {
         steps={[
           { label: 'Town', route: 'hub' },
           { label: 'World map', route: 'map' },
-          { label: CRYPT.name },
+          { label: dungeon.name },
         ]}
       />
-      <h1 className="display crypt__title">{CRYPT.name}</h1>
-      <p className="crypt__desc">{CRYPT.description}</p>
+      <h1 className="display crypt__title">{dungeon.name}</h1>
+      <p className="crypt__desc">{dungeon.description}</p>
     </header>
   );
 
@@ -535,7 +573,7 @@ export function CryptScreen() {
       <div className="crypt">
         {head}
         <p className="area__wait" role="status">
-          Lighting a torch at the crypt door…
+          {words.loading}
         </p>
       </div>
     );
@@ -555,29 +593,50 @@ export function CryptScreen() {
   }
 
   const { dungeons, busyCharacterId } = state.value;
-  const entry = dungeons.find((d) => d.id === CRYPT.id);
+  const entry = dungeons.find((d) => d.id === dungeon.id);
   const progress = run?.progress ?? null;
   const tiers = entry?.tiers ?? [];
   const deepestOpen = tiers.filter((t) => t.unlocked).at(-1)?.tier ?? 1;
   const selectedTier: DungeonTier = run?.tier ?? chosenTier ?? deepestOpen;
   const selected = tiers.find((t) => t.tier === selectedTier);
-  const selectedDef = getDungeonTier(CRYPT.id, selectedTier);
+  const selectedDef = getDungeonTier(dungeon.id, selectedTier);
 
   let panel;
   if (result) {
-    panel = <Reckoning result={result} busy={busy} onAgain={() => void enter(result.tier ?? 1)} />;
+    panel = (
+      <Reckoning
+        dungeon={dungeon}
+        result={result}
+        busy={busy}
+        onAgain={() => void enter(result.tier ?? 1)}
+      />
+    );
+  } else if (elsewhere) {
+    const other = getDungeon(elsewhere.dungeonId);
+    panel = (
+      <section className="crypt-door panel-iron" aria-labelledby="crypt-door-title">
+        <h2 id="crypt-door-title" className="rule-heading">
+          Your hero is in {other.name}
+        </h2>
+        <p className="crypt-door__line">
+          Finish and claim that run before you set out here. One run at a time.
+        </p>
+        <a className="btn btn--brass" href={routeHref(DUNGEON_WORDS[other.id].route)}>
+          Go to {other.name}
+        </a>
+      </section>
+    );
   } else if (run && progress) {
     panel = (
       <section className="crypt-door panel-iron" aria-labelledby="crypt-run-title">
         <h2 id="crypt-run-title" className="rule-heading">
-          {progress.finished ? 'The fighting has stopped' : 'Delving'} · Tier {ROMAN[run.tier - 1]}
+          {progress.finished ? 'The fighting has stopped' : words.runTitle}
+          {dungeon.tiers.length > 1 ? ` · Tier ${ROMAN[run.tier - 1]}` : ''}
         </h2>
         {progress.finished ? (
           <>
             <p className="crypt-door__line">
-              {progress.outcome === 'cleared'
-                ? 'Silence below. The warden’s chamber stands open.'
-                : 'Your hero has fallen back to the stair. Take what you carried out.'}
+              {progress.outcome === 'cleared' ? words.clearedLine : words.fallenLine}
             </p>
             <button
               type="button"
@@ -591,8 +650,7 @@ export function CryptScreen() {
           </>
         ) : (
           <p className="crypt-door__line">
-            The fight below plays out on its own. Rewards are counted when you claim them at the
-            end.
+            {words.runNote} Rewards are counted when you claim them at the end.
             {run.bossLootEligible
               ? ' The warden’s hoard is waiting.'
               : ' The warden’s hoard is spent for now: no boss loot this run.'}
@@ -604,7 +662,7 @@ export function CryptScreen() {
     panel = (
       <section className="crypt-door panel-iron" aria-labelledby="crypt-door-title">
         <h2 id="crypt-door-title" className="rule-heading">
-          The door is barred
+          {words.barredTitle}
         </h2>
         <ul className="ledger__why" aria-label="Needed to enter">
           {entry.blockers.map((b) => (
@@ -621,22 +679,29 @@ export function CryptScreen() {
     panel = (
       <section className="crypt-door panel-iron" aria-labelledby="crypt-door-title">
         <h2 id="crypt-door-title" className="rule-heading">
-          Before you descend
+          {words.doorTitle}
         </h2>
         {tiers.length > 1 ? (
           <TierChoice tiers={tiers} selected={selectedTier} onSelect={setChosenTier} />
         ) : null}
         <ul className="crypt-door__facts">
           <li>
-            {CRYPT.rooms.length} chambers of{' '}
-            {CRYPT.enemies.map((e) => getEnemy(e.enemyId).name).join(' and ')} (Lv{' '}
-            {selectedDef.minLevel}–{selectedDef.maxLevel}), then the Gravewarden (Lv{' '}
-            {selectedDef.bossLevel}
+            {dungeon.rooms.length > 0 ? (
+              <>
+                {dungeon.rooms.length} chambers of{' '}
+                {dungeon.enemies.map((e) => getEnemy(e.enemyId).name).join(' and ')} (Lv{' '}
+                {selectedDef.minLevel}–{selectedDef.maxLevel}), then{' '}
+              </>
+            ) : (
+              'No chambers: the stair, then '
+            )}
+            {getEnemy(dungeon.bossId).name.replace(/^The /, 'the ')} (Lv {selectedDef.bossLevel}
             {selectedTier > 1 ? ', stronger than its level' : ''}).
           </li>
           <li>
-            The warden <strong>enrages</strong> between {enrageWindow(selectedTier)} s into the
-            fight. The faster you kill it, the safer.
+            The warden <strong>enrages</strong> between {enrageWindow(dungeonId, selectedTier)} s
+            into the fight. The faster you kill {dungeon.rooms.length > 0 ? 'it' : 'him'}, the
+            safer.
           </li>
           {selected?.lootFocus ? (
             <li>
@@ -644,19 +709,12 @@ export function CryptScreen() {
               {selected.lootFocus.description}
             </li>
           ) : null}
-          <li>
-            Your hero leaves the fields while in the crypt. A fall keeps what you took on the way
-            down.
-          </li>
-          <li>
-            {readyAt
-              ? `The warden’s hoard returns ${hoardTime(readyAt)}, at every depth. You can still fight it.`
-              : 'The warden’s hoard: a Gravewarden Seal and two items of its own. It is shared by every depth, once per 20 hours.'}
-          </li>
+          <li>{words.leaving}</li>
+          <li>{readyAt ? words.hoardBack.replace('{when}', hoardTime(readyAt)) : words.hoard}</li>
         </ul>
         {busyCharacterId ? (
           <p className="area__alert area__alert--line" role="status">
-            Another of your heroes is in the crypt. Switch to them to finish that run.
+            {words.otherHero}
           </p>
         ) : selected && !selected.unlocked ? (
           <p className="crypt-door__line" role="status">
@@ -671,9 +729,9 @@ export function CryptScreen() {
             aria-busy={busy}
           >
             {busy
-              ? 'Descending…'
+              ? words.entering
               : selectedTier === 1
-                ? 'Descend into the crypt'
+                ? words.enter
                 : `Descend to ${selectedDef.name}`}
           </button>
         )}
@@ -690,12 +748,16 @@ export function CryptScreen() {
         </p>
       ) : null}
       <div className="crypt__grid">
-        <CryptScene progress={result ? null : progress} />
+        <CryptScene dungeon={dungeon} progress={result ? null : progress} />
         <aside className="crypt__side">
-          <Descent progress={result ? null : progress} bossLevel={selectedDef.bossLevel} />
+          <Descent
+            dungeon={dungeon}
+            progress={result ? null : progress}
+            bossLevel={selectedDef.bossLevel}
+          />
           {panel}
         </aside>
-        {progress && !result ? <CryptLog progress={progress} /> : null}
+        {progress && !result ? <CryptLog dungeonId={dungeonId} progress={progress} /> : null}
       </div>
     </div>
   );

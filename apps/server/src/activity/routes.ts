@@ -6,6 +6,7 @@ import {
   isAreaId,
   requestAreaChange,
   type AreaId,
+  type WorldFlags,
 } from '@worldforge/game-core';
 import {
   accounts,
@@ -101,9 +102,16 @@ async function ownedCharacter(
   return c;
 }
 
-/** Refuses an area the character has not unlocked (server-side; never trust the client). */
-function assertAreaUnlocked(character: Character, areaId: AreaId): void {
-  const blockers = areaUnlockBlockers(areaId, { level: character.level }, character.progress);
+/**
+ * Refuses an area the character has not unlocked (server-side; never trust the client). Ticket
+ * 4.8: `world` is the global world state (the Ashen Pass waits for `ashenPassCleared`).
+ */
+function assertAreaUnlocked(character: Character, areaId: AreaId, world: WorldFlags): void {
+  const blockers = areaUnlockBlockers(
+    areaId,
+    { level: character.level, world },
+    character.progress,
+  );
   if (blockers.length > 0) {
     throw new ApiError(409, 'area_locked', 'This area is not open to this character yet.', {
       areaId,
@@ -171,6 +179,8 @@ export async function registerActivities(
         });
       }
 
+      // Ticket 4.8: world flags gate places (read through the cache; a flag is never removed).
+      const world = await app.worldState.flags();
       const result = await withTransaction(app.db, async (tx) => {
         // Serialise per account: one activity per account, checked under this lock.
         const [account] = await tx
@@ -207,7 +217,7 @@ export async function registerActivities(
         const existing = await settleActivityTx(tx, characterId, options, { touch: true });
         if (existing) {
           // Unlocks use the level after settling: time before the request counts.
-          assertAreaUnlocked(existing.character, areaId);
+          assertAreaUnlocked(existing.character, areaId, world);
           const before = existing.activity;
           const next = requestAreaChange(
             { areaId: before.areaId, pendingAreaId: before.pendingAreaId, carryMs: before.carryMs },
@@ -243,7 +253,7 @@ export async function registerActivities(
 
         const now = options.now();
         const owned = await ownedCharacter(tx, accountId, characterId);
-        assertAreaUnlocked(owned, areaId);
+        assertAreaUnlocked(owned, areaId, world);
         const farmState = initialFarmState(owned);
         // A cycle left unfinished by the last stop replays in its own area first (ticket 2.2).
         const cycleArea = farmState.areaId ?? areaId;

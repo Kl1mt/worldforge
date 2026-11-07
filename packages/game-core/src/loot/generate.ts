@@ -341,7 +341,7 @@ export function rollLoot(
   const table = params.lootTable ?? STANDARD_LOOT_TABLE;
 
   const gold = rng.chance(config.gold.dropChance)
-    ? rollGoldAmount(sourceLevel, rng, config, params.goldFind ?? 0)
+    ? rollGoldAmount(sourceLevel, rng, config, params.goldFind ?? 0, table.goldMultiplier)
     : 0;
 
   const items: GeneratedItem[] = [];
@@ -371,10 +371,12 @@ export function rollGoldAmount(
   rng: Rng,
   config: LootConfig = DEFAULT_LOOT_CONFIG,
   goldFind = 0,
+  /** Ticket 4.8: the loot table's `goldMultiplier` (no extra draw; 1 = the plain roll). */
+  multiplier = 1,
 ): number {
   assertLevel(sourceLevel, 'sourceLevel');
   const { min, max, growthPerLevel } = config.gold;
-  const base = rng.int(min, max) * (1 + growthPerLevel * (sourceLevel - 1));
+  const base = rng.int(min, max) * (1 + growthPerLevel * (sourceLevel - 1)) * multiplier;
   const bonus = Number.isFinite(goldFind) ? Math.max(0, goldFind) : 0;
   return Math.max(1, Math.round(base * (1 + bonus)));
 }

@@ -284,6 +284,16 @@
   list-style: none;
 }
 
+/* Ticket 4.8: sealed until the town finishes a project; the stacked notes and the works link. */
+.ledger__why--sealed {
+  border-left-color: var(--brass-500);
+  color: var(--text);
+}
+
+.ledger__action > * + * {
+  margin-top: var(--space-2);
+}
+
 .ledger__alert {
   margin-top: var(--space-3);
   padding: var(--space-2) var(--space-3);

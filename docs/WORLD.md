@@ -11,8 +11,10 @@ Ticket 2.1. Data and pure rules in `packages/game-core/src/world/` (areas, dunge
 | `blackwater` | 13–18 | level 13 | `drownedThrall` 60, `bogHorror` 40 | `ashwort`, `ironOre` | tiers 1/2/3 ×1/2/1 (12–19) |
 | `sunkenAbbey` | 17–22 | level 17 + Gravewarden defeated | `fallenKnight` 55, `abbeyWraith` 45 | `ironOre`, `abbeySilver` | tier 2 ×1, tier 3 ×2 (16–23) |
 | Dungeon `namelessCrypt` | 12–16 | level 12 | rooms: `cryptGhoul` 55, `boneAcolyte` 45; boss `gravewarden` (level 16) | boss drop `gravewardenSeal` | tier 2 ×2, tier 3 ×1 (11–17), 18 % item chance |
+| `ashenPass` (ticket 4.8) | 24–28 | level 24 + Gravewarden defeated + world flag `ashenPassCleared` | `ashWraith` 30, `cinderHound` 30, `pyreCultist` 25, `emberGolem` 15 | `ironOre`, `soulShard` (wraiths) | tier 3 (23–29), gold × 1.6 |
+| Dungeon `ashenWatch` (ticket 4.8) | — (no chambers) | level 26 + Gravewarden + `ashenPassCleared` | boss `ashenWarden` (level 28) | — | boss hoard only: `ashenWarden` (27–29) |
 
-- Each area overlaps the next by one level step (`next.minLevel = prev.maxLevel − 1`); the area's unlock level is its minimum enemy level.
+- Each Graumark area overlaps the next by one level step (`next.minLevel = prev.maxLevel − 1`); the area's unlock level is its minimum enemy level. The Ashen Pass starts two levels above the Abbey's top (24 vs 22): crypt tier III (21–24) bridges the gap.
 - Rooms, run timing, the boss enrage and the boss loot (`gravewarden` table, boss-exclusive bases, cooldown) are data on `DungeonDefinition` since ticket 2.5; rules in `docs/DUNGEONS.md`.
 
 ## Enemies
@@ -29,7 +31,7 @@ Enemy damage was retuned in ticket B.1 (`docs/COMBAT.md`): each later area hits 
 Yields, gathering and profession levels (ticket 2.3): `packages/game-core/src/professions/`, rules in `docs/FARMING.md` ("Gathering & professions").
 
 ## Unlocks
-Ticket 4.6: a rule may also need a global world flag (`UnlockRule.worldFlag`, set by a completed community project, `docs/COMMUNITY.md`); the caller passes the flags as `character.world`, and without them such a place stays closed (blocker `{ kind: 'worldFlag', flag }`, after the others). No place uses one yet (4.8: `ashenPass`).
+Ticket 4.6: a rule may also need a global world flag (`UnlockRule.worldFlag`, set by a completed community project, `docs/COMMUNITY.md`); the caller passes the flags as `character.world`, and without them such a place stays closed (blocker `{ kind: 'worldFlag', flag }`, after the others). Ticket 4.8: the Ashen Pass and the Warden's Watch use `ashenPassCleared`; every server path that checks an unlock passes `await app.worldState.flags()` (world map, farming start, merchant stock and purchase, dungeon state and start).
 
 `isAreaUnlocked(areaId, character, progress)` and `isDungeonUnlocked(…)` with `character = { level }` and `progress = { gravewardenDefeated }`. `areaUnlockBlockers` / `dungeonUnlockBlockers` return the unmet conditions in a stable order (`{ kind: 'level', required }`, then `{ kind: 'gravewardenDefeated' }`) for the world map. A non-integer or < 1 level throws. The rules live in `UnlockRule` on each place (data), so new places need no code.
 
@@ -53,3 +55,37 @@ One-hour `settleFarming` window, mean of 6 seeds, character at the area's middle
 | Sunken Abbey (20) | 252/59 · 198/95 · 246/78 · 204/80 | 0 · 0 · 0 · 0 |
 
 No timeouts anywhere. Two things for B.1: unequipped characters die far more in each new area than in the Fields (Phase 1 class scaling falls behind enemy scaling), and even common gear removes deaths entirely, so armor from gear is very strong.
+
+## The Ashen Pass (ticket 4.8)
+
+The top-end region, GDD §4.3 / §12.2. Closed for everyone until the community finishes *Clear the Ashen Pass* (world flag `ashenPassCleared`, `docs/COMMUNITY.md`); then open to every hero of level 24 who has slain the Gravewarden. Its boss, the Ashen Warden, is fought in its own boss-only run, the Warden's Watch (`docs/DUNGEONS.md` "The Warden's Watch"). Art from A.7 (`area.ashen-pass`, `enemy.ash-wraith`, `enemy.cinder-hound`, `enemy.pyre-cultist`, `enemy.ember-golem`, `enemy.ashen-warden`); map markers in the north-west mountains (`MAP_MARKERS`).
+
+**What it is for.** Content ended at 24 while heroes reached 22–28, and past ~22 every late-game build one-shot the Abbey (B.2's farming breakpoint), so nothing at the top rewarded a better build. The Pass is tuned against **Phase 3 gear** (rares at +5 upward, what a hero has who cleared crypt tier II and spends Abbey gold on upgrades), not against commons: a common kit falls 35–50 times an hour there. Its foes have 1.7–2.4 × the health per level of the Abbey's at similar damage, so the late-game builds need several blows again and the build shows in the kill rate (`docs/COMBAT.md` "The top end").
+
+| Enemy | Type | Health | Damage | Notes |
+|---|---|---|---|---|
+| `ashWraith` Ash Wraith | magic | 50 + 32/level | 7.9 + 2.28 | undead (drops soul shards), attack speed 1.0 |
+| `cinderHound` Cinder Hound | physical | 40 + 27/level | 5.6 + 1.66 | fast (1.4) |
+| `pyreCultist` Pyre Cultist | magic | 56 + 34/level | 9.2 + 2.61 | high resistance |
+| `emberGolem` Ember Golem | physical | 96 + 45/level | 11.8 + 3.28 | slow (0.6), heavy armour |
+| `ashenWarden` The Ashen Warden (boss) | magic | 1,900 + 460/level (14,320 at 28) | 8 + 1.6 | undead; `docs/DUNGEONS.md` |
+
+XP per kill is about 1.4 × the Abbey's per level (so an hour pays more XP despite the slower kills).
+
+**Rewards.** The loot table `ashenPass` drops tier-3 bases only, at item levels **23–29** (above every other area; tier-4 affixes unlock at 25), with an affix bias of 0.8 (the Abbey's 0.6, crypt tier II's chambers) and the Abbey's late-game odds (Mythics, sets, Legendary weight, Void). Kill gold × 1.6 (`LootTableDefinition.goldMultiplier`, applied after the roll, so no extra draw and no other table changes). Gathering: iron ore (6 %, the tier-3 upgrade material) and, from the wraiths, soul shards (3 %, the +8 → +10 binding material). No new material: the Warden drops none either (a material without a recipe would only be salvage; B.3 or a later recipe ticket can add one).
+
+**Asserted** (`balance.test.ts` "the Ashen Pass"; rares +5 at item level = level − 1, 3 seeds × 1 h):
+
+| | Measured (warrior / mage / hunter / warlock) | Band |
+|---|---|---|
+| Deaths per hour at 24 / 26 / 28 | 0 / 0.3 / 0 / 0 · 0 · 0 / 0 / 0 / 0.3 | ≤ 2 |
+| Damage share per fight at 24 | 14 / 19 / 15 / 16 % | < 21 %, > 1.15 × the Abbey's top with the same kit (8–9 %), casters within × 1.45 |
+| Kills per minute at 26 | 7.4 / 8.6 / 9.0 / 6.9 | 6.5–12; Legendary +10 kit ≥ 1.25 × (11–15) |
+| XP per hour at 24 | 77k / 71k / 86k / 81k (Abbey 22, same kit: 63–72k) | above the Abbey's top |
+| Gold per hour at 24 | 997 / 909 / 1,258 / 1,238 (Abbey 22: 786–1,018) | mean > 1.05 × the Abbey's top, < 2,500 at 26 |
+| Levels 24 → 28 | 23 / 23.5 / 20 / 23 h | 15–35 h; a 3 h window from 24 stays ≤ 26 |
+| Iron ore · soul shards per hour | 27–33 · 3–5 | ≤ 60 · ≤ 45 |
+| Commons at 24 | 36–52 deaths per hour | > 20 (top-end content) |
+| Merchant (its stock at 26) | common 12 min, uncommon 25 min of its gold | common 3–20, uncommon ≤ 35 min |
+
+The existing Graumark bands (B.1: commons, `GRAUMARK` in the test) are unchanged and no longer include the Pass.

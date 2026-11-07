@@ -15,7 +15,7 @@ import {
  * Dungeons (GDD §11.2). Data from ticket 2.1; rooms, the boss mechanic and boss loot are ticket 2.5
  * (rules in `src/dungeon/`).
  */
-export const DUNGEON_IDS = ['namelessCrypt'] as const;
+export const DUNGEON_IDS = ['namelessCrypt', 'ashenWatch'] as const;
 
 export type DungeonId = (typeof DUNGEON_IDS)[number];
 
@@ -208,7 +208,10 @@ export const DUNGEONS: readonly DungeonDefinition[] = [
         maxLevel: 24,
         unlock: { level: 21, cryptTierCleared: 2 },
         bossLevel: 24,
-        bossScale: { health: 2.4, damage: 1.5, resistance: 0.5 },
+        // Ticket 4.8: damage × 1.5 → × 2.4 (3.9: tier III fell at its entry to every hero in
+        // upgraded Abbey gear). The enrage phase decides it now: upgraded epics have a chance at
+        // 21, not a certainty; builds that kill before the enrage (Legendaries, BiS) are unchanged.
+        bossScale: { health: 2.4, damage: 2.4, resistance: 0.5 },
         bossMaxFightMs: 150_000,
         bossEnrage: {
           atMs: { min: 30_000, max: 70_000 },
@@ -232,6 +235,53 @@ export const DUNGEONS: readonly DungeonDefinition[] = [
       },
     ],
   },
+  {
+    // Ticket 4.8: the Ashen Pass's boss. A boss-only run (no chambers): the walk up the tower, then
+    // the Ashen Warden, with the crypt's rules (snapshot, seed streams, enrage window, claim, its
+    // own hoard cooldown). Opens with the Ashen Pass (the community's world flag) at level 26.
+    id: 'ashenWatch',
+    name: 'The Warden’s Watch',
+    region: 'Graumark',
+    description:
+      'The last watchtower of the pass. Its warden never left the fire, and the fire never left him.',
+    assetId: 'area.ashen-pass',
+    enemies: [],
+    rooms: [],
+    travelMs: 30_000,
+    bossId: 'ashenWarden',
+    bossDrops: [],
+    bossLootCooldownHours: 20,
+    tiers: [
+      {
+        tier: 1,
+        name: 'The Watch',
+        minLevel: 26,
+        maxLevel: 28,
+        unlock: { level: 26, gravewardenDefeated: true, worldFlag: 'ashenPassCleared' },
+        bossLevel: 28,
+        bossMaxFightMs: 150_000,
+        bossEnrage: {
+          atMs: { min: 25_000, max: 55_000 },
+          damageMultiplier: 2,
+          attackSpeedMultiplier: 1.4,
+        },
+        bossLoot: {
+          lootTableId: 'ashenWarden',
+          items: 2,
+          rarityWeights: {
+            common: 0,
+            uncommon: 500,
+            rare: 3000,
+            epic: 3500,
+            legendary: 700,
+            mythic: 60,
+          },
+          gold: { min: 700, max: 1_000 },
+        },
+        lootTableId: 'ashenPass',
+      },
+    ],
+  },
 ];
 
 const DUNGEONS_BY_ID = new Map(DUNGEONS.map((d) => [d.id, d]));
@@ -248,6 +298,11 @@ export function getDungeon(id: DungeonId): DungeonDefinition {
 
 export function isDungeonTier(value: unknown): value is DungeonTier {
   return typeof value === 'number' && (DUNGEON_TIERS as readonly number[]).includes(value);
+}
+
+/** Whether the dungeon has this tier (ticket 4.8: the Warden's Watch has only tier I). */
+export function hasDungeonTier(id: DungeonId, tier: DungeonTier): boolean {
+  return getDungeon(id).tiers.some((t) => t.tier === tier);
 }
 
 /** A tier of a dungeon (ticket 3.6). */

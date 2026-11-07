@@ -4,6 +4,8 @@ import {
   BOSS_JOB,
   CLASS_IDS,
   FARM_JOB,
+  PASS_FARM_JOB,
+  WARDEN_JOB,
   bossTime,
   buildItems,
   buildParts,
@@ -36,6 +38,7 @@ import {
 const SHARE = 0.07;
 const boss = new Map<ClassId, Scored[]>();
 const farm = new Map<ClassId, Scored[]>();
+const pass = new Map<ClassId, Scored[]>();
 const table = (scored: Scored[], unit: (s: number) => string) =>
   scored
     .slice(0, 60)
@@ -98,6 +101,55 @@ describe('build diversity (ticket B.2)', () => {
         expectDiverse(c, 'farming', scored, true);
         const other = scored.find((s) => !s.build.chassis.includes('bloodmoon-hunt'))!;
         expect(other.score / scored[0]!.score, describeBuild(other.build)).toBeGreaterThan(0.8);
+      },
+      60_000,
+    );
+  });
+
+  // Ticket 4.8: the top end. The Ashen Pass's enemies take several blows from these builds again,
+  // so the build decides the rate instead of the one-shot cap (docs/COMBAT.md "The top end").
+  describe('farming the Ashen Pass (level 26, item level 25)', () => {
+    it.each(CLASS_IDS)(
+      '%s: past the Abbey breakpoint: below the cap, fewer ties, several builds near the best',
+      (c) => {
+        const scored = searchBuilds(
+          c,
+          PASS_FARM_JOB.itemLevel,
+          (items) => farmRate(c, items, PASS_FARM_JOB),
+          setChassis(c),
+        );
+        pass.set(c, scored);
+        expectDiverse(c, 'Ashen Pass farming', scored, true);
+        const abbey = farm.get(c)!;
+        const near = (x: Scored[]) => topBuilds(x, SHARE).length;
+        const label = `${c}: Pass ${scored[0]!.score.toFixed(1)} (${describeBuild(scored[0]!.build)}), ${near(scored)}/${scored.length} within 7 %; Abbey ${abbey[0]!.score.toFixed(1)}, ${near(abbey)}/${abbey.length}`;
+        // The best build no longer sits at the Abbey's cap (2 s search + one blow).
+        expect(scored[0]!.score / abbey[0]!.score, label).toBeLessThan(0.95);
+        // Fewer builds tie with the best than at the Abbey's cap: the choice shows in the rate.
+        expect(near(scored), label).toBeLessThan(near(abbey) * 0.8);
+        // Still idle-paced for the best builds (the cap is ~24 kills a minute).
+        expect(scored[0]!.score, label).toBeGreaterThan(15);
+      },
+      60_000,
+    );
+  });
+
+  describe('the Ashen Warden (level 28, item level 27)', () => {
+    it.each(CLASS_IDS)(
+      '%s: several distinct builds within 7 % of the fastest, none needing one set',
+      (c) => {
+        const scored = searchBuilds(
+          c,
+          WARDEN_JOB.itemLevel,
+          (items) => -bossTime(c, items, WARDEN_JOB.runs, WARDEN_JOB),
+          setChassis(c),
+          true,
+        );
+        expectDiverse(c, 'Ashen Warden', scored);
+        // It is the top boss: even the best builds need longer than for tier III's Gravewarden.
+        expect(-scored[0]!.score, describeBuild(scored[0]!.build)).toBeGreaterThan(
+          -boss.get(c)![0]!.score,
+        );
       },
       60_000,
     );

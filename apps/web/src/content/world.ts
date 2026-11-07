@@ -44,6 +44,9 @@ export const MAP_MARKERS: readonly MapMarker[] = [
   { id: 'blackwater', x: 225, y: 172 },
   { id: 'sunkenAbbey', x: 320, y: 110 },
   { id: 'namelessCrypt', x: 332, y: 42 },
+  // Ticket 4.8: the mountains in the north-west (the map has no painted spot for the pass).
+  { id: 'ashenPass', x: 52, y: 40 },
+  { id: 'ashenWatch', x: 104, y: 26 },
 ];
 
 export function mapMarker(id: MapPlaceId): MapMarker | null {

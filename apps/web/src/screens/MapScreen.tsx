@@ -10,6 +10,7 @@ import {
   type UnlockBlocker,
 } from '@worldforge/game-core';
 import { asset } from '../content/assets';
+import { DUNGEON_WORDS } from '../content/dungeons';
 import { MAP_MARKERS, type MapPlaceId } from '../content/world';
 import { PixelSprite } from '../components/PixelSprite';
 import { useElementWidth } from '../components/useElementWidth';
@@ -28,7 +29,11 @@ const GAP = 24;
 const WIDE_QUERY = '(min-width: 1081px)';
 
 type PlaceId = AreaId | DungeonId;
-/** current = fighting there; next = travelling there after this fight; sealed = open but not yet enterable. */
+/**
+ * current = fighting there; next = travelling there after this fight; sealed = closed for
+ * everyone until the town finishes a community project (ticket 4.8: a world-flag blocker), or a
+ * dungeon the server marks as not yet available.
+ */
 type PlaceState = 'current' | 'next' | 'open' | 'locked' | 'sealed' | 'unknown';
 
 interface Place {
@@ -72,8 +77,9 @@ function places(world: WorldState | null, current: AreaId | null, pending: AreaI
     if (p.id === current) state = 'current';
     else if (p.id === pending) state = 'next';
     else if (w) {
-      const sealed = p.kind === 'dungeon' && !(w as { available?: boolean }).available;
-      state = !w.unlocked ? 'locked' : sealed ? 'sealed' : 'open';
+      const unavailable = p.kind === 'dungeon' && !(w as { available?: boolean }).available;
+      const sealed = w.blockers.some((b) => b.kind === 'worldFlag');
+      state = sealed ? 'sealed' : !w.unlocked ? 'locked' : unavailable ? 'sealed' : 'open';
     }
     return { ...p, state, blockers: w?.blockers ?? [] };
   });
@@ -83,6 +89,7 @@ function blockerText(b: UnlockBlocker): string {
   if (b.kind === 'level') return `Reach level ${b.required}`;
   // Ticket 4.6: a community project must finish first.
   if (b.kind === 'worldFlag') return getWorldFlag(b.flag).lockedText;
+  if (b.kind === 'cryptTier') return `Clear Tier ${'I'.repeat(b.tier)} of the crypt`;
   return 'Defeat the Gravewarden';
 }
 
@@ -204,10 +211,35 @@ export function MapScreen() {
       </button>
     );
   } else if (selected.state === 'open' && selected.kind === 'dungeon') {
+    const words = DUNGEON_WORDS[selected.id as DungeonId];
     action = (
-      <a className="btn btn--brass" href={routeHref('crypt')}>
-        Go to the crypt door
+      <a className="btn btn--brass" href={routeHref(words.route)}>
+        {words.route === 'crypt' ? 'Go to the crypt door' : 'Go to the watchtower'}
       </a>
+    );
+  } else if (selected.state === 'sealed' && selected.blockers.some((b) => b.kind === 'worldFlag')) {
+    // Ticket 4.8: the town opens it together (community projects, `#/works`).
+    const others = selected.blockers.filter((b) => b.kind !== 'worldFlag');
+    action = (
+      <>
+        <p className="ledger__why ledger__why--sealed">
+          {selected.blockers
+            .filter((b) => b.kind === 'worldFlag')
+            .map((b) => blockerText(b))
+            .join(' ')}{' '}
+          Every hero in Graumark can help.
+        </p>
+        {others.length > 0 ? (
+          <ul className="ledger__why" aria-label="Also needed to enter">
+            {others.map((b) => (
+              <li key={b.kind}>{blockerText(b)}</li>
+            ))}
+          </ul>
+        ) : null}
+        <a className="btn btn--brass" href={routeHref('works')}>
+          See the town works
+        </a>
+      </>
     );
   } else if (selected.state === 'sealed') {
     action = <p className="ledger__why">The crypt door is sealed for now. Delving comes later.</p>;

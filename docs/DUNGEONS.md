@@ -1,6 +1,6 @@
 # Dungeons: the Nameless Crypt & the Gravewarden (ticket 2.5)
 
-Server-authoritative dungeon runs (GDD §6.4, §11.2). Rules are pure functions in `packages/game-core/src/dungeon/`; data in `packages/game-core/src/world/dungeons.ts`; persistence and routes in `apps/server/src/dungeon/`; UI in `apps/web/src/screens/CryptScreen.tsx` (`#/crypt`, entered from the world map). Endpoints: `docs/API_CONVENTIONS.md`. Table: `dungeon_runs` (and 2.6's `idempotency_keys`) in `docs/DATA_MODEL.md`.
+Server-authoritative dungeon runs (GDD §6.4, §11.2). Rules are pure functions in `packages/game-core/src/dungeon/`; data in `packages/game-core/src/world/dungeons.ts`; persistence and routes in `apps/server/src/dungeon/`; UI in `apps/web/src/screens/CryptScreen.tsx` (`#/crypt`, entered from the world map; since ticket 4.8 the same screen, `DungeonScreen`, also shows the Warden's Watch at `#/watch`, with its words in `apps/web/src/content/dungeons.ts`). Endpoints: `docs/API_CONVENTIONS.md`. Table: `dungeon_runs` (and 2.6's `idempotency_keys`) in `docs/DATA_MODEL.md`.
 
 ## A run
 - **Shape (data):** 4 chambers of 2 enemies each (`cryptGhoul` 55 / `boneAcolyte` 45, level = hero level ± 1 clamped to the tier's range, 12–16 in tier I), then the Gravewarden (tier I: level 16). Tiers: below. A 20 s walk into every chamber and into the boss chamber (out-of-combat regeneration applies), `searchMs` (2 s) between the two enemies of a chamber.
@@ -43,7 +43,7 @@ Every tier reuses the crypt's rooms, enemies, boss, art and rules; a tier is dat
 |---|---|---|---|---|---|
 | I | level 12 | 12–16 | level 16 | 3000/3500/1800/250/20 · 120–180 | rings and amulets × 3 (`slots`) |
 | II | level 18 + tier I cleared | 18–21 | level 21, health × 1.8, damage × 1.3, resistance × 0.5 (B.2) | 2000/3500/2400/350/30 · 260–380 | the Drowned Vigil (`sets`) |
-| III | level 21 + tier II cleared | 21–24 | level 24, health × 2.4, damage × 1.5, resistance × 0.5 (B.2) | 1000/3500/3000/500/45 · 420–600 | the Ashen Choir (`sets`) + Tyrant's Bane and Headsman's Due × 4 (`effects`) |
+| III | level 21 + tier II cleared | 21–24 | level 24, health × 2.4, damage × 2.4 (4.8; was × 1.5), resistance × 0.5 (B.2) | 1000/3500/3000/500/45 · 420–600 | the Ashen Choir (`sets`) + Tyrant's Bane and Headsman's Due × 4 (`effects`) |
 
 All tiers: enrage window 30–70 s, × 1.8 damage and × 1.4 attack speed, 150 s limit, 2 boss items, one Gravewarden Seal. A Gravewarden kill of a character from before 3.6 counts as tier I cleared (`cryptTierCleared(progress)`), so nobody has to clear tier I again. The state (`GET …/dungeon`) lists every tier with `unlocked`, `blockers` (`{ kind: 'cryptTier', tier }` for the gate), levels and `lootFocus`, and the deepest `tierCleared`. Items from every tier keep the source `dungeon:namelessCrypt`; the audit entries (`dungeon.start`, `dungeon.claim`, `activity.stop`) carry the tier.
 
@@ -74,7 +74,7 @@ Win rates (warrior / mage / hunter / warlock; `kit` as in `balance.test.ts`: one
 
 The spread between classes at one rarity comes from the generated kits' affix rolls (a rare kit is two random affixes per slot), so `balance.test.ts` asserts class means where a single kit decides it, and per-class bands where it doesn't. Tier II is where Abbey gear (rares, epics, upgrades) earns a real chance; tier III is the Legendary tier, where the Phase 3 power sources (Legendaries, Mythics, sets, +10, Void) make the run reliable but the boss still takes 18–60 s (the deeper boss is scaled because a level-for-level boss falls behind the hero: unscaled, commons won tier II and III every time). The best builds out-grow tier II (Void Legendaries +10 or a Mythic: 11–14 s), which is what tier III is for.
 
-**Asserted per tier** (`balance.test.ts`, "the Nameless Crypt (tiers: ticket 3.6)"): tier I — naked 0 %; level-12 commons ≤ 50 % per class and 5–30 % on average; commons +5, uncommons and commons + Tyrant's Bane 25–90 % per class; every upgrade step and every level raises the mean; +7 commons stay < 90 %; geared 15, level-12 rares, the full Vigil and Legendaries ≥ 90–95 % per class; the boss still takes > 1.2 × the earliest enrage and a third of a geared-15 hero's health. Tier II — naked 0 %; commons +5 ≤ 10 %; rares 20–70 %; rares +5, epics and rares two levels on raise it but stay ≤ 95 %; every best-in-slot build ≥ 95 % per class. Tier III — naked and commons 0 %; rares ≤ 10 %; epics ≤ 40 % and below tier II's; epics +5 30–85 %; Legendaries ≥ 90 %, every other best-in-slot build ≥ 95 % per class. No build kills the tier II boss in under 0.35 × and the tier III boss in under 0.55 × the earliest enrage. A winning run pays 0.8–2.2 × the XP of farming the matching area for the same time, in every tier.
+**Asserted per tier** (`balance.test.ts`, "the Nameless Crypt (tiers: ticket 3.6)"): tier I — naked 0 %; level-12 commons ≤ 50 % per class and 5–30 % on average; commons +5, uncommons and commons + Tyrant's Bane 25–90 % per class; every upgrade step and every level raises the mean; +7 commons stay < 90 %; geared 15, level-12 rares, the full Vigil and Legendaries ≥ 90–95 % per class; the boss still takes > 1.2 × the earliest enrage and a third of a geared-15 hero's health. Tier II — naked 0 %; commons +5 ≤ 10 %; rares 20–70 %; rares +5, epics and rares two levels on raise it but stay ≤ 95 %; every best-in-slot build ≥ 95 % per class. Tier III (since 4.8) — naked and commons 0 %; rares and rares +5 ≤ 10 %; epics ≤ 40 % and below tier II's; epics +5 5–35 %, +8 30–75 % and more than +5; epics +8 two levels on > 70 %; Legendaries ≥ 70 % at the entry and ≥ 95 % two levels on; every other best-in-slot build ≥ 95 % per class. No build kills the tier II boss in under 0.35 × and the tier III boss in under 0.55 × the earliest enrage. A winning run pays 0.8–2.2 × the XP of farming the matching area for the same time, in every tier.
 
 ### Farmed gear (ticket B.2)
 The tables above use generated kits. B.2 measured the tiers against **farmed** gear instead: a hero farms the matching area for 10 or 30 hours (the real settlement), wears the best drop per slot (by item level, rarity and affix count) and upgrades it to +0 or +5 (cheap at these item levels). 12 seeds per cell, warrior / mage / hunter / warlock, before → after B.2 (`tools/balance/crypt-farmed.ts`):
@@ -89,6 +89,59 @@ The tables above use generated kits. B.2 measured the tiers against **farmed** g
 | III · 23 | 17/8/25/0 → 25/17/25/25 | 67/33/50/25 → 75/42/50/42 | 50/33/83/67 → 50/58/83/83 | 92/67/100/100 → 92/92/100/100 |
 
 **Reading and decisions.** Tiers II and III are curves over farming time and upgrades, as intended; only the casters were off: with farmed gear the mage and the warlock won about half as often as the warrior and the hunter in tier III (24 seeds at 22, 30 h + 5: 79 / 67 / 92 / 67 %; they died after the enrage, ~15 % slower to kill). **Fixed:** the tier II and III Gravewarden resists magic half as much (`EnemyScale.resistance` = 0.5, tier I unchanged): 79 / 79 / 92 / 83 % now. Tier I is a near-certain win for farmed gear even at its entry level 12 (75–100 % with 10 h of Burial Grounds gear, 100 % from +5). That is 3.6's decision ("farmed gear *should* raise the odds"), and tier I is the Phase 2 gate a player has already passed, so it stays.
+
+### Tier III against upgraded gear (ticket 4.8)
+3.9's exit runs saw tier III fall on the first attempt at its entry level 21 for every hero that spent its gold on upgrades: B.2 measured farmed gear at +0 and +5, but by 21 a realistic hero wears its Abbey drops at +5 to +8. **Changed:** the tier III Gravewarden's damage × 1.5 → × 2.4 (health, enrage window, level, loot: unchanged). The enrage phase decides it now: a kit that needs past the enrage (≥ 30 s) to kill the boss has to survive a much harder last stretch, while builds that kill it before the earliest enrage (Legendary kits, every best-in-slot build: 10–30 s) are untouched. Tiers I and II, and every other number, are bit-identical to before (checked: hashes of Graumark settlements, tier I/II runs, loot rolls and merchant stock against `main`, `tools/balance` scratch check in the PR).
+
+Generated kits (`balance.test.ts` kits, 32 runs per class, warrior / mage / hunter / warlock, class mean in brackets), before → after:
+
+| Level 21 (entry) | before | after |
+|---|---|---|
+| rares +5 | 38/19/44/19 (30) | 0 % |
+| rares +8 | 69/53/72/53 (62) | 16/0/0/0 (4) |
+| epics | 13/9/9/72 (26) | 0 % |
+| epics +5 | 69/59/63/100 (73) | 0/0/3/59 (16) |
+| epics +8 | 100 % | 28/31/38/81 (45) |
+| Legendaries | 100 % | 100/34/100/100 (84) |
+| Legendaries +5 · +10 | 100 % · 100 % | 100/69/100/100 (92) · 100 % |
+
+| Level 23 | before | after |
+|---|---|---|
+| epics +5 | 100 % | 31/56/69/25 (45) |
+| epics +8 | 100 % | 63/91/100/53 (77) |
+| rares +8 | 100/91/81/47 (80) | 25/19/16/0 (15) |
+| Legendaries (any) | 100 % | 100 % |
+
+Farmed gear (`tools/balance/crypt-farmed.ts`, Abbey drops, 12 seeds), before → after:
+
+| Tier III at | 30 h, +0 | 30 h, +5 | 30 h, +8 | 10 h, +8 |
+|---|---|---|---|---|
+| 21 | 17/25/42/42 → 0/8/0/25 | 67/75/67/83 → 8/25/33/33 | 92/75/83/83 → 33/33/50/42 | 50/25/33/50 → 8/8/0/0 |
+| 22 | 50/58/58/50 → 25/25/25/25 | 75/83/83/83 → 33/33/50/42 | 92/100/100/100 → 67/67/58/58 | 75/58/58/58 → 8/25/8/8 |
+| 23 | 50/58/83/83 → 8/17/25/58 | 92/92/100/100 → 42/58/67/67 | 100 % → 58/75/83/92 | 83/83/83/67 → 50/17/33/25 |
+
+**The exit runs** (`phase3-exit-criteria.test.ts`, one run per class, after 4.8): the warrior, mage and hunter still won tier III at 21 on the first attempt; the warlock lost at 21 and 22 and won at 23. Those heroes wear mostly Legendaries and set pieces at +3 to +6 by 21 (contracts, crypt hoards and Abbey drops: e.g. the warrior's kit was 5 Legendary/set pieces +5–6 and 3 epics +5), which is the Legendary tier's job: 3.6 made tier III the tier where Legendaries make the run reliable. Making those kits uncertain at 21 would need ~1.5 × boss health, which would also slow every best-in-slot build by half and break B.2's build diversity (the Ashen Choir's rot grows with fight length). B.3 may revisit it with playtest data. B.2's build search on the tier III boss is unchanged except the warlock (best 11.6 s, 5 builds within 7 % → 11.4 s, 4 builds).
+
+## The Warden's Watch (ticket 4.8)
+The Ashen Pass's boss (`docs/WORLD.md` "The Ashen Pass"), fought like the Gravewarden in a dungeon run, but **boss-only**: no chambers, a 30 s climb, then the Ashen Warden. Same engine and rules as the crypt (`simulateDungeonRun`: snapshot, server-only seed streams, enrage window, claim with `Idempotency-Key`, one unclaimed run per account across both dungeons, the farming stopped while it runs). Data: `DUNGEONS` entry `ashenWatch` (one tier), enemy `ashenWarden`. Screen: `#/watch` (the map marker beside the Pass, and a link in the Pass's description).
+
+- **Gate:** level 26, the Gravewarden slain, and the world flag `ashenPassCleared` (`409 dungeon_locked` with the blockers otherwise). A tier other than 1 is `400 validation_failed` ("Choose one of: 1.").
+- **The boss:** level 28, magic damage, 1,900 + 460 per level above 1 (14,320 health), enrage drawn per run between **25 and 55 s** for **× 2** damage and × 1.4 attack speed (harsher than the crypt's), 150 s limit. XP 600 + 105 per level above 1 (3,435): a winning run pays 0.8–2.2 × the XP of farming the Pass for the same time (asserted).
+- **Hoard** (its own 20 h cooldown, separate from the crypt's, so a top hero takes both): 2 items from `ashenWarden` (tier-3 bases at item level 27–29, affix bias 1.4, the late-game Legendary/set/Mythic/Void odds) with rarity weights uncommon 500 / rare 3000 / epic 3500 / legendary 700 / mythic 60, and 700–1,000 gold. Loot focus *The Warden's armoury*: weapons and off-hands × 3. No boss material.
+- **Progress:** a kill sets `characters.progress.ashenWardenDefeated` (nothing gates on it yet) and never touches the crypt's `gravewardenDefeated` / `cryptTierCleared`; the state's `tierCleared` for the Watch is 1 once he fell. Items carry the source `dungeon:ashenWatch`; telemetry dimensions `ashenWatch:1`. The boss kill emits the quest event `bossDefeated` with `bossId: 'ashenWarden'` (no quest uses it yet).
+
+**Balance** (`balance.test.ts` "the Ashen Warden", `builds.test.ts`; generated kits at item level = level − 1, 24 runs per class, warrior / mage / hunter / warlock):
+
+| Level 26 (entry) | Win rate | Asserted |
+|---|---|---|
+| rares +5, epics +5 | 0 % | 0 % (the gear that farms the Pass does not beat its warden) |
+| epics +10 | 0/4/38/0 % | mean ≤ 30 % |
+| Legendaries | 71/83/100/71 % (boss down in 27–47 s) | mean 50–90 %, above epics +10, below tier III's at the same level |
+| Legendaries +5 | 96/100/100/96 % | mean ≥ 90 % |
+| Legendaries +10 | 100 % | — |
+| at 28: every best-in-slot build (sets, Mythic, +10, Void +10) | ≥ 95 % on average, ≥ 85 % per class | as measured |
+
+No best-in-slot build kills him in under 0.4 × the earliest enrage. The B.2 build search at level 28 (item level 27) finds several distinct builds within 7 % for every class with no set in all of them, and every class's best build needs longer than at the tier III Gravewarden (`builds.test.ts`). His health is set so that the best builds take about as long as at tier III: more health made the hunter's top builds all Ashen Choir (its rot grows with fight length), so the Watch is harder through its earlier, harsher enrage instead.
 
 ## Targeted loot (ticket 3.6)
 Each tier declares a **loot focus** (`LootFocus` on its chamber and boss tables, `CRYPT_LOOT_FOCI`), shown at the crypt door, so the player can farm toward a build: a slot group (bases of those slots weigh × `slotWeight`), a set (a set-piece roll picks only that set's pieces) and/or an effect family (those Legendary effects weigh × `effectWeight`). A focus only reweights draws the generator makes anyway, so the same item seed rolls the same rarity, item level, set/Mythic outcome and Void flag with or without it (`loot/focus.test.ts`), and every drop stays deterministic per kill stream and split-invariant. Measured (warrior with a Legendary kit at each tier's level, boss loot eligible, 3,000 runs):

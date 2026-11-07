@@ -45,6 +45,7 @@ import {
   type GeneratedItem,
   MYTHIC_ITEMS,
   ITEM_SETS,
+  NO_WORLD_FLAGS,
 } from '../index.js';
 
 /** The Phase 2 content contract (`docs/ROADMAP.md`), verbatim. */
@@ -62,6 +63,15 @@ const CONTRACT = {
     ['oldBurialGrounds', 9, 14, 9, ['risenSkeleton', 'graveCrawler'], ['soulShard']],
     ['blackwater', 13, 18, 13, ['drownedThrall', 'bogHorror'], ['ashwort', 'ironOre']],
     ['sunkenAbbey', 17, 22, 17, ['fallenKnight', 'abbeyWraith'], ['ironOre', 'abbeySilver']],
+    // Ticket 4.8 (fixed ids from A.7).
+    [
+      'ashenPass',
+      24,
+      28,
+      24,
+      ['ashWraith', 'cinderHound', 'pyreCultist', 'emberGolem'],
+      ['ironOre', 'soulShard'],
+    ],
   ],
   dungeon: [
     'namelessCrypt',
@@ -72,6 +82,8 @@ const CONTRACT = {
     'gravewarden',
     'gravewardenSeal',
   ],
+  /** Ticket 4.8: the Ashen Pass's boss, fought alone (no chambers) in the Warden's Watch. */
+  watch: ['ashenWatch', 26, 28, 26, 'ashenWarden'],
   professions: {
     timber: 'woodcutting',
     ashwort: 'herbalism',
@@ -95,14 +107,20 @@ describe('content contract', () => {
       expect(area.materials).toEqual(materials);
     }
     expect(getArea('sunkenAbbey').unlock.gravewardenDefeated).toBe(true);
-    for (const a of AREAS.filter((x) => x.id !== 'sunkenAbbey')) {
+    expect(getArea('ashenPass').unlock.gravewardenDefeated).toBe(true);
+    for (const a of AREAS.filter((x) => x.id !== 'sunkenAbbey' && x.id !== 'ashenPass')) {
       expect(a.unlock.gravewardenDefeated, a.id).toBeFalsy();
+    }
+    // Ticket 4.8: only the Ashen Pass waits for a world flag (the community's second project).
+    expect(getArea('ashenPass').unlock.worldFlag).toBe('ashenPassCleared');
+    for (const a of AREAS.filter((x) => x.id !== 'ashenPass')) {
+      expect(a.unlock.worldFlag, a.id).toBeUndefined();
     }
   });
 
   it('defines the Nameless Crypt with its roster, boss and boss drop', () => {
     const [id, min, max, unlock, enemies, boss, drop] = CONTRACT.dungeon;
-    expect(DUNGEONS.map((d) => d.id)).toEqual([id]);
+    expect(DUNGEONS.map((d) => d.id)).toEqual([id, CONTRACT.watch[0]]);
     const d = getDungeon(id);
     const t1 = getDungeonTier(id, 1);
     expect([t1.minLevel, t1.maxLevel, t1.unlock.level]).toEqual([min, max, unlock]);
@@ -125,11 +143,35 @@ describe('content contract', () => {
     }
   });
 
+  it('defines the Warden’s Watch: one tier, no chambers, the Ashen Warden, the world flag', () => {
+    const [id, min, max, unlock, boss] = CONTRACT.watch;
+    const d = getDungeon(id);
+    expect(d.rooms).toEqual([]);
+    expect(d.enemies).toEqual([]);
+    expect(d.bossId).toBe(boss);
+    expect(d.assetId).toBe('area.ashen-pass');
+    expect(d.tiers.map((t) => t.tier)).toEqual([1]);
+    const t = getDungeonTier(id, 1);
+    expect([t.minLevel, t.maxLevel, t.unlock.level, t.bossLevel]).toEqual([min, max, unlock, max]);
+    expect(t.unlock.worldFlag).toBe('ashenPassCleared');
+    expect(t.bossEnrage.atMs.max).toBeLessThan(t.bossMaxFightMs);
+    // Inside the Ashen Pass's range, and its own hoard (not the crypt's).
+    expect(t.minLevel).toBeGreaterThan(getArea('ashenPass').minLevel);
+    expect(t.maxLevel).toBe(getArea('ashenPass').maxLevel);
+    expect(t.bossLoot.lootTableId).toBe('ashenWarden');
+    expect(t.lootTableId).toBe('ashenPass');
+    expect(() => getDungeonTier(id, 2)).toThrow();
+    expect(getDungeon('namelessCrypt').bossId).toBe('gravewarden');
+    // The crypt tiers never need a world flag.
+    for (const ct of getDungeon('namelessCrypt').tiers) expect(ct.unlock.worldFlag).toBeUndefined();
+  });
+
   it('defines exactly the contract enemies and materials', () => {
     const rostered = [
       ...CONTRACT.areas.flatMap((a) => a[4]),
       ...CONTRACT.dungeon[4],
       CONTRACT.dungeon[5],
+      CONTRACT.watch[4],
     ];
     expect([...ENEMY_IDS].sort()).toEqual([...rostered].sort());
     expect(ENEMIES.map((e) => e.id)).toEqual([...ENEMY_IDS]);
@@ -175,12 +217,24 @@ describe('enemies', () => {
 
   it('has both damage families and undead in every area that lists soul shards', () => {
     expect(new Set(ENEMIES.map((e) => e.damageType))).toEqual(new Set(['physical', 'magic']));
+    // Soul shards drop only from undead: an area that lists them has undead (in the Old Burial
+    // Grounds every enemy; in the Ashen Pass the wraiths, ticket 4.8).
     for (const a of AREAS.filter((x) => x.materials.includes('soulShard'))) {
       expect(
-        a.enemies.every((e) => getEnemy(e.enemyId).undead),
+        a.enemies.some((e) => getEnemy(e.enemyId).undead),
         a.id,
       ).toBe(true);
     }
+    expect(getArea('oldBurialGrounds').enemies.every((e) => getEnemy(e.enemyId).undead)).toBe(true);
+    expect(
+      getArea('ashenPass')
+        .enemies.filter((e) => getEnemy(e.enemyId).undead)
+        .map((e) => e.enemyId),
+    ).toEqual(['ashWraith']);
+    // Every area has both damage families from the Ashen Pass on, too.
+    expect(
+      new Set(getArea('ashenPass').enemies.map((e) => getEnemy(e.enemyId).damageType)),
+    ).toEqual(new Set(['physical', 'magic']));
     expect(getEnemy('gravewarden').undead).toBe(true);
     expect(getEnemy('carrionWolf').undead).toBe(false);
   });
@@ -213,11 +267,18 @@ describe('areas and level ranges', () => {
       expect(a.maxLevel).toBeGreaterThan(a.minLevel);
       expect(a.unlock.level, a.id).toBe(a.minLevel);
     }
-    for (let i = 1; i < AREAS.length; i++) {
-      const prev = AREAS[i - 1]!;
-      const next = AREAS[i]!;
+    // Graumark's areas overlap the next by one step. Ticket 4.8: the Ashen Pass starts two levels
+    // above the Abbey's top instead; crypt tier III (21–24) bridges the gap.
+    const graumark = AREAS.filter((a) => a.id !== 'ashenPass');
+    for (let i = 1; i < graumark.length; i++) {
+      const prev = graumark[i - 1]!;
+      const next = graumark[i]!;
       expect(next.minLevel, next.id).toBe(prev.maxLevel - 1);
     }
+    const tierIII = getDungeonTier('namelessCrypt', 3);
+    expect(getArea('ashenPass').minLevel).toBe(getArea('sunkenAbbey').maxLevel + 2);
+    expect(tierIII.minLevel).toBeLessThanOrEqual(getArea('sunkenAbbey').maxLevel);
+    expect(tierIII.maxLevel).toBeGreaterThanOrEqual(getArea('ashenPass').minLevel);
     // The crypt sits between the Burial Grounds and Blackwater.
     const crypt = getDungeonTier('namelessCrypt', 1);
     expect(crypt.minLevel).toBeGreaterThan(getArea('oldBurialGrounds').minLevel);
@@ -272,10 +333,13 @@ describe('materials', () => {
 });
 
 describe('loot tables', () => {
-  // Ticket 3.6: every crypt tier is a place with its own chamber table.
+  // Ticket 3.6: every crypt tier is a place with its own chamber table. Ticket 4.8: the Warden's
+  // Watch has no chambers, so its tier rolls no chamber table (only the boss's hoard).
   const places = [
     ...AREAS,
-    ...DUNGEONS.flatMap((d) => d.tiers.map((t) => ({ ...t, id: `${d.id}:${t.tier}` }))),
+    ...DUNGEONS.filter((d) => d.rooms.length > 0).flatMap((d) =>
+      d.tiers.map((t) => ({ ...t, id: `${d.id}:${t.tier}` })),
+    ),
   ];
 
   it('gives every area and the dungeon its own table whose bases all exist', () => {
@@ -383,6 +447,60 @@ describe('unlock rules', () => {
     ]);
   });
 
+  it('gates the Ashen Pass and the Warden’s Watch by level, the Gravewarden and the world flag', () => {
+    const open = { ...NO_WORLD_FLAGS, ashenPassCleared: true };
+    // Closed for everyone until the community clears the pass: no flags passed = closed.
+    expect(isAreaUnlocked('ashenPass', { level: 60 }, BOSS_DOWN)).toBe(false);
+    expect(isAreaUnlocked('ashenPass', { level: 60, world: NO_WORLD_FLAGS }, BOSS_DOWN)).toBe(
+      false,
+    );
+    expect(
+      isAreaUnlocked(
+        'ashenPass',
+        { level: 60, world: { ...NO_WORLD_FLAGS, warehouseRestored: true } },
+        BOSS_DOWN,
+      ),
+    ).toBe(false);
+    expect(areaUnlockBlockers('ashenPass', { level: 3 }, NO_PROGRESS)).toEqual([
+      { kind: 'level', required: 24 },
+      { kind: 'gravewardenDefeated' },
+      { kind: 'worldFlag', flag: 'ashenPassCleared' },
+    ]);
+    expect(areaUnlockBlockers('ashenPass', { level: 24 }, BOSS_DOWN)).toEqual([
+      { kind: 'worldFlag', flag: 'ashenPassCleared' },
+    ]);
+    // Open: the flag, the level and the Gravewarden.
+    expect(isAreaUnlocked('ashenPass', { level: 24, world: open }, BOSS_DOWN)).toBe(true);
+    expect(isAreaUnlocked('ashenPass', { level: 23, world: open }, BOSS_DOWN)).toBe(false);
+    expect(isAreaUnlocked('ashenPass', { level: 30, world: open }, NO_PROGRESS)).toBe(false);
+    expect(areaUnlockBlockers('ashenPass', { level: 20, world: open }, BOSS_DOWN)).toEqual([
+      { kind: 'level', required: 24 },
+    ]);
+    // The Watch opens with the pass, two levels later.
+    expect(isDungeonUnlocked('ashenWatch', { level: 60 }, BOSS_DOWN)).toBe(false);
+    expect(isDungeonUnlocked('ashenWatch', { level: 25, world: open }, BOSS_DOWN)).toBe(false);
+    expect(isDungeonUnlocked('ashenWatch', { level: 26, world: open }, BOSS_DOWN)).toBe(true);
+    expect(dungeonUnlockBlockers('ashenWatch', { level: 26 }, BOSS_DOWN)).toEqual([
+      { kind: 'worldFlag', flag: 'ashenPassCleared' },
+    ]);
+    // The flag opens nothing else: every other place answers the same with and without it.
+    for (const id of AREA_IDS.filter((x) => x !== 'ashenPass')) {
+      for (const level of [1, 17, 24]) {
+        for (const progress of [NO_PROGRESS, BOSS_DOWN]) {
+          expect(areaUnlockBlockers(id, { level, world: open }, progress), id).toEqual(
+            areaUnlockBlockers(id, { level }, progress),
+          );
+        }
+      }
+    }
+    for (const tier of [1, 2, 3] as const) {
+      const progress = { gravewardenDefeated: true, cryptTierCleared: 3 };
+      expect(
+        dungeonUnlockBlockers('namelessCrypt', { level: 24, world: open }, progress, tier),
+      ).toEqual(dungeonUnlockBlockers('namelessCrypt', { level: 24 }, progress, tier));
+    }
+  });
+
   it('gates the crypt by level', () => {
     expect(isDungeonUnlocked('namelessCrypt', { level: 11 }, NO_PROGRESS)).toBe(false);
     expect(isDungeonUnlocked('namelessCrypt', { level: 12 }, NO_PROGRESS)).toBe(true);
@@ -393,7 +511,7 @@ describe('unlock rules', () => {
 
   it('only ever needs the level for the first four areas, and rejects bad levels', () => {
     for (const id of AREA_IDS) {
-      if (id === 'sunkenAbbey') continue;
+      if (id === 'sunkenAbbey' || id === 'ashenPass') continue;
       const level = getArea(id).unlock.level;
       expect(isAreaUnlocked(id, { level }, NO_PROGRESS)).toBe(true);
       expect(isAreaUnlocked(id, { level }, BOSS_DOWN)).toBe(true);
@@ -435,7 +553,10 @@ describe('farming every area', () => {
     for (const area of AREAS) {
       const level = mid(area.id);
       for (const classId of CLASS_IDS) {
-        for (const equipment of [[], commonKit(classId, area.lootTableId, level)]) {
+        // Ticket 4.8: the Ashen Pass is top-end content; a bare hero is not meant to farm it (it
+        // falls again and again, balance.test.ts), so only the kit is checked there.
+        const kits = [[], commonKit(classId, area.lootTableId, level)];
+        for (const equipment of area.id === 'ashenPass' ? kits.slice(1) : kits) {
           const r = settleFarming({
             character: { classId, level, xp: 0 },
             equipment,

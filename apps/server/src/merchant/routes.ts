@@ -11,6 +11,7 @@ import {
   parseOfferId,
   sellPrice,
   type AreaId,
+  type WorldFlags,
 } from '@worldforge/game-core';
 import { characters, itemInstances, merchantPurchases, type Character } from '../db/schema.js';
 import type { Executor } from '../db/types.js';
@@ -86,9 +87,10 @@ export interface SellResponse {
   inventory: InventoryView;
 }
 
-function unlockedAreas(character: Character): AreaId[] {
+/** Ticket 4.8: `world` opens world-flag places (the Ashen Pass's stock). */
+function unlockedAreas(character: Character, world: WorldFlags): AreaId[] {
   return AREA_IDS.filter((id) =>
-    isAreaUnlocked(id, { level: character.level }, character.progress),
+    isAreaUnlocked(id, { level: character.level, world }, character.progress),
   );
 }
 
@@ -188,7 +190,7 @@ export async function registerMerchant(
         characterId,
         classId: character.classId,
         day,
-        areaIds: unlockedAreas(character),
+        areaIds: unlockedAreas(character, await app.worldState.flags()),
       });
       const items = await app.db
         .select()
@@ -231,6 +233,7 @@ export async function registerMerchant(
       const accountId = request.auth!.account.id;
       const { characterId } = request.params;
       const { offerId } = request.body;
+      const world = await app.worldState.flags();
       return idempotentTransaction(
         app,
         request,
@@ -244,7 +247,7 @@ export async function registerMerchant(
           if (parsed.day !== merchantDay(now)) {
             throw new ApiError(409, 'offer_expired', 'The merchant has restocked since then.');
           }
-          if (!isAreaUnlocked(parsed.areaId, { level: locked.level }, locked.progress)) {
+          if (!isAreaUnlocked(parsed.areaId, { level: locked.level, world }, locked.progress)) {
             throw new ApiError(404, 'not_found', 'No such offer.');
           }
           const offer = areaStock(characterId, locked.classId, parsed.day, parsed.areaId).find(

@@ -58,6 +58,8 @@ The audit log is stamped by the database clock, the rollups by the game clock, s
 | `farming.settle` | area | | | settlements with a reward (one per `activity.reward` row) / simulated seconds |
 | `crypt.start` | `<dungeon>:<tier>` | `hoard_eligible` or `on_cooldown` | | runs entered |
 | `crypt.claim` | `<dungeon>:<tier>` | `won` or `lost` | `hoard` or `no_hoard` | claims |
+
+Ticket 4.8: the Warden's Watch records under the same metrics as `ashenWatch:1` (`crypt.start`, `crypt.claim`, `item.drop` source `ashenWatch:1`), and the Ashen Pass as the area `ashenPass`. The telemetry simulation (`telemetry:simulate`) does not farm the Pass yet (it has no world flags); B.3 adds it with the realistic player.
 | `quest.reward` | `story` or `contract` | quest/template id | `no_item`, `fixed`, `targeted` | turn-ins |
 | `guild_boss.attempt` | boss id | `fell` or `endured` | | attempts / counted damage (ticket 4.9) |
 | `guild_boss.stage` | boss id | stage | | stages reached |

@@ -59,7 +59,8 @@ export async function registerWorld(app: FastifyInstance): Promise<void> {
         )
         .limit(1);
       if (!row) throw new ApiError(404, 'not_found', 'No such character.');
-      const who = { level: row.level };
+      // Ticket 4.8: the world flags open places for everyone (the Ashen Pass and its Watch).
+      const who = { level: row.level, world: await app.worldState.flags() };
       return {
         characterId: row.id,
         level: row.level,
