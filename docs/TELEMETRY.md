@@ -42,15 +42,17 @@ The audit log is stamped by the database clock, the rollups by the game clock, s
 | `item.sold` · `item.salvaged` · `item.discarded` | rarity | | | **manual** merchant sells, forge salvages, discards / gold |
 | `pack.overflow` | `farming` or `crypt` | area or tier | | settlements/claims that hit a full pack / items auto-salvaged |
 | `pack.over_capacity` | `farming` or `crypt` | area or tier | | settlements/claims that kept valuable drops beyond the capacity (B.2) / those items |
-| `gold.in` | `farming_loot`, `farming_overflow`, `farming_filter`, `crypt_loot`, `crypt_overflow`, `crypt_filter`, `quest`, `contract`, `merchant_sell`, `forge_salvage` | area, tier or quest id | | / gold |
+| `gold.in` | `farming_loot`, `farming_overflow`, `farming_filter`, `crypt_loot`, `crypt_overflow`, `crypt_filter`, `quest`, `contract`, `merchant_sell`, `forge_salvage`, `guild_boss` (ticket 4.9, context empty) | area, tier or quest id | | / gold |
 | `gold.out` | `merchant_buy`, `forge_craft`, `forge_upgrade`, `forge_reroll`, `forge_improve`, `guild_create` (ticket 4.4, context empty) | rarity or recipe id | | / gold |
-| `material.in` | `farming_gather`, `farming_filter`, `crypt_loot`, `crypt_filter`, `quest`, `contract`, `forge_salvage` | material id | | / quantity |
+| `material.in` | `farming_gather`, `farming_filter`, `crypt_loot`, `crypt_filter`, `quest`, `contract`, `forge_salvage`, `guild_boss` | material id | | / quantity |
 | `material.out` | `forge_craft`, `forge_upgrade`, `forge_reroll`, `forge_improve` | material id | | / quantity |
 | `xp.in` | `farming`, `crypt`, `quest`, `contract` | area, tier or quest id | | / XP |
 | `farming.settle` | area | | | settlements with a reward (one per `activity.reward` row) / simulated seconds |
 | `crypt.start` | `<dungeon>:<tier>` | `hoard_eligible` or `on_cooldown` | | runs entered |
 | `crypt.claim` | `<dungeon>:<tier>` | `won` or `lost` | `hoard` or `no_hoard` | claims |
 | `quest.reward` | `story` or `contract` | quest/template id | `no_item`, `fixed`, `targeted` | turn-ins |
+| `guild_boss.attempt` | boss id | `fell` or `endured` | | attempts / counted damage (ticket 4.9) |
+| `guild_boss.stage` | boss id | stage | | stages reached |
 | `forge` | `salvage`, `craft`, `upgrade`, `reroll`, `improve` | recipe id; for upgrades the level tried (`+1`…`+10`); for rerolls/improvements the item's rarity | upgrades: `success`, `guaranteed` (certain or pity), `failure`; rerolls/improvements: the resulting affix id | uses (salvage: items) |
 
 The loot filter's drops (`item.fate filter_*`, `gold.in *_filter`, `material.in *_filter`) are kept apart from manual sells and salvages (`item.sold`, `item.salvaged`, `gold.in merchant_sell`/`forge_salvage`). Drop rates use `item.drop`, which includes filtered and overflowed drops, so a filter does not hide what dropped.

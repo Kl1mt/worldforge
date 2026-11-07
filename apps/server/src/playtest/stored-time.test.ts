@@ -6,7 +6,10 @@ import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
 import type { DatabaseHandle } from '../db/types.js';
 import { createTestDatabase } from '../test/db.js';
 import { makeCryptReady } from '../test/dungeon.js';
-import { telemetryDaily } from '../db/schema.js';
+import { guildBossAttempts, guildBossRewards, telemetryDaily } from '../db/schema.js';
+import { uuidv7 } from '../db/uuid.js';
+import { insertGuild } from '../test/guilds.js';
+import { insertAccount } from '../test/social.js';
 import { latestStoredTimeMs } from './stored-time.js';
 
 let database: DatabaseHandle;
@@ -79,5 +82,41 @@ describe('latestStoredTimeMs (playtest clock floor)', () => {
       .insert(telemetryDaily)
       .values({ day: '2031-05-05', metric: 'gold.in', dim1: 'merchant_sell', amount: 5 });
     expect(await latestStoredTimeMs(database.db)).toBe(Date.parse('2031-05-05T00:00:00Z'));
+  });
+
+  it('counts guild boss attempts and rewards (ticket 4.9)', async () => {
+    const leader = await insertAccount(database.db);
+    const guild = await insertGuild(database.db, leader.id);
+    const at = Date.parse('2032-02-03T04:05:06Z');
+    await database.db.insert(guildBossAttempts).values({
+      id: uuidv7(),
+      accountId: leader.id,
+      week: '2032-02-02',
+      attemptNo: 1,
+      guildId: guild.id,
+      bossId: 'risenGravewarden',
+      snapshot: { classId: 'warrior', level: 20, xp: 0, equipment: [] },
+      damage: 10,
+      counted: 10,
+      end: 'fell',
+      durationMs: 1000,
+      createdAt: new Date(at),
+    });
+    expect(await latestStoredTimeMs(database.db)).toBe(at);
+    const claimed = Date.parse('2032-03-01T00:00:00Z');
+    await database.db.insert(guildBossRewards).values({
+      accountId: leader.id,
+      week: '2032-02-02',
+      stage: 1,
+      guildId: guild.id,
+      bossId: 'risenGravewarden',
+      status: 'earned',
+      gold: 1,
+      materials: {},
+      earnedAt: new Date(at),
+      claimedAt: new Date(claimed),
+      createdAt: new Date(at),
+    });
+    expect(await latestStoredTimeMs(database.db)).toBe(claimed);
   });
 });

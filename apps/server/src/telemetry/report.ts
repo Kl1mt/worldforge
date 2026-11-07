@@ -503,6 +503,32 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
       audit('guild.create', num(sql`data->>'gold'`)),
       sumRollups(rows, 'gold.out', src('guild_create'), 'amount'),
     ],
+    // Guild boss (ticket 4.9): attempts, counted damage, stages, and the claimed rewards.
+    [
+      'guild boss: attempts',
+      audit('guild_boss.attempt', sql`count(*)`),
+      sumRollups(rows, 'guild_boss.attempt'),
+    ],
+    [
+      'guild boss: counted damage',
+      audit('guild_boss.attempt', num(sql`data->>'counted'`)),
+      sumRollups(rows, 'guild_boss.attempt', () => true, 'amount'),
+    ],
+    [
+      'guild boss: stages reached',
+      audit('guild_boss.stage', sql`count(*)`),
+      sumRollups(rows, 'guild_boss.stage'),
+    ],
+    [
+      'guild boss: reward gold',
+      audit('guild_boss.claim', num(sql`data->>'gold'`)),
+      sumRollups(rows, 'gold.in', src('guild_boss'), 'amount'),
+    ],
+    [
+      'guild boss: reward materials',
+      bundle('guild_boss.claim', sql`a.data->'materials'`),
+      sumRollups(rows, 'material.in', src('guild_boss'), 'amount'),
+    ],
     // Discards
     ['items discarded', audit('item.discard', sql`count(*)`), sumRollups(rows, 'item.discarded')],
   ];

@@ -1063,3 +1063,143 @@ export const guildMessages = pgTable(
 );
 
 export type GuildMessage = typeof guildMessages.$inferSelect;
+
+/**
+ * The weekly guild boss (ticket 4.9, docs/GUILD_BOSS.md). One secret per account, never sent to a
+ * client: attempt `n` of week `W` fights from `${seed_secret}:${W}:${n}`, so an attempt is decided
+ * the moment it is spent and no retry, race or replay re-rolls it.
+ */
+export const guildBossStreams = pgTable('guild_boss_streams', {
+  accountId: uuid('account_id')
+    .primaryKey()
+    .references(() => accounts.id, { onDelete: 'cascade' }),
+  seedSecret: text('seed_secret').notNull(),
+  ...timestamps,
+});
+
+/** The hero as it fought (level and equipped items), like a crypt run's snapshot. */
+export type GuildBossSnapshot = DungeonRunSnapshot;
+
+/**
+ * Every attempt (ticket 4.9). Attempts are counted per **account** and week (the unique key), not
+ * per membership, so switching guilds never refreshes them. `guild_id` is the guild the attempt
+ * was fought for: its damage stays there when the player leaves (and when the account is deleted,
+ * `account_id` becomes null but the row stays). `week` is the window (Monday, UTC) the attempt was
+ * made in, stored, never recomputed.
+ */
+export const guildBossAttempts = pgTable(
+  'guild_boss_attempts',
+  {
+    id: uuid('id').primaryKey(),
+    accountId: uuid('account_id').references(() => accounts.id, { onDelete: 'set null' }),
+    week: date('week', { mode: 'string' }).notNull(),
+    attemptNo: smallint('attempt_no').notNull(),
+    guildId: uuid('guild_id')
+      .notNull()
+      .references(() => guilds.id, { onDelete: 'cascade' }),
+    characterId: uuid('character_id').references(() => characters.id, { onDelete: 'set null' }),
+    /** game-core `GuildBossId`. */
+    bossId: text('boss_id').notNull(),
+    snapshot: jsonb('snapshot').$type<GuildBossSnapshot>().notNull(),
+    /** Damage dealt, and what it added to the guild's total (capped per attempt). */
+    damage: integer('damage').notNull(),
+    counted: integer('counted').notNull(),
+    /** `fell` or `endured`. */
+    end: text('end').notNull(),
+    durationMs: integer('duration_ms').notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('guild_boss_attempts_account_week_no_key').on(t.accountId, t.week, t.attemptNo),
+    index('guild_boss_attempts_guild_week_idx').on(t.guildId, t.week),
+    check('guild_boss_attempts_no_check', sql`${t.attemptNo} >= 1`),
+    check(
+      'guild_boss_attempts_counted_check',
+      sql`${t.counted} >= 0 and ${t.counted} <= ${t.damage}`,
+    ),
+    check('guild_boss_attempts_end_check', sql`${t.end} in ('fell', 'endured')`),
+  ],
+);
+
+export type GuildBossAttempt = typeof guildBossAttempts.$inferSelect;
+
+/**
+ * A guild's week (ticket 4.9): the shared counter. `total` is the sum of `counted` over the week's
+ * attempts for the guild, written in the attempt's transaction under the guild's lock.
+ */
+export const guildBossWeeks = pgTable(
+  'guild_boss_weeks',
+  {
+    guildId: uuid('guild_id')
+      .notNull()
+      .references(() => guilds.id, { onDelete: 'cascade' }),
+    week: date('week', { mode: 'string' }).notNull(),
+    bossId: text('boss_id').notNull(),
+    total: bigint('total', { mode: 'number' }).notNull().default(0),
+    attempts: integer('attempts').notNull().default(0),
+    stage: smallint('stage').notNull().default(0),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.guildId, t.week] }),
+    check('guild_boss_weeks_total_check', sql`${t.total} >= 0`),
+  ],
+);
+
+/** When a guild reached each stage of a week, and the attempt that did it (ticket 4.9). */
+export const guildBossStages = pgTable(
+  'guild_boss_stages',
+  {
+    guildId: uuid('guild_id')
+      .notNull()
+      .references(() => guilds.id, { onDelete: 'cascade' }),
+    week: date('week', { mode: 'string' }).notNull(),
+    stage: smallint('stage').notNull(),
+    reachedAt: timestamp('reached_at', { withTimezone: true }).notNull(),
+    attemptId: uuid('attempt_id')
+      .notNull()
+      .references(() => guildBossAttempts.id, { onDelete: 'cascade' }),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.week, t.stage] })],
+);
+
+/**
+ * Personal stage rewards (ticket 4.9, docs/GUILD_BOSS.md "Rewards"). One row per account, week and
+ * stage, whatever the guild: a player who switches guilds can never take a stage twice in a week.
+ * - `pending`: the account was a member when its guild reached the stage but has not fought for
+ *   that guild this week yet; it becomes `earned` with their first attempt for that guild.
+ * - `earned`: theirs to claim, forever, in or out of the guild.
+ * `claimed_at` and `character_id` record the claim (gold and materials go to that hero).
+ */
+export const guildBossRewards = pgTable(
+  'guild_boss_rewards',
+  {
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    week: date('week', { mode: 'string' }).notNull(),
+    stage: smallint('stage').notNull(),
+    guildId: uuid('guild_id')
+      .notNull()
+      .references(() => guilds.id, { onDelete: 'cascade' }),
+    bossId: text('boss_id').notNull(),
+    status: text('status').$type<'pending' | 'earned'>().notNull(),
+    gold: integer('gold').notNull(),
+    materials: jsonb('materials').$type<Partial<Record<MaterialId, number>>>().notNull(),
+    earnedAt: timestamp('earned_at', { withTimezone: true }),
+    claimedAt: timestamp('claimed_at', { withTimezone: true }),
+    characterId: uuid('character_id').references(() => characters.id, { onDelete: 'set null' }),
+    ...timestamps,
+  },
+  (t) => [
+    primaryKey({ columns: [t.accountId, t.week, t.stage] }),
+    index('guild_boss_rewards_guild_week_idx').on(t.guildId, t.week),
+    check('guild_boss_rewards_status_check', sql`${t.status} in ('pending', 'earned')`),
+    check(
+      'guild_boss_rewards_claim_check',
+      sql`${t.claimedAt} is null or (${t.status} = 'earned' and ${t.earnedAt} is not null)`,
+    ),
+  ],
+);
+
+export type GuildBossReward = typeof guildBossRewards.$inferSelect;

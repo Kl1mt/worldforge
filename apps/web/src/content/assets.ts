@@ -183,6 +183,9 @@ export const ASSETS = {
   'achievement.story-graumark': achievement('story-graumark'),
   'achievement.contracts-10': achievement('contracts-10'),
   'achievement.contracts-50': achievement('contracts-50'),
+  // Ticket 4.9: two unused variants of the A.8 icon batch (no new art).
+  'achievement.guild-boss-first-stage': achievement('guild-boss-first-stage'),
+  'achievement.guild-boss-laid-to-rest': achievement('guild-boss-laid-to-rest'),
   // Guild crests (A.8): the charge drawn on the dyed shield (`assetId` in GUILD_EMBLEMS).
   'guild-emblem.anvil': guildEmblem('anvil'),
   'guild-emblem.crow': guildEmblem('crow'),

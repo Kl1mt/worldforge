@@ -38,6 +38,8 @@ export const TELEMETRY_METRICS = [
   'crypt.claim',
   'quest.reward',
   'forge',
+  'guild_boss.attempt',
+  'guild_boss.stage',
 ] as const;
 export type TelemetryMetric = (typeof TELEMETRY_METRICS)[number];
 

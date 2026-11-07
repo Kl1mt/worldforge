@@ -60,7 +60,7 @@ function journalEntries(): number {
 }
 
 describe('migrations', () => {
-  it('create exactly the expected tables (Phase 1, 2.3 materials & professions, 2.4 quests, 2.5 dungeons, 2.6 economy, 4.1 safety, D.2 invites, 4.3 friends, 4.2 achievements, 4.4 guilds, 4.5 guild chat) from scratch', async () => {
+  it('create exactly the expected tables (Phase 1, 2.3 materials & professions, 2.4 quests, 2.5 dungeons, 2.6 economy, 4.1 safety, D.2 invites, 4.3 friends, 4.2 achievements, 4.4 guilds, 4.5 guild chat, 4.9 guild boss) from scratch', async () => {
     const rows = await queryRows<{ table_name: string }>(
       db(),
       sql`select table_name from information_schema.tables where table_schema = 'public' order by 1`,
@@ -80,6 +80,11 @@ describe('migrations', () => {
       'dungeon_runs',
       'friendships',
       'guild_applications',
+      'guild_boss_attempts',
+      'guild_boss_rewards',
+      'guild_boss_stages',
+      'guild_boss_streams',
+      'guild_boss_weeks',
       'guild_invites',
       'guild_members',
       'guild_messages',

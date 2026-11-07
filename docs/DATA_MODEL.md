@@ -385,6 +385,19 @@ No leader column: the leader is the guild's one `guild_members` row with role `l
 
 Readable: the newest 500 lines of a guild and none older than 30 days (`GUILD_CHAT_LIMITS`); older rows stay stored, unserved. A moderator's `hide` is a sanction on the key, not a column.
 
+### guild_boss_streams, guild_boss_attempts, guild_boss_weeks, guild_boss_stages, guild_boss_rewards — implemented (4.9)
+Rules: `docs/GUILD_BOSS.md`. All additive; `week` is a `date`, the Monday (UTC) the week starts on, stored with each row (the window).
+
+| Table | Columns | Notes |
+| --- | --- | --- |
+| guild_boss_streams | account_id PK FK (`CASCADE`), seed_secret, created_at | one server-only secret per account, created on its first attempt; never sent |
+| guild_boss_attempts | id PK, account_id? FK (`SET NULL`: damage stays), week, attempt_no, guild_id FK, character_id? FK (`SET NULL`), boss_id, snapshot jsonb (crypt snapshot shape), damage, counted, end (`fell`/`endured`), duration_ms, created_at | unique `(account_id, week, attempt_no)` (attempts per account, not per guild); index `(guild_id, week)`; checks `attempt_no ≥ 1`, `0 ≤ counted ≤ damage` |
+| guild_boss_weeks | PK `(guild_id, week)`, boss_id, total bigint, attempts, stage, updated_at | the shared counter, written in the attempt's transaction under the guild lock |
+| guild_boss_stages | PK `(guild_id, week, stage)`, reached_at, attempt_id FK | when a stage was reached and by which attempt |
+| guild_boss_rewards | PK `(account_id, week, stage)`, guild_id, boss_id, status (`pending`/`earned`), gold, materials jsonb, earned_at?, claimed_at?, character_id? (`SET NULL`), created_at | one per account, week and stage whatever the guild; `claimed_at` only on `earned` rows (check) |
+
+`latestStoredTimeMs` includes `guild_boss_attempts.created_at` and the reward rows' times.
+
 ## Relationships
 
 ```
@@ -402,6 +415,7 @@ account 1─* account_achievements (≤ 1 per achievement); account 0..1─1 sho
 account *─* account via friendships (one row per pair) and blocks (directional); account 1─0..1 account_presence
 account 1─0..1 guild_members *─1 guild 1─* guild_invites, guild_applications
 guild 1─* guild_messages *─0..1 account (author); guild 0..1─1 guild_messages (the notice)
+guild 1─* guild_boss_weeks, guild_boss_stages, guild_boss_attempts *─0..1 account; account 1─* guild_boss_rewards; account 1─0..1 guild_boss_streams
 character 1─* merchant_purchases
 ```
 

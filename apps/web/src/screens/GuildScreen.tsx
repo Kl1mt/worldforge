@@ -18,6 +18,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { ReportDialog } from '../social/ReportDialog';
 import { Crest } from '../social/Crest';
 import { GuildChat } from './GuildChat';
+import { GuildBoss, GuildBossSpoilsOnly } from './GuildBoss';
 import {
   describeGuildFailure,
   guildApi,
@@ -231,6 +232,8 @@ function HallBoard({ view, runner }: { view: GuildHallView; runner: Runner }) {
       <HallHeader />
       {view.notice ? <LeftNotice notice={view.notice} /> : null}
       <NoticeLine notice={notice} />
+      {/* Ticket 4.9: guild boss spoils earned with a guild the player has left stay claimable. */}
+      <GuildBossSpoilsOnly />
       <div className="guildhall__body">
         <FoundGuild cost={view.createCost} onDone={runner.announce} />
         <aside className="guildhall__side">
@@ -667,6 +670,8 @@ function MyGuildPage({
 
       <div className="guildhall__body">
         <div className="guildhall__main">
+          {/* Ticket 4.9: the weekly guild boss, its stages and the guild-only damage board. */}
+          <GuildBoss />
           {/* Ticket 4.5: the chat. Leaving or a kick closes it at once and refreshes the hall. */}
           <GuildChat onClosed={reload} />
           <div className="guildroll panel-iron">
