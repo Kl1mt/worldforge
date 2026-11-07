@@ -606,7 +606,7 @@ Checked and holding: the permission matrices (re-run; the moderation matrix need
 
 **Open follow-ups.**
 - **Trading T.1–T.7** per `docs/TRADING.md` (owner places it; login throttling per account and email verification first).
-- **B.3's owner questions** (the first two decided, see F.1's owner decisions): a level cap versus content above 28 (heroes level past the top content; the XP penalty is a soft cap around 35, `docs/COMBAT.md`); crypt tier III as the Legendary tier (decided in B.3 to keep; revisit with playtest data); trade limits versus the income spread (`docs/TRADING.md`, `docs/ECONOMY.md`).
+- **B.3's owner questions** (level cap and crypt tier III decided, trading placed at the end of Phase 5: see the Phase 4 follow-ups' owner decisions; trade limits stay for the trading tickets): a level cap versus content above 28 (heroes level past the top content; the XP penalty is a soft cap around 35, `docs/COMBAT.md`); crypt tier III as the Legendary tier (decided in B.3 to keep; revisit with playtest data); trade limits versus the income spread (`docs/TRADING.md`, `docs/ECONOMY.md`).
 - **Ashen Pass contracts** (above): turn them on or remove the templates (owner, balance). Turned on in F.1.
 - **Art:** icons for `warehouseRestorer` "Mender of Graumark" and `ashenPassBreaker` "Through the Ash" (`achievement.warehouse-restorer`, `achievement.ashen-pass-breaker`, 32×32 like A.8); both show the wax-seal placeholder today.
 - **Look-alike names** (a confusable skeleton) and a **reserved-names store** for forced renames (accepted risks above).
@@ -619,6 +619,7 @@ Small tickets from the Phase 4 retrospective, before Phase 5.
 **Owner decisions (2026-11-07, recorded in F.1; also GDD §17):**
 - **(a) Levels above 28:** more content later, not a hard level cap (the XP penalty stays the soft cap around 35, `docs/COMBAT.md`).
 - **(b) Trading** (`docs/TRADING.md`, T.1–T.7) is built at the end of the next phase (Phase 5).
+- **(c) Crypt tier III** stays "the Legendary tier" (Legendary/set kits win at 21; epic kits find it a wall) and is not made harder. A harder crypt mode (a tier IV or heroic crypt, tuned for upgraded Legendary kits) comes later as part of the content above level 28 (`docs/DUNGEONS.md`). No number changes.
 
 ### F.1 Ashen Pass contracts — `in progress`
 GDD: §6.4, §11.1. Owner decision: switch the Pass's contracts on, but only when the hero can enter the Pass.
