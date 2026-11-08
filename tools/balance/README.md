@@ -1,6 +1,6 @@
-# Balance measurements (tickets B.2, 4.8, B.3)
+# Balance measurements (tickets B.2, 4.8, B.3, 5.4)
 
-Dev scripts behind the before/after tables in `docs/COMBAT.md`, `docs/DUNGEONS.md` and `docs/EFFECTS.md`. Not run in CI (the guards are `packages/game-core/src/balance/*.test.ts`). Run from the repo root:
+Dev scripts behind the before/after tables in `docs/COMBAT.md`, `docs/DUNGEONS.md`, `docs/EFFECTS.md` and `docs/PVP.md`. Not run in CI (the guards are `packages/game-core/src/balance/*.test.ts`). Run from the repo root:
 
 ```
 pnpm --filter @worldforge/server exec tsx ../../tools/balance/builds.ts boss   # or: farm
@@ -10,6 +10,7 @@ pnpm --filter @worldforge/server exec tsx ../../tools/balance/ashen-pass.ts farm
 pnpm --filter @worldforge/server exec tsx ../../tools/balance/top-end.ts pass   # or: tier3, overlevel (ticket B.3)
 pnpm --filter @worldforge/server exec tsx ../../tools/balance/guild-boss.ts   # weekly guild-boss totals (ticket B.3)
 pnpm --filter @worldforge/server exec tsx --conditions=source ../../tools/balance/sim-state.ts ../../.telemetry-sample   # end state of a telemetry:simulate run (ticket B.3)
+pnpm --filter @worldforge/server exec tsx ../../tools/balance/pvp.ts report   # or: tune (ticket 5.4: PvP bands, class damage factors)
 ```
 
 To compare with another revision, run them in a worktree of it (`git worktree add`).

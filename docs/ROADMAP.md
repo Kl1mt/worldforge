@@ -702,11 +702,12 @@ GDD: §3.1, §13.1. Needs 5.3's reward ids (and 5.5's arena screen for the arena
 - Budget: one or two 32px jobs plus one backdrop job; at most one regeneration. Manifest and `assets.ts` updated.
 **Acceptance:** a contact sheet in the PR.
 
-### 5.4 PvP combat model & normalisation (game-core) — `todo`
+### 5.4 PvP combat model & normalisation (game-core) — `done (PR #89)`
 GDD: §10.3 (guardrails). Needs 5.1.
 - A deterministic hero-vs-hero duel simulation on the existing combat engine (both sides' effects, sets and skills), seeded from server-only secrets, with a readable combat log.
 - A **PvP normalisation layer** (level brackets; stats pulled toward the bracket by a documented factor) that never changes PvE numbers.
 - Balance tests: class matchups within bands per bracket (no class far above even in a mirror bracket), gear still matters but a fresh hero isn't hopeless inside its bracket; fast.
+- Done: `simulateDuel` on the PvE engine (both sides' affixes, effects, sets, Void, upgrades and class skills; boss damage, boss slayer, kill effects and find bonuses do nothing), seeded by the caller's server secret, 60 s limit with sudden death from 30 s and a health-share tie-break (exact tie = draw), crypt-style log. Brackets = 5.2's `LEVEL_BRACKETS` with reference levels 5/15/25/30; level does not count inside a bracket, gear keeps 25 % of its difference to a rare reference kit (effects too); armour and resistance blended; a ±25 % luck roll per blow (owner decision); per-bracket class damage factors. `PVP_RULES_VERSION` 1. Friendly challenges may cross brackets and use the lower hero's bracket (`friendlyBracket`). Bands: class pairs 40–60 % (measured 41–60 %), each gear step > 52 % and ≤ 98 %, fresh hero ≥ 8 % per class and ≥ 15 % on average from 10 up (measured 16–59 %); 1–9 is an open exception (best 4–13 %, 8 % average). No PvE number changed; no patch notes (nothing visible yet). `docs/PVP.md`.
 
 ### 5.5 Async duels & friendly challenges (vertical) — `todo`
 GDD: §10.3. Needs 5.4.

@@ -297,6 +297,8 @@ Because combat is automatic, PvP is based on character builds, stats, selected s
 
 The exact PvP format, rewards, matchmaking, and stat rules remain open design decisions. The first implementation should be small and testable.
 
+**Decided (ticket 5.4, `docs/PVP.md`):** duels are fought within the leaderboard's level brackets (1–9, 10–19, 20–29, 30+). Inside a bracket every hero fights as a hero of its reference level, and keeps a quarter of what their gear (stats, Legendary effects, set bonuses) adds beyond a standard kit; armour and resistance count together, every blow has a ±25 % luck roll, friendly challenges may cross brackets (both fight in the lower hero's bracket), PvE-only modifiers (gold/item/XP find, boss damage) do nothing, and a duel lasts at most 60 s with sudden death from 30 s. The rules are versioned and kept apart from every PvE number.
+
 ## 11. Quests, Dungeons, Bosses, and Professions
 
 ### 11.1 Quests
