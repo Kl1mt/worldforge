@@ -17,6 +17,7 @@ describe('loadConfig', () => {
       registrationMode: 'open',
       legalDir: undefined,
       build: { gitSha: null, buildTime: null },
+      mail: { transport: 'log', smtp: null, publicBaseUrl: 'http://localhost:5173' },
     });
   });
 
@@ -52,6 +53,7 @@ describe('loadConfig', () => {
       registrationMode: 'invite',
       legalDir: '/srv/legal',
       build: { gitSha: '9fbd2cc', buildTime: '2026-11-06T12:00:00Z' },
+      mail: { transport: 'log', smtp: null, publicBaseUrl: 'http://localhost:5173' },
     });
   });
 
@@ -91,5 +93,67 @@ describe('loadConfig', () => {
     expect(requireDatabaseUrl(loadConfig({ DATABASE_URL: 'postgresql://h/db' }))).toBe(
       'postgresql://h/db',
     );
+  });
+
+  describe('mail (ticket 5.7)', () => {
+    const smtp = {
+      SMTP_HOST: 'smtp.example.com',
+      MAIL_FROM: 'Worldforge <no-reply@example.com>',
+      PUBLIC_BASE_URL: 'https://play.example.com/',
+    };
+
+    it('production without SMTP still starts, with mail off', () => {
+      expect(loadConfig({ NODE_ENV: 'production' }).mail).toEqual({
+        transport: 'none',
+        smtp: null,
+        publicBaseUrl: null,
+      });
+      // docker-compose passes https://$DOMAIN; an empty DOMAIN must not stop a server without mail.
+      expect(
+        loadConfig({ NODE_ENV: 'production', PUBLIC_BASE_URL: 'https://' }).mail.transport,
+      ).toBe('none');
+    });
+
+    it('reads SMTP settings, with STARTTLS on 587 and implicit TLS on 465 by default', () => {
+      expect(
+        loadConfig({ ...smtp, SMTP_USER: 'apikey', SMTP_PASS: 'example-secret' }).mail,
+      ).toEqual({
+        transport: 'smtp',
+        smtp: {
+          host: 'smtp.example.com',
+          port: 587,
+          secure: false,
+          user: 'apikey',
+          pass: 'example-secret',
+          from: 'Worldforge <no-reply@example.com>',
+        },
+        publicBaseUrl: 'https://play.example.com',
+      });
+      expect(loadConfig({ ...smtp, SMTP_PORT: '465' }).mail.smtp).toMatchObject({
+        port: 465,
+        secure: true,
+        user: null,
+        pass: null,
+      });
+      expect(loadConfig({ ...smtp, SMTP_PORT: '2525', SMTP_SECURE: '1' }).mail.smtp?.secure).toBe(
+        true,
+      );
+    });
+
+    it('refuses a half-finished SMTP configuration', () => {
+      expect(() => loadConfig({ SMTP_HOST: 'smtp.example.com' })).toThrow(/MAIL_FROM/);
+      expect(() => loadConfig({ ...smtp, PUBLIC_BASE_URL: '' })).toThrow(/PUBLIC_BASE_URL/);
+      expect(() => loadConfig({ ...smtp, SMTP_USER: 'apikey' })).toThrow(/SMTP_USER and SMTP_PASS/);
+      expect(() => loadConfig({ ...smtp, MAIL_FROM: 'nobody' })).toThrow(/MAIL_FROM/);
+      expect(() => loadConfig({ ...smtp, PUBLIC_BASE_URL: 'ftp://x.example.com' })).toThrow(
+        /PUBLIC_BASE_URL/,
+      );
+      expect(() =>
+        loadConfig({ ...smtp, PUBLIC_BASE_URL: 'https://play.example.com/?a=1' }),
+      ).toThrow(/PUBLIC_BASE_URL/);
+      expect(() =>
+        loadConfig({ ...smtp, NODE_ENV: 'production', PUBLIC_BASE_URL: 'http://play.example.com' }),
+      ).toThrow(/https/);
+    });
   });
 });

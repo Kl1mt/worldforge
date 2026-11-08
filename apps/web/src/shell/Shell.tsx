@@ -1,4 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
+import { VerifyStrip } from './VerifyStrip';
 import { LegalLinks } from '../legal/LegalLinks';
 import { SANCTION_LABELS, getArea, getClass, isStaff } from '@worldforge/game-core';
 import { formatNumber } from '../lib/format';
@@ -177,6 +178,7 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
               </p>
             ))
           : null}
+        <VerifyStrip route={route} />
         <FirstSteps route={route} />
         {/* Ticket F.4: a screen that fails to load shows a reload panel, not a blank page. */}
         <ReloadBoundary key={route} town>

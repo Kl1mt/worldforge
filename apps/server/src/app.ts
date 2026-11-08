@@ -1,7 +1,12 @@
 import Fastify, { type FastifyInstance, type FastifyServerOptions } from 'fastify';
 import { GAME_VERSION, getGameContent } from '@worldforge/game-core';
 import { registerErrorHandling } from './errors.js';
-import { DEFAULT_AUTH_OPTIONS, registerAuth, type AuthOptions } from './auth/index.js';
+import {
+  DEFAULT_AUTH_OPTIONS,
+  pruneAuthRows,
+  registerAuth,
+  type AuthOptions,
+} from './auth/index.js';
 import { registerCharacters } from './characters/routes.js';
 import { registerScores } from './scores/routes.js';
 import { registerActivities } from './activity/routes.js';
@@ -165,7 +170,8 @@ const LEADERBOARD_SWEEP_BATCH = 200;
 /**
  * Periodically settles activities the client has not settled for one interval, so rewards and the
  * world stay current while players are away. Each run settles at most one batch; overlapping runs
- * are skipped. Also prunes expired idempotency keys (ticket 2.6) and sweeps the leaderboard
+ * are skipped. Also prunes expired idempotency keys (ticket 2.6), sessions and mail tokens
+ * (ticket 5.7) and sweeps the leaderboard
  * snapshots (ticket 5.2).
  */
 function registerSettlementScheduler(
@@ -195,8 +201,12 @@ function registerSettlementScheduler(
           lastPrune = now.getTime();
           const n = await pruneIdempotencyKeys(app.db, now);
           if (n > 0) app.log.info({ pruned: n }, 'pruned idempotency keys');
+          // Ticket 5.7: expired and long-revoked sessions, expired mail tokens (real clock).
+          const auth = await pruneAuthRows(app.db, authNow());
+          if (auth.sessions > 0 || auth.tokens > 0)
+            app.log.info(auth, 'pruned sessions and tokens');
         })
-        .catch((err: unknown) => app.log.error({ err }, 'idempotency key pruning failed'))
+        .catch((err: unknown) => app.log.error({ err }, 'idempotency and session pruning failed'))
         .then(async () => {
           // Ticket 5.2: the leaderboard sweep (backfill, then a rotation over every hero).
           const out = await sweepLeaderboards(

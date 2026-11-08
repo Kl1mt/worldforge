@@ -36,18 +36,42 @@ export const GAME_ROUTES = [
   // `#/arena/friendly/<handle>` (a friend to challenge).
   'arena',
 ] as const;
-/** The gate: only shown to visitors without a session. */
-export const AUTH_ROUTES = ['login', 'register'] as const;
+/** The gate: only shown to visitors without a session. Ticket 5.7: `forgot` (password). */
+export const AUTH_ROUTES = ['login', 'register', 'forgot'] as const;
+/**
+ * Ticket 5.7: the links in mails, `#/verify?token=…` and `#/reset?token=…`. Open to everyone,
+ * logged in or not (a letter may be opened on another device).
+ */
+export const TOKEN_ROUTES = ['verify', 'reset'] as const;
 /** Character select and creation: needs an account, but not an active character. */
 export const ROSTER_ROUTE = 'characters' as const;
 /** Ticket D.2: Impressum and privacy policy, open to everyone, logged in or not. */
 export const LEGAL_ROUTES = ['impressum', 'datenschutz'] as const;
-export const ROUTES = [...GAME_ROUTES, ...AUTH_ROUTES, ROSTER_ROUTE, ...LEGAL_ROUTES] as const;
+export const ROUTES = [
+  ...GAME_ROUTES,
+  ...AUTH_ROUTES,
+  ROSTER_ROUTE,
+  ...LEGAL_ROUTES,
+  ...TOKEN_ROUTES,
+] as const;
 
 export type GameRoute = (typeof GAME_ROUTES)[number];
 export type AuthRoute = (typeof AUTH_ROUTES)[number];
 export type LegalRoute = (typeof LEGAL_ROUTES)[number];
+export type TokenRoute = (typeof TOKEN_ROUTES)[number];
 export type Route = (typeof ROUTES)[number];
+
+export function isTokenRoute(route: Route): route is TokenRoute {
+  return (TOKEN_ROUTES as readonly string[]).includes(route);
+}
+
+/** Ticket 5.7: the `token` of `#/verify?token=…` / `#/reset?token=…` (shape checked), or null. */
+export function tokenFromHash(hash: string): string | null {
+  const q = hash.indexOf('?');
+  if (q < 0) return null;
+  const token = new URLSearchParams(hash.slice(q + 1)).get('token');
+  return token && /^[A-Za-z0-9_-]{20,128}$/.test(token) ? token : null;
+}
 
 /** The hub is home (ticket 2.2). */
 export const DEFAULT_ROUTE: GameRoute = 'hub';
@@ -165,7 +189,7 @@ export type Standing = 'anonymous' | 'account' | 'playing';
  * have an active character, land on character select.
  */
 export function guardRoute(route: Route, standing: Standing): Route | null {
-  if (isLegalRoute(route)) return null;
+  if (isLegalRoute(route) || isTokenRoute(route)) return null;
   if (standing === 'anonymous') return isAuthRoute(route) ? null : LOGIN_ROUTE;
   if (standing === 'account') return route === ROSTER_ROUTE ? null : ROSTER_ROUTE;
   return isAuthRoute(route) ? DEFAULT_ROUTE : null;

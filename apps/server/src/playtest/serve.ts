@@ -26,6 +26,7 @@ import { loadConfig } from '../config.js';
 import { createPgliteDatabase } from '../test/db.js';
 import { playtestClock, startOffsetMs } from './clock.js';
 import { latestStoredTimeMs } from './stored-time.js';
+import { createLogMailer } from '../mail/mailer.js';
 
 if (process.env.NODE_ENV === 'production') {
   console.error(
@@ -103,6 +104,11 @@ const app = buildApp({
   auth: {
     sessionTtlMs: config.sessionTtlHours * 60 * 60 * 1000,
     cookieSecure: config.sessionCookieSecure,
+    // Ticket 5.7: no mail leaves a playtest; letters (with their links) are printed to the log.
+    mailer: createLogMailer((m) =>
+      console.log(`\n[mail] ${m.kind} to ${m.to}: ${m.subject}\n${m.text}\n`),
+    ),
+    publicBaseUrl: config.mail.publicBaseUrl ?? 'http://localhost:5173',
   },
   activity: {
     offlineCapMs: config.offlineCapSeconds * 1000,

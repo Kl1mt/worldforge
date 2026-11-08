@@ -21,8 +21,8 @@ export interface RegistrationInput {
 export type RegistrationField = keyof RegistrationInput;
 export type FieldErrors = Partial<Record<RegistrationField, string>>;
 
-// Pragmatic check (something@something.tld, no spaces). Deliverability is proven later by
-// email verification (follow-up), not by a regex.
+// Pragmatic check (something@something.tld, no spaces). Deliverability is proven by email
+// verification (ticket 5.7), not by a regex.
 const EMAIL_RE = /^[^\s@]+@[^\s@.]+(\.[^\s@.]+)+$/;
 
 export function normalizeEmail(email: string): string {
@@ -44,6 +44,24 @@ export function displayNameError(name: string): string | null {
   return result.message;
 }
 
+/** The email rule (normalised input), or null. Ticket 5.7: shared with the email change. */
+export function emailError(email: string): string | null {
+  if (email.length === 0) return 'Enter your email address.';
+  if (email.length > EMAIL_MAX || !EMAIL_RE.test(email)) return 'Enter a valid email address.';
+  return null;
+}
+
+/** The password rule, or null. Ticket 5.7: shared with the password reset. */
+export function passwordError(password: string, email: string): string | null {
+  const length = [...password].length;
+  if (length < PASSWORD_MIN) return `Use at least ${PASSWORD_MIN} characters.`;
+  if (length > PASSWORD_MAX) return `Use at most ${PASSWORD_MAX} characters.`;
+  if (password.toLowerCase() === email.toLowerCase()) {
+    return 'Choose a password that is not your email address.';
+  }
+  return null;
+}
+
 export function validateRegistration(input: RegistrationInput): {
   value: RegistrationInput;
   errors: FieldErrors;
@@ -55,22 +73,14 @@ export function validateRegistration(input: RegistrationInput): {
   };
   const errors: FieldErrors = {};
 
-  if (value.email.length === 0) errors.email = 'Enter your email address.';
-  else if (value.email.length > EMAIL_MAX || !EMAIL_RE.test(value.email)) {
-    errors.email = 'Enter a valid email address.';
-  }
+  const emailProblem = emailError(value.email);
+  if (emailProblem) errors.email = emailProblem;
 
   const nameError = displayNameError(value.displayName);
   if (nameError) errors.displayName = nameError;
 
-  const passwordLength = [...value.password].length;
-  if (passwordLength < PASSWORD_MIN) {
-    errors.password = `Use at least ${PASSWORD_MIN} characters.`;
-  } else if (passwordLength > PASSWORD_MAX) {
-    errors.password = `Use at most ${PASSWORD_MAX} characters.`;
-  } else if (value.password.toLowerCase() === value.email.toLowerCase()) {
-    errors.password = 'Choose a password that is not your email address.';
-  }
+  const passwordProblem = passwordError(value.password, value.email);
+  if (passwordProblem) errors.password = passwordProblem;
 
   return { value, errors };
 }

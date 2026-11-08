@@ -117,6 +117,12 @@ export const accounts = pgTable(
       (): AnyPgColumn => characters.id,
       { onDelete: 'set null' },
     ),
+    /**
+     * Ticket 5.7 (SECURITY.md "Accounts"): when the current email was proven by a mailed link or a
+     * password reset. Null = unverified (every account before 5.7 starts here; nothing else changes
+     * for them). Cleared when the email changes. Trading (T.4) reads it via `isEmailVerified`.
+     */
+    emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
     ...timestamps,
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -150,6 +156,42 @@ export const sessions = pgTable(
     check('sessions_expiry_check', sql`${t.expiresAt} > ${t.createdAt}`),
   ],
 );
+
+/**
+ * Mailed account tokens (ticket 5.7, SECURITY.md "Accounts"): email verification and password
+ * reset links. The token itself is random (256 bits) and only in the mail; this row keeps its
+ * SHA-256. Single use (`used_at`, set by a conditional update), short-lived (`expires_at`), tied
+ * to the address it was sent to (a token for an old address stops working when the email changes).
+ * Pruned by the scheduler once expired.
+ */
+export const accountTokens = pgTable(
+  'account_tokens',
+  {
+    id: uuid('id').primaryKey(),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    /** `verify_email` or `reset_password`. */
+    purpose: text('purpose').$type<AccountTokenPurpose>().notNull(),
+    /** SHA-256 hex of the token. */
+    tokenHash: text('token_hash').notNull(),
+    /** The address the link was mailed to, as stored on the account then. */
+    email: text('email').notNull(),
+    ...timestamps,
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    /** Consumed, or withdrawn by a newer token, a reset or an email change. */
+    usedAt: timestamp('used_at', { withTimezone: true }),
+  },
+  (t) => [
+    uniqueIndex('account_tokens_token_hash_key').on(t.tokenHash),
+    index('account_tokens_account_id_idx').on(t.accountId, t.purpose),
+    index('account_tokens_expires_at_idx').on(t.expiresAt),
+    check('account_tokens_purpose_check', sql`${t.purpose} in ('verify_email', 'reset_password')`),
+    check('account_tokens_expiry_check', sql`${t.expiresAt} > ${t.createdAt}`),
+  ],
+);
+export type AccountTokenPurpose = 'verify_email' | 'reset_password';
+export type AccountToken = typeof accountTokens.$inferSelect;
 
 /**
  * Invite codes (ticket D.2, docs/DEPLOY.md "Registration"). Created only by admins

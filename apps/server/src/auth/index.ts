@@ -16,3 +16,10 @@ export {
   createAccountRateLimiter,
   type AccountRateLimit,
 } from './account-rate-limit.js';
+// Ticket 5.7: email verification (trading, T.4, reads `isEmailVerified`) and the pruning job.
+export { isEmailVerified, pruneAuthRows } from './tokens.js';
+export {
+  DEFAULT_LOGIN_THROTTLE,
+  createLoginThrottle,
+  type LoginThrottleLimit,
+} from './login-throttle.js';

@@ -1,0 +1,72 @@
+/* Ticket 5.7: forgot / reset / verify screens inside the gate. Scoped to `.recov`. */
+
+.recov__state {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  margin: var(--space-4) 0;
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--moss-400);
+  background: rgb(96 102 82 / 0.16);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+  line-height: 1.55;
+}
+
+.recov__state--warn {
+  border-left-color: var(--brass-500);
+  background: rgb(90 70 40 / 0.18);
+}
+
+.recov__state--bad {
+  border-left-color: var(--crimson-400);
+  background: rgb(63 23 31 / 0.5);
+}
+
+/* The wax seal: a small rotated square, like the standing writ's. */
+.recov__seal {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  margin-top: 5px;
+  transform: rotate(45deg);
+  background: var(--moss-400);
+  box-shadow: 0 0 0 2px var(--outline-dark);
+}
+
+.recov__seal--warn {
+  background: var(--brass-500);
+}
+
+.recov__seal--bad {
+  background: var(--crimson-400);
+}
+
+.recov__addr {
+  color: var(--text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+/* A link-looking button ("Ask again"). */
+.recov__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-strong);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.recov__link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+/* An anchor styled as the gate's main button. */
+.recov__cta {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+}

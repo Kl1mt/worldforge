@@ -62,6 +62,8 @@ Ticket 4.8: the Warden's Watch records under the same metrics as `ashenWatch:1` 
 | `duel.fight` | `rated` or `friendly` | bracket id | `challenger`, `defender` or `draw` | duels (ticket 5.5; no amount: a duel moves no value). Reconciled per kind with `duel.fight` audit rows (`duels: rated`, `duels: friendly`) |
 | `arena.rated` | bracket id | `full`, `reduced` (a repeat pair at ½ or ¼), `none` (factor 0) or `no_season` | | rated duels by how much they counted (ticket 5.6) |
 | `arena.offer` | bracket id | `range0`, `range1`, `range2` (the Power range used: 5 %, 10 %, 20 %) or `none` (nobody in range) | | opponent lists drawn / opponents offered (ticket 5.6; how often matchmaking had to widen, for B.4) |
+| `auth.login` | `ok`, `failed`, `locked` (a failure that started a per-account lock) or `throttled` (refused while locked) | | | login attempts by outcome (ticket 5.7; real clock day). No address or account in any dimension |
+| `mail.send` | mail kind (`verify_email`, `reset_password`, `password_changed`, `email_changed`) | `sent` or `failed` | | letters handed to the SMTP provider (ticket 5.7) |
 | `forge` | `salvage`, `craft`, `upgrade`, `reroll`, `improve` | recipe id; for upgrades the level tried (`+1`…`+10`); for rerolls/improvements the item's rarity | upgrades: `success`, `guaranteed` (certain or pity), `failure`; rerolls/improvements: the resulting affix id | uses (salvage: items) |
 
 The loot filter's drops (`item.fate filter_*`, `gold.in *_filter`, `material.in *_filter`) are kept apart from manual sells and salvages (`item.sold`, `item.salvaged`, `gold.in merchant_sell`/`forge_salvage`). Drop rates use `item.drop`, which includes filtered and overflowed drops, so a filter does not hide what dropped.

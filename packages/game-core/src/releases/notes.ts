@@ -23,9 +23,23 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.5.8';
+export const GAME_VERSION = '0.5.9';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.5.9',
+    date: '2026-11-08',
+    title: 'Locks and keys',
+    new: [
+      'Forgot your password? The gate now offers to send a letter with a link to choose a new one. Choosing it logs you out on every device, and a second letter tells you the password changed.',
+      'Verify your email: new accounts get a letter with a link that confirms the address. The account screen shows whether yours is verified and can send the letter again. Accounts from before this change start unverified; nothing else changes for them, and you play as usual either way.',
+      'Your account screen can now change your email address (your current password is needed) and log you out on every other device, for a lost phone or a shared computer.',
+    ],
+    changed: [
+      'After several wrong passwords in a row, an account now waits a little before the next try, a little longer each time. Choosing a new password through the letter lifts the wait at once.',
+    ],
+    tickets: ['5.7'],
+  },
   {
     version: '0.5.8',
     date: '2026-11-08',

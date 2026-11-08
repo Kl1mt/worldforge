@@ -171,6 +171,7 @@ Set at least:
 - `POSTGRES_PASSWORD`: the random hex string. Leave `DATABASE_URL` as it is, because it is built from the `POSTGRES_*` values.
 - Leave `COMPOSE_PROFILES=tunnel`, which starts `cloudflared`.
 - `REGISTRATION_MODE`: `invite` (the default in `.env.example`) until you open the game to everyone; see §9 "Registration and invite codes".
+- Optional, can be done later: the `SMTP_*` and `MAIL_FROM` values for verification and password-reset letters; see §9 "Email".
 
 Every variable is explained in `deploy/.env.example`. `deploy/.env` is git-ignored: never commit it or paste it anywhere. `NODE_ENV=production`, `SESSION_COOKIE_SECURE=1` and `TRUST_PROXY=1` are fixed in `docker-compose.yml`.
 
@@ -275,6 +276,28 @@ nano deploy/legal/datenschutz.md
 ```
 
 Changes show on the next page load; no restart or deploy needed. A file missing in `deploy/legal/` falls back to the template, and as long as the first line `<!-- worldforge:template -->` is there the page shows the "Template" note. The Markdown supports headings, paragraphs (a single line break stays a line break, handy for addresses), lists, `>` quotes, `---` rules, `**bold**`, `*italic*` and links (`https:`, `mailto:`, `tel:`); HTML is shown as plain text. Include `deploy/legal/` in your off-VPS copies (§10), since it is not in git.
+
+### Email
+
+Since ticket 5.7 the server sends a few letters: the link that verifies a player's email address (on registration and on an email change), the password-reset link, and short notices ("your password was changed", "your account has a new email address", the latter to the old address). It speaks plain **SMTP**, so any provider works: Brevo, Postmark, Amazon SES, Mailgun, Scaleway, your domain host's mail server, and others. Nothing about a provider is in the code; you choose one and put its settings in `deploy/.env`.
+
+**Without mail** (no `SMTP_HOST`) the server starts and the game works as before: logins are unaffected, accounts stay "not verified", and "Forgot your password?" and "send the letter again" tell players that email is not set up on this server yet. The log says `email is not set up` at start. This is the state right after the update.
+
+**To set it up:**
+1. At your provider, add and verify your sending domain (e.g. `play.example.com` or `example.com`). The provider shows DNS records to add at Cloudflare (DNS → Records): typically an **SPF** `TXT` record (or an `include:` added to your existing SPF), one or more **DKIM** records (`TXT` or `CNAME`), and sometimes a return-path `CNAME`. Set them **DNS only** (grey cloud). Add a **DMARC** record too, starting gently: `TXT` on `_dmarc.example.com` with `v=DMARC1; p=none; rua=mailto:dmarc@example.com` (an address you read), and tighten to `p=quarantine` once reports look clean. Without SPF and DKIM, letters land in spam or are refused. Guides: your provider's "domain authentication" page; Cloudflare's "Email security DNS records" page.
+2. Create SMTP credentials at the provider (often an API key used as the SMTP password).
+3. In `deploy/.env` set:
+   - `SMTP_HOST`, e.g. `smtp-relay.brevo.com`, `smtp.postmarkapp.com`, `email-smtp.eu-central-1.amazonaws.com`;
+   - `SMTP_PORT`: `587` (STARTTLS, the default) or `465` (implicit TLS; `SMTP_SECURE` then defaults to `1`). The server refuses to send without TLS;
+   - `SMTP_USER` and `SMTP_PASS`: the credentials (secrets: only in `deploy/.env`);
+   - `MAIL_FROM`: the sender, e.g. `Worldforge <no-reply@play.example.com>`, on the verified domain;
+   - `PUBLIC_BASE_URL` only if players open the game somewhere other than `https://$DOMAIN` (the default).
+4. `deploy/deploy.sh`. The log shows `email is set up` and, a moment later, `SMTP connection and login ok`, or `SMTP check failed` with the error code (wrong host, port or password). A half-finished configuration (`SMTP_HOST` without `MAIL_FROM`, a user without a password) stops the server at start with a clear message, and `deploy.sh` rolls back.
+5. Test: register a throwaway account with your own address, or use "Forgot your password?" on your account; the letter should arrive within a minute. If not, check the provider's activity log and the server log (`docker compose logs server | grep mail`).
+
+Letters are sent after the request finishes, so a slow provider never slows the game; failures are logged (without addresses) and counted in telemetry (`mail.send`). Links point to `PUBLIC_BASE_URL` and carry their token after `#`, so it never appears in Caddy's or Cloudflare's logs. **Privacy policy:** once you send letters, mention them in `deploy/legal/datenschutz.md`: verification and reset emails, the provider as a processor (sign its DPA), and that the address is used only for the account.
+
+**Existing accounts** stay unverified until their players verify (a "Your email is not verified yet" strip with a "Later" button reminds them); nothing else changes for them. Trading (Phase 5, later) will require a verified address.
 
 ## 10. Backups
 
@@ -404,7 +427,7 @@ The tunnel keeps the IP out of DNS and off the web ports. Don't give it away els
 
 Worldforge is ready to run for a **small, invited group**. Before you advertise it:
 
-- [ ] **No password reset or email verification yet** (ticket 1.2 follow-ups). A player who forgets their password cannot get back in on their own. Tell testers, or be ready to help by hand.
+- [ ] **Email is set up** (§9 "Email"): without it, a player who forgets their password cannot get back in on their own, and nobody can verify their address. Send yourself a reset letter once to check SPF/DKIM.
 - [ ] **Datenschutzerklärung (privacy policy)** in `deploy/legal/datenschutz.md` (§9 "Legal pages"): required in Germany as soon as you store accounts. It must cover what is stored (email, display name, password hash, game data, IP addresses in the server's request logs, which rotate at 5 × 10 MB, and in the in-memory rate limits), the hoster and Cloudflare as processors (sign the hoster's AV contract / DPA; Cloudflare's DPA is part of its terms), retention and the players' rights. The template lists these points; the content must come from you (a generator or a lawyer).
 - [ ] **Impressum** in `deploy/legal/impressum.md`: required for a German public website that is not purely private. The content (name, address, contact per § 5 DDG) comes from you.
 - [ ] **`REGISTRATION_MODE`** is what you want (`invite` for a closed group, §9).

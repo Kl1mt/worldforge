@@ -204,6 +204,13 @@
       "when": 1794124392258,
       "tag": "0028_arena_rating",
       "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1794157135296,
+      "tag": "0029_account_security",
+      "breakpoints": true
     }
   ]
 }

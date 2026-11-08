@@ -16,6 +16,9 @@
  *   with `pnpm admin:role`, for the moderator-queue screenshots and browser runs.
  * - with `E2E_SEED_ADMIN=<email>` (ticket D.3) likewise an admin ("Castellan Ysolde"), for the admin
  *   panel screenshots; `WORLDFORGE_GIT_SHA` / `WORLDFORGE_BUILD_TIME` fill its server status.
+ * - ticket 5.7: mail goes to an in-memory outbox and never leaves the process; with
+ *   `E2E_MAIL_DIR=<dir>` every mail is also written there as `<n>-<kind>.json` (`to`, `subject`,
+ *   `text`, `html`), so browser runs and screenshot scripts can open the links.
  * Auth, validation and rate limits are unchanged.
  *
  *   pnpm --filter @worldforge/server e2e:serve
@@ -26,6 +29,8 @@ import { join } from 'node:path';
 import { createPgliteDatabase, createTestDatabase } from '../test/db.js';
 import { scaledClock } from './clock.js';
 import { setAccountRole } from '../social/roles.js';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { createMemoryMailer } from '../mail/mailer.js';
 
 if (process.env.NODE_ENV === 'production') {
   console.error('src/e2e/serve.ts is a test server and does not run with NODE_ENV=production.');
@@ -44,12 +49,25 @@ const dataDir = process.env.E2E_DATA_DIR;
 const database = dataDir
   ? await createPgliteDatabase(join(dataDir, 'db'))
   : await createTestDatabase();
+const mailDir = process.env.E2E_MAIL_DIR;
+if (mailDir) mkdirSync(mailDir, { recursive: true });
+let mailSeq = 0;
+const mailer = createMemoryMailer((m) => {
+  if (!mailDir) return;
+  mailSeq += 1;
+  writeFileSync(
+    join(mailDir, `${String(mailSeq).padStart(4, '0')}-${m.kind}.json`),
+    JSON.stringify(m, null, 2),
+  );
+});
 const app = buildApp({
   logger: { level: config.logLevel },
   database,
   auth: {
     sessionTtlMs: config.sessionTtlHours * 60 * 60 * 1000,
     cookieSecure: config.sessionCookieSecure,
+    mailer,
+    publicBaseUrl: process.env.E2E_PUBLIC_BASE_URL ?? 'http://localhost:5173',
   },
   admin: { build: config.build },
   activity: {

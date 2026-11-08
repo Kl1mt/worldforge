@@ -255,7 +255,7 @@ The weekly caps above are the value caps: items by rarity, gold and materials by
 | Look-alike items | Pass off a weaker item as a famous one. | Full item view with rarity colour, affixes, effect, variant and binding on both screens. | Prevented in the game; persuasion is the player's choice. |
 | "Trust trade" / "you first" | Ask for a gift with a promise to give something back. | Swaps are atomic (items, gold and materials on both sides), so nobody needs to go first; gifts say "you get nothing back". | Prevented technically; persuasion only detected (reports). |
 | Staff impersonation | "I'm a moderator, give me your item to check it." | Reserved names (4.1); staff never ask for items or gold (said in the UI); no free text in offers. | Mostly prevented; contact outside the game only detected. |
-| Account theft | Log into someone's account and give everything away. | Weekly caps limit the damage; the hold plus reversal undo it. (Per-account login throttling and email verification are open carry-overs, to be done before trading.) | Limited and reversible. |
+| Account theft | Log into someone's account and give everything away. | Weekly caps limit the damage; the hold plus reversal undo it. (Per-account login throttling and email verification: done in ticket 5.7; T.4 checks `isEmailVerified(accountId)` from `apps/server/src/auth`.) | Limited and reversible. |
 | Laundering duplicated items | A duped item is traded on so it looks clean. | Provenance check, one hop only, hold plus reversal, items keep their id. | Detected and refused at the trade; a dupe itself is a bug the exploit review must find. |
 | Laundering duplicated gold or materials | A bug mints gold; it is spread to friends to hide it. | Weekly caps, hold, reconciliation (trade gold in = out, every balance = its audit), switches to stop it at once. | Detected (reconciliation); spreading is capped. |
 | Bots | Scripts farm and feed trades. | Farming is server-simulated and capped (an idle game gives a bot little); rate limits; eligibility; caps. | Only detected (patterns, rate-limit hits). |
@@ -290,7 +290,7 @@ That's why the caps are small, why everything starts switched off, and why the t
 
 Not part of `docs/ROADMAP.md`; the owner places it. Ground rules from Phases 1–4 apply (vertical slices, invariance tests, real-Postgres races from the ticket that adds a lock, `Idempotency-Key` on every value route, the migration rule, nothing secret from public ids, permission matrices, extend the journey).
 
-Before it: per-account login throttling and email verification (open carry-overs since 1.2), because account theft is the worst case for trading.
+Before it: per-account login throttling and email verification (done in ticket 5.7; trading eligibility reads `isEmailVerified`), because account theft is the worst case for trading.
 
 | Order | Ticket | Content | Migration |
 |---|---|---|---|

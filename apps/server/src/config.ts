@@ -1,3 +1,5 @@
+import type { SmtpSettings } from './mail/mailer.js';
+
 /**
  * Who may create an account (ticket D.2, docs/DEPLOY.md "Registration"): `open` (anyone),
  * `invite` (a valid invite code from `pnpm admin:invite`), `closed` (nobody). Login and existing
@@ -8,6 +10,20 @@ export type RegistrationMode = (typeof REGISTRATION_MODES)[number];
 
 export function isRegistrationMode(value: unknown): value is RegistrationMode {
   return (REGISTRATION_MODES as readonly unknown[]).includes(value);
+}
+
+/**
+ * Ticket 5.7 (docs/DEPLOY.md "Email"): how the server sends mail.
+ * - `smtp`: `SMTP_HOST` is set; `MAIL_FROM` and `PUBLIC_BASE_URL` are then required.
+ * - `none`: production without `SMTP_HOST`. The server starts; verification and reset answer
+ *   `503 email_unavailable`, and nothing blocks login.
+ * - `log`: development without `SMTP_HOST`; mails (links included) go to the server log.
+ */
+export interface MailConfig {
+  transport: 'smtp' | 'log' | 'none';
+  smtp: SmtpSettings | null;
+  /** Where links in mails point, e.g. `https://play.example.com`. Null only with `none`. */
+  publicBaseUrl: string | null;
 }
 
 export interface ServerConfig {
@@ -40,6 +56,8 @@ export interface ServerConfig {
    * (development).
    */
   build: { gitSha: string | null; buildTime: string | null };
+  /** Ticket 5.7. */
+  mail: MailConfig;
 }
 
 function intEnv(env: NodeJS.ProcessEnv, name: string, fallback: number, min: number, max: number) {
@@ -92,6 +110,77 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
       gitSha: buildEnv(env.WORLDFORGE_GIT_SHA, /^[0-9a-f]{7,40}$/i),
       buildTime: buildEnv(env.WORLDFORGE_BUILD_TIME, /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/),
     },
+    mail: mailEnv(env),
+  };
+}
+
+const DEV_PUBLIC_BASE_URL = 'http://localhost:5173';
+
+function publicBaseUrlEnv(env: NodeJS.ProcessEnv): string | null {
+  const raw = env.PUBLIC_BASE_URL?.trim();
+  if (!raw) return null;
+  let url: URL;
+  try {
+    url = new URL(raw);
+  } catch {
+    throw new Error(`Invalid PUBLIC_BASE_URL: ${raw} (expected e.g. https://play.example.com)`);
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+    throw new Error(`Invalid PUBLIC_BASE_URL: ${raw} (expected an http(s):// URL)`);
+  }
+  if (url.search || url.hash || url.username || url.password) {
+    throw new Error(`Invalid PUBLIC_BASE_URL: ${raw} (no query, fragment or credentials)`);
+  }
+  return url.toString().replace(/\/+$/, '');
+}
+
+function mailEnv(env: NodeJS.ProcessEnv): MailConfig {
+  const host = env.SMTP_HOST?.trim();
+  const production = env.NODE_ENV === 'production';
+  if (!host) {
+    // Without mail the links are never used: a missing or odd value must not stop the start.
+    let publicBaseUrl: string | null;
+    try {
+      publicBaseUrl = publicBaseUrlEnv(env);
+    } catch {
+      publicBaseUrl = null;
+    }
+    return production
+      ? { transport: 'none', smtp: null, publicBaseUrl }
+      : { transport: 'log', smtp: null, publicBaseUrl: publicBaseUrl ?? DEV_PUBLIC_BASE_URL };
+  }
+  const publicBaseUrl = publicBaseUrlEnv(env);
+  // SMTP is configured: a half-finished configuration fails the start loudly instead of sending
+  // broken links or nothing at all.
+  const from = env.MAIL_FROM?.trim();
+  if (!from)
+    throw new Error(
+      'SMTP_HOST is set but MAIL_FROM is not (e.g. Worldforge <no-reply@example.com>)',
+    );
+  if (/[\r\n]/.test(from) || !/@/.test(from)) throw new Error(`Invalid MAIL_FROM: ${from}`);
+  if (!publicBaseUrl) {
+    throw new Error('SMTP_HOST is set but PUBLIC_BASE_URL is not (e.g. https://play.example.com)');
+  }
+  if (production && !publicBaseUrl.startsWith('https://')) {
+    throw new Error(`PUBLIC_BASE_URL must use https:// in production: ${publicBaseUrl}`);
+  }
+  const port = intEnv(env, 'SMTP_PORT', 587, 1, 65535);
+  const user = env.SMTP_USER ?? '';
+  const pass = env.SMTP_PASS ?? '';
+  if ((user === '') !== (pass === '')) {
+    throw new Error('Set both SMTP_USER and SMTP_PASS, or neither');
+  }
+  return {
+    transport: 'smtp',
+    smtp: {
+      host,
+      port,
+      secure: boolEnv(env, 'SMTP_SECURE', port === 465),
+      user: user === '' ? null : user,
+      pass: pass === '' ? null : pass,
+      from,
+    },
+    publicBaseUrl,
   };
 }
 

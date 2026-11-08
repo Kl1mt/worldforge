@@ -1,0 +1,157 @@
+/* Ticket 5.7: the account screen's security panel. Scoped to `.acct-sec`. */
+
+.acct-sec {
+  margin-top: var(--space-5);
+  padding: var(--space-5);
+}
+
+.acct-sec__wait {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.acct-sec__row {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3) var(--space-4);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--line);
+}
+
+.acct-sec__row:first-of-type {
+  border-top: 0;
+}
+
+.acct-sec__seal {
+  width: 14px;
+  height: 14px;
+  margin-top: 4px;
+  transform: rotate(45deg);
+  background: var(--brass-500);
+  box-shadow: 0 0 0 2px var(--outline-dark);
+}
+
+.acct-sec__seal--ok {
+  background: var(--moss-400);
+}
+
+.acct-sec__seal--off,
+.acct-sec__seal--iron {
+  background: var(--iron-500);
+}
+
+.acct-sec__body {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  min-width: 0;
+}
+
+.acct-sec__label {
+  margin: 0;
+  color: var(--text-dim);
+}
+
+.acct-sec__value {
+  margin: 0;
+  color: var(--text);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.acct-sec__note {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.acct-sec__done {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--moss-400);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.acct-sec__error {
+  margin: 0;
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--crimson-400);
+  color: var(--text);
+  font-size: var(--text-sm);
+}
+
+.acct-sec__link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--accent-strong);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.acct-sec__link:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.acct-sec__form {
+  display: grid;
+  gap: var(--space-3);
+  width: min(100%, 26rem);
+  margin-top: var(--space-2);
+}
+
+.acct-sec__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+@media (max-width: 760px) {
+  .acct-sec {
+    padding: var(--space-4);
+  }
+}
+
+/* The account screen's left column: the standing writ, then this panel. */
+.acct-sec-col {
+  min-width: 0;
+}
+
+/* Ticket 5.7: the shell's quiet "verify your email" strip (every screen but the account). */
+.acct-verify-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: baseline;
+  margin-bottom: var(--space-4);
+  padding: var(--space-2) var(--space-4);
+  border-left: 3px solid var(--brass-500);
+  background: rgb(199 161 94 / 0.08);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.acct-verify-strip a {
+  color: var(--accent-strong);
+}
+
+.acct-verify-strip__later {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-dim);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.acct-verify-strip__later:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}

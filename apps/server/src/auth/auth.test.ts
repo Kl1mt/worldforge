@@ -92,10 +92,13 @@ describe('POST /api/auth/register', () => {
         'handle',
         'id',
         'role',
+        'emailVerified',
       ].sort(),
     );
     // Ticket 4.1: a new account is a player with an opaque handle, unrelated to its id.
     expect(account.role).toBe('player');
+    // Ticket 5.7: a new account starts unverified.
+    expect(account.emailVerified).toBe(false);
     expect(account.handle).toMatch(HANDLE_RE);
     expect(account.id.replace(/-/g, '')).not.toContain(account.handle);
 
