@@ -18,7 +18,7 @@ const rounds = Number(process.argv[4] ?? 20);
 const pct = (v: number) => `${(v * 100).toFixed(0)} %`;
 const line = (label: string, r: FairnessReport) =>
   console.log(
-    `  ${label.padEnd(12)} pairs ${String(r.pairs).padStart(4)}  mean ${pct(r.meanFavourite)}  p90 ${pct(r.p90Favourite)}  ≥90 % ${pct(r.over90)}  ≥95 % ${pct(r.over95)}  max ${pct(r.maxFavourite)}  list ${r.meanListSize.toFixed(1)}  widened ${pct(r.widened)}  empty ${r.emptyLists}`,
+    `  ${label.padEnd(12)} pairs ${String(r.pairs).padStart(4)}  mean ${pct(r.meanFavourite)}  p90 ${pct(r.p90Favourite)}  ≥90 % ${pct(r.over90)}  ≥95 % ${pct(r.over95)}  max ${pct(r.maxFavourite)}  3+ tiers ${pct(r.extremePairs)}  list ${r.meanListSize.toFixed(1)}  widened ${pct(r.widened)}  empty ${r.emptyLists}`,
   );
 
 console.log(
