@@ -117,12 +117,21 @@ export async function writeSeasonRows(
       eq(seasonEntries.metric, c.metric),
     );
     if (c.versionOnly) {
+      // Ticket B.4: a hero whose standing has not moved this season (its base equals its key)
+      // keeps base = key under the new formula, so a longer key (a new tie-breaker) never reads
+      // as a rise. Any other base differs from the key in a value both versions share, and still
+      // compares the same way.
+      const newKey = sql`array[${sql.join(
+        c.score.sortKey.map((k) => sql`${k}`),
+        sql`, `,
+      )}]::bigint[]`;
       await tx
         .update(seasonEntries)
         .set({
           formulaVersion: c.score.formulaVersion,
           value: c.score.value,
           sortKey: c.score.sortKey,
+          baseSortKey: sql`case when ${seasonEntries.baseSortKey} = ${seasonEntries.sortKey} then ${newKey} else ${seasonEntries.baseSortKey} end`,
           updatedAt: at,
         })
         .where(pk);

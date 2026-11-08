@@ -1,4 +1,4 @@
-# Leaderboards: what is measured (5.1), the boards (5.2), seasons and prestige (5.3), the arena ladder (5.6)
+# Leaderboards: what is measured (5.1), the boards (5.2), seasons and prestige (5.3), the arena ladder (5.6), balance (B.4)
 
 GDD §10.2, §16.3; Phase 5 ground rules in `ROADMAP.md`. This ticket defines the four scores, their published formulas and a read-only breakdown on the character screen ("Standing"). Boards, storage and filters are ticket 5.2; seasons 5.3.
 
@@ -25,9 +25,11 @@ Honours are given once per season, on each of the four boards, by your best hero
 | Honour | Place on a season board | Frame |
 |---|---|---|
 | **Champion** | 1st | gilt |
-| **Exalted** | top 10 | brass |
-| **Renowned** | top 100 | pewter |
+| **Exalted** | the top 2 % (at least the top 3, at most the top 10) | brass |
+| **Renowned** | the top 10 % (at least the top 5, at most the top 100) | pewter |
 | **Veteran** | any other place, with a hero of level 10 or more | iron |
+
+The share is of the season board's final standings: on a board of 20 heroes, Exalted is places 2–3 and Renowned 4–5; of 100, places 2–3 and 4–10; of 500, places 2–10 and 11–50; from 1,000 heroes on, the top 10 and the top 100 (since ticket B.4; before, the top 10 and the top 100 at every size).
 
 Each honour gives a **title** for that board (Climber for Character Level, Armsbearer for Gear Score, Blade for Character Power, Pathfinder for PvE Progress, and since 5.6 **Duellist** for the Arena Ladder: "Exalted Pathfinder, Season 2") and a **profile frame** of its tier. On your profile, under **Season honours**, choose one title and one frame to show (or none); they appear beside your name on the boards, your profile and your guild's roster. Your first honour is shown automatically until you choose. **Honours are for glory only: they change no number in the game.**
 
@@ -49,6 +51,8 @@ For each item you wear:
 | Two-handed weapons | A mage's staff, a hunter's bow and a warlock's staff take both hands (these classes have no off-hand), so they count twice. A warrior's sword and shield count once each. Every class can reach the same total. |
 
 Each item is rounded to a whole number and the items are added up. Example: a +5 Legendary at item level 20 is 20 × 10 × 1.75 × 1.2 = 420.
+
+**Between equal scores, magic quality** (since ticket B.4): each magic property of a counted item scores 0–100 by how high it rolled among its possible values (100 is the best roll of its best tier), counted twice on a two-handed weapon; the hero whose properties rolled better is ahead. It never changes the score itself. Heroes who reach the best kit there is have the same Gear Score; rerolling and improving at the Forge now still moves them.
 
 A better item (higher item level, rarer, more upgrades, or Void) never lowers your Gear Score. An item that fails the server's item check (it could not have dropped as it is) counts 0 and says so in the breakdown.
 
@@ -125,7 +129,7 @@ A season board ranks `season_entries`: each hero's standing on that board within
 ### Awards (exactly once, resumable)
 `awardSeason` recomputes the awards from the archive with game-core `seasonAwards` (per account and board: the best tier among its heroes, then the better place; deterministic) and inserts them in batches with `on conflict do nothing` on `season_awards`' primary key `(season, account, metric)`. Only after the last batch, in one transaction under the season lock, it gives each account decorated this season that never chose a display its default (`bestAward`: best tier, newest season, board order), sets `awarded_at` and audits `season.award` once. A crash mid-way leaves `awarded_at` null; the next scheduler run (or `admin:seasons close`) finishes the same set. Two instances at once insert each award once (real-PG test).
 
-**Tier thresholds** (game-core `PRESTIGE_TIERS`, data): Champion rank 1, Exalted ≤ 10, Renowned ≤ 100, Veteran any rank with the hero at level ≥ 10 at its last in-season change (`VETERAN_MIN_LEVEL`, the minimum activity: a hero must rise on the board and be past the first areas, so throwaway heroes earn nothing). Asset names (A.10): frames `season-frame-champion|exalted|renowned|veteran`, title badges `title-badge-level|gear-score|power|pve-progress`, drawn from A.10's `frame.<name>` / `badge.<name>` (`prestigeSprite` in `apps/web/src/content/assets.ts`): on the profile the chosen frame sits at ×4 around the first hero's class portrait (in `SEASON_FRAME_WINDOW`), in the honours preview at ×1 around the board's badge; title badges are 32 px, shrunk smoothly to 24 px in board and roster rows (the guidelines' one exception). A 64 px frame does not fit a row, so rows show a small rim in the tier's metal. Missing or failing art falls back to a CSS rim and an enamelled lozenge.
+**Tier thresholds** (game-core `PRESTIGE_TIERS`, data; scaled with the board since ticket B.4, `tierLastPlace`): Champion rank 1; Exalted the top `boardShare` 2 % of the board, rounded up, at least 3 places (`minPlaces`) and at most 10 (`maxRank`); Renowned the top 10 %, at least 5, at most 100; the board's size is its last place in the archive (`seasonAwards` counts it per board from the standings, so the arena ladder counts its established heroes). Veteran any rank with the hero at level ≥ 10 at its last in-season change (`VETERAN_MIN_LEVEL`, the minimum activity: a hero must rise on the board and be past the first areas, so throwaway heroes earn nothing). Asset names (A.10): frames `season-frame-champion|exalted|renowned|veteran`, title badges `title-badge-level|gear-score|power|pve-progress`, drawn from A.10's `frame.<name>` / `badge.<name>` (`prestigeSprite` in `apps/web/src/content/assets.ts`): on the profile the chosen frame sits at ×4 around the first hero's class portrait (in `SEASON_FRAME_WINDOW`), in the honours preview at ×1 around the board's badge; title badges are 32 px, shrunk smoothly to 24 px in board and roster rows (the guidelines' one exception). A 64 px frame does not fit a row, so rows show a small rim in the tier's metal. Missing or failing art falls back to a CSS rim and an enamelled lozenge.
 
 ### Display
 `prestige_displays` holds each account's chosen title and frame (each a reference to one of its own awards, composite foreign keys; nulls = shows none; no row = never chosen). `prestigeFor` resolves it for boards (`player.prestige`), profiles (`prestige`) and both guild rosters (`members[].prestige`; not for a member the viewer blocks). Cosmetic only: nothing in game-core's rules reads `prestige.ts` or `seasons.ts` (a test scans the imports), and awards and displays change no gameplay row, score input or score (invariance test). Privacy is unchanged: everyone is listed by name; the profile link and the hero's name follow `canViewProfile` (tested on season boards and archives for each visibility × relation).
@@ -138,10 +142,49 @@ A fifth season board, next to the four: the season's rated duel ladder (`GET /ap
 - **Seasons:** a rating lives in one 5.3 season. At the season's end the archive copies the ladder into `season_standings` as metric `arena` (same transaction and lock as the four boards; established heroes, sanctioned accounts left out), and `awardSeason` honours it with the same tiers, exactly once (title noun **Duellist**, the Character Power badge, the tier frames). The next season starts every hero halfway back toward 1,500.
 - **Not a score:** the ladder has no `leaderboard_entries` rows, no formula version of the 5.1 kind and no recompute check; every rating change is stored on its duel (`duels.rating`) and can be recomputed with game-core's `rateDuel`.
 
+## Balance pass: competitive systems (ticket B.4)
+
+GDD §10.2, §16.4. The boards and the prestige tiers measured on a realistic season population, with the method of B.1–B.3 (a simulation behind before/after tables, guards in the balance suites). The owner's playtest feedback had not arrived (`PLAYTEST_FEEDBACK.md` is still the template), so this pass is tuned from simulations only. The arena half is in `PVP.md` "Balance pass: competitive systems".
+
+**Method.** `telemetry:simulate --days 56 --snapshots` (`TELEMETRY.md`) plays B.3's realistic player (five visits a day, wears its best finds, upgrades, gives to the town, guilds and the guild boss, the Pass and the Watch) through the real API for a whole 8-week season and writes each hero's 5.1 scoring input at the start and at the end of every game day. Three runs (server seeds differ) give 84 heroes, each a trajectory of 57 states. `tools/balance/season-population.ts` draws a season population from them: half **veterans** (heroes from an earlier season: the profiles that start at levels 7–25 in their tier's gear) and half **new players** (a fresh level-1 hero; half of them join during the season); **casual** 30 %, **regular** 40 %, **dedicated** 30 % (a quarter, half or all of the realistic player's play, so a casual player on day t is the trajectory on day t/4). A hero is on a season board when its sort key rose above where it started the season (5.3's rule). `tools/balance/competitive.ts boards` prints the distributions, the season week by week and the prestige pacing. Ties are counted only between different heroes (two players on one trajectory are copies; the veteran profiles start every run in the same kit, so their copies across runs are one hero too).
+
+**Distributions at the season's end** (500 players, half veterans; a launch season of only new players reaches the same tops: level 60, Gear Score 5,689, Power 3,633, 94 % at 10 of 10):
+
+| Board | p10 | median | p90 | top | Top of the board |
+|---|---|---|---|---|---|
+| Character Level | 37 | 45 | 57 | 60 | 12 players at level 60 (`MAX_LEVEL`, no XP to gain): they are ranked by who got there first; everyone else is apart by XP (2 % of entries share a level and XP) |
+| Gear Score (version 1) | 3,969 | 5,051 | 5,516 | 5,689 | the 90th percentile sits at the ceiling of the best regular kit (5,516) from week 4; the top ten heroes share 4 values; 29 % of the board shares its score with a different kit, and ties go to whoever got there first |
+| Gear Score (version 2, B.4) | same values | | | | ordered by magic quality: no two different kits tie (0 %) |
+| Character Power | 2,920 | 3,446 | 3,588 | 3,669 | 92 % of the 4,000 maximum, none at 3,800; the top ten are ten different values within 1.5 % (3,616–3,669): compressed, but ordered |
+| PvE Progress | 10 | 10 | 10 | 10 | 96 % of the board at 10 of 10 from week 2; all ties at the top, decided by the guild boss stage and then by who got there first |
+
+Week by week (all players, max / 90th percentile / median): Level 37/36/27 in week 1 → 45/42/37 in week 3 → 60/57/45 in week 8; Gear Score 5,517/5,253/3,817 → 5,517/5,484/4,666 → 5,689/5,516/5,051; Power 3,631/3,444/2,616 → 3,648/3,550/3,167 → 3,669/3,588/3,446; PvE Progress 10/10/9 in week 1, then 10/10/10.
+
+**What it means and what changed.**
+- **Gear Score: a new version (2).** The score is an item-by-item product with a ceiling (item level stops at the top drops, rarity at Legendary or Mythic, upgrades at +10), and a realistic dedicated player reaches it by the fourth week. From then on the top of the board was decided only by who got there first. Version 2 keeps every value and adds **magic quality** as the tie-breaker (`affixQuality` in `scoring/gear.ts`, above for players): it is still about the items alone (GDD §10.2), and it gives the Forge's rerolls and improvements a place on the board after +10.
+- **Character Level: no change.** It favours time played, as the GDD expects; a cap of 60 with "first to reach it" at the very top is a fair race. 2 % of entries tie on level and XP.
+- **Character Power: no change.** It does not saturate (3,669 of 4,000, as 5.1 noted); the top is compressed but distinct. Content above 28 (Phase 6) adds trials in a new version.
+- **PvE Progress: no change possible now.** Ten milestones are done by nearly everyone within two weeks, so the season board is a race to the Ashen Warden. No finer milestone exists in the data; Phase 6's content should add milestones (a new version) — recommended there.
+
+**Migration path for Gear Score 2.** No migration (the stored input already holds every affix). The 5.2 sweep finds rows of version 1 (heroes without a current row come first, up to 200 per run) and rewrites them from the stored input; `achieved_at` is kept for a hero whose input did not change (5.2's version-only rule), so "who got there first" stays as it was where magic quality is equal. Version-1 rows are never shown, so a hero is missing from the Gear Score board until the sweep or its own next change reaches it (200 heroes per scheduler run, those without a current row first; a board read also refreshes the reader's own heroes). Season rows (5.3) take the new value and key in the same refresh; B.4 fixes the one case where a longer key would read as a rise: a hero whose standing did not move in the season (`base_sort_key = sort_key`) gets its base rewritten with the new key, so it is still not listed (`seasons.test.ts`, "a formula bump mid-season"). Any other base differs from the key in the total, which both versions share. So the change is safe mid-season too, though the 5.3 decision stands: the owner deploys formula changes between seasons where possible.
+
+**Prestige pacing: thresholds now scale with the board** (game data, `PRESTIGE_TIERS`; above). Mean over 20 drawn populations, per board:
+
+| Players on a board | Before B.4: Champion / Exalted / Renowned / Veteran | B.4 |
+|---|---|---|
+| 20 | 1 (5 %) / 9 (45 %) / 10 (50 %) / 0 | 1 (5 %) / 2 (10 %) / 2 (10 %) / 15 (75 %) |
+| 100 | 1 (1 %) / 9 (9 %) / 90 (90 %) / 0 | 1 (1 %) / 2 (2 %) / 7 (7 %) / 90 (90 %) |
+| 500 | 1 / 9 (2 %) / 90 (18 %) / 400 (80 %) | 1 / 9 (2 %) / 40 (8 %) / 450 (90 %) |
+| 1,000 and more | 1 / 9 / 90 / rest | same as before |
+
+Before, a small town made every hero Exalted or Renowned; now each tier means about the same at every size, and both reach their old caps once a board holds 500 (Exalted) or 1,000 (Renowned) heroes. Veteran stays the honour for taking part (level 10 or more). Everyone on these boards was level 10 or more by the season's end, so nobody went without. Guarded in `seasons.test.ts` (cut-offs, never better than before, monotone in the board size) and `balance/competitive-balance.test.ts` (each tier's share at 20–5,000 heroes). The arena ladder uses the same rule over its established heroes.
+
+**Owner questions.** (1) Do the scaled tiers match how scarce the honours should feel (Exalted ≈ 2 %, Renowned ≈ 10 %)? Both numbers are data. (2) PvE Progress saturates in two weeks until Phase 6; is a race to the Warden the season board you want meanwhile? (3) Gear Score 2 rewards rerolling after +10, a gold sink; fine as a board goal?
+
 ## Technical spec (for 5.2)
 
 ### Versioning
-`FORMULA_VERSIONS` (game-core `scoring/types.ts`) holds one version per metric (`level`, `gearScore`, `power`, `pveProgress`; all 1 now). Bump a metric's version whenever its value can change for the same inputs: a weight, a reference foe, a trial, a milestone, or a combat rule that Power runs through (`buildEncounter`, `resolveDungeonFight`, effects, stat derivation, `validateItem`). The pinned values in `scoring/scoring.test.ts` fail when a number moves; the fix is a version bump, a new pin and an update here in the same change. The pinned no-effects hashes and balance suites are untouched by scoring (scoring only reads the rules).
+`FORMULA_VERSIONS` (game-core `scoring/types.ts`) holds one version per metric (`level`, `gearScore`, `power`, `pveProgress`; Gear Score 2 since ticket B.4, the others 1). Bump a metric's version whenever its value can change for the same inputs: a weight, a reference foe, a trial, a milestone, or a combat rule that Power runs through (`buildEncounter`, `resolveDungeonFight`, effects, stat derivation, `validateItem`). The pinned values in `scoring/scoring.test.ts` fail when a number moves; the fix is a version bump, a new pin and an update here in the same change. The pinned no-effects hashes and balance suites are untouched by scoring (scoring only reads the rules).
 
 ### Inputs
 `ScoringInput` (game-core `scoring/scores.ts`), built by the server only (`scoringInput` in `apps/server/src/scores/routes.ts`):
@@ -150,7 +193,7 @@ A fifth season board, next to the four: the season's rated duel ladder (`GET /ap
 - `progress` (`characters.progress`) and `world` (the world flags);
 - `guildBossStage`: the highest stage of `guild_boss_rewards` with `status = 'earned'` for the hero's account, in a (guild, week) for which this hero has a `guild_boss_attempts` row.
 
-`computeScores(input)` returns all four `Score`s: `{ metric, formulaVersion, value, sortKey, summary, lines }`. `sortKey` is compared lexicographically, higher first: Level `[level, xp]`, Gear Score `[total]`, Power `[power]`, PvE Progress `[count, furthest, guildStage]`. 5.2 appends "reached first" (earlier wins).
+`computeScores(input)` returns all four `Score`s: `{ metric, formulaVersion, value, sortKey, summary, lines }`. `sortKey` is compared lexicographically, higher first: Level `[level, xp]`, Gear Score `[total, magic quality]` (version 2; version 1 was `[total]`), Power `[power]`, PvE Progress `[count, furthest, guildStage]`. 5.2 appends "reached first" (earlier wins).
 
 ### Validation (stat-inflation resistance)
 Before an item counts (`checkEquipment`): `validateItem` must find no problem, the upgrade level must be a whole number 0–10, the slot must be a real equipment slot that the base fits and the class can use, and only one item may sit in a slot (two in one slot: neither counts). A rejected item counts 0 for Gear Score and is left out of Power. Level and XP outside what the server stores are refused (`RangeError`), not clamped; a guild boss stage that is not a whole number counts 0 and is capped at the boss's last stage.
@@ -174,11 +217,12 @@ Power is the only non-trivial score: 20 trials × 2 runs × at most 4 fights (�
 ### Known limits and owner decisions
 - **Guild boss stages are a tie-breaker, not milestones** (the ticket listed them among the milestones). A stage is broken by a whole guild; counting it as a personal milestone would let a weak hero in a strong guild outrank a stronger solo hero. Owner can override (e.g. stage 5 as an 11th milestone).
 - **Areas count when they are open to the hero** (the unlock rule: level, Gravewarden, world flag), not when first visited: no "visited" record exists. When the community opens the Ashen Pass, every hero of level 24 with the Gravewarden slain gains milestone 9 at once.
-- **Power's scale** saturates at 4,000 (20 trials); today's best builds at level 23 score about 3,500–3,700 and level-35 heroes in epics +5 about 2,700–3,050. Content above level 28 (Phase 6) can add trials in a new version.
+- **Power's scale** saturates at 4,000 (20 trials); today's best builds at level 23 score about 3,500–3,700 and level-35 heroes in epics +5 about 2,700–3,050. Content above level 28 (Phase 6) can add trials in a new version. B.4 measured a realistic season: the best hero reached 3,669 (92 %), none 3,800; the board's top stays distinct (below).
 - **Power and class balance:** the spread between classes (up to × 1.21 with the same kit) is the combat balance, not the formula; a per-class board (5.2 filter) compares like with like.
 - **Farming-only value** (kill speed in an area, gold, item find) is not in Power. The three foes per trial let kill effects (Carrion Feast, Bloodrush, Ambush, the Bloodmoon opener) count, but Power leans toward the boss: against the B.2 build search it follows the tier III Gravewarden's boss times (Spearman 0.65–0.78 per class) more than farming rates.
 
 ## Tests
+- `packages/game-core/src/balance/competitive-balance.test.ts` (B.4): the realistic arena fixture is valid, matchmaking 2 on realistic heroes (class means, fairness), a week of rated duels (full-value share, provisional, settling, the soft reset), prestige pacing per board size. `scoring.test.ts`: Gear Score 2 (magic quality bounds, monotone, tie-breaker only, pins). `seasons.test.ts` (game-core): scaled tiers. `apps/server/src/seasons/seasons.test.ts`: a formula bump mid-season.
 - `packages/game-core/src/scoring/scoring.test.ts`: determinism and pinned values; Level order and refusals; Gear Score weights, the two-handed rule, monotonicity (over 10,000 item pairs: each better item level, rarity, upgrade and Void; and every slot swap to a better item); stat-inflation resistance (14 forged items count 0 and leave Power unchanged, duplicate slots, a class item on another class, no false rejections over generated kits); Power grows with level and gear tiers, class spread, breakdown, performance budget; PvE milestones cover every area and crypt tier, order, ties, guild stage bounds.
 - `packages/game-core/src/scoring/power-ranking.test.ts`: Power against the B.2 build search (48 builds per class at level 23): Spearman with boss time > 0.5, every top build (within 7 %) above the median, the slowest quarter below the best top build, +5 and +10 Void add Power.
 - `packages/game-core/src/scoring/boards.test.ts` (5.2): `computeScore` equals `computeScores`, each metric's slice covers what it reads, brackets cover every level once, board order.

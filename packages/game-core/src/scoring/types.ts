@@ -8,13 +8,14 @@ export type ScoreMetric = (typeof SCORE_METRICS)[number];
 
 /**
  * The formula version of each metric. Bump a metric's version whenever its value can change for
- * the same inputs (a weight, a reference foe, a milestone, or a combat rule Power runs through):
+ * the same inputs (a weight, a reference foe, a milestone, a tie-breaker, or a combat rule Power runs through):
  * 5.2 stores `(metric, version, inputs, value)` and recomputes stored values of an older version.
  * The pinned values in `scoring.test.ts` fail when a number moves without a bump.
  */
 export const FORMULA_VERSIONS: Readonly<Record<ScoreMetric, number>> = {
   level: 1,
-  gearScore: 1,
+  /** 2 (ticket B.4): equal scores are ordered by magic quality (`sortKey` [total, quality]). */
+  gearScore: 2,
   power: 1,
   pveProgress: 1,
 };

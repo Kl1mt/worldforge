@@ -179,6 +179,80 @@ describe('the season boundary (window rule)', () => {
   });
 });
 
+describe('a formula bump mid-season (ticket B.4)', () => {
+  let w: World;
+  const start = new Date('2027-01-04T00:00:00Z');
+  const end = new Date(start.getTime() + 8 * WEEK);
+  beforeAll(async () => {
+    w = await world('2027-01-01T12:00:00Z');
+    await scheduleSeason(w.db, { startsAt: start, endsAt: end }, w.now(), cli);
+  });
+  afterAll(async () => {
+    await w.app.close();
+    await w.database.close();
+  });
+
+  it('a longer key (a new tie-breaker) is no rise; a real rise stays on the board', async () => {
+    // Gear Score version 2 appended a tie-breaker to version 1's key [total]. Two heroes stored
+    // under version 1 mid-season: one rose this season (base below its key), one fell and came
+    // back to where it started (base = key). The sweep then rewrites both under version 2.
+    w.clock.ms = start.getTime() + DAY;
+    const rows: { id: string; base: number[] }[] = [];
+    for (const base of [[-5], [0]]) {
+      const who = await insertAccount(w.db, { now: w.now() });
+      const hero = await insertCharacter(w.db, who.id, { level: 12 });
+      await refreshHeroScores(w.deps, hero.id, w.now());
+      await w.db
+        .update(leaderboardEntries)
+        .set({ formulaVersion: 1, sortKey: [0] })
+        .where(
+          and(
+            eq(leaderboardEntries.characterId, hero.id),
+            eq(leaderboardEntries.metric, 'gearScore'),
+          ),
+        );
+      const row = {
+        season: 1,
+        characterId: hero.id,
+        metric: 'gearScore' as const,
+        accountId: who.id,
+        classId: 'warrior' as const,
+        level: 12,
+        formulaVersion: 1,
+        value: 0,
+        sortKey: [0],
+        baseSortKey: base,
+        achievedAt: w.now(),
+        updatedAt: w.now(),
+      };
+      await w.db
+        .insert(seasonEntries)
+        .values(row)
+        .onConflictDoUpdate({
+          target: [seasonEntries.season, seasonEntries.characterId, seasonEntries.metric],
+          set: { formulaVersion: 1, sortKey: [0], baseSortKey: base },
+        });
+      rows.push({ id: hero.id, base });
+    }
+    w.clock.ms += DAY;
+    for (const r of rows) await refreshHeroScores(w.deps, r.id, w.now());
+    const [rose, back] = await Promise.all(
+      rows.map(async (r) => (await w.seasonRow(1, r.id, 'gearScore' as 'level'))!),
+    );
+    expect(rose!.formulaVersion).toBe(2);
+    expect(rose!.sortKey).toEqual([0, 0]);
+    expect(rose!.baseSortKey).toEqual([-5]);
+    expect(back!.sortKey).toEqual([0, 0]);
+    expect(back!.baseSortKey).toEqual([0, 0]);
+    // The board lists the hero that rose, not the one that only came back.
+    const viewer = await insertAccount(w.db, { now: w.now() });
+    const board = await w.boardOf(viewer, 'gearScore?scope=season&season=1');
+    const listed = new Set(board.entries.map((e) => e.value));
+    expect(board.total).toBe(1);
+    expect(listed).toEqual(new Set([0]));
+  });
+});
+
 describe('season boards, archive integrity and awards', () => {
   let w: World;
   let call: ReturnType<typeof caller>;

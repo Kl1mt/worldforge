@@ -24,8 +24,18 @@ export type PrestigeTier = (typeof PRESTIGE_TIER_IDS)[number];
 export interface PrestigeTierDef {
   id: PrestigeTier;
   name: string;
-  /** The lowest place that still earns this tier (inclusive); null = any place on the board. */
+  /**
+   * The lowest place that can earn this tier (inclusive), however large the board; null = any
+   * place on the board.
+   */
   maxRank: number | null;
+  /**
+   * Ticket B.4: the tier's share of the board (0.1 = the top 10 %, rounded up), between
+   * `minPlaces` and `maxRank`; null = `maxRank` alone (Champion, Veteran).
+   */
+  boardShare: number | null;
+  /** Ticket B.4: the places a tier always has, however small the board (with `boardShare`). */
+  minPlaces: number;
   /** The hero's level at season end must be at least this (the minimum activity). */
   minLevel: number;
   /** The profile frame's asset name (A.10). */
@@ -37,12 +47,23 @@ export interface PrestigeTierDef {
 /** The minimum activity for Veteran: the hero is level 10 or higher at season end. */
 export const VETERAN_MIN_LEVEL = 10;
 
-/** Best first. A hero earns the best tier its place allows. */
+/**
+ * Best first. A hero earns the best tier its place allows.
+ *
+ * Ticket B.4 (docs/LEADERBOARDS.md "Balance pass: competitive systems"): Exalted and Renowned
+ * scale with the board. Before, they were fixed places (top 10, top 100): on a board of 20 every
+ * hero was Exalted or Renowned, on a board of 100 nine in ten were Renowned and nobody a Veteran.
+ * Now Exalted is the top 2 % (at least 3 places, at most the top 10) and Renowned the top 10 %
+ * (at least 5 places, at most the top 100), so each keeps its meaning at every town size and both
+ * reach their old caps once a board has 500 (Exalted) or 1,000 (Renowned) heroes.
+ */
 export const PRESTIGE_TIERS: readonly PrestigeTierDef[] = [
   {
     id: 'champion',
     name: 'Champion',
     maxRank: 1,
+    boardShare: null,
+    minPlaces: 1,
     minLevel: 1,
     frameAsset: 'season-frame-champion',
     rule: 'First place on a season board.',
@@ -51,27 +72,51 @@ export const PRESTIGE_TIERS: readonly PrestigeTierDef[] = [
     id: 'exalted',
     name: 'Exalted',
     maxRank: 10,
+    boardShare: 0.02,
+    minPlaces: 3,
     minLevel: 1,
     frameAsset: 'season-frame-exalted',
-    rule: 'Among the top 10 of a season board.',
+    rule: 'Among the top 2 % of a season board (at least the top 3, at most the top 10).',
   },
   {
     id: 'renowned',
     name: 'Renowned',
     maxRank: 100,
+    boardShare: 0.1,
+    minPlaces: 5,
     minLevel: 1,
     frameAsset: 'season-frame-renowned',
-    rule: 'Among the top 100 of a season board.',
+    rule: 'Among the top 10 % of a season board (at least the top 5, at most the top 100).',
   },
   {
     id: 'veteran',
     name: 'Veteran',
     maxRank: null,
+    boardShare: null,
+    minPlaces: 0,
     minLevel: VETERAN_MIN_LEVEL,
     frameAsset: 'season-frame-veteran',
     rule: `On a season board at its end, with a hero of level ${VETERAN_MIN_LEVEL} or higher.`,
   },
 ];
+
+/**
+ * The lowest place that earns a tier on a board of `boardSize` heroes (null = any place).
+ * Ticket B.4: `boardShare` of the board, rounded up, between `minPlaces` and `maxRank`.
+ */
+export function tierLastPlace(tier: PrestigeTierDef, boardSize: number): number | null {
+  if (tier.maxRank === null) return null;
+  if (tier.boardShare === null) return tier.maxRank;
+  const size = Number.isFinite(boardSize) && boardSize > 0 ? Math.floor(boardSize) : 0;
+  return Math.min(tier.maxRank, Math.max(tier.minPlaces, Math.ceil(tier.boardShare * size)));
+}
+
+/** Every tier's last place on a board of this size (for players: "the top 3 this season"). */
+export function tierCutoffs(boardSize: number): Record<PrestigeTier, number | null> {
+  return Object.fromEntries(
+    PRESTIGE_TIERS.map((t) => [t.id, tierLastPlace(t, boardSize)]),
+  ) as Record<PrestigeTier, number | null>;
+}
 
 export const findPrestigeTier = (id: string): PrestigeTierDef | undefined =>
   PRESTIGE_TIERS.find((t) => t.id === id);
@@ -82,11 +127,19 @@ export const isPrestigeTier = (v: unknown): v is PrestigeTier =>
 /** Lower is better (0 = champion). */
 export const tierOrder = (t: PrestigeTier) => PRESTIGE_TIER_IDS.indexOf(t);
 
-/** The tier a place earns, or null (no place, or a Veteran place below the minimum level). */
-export function prestigeTierFor(rank: number, level: number): PrestigeTier | null {
+/**
+ * The tier a place earns on a board of `boardSize` heroes (the season's final standings of that
+ * board), or null (no place, or a Veteran place below the minimum level).
+ */
+export function prestigeTierFor(
+  rank: number,
+  level: number,
+  boardSize: number,
+): PrestigeTier | null {
   if (!Number.isInteger(rank) || rank < 1) return null;
   for (const t of PRESTIGE_TIERS) {
-    if ((t.maxRank === null || rank <= t.maxRank) && level >= t.minLevel) return t.id;
+    const last = tierLastPlace(t, Math.max(boardSize, rank));
+    if ((last === null || rank <= last) && level >= t.minLevel) return t.id;
   }
   return null;
 }
@@ -141,13 +194,17 @@ export interface PrestigeAward {
 
 /**
  * The awards of a season, from its final standings: per account and board, the best tier among
- * the account's heroes (then the better place, then the hero id). Deterministic and independent of
+ * the account's heroes (then the better place, then the hero id); the tiers' places scale with
+ * each board's size (ticket B.4). Deterministic and independent of
  * the input's order, so a resumed award run computes the same set.
  */
 export function seasonAwards(standings: readonly FinalStanding[]): PrestigeAward[] {
+  // Ticket B.4: a board's size is its last place in the archive (ranks are 1…n per board).
+  const size = new Map<PrestigeMetric, number>();
+  for (const s of standings) size.set(s.metric, Math.max(size.get(s.metric) ?? 0, s.rank));
   const best = new Map<string, PrestigeAward>();
   for (const s of standings) {
-    const tier = prestigeTierFor(s.rank, s.level);
+    const tier = prestigeTierFor(s.rank, s.level, size.get(s.metric)!);
     if (!tier) continue;
     const key = `${s.accountId}\u0000${s.metric}`;
     const award: PrestigeAward = {

@@ -1,5 +1,5 @@
 // `pnpm --filter @worldforge/server telemetry:simulate [-- --dir .telemetry-sample --days 3
-//   --play realistic|crude]`
+//   --play realistic|crude --snapshots]`
 // (ticket 3.8): plays a small simulated population through the real API on a PGlite database, so
 // the telemetry report has something to show without a playtest. Ticket B.2 added the default
 // `realistic` player (see `docs/TELEMETRY.md`): it tidies the pack, wears its best finds and
@@ -9,13 +9,14 @@
 // up to the best open area as it levels (the Ashen Pass and the Warden's Watch once the town clears
 // them), gives a daily share to the community projects, stores its keepsakes in the warehouse and
 // buys shelves when it is full, founds or joins a guild, fights the weekly guild boss three times a
-// week and claims its spoils. Then:
+// week and claims its spoils. Ticket B.4: `--snapshots` writes every hero's scoring input at the
+// start and the end of each game day (`<dir>/snapshots/`, for tools/balance/competitive.ts). Then:
 //
 //   PLAYTEST_DATA_DIR=.telemetry-sample pnpm report:telemetry
 //
 // Dev tool only (not run in CI). Seeds are server-random, so numbers vary a little between runs.
 import { randomUUID } from 'node:crypto';
-import { mkdirSync, rmSync } from 'node:fs';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
@@ -39,6 +40,7 @@ import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
 import { characterMaterials, characterQuests, characters, itemInstances } from '../db/schema.js';
 import { createPgliteDatabase } from '../test/db.js';
 import { makeCryptReady } from '../test/dungeon.js';
+import { scoringInput } from '../scores/routes.js';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
 const { values: args } = parseArgs({
@@ -47,6 +49,9 @@ const { values: args } = parseArgs({
     days: { type: 'string', default: '3' },
     play: { type: 'string', default: 'realistic' },
     social: { type: 'string', default: 'on' },
+    // Ticket B.4: write every hero's 5.1 scoring input at the end of each game day
+    // (`<dir>/snapshots/day-NN.json`) for `tools/balance/competitive.ts`.
+    snapshots: { type: 'boolean', default: false },
   },
   args: process.argv.slice(2).filter((a) => a !== '--'),
 });
@@ -503,6 +508,21 @@ async function socialVisit(h: Hero, day: number, visitNo: number): Promise<void>
 }
 if (social) await formGuilds();
 
+/** Ticket B.4 (`--snapshots`): every hero's 5.1 scoring input at the end of game day `day`. */
+async function snapshot(day: number): Promise<void> {
+  const snapDir = join(dir, 'snapshots');
+  mkdirSync(snapDir, { recursive: true });
+  const rows = await database.db.select().from(characters);
+  const out = [];
+  for (const c of rows) {
+    const h = heroes.find((x) => x.id === c.id);
+    if (h) out.push({ n: h.n, guild: h.guild, input: await scoringInput(app, database.db, c) });
+  }
+  writeFileSync(join(snapDir, `day-${String(day).padStart(2, '0')}.json`), JSON.stringify(out));
+}
+// Day 0: the heroes as they start (the base of a season board: only heroes that rose are listed).
+if (args.snapshots) await snapshot(0);
+
 for (let day = 0; day < days; day++) {
   // Realistic: five visits a day (morning, three in the day, late evening; the night is capped
   // at 3 h), so about 15 credited hours. Crude: a settle every 3 h around the clock (24 h).
@@ -600,6 +620,7 @@ for (let day = 0; day < days; day++) {
     }
     if (social) await watch(h, await worldFlags(h));
   }
+  if (args.snapshots) await snapshot(day + 1);
 }
 
 await app.close();

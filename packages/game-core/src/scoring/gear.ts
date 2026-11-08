@@ -3,6 +3,7 @@ import { RARITIES, type RarityId } from '../rarity.js';
 import { EQUIPMENT_SLOTS, type EquipmentSlotId } from '../slots.js';
 import { ITEM_BASES, canClassUseItem, findItemBase } from '../items/bases.js';
 import { activeVariant } from '../items/variants.js';
+import { findAffix } from '../items/affixes.js';
 import { checkEquipment, type ItemRejection, type ScoredItem } from './equipment.js';
 import { FORMULA_VERSIONS, type Score, type ScoreLine } from './types.js';
 
@@ -30,6 +31,25 @@ export const GEAR_SCORE_WEIGHTS: Readonly<GearScoreWeights> = {
   perUpgradeLevel: 0.04,
   variant: { void: 1.1 },
 };
+
+/**
+ * Ticket B.4, Gear Score version 2: the **magic quality** of a kit, the tie-breaker between equal
+ * scores. Every affix of a counted item scores 0–100: how far up its affix's tiers it rolled
+ * (`100 × (tier − 1 + position within the tier's range) ÷ number of tiers`, so the best roll of
+ * the top tier is 100 and every affix has the same scale), counted twice on a two-handed weapon
+ * like the item. The total does not change the score's value: it orders heroes whose items are
+ * equally good by item level, rarity, upgrades and Void (on a realistic season, about one in ten
+ * heroes reaches the ceiling of the best kit by the fourth week and all of them tied; the
+ * Forge's rerolls and improvements now move them, docs/LEADERBOARDS.md "Balance pass").
+ */
+export function affixQuality(affix: { affixId: string; tier: number; value: number }): number {
+  const def = findAffix(affix.affixId);
+  const band = def?.tiers.find((t) => t.tier === affix.tier);
+  if (!def || !band || def.tiers.length === 0) return 0;
+  const span = band.max - band.min;
+  const position = span > 0 ? Math.min(1, Math.max(0, (affix.value - band.min) / span)) : 1;
+  return Math.round((100 * (affix.tier - 1 + position)) / def.tiers.length);
+}
 
 /** Whether a class can use any off-hand base (only the warrior's shields today). */
 export function classUsesOffhand(classId: ClassId): boolean {
@@ -79,6 +99,7 @@ export function gearScore(classId: ClassId, equipment: readonly ScoredItem[]): S
   const checked = checkEquipment(classId, equipment);
   const lines: ScoreLine[] = [];
   let total = 0;
+  let quality = 0;
   for (const c of checked) {
     const base = findItemBase(c.item.baseId);
     const label = base?.name ?? 'Unknown item';
@@ -98,8 +119,11 @@ export function gearScore(classId: ClassId, equipment: readonly ScoredItem[]): S
     if (c.equipped.upgradeLevel) parts.push(`+${c.equipped.upgradeLevel}`);
     if (s.variantFactor !== 1) parts.push('Void');
     if (s.hands === 2) parts.push('both hands');
+    const magic = c.equipped.affixes.reduce((sum, a) => sum + affixQuality(a), 0) * s.hands;
+    if (c.equipped.affixes.length > 0) parts.push(`magic quality ${magic}`);
     lines.push({ id: c.slot, label, detail: parts.join(' · '), points: s.points, counted: true });
     total += s.points;
+    quality += magic;
   }
   const order = (id: string) => EQUIPMENT_SLOTS.findIndex((s) => s.id === id);
   lines.sort((a, b) => order(a.id) - order(b.id));
@@ -107,9 +131,9 @@ export function gearScore(classId: ClassId, equipment: readonly ScoredItem[]): S
     metric: 'gearScore',
     formulaVersion: FORMULA_VERSIONS.gearScore,
     value: total,
-    sortKey: [total],
-    summary:
-      'The quality of your equipped items: item level, rarity, upgrades and Void. Not how well they work together; that is Character Power.',
+    // Version 2 (B.4): equal scores are ordered by the kit's magic quality.
+    sortKey: [total, quality],
+    summary: `The quality of your equipped items: item level, rarity, upgrades and Void. Not how well they work together; that is Character Power. Between equal scores, the better-rolled magic properties rank higher (magic quality ${quality}).`,
     lines,
   };
 }

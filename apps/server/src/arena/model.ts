@@ -229,6 +229,7 @@ export async function drawOpponents(
       rating: mine.rating,
       deviation: mine.deviation,
       power: bracketPower(duelFighter(seeker.snapshot), bracket),
+      classId: seeker.snapshot.classId,
     },
     eligible.map((r) => {
       const rt = ratings.get(r.characterId)!.rating;
@@ -236,6 +237,9 @@ export async function drawOpponents(
         defenceId: r.id,
         accountId: r.accountId,
         power: defencePower(r, bracketId),
+        // Ticket B.4 (matchmaking 2): Power relative to the class; fresh pairs first.
+        classId: r.snapshot.classId,
+        recentDuels: pairs.get(r.accountId) ?? 0,
         rating: rt.rating,
         deviation: rt.deviation,
       };

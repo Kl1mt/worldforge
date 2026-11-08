@@ -25,7 +25,9 @@ describe('matchmaking fairness bands', () => {
       // The band.
       expect(mm.meanFavourite).toBeLessThanOrEqual(0.72);
       expect(mm.over90).toBeLessThanOrEqual(0.08);
-      expect(mm.over95).toBeLessThanOrEqual(0.03);
+      // Ticket B.4 (matchmaking 2, Power relative to the class): 1 / 1 / 4 % here, from 1 / 1 / 2 %
+      // (the classes now even out on realistic heroes, `competitive-balance.test.ts`).
+      expect(mm.over95).toBeLessThanOrEqual(0.05);
       // The 5.4 risk: pairs three or more gear tiers apart (commons against Legendary +5).
       expect(mm.extremePairs).toBeLessThanOrEqual(0.03);
       // Lists stay full with a realistic population, and rarely need a wider range.
