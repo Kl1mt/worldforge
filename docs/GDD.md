@@ -299,6 +299,8 @@ The exact PvP format, rewards, matchmaking, and stat rules remain open design de
 
 **Decided (ticket 5.4, `docs/PVP.md`):** duels are fought within the leaderboard's level brackets (1–9, 10–19, 20–29, 30+). Inside a bracket every hero fights as a hero of its reference level, and keeps a quarter of what their gear (stats, Legendary effects, set bonuses) adds beyond a standard kit; armour and resistance count together, every blow has a ±25 % luck roll, friendly challenges may cross brackets (both fight in the lower hero's bracket), PvE-only modifiers (gold/item/XP find, boss damage) do nothing, and a duel lasts at most 60 s with sudden death from 30 s. The rules are versioned and kept apart from every PvE number.
 
+**Decided (ticket 5.5, `docs/PVP.md` "The arena"):** a hero saves a defence (a checked snapshot of its gear); rated duels from level 10, 10 a day (UTC day), against a short list of defences in the bracket that the server offers (never blocked or sanctioned accounts); friendly challenges with friends and guildmates resolve at once against the friend's saved defence (no send/accept), at any level and across brackets; every duel is stored with its server seed and both snapshots, and no duel changes anything a player owns.
+
 ## 11. Quests, Dungeons, Bosses, and Professions
 
 ### 11.1 Quests

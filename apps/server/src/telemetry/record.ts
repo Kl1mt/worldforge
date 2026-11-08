@@ -45,6 +45,8 @@ export const TELEMETRY_METRICS = [
   'community.stage',
   'warehouse.move',
   'warehouse.upgrade',
+  // Ticket 5.5: duels (kind, bracket, outcome).
+  'duel.fight',
 ] as const;
 export type TelemetryMetric = (typeof TELEMETRY_METRICS)[number];
 

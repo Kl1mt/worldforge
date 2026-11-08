@@ -32,6 +32,9 @@ export const GAME_ROUTES = [
   'boards',
   // Ticket F.3: the patch notes ("What's new"), `#/notes`.
   'notes',
+  // Ticket 5.5: the arena, `#/arena`, `#/arena/duel/<id>` (a duel's result) or
+  // `#/arena/friendly/<handle>` (a friend to challenge).
+  'arena',
 ] as const;
 /** The gate: only shown to visitors without a session. */
 export const AUTH_ROUTES = ['login', 'register'] as const;
@@ -206,4 +209,23 @@ export function boardHref(
   if (season) q.set('season', String(season));
   const qs = q.toString();
   return `#/boards/${encodeURIComponent(metric)}${qs ? `?${qs}` : ''}`;
+}
+
+/** Ticket 5.5: the duel id in `#/arena/duel/<id>`, if any (only the shape is checked). */
+export function arenaDuelFromHash(hash: string): string | null {
+  const m = /^#\/?arena\/duel\/([0-9a-f-]{36})(?:[/?]|$)/i.exec(hash);
+  return m ? m[1]!.toLowerCase() : null;
+}
+
+/** Ticket 5.5: the friend's handle in `#/arena/friendly/<handle>`, if any. */
+export function arenaFriendFromHash(hash: string): string | null {
+  const m = /^#\/?arena\/friendly\/([0-9a-z]{1,64})(?:[/?]|$)/i.exec(hash);
+  return m ? m[1]!.toLowerCase() : null;
+}
+
+/** The arena; with a duel, its result; with a friend's handle, their friendly challenge. */
+export function arenaHref(to: { duel?: string; friend?: string } = {}): string {
+  if (to.duel) return `#/arena/duel/${encodeURIComponent(to.duel)}`;
+  if (to.friend) return `#/arena/friendly/${encodeURIComponent(to.friend)}`;
+  return routeHref('arena');
 }

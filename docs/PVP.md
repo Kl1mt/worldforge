@@ -1,12 +1,12 @@
-# PvP duels: the combat model and normalisation (ticket 5.4)
+# PvP duels: the combat model and normalisation (ticket 5.4), the arena (ticket 5.5)
 
-GDD §10.3; Phase 5 ground rules and owner decisions in `ROADMAP.md`. This ticket is the rules only: a duel simulation and a PvP normalisation layer in game-core, with balance tests. Defence snapshots, challenges, the daily limit and friendly challenges are 5.5 (this ticket only fixes their bracket rule); rating and matchmaking are 5.6.
+GDD §10.3; Phase 5 ground rules and owner decisions in `ROADMAP.md`. This ticket is the rules only: a duel simulation and a PvP normalisation layer in game-core, with balance tests. Defence snapshots, challenges, the daily limit and friendly challenges are 5.5 ("The arena" below); rating and matchmaking are 5.6.
 
 Code: `packages/game-core/src/pvp/` (`normalise.ts`: brackets, reference heroes, `normaliseFighter`, `DEFAULT_PVP_CONFIG`; `duel.ts`: `simulateDuel`). Tests: `src/pvp/pvp.test.ts` (rules, log, determinism, pinned hashes, PvE invariance, speed) and `src/balance/pvp-balance.test.ts` (the bands below). Measurements: `tools/balance/pvp.ts report` (and `tune` for the class factors).
 
 ## For players: how a duel works
 
-*(A summary for the arena screen in 5.5.)*
+*(Shown in the arena screen's "How duels work", ticket 5.5.)*
 
 - **You fight a saved copy of another hero.** Both heroes fight on their own: the same attacks, class skill, crits, Legendary effects and set bonuses as against monsters. Nobody needs to be online, and the result is there at once.
 - **Only heroes of your bracket.** The brackets are the leaderboard brackets: levels 1–9, 10–19, 20–29, and 30 and above.
@@ -17,7 +17,49 @@ Code: `packages/game-core/src/pvp/` (`normalise.ts`: brackets, reference heroes,
 - **The time limit:** a duel lasts at most 60 seconds. After 30 seconds, sudden death: every blow grows 10 % stronger per second. If time still runs out, the hero with more of their health left wins; an exact tie is a draw. In practice duels end in 7–8 seconds and almost never reach sudden death.
 - **Friendly challenges** with friends and guildmates may cross brackets: both heroes then fight in the **lower** hero's bracket.
 - **Who strikes first when both strike at the same moment** is decided once per duel by a fair coin.
+- **Your defence** is a saved copy of your hero: what it wore when you saved it. Changing your gear later changes nothing until you refresh it.
+- **Rated duels** open at level 10: **10 a day** (the day turns at midnight UTC), against opponents of your bracket that the arena names for you. Friendly challenges are not counted.
+- **Players you block, or who block you, never meet you in the arena.**
 - **A loss never takes anything from you.**
+
+## The arena (ticket 5.5)
+
+Code: game-core `pvp/arena.ts` (limits, `duelDay`, `duelDecision`, `duelSnapshot`, `duelFighter`), server `apps/server/src/arena/` (`model.ts`, `routes.ts`), web `screens/ArenaScreen.tsx` (`#/arena`). Endpoints in `API_CONVENTIONS.md`, tables in `DATA_MODEL.md` (`duel_defences`, `duel_offers`, `duels`). Tests: `pvp/arena.test.ts`, `arena/duels.test.ts`, `arena/duels.pg.test.ts` (real PostgreSQL), the journey step `playDuelStep` (`e2e/duel-journey.test.ts`).
+
+**Defence.** `POST /api/arena/defence` stores a snapshot of what one of your heroes wears now (any level), with the time it was set. Every worn item is checked with 5.1's `checkEquipment` (valid by `validateItem`, sane upgrade, fitting slot, usable by the class, one per slot); a rejected item is left out (counts 0) and its reason listed; the stored snapshot is checked again when a duel reads it. The defence is what others fight; changing gear changes nothing until it is refreshed (the screen marks it "grown since" when the hero's level moved on). One defence per hero; its opaque id stays the same across refreshes.
+
+**Rated duels.**
+- Level 10 or more (owner decision); the 1–9 bracket has none. Inside one bracket (the challenger's; the defence must be in it).
+- **Opponent list from the server:** `POST /api/arena/opponents` draws up to 5 defences in the hero's bracket at level ≥ 10, at most one per account, never the own account, never blocked either way, never an account with an active sanction of any kind, in a random order (matchmaking by rating and power range is 5.6). A rated duel may only name a defence on the hero's current list (`404 not_offered` otherwise, also for an id from another hero's list); a fought one drops out. A fresh list can be drawn once the current one is 5 minutes old or used up (`409 offer_fresh`), so the list cannot be re-rolled for a favourite. Blocks and sanctions that arrive after the draw take an opponent off at read time, and the duel refuses it.
+- **10 a day per account** (`RATED_DUELS_PER_DAY`), counted on the duel day: the UTC date of the game clock (`duelDay`), stored with each duel (the window rule: a duel counts on the day it committed). Counted under the account's duel lock, so exact under races.
+
+**Friendly challenges.** With friends and guildmates (read live) only; never blocked either way, never a sanctioned defender. Any level, across brackets: both fight in the lower hero's bracket (`friendlyBracket`). No rating, no rewards, no daily limit (only the social-write class: 12 a minute, 240 an hour).
+- *Decision:* **instant resolution against the friend's saved defence**, not send/accept. A duel is always challenger vs saved snapshot in this game, so a friendly one needs no new state (no pending challenges to expire, cancel or block mid-way), no second player online, and reuses the rated path exactly. The friend sees it in their duel book. Send/accept can come later without changing the stored duel.
+- Reached from the arena's friendly list, and from a "Duel" link in the friend list and the guild roster (`#/arena/friendly/<handle>`).
+
+**The permission matrix** (`duelDecision`, checked in this order; tested per relation × kind in game-core and through the API against a hand-written table):
+
+| relation ↓ / kind → | rated | friendly |
+|---|---|---|
+| self (own account) | 422 cannot_target_self | 422 cannot_target_self |
+| blocked-by-me, blocked-by-them | 404 not_found | 404 not_found |
+| defender sanctioned (any kind) | 404 not_found | 404 not_found |
+| stranger, requested-by-me, requested-by-them | ✓ | 403 not_friend_or_guildmate (✓ if guildmates) |
+| friend, guildmate | ✓ | ✓ |
+
+Then for rated: below level 10 `403 level_too_low`, another bracket `409 wrong_bracket`, 10 already today `409 no_duels_left`, not on the list `404 not_offered`. The challenger's own sanctions follow the social-write rules: a suspended account has no request at all (`403 account_suspended`); a mute does not stop a duel (`duel` is mute-exempt, like guild boss attempts: it carries no text). A block is never announced (`404` like an unknown defence).
+
+**Resolution.** In one transaction: the account row (share, sanctions), the account's duel lock, the challenger's hero (share: an equip waits; farming is never settled), the defence row (share: a refresh racing the duel lands before or after it). The challenger's attack snapshot is taken from its worn items (checked like a defence); the defender's side is the stored defence snapshot, never the live hero. `simulateDuel` runs with a seed of 16 random bytes from `crypto`, drawn on the server for this duel. The row stores the seed, `PVP_RULES_VERSION`, both snapshots, when the defence was set, the outcome, reason, sides and log, the duel day and the time: any duel can be replayed and audited (tested: the replay equals the stored result). The seed never leaves the server.
+
+**No re-roll.** `POST /api/arena/duels` requires an `Idempotency-Key`: a retry or replay with the same key answers the stored duel (`Idempotency-Replayed: true`); a concurrent double submit waits and replays; only a success is stored, and a failure shows nothing of the fight. A new key is a new duel and, rated, costs one of the day's ten.
+
+**A loss changes nothing you own.** No route of the arena writes gold, items, XP, materials or a score; it never settles farming and is outside `/api/characters…` (so leaderboards are not refreshed). Tested: hashes of both heroes' rows, items, materials, leaderboard rows and 5.1 scores before and after rated and friendly duels are equal; the audit log and telemetry reconcile; the journey's holdings reconcile with the audit log.
+
+**Audit and telemetry.** `duel.defence` (level, bracket, items, rejected) and `duel.fight` (duel id, kind, bracket, defender account, outcome, reason, rules version, day) on the challenger's account; rollup `duel.fight` (kind, bracket, outcome) in the same transaction, reconciled per kind (`duels: rated`, `duels: friendly`).
+
+**Privacy.** Opponents are shown by display name (null while a moderator hides it); the name links to the profile and the hero's name shows only where `canViewProfile` allows (the 5.2 board pattern). No account, character or item id, item, or time finer than a day of the other side's defence. A duel is visible to its two players only. A block after a duel hides the other's name in the duel book and the result. A bout's result has "Report this player" (the 4.1 report flow, target `player`).
+
+**The seam for 5.6.** `duels` holds kind, bracket, outcome, both accounts, the day and time; rating, matchmaking by rating and power range, friends/guildmates out of rated matches, and rewards are 5.6. Nothing in 5.5 computes a rating.
 
 ## The rules (game-core)
 

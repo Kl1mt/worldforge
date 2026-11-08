@@ -421,6 +421,13 @@ One row per hero and metric (`level`, `gearScore`, `power`, `pveProgress`; prima
 
 Additive migration `0026_seasons` (new tables only; nothing to backfill: seasons start when the owner schedules the first). See `LEADERBOARDS.md` "Seasons and prestige".
 
+### duel_defences, duel_offers, duels — implemented (5.5)
+- `duel_defences (id uuid PK, character_id FK cascade unique, account_id FK cascade, class_id, level, bracket_id, rules_version, snapshot jsonb, set_at, created_at)`, index `(bracket_id, set_at)`: a hero's defence. `snapshot` is game-core's `DuelSnapshot` (`classId`, `level`, `xp`, `heroName`, the worn items that pass 5.1's `checkEquipment`, and `rejected`: the reasons the others count 0). `id` is the opaque id clients name it by (never the character id); a refresh updates the row and keeps the id. `level`/`bracket_id` are copies for the opponent list.
+- `duel_offers (character_id PK FK cascade, account_id FK cascade, bracket_id, defence_ids uuid[], offered_at)`: the rated opponents the server currently offers a hero. A rated duel may only name one of these; a fought one is removed (`array_remove`), a fresh draw replaces the row.
+- `duels (id PK, kind 'rated'|'friendly', challenger_account_id, challenger_character_id, defender_account_id, defender_character_id, defence_id: all FK set null, bracket_id, day date, seed, rules_version, challenger_snapshot, defender_snapshot jsonb, defence_set_at, outcome 'challenger'|'defender'|'draw', reason 'defeat'|'timeLimit', duration_ms, sides jsonb, events jsonb, fought_at)`, indexes `(challenger_account_id, day, kind)` (the daily limit), `(challenger_account_id, fought_at)`, `(defender_account_id, fought_at)` (history), and on each FK. Everything a replay and an audit need (the server-only seed, the rules version, both snapshots); `simulateDuel` over those gives the stored `outcome`, `sides` and `events` (tested). `day` is the UTC game day the duel committed on (window rule). Rating (5.6) reads `kind`, `bracket_id`, `outcome`, both accounts, `day` and `fought_at`; nothing here holds a rating. The seed never leaves the server.
+
+Additive migration `0027_duels` (new tables only; nothing to backfill). See `PVP.md` "The arena".
+
 ## Relationships
 
 ```

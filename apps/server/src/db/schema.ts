@@ -24,6 +24,11 @@ import type {
   AreaId,
   CharacterAppearance,
   ClassId,
+  DuelEvent,
+  DuelKind,
+  DuelOutcome,
+  DuelSideResult,
+  DuelSnapshot,
   ItemVariantId,
   DungeonId,
   DungeonTier,
@@ -1522,3 +1527,111 @@ export const prestigeDisplays = pgTable(
     ),
   ],
 );
+
+/**
+ * Ticket 5.5: a hero's defence (docs/PVP.md "The arena"): the snapshot other players duel against,
+ * taken when the owner sets or refreshes it and never from the live hero. `id` is the opaque id
+ * clients name it by (never the character id). `bracket_id` and `level` are copies for the
+ * opponent list. Only items that pass 5.1's checks are stored (`snapshot.rejected` lists the rest).
+ */
+export const duelDefences = pgTable(
+  'duel_defences',
+  {
+    id: uuid('id').primaryKey(),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    classId: text('class_id').$type<ClassId>().notNull(),
+    level: integer('level').notNull(),
+    bracketId: text('bracket_id').notNull(),
+    rulesVersion: integer('rules_version').notNull(),
+    snapshot: jsonb('snapshot').$type<DuelSnapshot>().notNull(),
+    /** Game clock: when the owner last set it. */
+    setAt: timestamp('set_at', { withTimezone: true }).notNull(),
+    ...timestamps,
+  },
+  (t) => [
+    uniqueIndex('duel_defences_character_id_key').on(t.characterId),
+    index('duel_defences_bracket_idx').on(t.bracketId, t.setAt),
+    index('duel_defences_account_id_idx').on(t.accountId),
+  ],
+);
+
+export type DuelDefence = typeof duelDefences.$inferSelect;
+
+/**
+ * Ticket 5.5: the rated opponents the server currently offers a hero (a rated duel may only name
+ * one of these). A fought defence drops out; a fresh list replaces the row.
+ */
+export const duelOffers = pgTable('duel_offers', {
+  characterId: uuid('character_id')
+    .primaryKey()
+    .references(() => characters.id, { onDelete: 'cascade' }),
+  accountId: uuid('account_id')
+    .notNull()
+    .references(() => accounts.id, { onDelete: 'cascade' }),
+  bracketId: text('bracket_id').notNull(),
+  defenceIds: uuid('defence_ids').array().notNull(),
+  /** Game clock: when this list was drawn. */
+  offeredAt: timestamp('offered_at', { withTimezone: true }).notNull(),
+});
+
+/**
+ * Ticket 5.5: every duel, rated or friendly, resolved at once. Stores what a replay and an audit
+ * need (the server seed, the rules version, both snapshots) and what 5.6's rating will read
+ * (kind, bracket, outcome, both accounts, the duel day and time). The seed never leaves the server.
+ * Deleting an account or hero keeps the row for the other side's history (ids become null).
+ */
+export const duels = pgTable(
+  'duels',
+  {
+    id: uuid('id').primaryKey(),
+    kind: text('kind').$type<DuelKind>().notNull(),
+    challengerAccountId: uuid('challenger_account_id').references(() => accounts.id, {
+      onDelete: 'set null',
+    }),
+    challengerCharacterId: uuid('challenger_character_id').references(() => characters.id, {
+      onDelete: 'set null',
+    }),
+    defenderAccountId: uuid('defender_account_id').references(() => accounts.id, {
+      onDelete: 'set null',
+    }),
+    defenderCharacterId: uuid('defender_character_id').references(() => characters.id, {
+      onDelete: 'set null',
+    }),
+    defenceId: uuid('defence_id').references(() => duelDefences.id, { onDelete: 'set null' }),
+    bracketId: text('bracket_id').notNull(),
+    /** The duel day (UTC date of the game clock) it was fought on: the daily limit's window. */
+    day: date('day', { mode: 'string' }).notNull(),
+    seed: text('seed').notNull(),
+    rulesVersion: integer('rules_version').notNull(),
+    challengerSnapshot: jsonb('challenger_snapshot').$type<DuelSnapshot>().notNull(),
+    defenderSnapshot: jsonb('defender_snapshot').$type<DuelSnapshot>().notNull(),
+    /** When the defence snapshot was set (the moment the defender's side is from). */
+    defenceSetAt: timestamp('defence_set_at', { withTimezone: true }).notNull(),
+    outcome: text('outcome').$type<DuelOutcome>().notNull(),
+    reason: text('reason').notNull(),
+    durationMs: integer('duration_ms').notNull(),
+    /** The result as `simulateDuel` returned it, for the log screen (replayable from the above). */
+    sides: jsonb('sides').$type<Record<'challenger' | 'defender', DuelSideResult>>().notNull(),
+    events: jsonb('events').$type<DuelEvent[]>().notNull(),
+    /** Game clock. */
+    foughtAt: timestamp('fought_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    index('duels_challenger_day_idx').on(t.challengerAccountId, t.day, t.kind),
+    index('duels_challenger_time_idx').on(t.challengerAccountId, t.foughtAt),
+    index('duels_defender_time_idx').on(t.defenderAccountId, t.foughtAt),
+    index('duels_defence_id_idx').on(t.defenceId),
+    index('duels_challenger_character_id_idx').on(t.challengerCharacterId),
+    index('duels_defender_character_id_idx').on(t.defenderCharacterId),
+    check('duels_kind_check', sql`${t.kind} in ('rated', 'friendly')`),
+    check('duels_outcome_check', sql`${t.outcome} in ('challenger', 'defender', 'draw')`),
+    check('duels_reason_check', sql`${t.reason} in ('defeat', 'timeLimit')`),
+  ],
+);
+
+export type Duel = typeof duels.$inferSelect;

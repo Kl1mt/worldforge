@@ -14,6 +14,7 @@ import { projectProgress, useProjectBoard, type BoardState } from '../community/
 import { useOnboarding } from '../onboarding/OnboardingProvider';
 import './hub.css';
 import './works.css';
+import './arena.css';
 
 const HUB = asset('hub.graumark');
 
@@ -92,6 +93,25 @@ function WorksSlip({ state }: { state: BoardState }) {
         {shown.status === 'complete' ? 'See the works' : 'Lend a hand'}
       </a>
       <Meter variant="xp" label={`${shown.name}: ${pct} % done`} current={pct} max={100} />
+    </section>
+  );
+}
+
+/** Ticket 5.5: the Proving Ring, the town's duel ground, beside the works slip. */
+function ArenaSlip() {
+  return (
+    <section className="arena-slip panel-ledger" aria-label="The Proving Ring">
+      <div>
+        <p className="caps arena-slip__eyebrow">The Proving Ring</p>
+        <p className="arena-slip__title">Duel saved heroes</p>
+        <p className="arena-slip__meta">
+          Rated duels from level 10, friendly challenges with friends and guildmates. A loss takes
+          nothing from you.
+        </p>
+      </div>
+      <a className="btn btn--small" href={routeHref('arena')}>
+        Enter the arena
+      </a>
     </section>
   );
 }
@@ -231,6 +251,7 @@ export function HubScreen() {
       </p>
 
       <WorksSlip state={works} />
+      <ArenaSlip />
 
       {phone ? (
         <nav className="signpost" aria-label="Buildings">

@@ -1,7 +1,7 @@
 import { useId, useState, type FormEvent } from 'react';
 import { PRESENCE_LABELS, validatePlayerText } from '@worldforge/game-core';
 import type { ApiResult } from '../lib/api';
-import { profileHref, routeHref } from '../lib/route';
+import { arenaHref, profileHref, routeHref } from '../lib/route';
 import { ReportDialog } from '../social/ReportDialog';
 import {
   describeFriendFailure,
@@ -277,6 +277,10 @@ function Roll({
                   {f.presence ? PRESENCE_LABELS[f.presence] : 'Keeps to the shadows'}
                 </span>
                 <span className="roll__actions">
+                  {/* Ticket 5.5: a friendly challenge in the arena. */}
+                  <a className="btn btn--small" href={arenaHref({ friend: f.handle })}>
+                    Duel
+                  </a>
                   <button type="button" className="btn btn--small" onClick={() => onReport(f)}>
                     Report
                   </button>
