@@ -17,6 +17,7 @@ export function ItemPicker({
   emptyText,
   lockedPickable = false,
   emptyAction = 'farm',
+  contextOf,
 }: {
   items: readonly ItemView[];
   picked: ReadonlySet<string>;
@@ -27,6 +28,8 @@ export function ItemPicker({
   lockedPickable?: boolean;
   /** What the empty state offers: a link to the map, or nothing. */
   emptyAction?: 'farm' | 'none';
+  /** The caption under each item (default: its level). Ticket T.3: the shelf adds who placed it. */
+  contextOf?: (item: ItemView) => string;
 }) {
   const blocked = (i: ItemView) => i.locked && !lockedPickable;
   // Newest first, like the pack.
@@ -88,7 +91,7 @@ export function ItemPicker({
               selected={picked.has(item.id) && !blocked(item)}
               onSelect={() => toggle(item.id)}
               disabled={blocked(item)}
-              context={`Level ${item.itemLevel}`}
+              context={contextOf ? contextOf(item) : `Level ${item.itemLevel}`}
             />
           </li>
         ))}

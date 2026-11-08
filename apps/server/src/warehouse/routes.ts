@@ -31,7 +31,7 @@ import {
   type InventoryView,
   type ItemView,
 } from '../inventory/routes.js';
-import { isPackItem } from '../inventory/location.js';
+import { isPackItem, itemOnShelf } from '../inventory/location.js';
 import { recordTelemetry } from '../telemetry/record.js';
 import { goldOut } from '../telemetry/counts.js';
 
@@ -238,14 +238,19 @@ export async function registerWarehouse(
     const character = await lockOwnedCharacter(tx, accountId, characterId, activity);
     const now = activity.now();
     const items = await loadItems(tx, characterId);
+    // Ticket T.3: an item on the account shelf is neither in the pack nor in the warehouse.
+    const shelved = items.find((i) => i.onShelf && itemIds.includes(i.id));
+    if (shelved) throw itemOnShelf(shelved.id);
     const plan = planWarehouseMove({
       direction,
       itemIds,
-      items: items.map((i) => ({
-        id: i.id,
-        equipped: i.equippedSlot !== null,
-        inWarehouse: i.inWarehouse,
-      })),
+      items: items
+        .filter((i) => !i.onShelf)
+        .map((i) => ({
+          id: i.id,
+          equipped: i.equippedSlot !== null,
+          inWarehouse: i.inWarehouse,
+        })),
       packCapacity,
       warehouseCapacity: warehouseCapacity(character.warehouseLevel),
     });

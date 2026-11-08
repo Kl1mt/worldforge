@@ -35,6 +35,7 @@ import { registerLegal, type LegalOptions } from './legal/routes.js';
 import { registerAdmin, type AdminOptions } from './admin/routes.js';
 import { registerCommunity } from './community/routes.js';
 import { registerWarehouse } from './warehouse/routes.js';
+import { registerShelf } from './shelf/routes.js';
 import { registerLeaderboardRefresh, registerLeaderboards } from './leaderboards/routes.js';
 import { sweepLeaderboards } from './leaderboards/snapshot.js';
 import { registerSeasons } from './seasons/routes.js';
@@ -139,6 +140,7 @@ export function buildApp({
       await registerGuildBoss(api, activityOptions);
       await registerCommunity(api, activityOptions);
       await registerWarehouse(api, activityOptions);
+      await registerShelf(api, activityOptions);
       await registerLegal(api, legal ?? {});
       await registerAdmin(api, { gameNow: activityOptions.now, ...admin });
       await registerScores(api);

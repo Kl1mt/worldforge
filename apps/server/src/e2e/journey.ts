@@ -44,6 +44,8 @@ import type { ForgeResponse } from '../forge/routes.js';
 import type { DungeonClaimResponse, DungeonRunView } from '../dungeon/routes.js';
 import {
   accountAchievements,
+  accountShelfMaterials,
+  accounts,
   auditLog,
   characterMaterials,
   characters,
@@ -57,6 +59,7 @@ import { setAccountRole } from '../social/roles.js';
 import { reconcileWithAudit } from '../telemetry/report.js';
 import { completeProject } from '../community/project-cli.js';
 import type { WarehouseMoveResponse, WarehouseView } from '../warehouse/routes.js';
+import type { ShelfMoveResponse, ShelfView } from '../shelf/routes.js';
 import type {
   GuildBossAttemptResponse,
   GuildBossAttemptView,
@@ -87,7 +90,7 @@ export interface Clock {
   set(ms: number): void;
 }
 
-type Method = 'GET' | 'POST' | 'DELETE';
+type Method = 'GET' | 'POST' | 'PUT' | 'DELETE';
 
 /**
  * Item strength for "is this a better drop?": rarity first, then item level, then upgrades (a
@@ -582,6 +585,16 @@ export async function expectHoldingsMatchAudit(database: DatabaseHandle, charact
       case 'warehouse.upgrade':
         gold -= d.gold!;
         break;
+      // Ticket T.3: the account shelf. A deposit leaves the hero, a withdrawal arrives (one row per
+      // kind); what is on the shelf belongs to the account (`expectShelfMatchesAudit`).
+      case 'shelf.deposit':
+      case 'shelf.withdraw': {
+        const sign = event === 'shelf.deposit' ? -1 : 1;
+        if (d.kind === 'gold') gold += sign * d.gold!;
+        else if (d.kind === 'items') items += sign * (d.items as unknown[]).length;
+        else addMaterials(d.materials, sign);
+        break;
+      }
     }
   }
   const [row] = await database.db.select().from(characters).where(eq(characters.id, characterId));
@@ -589,7 +602,7 @@ export async function expectHoldingsMatchAudit(database: DatabaseHandle, charact
   const owned = await database.db
     .select({ id: itemInstances.id })
     .from(itemInstances)
-    .where(eq(itemInstances.characterId, characterId));
+    .where(and(eq(itemInstances.characterId, characterId), eq(itemInstances.onShelf, false)));
   expect(owned).toHaveLength(items);
   const held = await database.db
     .select()
@@ -599,6 +612,56 @@ export async function expectHoldingsMatchAudit(database: DatabaseHandle, charact
     expect(held.find((h) => h.materialId === id)?.quantity ?? 0, id).toBe(materials[id] ?? 0);
   }
   return { row: row!, events };
+}
+
+/**
+ * Ticket T.3: what the account's shelf holds (items, gold, materials) equals a replay of its
+ * `shelf.deposit` / `shelf.withdraw` audit rows, and every item the log left on the shelf is there.
+ */
+export async function expectShelfMatchesAudit(database: DatabaseHandle, accountId: string) {
+  const audit = await database.db
+    .select()
+    .from(auditLog)
+    .where(and(eq(auditLog.accountId, accountId), like(auditLog.event, 'shelf.%')));
+  let gold = 0;
+  // Per item, deposits minus withdrawals (1 = on the shelf). Order-free: audit ids and stamps of
+  // racing transactions don't give the commit order, and an item's moves alternate anyway.
+  const net = new Map<string, number>();
+  const materials: Partial<Record<MaterialId, number>> = {};
+  for (const { event, data } of audit) {
+    const d = data as {
+      kind: string;
+      gold?: number;
+      items?: { itemId: string }[];
+      materials?: Record<string, number>;
+    };
+    const sign = event === 'shelf.deposit' ? 1 : -1;
+    if (d.kind === 'gold') gold += sign * d.gold!;
+    else if (d.kind === 'items') {
+      for (const { itemId } of d.items!) net.set(itemId, (net.get(itemId) ?? 0) + sign);
+    } else {
+      for (const [id, n] of Object.entries(d.materials ?? {})) {
+        materials[id as MaterialId] = (materials[id as MaterialId] ?? 0) + sign * n;
+      }
+    }
+  }
+  const [account] = await database.db.select().from(accounts).where(eq(accounts.id, accountId));
+  expect(account!.shelfGold).toBe(gold);
+  const onShelf = await database.db
+    .select({ id: itemInstances.id })
+    .from(itemInstances)
+    .where(and(eq(itemInstances.shelfAccountId, accountId), eq(itemInstances.onShelf, true)));
+  for (const [itemId, n] of net) expect([0, 1], itemId).toContain(n);
+  const shelved = [...net].filter(([, n]) => n === 1).map(([id]) => id);
+  expect(onShelf.map((r) => r.id).sort()).toEqual(shelved.sort());
+  const held = await database.db
+    .select()
+    .from(accountShelfMaterials)
+    .where(eq(accountShelfMaterials.accountId, accountId));
+  for (const id of MATERIAL_IDS) {
+    expect(held.find((h) => h.materialId === id)?.quantity ?? 0, id).toBe(materials[id] ?? 0);
+  }
+  return { gold, items: shelved.length, materials };
 }
 
 /**
@@ -1621,6 +1684,134 @@ export async function playWarehouseStep(
   }
   expect(checks.filter((c) => !c.ok)).toEqual([]);
   return { stored: stored.length - 1, level: 1 };
+}
+
+/**
+ * Ticket T.3: the account shelf. Off by default (every deposit refused in plain words); the owner
+ * opens it from the admin panel; the hero gives an item, gold and materials to a second hero of the
+ * same account; the owner pauses gold again and the rest still comes out. Holdings of both heroes
+ * and the shelf equal the audit log. Needs the Warehouse open (`playWarehouseStep` first).
+ */
+export async function playShelfStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  hero: Journey,
+  ownerEmail = 'shelf-owner@graumark.test',
+) {
+  const [me] = await database.db
+    .select({ accountId: characters.accountId })
+    .from(characters)
+    .where(eq(characters.id, hero.characterId));
+  const accountId = me!.accountId;
+  const err = (r: LightMyRequestResponse) => r.json<{ error: { code: string } }>().error.code;
+
+  // A second hero on the same account.
+  const made = await hero.api('POST', '/api/characters', {
+    name: 'Wren',
+    classId: 'hunter',
+    appearance: { banner: 'moss' },
+  });
+  expect(made.statusCode, made.body).toBe(201);
+  const second = made.json<{ character: { id: string } }>().character.id;
+  const shelfUrl = (id: string) => `/api/characters/${id}/shelf`;
+
+  // Off by default: shown, but every deposit is refused, and nothing moves.
+  const closed = await hero.api('GET', shelfUrl(hero.characterId));
+  expect(closed.statusCode, closed.body).toBe(200);
+  expect(closed.json<ShelfView>().deposits).toEqual({
+    items: false,
+    materials: false,
+    gold: false,
+  });
+  const paused = await hero.keyed(`${shelfUrl(hero.characterId)}/deposit`, { gold: 1 });
+  expect(paused.statusCode).toBe(409);
+  expect(err(paused)).toBe('shelf_paused');
+
+  // The owner opens all three kinds in the admin panel.
+  const owner = await newPlayer(app, ownerEmail, 'Shelf Warden');
+  expect(await setAccountRole(database.db, ownerEmail, 'admin')).toMatchObject({ to: 'admin' });
+  const saveShelf = async (shelf: Record<'items' | 'materials' | 'gold', boolean>) => {
+    const current = (await owner.api('GET', '/api/mod/settings/trading')).json<{
+      settings: Record<string, unknown>;
+      version: number;
+    }>();
+    const put = await owner.api(
+      'PUT',
+      '/api/admin/settings/trading',
+      { expectedVersion: current.version, settings: { ...current.settings, shelf } },
+      { 'idempotency-key': randomUUID() },
+    );
+    expect(put.statusCode, put.body).toBe(200);
+  };
+  await saveShelf({ items: true, materials: true, gold: true });
+
+  // Something of each kind to give: farm until the pack, the purse and a stack have it.
+  const materialsOf = async (id: string) =>
+    (await hero.api('GET', `/api/characters/${id}/materials`)).json<{
+      materials: { materialId: MaterialId; quantity: number }[];
+    }>().materials;
+  for (let i = 0; i < 60; i++) {
+    const inv = await hero.inventory();
+    const mats = await materialsOf(hero.characterId);
+    const gold = (await hero.api('GET', shelfUrl(hero.characterId))).json<ShelfView>().hero.gold;
+    if (inv.inventory.some((it) => !it.locked) && mats.length > 0 && gold >= 10) break;
+    await hero.settle();
+    await hero.farmBestArea();
+  }
+  const giftItem = (await hero.inventory()).inventory.find((it) => !it.locked)!;
+  const stack = (await materialsOf(hero.characterId))[0]!;
+  const purse = (await hero.api('GET', shelfUrl(hero.characterId))).json<ShelfView>().hero.gold;
+  const gift = {
+    itemIds: [giftItem.id],
+    gold: Math.floor(purse / 2),
+    materials: { [stack.materialId]: stack.quantity },
+  };
+  const key = randomUUID();
+  const dep = await hero.keyed(`${shelfUrl(hero.characterId)}/deposit`, gift, key);
+  expect(dep.statusCode, dep.body).toBe(200);
+  const replay = await hero.keyed(`${shelfUrl(hero.characterId)}/deposit`, gift, key);
+  expect(replay.headers['idempotency-replayed']).toBe('true');
+  const onShelf = dep.json<ShelfMoveResponse>().shelf;
+  expect(onShelf.items.map((it) => it.id)).toEqual([giftItem.id]);
+  expect(onShelf.gold).toBe(gift.gold);
+  // On the shelf it is out of reach of the merchant.
+  const sell = await hero.keyed(`${hero.base}/merchant/sell`, { itemIds: [giftItem.id] });
+  expect(err(sell)).toBe('item_on_shelf');
+
+  // The second hero takes the item and the materials; then the owner pauses gold, and the gold
+  // still comes out (withdrawals never read a switch).
+  const out = await hero.keyed(`${shelfUrl(second)}/withdraw`, {
+    itemIds: [giftItem.id],
+    materials: gift.materials,
+  });
+  expect(out.statusCode, out.body).toBe(200);
+  expect(out.json<ShelfMoveResponse>().inventory.inventory.map((it) => it.id)).toEqual([
+    giftItem.id,
+  ]);
+  await saveShelf({ items: true, materials: true, gold: false });
+  expect(err(await hero.keyed(`${shelfUrl(hero.characterId)}/deposit`, { gold: 1 }))).toBe(
+    'shelf_paused',
+  );
+  const gold = await hero.keyed(`${shelfUrl(second)}/withdraw`, { gold: gift.gold });
+  expect(gold.statusCode, gold.body).toBe(200);
+  expect(gold.json<ShelfMoveResponse>()).toMatchObject({
+    character: { id: second, gold: gift.gold },
+    shelf: { items: [], gold: 0, materials: [] },
+  });
+  // The item kept its binding (moving it is not a trade and binds nothing).
+  expect(out.json<ShelfMoveResponse>().inventory.inventory[0]!.binding).toBe(giftItem.binding);
+
+  await expectHoldingsMatchAudit(database, hero.characterId);
+  await expectHoldingsMatchAudit(database, second);
+  const left = await expectShelfMatchesAudit(database, accountId);
+  expect(left).toMatchObject({ gold: 0, items: 0 });
+  expect(Object.values(left.materials).every((n) => n === 0)).toBe(true);
+  const checks = await reconcileWithAudit(database.db);
+  for (const c of checks.filter((c) => c.check.startsWith('shelf:'))) {
+    expect(c, c.check).toMatchObject({ ok: true });
+  }
+  expect(checks.filter((c) => !c.ok)).toEqual([]);
+  return { second, gift };
 }
 
 // ---------------------------------------------------------------------------------------------

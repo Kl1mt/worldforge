@@ -566,6 +566,14 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
       audit('warehouse.upgrade', num(sql`data->>'gold'`)),
       sumRollups(rows, 'gold.out', src('warehouse_upgrade'), 'amount'),
     ],
+    // Account shelf (ticket T.3): every move, by direction and kind (items, gold, units).
+    ...(['deposit', 'withdraw'] as const).flatMap((direction) =>
+      (['items', 'materials', 'gold'] as const).map((kind): [string, Promise<number>, number] => [
+        `shelf: ${kind} ${direction === 'deposit' ? 'deposited' : 'withdrawn'}`,
+        audit(`shelf.${direction}`, num(sql`data->>'amount'`), sql`data->>'kind' = ${kind}`),
+        sumRollups(rows, 'shelf.move', (d) => d[0] === direction && d[1] === kind, 'amount'),
+      ]),
+    ),
     // Duels (ticket 5.5): every duel, by kind; a duel moves no value.
     ...(['rated', 'friendly'] as const).map((kind): [string, Promise<number>, number] => [
       `duels: ${kind}`,
@@ -579,6 +587,38 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
   for (const [check, auditValue, rollup] of checks) {
     const a = await auditValue;
     out.push({ check, audit: a, rollup, ok: a === rollup });
+  }
+  // Ticket T.3: the shelf conserves value. What every shelf holds now equals deposits minus
+  // withdrawals in the audit log (here `rollup` is the stored holding, not a counter).
+  const shelfNet = (kind: string) =>
+    auditScalar(
+      db,
+      sql`select coalesce(sum(case when event = 'shelf.deposit' then 1 else -1 end
+                 * (data->>'amount')::bigint), 0) as n
+          from audit_log where event in ('shelf.deposit', 'shelf.withdraw')
+          and data->>'kind' = ${kind}`,
+    );
+  const holdings: [string, Promise<number>, Promise<number>][] = [
+    [
+      'shelf: items held = deposits − withdrawals',
+      shelfNet('items'),
+      auditScalar(db, sql`select count(*) as n from item_instances where on_shelf`),
+    ],
+    [
+      'shelf: materials held = deposits − withdrawals',
+      shelfNet('materials'),
+      auditScalar(db, sql`select coalesce(sum(quantity), 0) as n from account_shelf_materials`),
+    ],
+    [
+      'shelf: gold held = deposits − withdrawals',
+      shelfNet('gold'),
+      auditScalar(db, sql`select coalesce(sum(shelf_gold), 0) as n from accounts`),
+    ],
+  ];
+  for (const [check, auditValue, held] of holdings) {
+    const a = await auditValue;
+    const h = await held;
+    out.push({ check, audit: a, rollup: h, ok: a === h });
   }
   return out;
 }
