@@ -1,10 +1,16 @@
 import { refreshAchievements } from '../achievements/award.js';
 import type { FastifyInstance } from 'fastify';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, sql } from 'drizzle-orm';
 import {
   CORE_STAT_IDS,
   EQUIPMENT_SLOT_IDS,
   checkEquip,
+  DEFAULT_TRADING_SWITCHES,
+  ITEM_BINDINGS,
+  itemBinding,
+  type ItemBinding,
+  type ItemBindingReason,
+  type TradingSwitches,
   defaultEquipSlot,
   deriveEquippedStats,
   itemFitsSlot,
@@ -54,6 +60,14 @@ export interface ItemView {
   setId: string | null;
   mythicId: string | null;
   locked: boolean;
+  /**
+   * Ticket T.1 (docs/TRADING.md "1. Item binding"): `account` (account-bound) or `equip` (binds
+   * when worn or forged), why, and whether it may be traded under the current switches (always
+   * false until trading opens).
+   */
+  binding: ItemBinding;
+  bindingReason: ItemBindingReason;
+  tradeable: boolean;
 }
 
 export interface InventoryView {
@@ -82,7 +96,17 @@ export function itemView(i: ItemInstance): ItemView {
     setId: i.setId ?? null,
     mythicId: i.mythicId ?? null,
     locked: i.locked,
+    ...bindingView(i),
   };
+}
+
+/** The binding fields of the item view (ticket T.1). */
+export function bindingView(
+  i: ItemInstance,
+  switches: Readonly<TradingSwitches> = DEFAULT_TRADING_SWITCHES,
+): Pick<ItemView, 'binding' | 'bindingReason' | 'tradeable'> {
+  const b = itemBinding(i, switches);
+  return { binding: b.binding, bindingReason: b.reason, tradeable: b.tradeable };
 }
 
 export function inventoryView(character: Character, items: readonly ItemInstance[]): InventoryView {
@@ -118,6 +142,9 @@ export const itemSchema = {
     'setId',
     'mythicId',
     'locked',
+    'binding',
+    'bindingReason',
+    'tradeable',
   ],
   properties: {
     id: { type: 'string' },
@@ -148,6 +175,9 @@ export const itemSchema = {
     setId: { type: ['string', 'null'] },
     mythicId: { type: ['string', 'null'] },
     locked: { type: 'boolean' },
+    binding: { type: 'string', enum: [...ITEM_BINDINGS] },
+    bindingReason: { type: 'string' },
+    tradeable: { type: 'boolean' },
   },
 } as const;
 
@@ -245,6 +275,33 @@ function findItem(items: readonly ItemInstance[], itemId: string): ItemInstance 
   // Ticket 4.7: equip, unequip, lock and discard act on the pack and the worn gear only.
   if (item.inWarehouse) throw itemInWarehouse(item.id);
   return item;
+}
+
+/**
+ * Ticket T.1: the first time an item is worn it becomes account-bound to the wearer's account and
+ * remembers when. Later wears change nothing (the earliest time and the first account stay).
+ */
+async function bindOnWear(
+  tx: Transaction,
+  item: ItemInstance,
+  accountId: string,
+  now: Date,
+): Promise<Pick<ItemInstance, 'binding' | 'boundAccountId' | 'firstEquippedAt'>> {
+  if (item.firstEquippedAt !== null && item.binding === 'account') return item;
+  const [row] = await tx
+    .update(itemInstances)
+    .set({
+      binding: 'account',
+      boundAccountId: sql`coalesce(${itemInstances.boundAccountId}, ${accountId}::uuid)`,
+      firstEquippedAt: sql`coalesce(${itemInstances.firstEquippedAt}, ${now.toISOString()}::timestamptz)`,
+    })
+    .where(eq(itemInstances.id, item.id))
+    .returning({
+      binding: itemInstances.binding,
+      boundAccountId: itemInstances.boundAccountId,
+      firstEquippedAt: itemInstances.firstEquippedAt,
+    });
+  return row!;
 }
 
 async function setSlot(tx: Transaction, itemId: string, slot: EquipmentSlotId | null) {
@@ -354,6 +411,8 @@ export async function registerInventory(
           }
           await setSlot(tx, item.id, slot);
           item.equippedSlot = slot;
+          // Ticket T.1: wearing binds (docs/TRADING.md "By state"), in the same transaction.
+          Object.assign(item, await bindOnWear(tx, item, accountId, activity.now()));
           // Ticket 4.2: wearing a set's last piece earns its achievement.
           if (item.setId) {
             await refreshAchievements(tx, character, ['fullSetWorn'], activity.now());

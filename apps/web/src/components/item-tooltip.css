@@ -68,6 +68,22 @@
   font-size: var(--text-xs);
 }
 
+/* Ticket T.1: the binding line. Bound items in quiet iron-grey caps, bind-on-equip ones in
+   brass; plain words, no icon that would read as a trade button. */
+.tooltip__binding {
+  margin-top: var(--space-1);
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+}
+
+.tooltip__binding .caps {
+  color: var(--text-dim);
+}
+
+.tooltip__binding--open .caps {
+  color: var(--brass-300);
+}
+
 .tooltip__unique {
   margin-top: var(--space-1);
   color: var(--text-dim);

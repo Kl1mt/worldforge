@@ -1,4 +1,6 @@
 import {
+  itemBindingSource,
+  type ItemBindingReason,
   BOSS_LOOT_TABLES,
   DUNGEONS,
   describeEffect,
@@ -114,8 +116,61 @@ export interface ItemView {
   variant: VariantView | null;
   /** Ticket 3.7: locked items can't be sold, salvaged or discarded. */
   locked: boolean;
+  /** Ticket T.1: the item's binding in plain words; null where the server sent none (offers). */
+  binding: BindingView | null;
   /** Ticket 3.7: the fields the loot filter reads (game-core `lootFilterHandles`), for previews. */
   filterKey: LootFilterItem;
+}
+
+/** An item's binding as the tooltip shows it (ticket T.1, docs/TRADING.md). */
+export interface BindingView {
+  /** `bound` (account-bound) or `open` (binds when worn or forged). */
+  kind: 'bound' | 'open';
+  /** "Account-bound", "Binds when worn", "Tradeable once". */
+  label: string;
+  /** One plain sentence: why it is bound, or what binds it. */
+  detail: string | null;
+}
+
+/**
+ * Ticket T.1: the binding in plain words. While trading is closed a bind-on-equip item only says
+ * what binds it and that it can't be traded now; it never promises a trade.
+ */
+export function bindingView(
+  dto: Pick<ItemDisplaySource, 'source' | 'binding' | 'bindingReason' | 'tradeable'>,
+): BindingView | null {
+  if (!dto.binding) return null;
+  if (dto.binding === 'equip') {
+    return dto.tradeable
+      ? {
+          kind: 'open',
+          label: 'Tradeable once',
+          detail: 'Binds to your account when worn or forged.',
+        }
+      : {
+          kind: 'open',
+          label: 'Binds when worn',
+          detail: 'Wearing or forging it binds it to your account. It can’t be traded.',
+        };
+  }
+  const source = itemBindingSource(dto.source);
+  const detail: Record<ItemBindingReason, string | null> = {
+    fresh: null,
+    worn: 'Bound when first worn.',
+    forged: 'Bound by work at the forge.',
+    traded: 'Bound after changing hands once.',
+    rarity: 'Common, uncommon and rare items are always bound.',
+    source:
+      source === 'hoard'
+        ? 'Boss hoard loot is always bound.'
+        : source === 'quest' || source === 'contract'
+          ? 'Quest and contract rewards are always bound.'
+          : source === 'merchant'
+            ? 'Goods bought from the merchant are always bound.'
+            : null,
+    bound: null,
+  };
+  return { kind: 'bound', label: 'Account-bound', detail: detail[dto.bindingReason ?? 'bound'] };
 }
 
 /** A variant as the frame and tooltip show it (ticket 3.5). */
@@ -199,7 +254,16 @@ export type ItemDisplaySource = Pick<
   Partial<
     Pick<
       ItemDto,
-      'effectId' | 'effectRoll' | 'setId' | 'mythicId' | 'upgradeLevel' | 'variant' | 'locked'
+      | 'effectId'
+      | 'effectRoll'
+      | 'setId'
+      | 'mythicId'
+      | 'upgradeLevel'
+      | 'variant'
+      | 'locked'
+      | 'binding'
+      | 'bindingReason'
+      | 'tradeable'
     >
   >;
 
@@ -247,6 +311,7 @@ export function toItemView(dto: ItemDisplaySource): ItemView {
       Boolean(dto.effectId && findEffect(dto.effectId)),
     ),
     locked: dto.locked ?? false,
+    binding: bindingView(dto),
     filterKey: {
       rarityId: dto.rarityId,
       affixes: dto.affixes,

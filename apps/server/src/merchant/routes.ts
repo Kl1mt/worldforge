@@ -1,3 +1,4 @@
+import { itemBindingColumns } from '../inventory/columns.js';
 import { refreshAchievements } from '../achievements/award.js';
 import type { FastifyInstance } from 'fastify';
 import { and, asc, eq, like } from 'drizzle-orm';
@@ -279,6 +280,7 @@ export async function registerMerchant(
               id: uuidv7(),
               characterId,
               ...offer.item,
+              ...itemBindingColumns(offer.item, 'merchant', accountId),
               source: 'merchant',
               createdAt: now,
             })

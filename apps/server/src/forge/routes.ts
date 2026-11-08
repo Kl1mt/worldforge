@@ -45,6 +45,7 @@ import {
 import { changeMaterialsTx, loadMaterialBundle } from '../materials/store.js';
 import { idempotentTransaction } from '../idempotency/index.js';
 import { registerForgeWork } from './work.js';
+import { itemBindingColumns } from '../inventory/columns.js';
 import {
   changeGold,
   characterSchema,
@@ -377,7 +378,15 @@ export async function registerForge(
           await changeMaterialsTx(tx, characterId, negate(cost), now);
           const [row] = await tx
             .insert(itemInstances)
-            .values({ id: uuidv7(), characterId, ...crafted, source: 'forge', createdAt: now })
+            .values({
+              id: uuidv7(),
+              characterId,
+              ...crafted,
+              // Ticket T.1: a crafted Epic or better is bind on equip (docs/TRADING.md).
+              ...itemBindingColumns(crafted, 'forge', accountId),
+              source: 'forge',
+              createdAt: now,
+            })
             .returning();
           const item = row!;
           await writeAudit(tx, {

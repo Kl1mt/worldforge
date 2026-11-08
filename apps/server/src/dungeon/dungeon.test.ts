@@ -247,9 +247,14 @@ describe('the Nameless Crypt (ticket 2.5)', () => {
     expect(after.items.length - before.items.length).toBe(result.items.length);
     expect(after.mats.find((m) => m.materialId === 'gravewardenSeal')?.quantity).toBe(1);
     expect(after.character.progress.gravewardenDefeated).toBe(true);
-    expect(after.items.filter((i) => i.source === 'dungeon:namelessCrypt')).toHaveLength(
-      result.items.length,
+    // Ticket T.1: chamber drops keep `dungeon:…`, the boss hoard's are `hoard:…` and account-bound.
+    const fromRun = after.items.filter(
+      (i) => i.source === 'dungeon:namelessCrypt' || i.source === 'hoard:namelessCrypt',
     );
+    expect(fromRun).toHaveLength(result.items.length);
+    const hoardItems = fromRun.filter((i) => i.source === 'hoard:namelessCrypt');
+    expect(hoardItems.length).toBeGreaterThan(0);
+    for (const i of hoardItems) expect(i.binding).toBe('account');
 
     // Retrying the same claim replays the stored response and grants nothing new.
     const retry = await claim(p, id, key);

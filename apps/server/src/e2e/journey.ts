@@ -26,6 +26,7 @@ import {
   getArea,
   getDungeonTier,
   getLootTable,
+  itemBinding,
   worldFlagsFrom,
   type AreaId,
   type ClassId,
@@ -2561,4 +2562,67 @@ export async function playAccountSecurityStep(
   // Progress is untouched: the same hero with the same level and gold.
   expect((await roster(api)).find((c) => c.id === hero.characterId)).toEqual(heroBefore);
   return { api };
+}
+
+/**
+ * Ticket T.1: item binding after real play. Every item the hero holds carries game-core's binding,
+ * worn items are account-bound, nothing is tradeable while trading is off, and every bind-on-equip
+ * item's creation is in the audit log by id. Then a fresh pack item, if there is one the hero can
+ * wear, is worn and binds.
+ */
+export async function playBindingStep(database: DatabaseHandle, hero: Journey) {
+  const [character] = await database.db
+    .select()
+    .from(characters)
+    .where(eq(characters.id, hero.characterId));
+  const accountId = character!.accountId;
+  const rows = await database.db
+    .select()
+    .from(itemInstances)
+    .where(eq(itemInstances.characterId, hero.characterId));
+  expect(rows.length).toBeGreaterThan(0);
+  const created = new Set(
+    (
+      await database.db
+        .select()
+        .from(auditLog)
+        .where(
+          and(
+            eq(auditLog.characterId, hero.characterId),
+            inArray(auditLog.event, ['activity.reward', 'dungeon.claim', 'forge.craft']),
+          ),
+        )
+    ).flatMap(({ data }) => {
+      const d = data as { notableItems?: { id: string }[]; itemId?: string };
+      return [...(d.notableItems ?? []).map((n) => n.id), ...(d.itemId ? [d.itemId] : [])];
+    }),
+  );
+  for (const r of rows) {
+    const b = itemBinding(r);
+    expect(r.binding, r.id).toBe(b.binding);
+    expect(r.boundAccountId, r.id).toBe(b.binding === 'account' ? accountId : null);
+    expect(r.unprovenanced).toBe(false);
+    if (r.equippedSlot !== null) expect(r.binding).toBe('account');
+    if (r.binding === 'equip') expect(created.has(r.id), r.id).toBe(true);
+  }
+  const inv = await hero.inventory();
+  for (const v of [...inv.equipped, ...inv.inventory]) {
+    expect(v.tradeable).toBe(false);
+    expect(v.binding).toBe(rows.find((r) => r.id === v.id)!.binding);
+  }
+  const fresh = inv.inventory.find((v) => {
+    const def = findItemBase(v.baseId);
+    return (
+      v.binding === 'equip' &&
+      def !== undefined &&
+      canClassUseItem(def, character!.classId) &&
+      def.minItemLevel <= character!.level
+    );
+  });
+  if (fresh) {
+    const res = await hero.api('POST', `${hero.base}/items/${fresh.id}/equip`);
+    expect(res.statusCode, res.body).toBe(200);
+    const worn = res.json<InventoryView>().equipped.find((e) => e.id === fresh.id)!;
+    expect(worn).toMatchObject({ binding: 'account', bindingReason: 'worn', tradeable: false });
+  }
 }

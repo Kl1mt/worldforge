@@ -3,6 +3,8 @@ import { packItemsWhere } from '../inventory/routes.js';
 import type { FastifyInstance } from 'fastify';
 import { and, count, desc, eq, gt, isNotNull, isNull, sql } from 'drizzle-orm';
 import {
+  RARITY_IDS,
+  hoardSource,
   DUNGEON_IDS,
   applyXp,
   cryptTierCleared,
@@ -38,7 +40,7 @@ import {
   type DungeonRun,
   type LootFilterSummary,
 } from '../db/schema.js';
-import { itemEffectColumns } from '../inventory/columns.js';
+import { itemBindingColumns, itemEffectColumns } from '../inventory/columns.js';
 import type { Executor, Transaction } from '../db/types.js';
 import { withTransaction, constraintOf } from '../db/transaction.js';
 import { writeAudit } from '../db/audit.js';
@@ -250,19 +252,31 @@ export function replayRun(
 }
 
 /**
+ * Which of a run's drops (by generation seed) came from the boss hoard (tickets 3.8, T.1): when
+ * the hoard dropped, the run is replayed without it (the hoard has its own RNG stream, so the
+ * chambers roll the same items) and the drops it lacks are the hoard's. If content changed since
+ * the run, the replay may roll other chamber items; their drops then count as the hoard's, which
+ * binds them (the safe side).
+ */
+export function hoardDrops(run: DungeonRun, bossLoot: boolean): (seed: number) => boolean {
+  if (!bossLoot) return () => false;
+  const chambers = replayRun({ ...run, bossLootEligible: false });
+  const seeds = new Set([...chambers.items, ...chambers.salvaged].map((i) => i.seed));
+  return (seed) => !seeds.has(seed);
+}
+
+/**
  * Ticket 3.8: a claim's telemetry. Drops are split into chamber drops (`crypt`) and the boss hoard
  * (`crypt_hoard`): when the hoard dropped, the run is replayed without it (the hoard has its own
  * RNG stream, so the chambers roll the same items) and the drops it lacks are the hoard's.
  */
-export function claimTelemetry(run: DungeonRun, r: DungeonRunResult): TelemetryCount[] {
+export function claimTelemetry(
+  run: DungeonRun,
+  r: DungeonRunResult,
+  hoard: (seed: number) => boolean = hoardDrops(run, r.bossLoot),
+): TelemetryCount[] {
   const context = `${run.dungeonId}:${run.tier}`;
   const filtered = r.filtered ?? [];
-  let hoard: (seed: number) => boolean = () => false;
-  if (r.bossLoot) {
-    const chambers = replayRun({ ...run, bossLootEligible: false });
-    const seeds = new Set([...chambers.items, ...chambers.salvaged].map((i) => i.seed));
-    hoard = (seed) => !seeds.has(seed);
-  }
   const part = (inHoard: boolean) => ({
     items: r.items.filter((i) => hoard(i.seed) === inHoard),
     overCapacity: r.overCapacity.filter((i) => hoard(i.seed) === inHoard),
@@ -636,19 +650,28 @@ export async function registerDungeons(
             r.xpGained,
           );
 
-          const rows = r.items.map((item) => ({
-            id: uuidv7(),
-            characterId,
-            baseId: item.baseId,
-            rarityId: item.rarityId,
-            itemLevel: item.itemLevel,
-            affixes: item.affixes,
-            seed: item.seed,
-            ...itemEffectColumns(item),
-            equippedSlot: null,
-            source: `dungeon:${run.dungeonId}`,
-            createdAt: now,
-          }));
+          // Ticket T.1: boss-hoard drops are stored as `hoard:<dungeon>` and are always account-bound;
+          // chamber drops follow the rarity table (docs/TRADING.md "By source").
+          const hoard = hoardDrops(run, r.bossLoot);
+          const rows = r.items.map((item) => {
+            const source = hoard(item.seed)
+              ? hoardSource(run.dungeonId)
+              : `dungeon:${run.dungeonId}`;
+            return {
+              id: uuidv7(),
+              characterId,
+              baseId: item.baseId,
+              rarityId: item.rarityId,
+              itemLevel: item.itemLevel,
+              affixes: item.affixes,
+              seed: item.seed,
+              ...itemEffectColumns(item),
+              ...itemBindingColumns(item, source, accountId),
+              equippedSlot: null,
+              source,
+              createdAt: now,
+            };
+          });
           if (rows.length > 0) await tx.insert(itemInstances).values(rows);
           const none = normalizeProfessions({});
           await grantGatheringTx(tx, characterId, r.materials, none, none, now);
@@ -774,6 +797,16 @@ export async function registerDungeons(
               xp: r.xpGained,
               gold,
               items: rows.length,
+              // Ticket T.1 (provenance): every Epic and better item by id, as farming lists them.
+              notableItems: rows
+                .filter((x) => RARITY_IDS.indexOf(x.rarityId) >= RARITY_IDS.indexOf('epic'))
+                .map((x) => ({
+                  id: x.id,
+                  baseId: x.baseId,
+                  rarityId: x.rarityId,
+                  seed: x.seed,
+                  ...(x.source.startsWith('hoard:') ? { hoard: true } : {}),
+                })),
               itemsSalvaged: r.salvaged.length,
               ...(r.overCapacity.length > 0 ? { itemsOverCapacity: r.overCapacity.length } : {}),
               materials: r.materials,
@@ -782,7 +815,7 @@ export async function registerDungeons(
               ...(filteredCount > 0 ? { filtered: filterAudit(r.filtered!, filter) } : {}),
             },
           });
-          recordTelemetry(tx, now, claimTelemetry(run, r));
+          recordTelemetry(tx, now, claimTelemetry(run, r, hoard));
           return { result, character: characterView(written!) };
         },
       );

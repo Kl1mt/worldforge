@@ -23,7 +23,7 @@ import {
   type Character,
   type FarmState,
 } from '../db/schema.js';
-import { itemEffectColumns } from '../inventory/columns.js';
+import { itemBindingColumns, itemEffectColumns } from '../inventory/columns.js';
 import type { Database, Transaction } from '../db/types.js';
 import { withTransaction } from '../db/transaction.js';
 import { writeAudit } from '../db/audit.js';
@@ -255,6 +255,7 @@ export async function settleActivityTx(
       affixes: item.affixes,
       seed: item.seed,
       ...itemEffectColumns(item),
+      ...itemBindingColumns(item, 'farming', character.accountId),
       equippedSlot: null,
       source: 'farming',
       createdAt: now,

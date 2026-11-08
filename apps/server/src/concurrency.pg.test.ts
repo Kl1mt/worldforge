@@ -15,7 +15,7 @@
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
-import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import { randomUUID } from 'node:crypto';
 import {
   CONTRACT_TEMPLATES,
@@ -465,7 +465,7 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
         .where(
           and(
             eq(itemInstances.characterId, characterId),
-            eq(itemInstances.source, 'dungeon:namelessCrypt'),
+            inArray(itemInstances.source, ['dungeon:namelessCrypt', 'hoard:namelessCrypt']),
           ),
         );
       const [seal] = await database.db

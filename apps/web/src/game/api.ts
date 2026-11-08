@@ -1,4 +1,6 @@
 import type {
+  ItemBinding,
+  ItemBindingReason,
   AreaId,
   CraftBlocker,
   ItemSlotKind,
@@ -126,6 +128,10 @@ export interface ItemDto {
   setId: string | null;
   mythicId: string | null;
   locked: boolean;
+  /** Ticket T.1: game-core `ItemBinding`, why, and whether trading may take it right now. */
+  binding: ItemBinding;
+  bindingReason: ItemBindingReason;
+  tradeable: boolean;
 }
 
 export interface InventoryDto {

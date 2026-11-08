@@ -144,9 +144,17 @@ One owned item, created from a game-core `GeneratedItem`. Location is a column, 
 | set_id        | text?       | 3.1 (3.3). Set id of a set piece                                   |
 | mythic_id     | text?       | 3.1 (3.2). Named Mythic item id                                    |
 | locked        | boolean     | 3.1 (3.7). Locked items can't be sold, salvaged or discarded; default false |
+| binding       | text?       | T.1 (migration `0030_item_binding`). Game-core `ItemBinding`: `account` (account-bound) or `equip` (bind on equip: fresh, binds when worn or forged); check. Written at creation by every source (`itemBindingColumns`), moved to `account` by the first equip and by any Forge action in their transactions, never back. Null only on rows from before T.1 until the item-binding backfill reaches them (`docs/TRADING.md`) |
+| bound_account_id | uuid FK? | T.1. → `accounts.id` `ON DELETE SET NULL`; the account the item is bound to, set with `binding = 'account'` (the owner at that moment; a later trade, T.5, rebinds to the receiver) |
+| traded_count  | integer     | T.1 (written by T.5). Completed trades of the item, default 0, `>= 0`; one makes it account-bound |
+| hold_until    | timestamptz?| T.1 (written by T.5). Received in a trade: held until then (no sell, salvage, discard, Forge, shelf) |
+| first_equipped_at | timestamptz? | T.1. The first equip (kept on later equips); the backfill sets its own run time for items worn then. Null = not known to have been worn (items worn before T.1 and taken off count as fresh, TRADING.md's accepted risk) |
+| unprovenanced | boolean     | T.1. Set by the backfill on a bind-on-equip item whose creation is not in the audit log; T.4/T.5 refuse and flag it. Default false |
 | in_warehouse  | boolean     | 4.7 (migration `0024_warehouse`). In the character's warehouse, not the pack; default false. Check `item_instances_warehouse_check`: never equipped while stored. Stored items take no pack slot and are out of reach of sell, salvage, discard, the forge, the loot filter and placement until moved back (`docs/WAREHOUSE.md`) |
 
-Indexes: `(character_id)`; partial unique `(character_id, equipped_slot) where equipped_slot is not null`. Checks: `item_level >= 1`, `upgrade_level` 0–10, the three counters `>= 0`, `variant`, `effect_roll`.
+Indexes: `(character_id)`; partial unique `(character_id, equipped_slot) where equipped_slot is not null`. Checks: `item_level >= 1`, `upgrade_level` 0–10, the three counters `>= 0`, `variant`, `effect_roll`; T.1: `binding`, `traded_count >= 0`.
+
+**`source`** values: `farming`, `dungeon:<dungeonId>` (a crypt or Watch chamber), `hoard:<dungeonId>` (a boss hoard; ticket T.1, before which hoard drops were stored as `dungeon:<id>`, which the backfill corrects where the stored run shows it), `forge` (crafted), `quest` (story and contract rewards), `merchant`. Game-core `itemBindingSource` maps them; anything else binds.
 
 **`affixes` element** (`RolledAffix`): `{ affixId, tier, value }` plus two optional forge fields, absent on fresh affixes: `improvements` (integer ≥ 0, affix-improvement steps applied; the value stays inside its tier's `[min, max]`, so `validateItem` still holds) and `rerolled` (`true` when a reroll put this affix there). The API schema already serialises both.
 
@@ -333,7 +341,7 @@ Primary key `(account_id, achievement_id)`: every award is at-most-once (inserte
 | completed_at | timestamptz | |
 | data | jsonb | counts (accounts, awarded) |
 
-One row per one-shot data backfill that finished on this database; `migrate-cli` skips a backfill whose row exists (docs/DEPLOY.md "Data backfills").
+One row per one-shot data backfill that finished on this database; `migrate-cli` skips a backfill whose row exists (docs/DEPLOY.md "Data backfills"). Ticket T.1: `item-binding:t1` (written by the server after start-up, only once no item row is left with `binding` null; data: characters, items, bound, bindOnEquip, hoard, recovered, unprovenanced).
 ### friendships — implemented (4.3)
 Migration `0018_friends_presence` (additive: three new tables, no change to existing rows). See `docs/SOCIAL.md` "Relations".
 | Column | Type | Notes |
