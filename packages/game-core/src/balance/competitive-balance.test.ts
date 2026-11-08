@@ -109,6 +109,7 @@ function realistic(bracketId: string): Hero[] {
 const MATCHMAKING_V1: MatchmakingConfig = {
   ...DEFAULT_MATCHMAKING,
   freshPairsFirst: false,
+  freshBelow: 3,
   classPowerScale: { warrior: 1, mage: 1, hunter: 1, warlock: 1 },
 };
 
@@ -211,8 +212,16 @@ describe('matchmaking 2 on realistic heroes (B.4)', () => {
  * a day (casual, regular, dedicated) an opponent drawn from its list, both ratings move, the
  * repeat-pair factors apply.
  */
-function ratedWeeks(config: MatchmakingConfig, days: number, carry?: Map<number, Rating>) {
-  const heroes = realistic('30-plus');
+function ratedWeeks(
+  config: MatchmakingConfig,
+  days: number,
+  carry?: Map<number, Rating>,
+  /** 5.6's rule (before B.4b): a pair's fourth duel counted 0 and the pair was not offered. */
+  blockAtFourth = false,
+  /** Only the first `size` heroes (a small town). */
+  size?: number,
+) {
+  const heroes = realistic('30-plus').slice(0, size);
   const state = new Map(
     heroes.map((h) => [
       h.index,
@@ -226,6 +235,8 @@ function ratedWeeks(config: MatchmakingConfig, days: number, carry?: Map<number,
   );
   const pairs = new Map<string, number[]>();
   const factors = [0, 0, 0, 0];
+  let attempts = 0;
+  let empty = 0;
   const start = Date.UTC(2027, 0, 4);
   const DAY = 86_400_000;
   for (let day = 1; day <= days; day++) {
@@ -240,7 +251,7 @@ function ratedWeeks(config: MatchmakingConfig, days: number, carry?: Map<number,
           (pairs.get(key(o)) ?? []).filter((t) => t > now.getTime() - 7 * DAY).length;
         const me = state.get(h.index)!;
         const cands = heroes
-          .filter((o) => o.index !== h.index && ratingFactor(recent(o)) > 0)
+          .filter((o) => o.index !== h.index && !(blockAtFourth && recent(o) >= 3))
           .map((o) => ({
             ...o,
             rating: state.get(o.index)!.r.rating,
@@ -254,7 +265,11 @@ function ratedWeeks(config: MatchmakingConfig, days: number, carry?: Map<number,
           5,
           config,
         );
-        if (res.picks.length === 0) continue;
+        attempts++;
+        if (res.picks.length === 0) {
+          empty++;
+          continue;
+        }
         const pick = createRng(`b4-pick:${day}:${round}:${h.index}`).int(0, res.picks.length - 1);
         const d = res.picks[pick]!.candidate;
         const prior = recent(d);
@@ -269,7 +284,7 @@ function ratedWeeks(config: MatchmakingConfig, days: number, carry?: Map<number,
           challenger: { rating: me.r, lastRatedAt: me.at },
           defender: { rating: them.r, lastRatedAt: them.at },
           outcome: duel.outcome,
-          factor: ratingFactor(prior),
+          factor: blockAtFourth && prior >= 3 ? 0 : ratingFactor(prior),
           now,
         });
         for (const [s, after] of [
@@ -289,7 +304,10 @@ function ratedWeeks(config: MatchmakingConfig, days: number, carry?: Map<number,
   const settled = [...state.values()].map((s) => s.settledAt ?? Infinity).sort((a, b) => a - b);
   return {
     fullShare: factors[0]! / total,
-    quarterShare: factors[2]! / total,
+    /** Duels at a quarter: the third, and (B.4b) every later one. */
+    quarterShare: (factors[2]! + factors[3]!) / total,
+    emptyShare: empty / attempts,
+    duels: total,
     established: [...state.values()].filter((s) => s.games >= PROVISIONAL_GAMES).length,
     medianSettledGames: settled[settled.length >> 1]!,
     ratings: new Map([...state.entries()].map(([i, s]) => [i, s.r])),
@@ -301,14 +319,21 @@ describe('the rating over a season (B.4)', () => {
     'fresh pairs first: most rated duels count in full; ratings settle within a few days',
     SLOW,
     () => {
-      const v1 = ratedWeeks(MATCHMAKING_V1, 7);
+      const v1 = ratedWeeks(MATCHMAKING_V1, 7, undefined, true);
       const v2 = ratedWeeks(DEFAULT_MATCHMAKING, 7);
-      // Measured on these 120 heroes: in full 39 % → 46 %, for a quarter 28 % → 16 % (in the
-      // 500-player season, with ~480 heroes in 30+: 30 % → 83 % and 39 % → 3 %).
+      // B.4b: the same matchmaking with 5.6's block (a pair's fourth duel counted 0, not offered).
+      const blocked = ratedWeeks(DEFAULT_MATCHMAKING, 7, undefined, true);
+      // Measured on these 120 heroes (5.6 → now): in full 40 % → 45 %, at a quarter 28 % → 17 %
+      // (500-player season, ~480 heroes in 30+: 30 % → 88 % in full).
       expect(v2.fullShare).toBeGreaterThanOrEqual(0.42);
-      expect(v2.fullShare - v1.fullShare).toBeGreaterThanOrEqual(0.05);
+      expect(v2.fullShare - v1.fullShare).toBeGreaterThanOrEqual(0.04);
       expect(v2.quarterShare).toBeLessThanOrEqual(0.2);
       expect(v1.quarterShare - v2.quarterShare).toBeGreaterThanOrEqual(0.08);
+      // Repeat pairs never block (owner decision, B.4b): no list is empty, and keeping them costs
+      // at most 2 points of full-value duels against blocking them (46 %).
+      expect(v2.emptyShare).toBe(0);
+      expect(v2.duels).toBeGreaterThanOrEqual(blocked.duels);
+      expect(blocked.fullShare - v2.fullShare).toBeLessThanOrEqual(0.02);
       // Every hero leaves "provisional" in its first week; ratings settle after ~15–30 games.
       expect(v2.established).toBe(realistic('30-plus').length);
       expect(v2.medianSettledGames).toBeLessThanOrEqual(30);
@@ -317,6 +342,19 @@ describe('the rating over a season (B.4)', () => {
       expect(next.medianSettledGames).toBeLessThan(v2.medianSettledGames);
     },
   );
+});
+
+describe('a small town (B.4b)', () => {
+  it('repeat pairs never block: sixteen duellists keep finding rated opponents', SLOW, () => {
+    const floor = ratedWeeks(DEFAULT_MATCHMAKING, 7, undefined, false, 16);
+    const block = ratedWeeks(DEFAULT_MATCHMAKING, 7, undefined, true, 16);
+    // 5.6's block emptied most lists within the week; with the ¼ floor none is empty, and the
+    // repeats count for a quarter.
+    expect(block.emptyShare).toBeGreaterThanOrEqual(0.3);
+    expect(floor.emptyShare).toBe(0);
+    expect(floor.duels).toBeGreaterThan(block.duels);
+    expect(floor.quarterShare).toBeGreaterThan(0.5);
+  });
 });
 
 describe('prestige pacing (B.4)', () => {

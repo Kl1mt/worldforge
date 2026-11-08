@@ -333,7 +333,7 @@ describe('arena rating (ticket 5.6)', () => {
   });
 
   describe('win-trading', () => {
-    it('diminishing returns against the same account; a pair at 0 is not offered; the window ends', async () => {
+    it('diminishing returns against the same account; repeat pairs stay offered at ¼ (B.4b); the window ends', async () => {
       const me = await player();
       const foe = await player();
       // A second hero of the same foe account: the pair is per account.
@@ -342,28 +342,27 @@ describe('arena rating (ticket 5.6)', () => {
       const foeId = await defend(foe);
       const foeId2 = await defend({ who: foe.who, hero: foeHero2 });
       const factors: number[] = [];
-      for (const [i, id] of [foeId, foeId2, foeId, foeId2].entries()) {
+      for (const [i, id] of [foeId, foeId2, foeId, foeId2, foeId].entries()) {
         nowMs = START + i * 10 * MIN;
         const d = await rated(me, id);
         const [row] = await db().select().from(duels).where(eq(duels.id, d.id));
         factors.push(row!.rating!.factor);
-        if (row!.rating!.factor === 0) {
-          expect(row!.rating!.challenger.after).toEqual(row!.rating!.challenger.before);
-          expect(row!.rating!.defender.after).toEqual(row!.rating!.defender.before);
-          expect(d.rating!.change).toBe(0);
-        }
       }
-      expect(factors).toEqual([1, 0.5, 0.25, 0]);
-      // The foe challenging back counts on the same pair.
+      // B.4b (owner decision): from the fourth duel on the factor stays at a quarter, never 0.
+      expect(factors).toEqual([1, 0.5, 0.25, 0.25, 0.25]);
+      // The foe challenging back counts on the same pair, and the pair is still offered both ways.
       await defend(me);
       await onlyThese(me, foe);
       const back = (await api.draw(foe.who, foe.hero.id)).json<ArenaStateResponse>();
-      expect(back.rated.offer!.opponents).toEqual([]);
+      expect(back.rated.offer!.opponents).toHaveLength(1);
+      nowMs = START + 5 * 10 * MIN;
+      const again = await rated(foe, back.rated.offer!.opponents[0]!.defenceId);
+      expect(again.rating!.factor).toBe(0.25);
       expect(
         (await api.draw(me.who, me.hero.id)).json<ArenaStateResponse>().rated.offer!.opponents,
-      ).toEqual([]);
-      // Once the window has passed, the pair counts in full again and is offered.
-      nowMs = START + 3 * 10 * MIN + PAIR_WINDOW_MS + MIN;
+      ).toHaveLength(1);
+      // Once the window has passed, the pair counts in full again.
+      nowMs = START + 5 * 10 * MIN + PAIR_WINDOW_MS + MIN;
       const fresh = (await api.draw(me.who, me.hero.id)).json<ArenaStateResponse>();
       expect(fresh.rated.offer!.opponents.map((o) => o.defenceId).sort()).toHaveLength(1);
       const d = await rated(me, foeId);
@@ -449,7 +448,8 @@ describe('arena rating (ticket 5.6)', () => {
       const myWins = rows.filter((r) => r.outcome === 'challenger').length;
       const foeWins = rows.filter((r) => r.outcome === 'defender').length;
       expect(pair.flags.includes('lopsided')).toBe(Math.max(myWins, foeWins) / 5 >= 0.8);
-      expect(pair.uncounted).toBe(2); // the fourth and fifth duel: factor 0
+      // B.4b: the fourth and fifth duel count for a quarter, not for nothing.
+      expect(pair.uncounted).toBe(0);
       expect(res.body).not.toContain(me.who.id);
       expect(res.body).not.toContain('@');
       const audit = await db()

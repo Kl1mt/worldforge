@@ -2,6 +2,7 @@ import type { ClassId } from '../classes.js';
 import { createRng } from '../rng.js';
 import { characterPower, POWER_FORMULA_VERSION } from '../scoring/power.js';
 import type { PvpBracket, PvpFighterInput } from './normalise.js';
+import { PAIR_FACTORS } from './integrity.js';
 import { expectedScore, type Rating } from './rating.js';
 
 /**
@@ -24,8 +25,11 @@ import { expectedScore, type Rating } from './rating.js';
 /**
  * 2 (ticket B.4, docs/PVP.md "Balance pass: competitive systems"): Power is compared relative to
  * the class (`classPowerScale`), and accounts not yet met this week come first (`freshPairsFirst`).
+ * 3 (ticket B.4b): repeat pairs are never left out (their duels count ¼); only accounts met fewer
+ * than `freshBelow` times this week count toward `minAccounts`, so the range still widens when
+ * the fresh opponents run out, as it did when repeat pairs were removed.
  */
-export const MATCHMAKING_VERSION = 2;
+export const MATCHMAKING_VERSION = 3;
 
 /**
  * A hero's **bracket Power**: 5.1's Character Power of its (checked) gear, evaluated at the
@@ -63,6 +67,13 @@ export interface MatchmakingConfig {
    */
   freshPairsFirst: boolean;
   /**
+   * Ticket B.4b: with `freshPairsFirst`, an account counts toward `minAccounts` only while the
+   * seeker has met it fewer than this many times in the window (from then on its duels count at
+   * the ¼ floor). Measured without it, in a 100-player town the range stayed narrow, filled with
+   * repeat pairs, and the full-value duels fell by a third.
+   */
+  freshBelow: number;
+  /**
    * Ticket B.4: a class's bracket Power is divided by this before it is compared (`matchPower`).
    * Power is a PvE measure, and the same Power does not mean the same duel strength in every
    * class: on a realistic season the warlock won 60 % of the Power-matched pairs it was offered
@@ -78,6 +89,7 @@ export const DEFAULT_MATCHMAKING: Readonly<MatchmakingConfig> = Object.freeze({
   minAccounts: 5,
   poolFactor: 2,
   freshPairsFirst: true,
+  freshBelow: PAIR_FACTORS.length,
   classPowerScale: { warrior: 1.035, mage: 1, hunter: 1, warlock: 0.967 },
 });
 
@@ -163,7 +175,14 @@ export function pickOpponents<C extends MatchCandidate>(
     pool = inRange;
     step = s;
     widened = i;
-    if (accounts >= config.minAccounts) break;
+    const counted = config.freshPairsFirst
+      ? new Set(
+          inRange
+            .filter((x) => (x.c.recentDuels ?? 0) < config.freshBelow)
+            .map((x) => x.c.accountId),
+        ).size
+      : accounts;
+    if (counted >= config.minAccounts) break;
   }
   if (pool.length === 0) return { picks: [], powerStep: null, widened };
   // One defence per account: the closest in rating (then in Power, then the id).

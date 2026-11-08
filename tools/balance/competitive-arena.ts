@@ -301,7 +301,7 @@ export function seasonOfDuels(
   };
   const totalDuels = factors.reduce((s, x) => s + x, 0);
   console.log(
-    `  ${label}: ${states.length} rated heroes, ${totalDuels} rated duels; factor 1 ${pct(factors[0]! / totalDuels)}, ½ ${pct(factors[1]! / totalDuels)}, ¼ ${pct(factors[2]! / totalDuels)}; ` +
+    `  ${label}: ${states.length} rated heroes, ${totalDuels} rated duels; factor 1 ${pct(factors[0]! / totalDuels)}, ½ ${pct(factors[1]! / totalDuels)}, ¼ ${pct(factors[2]! / totalDuels)}, 4th+ ${pct(factors[3]! / totalDuels)} (full-value duels ${factors[0]}); ` +
       `empty lists ${pct(empty / Math.max(1, lists))} of ${lists}; candidates held back by the pair rule ${(pairExcluded / Math.max(1, lists)).toFixed(1)} per list`,
   );
   console.log(

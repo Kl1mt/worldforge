@@ -18,7 +18,7 @@
  *
  * **Diminishing returns** (`ratingFactor`, win-trading): the change of rating, deviation and
  * volatility is scaled by a factor that falls with each rated duel the same two accounts fought in
- * the window; at 0 the duel counts for nothing.
+ * the window (1, ½, ¼, then ¼ again: B.4b, it never reaches 0; `integrity.ts`).
  */
 
 /** Bump when a rating can end differently for the same games (a constant, the maths, a factor). */
@@ -207,7 +207,7 @@ export function ageRating(
 export interface RatingChange {
   before: Rating;
   after: Rating;
-  /** The diminishing-returns factor applied (1 = in full, 0 = counted for nothing). */
+  /** The diminishing-returns factor applied (1 = in full; repeats ½, then ¼). */
   factor: number;
 }
 
