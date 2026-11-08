@@ -173,6 +173,9 @@ No combat number changed in B.3. What was checked (`tools/balance/top-end.ts`, g
 
 **Crypt tier III** stays the Legendary tier (decided, no change: `docs/DUNGEONS.md` "Tier III is the Legendary tier").
 
+## PvP (ticket 5.4)
+Hero-vs-hero duels run on this engine (`buildEncounter`, `attackHit`, `thornsDamage`) through a separate normalisation layer in `packages/game-core/src/pvp/`; nothing above changes for PvE. Rules, factors and balance bands: `docs/PVP.md`.
+
 ## Open points
 - Balance is tuned (ticket B.1, above) against simulations; the owner's playtest feedback may still move it. Keep `src/balance/balance.test.ts` green when adding content.
 - Item stats are only an input; the loot module (ticket 1.5) produces them.
