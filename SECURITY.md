@@ -44,6 +44,7 @@ How player accounts are protected (ticket 5.7; details in `docs/API_CONVENTIONS.
 - **Email changes** need the current password; the old address is told (without the new one).
 - **"Log out other devices"** on the account screen ends every other session.
 - **Unverified accounts** play normally. Trading will require a verified email address. Expired sessions and links are deleted hourly.
+- **Registration** logs the new player in at once and answers "address already taken" for a known address (owner decision, 2026-11-08: instant play over hiding taken addresses; registration is invite-only, so only invite holders could probe).
 - Mail is sent over the operator's SMTP provider; tokens travel in the part of the link after `#`, which browsers never send to a server.
 
 ## Supported versions
