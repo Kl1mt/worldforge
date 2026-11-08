@@ -10,6 +10,7 @@ import {
   summaryItemView,
   targetSlot,
   toItemView,
+  bindingView,
 } from './items';
 
 const dto = (over: Partial<ItemDto>): ItemDto => ({
@@ -28,6 +29,9 @@ const dto = (over: Partial<ItemDto>): ItemDto => ({
   setId: null,
   mythicId: null,
   locked: false,
+  binding: 'account',
+  bindingReason: 'rarity',
+  tradeable: false,
   ...over,
 });
 
@@ -315,5 +319,47 @@ describe('set pieces (ticket 3.3)', () => {
       setId: 'bloodmoon-hunt',
     });
     expect(v).toMatchObject({ setName: 'The Bloodmoon Hunt', effectName: null });
+  });
+});
+
+describe('binding display (ticket T.1)', () => {
+  it('says what binds a fresh item and never promises a trade while trading is closed', () => {
+    const open = toItemView(dto({ rarityId: 'epic', binding: 'equip', bindingReason: 'fresh' }));
+    expect(open.binding).toEqual({
+      kind: 'open',
+      label: 'Binds when worn',
+      detail: 'Wearing or forging it binds it to your account. It can’t be traded.',
+    });
+    expect(open.binding!.detail).not.toMatch(/tradeable|later|soon/i);
+    expect(
+      bindingView({ source: 'farming', binding: 'equip', bindingReason: 'fresh', tradeable: true }),
+    ).toMatchObject({ kind: 'open', label: 'Tradeable once' });
+  });
+
+  it('names why a bound item is bound', () => {
+    const why = (source: string, bindingReason: ItemDto['bindingReason']) =>
+      toItemView(dto({ source, bindingReason })).binding;
+    expect(why('farming', 'rarity')).toEqual({
+      kind: 'bound',
+      label: 'Account-bound',
+      detail: 'Common, uncommon and rare items are always bound.',
+    });
+    expect(why('farming', 'worn')!.detail).toBe('Bound when first worn.');
+    expect(why('farming', 'forged')!.detail).toBe('Bound by work at the forge.');
+    expect(why('farming', 'traded')!.detail).toBe('Bound after changing hands once.');
+    expect(why('hoard:namelessCrypt', 'source')!.detail).toBe('Boss hoard loot is always bound.');
+    expect(why('quest', 'source')!.detail).toBe('Quest and contract rewards are always bound.');
+    expect(why('merchant', 'source')!.detail).toBe(
+      'Goods bought from the merchant are always bound.',
+    );
+    expect(why('farming', 'bound')!.detail).toBeNull();
+  });
+
+  it('shows nothing for items the server sent no binding for (merchant offers, profiles)', () => {
+    const offer: Partial<ItemDto> = dto({});
+    delete offer.binding;
+    delete offer.bindingReason;
+    delete offer.tradeable;
+    expect(toItemView(offer as ItemDto).binding).toBeNull();
   });
 });

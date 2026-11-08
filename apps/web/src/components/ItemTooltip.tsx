@@ -127,6 +127,12 @@ export function ItemTooltip({
             </p>
           ) : null}
           {note ? <p className="tooltip__note">{note}</p> : null}
+          {item.binding ? (
+            <p className={`tooltip__binding tooltip__binding--${item.binding.kind}`}>
+              <span className="caps">{item.binding.label}</span>
+              {item.binding.detail ? <> {item.binding.detail}</> : null}
+            </p>
+          ) : null}
         </header>
 
         {item.base.length > 0 ? (

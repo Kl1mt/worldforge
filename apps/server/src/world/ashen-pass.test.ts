@@ -229,7 +229,8 @@ describe('the Ashen Pass behind the world flag (ticket 4.8)', () => {
       .where(
         and(
           eq(itemInstances.characterId, p.heroId),
-          eq(itemInstances.source, 'dungeon:ashenWatch'),
+          // Ticket T.1: a boss-only run drops only the hoard.
+          eq(itemInstances.source, 'hoard:ashenWatch'),
         ),
       );
     expect(sources.length).toBeGreaterThan(0);

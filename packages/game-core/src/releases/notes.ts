@@ -23,9 +23,18 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.5.9';
+export const GAME_VERSION = '0.5.10';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.5.10',
+    date: '2026-11-08',
+    title: 'Bound to your name',
+    new: [
+      'Item details now say whether an item is bound to your account and why (worn, forged at the forge, a boss hoard’s loot, a reward, or simply too common to matter), or that wearing or forging it will bind it. Nothing about your items has changed: no item can leave your account.',
+    ],
+    tickets: ['T.1'],
+  },
   {
     version: '0.5.9',
     date: '2026-11-08',

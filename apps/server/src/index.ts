@@ -1,6 +1,7 @@
 import { buildApp } from './app.js';
 import { loadConfig, requireDatabaseUrl } from './config.js';
 import { createPostgresDatabase } from './db/client.js';
+import { backfillItemBinding } from './inventory/binding-backfill.js';
 import { DISABLED_MAILER, createLogMailer, createSmtpMailer, type Mailer } from './mail/mailer.js';
 
 const config = loadConfig();
@@ -53,6 +54,16 @@ try {
   // Fail fast on a wrong URL/credentials instead of on the first request.
   await database.ping(5000);
   await app.listen({ host: config.host, port: config.port });
+  // Ticket T.1 (docs/DEPLOY.md "Data backfills"): item binding for rows from before T.1, in the
+  // background after start-up so it never holds up a deploy; a no-op once it has finished.
+  backfillItemBinding(database.db).then(
+    (r) =>
+      app.log.info(
+        { backfill: r.id, ...r },
+        r.ran ? 'item-binding backfill ran' : 'item-binding backfill: already done',
+      ),
+    (err: unknown) => app.log.error({ err }, 'item-binding backfill failed; retried at next start'),
+  );
   if (config.mail.transport === 'none') {
     app.log.warn('email is not set up (no SMTP_HOST): verification and password reset are off');
   } else {

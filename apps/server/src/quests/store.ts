@@ -43,7 +43,7 @@ import {
   type CharacterQuest,
   type QuestKind,
 } from '../db/schema.js';
-import { itemEffectColumns } from '../inventory/columns.js';
+import { itemBindingColumns, itemEffectColumns } from '../inventory/columns.js';
 import type { Database, Transaction } from '../db/types.js';
 import { writeAudit } from '../db/audit.js';
 import { recordTelemetry } from '../telemetry/record.js';
@@ -481,6 +481,8 @@ export async function turnInQuestTx(
         affixes: generated.affixes,
         seed: generated.seed,
         ...itemEffectColumns(generated),
+        // Ticket T.1: quest and contract rewards are always account-bound.
+        ...itemBindingColumns(generated, 'quest', character.accountId),
         equippedSlot: null,
         source: 'quest',
         createdAt: now,

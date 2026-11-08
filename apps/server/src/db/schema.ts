@@ -19,6 +19,7 @@ import {
   type AnyPgColumn,
 } from 'drizzle-orm/pg-core';
 import type {
+  ItemBinding,
   AccountRole,
   PrestigeMetric,
   PrestigeTier,
@@ -340,6 +341,32 @@ export const itemInstances = pgTable(
      * settlement or crypt placement, sell, salvage, discard or the forge until moved back.
      */
     inWarehouse: boolean('in_warehouse').notNull().default(false),
+    // Ticket T.1 (docs/TRADING.md "1. Item binding"): binding & provenance. No trading yet.
+    /**
+     * Game-core `ItemBinding`: `account` (account-bound for good) or `equip` (bind on equip: fresh,
+     * binds when worn or forged). Written at creation, moved to `account` by equip and Forge work,
+     * never back. Null only on rows from before T.1 until the item-binding backfill reaches them
+     * (game-core `itemBinding` then derives it from the other columns).
+     */
+    binding: text('binding').$type<ItemBinding>(),
+    /** The account the item is bound to, set when `binding` becomes `account`. */
+    boundAccountId: uuid('bound_account_id').references(() => accounts.id, {
+      onDelete: 'set null',
+    }),
+    /** Completed trades of this item (T.5); one makes it account-bound for the receiver. */
+    tradedCount: integer('traded_count').notNull().default(0),
+    /** Received in a trade: held (no sell, salvage, discard, Forge, shelf) until then (T.5). */
+    holdUntil: timestamp('hold_until', { withTimezone: true }),
+    /**
+     * First time the item was equipped (T.1 on); the backfill sets it to its run time for items
+     * worn then. Null = not known to have been worn.
+     */
+    firstEquippedAt: timestamp('first_equipped_at', { withTimezone: true }),
+    /**
+     * Set by the item-binding backfill on a bind-on-equip item whose creation has no audit row:
+     * T.4/T.5 refuse to trade it and flag it (docs/TRADING.md "Full audit", provenance).
+     */
+    unprovenanced: boolean('unprovenanced').notNull().default(false),
     ...timestamps,
   },
   (t) => [
@@ -362,6 +389,11 @@ export const itemInstances = pgTable(
       sql`${t.effectRoll} is null or (${t.effectRoll} >= 0 and ${t.effectRoll} <= 1)`,
     ),
     check('item_instances_warehouse_check', sql`not ${t.inWarehouse} or ${t.equippedSlot} is null`),
+    check(
+      'item_instances_binding_check',
+      sql`${t.binding} is null or ${t.binding} in ('account', 'equip')`,
+    ),
+    check('item_instances_traded_count_check', sql`${t.tradedCount} >= 0`),
   ],
 );
 

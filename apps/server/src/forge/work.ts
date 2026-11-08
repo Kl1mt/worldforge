@@ -605,7 +605,13 @@ export async function registerForgeWork(
             const applied = apply(createRng(`${row.forgeSecret}:${counter}`));
             const [updated] = await tx
               .update(itemInstances)
-              .set({ ...applied.patch, forgeCounter: sql`${itemInstances.forgeCounter} + 1` })
+              .set({
+                ...applied.patch,
+                forgeCounter: sql`${itemInstances.forgeCounter} + 1`,
+                // Ticket T.1: any Forge work binds the item to the account (docs/TRADING.md).
+                binding: 'account',
+                boundAccountId: sql`coalesce(${itemInstances.boundAccountId}, ${accountId}::uuid)`,
+              })
               .where(and(eq(itemInstances.id, row.id), eq(itemInstances.forgeCounter, counter)))
               .returning();
             // Unreachable under the item lock; the counter guard is the backstop.

@@ -23,3 +23,4 @@ export * from './guild-boss/index.js';
 export * from './scoring/index.js';
 export * from './pvp/index.js';
 export * from './releases/index.js';
+export * from './trading/index.js';

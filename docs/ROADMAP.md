@@ -741,6 +741,11 @@ GDD: §16.3. Carry-overs since 1.2; required before trading (`docs/TRADING.md`).
 ### T.1–T.7 Trading — `todo`
 Per `docs/TRADING.md` ("Ticket outline" and "Test strategy"), in order: T.1 item binding & provenance → T.2 trading settings (admin) → T.3 shared account shelf → T.4 trade rules, eligibility & sanctions → T.5 trade offers → T.6 moderation, reversal & pattern report → T.7 trading hardening, exploit review & balance. Every switch starts off; the owner turns trading on from the admin panel when ready. Each ticket gets its own heading here when it starts.
 
+### T.1 Item binding & provenance (vertical) — `in progress`
+GDD: §10.1, §16.3. `docs/TRADING.md` "1. Item binding", "Full audit" (provenance), the T.1 row. Needs 5.7.
+- game-core `itemBinding(item, settings)` as a data table; item columns for the binding, the bound account, `traded_count`, `hold_until`, first-equipped; equip and Forge work bind; tooltips show it; provenance by id from every tradeable source; backfill of existing rows. No trading, no shelf, no switches UI.
+- Tests: the full rarity × variant × source × state table, equip/Forge transitions and their race, provenance per source, backfill idempotency and resumption (real PG), invariance, a journey step, tooltip screenshots.
+
 ### 5.8 Phase 5 hardening & exit — `todo`
 GDD: §15 Phase 5 exit, §16.3.
 - Exit-criteria e2e with several players: boards and recompute, a season ending with prestige awarded, rated and friendly duels, account security flows, and (with the switches on in the test) a full trade cycle with a reversal; everything reconciled with the audit log and telemetry. Browser run for the key flows.
