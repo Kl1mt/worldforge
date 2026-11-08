@@ -702,7 +702,7 @@ GDD: §3.1, §13.1. Needs 5.3's reward ids (and 5.5's arena screen for the arena
 - Budget: one or two 32px jobs plus one backdrop job; at most one regeneration. Manifest and `assets.ts` updated.
 **Acceptance:** a contact sheet in the PR.
 
-### 5.4 PvP combat model & normalisation (game-core) — `done (PR #TBD)`
+### 5.4 PvP combat model & normalisation (game-core) — `done (PR #89)`
 GDD: §10.3 (guardrails). Needs 5.1.
 - A deterministic hero-vs-hero duel simulation on the existing combat engine (both sides' effects, sets and skills), seeded from server-only secrets, with a readable combat log.
 - A **PvP normalisation layer** (level brackets; stats pulled toward the bracket by a documented factor) that never changes PvE numbers.
