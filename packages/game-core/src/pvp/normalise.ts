@@ -106,13 +106,13 @@ export const DEFAULT_PVP_CONFIG: Readonly<PvpConfig> = {
   referenceKit: { rarity: 'rare', itemLevelOffset: -1 },
   referenceLevels: { '1-9': 5, '10-19': 15, '20-29': 25, '30-plus': 30 },
   blendDefences: true,
-  damageSpread: 0.5,
+  damageSpread: 0.25,
   // Measured with the build samples of `pvp-balance.test.ts` (docs/PVP.md "Class tuning").
   classDamage: {
-    '1-9': { warrior: 1, mage: 1.1, hunter: 0.91, warlock: 1.12 },
-    '10-19': { warrior: 0.95, mage: 1.11, hunter: 0.92, warlock: 1.13 },
-    '20-29': { warrior: 0.96, mage: 1.09, hunter: 0.92, warlock: 1.14 },
-    '30-plus': { warrior: 0.94, mage: 1.11, hunter: 0.91, warlock: 1.14 },
+    '1-9': { warrior: 1.003, mage: 1.105, hunter: 0.936, warlock: 1.124 },
+    '10-19': { warrior: 0.946, mage: 1.097, hunter: 0.925, warlock: 1.111 },
+    '20-29': { warrior: 0.96, mage: 1.1, hunter: 0.92, warlock: 1.135 },
+    '30-plus': { warrior: 0.941, mage: 1.097, hunter: 0.915, warlock: 1.126 },
   },
   maxDuelMs: 60_000,
   suddenDeath: { atMs: 30_000, perSecond: 0.1 },
@@ -137,6 +137,19 @@ export function pvpBracketOf(level: number, config: PvpConfig = DEFAULT_PVP_CONF
     throw new RangeError(`Invalid level: ${level}`);
   const brackets = config === DEFAULT_PVP_CONFIG ? PVP_BRACKETS : pvpBrackets(config);
   return brackets.find((b) => level >= b.min && (b.max === null || level <= b.max))!;
+}
+
+/**
+ * The bracket of a friendly challenge (owner decision, 5.4): friends and guildmates may duel
+ * across brackets, and both then fight normalised toward the **lower** hero's bracket. Pass its id
+ * as `simulateDuel`'s `bracketId`. Rated duels stay inside one bracket (5.5/5.6).
+ */
+export function friendlyBracket(
+  levelA: number,
+  levelB: number,
+  config: PvpConfig = DEFAULT_PVP_CONFIG,
+): PvpBracket {
+  return pvpBracketOf(Math.min(levelA, levelB), config);
 }
 
 export function findPvpBracket(

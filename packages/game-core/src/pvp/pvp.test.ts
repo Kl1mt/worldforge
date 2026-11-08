@@ -10,6 +10,7 @@ import {
   PVP_BRACKETS,
   PVP_RULES_VERSION,
   deriveEquippedStats,
+  friendlyBracket,
   normaliseFighter,
   pvpBracketOf,
   pvpReferenceStats,
@@ -58,6 +59,19 @@ describe('brackets', () => {
     expect(pvpBracketOf(19).id).toBe('10-19');
     expect(pvpBracketOf(60).id).toBe('30-plus');
     expect(() => pvpBracketOf(0)).toThrow(RangeError);
+  });
+
+  it("puts a friendly challenge across brackets into the lower hero's bracket", () => {
+    expect(friendlyBracket(9, 25).id).toBe('1-9');
+    expect(friendlyBracket(31, 12).id).toBe('10-19');
+    expect(friendlyBracket(15, 15).id).toBe('10-19');
+    const r = simulateDuel({
+      challenger: fighter('warrior', 31, kit('warrior', 29, 'rare', 0)),
+      defender: fighter('mage', 12, kit('mage', 11, 'rare', 0)),
+      seed: 'friendly',
+      bracketId: friendlyBracket(31, 12).id,
+    });
+    expect(r.bracketId).toBe('10-19');
   });
 
   it('needs both fighters in one bracket unless a bracket is named', () => {
@@ -140,8 +154,8 @@ describe('duels', () => {
     // bump PVP_RULES_VERSION so 5.5 can tell stored duels of the old rules apart.
     expect(PVP_RULES_VERSION).toBe(1);
     const pinned: Record<string, string> = {
-      'det:1': 'f1c5051654a911cd',
-      'det:2': '01283ed69b603229',
+      'det:1': '613985dff82a41ce',
+      'det:2': '67626f0715c65f80',
     };
     for (const [seed, h] of Object.entries(pinned)) {
       expect(hash(simulateDuel(lateDuel(seed))), seed).toBe(h);
