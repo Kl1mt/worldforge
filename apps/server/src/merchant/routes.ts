@@ -231,6 +231,7 @@ export async function registerMerchant(
       },
     },
     async (request, reply) => {
+      const switches = await app.gameSettings.tradingSwitches();
       const accountId = request.auth!.account.id;
       const { characterId } = request.params;
       const { offerId } = request.body;
@@ -311,8 +312,8 @@ export async function registerMerchant(
           ]);
           return {
             character: characterView(character),
-            item: itemView(item),
-            inventory: inventoryView(character, [...items, item]),
+            item: itemView(item, switches),
+            inventory: inventoryView(character, [...items, item], switches),
           };
         },
       );
@@ -330,6 +331,7 @@ export async function registerMerchant(
       },
     },
     async (request, reply) => {
+      const switches = await app.gameSettings.tradingSwitches();
       const accountId = request.auth!.account.id;
       const { characterId } = request.params;
       const { itemIds } = request.body;
@@ -375,6 +377,7 @@ export async function registerMerchant(
             inventory: inventoryView(
               character,
               items.filter((i) => !sold.has(i.id)),
+              switches,
             ),
           };
         },

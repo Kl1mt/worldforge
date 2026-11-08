@@ -21,6 +21,7 @@ import {
 import './gate.css';
 import '../social/social.css';
 import { ArenaPatterns } from './ArenaPatterns';
+import { TradingSettingsFolio } from './TradingSettingsFolio';
 import './moderation.css';
 
 type QueueState =
@@ -224,6 +225,16 @@ export function ModerationScreen() {
         </div>
       ) : null}
       <ArenaPatterns />
+      {/* Ticket T.2: moderators see the trading settings read-only. */}
+      <section className="tset-docket" aria-labelledby="tset-docket-title">
+        <header className="tset-docket__head">
+          <p className="caps">Wardens · Trading</p>
+          <h2 id="tset-docket-title" className="display">
+            Trading settings (read-only)
+          </h2>
+        </header>
+        <TradingSettingsFolio readOnly />
+      </section>
     </section>
   );
 }

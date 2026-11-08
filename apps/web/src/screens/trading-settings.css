@@ -1,0 +1,374 @@
+/* Ticket T.2: the trading settings folio, the keep's tariff board. Switches are iron levers on
+   ruled ledgers (brass when on, crimson rim on an unsaved change); the limits are tally boxes with
+   their hard maxima stamped beside them. The launch order and the change history hang at the side
+   on the iron plate. Every class is scoped under `tset`. Phones: one column, levers under text. */
+.tset {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.tset__main,
+.tset__side {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.tset__state {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-hair);
+  border-left: 4px solid var(--iron-500);
+  background: var(--bg-sunken);
+}
+
+.tset__state--open {
+  border-left-color: var(--brass-400);
+}
+
+.tset__state .caps {
+  color: var(--brass-500);
+}
+
+.tset__summary {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--bone-100);
+}
+
+.tset__meta,
+.tset__lede,
+.tset__empty {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.tset__group {
+  display: grid;
+  gap: var(--space-2);
+  transition: opacity 120ms ease-out;
+}
+
+.tset__group--dim {
+  opacity: 0.72;
+}
+
+.tset__group-title {
+  margin: 0;
+  color: var(--bone-100);
+  font-size: var(--text-xl);
+}
+
+.tset__switches,
+.tset__limits,
+.tset__log {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tset__switch,
+.tset__limit {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  padding: var(--space-3) 0 var(--space-3) var(--space-3);
+  border-top: 1px solid var(--line);
+  border-left: 3px solid transparent;
+}
+
+.tset__switch:first-child,
+.tset__limit:first-child {
+  border-top: 0;
+}
+
+.tset__switch--changed,
+.tset__limit--changed {
+  border-left-color: var(--crimson-400);
+}
+
+.tset__switch-text,
+.tset__limit-text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.tset__switch-name,
+.tset__limit-name {
+  margin: 0;
+  color: var(--bone-100);
+  font-weight: 600;
+}
+
+.tset__switch-controls,
+.tset__limit-explains {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.tset__switch-off {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.tset__switch-off .caps {
+  margin-right: var(--space-1);
+  color: var(--crimson-400);
+  font-size: var(--text-xs);
+}
+
+.tset__badge {
+  margin-left: var(--space-2);
+  padding: 0 var(--space-1);
+  border: 1px solid var(--iron-500);
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  vertical-align: middle;
+}
+
+/* The lever: a sunken slot with an iron knob; brass and to the right when on. */
+.tset__lever {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-width: 96px;
+  min-height: 44px;
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-hair);
+  background: var(--bg-sunken);
+  color: var(--text-dim);
+  font: inherit;
+  cursor: pointer;
+}
+
+.tset__lever:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.tset__lever:disabled {
+  cursor: default;
+}
+
+.tset__lever-track {
+  position: relative;
+  width: 40px;
+  height: 18px;
+  border: 1px solid var(--iron-600);
+  background: var(--ink-950);
+  box-shadow: inset 0 2px 3px rgb(0 0 0 / 60%);
+}
+
+.tset__lever-knob {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 16px;
+  height: 14px;
+  background: var(--iron-500);
+  border: 1px solid var(--outline-dark);
+  transition: transform 120ms ease-out;
+}
+
+.tset__lever--on {
+  border-color: var(--brass-600);
+  color: var(--brass-300);
+}
+
+.tset__lever--on .tset__lever-track {
+  border-color: var(--brass-600);
+}
+
+.tset__lever--on .tset__lever-knob {
+  background: var(--brass-400);
+  transform: translateX(20px);
+}
+
+.tset__lever-word {
+  min-width: 2.2em;
+  font-family: var(--font-display);
+  text-align: left;
+}
+
+.tset__limit-box {
+  display: grid;
+  gap: 2px;
+  justify-items: end;
+  text-align: right;
+}
+
+.tset__limit-input {
+  width: 8.5rem;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.tset__limit-value {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--bone-100);
+  font-variant-numeric: tabular-nums;
+}
+
+.tset__limit-max {
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+  white-space: nowrap;
+}
+
+.tset__limit-error {
+  color: var(--crimson-400);
+  font-size: var(--text-xs);
+}
+
+.tset__savebar {
+  position: sticky;
+  bottom: var(--space-2);
+  z-index: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tset__pending {
+  flex: 1 1 18rem;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.tset__actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.tset__ok p {
+  margin: 0;
+}
+
+.tset__order {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.tset__order .caps {
+  color: var(--brass-500);
+}
+
+.tset__order .display {
+  margin: 0;
+  color: var(--bone-100);
+  font-size: var(--text-xl);
+}
+
+.tset__order ol {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.tset__history {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.tset__entry {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-2) 0;
+  border-top: 1px solid var(--line);
+}
+
+.tset__entry:first-child {
+  border-top: 0;
+}
+
+.tset__entry-head {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.tset__entry-version {
+  color: var(--brass-400);
+  font-family: var(--font-display);
+}
+
+.tset__entry-changes {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  padding-left: var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.tset__entry-changes s {
+  color: var(--text-faint);
+}
+
+.tset__entry-changes b {
+  color: var(--bone-100);
+  font-weight: 600;
+}
+
+/* The moderators' docket shows the board read-only below the arena patterns. */
+.tset-docket {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.tset-docket__head .caps {
+  color: var(--brass-500);
+}
+
+.tset-docket__head .display {
+  margin: 0;
+  color: var(--bone-100);
+}
+
+@media (max-width: 1080px) {
+  .tset {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .tset__switch,
+  .tset__limit {
+    grid-template-columns: minmax(0, 1fr);
+    padding-left: var(--space-2);
+  }
+
+  .tset__lever {
+    justify-self: start;
+  }
+
+  .tset__limit-box {
+    justify-items: start;
+    text-align: left;
+  }
+
+  .tset__limit-input {
+    width: 100%;
+    text-align: left;
+  }
+
+  .tset__savebar {
+    bottom: 0;
+  }
+}

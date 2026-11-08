@@ -8,6 +8,7 @@ import {
   planWarehouseMove,
   warehouseCapacity,
   type WarehouseMoveDirection,
+  type TradingSwitches,
 } from '@worldforge/game-core';
 import { characters, itemInstances, type Character, type ItemInstance } from '../db/schema.js';
 import type { Executor, Transaction } from '../db/types.js';
@@ -154,6 +155,7 @@ export function warehouseView(
   character: Character,
   items: readonly ItemInstance[],
   packCapacity: number,
+  switches: Readonly<TradingSwitches>,
 ): WarehouseView {
   const level = character.warehouseLevel;
   const next = nextWarehouseUpgrade(level);
@@ -162,7 +164,7 @@ export function warehouseView(
     level,
     maxLevel: maxWarehouseLevel(),
     capacity: warehouseCapacity(level),
-    items: items.filter((i) => i.inWarehouse).map(itemView),
+    items: items.filter((i) => i.inWarehouse).map((i) => itemView(i, switches)),
     nextUpgrade: next
       ? { toLevel: next.toLevel, gold: next.gold, slots: next.slots, capacity: next.capacity }
       : null,
@@ -208,6 +210,7 @@ export async function registerWarehouse(
       schema: { params: characterParamsSchema, response: { 200: warehouseSchema } },
     },
     async (request): Promise<WarehouseView> => {
+      const switches = await app.gameSettings.tradingSwitches();
       await requireOpen();
       const accountId = request.auth!.account.id;
       const { characterId } = request.params;
@@ -218,7 +221,7 @@ export async function registerWarehouse(
           .from(itemInstances)
           .where(eq(itemInstances.characterId, characterId))
           .orderBy(asc(itemInstances.createdAt), asc(itemInstances.id));
-        return warehouseView(character, items, packCapacity);
+        return warehouseView(character, items, packCapacity, switches);
       });
     },
   );
@@ -229,6 +232,7 @@ export async function registerWarehouse(
     accountId: string,
     characterId: string,
     itemIds: readonly string[],
+    switches: Readonly<TradingSwitches>,
   ): Promise<WarehouseMoveResponse> {
     // Settle first (ticket 1.9): drops of the window so far are placed with the pack as it was.
     const character = await lockOwnedCharacter(tx, accountId, characterId, activity);
@@ -312,8 +316,8 @@ export async function registerWarehouse(
       ]);
     }
     return {
-      warehouse: warehouseView(character, items, packCapacity),
-      inventory: inventoryView(character, items),
+      warehouse: warehouseView(character, items, packCapacity, switches),
+      inventory: inventoryView(character, items, switches),
       moved: plan.move.length,
     };
   }
@@ -330,11 +334,12 @@ export async function registerWarehouse(
         },
       },
       async (request) => {
+        const switches = await app.gameSettings.tradingSwitches();
         await requireOpen();
         const accountId = request.auth!.account.id;
         const { characterId } = request.params;
         return withTransaction(app.db, (tx) =>
-          move(tx, direction, accountId, characterId, request.body.itemIds),
+          move(tx, direction, accountId, characterId, request.body.itemIds, switches),
         );
       },
     );
@@ -351,6 +356,7 @@ export async function registerWarehouse(
       },
     },
     async (request, reply) => {
+      const switches = await app.gameSettings.tradingSwitches();
       await requireOpen();
       const accountId = request.auth!.account.id;
       const { characterId } = request.params;
@@ -406,7 +412,7 @@ export async function registerWarehouse(
             .where(eq(itemInstances.characterId, characterId))
             .orderBy(asc(itemInstances.createdAt), asc(itemInstances.id));
           return {
-            warehouse: warehouseView(character, items, packCapacity),
+            warehouse: warehouseView(character, items, packCapacity, switches),
             character: characterView(character),
             goldSpent: next.gold,
           };

@@ -257,9 +257,10 @@ Signed in as an admin, the footer has an **Admin panel** link (`/#/admin`, ticke
 - **Telemetry:** the balance report for a date window, optionally checked against the audit log.
 - **Server:** the deployed commit and build time, uptime, database, registration mode, accounts, heroes, active players (24 h / 7 d, counts only) and whether migrations are pending.
 - **Seasons:** the current and next season with their dates and counts, past seasons; schedule or re-plan the next season, move a season's end (extend or shorten), or end the current season early. The same rules as `deploy/admin.sh seasons`.
+- **Trading:** every trading switch and weekly limit (ticket T.2, `docs/TRADING.md` "Admin switches"), each with what it controls and what switching it off does to players, the limits with their hard maxima, the suggested launch order, and the change history (who, when, old and new value). At launch the master switch is off, so nothing can be traded until you turn it on. Change switches and numbers, then **Save changes**; a number over its hard maximum can't be saved. If another admin saved in between, you're told to reload instead of overwriting their change. A save takes effect on the server at once (with several instances, within a minute), without a deploy. Moderators see the same board read-only at the bottom of the moderator queue.
 - **Roles:** who is moderator or admin. Granting and revoking stay on the server (`deploy/admin.sh grant|revoke`): there is deliberately no button, so a stolen admin session cannot create admins.
 
-Everything there is audited on your account. To other players and moderators `/api/admin/*` does not exist (`404`).
+Everything there is audited on your account. To other players and moderators `/api/admin/*` does not exist (`404`); the trading settings' read view (`/api/mod/settings/trading`) is open to moderators, read-only.
 
 The commit and build time come from `deploy/deploy.sh`, which passes them to the image build (`WORLDFORGE_GIT_SHA`, `WORLDFORGE_BUILD_TIME`); an image built another way shows "Not recorded".
 

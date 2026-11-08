@@ -27,6 +27,7 @@ import {
   getDungeonTier,
   getLootTable,
   itemBinding,
+  DEFAULT_TRADING_SETTINGS,
   worldFlagsFrom,
   type AreaId,
   type ClassId,
@@ -2096,6 +2097,16 @@ export async function playAdminPanelStep(
     staff: { role: string }[];
   }>();
   expect(roles.staff.map((s) => s.role).sort()).toEqual(['admin', 'moderator']);
+
+  // Ticket T.2: the whole exit run played on the launch defaults, never saved (nothing tradeable).
+  const trading = await admin.api('GET', '/api/mod/settings/trading');
+  expect(trading.statusCode, trading.body).toBe(200);
+  expect(trading.json()).toMatchObject({
+    settings: DEFAULT_TRADING_SETTINGS,
+    version: 0,
+    canEdit: true,
+    history: [],
+  });
 
   const audited = await database.db
     .select({ event: auditLog.event })

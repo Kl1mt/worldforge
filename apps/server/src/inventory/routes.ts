@@ -79,7 +79,11 @@ export interface InventoryView {
   stats: StatBlock;
 }
 
-export function itemView(i: ItemInstance): ItemView {
+/**
+ * The item as the client sees it. `switches` are the stored trading switches
+ * (`app.gameSettings.tradingSwitches()`, ticket T.2), so `tradeable` matches the admin panel.
+ */
+export function itemView(i: ItemInstance, switches: Readonly<TradingSwitches>): ItemView {
   return {
     id: i.id,
     baseId: i.baseId,
@@ -96,7 +100,7 @@ export function itemView(i: ItemInstance): ItemView {
     setId: i.setId ?? null,
     mythicId: i.mythicId ?? null,
     locked: i.locked,
-    ...bindingView(i),
+    ...bindingView(i, switches),
   };
 }
 
@@ -109,7 +113,11 @@ export function bindingView(
   return { binding: b.binding, bindingReason: b.reason, tradeable: b.tradeable };
 }
 
-export function inventoryView(character: Character, items: readonly ItemInstance[]): InventoryView {
+export function inventoryView(
+  character: Character,
+  items: readonly ItemInstance[],
+  switches: Readonly<TradingSwitches>,
+): InventoryView {
   const slotOrder = (s: EquipmentSlotId) => EQUIPMENT_SLOT_IDS.indexOf(s);
   const equipped = items
     .filter((i) => i.equippedSlot !== null)
@@ -118,8 +126,8 @@ export function inventoryView(character: Character, items: readonly ItemInstance
   // Items whose base no longer exists in content can't contribute; they stay listed.
   const usable = equipped.filter((i) => findItemBase(i.baseId) !== undefined);
   return {
-    equipped: equipped.map(itemView),
-    inventory: inventory.map(itemView),
+    equipped: equipped.map((i) => itemView(i, switches)),
+    inventory: inventory.map((i) => itemView(i, switches)),
     stats: deriveEquippedStats(character.classId, character.level, usable),
   };
 }
@@ -337,6 +345,7 @@ export async function registerInventory(
       schema: { params: characterParamsSchema, response: { 200: inventoryResponseSchema } },
     },
     async (request) => {
+      const switches = await app.gameSettings.tradingSwitches();
       const accountId = request.auth!.account.id;
       const { characterId } = request.params;
       return withTransaction(app.db, async (tx) => {
@@ -350,7 +359,7 @@ export async function registerInventory(
           .from(itemInstances)
           .where(eq(itemInstances.characterId, characterId))
           .orderBy(asc(itemInstances.createdAt), asc(itemInstances.id));
-        return inventoryView(character, items);
+        return inventoryView(character, items, switches);
       });
     },
   );
@@ -366,6 +375,7 @@ export async function registerInventory(
       },
     },
     async (request) => {
+      const switches = await app.gameSettings.tradingSwitches();
       const accountId = request.auth!.account.id;
       const { characterId, itemId } = request.params;
       const requested = request.body?.slot;
@@ -418,7 +428,7 @@ export async function registerInventory(
             await refreshAchievements(tx, character, ['fullSetWorn'], activity.now());
           }
         }
-        return inventoryView(character, items);
+        return inventoryView(character, items, switches);
       });
     },
   );
@@ -430,6 +440,7 @@ export async function registerInventory(
       schema: { params: itemParamsSchema, response: { 200: inventoryResponseSchema } },
     },
     async (request) => {
+      const switches = await app.gameSettings.tradingSwitches();
       const accountId = request.auth!.account.id;
       const { characterId, itemId } = request.params;
       return inventoryTransaction(app, async (tx) => {
@@ -442,7 +453,7 @@ export async function registerInventory(
           await setSlot(tx, item.id, null);
           item.equippedSlot = null;
         }
-        return inventoryView(character, items);
+        return inventoryView(character, items, switches);
       });
     },
   );
@@ -467,6 +478,7 @@ export async function registerInventory(
         },
       },
       async (request) => {
+        const switches = await app.gameSettings.tradingSwitches();
         const accountId = request.auth!.account.id;
         const { characterId, itemId } = request.params;
         return inventoryTransaction(app, async (tx) => {
@@ -482,7 +494,7 @@ export async function registerInventory(
               );
             item.locked = locked;
           }
-          return inventoryView(character, items);
+          return inventoryView(character, items, switches);
         });
       },
     );
@@ -495,6 +507,7 @@ export async function registerInventory(
       schema: { params: itemParamsSchema, response: { 200: inventoryResponseSchema } },
     },
     async (request) => {
+      const switches = await app.gameSettings.tradingSwitches();
       const accountId = request.auth!.account.id;
       const { characterId, itemId } = request.params;
       return inventoryTransaction(app, async (tx) => {
@@ -526,6 +539,7 @@ export async function registerInventory(
         return inventoryView(
           character,
           items.filter((i) => i.id !== item.id),
+          switches,
         );
       });
     },

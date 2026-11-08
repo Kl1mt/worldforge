@@ -528,6 +528,7 @@ export async function registerForgeWork(
       schema: { params: forgeItemParamsSchema, response: { 200: forgeItemResponseSchema } },
     },
     async (request): Promise<ForgeItemResponse> => {
+      const switches = await app.gameSettings.tradingSwitches();
       const accountId = request.auth!.account.id;
       const { characterId, itemId } = request.params;
       const db: Database = app.db;
@@ -547,7 +548,7 @@ export async function registerForgeWork(
         characterId,
         gold: character.gold,
         materials: materialList(held),
-        item: itemView(row),
+        item: itemView(row, switches),
         forge: forgeItemView(row, character.classId, character.gold, held),
       };
     },
@@ -581,6 +582,7 @@ export async function registerForgeWork(
         },
       },
       async (request, reply) => {
+        const switches = await app.gameSettings.tradingSwitches();
         const accountId = request.auth!.account.id;
         const { characterId } = request.params;
         const body = request.body as B;
@@ -648,11 +650,11 @@ export async function registerForgeWork(
             const heldAfter = await loadMaterialBundle(tx, characterId);
             return {
               character: characterView(character),
-              item: itemView(updated),
+              item: itemView(updated, switches),
               forge: forgeItemView(updated, character.classId, character.gold, heldAfter),
               outcome: applied.outcome,
               paid: costView(cost),
-              inventory: inventoryView(character, items),
+              inventory: inventoryView(character, items, switches),
               materials: materialList(heldAfter),
             };
           },

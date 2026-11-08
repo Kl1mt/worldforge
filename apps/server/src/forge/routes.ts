@@ -265,6 +265,7 @@ export async function registerForge(
       },
     },
     async (request, reply) => {
+      const switches = await app.gameSettings.tradingSwitches();
       const accountId = request.auth!.account.id;
       const { characterId } = request.params;
       const { itemIds } = request.body;
@@ -312,6 +313,7 @@ export async function registerForge(
             inventory: inventoryView(
               character,
               items.filter((i) => !gone.has(i.id)),
+              switches,
             ),
             materials: materialList(await loadMaterialBundle(tx, characterId)),
           };
@@ -331,6 +333,7 @@ export async function registerForge(
       },
     },
     async (request, reply) => {
+      const switches = await app.gameSettings.tradingSwitches();
       const accountId = request.auth!.account.id;
       const { characterId } = request.params;
       const { recipeId, slot } = request.body;
@@ -414,8 +417,8 @@ export async function registerForge(
           ]);
           return {
             character: characterView(character),
-            item: itemView(item),
-            inventory: inventoryView(character, [...items, item]),
+            item: itemView(item, switches),
+            inventory: inventoryView(character, [...items, item], switches),
             materials: materialList(await loadMaterialBundle(tx, characterId)),
           };
         },
