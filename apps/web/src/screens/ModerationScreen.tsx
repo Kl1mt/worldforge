@@ -20,6 +20,7 @@ import {
 } from '../social/api';
 import './gate.css';
 import '../social/social.css';
+import { ArenaPatterns } from './ArenaPatterns';
 import './moderation.css';
 
 type QueueState =
@@ -222,6 +223,7 @@ export function ModerationScreen() {
           ) : null}
         </div>
       ) : null}
+      <ArenaPatterns />
     </section>
   );
 }

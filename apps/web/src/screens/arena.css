@@ -143,6 +143,7 @@ a.arena__name {
 
 /* Defence, rated slate, friendly challenges. */
 .arena-defence,
+.arena-rating,
 .arena-rated,
 .arena-friendly {
   display: grid;
@@ -223,7 +224,7 @@ a.arena__name {
 
 .arena-slate__row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
   gap: var(--space-2) var(--space-4);
   align-items: center;
   padding: var(--space-3) 0;
@@ -580,6 +581,7 @@ a.arena__name {
   }
 
   .arena-defence,
+  .arena-rating,
   .arena-rated,
   .arena-friendly,
   .arena-book,
@@ -591,12 +593,13 @@ a.arena__name {
     grid-template-columns: minmax(0, 1fr) auto;
   }
 
-  .arena-slate__set {
+  .arena-slate__set,
+  .arena-slate__rating {
     grid-column: 1;
   }
 
   .arena-slate__row .btn {
-    grid-row: 1 / span 2;
+    grid-row: 1 / span 3;
     grid-column: 2;
     min-height: 44px;
   }
@@ -620,5 +623,103 @@ a.arena__name {
 
   .arena-slip {
     grid-template-columns: 1fr;
+  }
+}
+
+/* Ticket 5.6: the hero's season rating, opponents' ratings, a rated result's change. */
+.arena-rating__body {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.arena-rating__figure {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.arena-rating__number {
+  font-size: 2.4rem;
+  color: var(--brass-300);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.arena-rating__range {
+  color: var(--text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+.arena-rating__standing {
+  margin: 0;
+  color: var(--bone-200);
+}
+
+.arena-rating__tag {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--brass-400);
+  color: var(--brass-300);
+  font-size: 0.75rem;
+}
+
+.arena-rating__tag--provisional {
+  border-style: dashed;
+  border-color: var(--text-dim);
+  color: var(--text-muted);
+}
+
+.arena-rating__tag--settled {
+  border-color: var(--moss-400);
+  color: var(--bone-100);
+}
+
+.arena-slate__rating {
+  display: grid;
+  justify-items: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.arena-slate__number {
+  color: var(--bone-100);
+}
+
+.arena-slate__odds {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+}
+
+.arena-slate__odds--favoured {
+  color: var(--moss-400);
+}
+
+.arena-slate__odds--underdog {
+  color: var(--crimson-400);
+}
+
+.arena-bout__rating {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--brass-400);
+  background: rgb(199 161 94 / 0.08);
+  color: var(--bone-200);
+  font-variant-numeric: tabular-nums;
+}
+
+.arena-bout__factor {
+  display: block;
+  color: var(--text-dim);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 760px) {
+  .arena-slate__rating {
+    justify-items: start;
+  }
+
+  .arena-rating {
+    padding: var(--space-4);
   }
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { PRESTIGE_TIERS, SCORE_METRICS, SEASON_TITLES } from '@worldforge/game-core';
+import { PRESTIGE_METRICS, PRESTIGE_TIERS, SEASON_TITLES } from '@worldforge/game-core';
 import { prestigeSprite } from '../content/assets';
 import { FrameMark, FramedPlate, PrestigeFrame, TitleBadge } from './Prestige';
 import { daysLeft, seasonSpan } from './seasons';
@@ -13,7 +13,7 @@ describe('prestige marks', () => {
       expect(sprite.path).toBe(`/assets/frames/${t.frameAsset}.png`);
       expect([sprite.width, sprite.height]).toEqual([64, 64]);
     }
-    for (const m of SCORE_METRICS) {
+    for (const m of PRESTIGE_METRICS) {
       expect(prestigeSprite(SEASON_TITLES[m].badgeAsset)!.path).toBe(
         `/assets/badges/${SEASON_TITLES[m].badgeAsset}.png`,
       );
@@ -25,6 +25,12 @@ describe('prestige marks', () => {
     expect(badge).toContain('Exalted Pathfinder');
     expect(badge).toContain('Season 2');
     expect(badge).toContain('/assets/badges/title-badge-pve-progress.png');
+    // Ticket 5.6: the arena ladder's title, on Character Power's crossed blades.
+    const duellist = renderToStaticMarkup(
+      <TitleBadge badge={{ season: 3, metric: 'arena', tier: 'champion' }} />,
+    );
+    expect(duellist).toContain('Champion Duellist');
+    expect(duellist).toContain('/assets/badges/title-badge-power.png');
     const row = renderToStaticMarkup(
       <TitleBadge badge={{ season: 2, metric: 'power', tier: 'veteran' }} compact />,
     );

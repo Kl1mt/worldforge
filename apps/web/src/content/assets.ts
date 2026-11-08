@@ -1,4 +1,4 @@
-import type { ClassId, ScoreMetric } from '@worldforge/game-core';
+import type { ClassId, PrestigeMetric } from '@worldforge/game-core';
 
 /**
  * Typed registry of the curated Phase 0 art. Mirrors apps/web/public/assets/manifest.json
@@ -287,14 +287,16 @@ const TITLE_BADGE_NAMES = {
   gearScore: 'gear-score',
   power: 'power',
   pveProgress: 'pve-progress',
-} as const satisfies Record<ScoreMetric, string>;
+  // Ticket 5.6: the arena ladder reuses Character Power's crossed blades (no new art).
+  arena: 'power',
+} as const satisfies Record<PrestigeMetric, string>;
 
 /**
  * The 32×32 title badge for a leaderboard metric (A.10). Draw it at ×1 where there is room; in
  * a 16–24 px slot (a board row, a name line) it may be shrunk with smooth filtering, the one
  * exception to integer scaling (docs/ASSET_GUIDELINES.md).
  */
-export function titleBadgeAsset(metric: ScoreMetric): SpriteAsset {
+export function titleBadgeAsset(metric: PrestigeMetric): SpriteAsset {
   return ASSETS[`badge.title-badge-${TITLE_BADGE_NAMES[metric]}`];
 }
 

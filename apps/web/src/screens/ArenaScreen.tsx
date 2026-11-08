@@ -7,7 +7,15 @@ import { arenaBackdrop } from '../content/assets';
 import { ActionKeys } from '../game/economy';
 import { formatNumber } from '../lib/format';
 import { pixelScale } from '../lib/pixel';
-import { arenaDuelFromHash, arenaFriendFromHash, arenaHref, profileHref } from '../lib/route';
+import {
+  arenaDuelFromHash,
+  arenaFriendFromHash,
+  arenaHref,
+  boardHref,
+  profileHref,
+} from '../lib/route';
+import { factorWords, rangeWords, recordWords, signed, standingWords } from '../social/ladder';
+import { daysLeft } from '../social/seasons';
 import { ReportDialog } from '../social/ReportDialog';
 import {
   arenaApi,
@@ -35,6 +43,10 @@ import './arena.css';
  * friends and guildmates, the last result with its blow-by-blow, and the duel book (history).
  * Everything is decided on the server; the client never computes a duel. A duel changes nothing
  * a player owns.
+ *
+ * Ticket 5.6: the hero's season rating (with its likely range and plain-words certainty, its
+ * record and ladder place), each offered opponent's rating and your chances, and on a rated
+ * result the change of your rating (and when it counted for less: a pair met often this week).
  */
 
 const ARENA = arenaBackdrop();
@@ -60,6 +72,11 @@ const playerName = (p: ArenaPlayer | null, blocked = false) =>
 const heroLine = (h: ArenaHero) =>
   `${h.name ?? `A ${className(h.classId).toLowerCase()}`} · level ${h.level} ${className(h.classId)}`;
 const RESULT_WORD = { won: 'Victory', lost: 'Defeat', draw: 'Draw' } as const;
+const ODDS_WORD = {
+  favoured: 'you are favoured',
+  even: 'an even match',
+  underdog: 'you are the underdog',
+} as const;
 
 export function ArenaScreen() {
   const hero = useActiveCharacter();
@@ -119,6 +136,7 @@ export function ArenaScreen() {
         <div className="arena__grid">
           <div className="arena__col">
             <DefencePlate view={state.value} show={show} />
+            <RatingPlate view={state.value} />
             <RatedPlate view={state.value} show={show} onFought={fought} />
             <FriendlyPlate view={state.value} focus={linkedFriend} onFought={fought} />
           </div>
@@ -249,6 +267,57 @@ function DefencePlate({ view, show }: { view: ArenaState; show: (v: ArenaState) 
   );
 }
 
+/** Ticket 5.6: the hero's season rating, in plain words. */
+function RatingPlate({ view }: { view: ArenaState }) {
+  const { season, you, rank } = view.ladder;
+  const ladderLink = boardHref('arena', {});
+  return (
+    <section className="arena-rating panel-iron" aria-labelledby="arena-rating-title">
+      <h2 id="arena-rating-title" className="rule-heading">
+        Your rating
+      </h2>
+      {!season ? (
+        <p className="arena__strip arena__strip--brass">
+          No season under way: rated duels count toward your {view.rules.ratedPerDay} a day but move
+          no rating. The ladder opens with the next season.
+        </p>
+      ) : (
+        <div className="arena-rating__body">
+          <p className="arena-rating__figure">
+            <span className="display arena-rating__number">{formatNumber(you.rating)}</span>
+            <span className="arena-rating__range">{rangeWords(you)}</span>
+          </p>
+          <p className="arena-rating__standing">
+            <span className={`caps arena-rating__tag arena-rating__tag--${you.standing}`}>
+              {you.standing === 'provisional'
+                ? 'Provisional'
+                : you.standing === 'settling'
+                  ? 'Settling'
+                  : 'Settled'}
+            </span>{' '}
+            {you.standing === 'provisional'
+              ? standingWords(you, view.rules.provisionalGames).replace(/^provisional — /, '')
+              : you.standing === 'settling'
+                ? 'the range narrows with every rated duel'
+                : 'your rating has found its level'}
+          </p>
+          <p className="arena__fine">
+            Season {season.number}
+            {season.status === 'active'
+              ? ` · ${daysLeft(season.endsAt, view.now)} days left`
+              : ''}{' '}
+            · {you.games === 0 ? 'no rated duels yet' : recordWords(you)}
+            {rank !== null ? ` · place ${formatNumber(rank)} on the ladder` : ''}
+          </p>
+        </div>
+      )}
+      <a className="btn btn--small" href={ladderLink}>
+        The Arena Ladder
+      </a>
+    </section>
+  );
+}
+
 function useChallenge(onFought: (d: DuelView) => void) {
   const keys = useRef(new ActionKeys());
   const [busy, setBusy] = useState<string | null>(null);
@@ -337,6 +406,13 @@ function RatedPlate({
                   <span className="arena-slate__who">
                     <PlayerName player={o.player} />
                     <span className="arena-slate__hero">{heroLine(o.hero)}</span>
+                  </span>
+                  <span className="arena-slate__rating">
+                    <span className="arena-slate__number">{formatNumber(o.rating.rating)}</span>
+                    <span className={`arena-slate__odds arena-slate__odds--${o.odds}`}>
+                      {ODDS_WORD[o.odds]}
+                      {o.rating.standing === 'provisional' ? ' · provisional' : ''}
+                    </span>
                   </span>
                   <span className="arena-slate__set">defence of {dayLabel(o.setOn)}</span>
                   <button
@@ -551,6 +627,20 @@ function DuelResult({ duel }: { duel: DuelView }) {
           label={duel.you === 'challenger' ? 'Their defence' : 'The challenger'}
         />
       </div>
+      {duel.rating ? (
+        <p className="arena-bout__rating" role="status">
+          <span className="caps">Rating</span> {formatNumber(duel.rating.before)} →{' '}
+          <strong>{formatNumber(duel.rating.after)}</strong> ({signed(duel.rating.change)})
+          {factorWords(duel.rating.factor) ? (
+            <span className="arena-bout__factor"> {factorWords(duel.rating.factor)}</span>
+          ) : null}
+        </p>
+      ) : duel.unrated ? (
+        <p className="arena__fine">
+          This rated duel moved no rating: no season was under way. It still counted toward the
+          day&rsquo;s ten.
+        </p>
+      ) : null}
       <p className="arena__fine">
         {duel.you === 'challenger'
           ? `You fought their defence as saved on ${dayLabel(duel.defenceSetOn)}.`
@@ -686,8 +776,28 @@ function HowDuelsWork({ view }: { view: ArenaState }) {
           in a duel.
         </li>
         <li>
-          <strong>Friendly challenges</strong> with friends and guildmates: any level, across
-          brackets (both fight in the lower hero’s bracket), no rating, no rewards.
+          <strong>Your rating</strong> belongs to each hero for one season (a Glicko-2 rating). A
+          new hero starts at 1,500. Every rated duel moves both heroes, the challenger and the
+          defender: a defence lost costs like any loss. Beating a stronger rating gains more. Each
+          rating shows its likely range; it is <em>provisional</em> until{' '}
+          {view.rules.provisionalGames} rated duels, then ranked on the Arena Ladder. A new season
+          starts every hero halfway back to 1,500.
+        </li>
+        <li>
+          <strong>Who the arena names for you:</strong> heroes whose gear is about as strong as
+          yours (their Character Power at the bracket’s middle level, within 5 %; only when fewer
+          than five players are that close does the range widen to 10 %, then 20 %, never further),
+          and among those, the closest ratings.
+        </li>
+        <li>
+          <strong>The same opponent again:</strong> within {view.rules.pairWindowDays} days, your
+          second rated duel with the same player counts half, the third a quarter, and from the
+          fourth on nothing (the arena stops naming them).
+        </li>
+        <li>
+          <strong>Friends and guildmates never meet in a rated duel</strong>, nor do accounts that
+          look like the same person. Friendly challenges stay open to friends and guildmates: any
+          level, across brackets (both fight in the lower hero’s bracket), no rating, no rewards.
         </li>
         <li>
           <strong>A loss never takes anything from you:</strong> no gold, items, experience or

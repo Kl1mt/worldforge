@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import type { ClassId, DuelEvent, DuelOutcome, ItemRejection } from '@worldforge/game-core';
 import { apiRequest, type ApiFailure, type ApiResult } from '../lib/api';
 import { describeSocialFailure } from './api';
+import type { RatingStanding, RatingView } from './ladder';
+import type { SeasonView } from './seasons';
 
 /** Ticket 5.5: the arena as the server returns it (docs/PVP.md "The arena"). */
 
@@ -35,12 +37,26 @@ export interface ArenaOpponent {
   hero: ArenaHero;
   bracketId: string;
   setOn: string;
+  /** Ticket 5.6: the defender's rating this season, and your chances by both ratings. */
+  rating: { rating: number; standing: RatingStanding };
+  odds: 'favoured' | 'even' | 'underdog';
 }
 
 export interface ArenaState {
   now: string;
   day: { key: string; resetsAt: string };
-  rules: { ratedPerDay: number; minLevel: number; rulesVersion: number; offerRefreshMs: number };
+  rules: {
+    ratedPerDay: number;
+    minLevel: number;
+    rulesVersion: number;
+    offerRefreshMs: number;
+    /** Ticket 5.6. */
+    provisionalGames: number;
+    pairFactors: number[];
+    pairWindowDays: number;
+  };
+  /** Ticket 5.6: this hero on the season's ladder (season null: no season under way). */
+  ladder: { season: SeasonView | null; you: RatingView; rank: number | null };
   hero: {
     characterId: string;
     name: string;
@@ -100,6 +116,10 @@ export interface DuelView {
   challenger: DuelSideView;
   defender: DuelSideView;
   events: DuelEvent[];
+  /** Ticket 5.6: what a rated duel did to your rating (null: friendly, or it moved none). */
+  rating: { season: number; before: number; after: number; change: number; factor: number } | null;
+  /** A rated duel that moved no rating (no season under way, or fought before the ladder). */
+  unrated: boolean;
 }
 
 export interface DuelSummary {
@@ -159,6 +179,8 @@ export function describeArenaFailure(error: ApiFailure): string {
     case 'cannot_target_self':
     case 'not_offered':
       return error.message;
+    case 'friendly_only':
+      return 'You two are friends or guildmates: meet in a friendly challenge instead. Rated duels are for strangers.';
     case 'offer_fresh':
       return `These opponents are still fresh. Fight one, or ask again in ${Math.ceil((error.retryAfterSeconds ?? 60) / 60)} min.`;
     case 'not_found':
@@ -277,3 +299,38 @@ export function duelLogLines(
   }
   return out;
 }
+
+/** Ticket 5.6: one pair of the moderators' arena pattern report (`GET /api/mod/arena/patterns`). */
+export interface PatternPlayer {
+  handle: string;
+  displayName: string;
+  role: 'player' | 'moderator' | 'admin';
+}
+
+export type PatternFlag = 'repeated' | 'lopsided' | 'oneWay';
+
+export interface PatternPair {
+  a: PatternPlayer;
+  b: PatternPlayer;
+  duels: number;
+  winsA: number;
+  winsB: number;
+  draws: number;
+  challengesA: number;
+  ratingA: number;
+  ratingB: number;
+  uncounted: number;
+  firstOn: string;
+  lastOn: string;
+  flags: PatternFlag[];
+  sameInvite: boolean;
+}
+
+export interface PatternReport {
+  windowDays: number;
+  rules: { minDuels: number; repeated: number; lopsidedShare: number; lopsidedMin: number };
+  pairs: PatternPair[];
+}
+
+export const loadArenaPatterns = (): Promise<ApiResult<PatternReport>> =>
+  apiRequest('/mod/arena/patterns?days=14');

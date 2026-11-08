@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ACHIEVEMENTS, CLASS_IDS, GUILD_EMBLEMS, SCORE_METRICS } from '@worldforge/game-core';
+import { ACHIEVEMENTS, CLASS_IDS, GUILD_EMBLEMS, PRESTIGE_METRICS } from '@worldforge/game-core';
 import {
   ASSETS,
   SEASON_FRAME_TIERS,
@@ -113,8 +113,9 @@ describe('season prestige art (A.10)', () => {
       gearScore: 'title-badge-gear-score',
       power: 'title-badge-power',
       pveProgress: 'title-badge-pve-progress',
+      arena: 'title-badge-power',
     };
-    for (const metric of SCORE_METRICS) {
+    for (const metric of PRESTIGE_METRICS) {
       const badge = titleBadgeAsset(metric);
       expect(badge.path).toBe(`/assets/badges/${names[metric]}.png`);
       const { entry, exists } = resolve(badge);
