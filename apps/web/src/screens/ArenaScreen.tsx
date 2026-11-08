@@ -791,8 +791,8 @@ function HowDuelsWork({ view }: { view: ArenaState }) {
         </li>
         <li>
           <strong>The same opponent again:</strong> within {view.rules.pairWindowDays} days, your
-          second rated duel with the same player counts half, the third a quarter, and from the
-          fourth on nothing (the arena stops naming them).
+          second rated duel with the same player counts half, and from the third on a quarter. The
+          arena still names them, but prefers players you have not fought this week.
         </li>
         <li>
           <strong>Friends and guildmates never meet in a rated duel</strong>, nor do accounts that

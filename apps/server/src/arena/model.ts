@@ -8,7 +8,6 @@ import {
   duelFighter,
   duelSnapshot,
   findPvpBracket,
-  pairStillRated,
   pickOpponents,
   pvpBracketOf,
   type ClassId,
@@ -170,9 +169,10 @@ export interface OpponentDraw {
 /**
  * Draws a rated opponent list for a hero (ticket 5.6 matchmaking, docs/PVP.md "Matchmaking"):
  * defences in its bracket at level 10 or more, from other accounts, never blocked either way or
- * sanctioned, never a friend, guildmate or an account sharing a sign-up signal, never a pair whose
- * next duel would count for nothing (`pairStillRated`); then game-core `pickOpponents` by bracket
- * Power range and rating, from a `crypto` seed, at most one per account.
+ * sanctioned, never a friend, guildmate or an account sharing a sign-up signal (repeat pairs are
+ * never left out since B.4b: their duels count for ¼; matchmaking offers fresh pairs first); then
+ * game-core `pickOpponents` by bracket Power range and rating, from a `crypto` seed, at most one
+ * per account.
  */
 export async function drawOpponents(
   executor: Executor,
@@ -211,12 +211,7 @@ export async function drawOpponents(
     ratedExclusions(executor, accountId, owners),
     pairCountsWith(executor, accountId, owners, gameNow),
   ]);
-  const eligible = rows.filter(
-    (r) =>
-      !blocked.has(r.accountId) &&
-      !excluded.has(r.accountId) &&
-      pairStillRated(pairs.get(r.accountId) ?? 0),
-  );
+  const eligible = rows.filter((r) => !blocked.has(r.accountId) && !excluded.has(r.accountId));
   const season = await ratingSeasonAt(executor, gameNow);
   const ratings = await ratingsFor(executor, season?.number ?? null, [
     seeker.characterId,

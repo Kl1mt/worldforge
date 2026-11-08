@@ -9,18 +9,23 @@ export const PAIR_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 /**
  * The rating factor of a rated duel by how many rated duels the same two accounts (either one
  * challenging, any of their heroes) fought in the window before it: the first in full, then half,
- * a quarter, and from the fourth on nothing. Matchmaking does not offer a pair at 0.
+ * then a quarter, and from the fourth on still a quarter (`PAIR_FACTOR_FLOOR`).
+ *
+ * Owner decision (ticket B.4b): repeat pairs never block. 5.6 counted the fourth duel for nothing
+ * and stopped offering the pair, which in a small town emptied most opponent lists (B.4: 62 % of
+ * a 20-player season's draws). Repeats still count for less, matchmaking still offers players not
+ * met this week first (`freshPairsFirst`), and the moderators' pattern report still flags heavy
+ * repeat pairs.
  */
 export const PAIR_FACTORS: readonly number[] = [1, 0.5, 0.25];
+/** The factor from the fourth rated duel of a pair within the window on (never 0). */
+export const PAIR_FACTOR_FLOOR = 0.25;
 
 export function ratingFactor(priorPairDuels: number): number {
   if (!Number.isInteger(priorPairDuels) || priorPairDuels < 0)
     throw new RangeError(`Prior duels are a whole number ≥ 0, not ${priorPairDuels}`);
-  return PAIR_FACTORS[priorPairDuels] ?? 0;
+  return PAIR_FACTORS[priorPairDuels] ?? PAIR_FACTOR_FLOOR;
 }
-
-/** Whether a pair may still be offered (its next duel would move a rating). */
-export const pairStillRated = (priorPairDuels: number) => ratingFactor(priorPairDuels) > 0;
 
 /**
  * Accounts that never meet in a rated duel (friendly challenges stay open to friends and

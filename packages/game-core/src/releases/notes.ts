@@ -23,9 +23,18 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.5.7';
+export const GAME_VERSION = '0.5.8';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.5.8',
+    date: '2026-11-08',
+    title: 'Old rivals',
+    changed: [
+      'In a small town you can now keep duelling the same rivals: repeat bouts in a week still count for less (half, then a quarter), but never for nothing, and the arena keeps naming them.',
+    ],
+    tickets: ['B.4b'],
+  },
   {
     version: '0.5.7',
     date: '2026-11-08',

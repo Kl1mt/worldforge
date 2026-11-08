@@ -3,6 +3,7 @@ import {
   ARENA_RATING_VERSION,
   DEFAULT_RATING_CONFIG,
   PAIR_FACTORS,
+  PAIR_FACTOR_FLOOR,
   PROVISIONAL_GAMES,
   ageRating,
   expectedScore,
@@ -200,7 +201,9 @@ describe('plain words, ranges and the season reset', () => {
 describe('win-trading rules', () => {
   it('diminishing returns against the same pair of accounts', () => {
     expect(PAIR_FACTORS).toEqual([1, 0.5, 0.25]);
-    expect([0, 1, 2, 3, 9].map(ratingFactor)).toEqual([1, 0.5, 0.25, 0, 0]);
+    // B.4b: repeats floor at a quarter, never 0.
+    expect([0, 1, 2, 3, 9, 500].map(ratingFactor)).toEqual([1, 0.5, 0.25, 0.25, 0.25, 0.25]);
+    expect(PAIR_FACTOR_FLOOR).toBe(0.25);
     expect(() => ratingFactor(-1)).toThrow(RangeError);
     expect(() => ratingFactor(1.5)).toThrow(RangeError);
   });
