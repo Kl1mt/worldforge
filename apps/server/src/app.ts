@@ -33,6 +33,7 @@ import { registerWarehouse } from './warehouse/routes.js';
 import { registerLeaderboardRefresh, registerLeaderboards } from './leaderboards/routes.js';
 import { sweepLeaderboards } from './leaderboards/snapshot.js';
 import { registerSeasons } from './seasons/routes.js';
+import { registerArena } from './arena/routes.js';
 import { runSeasonJobs } from './seasons/model.js';
 import { WorldStateCache } from './community/world-state.js';
 import type { Database, DatabaseHandle } from './db/types.js';
@@ -127,6 +128,7 @@ export function buildApp({
       await registerScores(api);
       await registerLeaderboards(api, { now: activityOptions.now, ...leaderboards });
       await registerSeasons(api, { now: activityOptions.now });
+      await registerArena(api, activityOptions);
       if (testRoutes) await testRoutes(api);
 
       api.get('/health', async (request, reply): Promise<HealthResponse> => {

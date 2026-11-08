@@ -23,9 +23,23 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.5.4';
+export const GAME_VERSION = '0.5.5';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.5.5',
+    date: '2026-11-08',
+    title: 'The Proving Ring',
+    new: [
+      'The Proving Ring opens in Graumark: duel saved copies of other heroes. Nobody needs to be online, and the result is there at once with a blow-by-blow log.',
+      'Save your defence: the copy of your hero that others fight. It shows when you saved it, and you can refresh it whenever your gear changes.',
+      'Rated duels open at level 10: ten a day, against heroes of your level bracket that the arena names for you. Rating and rewards come later.',
+      'Friendly challenges: duel your friends and guildmates at any level, even across brackets, from the arena, your friend list or your guild’s roster. No rating, no rewards, no daily limit.',
+      'A duel book keeps every bout you fought and every bout fought against your defence. You can report a player from a bout.',
+      'A loss never takes anything from you: no gold, items, experience or score.',
+    ],
+    tickets: ['5.5'],
+  },
   {
     version: '0.5.4',
     date: '2026-11-07',

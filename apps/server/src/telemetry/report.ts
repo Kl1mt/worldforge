@@ -566,6 +566,12 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
       audit('warehouse.upgrade', num(sql`data->>'gold'`)),
       sumRollups(rows, 'gold.out', src('warehouse_upgrade'), 'amount'),
     ],
+    // Duels (ticket 5.5): every duel, by kind; a duel moves no value.
+    ...(['rated', 'friendly'] as const).map((kind): [string, Promise<number>, number] => [
+      `duels: ${kind}`,
+      audit('duel.fight', sql`count(*)`, sql`data->>'kind' = ${kind}`),
+      sumRollups(rows, 'duel.fight', (d) => d[0] === kind),
+    ]),
     // Discards
     ['items discarded', audit('item.discard', sql`count(*)`), sumRollups(rows, 'item.discarded')],
   ];

@@ -95,6 +95,8 @@ export const SOCIAL_WRITE_ACTIONS = [
   'guildBossAttempt',
   // Ticket 4.11: the presence setting (it was unlimited and audited every call).
   'presence',
+  // Ticket 5.5: a duel (rated or friendly).
+  'duel',
 ] as const;
 export type SocialWriteAction = (typeof SOCIAL_WRITE_ACTIONS)[number] | (string & {});
 
@@ -130,6 +132,8 @@ export const MUTE_EXEMPT: readonly string[] = [
   'chatDelete',
   // Ticket 4.9: fighting the guild boss carries no text and reaches no one; a mute is about speech.
   'guildBossAttempt',
+  // Ticket 5.5: a duel carries no text (like the guild boss); a mute is about speech.
+  'duel',
 ];
 
 /** The sanction that blocks this social write, if any (suspension first). */

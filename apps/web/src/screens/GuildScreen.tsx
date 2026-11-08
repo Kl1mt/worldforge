@@ -11,7 +11,7 @@ import {
   type GuildTarget,
 } from '@worldforge/game-core';
 import type { ApiResult } from '../lib/api';
-import { guildHandleFromHash, guildHref, profileHref } from '../lib/route';
+import { arenaHref, guildHandleFromHash, guildHref, profileHref } from '../lib/route';
 import { formatNumber } from '../lib/format';
 import { useCharacters } from '../characters/CharactersProvider';
 import { useAuth } from '../auth/AuthProvider';
@@ -787,6 +787,12 @@ function MemberRow({
               : 'Keeps to the shadows'}
       </span>
       <span className="roll__actions">
+        {/* Ticket 5.5: a friendly challenge (blocked players never meet in the arena). */}
+        {!self && !m.blocked ? (
+          <a className="btn btn--small" href={arenaHref({ friend: m.handle })}>
+            Duel
+          </a>
+        ) : null}
         {can('promote', target) ? (
           <button
             type="button"

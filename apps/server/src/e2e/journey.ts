@@ -2300,3 +2300,141 @@ export async function playSeasonStep(
   expect(after.gearScore.value).toBe(scores.gearScore.value);
   return { season: number, rank: place.rank, tier: pick.tier };
 }
+
+/**
+ * Phase 5 duel step (ticket 5.5, docs/PVP.md "The arena"): two players. Fresh heroes cannot fight
+ * rated duels yet, but friends may challenge each other at once (a friendly challenge against the
+ * friend's saved defence). Both farm to level 10, set their defences, and the hero fights the rival
+ * from the server's opponent list; a retry with the same key replays the stored duel. The rival
+ * sees it in their history as the defender. A duel changes nothing either player owns, and the
+ * audit log and telemetry reconcile.
+ */
+export async function playDuelStep(
+  database: DatabaseHandle,
+  hero: Journey,
+  rival: Journey,
+  clock: Clock,
+) {
+  type Arena = {
+    hero: { level: number; ratedOpen: boolean; bracket: { id: string } };
+    defence: { defenceId: string; setAt: string } | null;
+    rated: { used: number; left: number; offer: { opponents: { defenceId: string }[] } | null };
+  };
+  type Duel = {
+    id: string;
+    kind: string;
+    you: string;
+    result: string;
+    bracketId: string;
+    events: { type: string }[];
+  };
+  const arena = async (j: Journey) => {
+    const res = await j.api('GET', `/api/arena?characterId=${j.characterId}`);
+    expect(res.statusCode, res.body).toBe(200);
+    return res.json<Arena>();
+  };
+  const setDefence = async (j: Journey) => {
+    const res = await j.api('POST', '/api/arena/defence', { characterId: j.characterId });
+    expect(res.statusCode, res.body).toBe(200);
+    return res.json<Arena>().defence!;
+  };
+  const challenge = (
+    j: Journey,
+    defenceId: string,
+    kind: 'rated' | 'friendly',
+    key = randomUUID(),
+  ) => j.keyed('/api/arena/duels', { characterId: j.characterId, defenceId, kind }, key);
+  const heroPlayer = await playerOf(hero);
+  const rivalPlayer = await playerOf(rival);
+
+  // Friends first (by name; the rival accepts).
+  expect(
+    (
+      await hero.api('POST', '/api/friends/requests', { handle: rivalPlayer.account.handle })
+    ).json(),
+  ).toEqual({ relation: 'requested-by-me' });
+  expect(
+    (await rival.api('POST', `/api/friends/requests/${heroPlayer.account.handle}/accept`)).json(),
+  ).toEqual({ relation: 'friend' });
+
+  // A fresh hero: no rated duels yet, but a friendly challenge at once.
+  const fresh = await arena(hero);
+  if (!fresh.hero.ratedOpen) {
+    const refused = await hero.api('POST', '/api/arena/opponents', {
+      characterId: hero.characterId,
+    });
+    expect(refused.json<{ error: { code: string } }>().error.code).toBe('level_too_low');
+  }
+  const rivalDefence = await setDefence(rival);
+  const friendlyList = (await hero.api('GET', '/api/arena/friendly')).json<{
+    opponents: { player: { handle: string }; defences: { defenceId: string }[] }[];
+  }>().opponents;
+  expect(friendlyList.map((o) => o.player.handle)).toEqual([rivalPlayer.account.handle]);
+  expect(friendlyList[0]!.defences.map((d) => d.defenceId)).toEqual([rivalDefence.defenceId]);
+  const before = { hero: await holdingsOf(hero), rival: await holdingsOf(rival) };
+  const friendly = await challenge(hero, rivalDefence.defenceId, 'friendly');
+  expect(friendly.statusCode, friendly.body).toBe(201);
+  const friendlyDuel = friendly.json<{ duel: Duel }>().duel;
+  expect(friendlyDuel).toMatchObject({ kind: 'friendly', you: 'challenger' });
+  expect(friendlyDuel.events.at(-1)!.type).toBe('end');
+  expect({ hero: await holdingsOf(hero), rival: await holdingsOf(rival) }).toEqual(before);
+
+  // Both reach level 10 (farming), then set their defences.
+  for (const j of [hero, rival]) {
+    for (let i = 0; i < 80 && j.state.level < 10; i++) {
+      await j.farmBestArea();
+      await j.settle();
+      await j.equipBetterDrops();
+    }
+    expect(j.state.level).toBeGreaterThanOrEqual(10);
+  }
+  const heroDefence = await setDefence(hero);
+  const rivalNow = await setDefence(rival);
+  expect(rivalNow.defenceId).toBe(rivalDefence.defenceId);
+  const [mine, theirs] = [await arena(hero), await arena(rival)];
+  expect(mine.hero.ratedOpen).toBe(true);
+  // Each stopped farming on reaching 10, so both are in 10–19.
+  expect(mine.hero.bracket.id).toBe('10-19');
+  expect(theirs.hero.bracket.id).toBe('10-19');
+
+  // The server's list (the rival is the only other defence in this town).
+  const drawn = await hero.api('POST', '/api/arena/opponents', { characterId: hero.characterId });
+  expect(drawn.statusCode, drawn.body).toBe(200);
+  const offered = drawn.json<Arena>().rated.offer!.opponents.map((o) => o.defenceId);
+  expect(offered).toEqual([rivalDefence.defenceId]);
+  expect(offered).not.toContain(heroDefence.defenceId);
+
+  const held = { hero: await holdingsOf(hero), rival: await holdingsOf(rival) };
+  const key = randomUUID();
+  const rated = await challenge(hero, rivalDefence.defenceId, 'rated', key);
+  expect(rated.statusCode, rated.body).toBe(201);
+  const replay = await challenge(hero, rivalDefence.defenceId, 'rated', key);
+  expect(replay.headers['idempotency-replayed']).toBe('true');
+  expect(replay.json<{ duel: Duel }>().duel).toEqual(rated.json<{ duel: Duel }>().duel);
+  const ratedDuel = rated.json<{ duel: Duel }>().duel;
+  expect((await arena(hero)).rated).toMatchObject({ used: 1, left: 9 });
+
+  // The rival sees it as the defender, with the same log.
+  const history = (await rival.api('GET', '/api/arena/duels')).json<{
+    duels: { id: string; you: string; kind: string }[];
+  }>().duels;
+  expect(history[0]).toMatchObject({ id: ratedDuel.id, you: 'defender', kind: 'rated' });
+  const seen = (await rival.api('GET', `/api/arena/duels/${ratedDuel.id}`)).json<{ duel: Duel }>()
+    .duel;
+  expect(seen.events).toEqual(ratedDuel.events);
+  expect(seen.you).toBe('defender');
+
+  // Nothing either owns changed; holdings reconcile with the audit log, as do the rollups.
+  expect({ hero: await holdingsOf(hero), rival: await holdingsOf(rival) }).toEqual(held);
+  await expectHoldingsMatchAudit(database, hero.characterId);
+  await expectHoldingsMatchAudit(database, rival.characterId);
+  const checks = await reconcileWithAudit(database.db);
+  expect(checks.filter((c) => !c.ok)).toEqual([]);
+  const fights = await database.db
+    .select({ id: auditLog.id })
+    .from(auditLog)
+    .where(and(eq(auditLog.event, 'duel.fight'), eq(auditLog.accountId, heroPlayer.account.id)));
+  expect(fights).toHaveLength(2);
+  void clock;
+  return { rated: ratedDuel, friendlyDuel };
+}
