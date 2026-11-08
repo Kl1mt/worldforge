@@ -1,6 +1,16 @@
 import { SCORE_METRICS, type ScoreMetric } from './types.js';
 
 /**
+ * The boards that give honours: the four score boards (5.3) and the arena ladder (ticket 5.6,
+ * `arena`: the season's rated duel ladder, docs/PVP.md "The ladder").
+ */
+export const PRESTIGE_METRICS = [...SCORE_METRICS, 'arena'] as const;
+export type PrestigeMetric = ScoreMetric | 'arena';
+export const isPrestigeMetric = (v: unknown): v is PrestigeMetric =>
+  typeof v === 'string' && (PRESTIGE_METRICS as readonly string[]).includes(v);
+const metricOrder = (m: PrestigeMetric) => PRESTIGE_METRICS.indexOf(m);
+
+/**
  * Prestige rewards (ticket 5.3, docs/LEADERBOARDS.md "Prestige rewards"): titles and profile
  * frames awarded at a season's end by placement on each board. Cosmetic only: nothing here is read
  * by combat, loot, the economy or a score (GDD §10.2, §13.3; tested in `prestige.test.ts`).
@@ -82,15 +92,18 @@ export function prestigeTierFor(rank: number, level: number): PrestigeTier | nul
 }
 
 export interface TitleDef {
-  metric: ScoreMetric;
+  metric: PrestigeMetric;
   /** The noun of the title ("Exalted Pathfinder"). */
   noun: string;
   /** The badge's asset name (A.10). */
   badgeAsset: string;
 }
 
-/** One title per board; the tier names its rank. */
-export const SEASON_TITLES: Readonly<Record<ScoreMetric, TitleDef>> = {
+/**
+ * One title per board; the tier names its rank. The arena ladder (5.6) reuses the Character Power
+ * board's crossed-blades badge (no new art).
+ */
+export const SEASON_TITLES: Readonly<Record<PrestigeMetric, TitleDef>> = {
   level: { metric: 'level', noun: 'Climber', badgeAsset: 'title-badge-level' },
   gearScore: { metric: 'gearScore', noun: 'Armsbearer', badgeAsset: 'title-badge-gear-score' },
   power: { metric: 'power', noun: 'Blade', badgeAsset: 'title-badge-power' },
@@ -99,16 +112,17 @@ export const SEASON_TITLES: Readonly<Record<ScoreMetric, TitleDef>> = {
     noun: 'Pathfinder',
     badgeAsset: 'title-badge-pve-progress',
   },
+  arena: { metric: 'arena', noun: 'Duellist', badgeAsset: 'title-badge-power' },
 };
 
 /** "Exalted Pathfinder". */
-export function prestigeTitle(metric: ScoreMetric, tier: PrestigeTier): string {
+export function prestigeTitle(metric: PrestigeMetric, tier: PrestigeTier): string {
   return `${findPrestigeTier(tier)!.name} ${SEASON_TITLES[metric].noun}`;
 }
 
 /** One hero's final place on one season board (the archive row, as the award reads it). */
 export interface FinalStanding {
-  metric: ScoreMetric;
+  metric: PrestigeMetric;
   rank: number;
   accountId: string;
   characterId: string;
@@ -118,7 +132,7 @@ export interface FinalStanding {
 /** What an account earns on one board in one season: the best tier any of its heroes reached. */
 export interface PrestigeAward {
   accountId: string;
-  metric: ScoreMetric;
+  metric: PrestigeMetric;
   tier: PrestigeTier;
   /** The place that earned it (the best place for that tier). */
   rank: number;
@@ -155,7 +169,7 @@ export function seasonAwards(standings: readonly FinalStanding[]): PrestigeAward
   }
   return [...best.values()].sort(
     (a, b) =>
-      SCORE_METRICS.indexOf(a.metric) - SCORE_METRICS.indexOf(b.metric) ||
+      metricOrder(a.metric) - metricOrder(b.metric) ||
       a.rank - b.rank ||
       (a.accountId < b.accountId ? -1 : a.accountId > b.accountId ? 1 : 0),
   );
@@ -165,21 +179,21 @@ export function seasonAwards(standings: readonly FinalStanding[]): PrestigeAward
  * Which award a player shows when they have not chosen (the first award they earn): the best
  * tier, then the board order. Players can change or clear it at any time.
  */
-export function bestAward<A extends { tier: PrestigeTier; metric: ScoreMetric; season: number }>(
+export function bestAward<A extends { tier: PrestigeTier; metric: PrestigeMetric; season: number }>(
   awards: readonly A[],
 ): A | undefined {
   return [...awards].sort(
     (a, b) =>
       tierOrder(a.tier) - tierOrder(b.tier) ||
       b.season - a.season ||
-      SCORE_METRICS.indexOf(a.metric) - SCORE_METRICS.indexOf(b.metric),
+      metricOrder(a.metric) - metricOrder(b.metric),
   )[0];
 }
 
 /** What a player shows next to their name: one title and one frame, each from an earned award. */
 export interface PrestigeDisplay {
-  title: { season: number; metric: ScoreMetric; tier: PrestigeTier } | null;
-  frame: { season: number; metric: ScoreMetric; tier: PrestigeTier } | null;
+  title: { season: number; metric: PrestigeMetric; tier: PrestigeTier } | null;
+  frame: { season: number; metric: PrestigeMetric; tier: PrestigeTier } | null;
 }
 
 export const NO_PRESTIGE: PrestigeDisplay = { title: null, frame: null };

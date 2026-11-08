@@ -193,7 +193,9 @@ describe('arena', () => {
       const mine2 = await insertCharacter(db(), me.who.id, { classId: 'mage', level: 13 });
       await equipKit(db(), mine2.id, 'mage', 12);
       await defend({ who: me.who, hero: mine2 });
-      const good = await player(18, 'warlock');
+      // Ticket 5.6: the eligible one has the same kit (equal bracket Power), so matchmaking's
+      // Power range cannot be what leaves it out; the range has its own tests.
+      const good = await player(15);
       const goodId = await defend(good);
       const other = await player(23);
       await defend(other); // 20–29: another bracket
@@ -232,8 +234,10 @@ describe('arena', () => {
         .rated.offer!.opponents.find((o) => o.defenceId === goodId)!;
       expect(view).toMatchObject({
         player: { handle: good.who.handle, displayName: good.who.displayName, profile: true },
-        hero: { name: good.hero.name, classId: 'warlock', level: 18 },
+        hero: { name: good.hero.name, classId: good.hero.classId, level: 15 },
         setOn: '2026-11-09',
+        rating: { rating: 1500, standing: 'provisional' },
+        odds: 'even',
       });
     });
 
@@ -285,8 +289,9 @@ describe('arena', () => {
       stranger: { rated: 201, friendly: 403 },
       'requested-by-me': { rated: 201, friendly: 403 },
       'requested-by-them': { rated: 201, friendly: 403 },
-      friend: { rated: 201, friendly: 201 },
-      guildmate: { rated: 201, friendly: 201 },
+      // Ticket 5.6: friends and guildmates meet in friendly challenges only.
+      friend: { rated: 409, friendly: 201 },
+      guildmate: { rated: 409, friendly: 201 },
       'blocked-by-me': { rated: 404, friendly: 404, code: 'not_found' },
       'blocked-by-them': { rated: 404, friendly: 404, code: 'not_found' },
     };
@@ -320,6 +325,7 @@ describe('arena', () => {
           expect(res.statusCode, `${relation} × ${kind}: ${res.body}`).toBe(table[relation][kind]);
           if (table[relation].code) expect(code(res)).toBe(table[relation].code);
           if (res.statusCode === 403) expect(code(res)).toBe('not_friend_or_guildmate');
+          if (res.statusCode === 409) expect(code(res)).toBe('friendly_only');
         }
       }
     });
@@ -674,7 +680,7 @@ describe('arena', () => {
         .update(characters)
         .set({ gold: 789, experience: 12 })
         .where(eq(characters.id, b.hero.id));
-      const ids = [a.hero.id, b.hero.id];
+      const ids: string[] = [a.hero.id, b.hero.id];
       const snapshot = async () => {
         const heroes = await db()
           .select()
@@ -722,11 +728,22 @@ describe('arena', () => {
       const aDef = await defend(a);
       const bDef = await defend(b);
       await befriend(db(), a.who.id, b.who.id, 'friends');
+      // Ticket 5.6: friends meet only in friendly challenges; the rated duels go to a stranger,
+      // whose hero is in the snapshot too (its rating moves, nothing it owns does).
+      const c = await player(25, 'mage');
+      ids.push(c.hero.id);
+      const cDef = await defend(c);
       const before = await snapshot();
       const outcomes = new Set<string>();
       for (let i = 0; i < 6; i++) {
-        await setOffer(db(), a.who.id, a.hero.id, '20-29', [bDef], now());
-        const r1 = await api.duel(a.who, a.hero.id, bDef, i % 2 === 0 ? 'rated' : 'friendly');
+        await setOffer(db(), a.who.id, a.hero.id, '20-29', [cDef], now());
+        const rated = i % 2 === 0;
+        const r1 = await api.duel(
+          a.who,
+          a.hero.id,
+          rated ? cDef : bDef,
+          rated ? 'rated' : 'friendly',
+        );
         const r2 = await api.duel(b.who, b.hero.id, aDef, 'friendly');
         expect([r1.statusCode, r2.statusCode]).toEqual([201, 201]);
         outcomes.add(r1.json<{ duel: DuelView }>().duel.result);

@@ -5,7 +5,7 @@ import {
   findPrestigeTier,
   prestigeTitle,
   seasonName,
-  type ScoreMetric,
+  type PrestigeMetric,
 } from '@worldforge/game-core';
 import { describeSocialFailure } from '../social/api';
 import { FramedPlate, TitleBadge } from '../social/Prestige';
@@ -30,13 +30,17 @@ type Load =
   | { kind: 'ready'; settings: PrestigeSettings }
   | { kind: 'error'; error: ApiFailure };
 
-const BOARD_NAME = new Map(BOARD_METRICS.map((m) => [m.id, m.name]));
-const keyOf = (c: { season: number; metric: ScoreMetric } | null) =>
+const BOARD_NAME = new Map<PrestigeMetric, string>([
+  ...BOARD_METRICS.map((m) => [m.id, m.name] as const),
+  // Ticket 5.6: the season's rated duel ladder.
+  ['arena', 'Arena Ladder'],
+]);
+const keyOf = (c: { season: number; metric: PrestigeMetric } | null) =>
   c ? `${c.season}:${c.metric}` : '';
 function choiceOf(key: string): PrestigeChoice {
   if (!key) return null;
   const [season, metric] = key.split(':');
-  return { season: Number(season), metric: metric as ScoreMetric };
+  return { season: Number(season), metric: metric as PrestigeMetric };
 }
 
 function awardLabel(a: EarnedAward): string {

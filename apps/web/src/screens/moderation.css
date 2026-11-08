@@ -249,3 +249,115 @@
   background: var(--bg-sunken);
   box-shadow: inset 0 0 0 1px var(--iron-600);
 }
+
+/* Ticket 5.6: the arena pattern report, a ledger of pairs under the docket. Flagged pairs carry
+   a crimson edge; flags are small stamped tags. */
+.patterns {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-5);
+}
+
+.patterns__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: end;
+  justify-content: space-between;
+}
+
+.patterns__head .caps {
+  color: var(--brass-500);
+}
+
+.patterns__head h2 {
+  font-size: var(--text-2xl);
+  color: var(--bone-100);
+}
+
+.patterns__lede {
+  color: var(--text-dim);
+  max-width: 70ch;
+}
+
+.patterns__wait,
+.patterns__empty {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.patterns__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-3);
+}
+
+.patterns__pair {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--iron-500);
+  background: rgb(0 0 0 / 0.18);
+}
+
+.patterns__pair--flagged {
+  border-left-color: var(--crimson-400);
+}
+
+.patterns__who {
+  margin: 0;
+  font-family: var(--font-display);
+  color: var(--bone-100);
+}
+
+.patterns__name {
+  color: var(--bone-100);
+}
+
+.patterns__role {
+  color: var(--brass-300);
+  font-size: var(--text-xs);
+}
+
+.patterns__vs {
+  color: var(--text-faint);
+}
+
+.patterns__flags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+}
+
+.patterns__flag {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--crimson-400);
+  color: var(--bone-200);
+  font-size: var(--text-xs);
+}
+
+.patterns__flag--invite {
+  border-color: var(--brass-400);
+  color: var(--brass-300);
+}
+
+.patterns__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+}
+
+.patterns__facts dt {
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+}
+
+.patterns__facts dd {
+  margin: 0;
+  color: var(--bone-200);
+  font-variant-numeric: tabular-nums;
+}

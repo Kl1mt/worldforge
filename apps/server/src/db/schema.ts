@@ -20,7 +20,9 @@ import {
 } from 'drizzle-orm/pg-core';
 import type {
   AccountRole,
+  PrestigeMetric,
   PrestigeTier,
+  Rating,
   AreaId,
   CharacterAppearance,
   ClassId,
@@ -1428,7 +1430,7 @@ export const seasonStandings = pgTable(
     season: integer('season')
       .notNull()
       .references(() => seasons.number, { onDelete: 'cascade' }),
-    metric: text('metric').$type<ScoreMetric>().notNull(),
+    metric: text('metric').$type<PrestigeMetric>().notNull(),
     rank: integer('rank').notNull(),
     characterId: uuid('character_id')
       .notNull()
@@ -1450,7 +1452,7 @@ export const seasonStandings = pgTable(
     index('season_standings_character_id_idx').on(t.characterId),
     check(
       'season_standings_metric_check',
-      sql`${t.metric} in ('level', 'gearScore', 'power', 'pveProgress')`,
+      sql`${t.metric} in ('level', 'gearScore', 'power', 'pveProgress', 'arena')`,
     ),
   ],
 );
@@ -1468,7 +1470,7 @@ export const seasonAwards = pgTable(
     accountId: uuid('account_id')
       .notNull()
       .references(() => accounts.id, { onDelete: 'cascade' }),
-    metric: text('metric').$type<ScoreMetric>().notNull(),
+    metric: text('metric').$type<PrestigeMetric>().notNull(),
     tier: text('tier').$type<PrestigeTier>().notNull(),
     rank: integer('rank').notNull(),
     /** The hero whose place earned it (null once that hero is gone). */
@@ -1480,7 +1482,7 @@ export const seasonAwards = pgTable(
     index('season_awards_account_id_idx').on(t.accountId),
     check(
       'season_awards_metric_check',
-      sql`${t.metric} in ('level', 'gearScore', 'power', 'pveProgress')`,
+      sql`${t.metric} in ('level', 'gearScore', 'power', 'pveProgress', 'arena')`,
     ),
     check(
       'season_awards_tier_check',
@@ -1501,9 +1503,9 @@ export const prestigeDisplays = pgTable(
       .primaryKey()
       .references(() => accounts.id, { onDelete: 'cascade' }),
     titleSeason: integer('title_season'),
-    titleMetric: text('title_metric').$type<ScoreMetric>(),
+    titleMetric: text('title_metric').$type<PrestigeMetric>(),
     frameSeason: integer('frame_season'),
-    frameMetric: text('frame_metric').$type<ScoreMetric>(),
+    frameMetric: text('frame_metric').$type<PrestigeMetric>(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
   },
   (t) => [
@@ -1551,6 +1553,13 @@ export const duelDefences = pgTable(
     snapshot: jsonb('snapshot').$type<DuelSnapshot>().notNull(),
     /** Game clock: when the owner last set it. */
     setAt: timestamp('set_at', { withTimezone: true }).notNull(),
+    /**
+     * Ticket 5.6: the snapshot's bracket Power (game-core `bracketPower`: 5.1 Character Power at
+     * the bracket's reference level) and its Power formula version, for matchmaking. Null for a
+     * defence set before 5.6 (filled when an opponent list first reads it).
+     */
+    power: integer('power'),
+    powerVersion: integer('power_version'),
     ...timestamps,
   },
   (t) => [
@@ -1620,9 +1629,15 @@ export const duels = pgTable(
     events: jsonb('events').$type<DuelEvent[]>().notNull(),
     /** Game clock. */
     foughtAt: timestamp('fought_at', { withTimezone: true }).notNull(),
+    /**
+     * Ticket 5.6: what a rated duel did to both ratings (season, factor, before and after per
+     * side); null for friendly duels, rated duels outside a season and duels before 5.6.
+     */
+    rating: jsonb('rating').$type<DuelRatingRecord>(),
   },
   (t) => [
     index('duels_challenger_day_idx').on(t.challengerAccountId, t.day, t.kind),
+    index('duels_pair_idx').on(t.challengerAccountId, t.defenderAccountId, t.foughtAt),
     index('duels_challenger_time_idx').on(t.challengerAccountId, t.foughtAt),
     index('duels_defender_time_idx').on(t.defenderAccountId, t.foughtAt),
     index('duels_defence_id_idx').on(t.defenceId),
@@ -1635,3 +1650,64 @@ export const duels = pgTable(
 );
 
 export type Duel = typeof duels.$inferSelect;
+
+/** Ticket 5.6: a rated duel's effect on both ratings (`duels.rating`). */
+export interface DuelRatingRecord {
+  season: number;
+  ratingVersion: number;
+  /** The diminishing-returns factor (1 = full, 0 = counted for nothing). */
+  factor: number;
+  /** Rated duels between the two accounts in the window before this one. */
+  priorPairDuels: number;
+  challenger: { before: Rating; after: Rating };
+  defender: { before: Rating; after: Rating };
+}
+
+/**
+ * Ticket 5.6: a hero's arena rating in one season (Glicko-2, docs/PVP.md "Rating"). Written only
+ * inside a rated duel's transaction, under the season's shared lock and the two heroes' rating
+ * locks; a season's rows are never reset or deleted (the archive copies the established ones into
+ * `season_standings` as metric `arena`). `class_id`, `level` and `bracket_id` are copies from the
+ * hero's latest rated duel (the ladder's filters).
+ */
+export const arenaRatings = pgTable(
+  'arena_ratings',
+  {
+    season: integer('season')
+      .notNull()
+      .references(() => seasons.number, { onDelete: 'cascade' }),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    classId: text('class_id').$type<ClassId>().notNull(),
+    level: integer('level').notNull(),
+    bracketId: text('bracket_id').notNull(),
+    ratingVersion: integer('rating_version').notNull(),
+    rating: doublePrecision('rating').notNull(),
+    deviation: doublePrecision('deviation').notNull(),
+    volatility: doublePrecision('volatility').notNull(),
+    /** Rated duels this season, attacking and defending. */
+    games: integer('games').notNull().default(0),
+    wins: integer('wins').notNull().default(0),
+    losses: integer('losses').notNull().default(0),
+    draws: integer('draws').notNull().default(0),
+    /** Game clock of the latest rated duel (idle periods grow the deviation from here). */
+    lastRatedAt: timestamp('last_rated_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.season, t.characterId] }),
+    index('arena_ratings_ladder_idx').on(t.season, t.rating.desc(), t.games, t.characterId),
+    index('arena_ratings_character_id_idx').on(t.characterId),
+    index('arena_ratings_account_id_idx').on(t.accountId),
+    check(
+      'arena_ratings_counts_check',
+      sql`${t.games} >= 0 and ${t.wins} + ${t.losses} + ${t.draws} = ${t.games}`,
+    ),
+  ],
+);
+
+export type ArenaRating = typeof arenaRatings.$inferSelect;

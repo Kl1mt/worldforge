@@ -1,4 +1,4 @@
-import type { PrestigeTier, ScoreMetric } from '@worldforge/game-core';
+import type { PrestigeMetric, PrestigeTier } from '@worldforge/game-core';
 import { apiRequest, type ApiResult } from '../lib/api';
 
 /** Ticket 5.3: a season as the server shows it (`GET /api/seasons`, boards, the admin panel). */
@@ -20,7 +20,8 @@ export interface SeasonList {
 
 export interface PrestigeBadge {
   season: number;
-  metric: ScoreMetric;
+  /** A score board, or (ticket 5.6) `arena`: the season's rated ladder. */
+  metric: PrestigeMetric;
   tier: PrestigeTier;
 }
 
@@ -43,7 +44,7 @@ export interface PrestigeSettings {
   shown: PrestigeShown;
 }
 
-export type PrestigeChoice = { season: number; metric: ScoreMetric } | null;
+export type PrestigeChoice = { season: number; metric: PrestigeMetric } | null;
 
 export const seasonsApi = {
   list: (signal?: AbortSignal): Promise<ApiResult<SeasonList>> =>

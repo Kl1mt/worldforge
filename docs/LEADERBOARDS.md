@@ -1,4 +1,4 @@
-# Leaderboards: what is measured (5.1), the boards (5.2), seasons and prestige (5.3)
+# Leaderboards: what is measured (5.1), the boards (5.2), seasons and prestige (5.3), the arena ladder (5.6)
 
 GDD §10.2, §16.3; Phase 5 ground rules in `ROADMAP.md`. This ticket defines the four scores, their published formulas and a read-only breakdown on the character screen ("Standing"). Boards, storage and filters are ticket 5.2; seasons 5.3.
 
@@ -29,7 +29,7 @@ Honours are given once per season, on each of the four boards, by your best hero
 | **Renowned** | top 100 | pewter |
 | **Veteran** | any other place, with a hero of level 10 or more | iron |
 
-Each honour gives a **title** for that board (Climber for Character Level, Armsbearer for Gear Score, Blade for Character Power, Pathfinder for PvE Progress: "Exalted Pathfinder, Season 2") and a **profile frame** of its tier. On your profile, under **Season honours**, choose one title and one frame to show (or none); they appear beside your name on the boards, your profile and your guild's roster. Your first honour is shown automatically until you choose. **Honours are for glory only: they change no number in the game.**
+Each honour gives a **title** for that board (Climber for Character Level, Armsbearer for Gear Score, Blade for Character Power, Pathfinder for PvE Progress, and since 5.6 **Duellist** for the Arena Ladder: "Exalted Pathfinder, Season 2") and a **profile frame** of its tier. On your profile, under **Season honours**, choose one title and one frame to show (or none); they appear beside your name on the boards, your profile and your guild's roster. Your first honour is shown automatically until you choose. **Honours are for glory only: they change no number in the game.**
 
 ### Character Level
 Your level. Between heroes of the same level, whoever has earned more experience toward the next level is ahead.
@@ -129,6 +129,14 @@ A season board ranks `season_entries`: each hero's standing on that board within
 
 ### Display
 `prestige_displays` holds each account's chosen title and frame (each a reference to one of its own awards, composite foreign keys; nulls = shows none; no row = never chosen). `prestigeFor` resolves it for boards (`player.prestige`), profiles (`prestige`) and both guild rosters (`members[].prestige`; not for a member the viewer blocks). Cosmetic only: nothing in game-core's rules reads `prestige.ts` or `seasons.ts` (a test scans the imports), and awards and displays change no gameplay row, score input or score (invariance test). Privacy is unchanged: everyone is listed by name; the profile link and the hero's name follow `canViewProfile` (tested on season boards and archives for each visibility × relation).
+
+## The arena ladder (ticket 5.6)
+
+A fifth season board, next to the four: the season's rated duel ladder (`GET /api/arena/ladder`), by **arena rating** (Glicko-2, per hero and season), never by Power or Gear Score (GDD §10.3). Everything about the rating, matchmaking and win-trading is in `PVP.md` "Rating, matchmaking and the ladder"; what concerns the boards:
+- **Same rules as the 5.2/5.3 boards:** everyone listed by name, profile link and hero name per `canViewProfile`, hidden names withheld, sanctioned accounts left out at read time, class and level-bracket filters (10–19, 20–29, 30+: rated duels open at 10), pages, ETag polling, the board read limit, report from an entry.
+- **Who is ranked:** heroes with at least 10 rated duels in the season (attacking or defending); fewer are "provisional" and appear only under your own place, without a rank. Order: rating, then more rated duels, then the earlier latest duel, then the hero id. Shown in plain words: the rating, its likely range (± 2 deviations) and "provisional", "still settling" or "settled".
+- **Seasons:** a rating lives in one 5.3 season. At the season's end the archive copies the ladder into `season_standings` as metric `arena` (same transaction and lock as the four boards; established heroes, sanctioned accounts left out), and `awardSeason` honours it with the same tiers, exactly once (title noun **Duellist**, the Character Power badge, the tier frames). The next season starts every hero halfway back toward 1,500.
+- **Not a score:** the ladder has no `leaderboard_entries` rows, no formula version of the 5.1 kind and no recompute check; every rating change is stored on its duel (`duels.rating`) and can be recomputed with game-core's `rateDuel`.
 
 ## Technical spec (for 5.2)
 

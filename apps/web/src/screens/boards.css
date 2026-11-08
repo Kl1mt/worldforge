@@ -359,3 +359,22 @@ a.renown__name {
   color: var(--text-dim);
   font-size: var(--text-sm);
 }
+
+/* Ticket 5.6: the Arena Ladder roll (a duel rating with its range and standing). */
+.renown__roll-tab--arena {
+  border-style: dashed;
+}
+
+.renown__roll-tab--arena[aria-current='page'] {
+  border-style: solid;
+}
+
+.renown__ladder-note {
+  display: block;
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+}
+
+.renown--ladder .renown__since {
+  text-align: right;
+}

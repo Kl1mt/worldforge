@@ -23,9 +23,26 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.5.5';
+export const GAME_VERSION = '0.5.6';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.5.6',
+    date: '2026-11-08',
+    title: 'The Arena Ladder',
+    new: [
+      'Arena rating: every rated duel in a season now moves the rating of both heroes, the challenger’s and the defender’s. Each hero starts at 1,500 and is “provisional” until it has fought ten rated duels; the arena shows your rating, how sure it is, and your record.',
+      'The Arena Ladder: a new board next to the Roll of Renown ranks the season’s heroes by rating, with the same filters by class and level bracket. Past seasons keep their final standings.',
+      'Fairer opponents: the arena now names heroes whose gear is about as strong as yours and whose rating is close to yours, so very lopsided bouts are rare. Each opponent shows whether you are favoured, evenly matched or the underdog.',
+      'Arena honours: at the end of a season the ladder’s best are honoured like the other boards, with the title Duellist (Champion, Exalted, Renowned or Veteran Duellist) and a profile frame. For glory only.',
+    ],
+    changed: [
+      'Friends and guildmates no longer meet in rated duels; challenge them in a friendly duel instead, as before.',
+      'Fighting the same player again and again in a week counts for less each time: half, then a quarter, then nothing, and the arena stops naming them for a while.',
+      'A new season starts every hero’s rating halfway back toward 1,500.',
+    ],
+    tickets: ['5.6'],
+  },
   {
     version: '0.5.5',
     date: '2026-11-08',

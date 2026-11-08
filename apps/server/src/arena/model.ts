@@ -1,9 +1,16 @@
 import { and, asc, count, eq, inArray, isNotNull, ne, sql } from 'drizzle-orm';
 import {
+  BRACKET_POWER_VERSION,
   DUEL_OFFER_SIZE,
   RATED_DUEL_MIN_LEVEL,
+  bracketPower,
   canViewProfile,
+  duelFighter,
   duelSnapshot,
+  findPvpBracket,
+  pairStillRated,
+  pickOpponents,
+  pvpBracketOf,
   type ClassId,
   type DuelSnapshot,
   type ProfileRelation,
@@ -24,6 +31,7 @@ import { blockedEitherWay } from '../social/relations.js';
 import { profileRelationsFor } from '../social/profiles.js';
 import { hiddenTargetKeys } from '../social/sanctions.js';
 import { characterNameKey, profileFieldKey } from '../social/targets.js';
+import { pairCountsWith, ratedExclusions, ratingSeasonAt, ratingsFor } from './rating.js';
 
 /**
  * The arena model (ticket 5.5, docs/PVP.md "The arena"). Locks, in order, for a duel: the account
@@ -131,20 +139,60 @@ export async function sanctionedAmong(
   return new Set(rows.map((r) => r.subject_id));
 }
 
+/** One defence as matchmaking reads it. */
+interface CandidateRow {
+  id: string;
+  accountId: string;
+  characterId: string;
+  level: number;
+  snapshot: DuelSnapshot;
+  power: number | null;
+  powerVersion: number | null;
+}
+
+/** A defence's bracket Power: the stored value, or (set before 5.6, or an older Power) computed. */
+export function defencePower(
+  d: Pick<CandidateRow, 'snapshot' | 'power' | 'powerVersion'>,
+  bracketId: string,
+) {
+  if (d.power !== null && d.powerVersion === BRACKET_POWER_VERSION) return d.power;
+  const bracket = findPvpBracket(bracketId) ?? pvpBracketOf(d.snapshot.level);
+  return bracketPower(duelFighter(d.snapshot), bracket);
+}
+
+export interface OpponentDraw {
+  defenceIds: string[];
+  /** The Power range used (null: nobody in any range). */
+  powerStep: number | null;
+  widened: number;
+}
+
 /**
- * Draws a rated opponent list for a hero: defences in its bracket at level 10 or more, from other
- * accounts, never blocked either way or sanctioned, at most one per account, in a random order.
- * (Matchmaking by rating and a power range is 5.6.)
+ * Draws a rated opponent list for a hero (ticket 5.6 matchmaking, docs/PVP.md "Matchmaking"):
+ * defences in its bracket at level 10 or more, from other accounts, never blocked either way or
+ * sanctioned, never a friend, guildmate or an account sharing a sign-up signal, never a pair whose
+ * next duel would count for nothing (`pairStillRated`); then game-core `pickOpponents` by bracket
+ * Power range and rating, from a `crypto` seed, at most one per account.
  */
 export async function drawOpponents(
   executor: Executor,
   accountId: string,
+  seeker: { characterId: string; snapshot: DuelSnapshot },
   bracketId: string,
-  now: Date,
-): Promise<string[]> {
-  const blocked = await blockedEitherWay(executor, accountId);
-  const rows = await executor
-    .select({ id: duelDefences.id, accountId: duelDefences.accountId })
+  gameNow: Date,
+  authNow: Date,
+  seed: string,
+): Promise<OpponentDraw> {
+  const rows: CandidateRow[] = await executor
+    .select({
+      id: duelDefences.id,
+      accountId: duelDefences.accountId,
+      characterId: duelDefences.characterId,
+      level: duelDefences.level,
+      snapshot: duelDefences.snapshot,
+      power: duelDefences.power,
+      powerVersion: duelDefences.powerVersion,
+    })
     .from(duelDefences)
     .where(
       and(
@@ -152,21 +200,58 @@ export async function drawOpponents(
         ne(duelDefences.accountId, accountId),
         sql`${duelDefences.level} >= ${RATED_DUEL_MIN_LEVEL}`,
         sql`not exists (select 1 from sanctions s where s.subject_id = ${duelDefences.accountId}
-          and s.lifted_at is null and s.expires_at > ${now.toISOString()}::timestamptz)`,
+          and s.lifted_at is null and s.expires_at > ${authNow.toISOString()}::timestamptz)`,
       ),
     )
     .orderBy(sql`random()`)
-    .limit(200);
-  const seen = new Set<string>();
-  const out: string[] = [];
-  for (const r of rows) {
-    if (blocked.has(r.accountId) || seen.has(r.accountId)) continue;
-    seen.add(r.accountId);
-    out.push(r.id);
-    if (out.length >= DUEL_OFFER_SIZE) break;
-  }
-  return out;
+    .limit(MATCH_CANDIDATES);
+  const owners = [...new Set(rows.map((r) => r.accountId))];
+  const [blocked, excluded, pairs] = await Promise.all([
+    blockedEitherWay(executor, accountId, owners),
+    ratedExclusions(executor, accountId, owners),
+    pairCountsWith(executor, accountId, owners, gameNow),
+  ]);
+  const eligible = rows.filter(
+    (r) =>
+      !blocked.has(r.accountId) &&
+      !excluded.has(r.accountId) &&
+      pairStillRated(pairs.get(r.accountId) ?? 0),
+  );
+  const season = await ratingSeasonAt(executor, gameNow);
+  const ratings = await ratingsFor(executor, season?.number ?? null, [
+    seeker.characterId,
+    ...eligible.map((r) => r.characterId),
+  ]);
+  const bracket = findPvpBracket(bracketId) ?? pvpBracketOf(seeker.snapshot.level);
+  const mine = ratings.get(seeker.characterId)!.rating;
+  const result = pickOpponents(
+    {
+      rating: mine.rating,
+      deviation: mine.deviation,
+      power: bracketPower(duelFighter(seeker.snapshot), bracket),
+    },
+    eligible.map((r) => {
+      const rt = ratings.get(r.characterId)!.rating;
+      return {
+        defenceId: r.id,
+        accountId: r.accountId,
+        power: defencePower(r, bracketId),
+        rating: rt.rating,
+        deviation: rt.deviation,
+      };
+    }),
+    seed,
+    DUEL_OFFER_SIZE,
+  );
+  return {
+    defenceIds: result.picks.map((p) => p.candidate.defenceId),
+    powerStep: result.powerStep,
+    widened: result.widened,
+  };
 }
+
+/** Defences matchmaking reads per draw (a random sample of the bracket when it is larger). */
+export const MATCH_CANDIDATES = 500;
 
 /** Another player as the arena shows them (the 5.2 board's privacy pattern). */
 export interface ArenaPlayerView {

@@ -1,5 +1,7 @@
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import {
+  ARENA_RATING_VERSION,
+  PROVISIONAL_GAMES,
   SCORE_METRICS,
   SEASON_CLOSE_GRACE_MS,
   SEASON_PLAN_MESSAGES,
@@ -9,6 +11,7 @@ import {
   planSchedule,
   seasonAwards,
   seasonStatus,
+  type PrestigeMetric,
   type PrestigeTier,
   type Score,
   type ScoreMetric,
@@ -60,7 +63,7 @@ export async function listSeasons(db: Executor): Promise<Season[]> {
  * Inside a refresh transaction: the season whose window holds `at` and that is not archived, read
  * under its shared lock (re-checked after the lock), or null.
  */
-async function lockOpenSeason(tx: Transaction, at: Date): Promise<Season | null> {
+export async function lockOpenSeason(tx: Transaction, at: Date): Promise<Season | null> {
   const iso = at.toISOString();
   const [candidate] = await tx
     .select()
@@ -369,6 +372,23 @@ export async function archiveSeason(
           and ${notSanctioned(sanctionsAt)}
         on conflict do nothing`);
     }
+    // Ticket 5.6: the arena ladder's final standings (metric `arena`): the established heroes
+    // (at least PROVISIONAL_GAMES rated duels), by rating, then more duels, then the earlier last
+    // duel, then the hero id. `value` is the rounded rating, `sort_key` [rating × 100, games];
+    // the full rating (deviation, volatility, record) stays in `arena_ratings`, never reset.
+    await tx.execute(sql`insert into season_standings
+        (season, metric, rank, character_id, account_id, class_id, level, formula_version,
+         value, sort_key, achieved_at)
+      select e.season, 'arena',
+        row_number() over (order by e.rating desc, e.games desc, e.last_rated_at asc,
+          e.character_id asc),
+        e.character_id, e.account_id, e.class_id, e.level, ${ARENA_RATING_VERSION},
+        round(e.rating)::bigint, array[round(e.rating * 100)::bigint, e.games::bigint],
+        e.last_rated_at
+      from arena_ratings e
+      where e.season = ${number} and e.games >= ${PROVISIONAL_GAMES}
+        and ${notSanctioned(sanctionsAt)}
+      on conflict do nothing`);
     await tx.update(seasons).set({ archivedAt: now }).where(eq(seasons.number, number));
     const [counted] = await queryRows<{ n: number }>(
       tx,
@@ -464,7 +484,7 @@ export async function awardSeason(
       );
     const byAccount = new Map<
       string,
-      { metric: ScoreMetric; tier: PrestigeTier; season: number }[]
+      { metric: PrestigeMetric; tier: PrestigeTier; season: number }[]
     >();
     for (const a of mine) {
       const list = byAccount.get(a.accountId) ?? [];
@@ -543,7 +563,7 @@ export async function runSeasonJobs(
 /** What each account shows (title and frame), for boards, profiles and guild rosters. */
 export interface PrestigeBadge {
   season: number;
-  metric: ScoreMetric;
+  metric: PrestigeMetric;
   tier: PrestigeTier;
 }
 export interface PrestigeShown {
@@ -561,10 +581,10 @@ export async function prestigeFor(
   const rows = await queryRows<{
     account_id: string;
     title_season: number | null;
-    title_metric: ScoreMetric | null;
+    title_metric: PrestigeMetric | null;
     title_tier: PrestigeTier | null;
     frame_season: number | null;
-    frame_metric: ScoreMetric | null;
+    frame_metric: PrestigeMetric | null;
     frame_tier: PrestigeTier | null;
   }>(
     db,
