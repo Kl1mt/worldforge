@@ -5,6 +5,7 @@ import { routeHref } from '../lib/route';
 import { describeSanction, describeSocialFailure, formatWhen, socialApi } from '../social/api';
 import { ReportDialog } from '../social/ReportDialog';
 import { useStanding } from '../social/useStanding';
+import { SecurityPanel } from './SecurityPanel';
 import './gate.css';
 import '../social/social.css';
 
@@ -36,54 +37,58 @@ export function AccountScreen() {
       </header>
 
       <div className="writ__body">
-        <div className="writ__plate panel-iron">
-          <h2 className="rule-heading">Sanctions</h2>
-          {state.kind === 'loading' ? (
-            <p className="writ__wait" role="status">
-              Reading the ledger of the wardens…
-            </p>
-          ) : null}
-          {state.kind === 'error' ? (
-            <div className="gate__alert" role="alert">
-              <p>{describeSocialFailure(state.error)}</p>
-              <button type="button" className="btn btn--small" onClick={reload}>
-                Try again
-              </button>
-            </div>
-          ) : null}
-          {state.kind === 'ready' && state.standing.sanctions.length === 0 ? (
-            <p className="writ__clear">
-              <span className="writ__seal writ__seal--clear" aria-hidden="true" />
-              In good standing. Nothing limits what you can do.
-            </p>
-          ) : null}
-          {state.kind === 'ready' && state.standing.sanctions.length > 0 ? (
-            <ul className="writ__list">
-              {state.standing.sanctions.map((s) => (
-                <li key={s.id} className={`writ__entry writ__entry--${s.kind}`}>
-                  <span className={`writ__seal writ__seal--${s.kind}`} aria-hidden="true" />
-                  <div>
-                    <p className="writ__kind display">{SANCTION_LABELS[s.kind]}</p>
-                    <p>{describeSanction(s)}</p>
-                    <p className="writ__reason">
-                      <span className="caps">Reason</span> {s.reason}
-                    </p>
-                    <p className="writ__dates">
-                      Since {formatWhen(s.createdAt)} · ends {formatWhen(s.expiresAt)}
-                    </p>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          ) : null}
-          {state.kind === 'ready' && state.standing.renameRequired ? (
-            <RenameForm
-              onDone={() => {
-                reload();
-                void auth.refresh();
-              }}
-            />
-          ) : null}
+        <div className="acct-sec-col">
+          <div className="writ__plate panel-iron">
+            <h2 className="rule-heading">Sanctions</h2>
+            {state.kind === 'loading' ? (
+              <p className="writ__wait" role="status">
+                Reading the ledger of the wardens…
+              </p>
+            ) : null}
+            {state.kind === 'error' ? (
+              <div className="gate__alert" role="alert">
+                <p>{describeSocialFailure(state.error)}</p>
+                <button type="button" className="btn btn--small" onClick={reload}>
+                  Try again
+                </button>
+              </div>
+            ) : null}
+            {state.kind === 'ready' && state.standing.sanctions.length === 0 ? (
+              <p className="writ__clear">
+                <span className="writ__seal writ__seal--clear" aria-hidden="true" />
+                In good standing. Nothing limits what you can do.
+              </p>
+            ) : null}
+            {state.kind === 'ready' && state.standing.sanctions.length > 0 ? (
+              <ul className="writ__list">
+                {state.standing.sanctions.map((s) => (
+                  <li key={s.id} className={`writ__entry writ__entry--${s.kind}`}>
+                    <span className={`writ__seal writ__seal--${s.kind}`} aria-hidden="true" />
+                    <div>
+                      <p className="writ__kind display">{SANCTION_LABELS[s.kind]}</p>
+                      <p>{describeSanction(s)}</p>
+                      <p className="writ__reason">
+                        <span className="caps">Reason</span> {s.reason}
+                      </p>
+                      <p className="writ__dates">
+                        Since {formatWhen(s.createdAt)} · ends {formatWhen(s.expiresAt)}
+                      </p>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+            {state.kind === 'ready' && state.standing.renameRequired ? (
+              <RenameForm
+                onDone={() => {
+                  reload();
+                  void auth.refresh();
+                }}
+              />
+            ) : null}
+          </div>
+          {/* Ticket 5.7: email verification, email change, other devices. */}
+          <SecurityPanel />
         </div>
 
         <aside className="writ__side panel-ledger" aria-labelledby="writ-report">

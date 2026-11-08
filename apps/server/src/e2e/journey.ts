@@ -32,6 +32,7 @@ import {
   type MaterialId,
 } from '@worldforge/game-core';
 import { SESSION_COOKIE } from '../auth/index.js';
+import { tokenIn, type MemoryMailer } from '../mail/mailer.js';
 import type { SettleResponse } from '../activity/routes.js';
 import type { InventoryView, ItemView } from '../inventory/routes.js';
 import type { WorldStateResponse } from '../world/routes.js';
@@ -2479,4 +2480,85 @@ export async function playDuelStep(
     .where(and(eq(auditLog.event, 'duel.fight'), eq(auditLog.accountId, heroPlayer.account.id)));
   expect(fights).toHaveLength(2);
   return { rated: ratedDuel, friendlyDuel };
+}
+
+/**
+ * Ticket 5.7: the account security step. The hero's email is unverified after registration; the
+ * captured verification mail verifies it; a second device logs in and is logged out from the first;
+ * "forgot password" mails a reset link, the new password ends every session (the hero's too) and
+ * the hero logs in again with progress intact. Mail goes to the in-memory `mailer`, never anywhere.
+ * Returns the new session's `api` (the hero's own `api` is logged out afterwards).
+ */
+export async function playAccountSecurityStep(
+  app: FastifyInstance,
+  mailer: MemoryMailer,
+  hero: Journey,
+  email: string,
+) {
+  const remoteAddress = nextAddress();
+  const anon = (url: string, payload: object) =>
+    app.inject({ remoteAddress, method: 'POST', url, payload });
+
+  // 1. Unverified after registration; the letter from registration verifies it.
+  const before = (await hero.api('GET', '/api/account/security')).json<{
+    security: { emailVerified: boolean; verificationPending: boolean; otherSessions: number };
+  }>().security;
+  expect(before).toMatchObject({
+    emailVerified: false,
+    verificationPending: true,
+    otherSessions: 0,
+  });
+  const verifyMail = mailer.last(email, 'verify_email');
+  expect(verifyMail, 'a verification mail on registration').toBeDefined();
+  const verified = await anon('/api/auth/verify-email', { token: tokenIn(verifyMail!) });
+  expect(verified.statusCode, verified.body).toBe(200);
+  expect((await hero.api('GET', '/api/account')).json()).toMatchObject({
+    account: { emailVerified: true },
+  });
+
+  // 2. A second device, logged out from the first.
+  const other = await anon('/api/auth/login', { email, password: 'ashes-and-iron-42' });
+  expect(other.statusCode).toBe(200);
+  const otherToken = other.cookies.find((c) => c.name === SESSION_COOKIE)!.value;
+  const revoked = await hero.api('POST', '/api/account/sessions/revoke-others');
+  expect(revoked.json()).toEqual({ revoked: 1 });
+  const stale = await app.inject({
+    method: 'GET',
+    url: '/api/account',
+    cookies: { [SESSION_COOKIE]: otherToken },
+  });
+  expect(stale.statusCode).toBe(401);
+
+  // 3. Forgot password → the mailed link → a new password; every session ends.
+  type Roster = { characters: { id: string; gold: number; level: number }[] };
+  const roster = async (call: (m: Method, u: string) => Promise<LightMyRequestResponse>) =>
+    (await call('GET', '/api/characters')).json<Roster>().characters;
+  const heroBefore = (await roster(hero.api)).find((c) => c.id === hero.characterId)!;
+  const forgot = await anon('/api/auth/forgot-password', { email });
+  expect(forgot.statusCode).toBe(202);
+  const resetMail = mailer.last(email, 'reset_password');
+  expect(resetMail, 'a reset mail').toBeDefined();
+  const reset = await anon('/api/auth/reset-password', {
+    token: tokenIn(resetMail!),
+    password: 'embers-and-salt-77',
+  });
+  expect(reset.statusCode, reset.body).toBe(200);
+  expect(mailer.last(email, 'password_changed')).toBeDefined();
+  expect((await hero.api('GET', '/api/account')).statusCode).toBe(401);
+  const old = await anon('/api/auth/login', { email, password: 'ashes-and-iron-42' });
+  expect(old.statusCode).toBe(401);
+  const back = await anon('/api/auth/login', { email, password: 'embers-and-salt-77' });
+  expect(back.statusCode).toBe(200);
+  const token = back.cookies.find((c) => c.name === SESSION_COOKIE)!.value;
+  const api = (method: Method, url: string, payload?: object) =>
+    app.inject({
+      remoteAddress,
+      method,
+      url,
+      ...(payload ? { payload } : {}),
+      cookies: { [SESSION_COOKIE]: token },
+    });
+  // Progress is untouched: the same hero with the same level and gold.
+  expect((await roster(api)).find((c) => c.id === hero.characterId)).toEqual(heroBefore);
+  return { api };
 }

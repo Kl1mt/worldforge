@@ -13,6 +13,8 @@ export type RegistrationMode = 'open' | 'invite' | 'closed';
 /** `GET /api/config` (ticket D.2): public server settings the gate needs. */
 export interface PublicConfig {
   registration: { mode: RegistrationMode };
+  /** Ticket 5.7: whether mail is set up (verification and password reset). Older servers omit it. */
+  email?: { enabled: boolean };
 }
 
 export const legalApi = {

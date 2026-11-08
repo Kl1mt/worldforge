@@ -113,7 +113,7 @@ describe('REGISTRATION_MODE', () => {
       const a = await makeApp({ registrationMode: mode });
       const res = await a.inject({ method: 'GET', url: '/api/config' });
       expect(res.statusCode).toBe(200);
-      expect(res.json()).toEqual({ registration: { mode } });
+      expect(res.json()).toEqual({ registration: { mode }, email: { enabled: false } });
     }
   });
 

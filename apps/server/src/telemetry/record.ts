@@ -50,6 +50,9 @@ export const TELEMETRY_METRICS = [
   // Ticket 5.6: opponent lists (bracket, Power range used) and rated duels (bracket, factor).
   'arena.offer',
   'arena.rated',
+  // Ticket 5.7: login outcomes (ok, failed, locked, throttled) and mails (kind, sent/failed).
+  'auth.login',
+  'mail.send',
 ] as const;
 export type TelemetryMetric = (typeof TELEMETRY_METRICS)[number];
 

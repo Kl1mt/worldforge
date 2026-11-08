@@ -101,6 +101,16 @@ services:
       LEGAL_DIR: /app/legal
       # Only for the invite links `deploy/admin.sh invite create` prints.
       DOMAIN: ${DOMAIN:-}
+      # Ticket 5.7 (DEPLOY.md "Email"): outgoing mail over SMTP, any provider. Without SMTP_HOST
+      # the server runs without mail (verification and password reset are off, login works).
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_SECURE: ${SMTP_SECURE:-}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      # Where links in mails point; https://$DOMAIN unless set.
+      PUBLIC_BASE_URL: ${PUBLIC_BASE_URL:-https://${DOMAIN}}
       NODE_OPTIONS: --max-old-space-size=512
     depends_on:
       db:

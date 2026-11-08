@@ -33,6 +33,19 @@ import {
   createAccountRateLimiter,
   type AccountRateLimit,
 } from './account-rate-limit.js';
+import { recordTelemetry } from '../telemetry/record.js';
+import { DISABLED_MAILER, type Mailer } from '../mail/mailer.js';
+import { mailLinks, verifyEmailMail } from '../mail/templates.js';
+import {
+  DEFAULT_LOGIN_THROTTLE,
+  createKeyedLimiter,
+  createLoginThrottle,
+  throttleKey,
+  type KeyedLimit,
+  type LoginThrottleLimit,
+} from './login-throttle.js';
+import { VERIFY_TOKEN_TTL_MS, issueToken } from './tokens.js';
+import { createMailOutbox, registerAccountSecurity } from './security-routes.js';
 import {
   EMAIL_MAX,
   PASSWORD_MAX,
@@ -75,6 +88,26 @@ export interface AuthOptions {
    * Default game-core `PRESENCE_WRITE_INTERVAL_MS` (3 min).
    */
   presenceWriteIntervalMs?: number;
+  /**
+   * Ticket 5.7: outgoing mail (verification, reset, notices). Default: none (`enabled: false`),
+   * so the mail routes answer `503 email_unavailable`; `src/index.ts` builds it from `SMTP_*`.
+   */
+  mailer: Mailer;
+  /** Ticket 5.7: where links in mails point (`PUBLIC_BASE_URL`). */
+  publicBaseUrl: string;
+  /** Ticket 5.7: per-account (per-email) login throttling, on top of `loginRateLimit`. */
+  loginThrottle: LoginThrottleLimit;
+  /** Ticket 5.7: mails one account may trigger (resend, email change), and reset mails per address. */
+  mailLimit: KeyedLimit;
+  /** Ticket 5.7, per client IP: `POST /auth/forgot-password`. */
+  forgotRateLimit: RateLimit;
+  /** Ticket 5.7, per client IP: `POST /auth/verify-email` and `POST /auth/reset-password`. */
+  tokenRateLimit: RateLimit;
+  /**
+   * Ticket 5.7: `forgot-password` answers no sooner than this after the request arrived, so known
+   * and unknown addresses take the same time. Real time, not the injected clock.
+   */
+  forgotFloorMs: number;
   /** Injected clock for session issue/expiry (tests). */
   now: () => Date;
 }
@@ -87,6 +120,13 @@ export const DEFAULT_AUTH_OPTIONS: AuthOptions = {
   accountRateLimit: DEFAULT_ACCOUNT_RATE_LIMIT,
   socialWriteLimit: DEFAULT_SOCIAL_WRITE_LIMIT,
   registrationMode: 'open',
+  mailer: DISABLED_MAILER,
+  publicBaseUrl: 'http://localhost:5173',
+  loginThrottle: DEFAULT_LOGIN_THROTTLE,
+  mailLimit: { max: 3, windowMs: 60 * 60_000 },
+  forgotRateLimit: { max: 5, timeWindowMs: 15 * 60_000 },
+  tokenRateLimit: { max: 20, timeWindowMs: 15 * 60_000 },
+  forgotFloorMs: 400,
   now: () => new Date(),
 };
 
@@ -134,6 +174,8 @@ export interface AccountView {
   createdAt: string;
   /** First-session guide (ticket 2.7). */
   guide: GuideState;
+  /** Ticket 5.7: whether the current email is verified. */
+  emailVerified: boolean;
 }
 
 export function accountView(a: Account): AccountView {
@@ -146,10 +188,11 @@ export function accountView(a: Account): AccountView {
     characterSlots: a.characterSlots,
     createdAt: a.createdAt.toISOString(),
     guide: normalizeGuide(a.guide),
+    emailVerified: a.emailVerifiedAt !== null,
   };
 }
 
-const accountResponseSchema = {
+export const accountResponseSchema = {
   type: 'object',
   required: ['account'],
   properties: {
@@ -164,6 +207,7 @@ const accountResponseSchema = {
         'characterSlots',
         'createdAt',
         'guide',
+        'emailVerified',
       ],
       properties: {
         id: { type: 'string' },
@@ -173,6 +217,7 @@ const accountResponseSchema = {
         role: { type: 'string' },
         characterSlots: { type: 'integer' },
         createdAt: { type: 'string' },
+        emailVerified: { type: 'boolean' },
         guide: {
           type: 'object',
           required: ['steps', 'dismissed'],
@@ -257,6 +302,14 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
   };
 
   const accountRateLimit = createAccountRateLimiter(options.accountRateLimit, now);
+  // Ticket 5.7.
+  const throttle = createLoginThrottle(options.loginThrottle, now);
+  const links = mailLinks(options.publicBaseUrl);
+  const outbox = createMailOutbox(app, options.mailer, now);
+  const loginOutcome = (outcome: 'ok' | 'failed' | 'locked' | 'throttled') =>
+    withTransaction(app.db, async (tx) => {
+      recordTelemetry(tx, now(), [{ metric: 'auth.login', dims: [outcome] }]);
+    });
   app.decorate('authNow', now);
   app.decorate('socialWriteLimit', createSocialWriteLimiter(options.socialWriteLimit, now));
   const seen = createPresenceRecorder(
@@ -313,7 +366,11 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
   // Ticket D.2: public, so the register screen knows whether to ask for an invite code.
   app.get('/config', async (_request, reply) => {
     void reply.header('Cache-Control', 'no-cache');
-    return { registration: { mode: options.registrationMode } };
+    // Ticket 5.7: whether mail is set up (verification and password reset need it).
+    return {
+      registration: { mode: options.registrationMode },
+      email: { enabled: options.mailer.enabled },
+    };
   });
 
   app.post<{ Body: RegistrationInput & { inviteCode?: string } }>(
@@ -354,7 +411,7 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
       const passwordHash = await hashPassword(value.password);
       const issuedAt = now();
       try {
-        const { account, session } = await withTransaction(app.db, async (tx) => {
+        const { account, session, verify } = await withTransaction(app.db, async (tx) => {
           let inviteId: string | null = null;
           if (mode === 'invite') {
             inviteId = await redeemInvite(tx, inviteCode, issuedAt);
@@ -379,8 +436,20 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
             // Ticket D.2: which invite created the account (its id, never the code).
             ...(inviteId ? { data: { inviteId } } : {}),
           });
-          return { account: account!, session };
+          // Ticket 5.7: the verification link, when mail is set up (sent after the commit).
+          const verify = options.mailer.enabled
+            ? await issueToken(tx, account!, 'verify_email', issuedAt)
+            : null;
+          if (verify) {
+            await writeAudit(tx, { event: 'account.verification_sent', accountId: account!.id });
+          }
+          return { account: account!, session, verify };
         });
+        if (verify) {
+          outbox.deliver(
+            verifyEmailMail(account.email, links.verify(verify.token), VERIFY_TOKEN_TTL_MS),
+          );
+        }
         setSessionCookie(reply, session.token, session.expiresAt);
         return reply.code(201).send({ account: accountView(account) });
       } catch (err) {
@@ -411,6 +480,14 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
     async (request, reply) => {
       const email = normalizeEmail(request.body.email);
       const { password } = request.body;
+      // Ticket 5.7: per-account throttling, keyed by the address (known or not), checked before
+      // the password so a locked key costs no argon2 and answers the same for every address.
+      const key = throttleKey(email);
+      const lockedMs = throttle.lockedFor(key);
+      if (lockedMs > 0) {
+        await loginOutcome('throttled');
+        throw loginThrottled(reply, lockedMs);
+      }
       const [account] =
         email.length > 0 && email.length <= EMAIL_MAX
           ? await app.db
@@ -425,13 +502,30 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
         : await verifyAgainstDummy(password);
       if (!account || !ok) {
         // Same status, code and message for both cases; only the audit row tells them apart.
-        await writeAudit(app.db, {
-          event: 'auth.login_failed',
-          accountId: account?.id ?? null,
-          data: { reason: account ? 'bad_password' : 'unknown_email' },
+        const lockMs = throttle.fail(key);
+        await withTransaction(app.db, async (tx) => {
+          await writeAudit(tx, {
+            event: 'auth.login_failed',
+            accountId: account?.id ?? null,
+            data: { reason: account ? 'bad_password' : 'unknown_email' },
+          });
+          if (lockMs > 0) {
+            // Ticket 5.7: this failure locked the address for a while.
+            await writeAudit(tx, {
+              event: 'auth.login_locked',
+              accountId: account?.id ?? null,
+              data: { lockSeconds: Math.ceil(lockMs / 1000) },
+            });
+          }
+          recordTelemetry(tx, now(), [
+            { metric: 'auth.login', dims: ['failed'] },
+            ...(lockMs > 0 ? [{ metric: 'auth.login' as const, dims: ['locked'] }] : []),
+          ]);
         });
         throw INVALID_CREDENTIALS();
       }
+      // The right password: the address starts fresh, suspended or not.
+      throttle.clear(key);
 
       // Ticket 4.1: a suspended account gets no session (told why only after the right password).
       const [suspension] = await activeSanctions(app.db, account.id, now(), ['suspend']);
@@ -445,10 +539,21 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
       }
 
       const session = await withTransaction(app.db, async (tx) => {
+        // Ticket 5.7: the password checked above must still be the account's. A password reset
+        // locks the row and revokes every session; a login that read the old hash just before it
+        // either commits first (and is revoked by the reset) or sees the new hash here.
+        const [current] = await tx
+          .select({ passwordHash: accounts.passwordHash })
+          .from(accounts)
+          .where(eq(accounts.id, account.id))
+          .for('share');
+        if (current?.passwordHash !== account.passwordHash) return null;
         const created = await createSession(tx, account.id, now(), options.sessionTtlMs);
         await writeAudit(tx, { event: 'auth.login', accountId: account.id });
+        recordTelemetry(tx, now(), [{ metric: 'auth.login', dims: ['ok'] }]);
         return created;
       });
+      if (!session) throw INVALID_CREDENTIALS();
       setSessionCookie(reply, session.token, session.expiresAt);
       return { account: accountView(account) };
     },
@@ -508,6 +613,28 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
       });
       return { account: accountView(account) };
     },
+  );
+
+  // Ticket 5.7: verification, password reset, email change, "log out other devices".
+  await registerAccountSecurity(app, {
+    options,
+    throttle,
+    links,
+    outbox,
+    mailLimit: createKeyedLimiter(options.mailLimit, now),
+    rateLimitConfig,
+  });
+}
+
+/** Ticket 5.7: `429 rate_limited` with `details.limit: 'account'` while an address is locked. */
+export function loginThrottled(reply: FastifyReply, lockedMs: number): ApiError {
+  const retryAfterSeconds = Math.max(1, Math.ceil(lockedMs / 1000));
+  void reply.header('retry-after', String(retryAfterSeconds));
+  return new ApiError(
+    429,
+    'rate_limited',
+    `Too many failed attempts for this account. Try again in ${retryAfterSeconds} s, or reset your password.`,
+    { retryAfterSeconds, limit: 'account' },
   );
 }
 

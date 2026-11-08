@@ -3,7 +3,7 @@ import { describeAuthFailure } from '../auth/api';
 import { useAuth } from '../auth/AuthProvider';
 import { ASSETS } from '../content/assets';
 import type { ApiFailure } from '../lib/api';
-import { inviteFromLocation, routeHref, type AuthRoute } from '../lib/route';
+import { inviteFromLocation, routeHref } from '../lib/route';
 import { legalApi, type RegistrationMode } from '../legal/api';
 import { LegalLinks } from '../legal/LegalLinks';
 import { HealthLine } from '../shell/HealthLine';
@@ -139,6 +139,9 @@ export function SuspendedGate({ sanction }: { sanction: Sanction }) {
     </GateLayout>
   );
 }
+
+/** The two tabs of the gate (ticket 5.7's `forgot` has its own screen). */
+type AuthRoute = 'login' | 'register';
 
 const COPY = {
   login: {
@@ -382,7 +385,9 @@ function AuthForm({ mode }: { mode: AuthRoute }) {
             </a>
           </p>
           {mode === 'login' ? (
-            <p className="gate__fine">Password recovery is not available yet.</p>
+            <p className="gate__fine">
+              <a href={routeHref('forgot')}>Forgot your password?</a>
+            </p>
           ) : null}
         </>
       )}

@@ -13,6 +13,7 @@ Status: **partly implemented.** Tables marked *implemented* exist in `apps/serve
 | `telemetry_daily` | implemented (ticket 3.8) |
 | `reports`, `sanctions` | implemented (ticket 4.1) |
 | `invite_codes` | implemented (ticket D.2) |
+| `account_tokens` | implemented (ticket 5.7) |
 | others      | draft                   |
 
 ## Principles
@@ -39,6 +40,7 @@ Status: **partly implemented.** Tables marked *implemented* exist in `apps/serve
 | handle          | text        | ticket 4.1: public handle, 12 random characters (game-core `HANDLE_RE`), unique, permanent, not derived from the id; generated on insert (migration `0016` backfilled existing rows) |
 | profile_visibility | text     | ticket 4.2: `public` (default) / `friendsAndGuild` / `hidden`, `CHECK`; game-core `ProfileVisibility`. Written only by `POST /api/account/profile` |
 | showcase_character_id | uuid FK? | ticket 4.2: → `characters.id` `ON DELETE SET NULL`; the hero whose equipped gear the profile shows (the server checks it is the account's own) |
+| email_verified_at | timestamptz? | ticket 5.7 (migration `0029`): when the current email was proven (a verification link, or a password reset through a mailed link). Null = unverified: every account from before 5.7, with no backfill (additive, nullable, no default). Cleared by an email change. Read by `isEmailVerified` (trading, T.4) |
 | created_at      | timestamptz | default `now()`                                              |
 | updated_at      | timestamptz | default `now()`; set by the server on update                 |
 
@@ -53,7 +55,21 @@ Owner decision (GDD v0.3): real registration/login from Phase 1, no dev identity
 | expires_at | timestamptz | `CHECK (expires_at > created_at)`                                 |
 | revoked_at | timestamptz | null while active; set on logout                                  |
 
-A session is valid iff `revoked_at IS NULL AND expires_at > now()` (the server compares against its own clock). Login and registration insert a row (`created_at` = issue time, `expires_at` = + `SESSION_TTL_HOURS`); logout sets `revoked_at`. Pruning expired rows is left to a later maintenance job.
+A session is valid iff `revoked_at IS NULL AND expires_at > now()` (the server compares against its own clock). Login and registration insert a row (`created_at` = issue time, `expires_at` = + `SESSION_TTL_HOURS`); logout sets `revoked_at`. Ticket 5.7: a password reset revokes every session of the account, "log out other devices" every one but the caller's; the scheduler deletes expired sessions and sessions revoked more than 7 days ago, hourly, in batches of 5,000 (`pruneAuthRows`, real clock).
+
+### account_tokens — implemented (5.7)
+| Column     | Type        | Notes |
+| ---------- | ----------- | ----- |
+| id         | uuid PK     | UUIDv7 |
+| account_id | uuid FK     | → `accounts.id` `ON DELETE CASCADE`; index `(account_id, purpose)` |
+| purpose    | text        | `verify_email` / `reset_password`, `CHECK` |
+| token_hash | text        | SHA-256 hex of the 256-bit token; unique. The token itself is only in the mail |
+| email      | text        | the address the link was mailed to; the token works only while the account still has it |
+| created_at | timestamptz | issue time |
+| expires_at | timestamptz | + 24 h (verify) / + 30 min (reset), `CHECK (expires_at > created_at)`, indexed for pruning |
+| used_at    | timestamptz? | set when consumed (conditional update: single use) or withdrawn (a newer token of the same purpose, a reset, an email change) |
+
+The scheduler deletes rows once `expires_at` has passed. See SECURITY.md "Accounts".
 
 ### invite_codes — implemented (D.2)
 | Column                | Type        | Notes                                                        |
@@ -440,6 +456,7 @@ Additive migration `0028_arena_rating` (one new table, nullable columns, two wid
 
 ```
 account 1─* sessions
+account 1─* account_tokens
 account 1─* character 1─1 activity
                      1─* dungeon_runs (≤ 1 unclaimed per account)
                      1─* item_instance (equipped_slot set = worn; else pack, or warehouse when in_warehouse)

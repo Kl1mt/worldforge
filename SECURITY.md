@@ -34,6 +34,18 @@ Examples of what we want to hear about:
 
 Testing in good faith within these rules will not lead to action against you.
 
+## Accounts
+
+How player accounts are protected (ticket 5.7; details in `docs/API_CONVENTIONS.md` "Auth & sessions"):
+
+- **Passwords** are stored as argon2id hashes. Sessions are random 256-bit tokens in an `HttpOnly`, `Secure`, `SameSite=Lax` cookie; only their SHA-256 is stored.
+- **Login throttling:** per client IP (10 a minute) and per account: after 5 wrong passwords for one address, each further failure locks that address for a while (30 seconds, doubling up to 15 minutes). Unknown addresses lock the same way, and the answers and timing are the same for known and unknown addresses, so neither login nor its lock reveals whether an account exists. A password reset is never blocked by the lock and lifts it.
+- **Email verification and password reset** use single-use links that expire (24 hours to verify, 30 minutes to reset), are stored only as hashes, work only for the address they were sent to and are replaced by any newer link. "Forgot your password?" gives the same answer, in about the same time, for every address, and sends at most 3 letters an hour to one address. Setting a new password logs out every device, voids every outstanding link and sends a notice to the account's address.
+- **Email changes** need the current password; the old address is told (without the new one).
+- **"Log out other devices"** on the account screen ends every other session.
+- **Unverified accounts** play normally. Trading will require a verified email address. Expired sessions and links are deleted hourly.
+- Mail is sent over the operator's SMTP provider; tokens travel in the part of the link after `#`, which browsers never send to a server.
+
 ## Supported versions
 
 Only the current `main` branch, which is what the live site runs, receives security fixes.

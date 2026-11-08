@@ -23,9 +23,22 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.5.8';
+export const GAME_VERSION = '0.5.9';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.5.9',
+    date: '2026-11-08',
+    title: 'Locks and keys',
+    new: [
+      'Your account screen can now log you out on every other device, for a lost phone or a shared computer, and change your email address (your current password is needed).',
+      'Letters from the keeper: once the town’s post is set up, new accounts get a letter to confirm their email address, and "Forgot your password?" at the gate sends a link to choose a new one. Until then those screens say the post is not running yet; you play as usual either way, and nothing changes for existing accounts.',
+    ],
+    changed: [
+      'After several wrong passwords in a row, an account now waits a little before the next try, a little longer each time.',
+    ],
+    tickets: ['5.7'],
+  },
   {
     version: '0.5.8',
     date: '2026-11-08',

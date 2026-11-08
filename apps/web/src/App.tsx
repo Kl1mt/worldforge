@@ -8,6 +8,7 @@ import {
   inviteFromLocation,
   isGameRoute,
   isLegalRoute,
+  isTokenRoute,
   registerHref,
   routeHref,
   type Standing,
@@ -16,6 +17,7 @@ import { LegalScreen } from './legal/LegalScreen';
 import { AreaScreen } from './screens/AreaScreen';
 import { AuthScreen, GateStatus, SuspendedGate } from './screens/AuthScreen';
 import { AccountScreen } from './screens/AccountScreen';
+import { ForgotScreen, ResetScreen, VerifyScreen } from './screens/RecoveryScreens';
 import { AdminScreen } from './screens/AdminScreen';
 import { ModerationScreen } from './screens/ModerationScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
@@ -74,7 +76,11 @@ function Routes() {
   // code carried in the hash.
   const invite = inviteFromLocation(window.location.search, window.location.hash);
   const inviteRedirect =
-    standing === 'anonymous' && invite && route !== 'register' && !isLegalRoute(route);
+    standing === 'anonymous' &&
+    invite &&
+    route !== 'register' &&
+    !isLegalRoute(route) &&
+    !isTokenRoute(route);
 
   useEffect(() => {
     // `replace` so the guarded screen does not stay in history behind the gate.
@@ -85,6 +91,9 @@ function Routes() {
 
   // Ticket D.2: the legal pages are open to everyone, whatever the session check says.
   if (isLegalRoute(route)) return <LegalScreen key={route} page={route} />;
+  // Ticket 5.7: the links in mails work logged in or not, on any device.
+  if (route === 'verify') return <VerifyScreen />;
+  if (route === 'reset') return <ResetScreen />;
 
   if (auth.state.kind === 'error') return <GateStatus kind="offline" onRetry={auth.retry} />;
   if (auth.state.kind === 'suspended') return <SuspendedGate sanction={auth.state.sanction} />;
@@ -93,6 +102,7 @@ function Routes() {
   }
   if (standing === null || redirect || inviteRedirect) return <GateStatus kind="checking" />;
   if (route === 'characters') return <CharactersScreen />;
+  if (route === 'forgot') return <ForgotScreen />;
   if (!isGameRoute(route)) return <AuthScreen mode={route} />;
 
   // The guard guarantees an active character here. Keyed by it, so switching heroes starts
