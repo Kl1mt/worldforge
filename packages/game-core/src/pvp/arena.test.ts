@@ -66,7 +66,7 @@ describe('the permission matrix (relation × kind)', () => {
     stranger: { rated: 'allowed', friendly: 'not_friend_or_guildmate' },
     'requested-by-me': { rated: 'allowed', friendly: 'not_friend_or_guildmate' },
     'requested-by-them': { rated: 'allowed', friendly: 'not_friend_or_guildmate' },
-    friend: { rated: 'allowed', friendly: 'allowed' },
+    friend: { rated: 'friendly_only', friendly: 'allowed' },
     'blocked-by-me': { rated: 'not_found', friendly: 'not_found' },
     'blocked-by-them': { rated: 'not_found', friendly: 'not_found' },
   };
@@ -87,6 +87,27 @@ describe('the permission matrix (relation × kind)', () => {
       expect(duelDecision('friendly', facts({ relation, guildmate: true }))).toBe(
         DUEL_REFUSALS.notFound,
       );
+  });
+
+  it('ticket 5.6: guildmates and accounts sharing a signal never meet in a rated duel', () => {
+    for (const relation of ['stranger', 'requested-by-me', 'requested-by-them'] as const) {
+      expect(duelDecision('rated', facts({ relation, guildmate: true }))).toBe(
+        DUEL_REFUSALS.friendlyOnly,
+      );
+      expect(duelDecision('rated', facts({ relation, sharedSignal: true }))).toBe(
+        DUEL_REFUSALS.notOffered,
+      );
+      expect(duelDecision('friendly', facts({ relation, sharedSignal: true }))).toBe(
+        DUEL_REFUSALS.notFriend,
+      );
+    }
+    expect(duelDecision('friendly', facts({ relation: 'friend', sharedSignal: true }))).toBe(
+      'allowed',
+    );
+    // A block still answers first, like an unknown opponent.
+    expect(duelDecision('rated', facts({ relation: 'blocked-by-them', guildmate: true }))).toBe(
+      DUEL_REFUSALS.notFound,
+    );
   });
 
   it('a sanctioned defender is never fought', () => {

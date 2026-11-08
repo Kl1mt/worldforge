@@ -8,8 +8,8 @@ import type { PvpFighterInput } from './normalise.js';
 /**
  * The arena (ticket 5.5, docs/PVP.md "The arena"): defence snapshots, rated duels and friendly
  * challenges. Rules as data: the limits, the duel day, the permission matrix and the snapshot a
- * defence stores. The duel itself is `simulateDuel` (5.4). Rating, matchmaking by rating and
- * rewards are 5.6: nothing here computes a rating.
+ * defence stores. The duel itself is `simulateDuel` (5.4); the rating, matchmaking and the
+ * win-trading rules are 5.6 (`rating.ts`, `matchmaking.ts`, `integrity.ts`).
  */
 
 /** Rated duels an account may fight per duel day (Phase 5 default). */
@@ -115,6 +115,18 @@ export const DUEL_REFUSALS = {
     code: 'wrong_bracket',
     message: 'That defence is no longer in your bracket. Ask for a fresh list.',
   },
+  // Ticket 5.6: friends and guildmates never meet in a rated duel (win-trading).
+  friendlyOnly: {
+    status: 409,
+    code: 'friendly_only',
+    message: 'Friends and guildmates meet in friendly challenges, not rated duels.',
+  },
+  // Ticket 5.6: a pair that shares a sign-up signal is answered like an opponent never offered.
+  notOffered: {
+    status: 404,
+    code: 'not_offered',
+    message: 'That opponent is not on your list. Ask for a fresh list.',
+  },
   noDuelsLeft: {
     status: 409,
     code: 'no_duels_left',
@@ -136,6 +148,8 @@ export interface DuelFacts {
   defenderLevel: number;
   /** Rated duels the challenger's account fought this duel day. */
   ratedToday: number;
+  /** Ticket 5.6: the two accounts share a sign-up signal (`integrity.ts`; never announced). */
+  sharedSignal?: boolean;
 }
 
 /**
@@ -148,10 +162,12 @@ export interface DuelFacts {
  * | blocked-by-me, blocked-by-them | 404 not_found | 404 not_found |
  * | defender sanctioned (any kind) | 404 not_found | 404 not_found |
  * | stranger, requested-by-me, requested-by-them | ✓ | 403 not_friend_or_guildmate (✓ if guildmates) |
- * | friend | ✓ | ✓ |
+ * | friend, guildmate | 409 friendly_only (5.6) | ✓ |
+ * | shared sign-up signal (5.6) | 404 not_offered | as the relation |
  *
  * Then, rated only: challenger below level 10 (`403 level_too_low`), the defence in another
- * bracket (`409 wrong_bracket`), 10 rated duels already fought today (`409 no_duels_left`).
+ * bracket (`409 wrong_bracket`), friend or guildmate (`409 friendly_only`), a shared sign-up
+ * signal (`404 not_offered`), 10 rated duels already fought today (`409 no_duels_left`).
  * Friendly challenges have no level minimum, cross brackets (`friendlyBracket`) and no daily limit.
  * The challenger's own sanctions are the social-write rules (suspended: no request at all; a mute
  * does not stop a duel: it carries no text).
@@ -167,6 +183,8 @@ export function duelDecision(kind: DuelKind, f: DuelFacts): DuelDecision {
   if (f.challengerLevel < RATED_DUEL_MIN_LEVEL) return DUEL_REFUSALS.levelTooLow;
   if (ratedBracketId(f.challengerLevel) !== ratedBracketId(f.defenderLevel))
     return DUEL_REFUSALS.wrongBracket;
+  if (f.relation === 'friend' || f.guildmate) return DUEL_REFUSALS.friendlyOnly;
+  if (f.sharedSignal) return DUEL_REFUSALS.notOffered;
   if (f.ratedToday >= RATED_DUELS_PER_DAY) return DUEL_REFUSALS.noDuelsLeft;
   return 'allowed';
 }

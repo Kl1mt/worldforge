@@ -47,6 +47,9 @@ export const TELEMETRY_METRICS = [
   'warehouse.upgrade',
   // Ticket 5.5: duels (kind, bracket, outcome).
   'duel.fight',
+  // Ticket 5.6: opponent lists (bracket, Power range used) and rated duels (bracket, factor).
+  'arena.offer',
+  'arena.rated',
 ] as const;
 export type TelemetryMetric = (typeof TELEMETRY_METRICS)[number];
 

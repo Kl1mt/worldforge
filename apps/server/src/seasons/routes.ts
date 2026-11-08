@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
-import { SCORE_METRICS, type ScoreMetric } from '@worldforge/game-core';
+import { PRESTIGE_METRICS, type PrestigeMetric } from '@worldforge/game-core';
 import { characters, prestigeDisplays, seasonAwards, type Season } from '../db/schema.js';
 import type { Executor, Transaction } from '../db/types.js';
 import { ApiError } from '../errors.js';
@@ -67,7 +67,7 @@ const choiceSchema = {
       required: ['season', 'metric'],
       properties: {
         season: { type: 'integer', minimum: 1, maximum: 100_000 },
-        metric: { type: 'string', enum: [...SCORE_METRICS] },
+        metric: { type: 'string', enum: [...PRESTIGE_METRICS] },
       },
     },
   ],
@@ -96,7 +96,7 @@ const prestigeSettingsSchema = {
   },
 } as const;
 
-type Choice = { season: number; metric: ScoreMetric } | null;
+type Choice = { season: number; metric: PrestigeMetric } | null;
 
 async function prestigeSettings(db: Executor, accountId: string) {
   const earned = await db

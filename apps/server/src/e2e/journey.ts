@@ -64,7 +64,7 @@ import type { TelemetryReport } from '../telemetry/report.js';
 import { createInvite } from '../auth/invites.js';
 import { checkLeaderboards } from '../leaderboards/check.js';
 import { cliDeps } from '../leaderboards/leaderboard-cli.js';
-import { runSeasonJobs } from '../seasons/model.js';
+import { runSeasonJobs, scheduleSeason } from '../seasons/model.js';
 
 export const MIN = 60_000;
 export const HOUR = 60 * MIN;
@@ -2319,6 +2319,7 @@ export async function playDuelStep(
     hero: { level: number; ratedOpen: boolean; bracket: { id: string } };
     defence: { defenceId: string; setAt: string } | null;
     rated: { used: number; left: number; offer: { opponents: { defenceId: string }[] } | null };
+    ladder: { you: { games: number; standing: string }; rank: number | null };
   };
   type Duel = {
     id: string;
@@ -2327,6 +2328,7 @@ export async function playDuelStep(
     result: string;
     bracketId: string;
     events: { type: string }[];
+    rating: { before: number; after: number; factor: number } | null;
   };
   const arena = async (j: Journey) => {
     const res = await j.api('GET', `/api/arena?characterId=${j.characterId}`);
@@ -2388,6 +2390,25 @@ export async function playDuelStep(
     }
     expect(j.state.level).toBeGreaterThanOrEqual(10);
   }
+  // Ticket 5.6: friends never meet in a rated duel, so the server does not offer the rival.
+  await setDefence(hero);
+  await setDefence(rival);
+  const asFriends = await hero.api('POST', '/api/arena/opponents', {
+    characterId: hero.characterId,
+  });
+  expect(asFriends.statusCode, asFriends.body).toBe(200);
+  expect(asFriends.json<Arena>().rated.offer!.opponents).toEqual([]);
+  // They part as friends; for a fair first rated bout both take their gear off (same class, so
+  // equal bracket Power: matchmaking's range cannot leave the rival out).
+  const removed = await hero.api('POST', `/api/friends/${rivalPlayer.account.handle}/remove`);
+  expect(removed.statusCode, removed.body).toBe(200);
+  for (const j of [hero, rival]) {
+    const inv = await j.api('GET', `/api/characters/${j.characterId}/inventory`);
+    for (const item of inv.json<{ equipped: { id: string }[] }>().equipped) {
+      const res = await j.api('POST', `/api/characters/${j.characterId}/items/${item.id}/unequip`);
+      expect(res.statusCode, res.body).toBe(200);
+    }
+  }
   const heroDefence = await setDefence(hero);
   const rivalNow = await setDefence(rival);
   expect(rivalNow.defenceId).toBe(rivalDefence.defenceId);
@@ -2396,6 +2417,16 @@ export async function playDuelStep(
   // Each stopped farming on reaching 10, so both are in 10–19.
   expect(mine.hero.bracket.id).toBe('10-19');
   expect(theirs.hero.bracket.id).toBe('10-19');
+
+  // The owner opens the first season (the CLI's path), so rated duels move ratings.
+  const opensAt = clock.now() + 60_000;
+  await scheduleSeason(
+    database.db,
+    { startsAt: new Date(opensAt), endsAt: new Date(opensAt + 8 * 7 * 86_400_000) },
+    new Date(clock.now()),
+    { accountId: null, via: 'cli' },
+  );
+  clock.set(opensAt + 1000);
 
   // The server's list (the rival is the only other defence in this town).
   const drawn = await hero.api('POST', '/api/arena/opponents', { characterId: hero.characterId });
@@ -2413,6 +2444,17 @@ export async function playDuelStep(
   expect(replay.json<{ duel: Duel }>().duel).toEqual(rated.json<{ duel: Duel }>().duel);
   const ratedDuel = rated.json<{ duel: Duel }>().duel;
   expect((await arena(hero)).rated).toMatchObject({ used: 1, left: 9 });
+  // Both ratings moved (once, despite the replay): provisional, not on the ladder yet.
+  expect(ratedDuel.rating).toMatchObject({ before: 1500, factor: 1 });
+  for (const j of [hero, rival]) {
+    const ladder = (await arena(j)).ladder;
+    expect(ladder).toMatchObject({ you: { games: 1, standing: 'provisional' }, rank: null });
+    const board = (await j.api('GET', '/api/arena/ladder')).json<{
+      ladder: { entries: unknown[]; yours: { rank: number | null }[] };
+    }>().ladder;
+    expect(board.entries).toEqual([]);
+    expect(board.yours).toEqual([expect.objectContaining({ rank: null })]);
+  }
 
   // The rival sees it as the defender, with the same log.
   const history = (await rival.api('GET', '/api/arena/duels')).json<{
@@ -2422,6 +2464,7 @@ export async function playDuelStep(
   const seen = (await rival.api('GET', `/api/arena/duels/${ratedDuel.id}`)).json<{ duel: Duel }>()
     .duel;
   expect(seen.events).toEqual(ratedDuel.events);
+  expect(seen.rating!.before).toBe(1500);
   expect(seen.you).toBe('defender');
 
   // Nothing either owns changed; holdings reconcile with the audit log, as do the rollups.
@@ -2435,6 +2478,5 @@ export async function playDuelStep(
     .from(auditLog)
     .where(and(eq(auditLog.event, 'duel.fight'), eq(auditLog.accountId, heroPlayer.account.id)));
   expect(fights).toHaveLength(2);
-  void clock;
   return { rated: ratedDuel, friendlyDuel };
 }

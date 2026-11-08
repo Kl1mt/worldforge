@@ -360,28 +360,18 @@ const boardSchema = {
   },
 } as const;
 
-interface BoardRequest {
-  Params: { metric: ScoreMetric };
-  Querystring: {
-    scope?: BoardScope;
-    season?: number;
-    class?: ClassId;
-    bracket?: string;
-    cursor?: string;
-    limit?: number;
-  };
-}
-
-export async function registerLeaderboards(
+/**
+ * The board read class (5.2): bounds how often one account can rank a whole board (`429
+ * rate_limited`, `details.limit: 'boards'`). Each caller gets its own counter (5.6's arena ladder
+ * has one of its own at the same limit).
+ */
+export function createBoardReadLimiter(
   app: FastifyInstance,
-  options: LeaderboardOptions,
-): Promise<void> {
-  const deps: SnapshotDeps = { db: app.db, worldFlags: () => app.worldState.flags() };
-  const limit = options.readLimit ?? DEFAULT_BOARD_READ_LIMIT;
+  limit: { max: number; windowMs: number },
+): (accountId: string, reply: FastifyReply) => void {
   const windows = new Map<string, { startedAt: number; n: number }>();
 
-  /** The board read class: bounds how often one account can rank a whole board. */
-  const checkRead = (accountId: string, reply: FastifyReply) => {
+  return (accountId: string, reply: FastifyReply) => {
     const t = app.authNow().getTime();
     let w = windows.get(accountId);
     if (!w || t - w.startedAt >= limit.windowMs || t < w.startedAt) {
@@ -406,6 +396,27 @@ export async function registerLeaderboards(
     }
     w.n += 1;
   };
+}
+
+interface BoardRequest {
+  Params: { metric: ScoreMetric };
+  Querystring: {
+    scope?: BoardScope;
+    season?: number;
+    class?: ClassId;
+    bracket?: string;
+    cursor?: string;
+    limit?: number;
+  };
+}
+
+export async function registerLeaderboards(
+  app: FastifyInstance,
+  options: LeaderboardOptions,
+): Promise<void> {
+  const deps: SnapshotDeps = { db: app.db, worldFlags: () => app.worldState.flags() };
+  const limit = options.readLimit ?? DEFAULT_BOARD_READ_LIMIT;
+  const checkRead = createBoardReadLimiter(app, limit);
 
   app.get<BoardRequest>(
     '/leaderboards/:metric',

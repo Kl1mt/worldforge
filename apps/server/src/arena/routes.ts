@@ -2,8 +2,18 @@ import type { FastifyInstance } from 'fastify';
 import { randomBytes } from 'node:crypto';
 import { and, desc, eq, inArray, lt, or, sql } from 'drizzle-orm';
 import {
+  BRACKET_POWER_VERSION,
   DUEL_OFFER_REFRESH_MS,
+  PAIR_FACTORS,
+  PAIR_WINDOW_MS,
+  PROVISIONAL_GAMES,
   PVP_RULES_VERSION,
+  bracketPower,
+  expectedScore,
+  matchOdds,
+  ratingStanding,
+  type MatchOdds,
+  type RatingStanding,
   RATED_DUELS_PER_DAY,
   RATED_DUEL_MIN_LEVEL,
   duelDay,
@@ -51,14 +61,26 @@ import {
   type ArenaHeroView,
   type ArenaPlayerView,
 } from './model.js';
+import {
+  applyRatedDuel,
+  ratingSeasonAt,
+  ratingsFor,
+  ratingView,
+  shareSignal,
+  type RatingView,
+} from './rating.js';
+import { ladderRankOf, registerLadder } from './ladder.js';
+import { registerArenaPatterns } from './patterns.js';
+import { seasonView, type SeasonView } from '../seasons/model.js';
 
 /**
  * The arena (ticket 5.5, docs/PVP.md "The arena"): defences, rated duels against a server-offered
  * list, friendly challenges with friends and guildmates, results with their log, and the history.
  * Every duel resolves at once with `simulateDuel` from a server-only seed and the stored
- * snapshots; it changes nothing a player owns (no gold, items, XP or score). Rating, matchmaking by
- * rating and rewards are 5.6: `duels` stores what it needs (kind, bracket, outcome, both accounts,
- * the duel day and time), and nothing here computes a rating.
+ * snapshots; it changes nothing a player owns (no gold, items, XP or score). Ticket 5.6: a rated
+ * duel in a season moves both heroes' ratings in its transaction (`rating.ts`), opponent lists
+ * come from matchmaking (`drawOpponents`), and friends, guildmates and accounts sharing a sign-up
+ * signal never meet in a rated duel.
  */
 
 export interface DefenceView {
@@ -83,6 +105,10 @@ export interface OpponentView {
   bracketId: string;
   /** The day the defence was set (no finer time leaves the server). */
   setOn: string;
+  /** Ticket 5.6: the defender's rating this season (rounded) and its certainty. */
+  rating: { rating: number; standing: RatingStanding };
+  /** Your chances by both ratings, in plain words. */
+  odds: MatchOdds;
 }
 
 export interface ArenaStateResponse {
@@ -93,6 +119,18 @@ export interface ArenaStateResponse {
     minLevel: number;
     rulesVersion: number;
     offerRefreshMs: number;
+    /** Ticket 5.6: rated duels before a rating is ranked; the repeat-pair factors and window. */
+    provisionalGames: number;
+    pairFactors: readonly number[];
+    pairWindowDays: number;
+  };
+  /** Ticket 5.6: the season's ladder as this hero stands on it. */
+  ladder: {
+    /** The season rated duels count in now (null: none under way; duels then move no rating). */
+    season: SeasonView | null;
+    you: RatingView;
+    /** The hero's place on the ladder (null while provisional or without a season). */
+    rank: number | null;
   };
   hero: {
     characterId: string;
@@ -144,6 +182,23 @@ export interface DuelView {
   challenger: DuelSideView;
   defender: DuelSideView;
   events: DuelEvent[];
+  /**
+   * Ticket 5.6: what this rated duel did to the viewer's rating (null for friendly duels and for
+   * rated duels that moved no rating: `unrated`).
+   */
+  rating: {
+    season: number;
+    before: number;
+    after: number;
+    change: number;
+    /** The repeat-pair factor (1 = full, 0 = counted for nothing). */
+    factor: number;
+  } | null;
+  /**
+   * A rated duel that moved no rating: no season was under way (or it was fought before the
+   * ladder opened, ticket 5.6). It still counted toward the day's ten.
+   */
+  unrated: boolean;
 }
 
 export interface DuelSummaryView {
@@ -268,6 +323,12 @@ export async function arenaState(
       authNow,
     );
     const order = new Map(offer.defenceIds.map((id, i) => [id, i]));
+    const offerSeason = await ratingSeasonAt(db, now);
+    const offerRatings = await ratingsFor(db, offerSeason?.number ?? null, [
+      hero.id,
+      ...live.map((r) => r.characterId),
+    ]);
+    const mineRating = offerRatings.get(hero.id)!.rating;
     offerView = {
       offeredAt: offer.offeredAt.toISOString(),
       refreshableAt: new Date(offer.offeredAt.getTime() + DUEL_OFFER_REFRESH_MS).toISOString(),
@@ -287,12 +348,26 @@ export async function arenaState(
               }),
               bracketId: r.bracketId,
               setOn: dayOf(r.setAt),
+              rating: (() => {
+                const t = offerRatings.get(r.characterId)!;
+                return {
+                  rating: Math.round(t.rating.rating),
+                  standing: ratingStanding(t.rating, t.row?.games ?? 0),
+                };
+              })(),
+              odds: matchOdds(expectedScore(mineRating, offerRatings.get(r.characterId)!.rating)),
             },
           ];
         }),
     };
   }
 
+  const season = await ratingSeasonAt(db, now);
+  const own = (await ratingsFor(db, season?.number ?? null, [hero.id])).get(hero.id)!;
+  let rank: number | null = null;
+  if (season && own.row && own.row.games >= PROVISIONAL_GAMES) {
+    rank = await ladderRankOf(db, season.number, own.row, authNow);
+  }
   return {
     now: now.toISOString(),
     day: { key: day, resetsAt: nextDuelDayAt(now).toISOString() },
@@ -301,6 +376,14 @@ export async function arenaState(
       minLevel: RATED_DUEL_MIN_LEVEL,
       rulesVersion: PVP_RULES_VERSION,
       offerRefreshMs: DUEL_OFFER_REFRESH_MS,
+      provisionalGames: PROVISIONAL_GAMES,
+      pairFactors: PAIR_FACTORS,
+      pairWindowDays: Math.round(PAIR_WINDOW_MS / 86_400_000),
+    },
+    ladder: {
+      season: season ? seasonView(season, now) : null,
+      you: ratingView(own.rating, own.row),
+      rank,
     },
     hero: {
       characterId: hero.id,
@@ -383,6 +466,21 @@ export async function duelView(
     challenger: side('challenger'),
     defender: side('defender'),
     events: duel.events,
+    rating: duel.rating
+      ? (() => {
+          const mine = duel.rating[you];
+          const before = Math.round(mine.before.rating);
+          const after = Math.round(mine.after.rating);
+          return {
+            season: duel.rating.season,
+            before,
+            after,
+            change: after - before,
+            factor: duel.rating.factor,
+          };
+        })()
+      : null,
+    unrated: duel.kind === 'rated' && !duel.rating,
   };
 }
 
@@ -400,6 +498,8 @@ export async function registerArena(
   app: FastifyInstance,
   activity: ActivityOptions,
 ): Promise<void> {
+  await registerLadder(app, { now: activity.now });
+  await registerArenaPatterns(app, { now: activity.now });
   app.get<{ Querystring: { characterId: string } }>(
     '/arena',
     { preHandler: app.requireAccount, schema: { querystring: heroQuery } },
@@ -424,7 +524,10 @@ export async function registerArena(
         const now = activity.now();
         const hero = await lockOwnHeroShared(tx, me, characterId);
         const snapshot = await heroDuelSnapshot(tx, hero);
-        const bracketId = pvpBracketOf(hero.level).id;
+        const bracket = pvpBracketOf(hero.level);
+        const bracketId = bracket.id;
+        // Ticket 5.6: the snapshot's bracket Power, for matchmaking (~2 ms).
+        const power = bracketPower(duelFighter(snapshot), bracket);
         const [row] = await tx
           .insert(duelDefences)
           .values({
@@ -437,6 +540,8 @@ export async function registerArena(
             rulesVersion: PVP_RULES_VERSION,
             snapshot,
             setAt: now,
+            power,
+            powerVersion: BRACKET_POWER_VERSION,
           })
           .onConflictDoUpdate({
             target: duelDefences.characterId,
@@ -447,6 +552,8 @@ export async function registerArena(
               rulesVersion: PVP_RULES_VERSION,
               snapshot,
               setAt: now,
+              power,
+              powerVersion: BRACKET_POWER_VERSION,
             },
           })
           .returning();
@@ -510,7 +617,24 @@ export async function registerArena(
             { retryAfterSeconds },
           );
         }
-        const defenceIds = await drawOpponents(tx, me, bracketId, app.authNow());
+        // Ticket 5.6: matchmaking by bracket Power range and rating, from a server-only seed.
+        const draw = await drawOpponents(
+          tx,
+          me,
+          { characterId: hero.id, snapshot: await heroDuelSnapshot(tx, hero) },
+          bracketId,
+          now,
+          app.authNow(),
+          randomBytes(16).toString('hex'),
+        );
+        const defenceIds = draw.defenceIds;
+        recordTelemetry(tx, now, [
+          {
+            metric: 'arena.offer',
+            dims: [bracketId, draw.powerStep === null ? 'none' : `range${draw.widened}`],
+            amount: defenceIds.length,
+          },
+        ]);
         await tx
           .insert(duelOffers)
           .values({ characterId: hero.id, accountId: me, bracketId, defenceIds, offeredAt: now })
@@ -564,6 +688,7 @@ export async function registerArena(
             challengerLevel: hero.level,
             defenderLevel: defence.level,
             ratedToday: kind === 'rated' ? await ratedDuelsOn(tx, me, day) : 0,
+            sharedSignal: kind === 'rated' ? await shareSignal(tx, me, defence.accountId) : false,
           });
           if (decision !== 'allowed')
             throw new ApiError(decision.status, decision.code, decision.message);
@@ -595,6 +720,28 @@ export async function registerArena(
             seed,
             bracketId,
           });
+          // Ticket 5.6: both ratings move inside this transaction (season, pair, hero locks).
+          const rating =
+            kind === 'rated'
+              ? await applyRatedDuel(tx, {
+                  challenger: {
+                    accountId: me,
+                    characterId: hero.id,
+                    classId: hero.classId,
+                    level: hero.level,
+                    bracketId,
+                  },
+                  defender: {
+                    accountId: defence.accountId,
+                    characterId: defence.characterId,
+                    classId: defence.classId,
+                    level: defence.level,
+                    bracketId,
+                  },
+                  outcome: fight.outcome,
+                  now,
+                })
+              : null;
           const [row] = await tx
             .insert(duels)
             .values({
@@ -618,6 +765,7 @@ export async function registerArena(
               sides: fight.sides,
               events: fight.events,
               foughtAt: now,
+              rating,
             })
             .returning();
           if (kind === 'rated') {
@@ -641,10 +789,41 @@ export async function registerArena(
               reason: fight.reason,
               rulesVersion: fight.rulesVersion,
               day,
+              ...(rating
+                ? {
+                    rating: {
+                      season: rating.season,
+                      factor: rating.factor,
+                      challenger: Math.round(
+                        rating.challenger.after.rating - rating.challenger.before.rating,
+                      ),
+                      defender: Math.round(
+                        rating.defender.after.rating - rating.defender.before.rating,
+                      ),
+                    },
+                  }
+                : {}),
             },
           });
           recordTelemetry(tx, now, [
             { metric: 'duel.fight', dims: [kind, bracketId, fight.outcome] },
+            ...(kind === 'rated'
+              ? [
+                  {
+                    metric: 'arena.rated' as const,
+                    dims: [
+                      bracketId,
+                      !rating
+                        ? 'no_season'
+                        : rating.factor === 1
+                          ? 'full'
+                          : rating.factor > 0
+                            ? 'reduced'
+                            : 'none',
+                    ],
+                  },
+                ]
+              : []),
           ]);
           return { duel: await duelView(tx, me, row!, authNow) };
         },

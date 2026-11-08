@@ -1,7 +1,9 @@
 /**
  * The Phase 5 duel step of the journey (ticket 5.5, `journey.ts` `playDuelStep`) on its own: two
- * players become friends, duel as friends at once, farm to level 10, set their defences, and fight
- * a rated duel from the server's list, replayed by its key, without changing anything they own.
+ * players become friends, duel as friends at once, farm to level 10, set their defences; as friends
+ * the server offers them no rated duel (ticket 5.6), so they part, the owner opens a season, and
+ * they fight a rated duel from the server's list, replayed by its key, that moves both ratings
+ * once, without changing anything they own.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
@@ -44,7 +46,8 @@ describe('journey: duels (Phase 5)', () => {
     const rival = await startJourney({
       app,
       clock,
-      classId: 'mage',
+      // Ticket 5.6: the same class as the hero, so their ungeared bout is a fair match.
+      classId: 'warrior',
       email: 'rival@graumark.test',
       displayName: 'Rival Of Graumark',
       name: 'Ysolde',
