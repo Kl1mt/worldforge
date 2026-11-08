@@ -712,6 +712,7 @@ GDD: §10.3 (guardrails). Needs 5.1.
 ### 5.5 Async duels & friendly challenges (vertical) — `todo`
 GDD: §10.3. Needs 5.4.
 - Set a defence loadout (a snapshot of a hero); challenge a defender in your bracket (opponent list from the server, never client-chosen ids outside it); instant resolution; result and combat log screens; daily rated-duel limit; friendly challenges with friends and guildmates (no rating, no rewards); a loss changes nothing you own.
+- **Owner decisions (2026-11-08, ticket 5.4):** rated duels open at level 10 (the 1–9 bracket has no rated duels); friendly challenges may cross brackets and are fought in the lower hero's bracket (`friendlyBracket`); luck roll ±25 % per blow, gear keeps 25 %.
 - Abuse: Idempotency-Key, no re-roll by retry or replay, blocked players never matched, rate limits, audit and telemetry.
 - Tests: permission matrix, races (two challengers vs one defender, a defender changing gear mid-challenge), invariance, journey step with two players, screenshots.
 
