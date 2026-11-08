@@ -232,7 +232,8 @@ function ScoreBoards({ loc }: { loc: ReturnType<typeof boardLocation> }) {
           <p>
             A season roll lists the heroes whose score on it rose during the season, ranked by their
             score at its end. When a season ends, its roll is sealed and the best are honoured:
-            Champion for first place, Exalted for the top 10, Renowned for the top 100, Veteran for
+            Champion for first place, Exalted for the top 2 % (at least the top 3, at most the top
+            10), Renowned for the top 10 % (at least the top 5, at most the top 100), Veteran for
             every other hero of level 10 or more on the roll. Honours are titles and frames only;
             they change nothing in a fight.
           </p>

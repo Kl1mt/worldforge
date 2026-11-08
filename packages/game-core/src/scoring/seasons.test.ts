@@ -13,6 +13,8 @@ import {
   planEnd,
   planSchedule,
   prestigeTierFor,
+  tierCutoffs,
+  tierOrder,
   prestigeTitle,
   seasonAt,
   seasonAwards,
@@ -148,16 +150,49 @@ describe('season plans', () => {
 
 describe('prestige tiers', () => {
   it('places map to tiers; Veteran needs the minimum level', () => {
-    expect(prestigeTierFor(1, 1)).toBe('champion');
-    expect(prestigeTierFor(2, 1)).toBe('exalted');
-    expect(prestigeTierFor(10, 1)).toBe('exalted');
-    expect(prestigeTierFor(11, 1)).toBe('renowned');
-    expect(prestigeTierFor(100, 1)).toBe('renowned');
-    expect(prestigeTierFor(101, VETERAN_MIN_LEVEL - 1)).toBeNull();
-    expect(prestigeTierFor(101, VETERAN_MIN_LEVEL)).toBe('veteran');
-    expect(prestigeTierFor(5000, 40)).toBe('veteran');
-    expect(prestigeTierFor(0, 40)).toBeNull();
-    expect(prestigeTierFor(1.5, 40)).toBeNull();
+    // A board of 1,000 or more: the caps (top 10, top 100), as before B.4.
+    expect(prestigeTierFor(1, 1, 1000)).toBe('champion');
+    expect(prestigeTierFor(2, 1, 1000)).toBe('exalted');
+    expect(prestigeTierFor(10, 1, 1000)).toBe('exalted');
+    expect(prestigeTierFor(11, 1, 1000)).toBe('renowned');
+    expect(prestigeTierFor(100, 1, 5000)).toBe('renowned');
+    expect(prestigeTierFor(101, VETERAN_MIN_LEVEL - 1, 5000)).toBeNull();
+    expect(prestigeTierFor(101, VETERAN_MIN_LEVEL, 5000)).toBe('veteran');
+    expect(prestigeTierFor(5000, 40, 5000)).toBe('veteran');
+    expect(prestigeTierFor(0, 40, 10)).toBeNull();
+    expect(prestigeTierFor(1.5, 40, 10)).toBeNull();
+  });
+
+  it('Exalted and Renowned scale with the board (B.4): 2 % and 10 %, with floors and caps', () => {
+    const cut = (n: number) => {
+      const c = tierCutoffs(n);
+      return [c.champion, c.exalted, c.renowned, c.veteran];
+    };
+    expect(cut(1)).toEqual([1, 3, 5, null]);
+    expect(cut(20)).toEqual([1, 3, 5, null]);
+    expect(cut(100)).toEqual([1, 3, 10, null]);
+    expect(cut(151)).toEqual([1, 4, 16, null]);
+    expect(cut(500)).toEqual([1, 10, 50, null]);
+    expect(cut(1000)).toEqual([1, 10, 100, null]);
+    expect(cut(100_000)).toEqual([1, 10, 100, null]);
+    // On a board of 20: 1 Champion, 2 Exalted, 2 Renowned, the rest Veterans (level 10+).
+    const tiers = Array.from({ length: 20 }, (_, i) => prestigeTierFor(i + 1, 30, 20));
+    expect(tiers.filter((t) => t === 'exalted')).toHaveLength(2);
+    expect(tiers.filter((t) => t === 'renowned')).toHaveLength(2);
+    expect(tiers.filter((t) => t === 'veteran')).toHaveLength(15);
+    // A place below the board's size is read as the board's size (never a better tier).
+    expect(prestigeTierFor(40, 30, 20)).toBe('veteran');
+    // Never more than before B.4, and a bigger board never gives a place a worse tier.
+    for (let n = 1; n <= 2000; n += 7) {
+      for (const rank of [1, 2, 3, 4, 5, 9, 10, 11, 50, 99, 100, 101]) {
+        if (rank > n) continue;
+        const t = prestigeTierFor(rank, 30, n)!;
+        const old =
+          rank === 1 ? 'champion' : rank <= 10 ? 'exalted' : rank <= 100 ? 'renowned' : 'veteran';
+        expect(tierOrder(t)).toBeGreaterThanOrEqual(tierOrder(old));
+        expect(tierOrder(prestigeTierFor(rank, 30, n + 7)!)).toBeLessThanOrEqual(tierOrder(t));
+      }
+    }
   });
 
   it('every tier has a frame asset and every board a title badge (A.10 names)', () => {
@@ -187,10 +222,12 @@ describe('prestige tiers', () => {
       { metric: 'power', rank: 90, accountId: 'c', characterId: 'c2', level: 2 },
     ];
     const awards = seasonAwards(standings);
+    // The power board's last place is 151 (B.4: Renowned is its top 16), so c's 90th is a Veteran
+    // place, which its level-2 hero cannot take; c's level-12 hero at 151 is a Veteran.
     expect(awards).toEqual([
       { accountId: 'a', metric: 'level', tier: 'champion', rank: 1, characterId: 'a1' },
       { accountId: 'b', metric: 'level', tier: 'exalted', rank: 2, characterId: 'b1' },
-      { accountId: 'c', metric: 'power', tier: 'renowned', rank: 90, characterId: 'c2' },
+      { accountId: 'c', metric: 'power', tier: 'veteran', rank: 151, characterId: 'c1' },
     ]);
     // b's level-3 hero at 150 earns nothing (Veteran needs level 10).
     for (let i = 0; i < 20; i++) {

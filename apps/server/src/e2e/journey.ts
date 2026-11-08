@@ -2266,7 +2266,7 @@ export async function playSeasonStep(
   expect(final.season).toMatchObject({ number, status: 'closed' });
   const place = final.yours[0]!;
   expect(place.rank).toBe(mine!.rank);
-  const tier = prestigeTierFor(place.rank, hero.state.level);
+  const tier = prestigeTierFor(place.rank, hero.state.level, final.total);
   const prestige = (await hero.api('GET', '/api/account/prestige')).json<{
     earned: { season: number; metric: string; tier: string; rank: number }[];
     shown: { title: { metric: string; tier: string } | null };

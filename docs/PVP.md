@@ -1,4 +1,4 @@
-# PvP duels: the combat model and normalisation (ticket 5.4), the arena (ticket 5.5), rating and matchmaking (ticket 5.6)
+# PvP duels: the combat model and normalisation (ticket 5.4), the arena (ticket 5.5), rating and matchmaking (ticket 5.6), balance (B.4)
 
 GDD §10.3; Phase 5 ground rules and owner decisions in `ROADMAP.md`. This ticket is the rules only: a duel simulation and a PvP normalisation layer in game-core, with balance tests. Defence snapshots, challenges, the daily limit and friendly challenges are 5.5 ("The arena" below); rating, matchmaking, the ladder and the win-trading rules are 5.6 ("Rating, matchmaking and the ladder" below).
 
@@ -20,7 +20,7 @@ Code: `packages/game-core/src/pvp/` (`normalise.ts`: brackets, reference heroes,
 - **Your defence** is a saved copy of your hero: what it wore when you saved it. Changing your gear later changes nothing until you refresh it.
 - **Rated duels** open at level 10: **10 a day** (the day turns at midnight UTC), against opponents of your bracket that the arena names for you. Friendly challenges are not counted.
 - **Your rating** (ticket 5.6) belongs to your hero and to the season. Every hero starts a season at 1,500; a rated duel moves both heroes' ratings, the challenger's and the defender's, by how surprising the result was. Until a hero has fought **10 rated duels** (attacking or defending) its rating is **provisional** and it is not ranked on the Arena Ladder; the arena shows how sure the rating is ("likely 1,380–1,660"). When a new season begins, your rating starts halfway back toward 1,500.
-- **Whom the arena names:** heroes whose gear is about as strong as yours (their Character Power at your bracket's middle level within 5 %, or 10 % or 20 % if too few are that close) and, among those, the ones closest to your rating. Each shows whether you are favoured, evenly matched or the underdog.
+- **Whom the arena names:** heroes whose gear is about as strong as yours (their Character Power at your bracket's middle level within 5 %, or 10 % or 20 % if too few are that close; since v0.5.7 measured against what that Power means for each class in a duel) and, among those, players you have not met this week first, then the ones closest to your rating. Each shows whether you are favoured, evenly matched or the underdog.
 - **Friends and guildmates** never meet in rated duels (challenge them in a friendly duel). **The same player again and again** within a week counts for half, then a quarter, then nothing, and the arena stops naming them until the week has passed.
 - **Season honours:** the Arena Ladder honours its best at the season's end like the other boards: Champion, Exalted, Renowned or Veteran **Duellist**, and a frame. For glory only.
 - **Players you block, or who block you, never meet you in the arena.**
@@ -93,7 +93,8 @@ Code: game-core `pvp/rating.ts` (Glicko-2, ageing, `rateDuel`, standings, the se
 ### Matchmaking
 `POST /api/arena/opponents` (5.5's list: ≤ 5, one per account, refresh after 5 minutes or when used up) now draws in two steps.
 1. **Eligible** (server): defences in the bracket at level ≥ 10, never the own account, blocked either way, sanctioned, a friend, a guildmate or an account sharing a sign-up signal, never a pair whose next duel would count for nothing; up to 500 sampled at random when a bracket is larger.
-2. **Picked** (game-core `pickOpponents`, `MATCHMAKING_VERSION` 1, `DEFAULT_MATCHMAKING`): a **Power range** first, then **rating**. A defence is in range when its **bracket Power** is within **5 %** of the challenger's (relative to the stronger; Powers below 400 count as 400); with fewer than **5 accounts** in range it widens to **10 %**, then **20 %**, **and never further**: a hero with nobody within 20 % gets an empty list (the 5.5 empty state), never a lopsided pair. In range, the 10 accounts closest in rating are kept (one defence each: its closest), and 5 of them are drawn from a `crypto` seed, so a list cannot be predicted or re-rolled for a favourite. Each offered opponent shows its rating and the odds in words (favoured ≥ 60 %, even, underdog ≤ 40 %, by Glicko's expected score with both deviations).
+2. **Picked** (game-core `pickOpponents`, `MATCHMAKING_VERSION` 2 since ticket B.4, `DEFAULT_MATCHMAKING`): a **Power range** first, then **rating**. A defence is in range when its **match Power** is within **5 %** of the challenger's (relative to the stronger; Powers below 400 count as 400); with fewer than **5 accounts** in range it widens to **10 %**, then **20 %**, **and never further**: a hero with nobody within 20 % gets an empty list (the 5.5 empty state), never a lopsided pair. In range, the 10 accounts kept are those **met least often in the repeat-pair window** (B.4, `freshPairsFirst`; the server passes each account's count), then the closest in rating (one defence each: its closest), and 5 of them are drawn from a `crypto` seed, so a list cannot be predicted or re-rolled for a favourite.
+3. **Match Power** (B.4, `matchPower`): bracket Power ÷ the class's `classPowerScale` (warrior 1.035, mage 1, hunter 1, warlock 0.967). Power is a PvE measure: with the same Power a warrior was the weaker duellist and a warlock the stronger on realistic gear ("Balance pass" below). The stored `duel_defences.power` stays 5.1's Power; the scale is applied at the draw. Each offered opponent shows its rating and the odds in words (favoured ≥ 60 %, even, underdog ≤ 40 %, by Glicko's expected score with both deviations).
 
 **Bracket Power** (*decision*): 5.1's Character Power of the snapshot's checked gear **at the bracket's reference level** (`bracketPower`). A duel fights every hero at that level (5.4: level does not count inside a bracket), so raw Power's level part says nothing about a duel; measured with raw Power, 4 % of offered pairs in 10–19 had a 95 %+ favourite, with bracket Power 1 %. It is stored on the defence when it is set (`duel_defences.power`, with Power's formula version; a defence set before 5.6 or under an older Power version is computed at draw time), and the challenger's is computed from what it wears at the draw (~2 ms).
 
@@ -121,10 +122,63 @@ So the 5.4 risk (a full Legendary +10 Void kit beats commons 99–100 %) stays r
 ### Invariance
 A rating is no score and no holding: nothing a player owns changes (tested: heroes' rows and items before and after rated duels are equal; the 5.5 invariance test covers gold, items, XP, materials, leaderboard rows and 5.1 scores with rated duels to a stranger and friendly ones to a friend). No PvE number and no 5.4 duel rule changed (`PVP_RULES_VERSION` stays 1; the pinned duel hashes, the no-effects hashes and the balance suites pass unchanged).
 
-### Open points (for the owner and B.4)
-- The fairness band is measured on a synthetic population; B.4 re-measures with real defences (`arena.offer`, the pattern report).
-- The power range caps at 20 %: in a thin bracket a strong hero may get an empty list. The owner can widen the last step (data) if lists stay empty in practice.
+### Open points (for the owner)
+- The fairness band was measured on a synthetic population; B.4 re-measured it on realistic heroes ("Balance pass" below). With live players, `arena.offer` (lists per range used, and empty ones) and the pattern report are the check.
+- The power range caps at 20 %: B.4 found empty lists in thin brackets come from a nearly empty bracket or from the repeat-pair rule, not from the cap (below). The owner can widen the last step (data) if lists stay empty in practice.
 - The mailbox is the only shared signal the server has; one person with two unrelated mailboxes looks like two strangers (like trading's multi-account note in `TRADING.md`). Repeated pairs are capped by the factors and visible in the pattern report.
+
+## Balance pass: competitive systems (ticket B.4)
+
+GDD §10.3, §16.4. Class matchups, bracket fairness and the rating re-measured on a **realistic** population, not only synthetic heroes. The owner's playtest feedback had not arrived; tuned from simulations only. The boards and prestige half is in `LEADERBOARDS.md` "Balance pass: competitive systems", which also describes the population: B.3's realistic player through the real API for a whole season (three runs, 84 heroes, `telemetry:simulate --snapshots`), drawn into towns of 20, 100 and 500 players (half veterans, half new; casual 30 %, regular 40 %, dedicated 30 %). Every hero of level 10 or more holds a defence of what it wears that day. `tools/balance/competitive.ts arena` (`ARENA=offers|rating|fitscale|tune`, `MM=1` for 5.6's matchmaking) measures the lists, each offered pair over 16 duels (an even pair measures about 60 % over 16 by chance alone), and a season of rated duels (casual 3, regular 6, dedicated 10 a day, a random pick from the list, both ratings move, the repeat-pair factors apply). The lists' shape is `arena.offer`'s (`range0`–`range2`, `none`).
+
+**Where the heroes are.** Realistic heroes pass 30 within one to two weeks, so 30+ holds nearly the whole arena: rated heroes in 10–19 / 20–29 / 30+ on days 14, 28 and 56 of a 500-player season: 9 / 76 / 329, 8 / 15 / 419, 1 / 22 / 477 (100 players: 1 / 14 / 66 on day 14, then 30+ only; 20 players: 13–17 in 30+).
+
+**Class matchups: the finding.** Over the pairs matchmaking offers in 30+ (Power-matched, classes differing; share of the first class):
+
+| 30+, 500 players, day 56 | hunter–mage | hunter–warlock | hunter–warrior | mage–warlock | mage–warrior | warlock–warrior |
+|---|---|---|---|---|---|---|
+| 5.4 equal kits (synthetic) | — | 60 % | — | — | — | — |
+| 5.6 matchmaking, realistic heroes | 58 % | 44 % | 47 % | 35 % | **79 %** | 66 % |
+| B.4 matchmaking 2, realistic heroes | 60 % | 57 % | 36 % | 43 % | 56 % | 45 % |
+
+Per class over the season's offered pairs (days 14, 28, 56): with 5.6's matchmaking the **warrior won 41 %** (20–29: 38 %) and the **warlock 60 %** (20–29: 62 %); with matchmaking 2 every class is 47–53 % (20–29: 50 %). On the CI fixture (below): 38–41 % / 60–61 % before, 45–55 % after. The 30+ hunter–warlock pair that sat at the band's edge in 5.4 (60 %) is 44 % before and 57 % after on realistic heroes: inside 40–60 % either way.
+
+**Why, and the change (matchmaking 2, no duel rule changed).** 5.4's class factors even the classes out at **equal gear**; matchmaking pairs them at **equal Power**. Power is a PvE evaluation, and it does not value every class's gear the way a duel does: at the same Power a realistic warrior is the weaker duellist and a warlock the stronger (a likely cause: Power's foes reward the warrior's armour and health more than a duel does, where armour and resistance are blended). So the warrior was offered better-geared opponents. Matchmaking now compares **match Power** = bracket Power ÷ `classPowerScale` (warrior 1.035, mage 1, hunter 1, warlock 0.967), fitted on the realistic pairs (`ARENA=fitscale`: 20–29 and 30+ gave the same values independently; 10–19 has too few realistic heroes and uses them too). *Alternative rejected:* re-fitting the class damage factors (a duel rule) to the realistic pairs oscillated (outcomes are steep at ±25 % luck) and pushed 5.4's equal-kit bands out (hunter–warlock 66–68 %, warlock–warrior 39 %): the imbalance is in how Power ranks classes, not in the duel. `PVP_RULES_VERSION` stays 1; the pinned duel hashes and `pvp-balance.test.ts` are untouched.
+
+**Fairness of the lists** (all ratings 1500, so Power alone; mean favourite / 90 %+ / 95 %+ favourites; before → after):
+
+| Town, day | 10–19 | 20–29 | 30+ |
+|---|---|---|---|
+| 500, day 14 | 76 / 19 / 6 → same | 68 / 8 / 2 → same | 66 / 6 / 2 → 65 / 5 / 2 |
+| 500, day 56 | (1 hero) | 70 / 11 / 5 → 68 / 9 / 3 | 64 / 4 / 1 → same |
+| 100, day 56 | (1 hero) | — | 72 / 13 / 3 → 71 / 11 / 3 |
+| 20, day 56 | (1 hero) | (2 heroes) | 71 / 12 / 4 → 71 / 9 / 4 |
+
+The lists stay as fair as 5.6 measured on synthetic heroes (mean 64–72 %; the 16-duel floor is ~60 %). On 5.6's synthetic population matchmaking 2 gives 30+ 4 % of pairs with a 95 %+ favourite (was 2 %; 10–19 and 20–29 1 %): the band in `arena-fairness.test.ts` is now ≤ 5 % (documented there); the synthetic kits rate the hunter's Power differently from realistic gear, and realistic play is the target.
+
+**Empty lists and the 20 % cap.** `arena.offer` shape, 500 players, day 14: 30+ range0 327, range1 2; 20–29 71 / 2 / 3; 10–19 all 9 from range2. Empty lists come from two places, neither the cap:
+- **A nearly empty bracket.** 10–19 holds 1–9 rated heroes all season (even at 500 players): its lists come from the 20 % step (mean favourite 76 %, 95 %+ 6 %), and a hero alone in it has none. Widening past 20 % would only offer the lopsided duels the cap exists to prevent; **kept**.
+- **The repeat-pair rule in a small town.** Over a season of rated duels, 62 % of list draws at 20 players came back empty (100 players: 4 %, of which 10–19 29 %, 20–29 24 %, 30+ 1 %; 500 players: 1 %). Without the pair rule, the same 20-player 30+ bracket had no empty lists. Sixteen duellists who want 6–10 rated duels a day exhaust "3 per pair per 7 days" within days. Owner question below; unchanged.
+
+**The rating** (500 players, a season of rated duels; before → after matchmaking 2):
+
+| | 5.6 | B.4 |
+|---|---|---|
+| Rated duels counting in full / ½ / ¼ | 30 % / 31 % / 39 % | **89 % / 9 % / 2 %** |
+| Opponents held back per list by the pair rule | 16 | 0.7 |
+| Established (10 rated duels), median day: dedicated / regular / casual | 1 / 2 / 5 | same |
+| Settled (deviation ≤ 100), median games | 22–25 | 18–22 |
+| ρ(rating, strength) in 30+ at the season's end | 0.58 | 0.67 |
+
+- **Fresh pairs first** (the second part of matchmaking 2): 5.6 kept the 10 closest in rating, so a busy hero met the same handful again and again and most duels counted for ½ or ¼; now accounts met least this week come first. In small towns it changes little (100 players: in full 19 % → 22 %, ¼ 51 % → 43 %; the 30+ fixture: 39 % → 46 %, ¼ 28 % → 16 %), because there are few others to meet.
+- **Convergence.** "Strength" is a hero's mean win share against its bracket. Ratings rank heroes among the opponents they can meet (against Power peers ρ is 0.78–0.80 at the season's end in both versions), so the ladder orders heroes by results against similar gear, as GDD §10.3 intends (a rating separate from Power); across the whole bracket ρ climbs from 0.2 in week 1 to 0.6–0.7 by the end, as heroes keep improving.
+- **Provisional period (10 duels): no change.** Every hero leaves it in its first week (dedicated day 1, casual day 5).
+- **Soft reset: no change.** With the end-of-season heroes, a season started from 1,500 reaches ρ 0.41 / 0.61 / 0.65 on days 1 / 7 / 14; started from the soft reset 0.60 / 0.67 / 0.70, and it settles in 14 games instead of 16. Halfway back keeps last season's order as a head start without freezing it.
+- **Repeat-pair factors: no change.** Matchmaking 2 makes them rare in a busy arena; in a small town they are what empties the lists (above).
+
+**Guards** (`balance/competitive-balance.test.ts`, ~4 s, fixed seeds): `realistic-arena.json` holds 185 realistic defences of the 500-player season (days 14, 28, 56; 10–19: 15, 20–29: 50, 30+: 120; class, level and worn items only, simulated heroes), written by `tools/balance/export-arena-fixture.ts`. Asserted: the fixture's items still pass the server's checks (regenerate after a content change); in 20–29 and 30+ every class 42–58 % over offered pairs with matchmaking 2 and 5.6's spread wider; mean favourite ≤ 72 %, 95 %+ ≤ 5 %, no empty list; a week of rated duels: ≥ 42 % in full and ≥ 5 points above 5.6, ¼ ≤ 20 % and ≥ 8 points below, every hero established, settled within 30 games, and a soft-reset season settling faster. Plus the prestige pacing (`LEADERBOARDS.md`).
+
+**Owner questions.** (1) Small towns run out of rated opponents under the repeat-pair rule (about half the attempts at ~20 duellists). Keep it (it is the win-trading guard), or allow more duels per pair per week (e.g. factors 1, ½, ¼, ⅛ before 0)? (2) The class scales come from simulated gear; re-check them on real defences after the first season (`arena.offer`, the duel book). (3) 10–19 is nearly empty once a town settles; fine as it is?
 
 ## The rules (game-core)
 
@@ -205,5 +259,5 @@ PvE class profiles are tuned against monsters, and a class's shape changes with 
 ## Open points (for 5.5/5.6 and B.4)
 - The fresh-hero exception in 1–9 (above).
 - The arena screen shows the log and, per side, PvE versus normalised stats ("your 1,218 health counts as 920").
-- B.4 re-checks the bands with real defence snapshots (telemetry) and the owner's playtest feedback.
+- B.4 re-checked the bands with realistic defences ("Balance pass: competitive systems"); the owner's playtest feedback is still to come.
 - 5.6's open points are under "Rating, matchmaking and the ladder".

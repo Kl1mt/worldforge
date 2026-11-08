@@ -113,8 +113,8 @@ export function HonoursPanel({ onSaved }: { onSaved: () => void }) {
         <div className="honours__none">
           <p>No honours yet.</p>
           <p className="herald__hint">
-            When a season ends, every hero on its rolls is honoured by place: Champion, Exalted (top
-            10), Renowned (top 100) and Veteran (level 10 or more). See the{' '}
+            When a season ends, every hero on its rolls is honoured by place: Champion (first),
+            Exalted (top 2 %), Renowned (top 10 %) and Veteran (level 10 or more). See the{' '}
             <a href={boardHref('level', { season: 'current' })}>season rolls</a>.
           </p>
         </div>

@@ -23,9 +23,21 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.5.6';
+export const GAME_VERSION = '0.5.7';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.5.7',
+    date: '2026-11-08',
+    title: 'Fairer rolls and duels',
+    changed: [
+      'Season honours now grow with the town: Exalted goes to the top 2 % of a season roll (at least the top 3, at most the top 10) and Renowned to the top 10 % (at least the top 5, at most the top 100). In a small town the highest honours are now as rare as they were meant to be; everyone else on the roll at level 10 or above is still a Veteran.',
+      'Gear Score: when two heroes have the same score, the one whose items rolled better magic properties now ranks higher. Your score itself does not change, and rerolling or improving a property at the Forge can now lift you past heroes with the same gear.',
+      'Arena opponents: the arena now judges how strong your gear is with your class in mind, so warriors no longer meet better-armed opponents than other classes do, and warlocks no longer meet weaker ones.',
+      'Arena opponents: players you have not fought this week are named first, so more of your rated duels count in full.',
+    ],
+    tickets: ['B.4'],
+  },
   {
     version: '0.5.6',
     date: '2026-11-08',

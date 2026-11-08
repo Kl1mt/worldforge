@@ -66,7 +66,9 @@ describe.skipIf(!url)('real PostgreSQL: seasons close and award exactly once', (
       const who = await insertAccount(db(), { now: now() });
       const hero = await insertCharacter(db(), who.id, { level: 9 });
       nowMs += 1000;
-      await progress(hero.id, 9 + (i % 7), now());
+      // Level 10 or more at the end, so every hero is honoured (B.4: places below Renowned's
+      // share of the board earn Veteran, which needs level 10).
+      await progress(hero.id, 10 + (i % 7), now());
     }
     nowMs = end.getTime();
     expect(await archiveSeason(db(), s.number, now(), now(), 0)).toBe('archived');

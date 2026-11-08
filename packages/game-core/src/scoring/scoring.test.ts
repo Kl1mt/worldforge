@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  AFFIXES,
   CLASS_IDS,
   ITEM_BASES,
   MAX_UPGRADE_LEVEL,
@@ -16,7 +17,9 @@ import {
 import {
   FORMULA_VERSIONS,
   PVE_MILESTONES,
+  affixQuality,
   checkEquipment,
+  compareSortKeys,
   computeScores,
   gearItemPoints,
   gearScore,
@@ -82,10 +85,10 @@ describe('determinism', () => {
   // ambient state). If one moves, a formula changed: bump its `FORMULA_VERSIONS` entry and update
   // the pin and docs/LEADERBOARDS.md in the same change (5.2 recomputes stored values on a bump).
   it('pins the values of reference heroes (bump FORMULA_VERSIONS when one moves)', () => {
-    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 1, power: 1, pveProgress: 1 });
+    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 2, power: 1, pveProgress: 1 });
     const pinned = CLASS_IDS.map((classId) => {
       const s = computeScores(hero({ classId, equipment: kit(classId, 19, 'rare', 3) }));
-      return [classId, s.level.sortKey, s.gearScore.value, s.power.value, s.pveProgress.sortKey];
+      return [classId, s.level.sortKey, s.gearScore.sortKey, s.power.value, s.pveProgress.sortKey];
     });
     expect(pinned).toMatchInlineSnapshot(`
       [
@@ -95,7 +98,10 @@ describe('determinism', () => {
             20,
             1234,
           ],
-          2493,
+          [
+            2493,
+            422,
+          ],
           1703,
           [
             7,
@@ -109,7 +115,10 @@ describe('determinism', () => {
             20,
             1234,
           ],
-          2492,
+          [
+            2492,
+            517,
+          ],
           1509,
           [
             7,
@@ -123,7 +132,10 @@ describe('determinism', () => {
             20,
             1234,
           ],
-          2492,
+          [
+            2492,
+            353,
+          ],
           1647,
           [
             7,
@@ -137,7 +149,10 @@ describe('determinism', () => {
             20,
             1234,
           ],
-          2492,
+          [
+            2492,
+            591,
+          ],
           1486,
           [
             7,
@@ -188,6 +203,50 @@ describe('Gear Score', () => {
       Math.round(20 * 10 * 1.75 * 1.2 * 1.1),
     );
     expect(gearScore('mage', []).value).toBe(0);
+  });
+
+  it('version 2 (B.4): magic quality breaks ties and never moves the value', () => {
+    // Each affix scores 0–100 on its own tiers: the best roll of the top tier is 100.
+    for (const def of AFFIXES) {
+      const top = def.tiers[def.tiers.length - 1]!;
+      const low = def.tiers[0]!;
+      expect(affixQuality({ affixId: def.id, tier: top.tier, value: top.max }), def.id).toBe(100);
+      expect(affixQuality({ affixId: def.id, tier: low.tier, value: low.min }), def.id).toBe(0);
+      // A higher roll, or a higher tier, never scores less.
+      for (const t of def.tiers) {
+        const a = affixQuality({ affixId: def.id, tier: t.tier, value: t.min });
+        const b = affixQuality({ affixId: def.id, tier: t.tier, value: t.max });
+        expect(b).toBeGreaterThanOrEqual(a);
+        const next = def.tiers.find((x) => x.tier === t.tier + 1);
+        if (next) {
+          expect(
+            affixQuality({ affixId: def.id, tier: next.tier, value: next.min }),
+          ).toBeGreaterThanOrEqual(b);
+        }
+      }
+    }
+    expect(affixQuality({ affixId: 'no-such-affix', tier: 1, value: 1 })).toBe(0);
+    // Two kits of equal value: the better-rolled one ranks higher; the value is version 1's.
+    const items = kit('hunter', 25, 'legendary', 2);
+    const plain = gearScore('hunter', items);
+    expect(plain.sortKey).toHaveLength(2);
+    expect(plain.sortKey[0]).toBe(plain.value);
+    const best = items.map((i) => ({
+      ...i,
+      affixes: i.affixes.map((a) => {
+        const def = AFFIXES.find((d) => d.id === a.affixId)!;
+        const band = def.tiers.find((t) => t.tier === a.tier)!;
+        return { ...a, value: band.max };
+      }),
+    }));
+    const better = gearScore('hunter', best);
+    expect(better.value).toBe(plain.value);
+    if (items.some((i) => i.affixes.length > 0)) {
+      expect(better.sortKey[1]!).toBeGreaterThanOrEqual(plain.sortKey[1]!);
+      expect(compareSortKeys(better.sortKey, plain.sortKey)).toBeLessThanOrEqual(0);
+    }
+    // A forged item counts 0 and adds no quality.
+    expect(gearScore('hunter', []).sortKey).toEqual([0, 0]);
   });
 
   it('weighs a two-handed weapon as both hands, so every class can reach the same total', () => {

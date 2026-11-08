@@ -1,3 +1,4 @@
+import type { ClassId } from '../classes.js';
 import { createRng } from '../rng.js';
 import { characterPower, POWER_FORMULA_VERSION } from '../scoring/power.js';
 import type { PvpBracket, PvpFighterInput } from './normalise.js';
@@ -20,7 +21,11 @@ import { expectedScore, type Rating } from './rating.js';
  * Pure and deterministic for a seed (the server draws the seed from `crypto`).
  */
 
-export const MATCHMAKING_VERSION = 1;
+/**
+ * 2 (ticket B.4, docs/PVP.md "Balance pass: competitive systems"): Power is compared relative to
+ * the class (`classPowerScale`), and accounts not yet met this week come first (`freshPairsFirst`).
+ */
+export const MATCHMAKING_VERSION = 2;
 
 /**
  * A hero's **bracket Power**: 5.1's Character Power of its (checked) gear, evaluated at the
@@ -50,6 +55,21 @@ export interface MatchmakingConfig {
   minAccounts: number;
   /** Closest-rated accounts kept before the random draw, as a multiple of the list size. */
   poolFactor: number;
+  /**
+   * Ticket B.4: keep accounts the seeker has met fewer times in the repeat-pair window first
+   * (`MatchCandidate.recentDuels`), then the closest in rating. Without it a hero meets the same
+   * handful of closest-rated players again and again: in a realistic 500-player season only 30 %
+   * of rated duels counted in full (39 % for a quarter); with it 83 % (3 %).
+   */
+  freshPairsFirst: boolean;
+  /**
+   * Ticket B.4: a class's bracket Power is divided by this before it is compared (`matchPower`).
+   * Power is a PvE measure, and the same Power does not mean the same duel strength in every
+   * class: on a realistic season the warlock won 60 % of the Power-matched pairs it was offered
+   * and the warrior 41 % (mage over warrior 66 %, warlock over warrior 65 %). Fitted on those
+   * pairs (both rated brackets with enough heroes gave the same values): 47–53 % per class.
+   */
+  classPowerScale: Readonly<Record<ClassId, number>>;
 }
 
 export const DEFAULT_MATCHMAKING: Readonly<MatchmakingConfig> = Object.freeze({
@@ -57,16 +77,39 @@ export const DEFAULT_MATCHMAKING: Readonly<MatchmakingConfig> = Object.freeze({
   powerFloor: 400,
   minAccounts: 5,
   poolFactor: 2,
+  freshPairsFirst: true,
+  classPowerScale: { warrior: 1.035, mage: 1, hunter: 1, warlock: 0.967 },
 });
+
+/**
+ * The Power matchmaking compares (ticket B.4): bracket Power ÷ the class's `classPowerScale`. A
+ * hero without a class (a caller from before B.4) is compared on its Power as it is.
+ */
+export function matchPower(
+  hero: { power: number; classId?: ClassId },
+  config: MatchmakingConfig = DEFAULT_MATCHMAKING,
+): number {
+  const scale = hero.classId ? (config.classPowerScale[hero.classId] ?? 1) : 1;
+  return hero.power / scale;
+}
 
 export interface MatchSeeker extends Pick<Rating, 'rating' | 'deviation'> {
   power: number;
+  /** Ticket B.4: the hero's class, for `classPowerScale`. */
+  classId?: ClassId;
 }
 
 export interface MatchCandidate extends Pick<Rating, 'rating' | 'deviation'> {
   defenceId: string;
   accountId: string;
   power: number;
+  /** Ticket B.4: the defence's class, for `classPowerScale`. */
+  classId?: ClassId;
+  /**
+   * Ticket B.4: rated duels between the seeker's account and this one in the repeat-pair window
+   * (`PAIR_WINDOW_MS`; the server counts them under 5.6's rules). Absent = 0.
+   */
+  recentDuels?: number;
 }
 
 export interface MatchPick<C extends MatchCandidate = MatchCandidate> {
@@ -108,7 +151,8 @@ export function pickOpponents<C extends MatchCandidate>(
   config: MatchmakingConfig = DEFAULT_MATCHMAKING,
 ): MatchResult<C> {
   if (!Number.isInteger(size) || size < 1) throw new RangeError(`List size ${size}`);
-  const gaps = candidates.map((c) => ({ c, gap: powerGap(seeker.power, c.power, config) }));
+  const own = matchPower(seeker, config);
+  const gaps = candidates.map((c) => ({ c, gap: powerGap(own, matchPower(c, config), config) }));
   let pool: typeof gaps = [];
   let step: number | null = null;
   let widened = 0;
@@ -135,9 +179,11 @@ export function pickOpponents<C extends MatchCandidate>(
     )
       byAccount.set(x.c.accountId, x);
   }
+  const met = (c: C) => (config.freshPairsFirst ? (c.recentDuels ?? 0) : 0);
   const closest = [...byAccount.values()]
     .sort(
       (a, b) =>
+        met(a.c) - met(b.c) ||
         ratingGap(a.c) - ratingGap(b.c) ||
         a.gap - b.gap ||
         (a.c.defenceId < b.c.defenceId ? -1 : a.c.defenceId > b.c.defenceId ? 1 : 0),
