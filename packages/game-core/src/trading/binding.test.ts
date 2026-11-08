@@ -152,7 +152,8 @@ describe('itemBinding (ticket T.1)', () => {
     }
     // Each category opens exactly its own items.
     for (const c of TRADE_CATEGORIES) {
-      const only = { ...ALL_ON, categories: { ...DEFAULT_TRADING_SWITCHES.categories, [c]: true } };
+      const none = Object.fromEntries(TRADE_CATEGORIES.map((x) => [x, false]));
+      const only = { ...ALL_ON, categories: { ...none, [c]: true } as typeof ALL_ON.categories };
       const open = KINDS.filter(
         (k) => itemBinding({ ...k, source: 'farming' }, only).tradeable,
       ).map((k) => expectedCategories(k));
@@ -160,10 +161,19 @@ describe('itemBinding (ticket T.1)', () => {
     }
   });
 
-  it('starts with every switch off', () => {
+  it('starts with the master and items off, so nothing is tradeable (T.2 defaults)', () => {
     expect(DEFAULT_TRADING_SWITCHES.trading).toBe(false);
     expect(DEFAULT_TRADING_SWITCHES.items).toBe(false);
-    for (const c of TRADE_CATEGORIES) expect(DEFAULT_TRADING_SWITCHES.categories[c]).toBe(false);
+    expect(DEFAULT_TRADING_SWITCHES.categories).toEqual({
+      epic: true,
+      legendary: true,
+      set: true,
+      mythic: false,
+      void: false,
+    });
+    for (const k of KINDS) {
+      expect(itemBinding({ ...k, source: 'farming' }).tradeable).toBe(false);
+    }
   });
 
   it('accepts a first-equipped time as an ISO string (API views)', () => {

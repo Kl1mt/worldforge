@@ -91,8 +91,9 @@ export const TRADE_CATEGORIES = ['epic', 'legendary', 'set', 'mythic', 'void'] a
 export type TradeCategory = (typeof TRADE_CATEGORIES)[number];
 
 /**
- * The switches binding reads (docs/TRADING.md "Admin switches"). T.2 stores them server-side;
- * the other switches (materials, gold, the shelf) don't concern items' binding.
+ * The switches binding reads (docs/TRADING.md "Admin switches"). T.2 stores them server-side
+ * (`tradingSwitchesOf(settings)`); the other switches (materials, gold, the shelf) don't concern
+ * items' binding.
  */
 export interface TradingSwitches {
   /** "Trading" (master). */
@@ -103,14 +104,18 @@ export interface TradingSwitches {
   categories: Readonly<Record<TradeCategory, boolean>>;
 }
 
-/** Everything off: trading isn't built yet (T.2 adds the panel; its defaults are off too). */
+/**
+ * The defaults of the "Admin switches" table (ticket T.2, `DEFAULT_TRADING_SETTINGS`): the master
+ * switch and "Trade: items" off, so nothing is tradeable; Epic, Legendary and set pieces on (they
+ * only matter once the master is on), Mythic and Void off.
+ */
 export const DEFAULT_TRADING_SWITCHES: Readonly<TradingSwitches> = Object.freeze({
   trading: false,
   items: false,
   categories: Object.freeze({
-    epic: false,
-    legendary: false,
-    set: false,
+    epic: true,
+    legendary: true,
+    set: true,
     mythic: false,
     void: false,
   }),

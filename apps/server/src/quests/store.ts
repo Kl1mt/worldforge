@@ -33,6 +33,7 @@ import {
   type StoryQuestId,
   type WorldFlags,
   type WorldProgress,
+  type TradingSwitches,
 } from '@worldforge/game-core';
 import {
   characterMaterials,
@@ -414,7 +415,18 @@ export async function turnInQuestTx(
   tx: Transaction,
   character: Character,
   questRowId: string,
-  { inventoryCapacity, now, world }: { inventoryCapacity: number; now: Date; world: WorldFlags },
+  {
+    inventoryCapacity,
+    now,
+    world,
+    switches,
+  }: {
+    inventoryCapacity: number;
+    now: Date;
+    world: WorldFlags;
+    /** Ticket T.2: the stored trading switches, for the reward's item view. */
+    switches: Readonly<TradingSwitches>;
+  },
 ): Promise<TurnInOutcome> {
   const [quest] = await tx
     .select()
@@ -488,7 +500,7 @@ export async function turnInQuestTx(
         createdAt: now,
       })
       .returning();
-    item = itemView(row!);
+    item = itemView(row!, switches);
     itemSeed = generated.seed;
   }
 

@@ -104,6 +104,7 @@ export const ADMIN_SECTIONS = [
   'players',
   'telemetry',
   'seasons',
+  'trading',
   'status',
   'roles',
 ] as const;

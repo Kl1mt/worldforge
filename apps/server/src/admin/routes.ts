@@ -18,6 +18,7 @@ import { PLAYER_SEARCH_LIMIT, playerDetail, searchPlayers, staffList } from './p
 import { databaseStatus, migrationStatus, statusCounts, type BuildInfo } from './status.js';
 import { projectProgressSummary } from '../community/model.js';
 import { registerSeasonAdmin } from '../seasons/routes.js';
+import { registerSettingsAdmin } from '../settings/routes.js';
 
 /**
  * The admin panel's API (ticket D.3, docs/API_CONVENTIONS.md "Admin"), all under `/api/admin`.
@@ -741,6 +742,9 @@ export async function registerAdmin(app: FastifyInstance, options: AdminOptions 
         audit,
         lockAdmin,
       });
+
+      // ---- Trading settings (ticket T.2): edit; the read is `GET /api/mod/settings/trading` ----
+      await registerSettingsAdmin(admin, { now: () => app.authNow(), lockAdmin });
 
       // ---- Roles: read-only (granting stays CLI-only) ----------------------------------------
       admin.get(

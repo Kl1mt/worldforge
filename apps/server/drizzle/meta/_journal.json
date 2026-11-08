@@ -218,6 +218,13 @@
       "when": 1794174655874,
       "tag": "0030_item_binding",
       "breakpoints": true
+    },
+    {
+      "idx": 31,
+      "version": "7",
+      "when": 1794176821008,
+      "tag": "0031_game_settings",
+      "breakpoints": true
     }
   ]
 }

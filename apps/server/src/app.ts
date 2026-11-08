@@ -41,6 +41,8 @@ import { registerSeasons } from './seasons/routes.js';
 import { registerArena } from './arena/routes.js';
 import { runSeasonJobs } from './seasons/model.js';
 import { WorldStateCache } from './community/world-state.js';
+import { GameSettingsCache, SettingsEvents } from './settings/store.js';
+import { registerSettingsRead } from './settings/routes.js';
 import type { Database, DatabaseHandle } from './db/types.js';
 
 declare module 'fastify' {
@@ -77,6 +79,8 @@ export interface AppOptions extends FastifyServerOptions {
   testRoutes?: (api: FastifyInstance) => Promise<void> | void;
   /** Ticket 4.6: how long the cached world state is served (default 60 s, docs/COMMUNITY.md). */
   worldStateTtlMs?: number;
+  /** Ticket T.2: how long the cached game settings are served (default 60 s), and its clock. */
+  settings?: { ttlMs?: number; clock?: () => number };
   /** Ticket 5.2: the board read limit per account (default `DEFAULT_BOARD_READ_LIMIT`). */
   leaderboards?: { readLimit?: { max: number; windowMs: number } };
 }
@@ -89,6 +93,7 @@ export function buildApp({
   admin,
   testRoutes,
   worldStateTtlMs,
+  settings,
   leaderboards,
   ...options
 }: AppOptions): FastifyInstance {
@@ -100,6 +105,11 @@ export function buildApp({
   });
   app.decorate('db', database.db);
   app.decorate('worldState', new WorldStateCache(database.db, worldStateTtlMs));
+  app.decorate(
+    'gameSettings',
+    new GameSettingsCache(database.db, settings?.ttlMs, settings?.clock),
+  );
+  app.decorate('settingsEvents', new SettingsEvents());
   registerErrorHandling(app);
   const activityOptions: ActivityOptions = { ...DEFAULT_ACTIVITY_OPTIONS, ...activity };
   const authNow = auth?.now ?? DEFAULT_AUTH_OPTIONS.now;
@@ -122,6 +132,7 @@ export function buildApp({
       await registerSafety(api);
       await registerProfiles(api);
       await registerModeration(api);
+      await registerSettingsRead(api);
       await registerFriends(api);
       await registerGuilds(api, activityOptions);
       await registerGuildChat(api);

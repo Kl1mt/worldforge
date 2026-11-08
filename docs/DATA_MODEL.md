@@ -460,6 +460,11 @@ Additive migration `0027_duels` (new tables only; nothing to backfill). See `PVP
 
 Additive migration `0028_arena_rating` (one new table, nullable columns, two widened checks; nothing to backfill). See `PVP.md` "Rating, matchmaking and the ladder".
 
+### game_settings — implemented (T.2)
+- `game_settings (key text PK, value jsonb, version int check >= 1, updated_by FK accounts set null?, updated_at timestamptz)`: settings the owner changes in the admin panel without a deploy. One row per group; today only `trading` (game-core `TradingSettings`, docs/TRADING.md "Admin switches"). `value` is read through `normaliseTradingSettings`: a missing row or field is its default and a stored number above its hard maximum is clamped, so nothing needs a backfill. `version` goes up by one per change (optimistic concurrency: an edit names the version it was made from). Every change also writes a `settings.update` audit row with the changed fields' old and new values.
+
+Additive migration `0031_game_settings` (one new table, no rows: the defaults live in code).
+
 ## Relationships
 
 ```

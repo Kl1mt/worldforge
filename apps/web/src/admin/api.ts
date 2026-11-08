@@ -1,4 +1,11 @@
-import type { AccountRole, ClassId, ReportTarget, SanctionKind } from '@worldforge/game-core';
+import type {
+  AccountRole,
+  ClassId,
+  ReportTarget,
+  SanctionKind,
+  TradingSettings,
+  TradingSettingsChange,
+} from '@worldforge/game-core';
 import { apiRequest, type ApiFailure, type ApiResult } from '../lib/api';
 import type { SeasonList } from '../social/seasons';
 
@@ -178,6 +185,18 @@ export const adminApi = {
   seasons: (signal?: AbortSignal) => get<AdminSeasons>('/admin/seasons', signal),
   scheduleSeason: (input: { startsAt: string; endsAt: string }) =>
     apiRequest<AdminSeasons>('/admin/seasons', { method: 'POST', body: input }),
+  // Ticket T.2: trading settings. Staff read (moderators read-only), admins save.
+  tradingSettings: (signal?: AbortSignal, cursor?: string) =>
+    get<TradingSettingsView>(
+      `/mod/settings/trading${cursor ? `?cursor=${encodeURIComponent(cursor)}` : ''}`,
+      signal,
+    ),
+  saveTradingSettings: (expectedVersion: number, settings: TradingSettings, key: string) =>
+    apiRequest<TradingSettingsView & { changed: boolean }>('/admin/settings/trading', {
+      method: 'PUT',
+      body: { expectedVersion, settings },
+      headers: { 'Idempotency-Key': key },
+    }),
   /** `endsAt` omitted: end the season now. */
   endSeason: (number: number, endsAt?: string) =>
     apiRequest<AdminSeasons>(`/admin/seasons/${number}/end`, {
@@ -185,6 +204,26 @@ export const adminApi = {
       body: endsAt ? { endsAt } : {},
     }),
 };
+
+/** Ticket T.2: `GET /api/mod/settings/trading`. */
+export interface TradingSettingsView {
+  settings: TradingSettings;
+  defaults: TradingSettings;
+  /** 0 while nothing was ever saved (the launch defaults). */
+  version: number;
+  updatedAt: string | null;
+  updatedBy: PlayerRef | null;
+  /** False for moderators (read-only). */
+  canEdit: boolean;
+  history: {
+    id: string;
+    at: string;
+    by: PlayerRef | null;
+    version: number;
+    changes: TradingSettingsChange[];
+  }[];
+  nextCursor: string | null;
+}
 
 /** Ticket 5.3: the admin panel's season view (`GET /api/admin/seasons`). */
 export interface AdminSeasons extends SeasonList {
@@ -204,6 +243,8 @@ export function describeAdminFailure(error: ApiFailure): string {
       return 'Not found. If your admin role was just revoked, reload the page.';
     case 'validation_failed':
       return error.message;
+    case 'settings_conflict':
+      return 'Another admin saved these settings since you opened them. Reload to see their change, then make yours again.';
     case 'rate_limited': {
       const s = error.retryAfterSeconds ?? 60;
       return `Too many requests. Try again in ${s >= 90 ? `${Math.ceil(s / 60)} minutes` : `${s} seconds`}.`;

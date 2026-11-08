@@ -142,6 +142,7 @@ export async function registerQuests(
       const accountId = request.auth!.account.id;
       const { characterId, questId } = request.params;
       const world = await app.worldState.flags();
+      const switches = await app.gameSettings.tradingSwitches();
       return idempotentTransaction(app, request, reply, { now: activity.now }, async (tx) => {
         const now = activity.now();
         const character = await lockAndSettle(tx, accountId, characterId, activity);
@@ -149,6 +150,7 @@ export async function registerQuests(
           inventoryCapacity: activity.rules.inventory.capacity,
           now,
           world,
+          switches,
         });
         return {
           quests: await questBoard(tx, outcome.character, now, world),

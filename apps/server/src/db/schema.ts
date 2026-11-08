@@ -1785,3 +1785,25 @@ export const arenaRatings = pgTable(
 );
 
 export type ArenaRating = typeof arenaRatings.$inferSelect;
+
+/**
+ * Game settings the owner changes in the admin panel without a deploy (ticket T.2,
+ * docs/TRADING.md "Admin switches"). One row per settings group (`key`: `trading`); `value` is
+ * the group's JSON, read through game-core's normaliser (`normaliseTradingSettings`), so a missing
+ * row or field means the default and nothing needs a backfill. `version` starts at 1 and goes up
+ * by one per change: an edit names the version it was made from, and a stale one is refused
+ * (optimistic concurrency). Every change also writes a `settings.update` audit row.
+ */
+export const gameSettings = pgTable(
+  'game_settings',
+  {
+    key: text('key').primaryKey(),
+    value: jsonb('value').$type<Record<string, unknown>>().notNull(),
+    version: integer('version').notNull(),
+    updatedBy: uuid('updated_by').references(() => accounts.id, { onDelete: 'set null' }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [check('game_settings_version_check', sql`${t.version} >= 1`)],
+);
+
+export type GameSetting = typeof gameSettings.$inferSelect;

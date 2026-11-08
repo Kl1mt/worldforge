@@ -26,6 +26,7 @@ import {
 import { formatWhen } from '../social/api';
 import { daysLeft, seasonSpan, type SeasonView } from '../social/seasons';
 import { DEFAULT_SEASON_WEEKS, seasonName } from '@worldforge/game-core';
+import { TradingSettingsFolio } from './TradingSettingsFolio';
 import './gate.css';
 import './admin.css';
 
@@ -34,6 +35,7 @@ const SECTION_LABELS: Record<AdminSection, { label: string; hint: string }> = {
   players: { label: 'Players', hint: 'Look someone up' },
   telemetry: { label: 'Telemetry', hint: 'Loot & economy' },
   seasons: { label: 'Seasons', hint: 'Rolls & honours' },
+  trading: { label: 'Trading', hint: 'Switches & limits' },
   status: { label: 'Server', hint: 'Health & version' },
   roles: { label: 'Roles', hint: 'Wardens & admins' },
 };
@@ -130,7 +132,7 @@ function Failed({
 
 /**
  * The admin panel (ticket D.3): the strongroom of the keep. A row of ledger tabs (invites,
- * players, telemetry, seasons, server, roles) over one folio at a time. Admins only: for everyone else the
+ * players, telemetry, seasons, trading, server, roles) over one folio at a time. Admins only: for everyone else the
  * route behaves like an unknown address, and the server answers 404 to every admin route.
  */
 export function AdminScreen() {
@@ -169,6 +171,7 @@ export function AdminScreen() {
         {loc.section === 'players' ? <PlayersFolio handle={loc.arg} /> : null}
         {loc.section === 'telemetry' ? <TelemetryFolio /> : null}
         {loc.section === 'seasons' ? <SeasonsFolio /> : null}
+        {loc.section === 'trading' ? <TradingSettingsFolio /> : null}
         {loc.section === 'status' ? <StatusFolio /> : null}
         {loc.section === 'roles' ? <RolesFolio /> : null}
       </div>
