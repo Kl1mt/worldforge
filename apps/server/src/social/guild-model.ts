@@ -10,6 +10,7 @@ import {
   type GuildMember,
 } from '../db/schema.js';
 import type { Executor, Transaction } from '../db/types.js';
+import type { RelationEvents } from './relations.js';
 import { writeAudit } from '../db/audit.js';
 import { ApiError } from '../errors.js';
 
@@ -141,6 +142,7 @@ export async function disbandGuildTx(
   guild: Guild,
   by: { accountId: string; moderator: boolean; reason: string | null; reportId?: string },
   now: Date,
+  relationEvents?: RelationEvents,
 ): Promise<{ members: { accountId: string; role: GuildRole }[] }> {
   const members = await tx
     .delete(guildMembers)
@@ -162,6 +164,11 @@ export async function disbandGuildTx(
       ...(by.reportId ? { reportId: by.reportId } : {}),
     },
   });
+  // Ticket T.5: offers that relied on the guild relation are voided.
+  await relationEvents?.emit(
+    { accountIds: members.map((m) => m.accountId), cause: 'guild_disband', at: now },
+    tx,
+  );
   return { members };
 }
 

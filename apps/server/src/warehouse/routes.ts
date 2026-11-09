@@ -31,7 +31,7 @@ import {
   type InventoryView,
   type ItemView,
 } from '../inventory/routes.js';
-import { isPackItem, itemOnShelf } from '../inventory/location.js';
+import { isPackItem, itemInOffer, itemOnShelf } from '../inventory/location.js';
 import { recordTelemetry } from '../telemetry/record.js';
 import { goldOut } from '../telemetry/counts.js';
 
@@ -241,11 +241,14 @@ export async function registerWarehouse(
     // Ticket T.3: an item on the account shelf is neither in the pack nor in the warehouse.
     const shelved = items.find((i) => i.onShelf && itemIds.includes(i.id));
     if (shelved) throw itemOnShelf(shelved.id);
+    // Ticket T.5: an item in a trade offer's escrow is out of reach until the offer ends.
+    const offered = items.find((i) => i.escrowOfferId && itemIds.includes(i.id));
+    if (offered) throw itemInOffer(offered.id);
     const plan = planWarehouseMove({
       direction,
       itemIds,
       items: items
-        .filter((i) => !i.onShelf)
+        .filter((i) => !i.onShelf && !i.escrowOfferId)
         .map((i) => ({
           id: i.id,
           equipped: i.equippedSlot !== null,
@@ -290,6 +293,7 @@ export async function registerWarehouse(
             inArray(itemInstances.id, plan.move),
             eq(itemInstances.inWarehouse, !toWarehouse),
             sql`${itemInstances.equippedSlot} is null`,
+            sql`${itemInstances.escrowOfferId} is null`,
           ),
         )
         .returning({ id: itemInstances.id });

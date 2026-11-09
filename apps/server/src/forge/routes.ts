@@ -278,7 +278,7 @@ export async function registerForge(
           const locked = await lockOwnedCharacter(tx, accountId, characterId, activity);
           const now = activity.now();
           const items = await loadItems(tx, characterId);
-          const salvaging = pickInventoryItems(items, itemIds);
+          const salvaging = pickInventoryItems(items, itemIds, now);
           const yields = salvaging.map((i) => salvageYield(i));
           const total = sumYields(yields);
           await deleteItems(tx, characterId, itemIds);

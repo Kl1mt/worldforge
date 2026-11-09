@@ -1,6 +1,6 @@
 import { refreshAchievements } from '../achievements/award.js';
 import type { FastifyInstance } from 'fastify';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import {
   CORE_STAT_IDS,
   EQUIPMENT_SLOT_IDS,
@@ -29,11 +29,13 @@ import { recordTelemetry } from '../telemetry/record.js';
 import { disposalCounts } from '../telemetry/counts.js';
 import { ApiError } from '../errors.js';
 import { settleActivityTx, type ActivityOptions } from '../activity/settle.js';
-import { assertItemInReach, isPackItem } from './location.js';
+import { assertItemInReach, assertItemNotHeld, isPackItem } from './location.js';
 
 export {
   assertItemInReach,
   isPackItem,
+  assertItemNotHeld,
+  itemInOffer,
   itemInWarehouse,
   itemOnShelf,
   packItemsWhere,
@@ -74,6 +76,11 @@ export interface ItemView {
   binding: ItemBinding;
   bindingReason: ItemBindingReason;
   tradeable: boolean;
+  /**
+   * Ticket T.5: received in a trade, held until then (ISO): wearable, but not sold, salvaged,
+   * discarded, forged, shelved or traded. Present only while set.
+   */
+  holdUntil?: string;
 }
 
 export interface InventoryView {
@@ -107,6 +114,7 @@ export function itemView(i: ItemInstance, switches: Readonly<TradingSwitches>): 
     mythicId: i.mythicId ?? null,
     locked: i.locked,
     ...bindingView(i, switches),
+    ...(i.holdUntil ? { holdUntil: i.holdUntil.toISOString() } : {}),
   };
 }
 
@@ -180,6 +188,7 @@ export const itemSchema = {
       },
     },
     equippedSlot: { type: ['string', 'null'] },
+    holdUntil: { type: 'string' },
     source: { type: 'string' },
     createdAt: { type: 'string' },
     upgradeLevel: { type: 'integer' },
@@ -527,9 +536,21 @@ export async function registerInventory(
           });
         }
         if (item.locked) throw itemLocked(item.id);
-        await tx
+        // Ticket T.5: an item received in a trade can't be discarded while held.
+        assertItemNotHeld(item, activity.now());
+        const discarded = await tx
           .delete(itemInstances)
-          .where(and(eq(itemInstances.id, item.id), eq(itemInstances.characterId, characterId)));
+          .where(
+            and(
+              eq(itemInstances.id, item.id),
+              eq(itemInstances.characterId, characterId),
+              isNull(itemInstances.escrowOfferId),
+            ),
+          )
+          .returning({ id: itemInstances.id });
+        if (discarded.length !== 1) {
+          throw new ApiError(409, 'conflict', 'The pack changed meanwhile. Try again.');
+        }
         await writeAudit(tx, {
           event: 'item.discard',
           accountId,

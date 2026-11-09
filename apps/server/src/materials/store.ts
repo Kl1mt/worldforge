@@ -14,6 +14,8 @@ import {
 } from '@worldforge/game-core';
 import { characterMaterials, characterProfessions } from '../db/schema.js';
 import type { Database, Transaction } from '../db/types.js';
+import { ApiError } from '../errors.js';
+import { heldValueOf } from '../shelf/held.js';
 
 type Db = Database | Transaction;
 
@@ -177,7 +179,11 @@ export async function changeMaterialsTx(
       });
   }
   // Spends update the existing stack (an insert would trip the CHECK before ON CONFLICT).
-  for (const [materialId, n] of entries.filter(([, n]) => n < 0)) {
+  // Ticket T.5: a spend may not dip into materials held after a trade (`heldValueOf`).
+  const spends = entries.filter(([, n]) => n < 0);
+  const held = spends.length > 0 ? (await heldValueOf(tx, characterId, now)).materials : {};
+  for (const [materialId, n] of spends) {
+    const onHold = held[materialId] ?? 0;
     const spent = await tx
       .update(characterMaterials)
       .set({ quantity: sql`${characterMaterials.quantity} + ${n}`, updatedAt: now })
@@ -185,9 +191,20 @@ export async function changeMaterialsTx(
         and(
           eq(characterMaterials.characterId, characterId),
           eq(characterMaterials.materialId, materialId),
+          ...(onHold > 0 ? [sql`${characterMaterials.quantity} + ${n} >= ${onHold}`] : []),
         ),
       )
       .returning({ quantity: characterMaterials.quantity });
-    if (spent.length === 0) throw new Error(`spending ${materialId} that is not held`);
+    if (spent.length === 0) {
+      if (onHold > 0) {
+        throw new ApiError(
+          422,
+          'insufficient_materials',
+          'Not enough materials. Materials received in a trade are held for 72 hours before they can be used.',
+          { materialId, needed: -n, onHold },
+        );
+      }
+      throw new Error(`spending ${materialId} that is not held`);
+    }
   }
 }

@@ -54,6 +54,9 @@ export const TELEMETRY_METRICS = [
   // Ticket 5.7: login outcomes (ok, failed, locked, throttled) and mails (kind, sent/failed).
   'auth.login',
   'mail.send',
+  // Ticket T.5: completed trades (gift or swap) and traded items (rarity, variant).
+  'trade.complete',
+  'trade.items',
 ] as const;
 export type TelemetryMetric = (typeof TELEMETRY_METRICS)[number];
 

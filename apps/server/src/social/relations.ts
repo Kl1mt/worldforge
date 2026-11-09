@@ -6,7 +6,7 @@ import {
   type Relation,
 } from '@worldforge/game-core';
 import { accountPresence, blocks, friendships } from '../db/schema.js';
-import type { Executor } from '../db/types.js';
+import type { Executor, Transaction } from '../db/types.js';
 
 /**
  * The relationship model (ticket 4.3, docs/SOCIAL.md "Relations"): the reusable API other
@@ -207,4 +207,42 @@ export async function blockedBy(executor: Executor, accountId: string) {
     .select({ blockedId: blocks.blockedId, createdAt: blocks.createdAt })
     .from(blocks)
     .where(and(eq(blocks.blockerId, accountId), ne(blocks.blockedId, accountId)));
+}
+
+/**
+ * Ticket T.5: a relation ended (a friendship removed, a block, a guild left, a member kicked, a
+ * guild disbanded). Listeners run **inside** the transaction that ended it, after the change is
+ * written: trading voids the open offers that no longer have a qualifying relation (docs/TRADING.md
+ * "What blocks and sanctions do"). A throw refuses the change.
+ */
+export interface RelationEndedEvent {
+  /** Every account whose relations changed (both of a pair; every member of a disbanded guild). */
+  accountIds: string[];
+  cause: 'block' | 'friend_remove' | 'guild_leave' | 'guild_kick' | 'guild_disband';
+  at: Date;
+}
+
+export type RelationEndedListener = (event: RelationEndedEvent, tx: Transaction) => Promise<void>;
+
+export class RelationEvents {
+  private readonly listeners: RelationEndedListener[] = [];
+
+  onRelationEnded(listener: RelationEndedListener): () => void {
+    this.listeners.push(listener);
+    return () => {
+      const i = this.listeners.indexOf(listener);
+      if (i >= 0) this.listeners.splice(i, 1);
+    };
+  }
+
+  async emit(event: RelationEndedEvent, tx: Transaction): Promise<void> {
+    for (const l of [...this.listeners]) await l(event, tx);
+  }
+}
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    /** Ticket T.5: the in-transaction seam for relations that end (trading voids offers). */
+    relationEvents: RelationEvents;
+  }
 }

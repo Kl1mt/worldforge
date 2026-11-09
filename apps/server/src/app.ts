@@ -37,6 +37,8 @@ import { registerCommunity } from './community/routes.js';
 import { registerWarehouse } from './warehouse/routes.js';
 import { registerShelf } from './shelf/routes.js';
 import { registerTrading } from './trading/routes.js';
+import { registerTradeOffers } from './trading/offer-routes.js';
+import { sweepTrades } from './trading/offers.js';
 import { registerLeaderboardRefresh, registerLeaderboards } from './leaderboards/routes.js';
 import { sweepLeaderboards } from './leaderboards/snapshot.js';
 import { registerSeasons } from './seasons/routes.js';
@@ -45,6 +47,7 @@ import { runSeasonJobs } from './seasons/model.js';
 import { WorldStateCache } from './community/world-state.js';
 import { GameSettingsCache, SettingsEvents } from './settings/store.js';
 import { SanctionEvents } from './social/sanctions.js';
+import { RelationEvents } from './social/relations.js';
 import { registerSettingsRead } from './settings/routes.js';
 import type { Database, DatabaseHandle } from './db/types.js';
 
@@ -114,6 +117,7 @@ export function buildApp({
   );
   app.decorate('settingsEvents', new SettingsEvents());
   app.decorate('sanctionEvents', new SanctionEvents());
+  app.decorate('relationEvents', new RelationEvents());
   registerErrorHandling(app);
   const activityOptions: ActivityOptions = { ...DEFAULT_ACTIVITY_OPTIONS, ...activity };
   const authNow = auth?.now ?? DEFAULT_AUTH_OPTIONS.now;
@@ -145,6 +149,7 @@ export function buildApp({
       await registerWarehouse(api, activityOptions);
       await registerShelf(api, activityOptions);
       await registerTrading(api);
+      await registerTradeOffers(api, activityOptions);
       await registerLegal(api, legal ?? {});
       await registerAdmin(api, { gameNow: activityOptions.now, ...admin });
       await registerScores(api);
@@ -242,6 +247,12 @@ function registerSettlementScheduler(
             app.log.info(out, 'season jobs');
         })
         .catch((err: unknown) => app.log.error({ err }, 'season jobs failed'))
+        .then(async () => {
+          // Ticket T.5: offers past their 48 hours expire, holds past their 72 hours release.
+          const out = await sweepTrades(app.db, authNow(), options);
+          if (out.expired > 0 || out.released > 0) app.log.info(out, 'trade sweep');
+        })
+        .catch((err: unknown) => app.log.error({ err }, 'trade sweep failed'))
         .finally(() => {
           running = false;
         });

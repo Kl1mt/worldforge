@@ -344,7 +344,7 @@ export async function registerMerchant(
           const locked = await lockOwnedCharacter(tx, accountId, characterId, activity);
           const now = activity.now();
           const items = await loadItems(tx, characterId);
-          const selling = pickInventoryItems(items, itemIds);
+          const selling = pickInventoryItems(items, itemIds, now);
           const prices = selling.map((i) => sellPrice(i));
           const goldGained = prices.reduce((s, p) => s + p, 0);
           await deleteItems(tx, characterId, itemIds);

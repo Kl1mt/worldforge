@@ -383,9 +383,14 @@ export async function registerFriends(app: FastifyInstance): Promise<void> {
     return 'stranger';
   });
 
-  simple('/friends/:handle/remove', 'friendRemove', 'remove', async ({ tx, me, them }) => {
+  simple('/friends/:handle/remove', 'friendRemove', 'remove', async ({ tx, me, them, now }) => {
     await deletePair(tx, me.id, them.id);
     await writeAudit(tx, { event: 'friend.remove', accountId: me.id, data: { with: them.id } });
+    // Ticket T.5: open trade offers that relied on the friendship are voided with it.
+    await app.relationEvents.emit(
+      { accountIds: [me.id, them.id], cause: 'friend_remove', at: now },
+      tx,
+    );
     return 'stranger';
   });
 
@@ -418,6 +423,11 @@ export async function registerFriends(app: FastifyInstance): Promise<void> {
               ...(dropped.invites || dropped.applications ? { guildOffers: dropped } : {}),
             },
           });
+          // Ticket T.5: open trade offers between the two are voided with the block.
+          await app.relationEvents.emit(
+            { accountIds: [me.id, them.id], cause: 'block', at: now },
+            tx,
+          );
           return 'blocked-by-me';
         },
       ),
