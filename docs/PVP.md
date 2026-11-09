@@ -46,13 +46,13 @@ Code: game-core `pvp/arena.ts` (limits, `duelDay`, `duelDecision`, `duelSnapshot
 | relation ↓ / kind → | rated | friendly |
 |---|---|---|
 | self (own account) | 422 cannot_target_self | 422 cannot_target_self |
-| blocked-by-me, blocked-by-them | 404 not_found | 404 not_found |
+| blocked-by-me, blocked-by-them | 404 not_found | 403 not_friend_or_guildmate (5.8: as to a stranger) |
 | defender sanctioned (any kind) | 404 not_found | 404 not_found |
 | stranger, requested-by-me, requested-by-them | ✓ | 403 not_friend_or_guildmate (✓ if guildmates) |
 | friend, guildmate | 409 friendly_only (5.6) | ✓ |
 | shared sign-up signal (5.6) | 404 not_offered | as the relation |
 
-Then for rated: below level 10 `403 level_too_low`, another bracket `409 wrong_bracket`, friend or guildmate `409 friendly_only`, a shared signal `404 not_offered` (never announced), 10 already today `409 no_duels_left`, not on the list `404 not_offered`. The challenger's own sanctions follow the social-write rules: a suspended account has no request at all (`403 account_suspended`); a mute does not stop a duel (`duel` is mute-exempt, like guild boss attempts: it carries no text). A block is never announced (`404` like an unknown defence).
+Then for rated: below level 10 `403 level_too_low`, another bracket `409 wrong_bracket`, friend or guildmate `409 friendly_only`, a shared signal `404 not_offered` (never announced), 10 already today `409 no_duels_left`. *Ticket 5.8:* the list is checked **before** everything else for a rated duel, so an id that is not on the hero's current list answers `404 not_offered` whatever it names (an unknown id, a defence whose player blocks you or is sanctioned); the rated column's `not_found` rows apply only to a defence still on the list. The challenger's own sanctions follow the social-write rules: a suspended account has no request at all (`403 account_suspended`); a mute does not stop a duel (`duel` is mute-exempt, like guild boss attempts: it carries no text). A block is never announced: a rated duel against a defence on the list answers like a defence that is gone (`404 not_found`), a friendly challenge like one to a stranger (`403 not_friend_or_guildmate`, ticket 5.8; before, `404` told a former friend that they were blocked rather than unfriended).
 
 **Resolution.** In one transaction: the account row (share, sanctions), the account's duel lock, the challenger's hero (share: an equip waits; farming is never settled), the defence row (share: a refresh racing the duel lands before or after it). The challenger's attack snapshot is taken from its worn items (checked like a defence); the defender's side is the stored defence snapshot, never the live hero. `simulateDuel` runs with a seed of 16 random bytes from `crypto`, drawn on the server for this duel. The row stores the seed, `PVP_RULES_VERSION`, both snapshots, when the defence was set, the outcome, reason, sides and log, the duel day and the time: any duel can be replayed and audited (tested: the replay equals the stored result). The seed never leaves the server.
 
@@ -62,7 +62,7 @@ Then for rated: below level 10 `403 level_too_low`, another bracket `409 wrong_b
 
 **Audit and telemetry.** `duel.defence` (level, bracket, items, rejected) and `duel.fight` (duel id, kind, bracket, defender account, outcome, reason, rules version, day) on the challenger's account; rollup `duel.fight` (kind, bracket, outcome) in the same transaction, reconciled per kind (`duels: rated`, `duels: friendly`).
 
-**Privacy.** Opponents are shown by display name (null while a moderator hides it); the name links to the profile and the hero's name shows only where `canViewProfile` allows (the 5.2 board pattern). No account, character or item id, item, or time finer than a day of the other side's defence. A duel is visible to its two players only. A block after a duel hides the other's name in the duel book and the result. A bout's result has "Report this player" (the 4.1 report flow, target `player`).
+**Privacy.** Opponents are shown by display name (null while a moderator hides it); the name links to the profile and the hero's name shows only where `canViewProfile` allows (the 5.2 board pattern). No account, character or item id, item, or time finer than a day of the other side's defence. A duel is visible to its two players only. A block after a duel hides the other's name in the duel book and the result; only the blocker reads "a blocked player" (`blocked: true`), the blocked side reads a former player (`player: null`, `blocked: false`; ticket 5.8: before, the blocked player was told). A bout's result has "Report this player" (the 4.1 report flow, target `player`).
 
 **The seam for 5.6.** `duels` holds kind, bracket, outcome, both accounts, the day and time; 5.6 adds the rating record (`duels.rating`) and reads the pairs from it (below). Duels fought before 5.6 carry no rating and need no backfill (no season had begun).
 

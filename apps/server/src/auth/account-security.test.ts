@@ -213,6 +213,25 @@ describe('per-account login throttling', () => {
     expect((await login(app, player.email, player.password)).statusCode).toBe(200);
   });
 
+  it('ticket 5.8: checks at most the free attempts and one more at once, however many arrive together', async () => {
+    const player = await registerPlayer();
+    // Many guesses in flight at once (from many IPs): each waits on argon2 before it could count,
+    // so before the fix every one of them was checked.
+    const burst = await Promise.all(
+      Array.from({ length: free * 3 }, (_, i) =>
+        login(app, player.email, `concurrent-guess-${i}`, `203.0.113.${i + 1}`),
+      ),
+    );
+    const checked = burst.filter((r) => r.statusCode === 401).length;
+    expect(checked).toBeLessThanOrEqual(free + 1);
+    expect(burst.every((r) => [401, 429].includes(r.statusCode))).toBe(true);
+    const failed = (await auditEvents(player.id)).filter((e) => e === 'auth.login_failed');
+    expect(failed).toHaveLength(checked);
+    // The right password, once nothing is in flight and the lock ran out, still works.
+    advance(DEFAULT_LOGIN_THROTTLE.maxLockMs);
+    expect((await login(app, player.email, player.password)).statusCode).toBe(200);
+  });
+
   it('is per account across IPs, while the per-IP limit still applies on top', async () => {
     const ipApp = await makeApp({ loginRateLimit: { max: free + 4, timeWindowMs: 60 * 60_000 } });
     const victim = await registerPlayer(ipApp);
@@ -609,6 +628,20 @@ describe('without SMTP settings', () => {
       player.session,
     );
     expect(moved.statusCode).toBe(200);
+    // Ticket 5.8: the change is limited to three an hour with mail off too, so it can't be used to
+    // test which addresses have an account (`409 email_taken`) faster than registration.
+    const taken = await registerPlayer(plain);
+    const probes: number[] = [];
+    for (let i = 0; i < 3; i += 1) {
+      const res = await post(
+        plain,
+        '/api/account/email',
+        { email: taken.email, password: PASSWORD },
+        player.session,
+      );
+      probes.push(res.statusCode);
+    }
+    expect(probes).toEqual([409, 409, 429]);
   });
 });
 
