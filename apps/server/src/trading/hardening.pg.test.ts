@@ -152,7 +152,8 @@ describe.skipIf(!url)('real PostgreSQL: trading exploit review (T.7)', () => {
           ? await Promise.all([send(), later(head, block)])
           : await Promise.all([later(head, send), block()]);
       expect(blocked.statusCode, blocked.body).toBe(200);
-      expect([201, 409], sent.body).toContain(sent.statusCode);
+      // 404 when the block landed first: a player who blocks you reads as unknown.
+      expect([201, 404, 409], sent.body).toContain(sent.statusCode);
       const open = await db()
         .select()
         .from(tradeOffers)
