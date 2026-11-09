@@ -556,6 +556,11 @@
           "id": "ashenWatch",
           "x": 104,
           "y": 26
+        },
+        {
+          "id": "ashfallVerge",
+          "x": 20,
+          "y": 18
         }
       ]
     },

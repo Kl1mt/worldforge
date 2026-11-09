@@ -46,11 +46,14 @@ export function bracketPower(
   fighter: PvpFighterInput,
   bracket: Pick<PvpBracket, 'referenceLevel'>,
 ) {
-  return characterPower({
-    classId: fighter.classId,
-    level: bracket.referenceLevel,
-    equipment: fighter.equipment,
-  }, BRACKET_POWER_VERSION).power;
+  return characterPower(
+    {
+      classId: fighter.classId,
+      level: bracket.referenceLevel,
+      equipment: fighter.equipment,
+    },
+    BRACKET_POWER_VERSION,
+  ).power;
 }
 
 export interface MatchmakingConfig {

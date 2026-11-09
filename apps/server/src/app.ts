@@ -240,11 +240,10 @@ function registerSettlementScheduler(
         .catch((err: unknown) => app.log.error({ err }, 'idempotency and session pruning failed'))
         .then(async () => {
           // Ticket 5.2: the leaderboard sweep (backfill, then a rotation over every hero).
-          const out = await sweepLeaderboards(
-            snapshotDeps(app),
-            options.now(),
-            { batch: LEADERBOARD_SWEEP_BATCH, cursor: sweepCursor },
-          );
+          const out = await sweepLeaderboards(snapshotDeps(app), options.now(), {
+            batch: LEADERBOARD_SWEEP_BATCH,
+            cursor: sweepCursor,
+          });
           sweepCursor = out.cursor;
           if (out.updated > 0) app.log.info({ updated: out.updated }, 'leaderboard sweep');
         })

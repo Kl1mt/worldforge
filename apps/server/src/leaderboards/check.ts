@@ -1,9 +1,5 @@
 import { asc, eq, gt } from 'drizzle-orm';
-import {
-  SCORE_METRICS,
-  computeScore,
-  type ScoreMetric,
-} from '@worldforge/game-core';
+import { SCORE_METRICS, computeScore, type ScoreMetric } from '@worldforge/game-core';
 import { characters, leaderboardEntries } from '../db/schema.js';
 import { inputsHash, snapshotInput, type SnapshotDeps } from './snapshot.js';
 

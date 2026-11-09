@@ -61,7 +61,10 @@ afterAll(async () => {
   await database.close();
 });
 
-const deps = () => ({ ...cliDeps(db()), formulaVersions: (at: Date) => app.formulaVersions.at(at) });
+const deps = () => ({
+  ...cliDeps(db()),
+  formulaVersions: (at: Date) => app.formulaVersions.at(at),
+});
 
 describe('formula versions between seasons (ticket 6.1)', () => {
   it('keeps version 1 through the season, then the sweep recomputes every hero under version 2', async () => {
@@ -156,9 +159,9 @@ describe('formula versions between seasons (ticket 6.1)', () => {
   it('switches at once when no season is under way', async () => {
     const fresh = await createTestDatabase();
     try {
-      expect((await ensureFormulaSchedule(fresh.db, now())).added.map((s) => s.afterSeason)).toEqual(
-        [null, null],
-      );
+      expect(
+        (await ensureFormulaSchedule(fresh.db, now())).added.map((s) => s.afterSeason),
+      ).toEqual([null, null]);
       const deps2 = cliDeps(fresh.db);
       expect(await deps2.formulaVersions(now())).toEqual(FORMULA_VERSIONS);
     } finally {

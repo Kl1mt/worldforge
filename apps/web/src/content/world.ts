@@ -1,5 +1,5 @@
 import { AREAS, DUNGEONS, type AreaId, type DungeonId } from '@worldforge/game-core';
-import { ASSETS, type AssetId, type SpriteAsset } from './assets';
+import { findSprite, type SpriteAsset } from './assets';
 
 /**
  * Hub hotspots and world-map markers from A.2 (ticket 2.2), in image pixels of the 384 × 216 art.
@@ -47,6 +47,8 @@ export const MAP_MARKERS: readonly MapMarker[] = [
   // Ticket 4.8: the mountains in the north-west (the map has no painted spot for the pass).
   { id: 'ashenPass', x: 52, y: 40 },
   { id: 'ashenWatch', x: 104, y: 26 },
+  // Ticket 6.1: the Cinderwastes beyond the Warden's tower, at the map's north-west corner.
+  { id: 'ashfallVerge', x: 20, y: 18 },
 ];
 
 export function mapMarker(id: MapPlaceId): MapMarker | null {
@@ -58,7 +60,7 @@ export function mapMarker(id: MapPlaceId): MapMarker | null {
  * made yet; callers then draw their fallback instead of crashing.
  */
 export function findAsset(id: string): SpriteAsset | null {
-  return Object.hasOwn(ASSETS, id) ? ASSETS[id as AssetId] : null;
+  return findSprite(id);
 }
 
 /** Every place on the map, for completeness checks. */

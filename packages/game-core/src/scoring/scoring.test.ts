@@ -444,10 +444,14 @@ describe('Character Power', () => {
         expect(added, c).toHaveLength(2);
         // Every old trial gives exactly its version-1 points; the value only grows.
         for (const line of v1.lines) {
-          expect(v2.lines.find((l) => l.id === line.id)?.points, `${c} ${line.id}`).toBe(line.points);
+          expect(v2.lines.find((l) => l.id === line.id)?.points, `${c} ${line.id}`).toBe(
+            line.points,
+          );
         }
         expect(v2.value, `${c} L${level}`).toBeGreaterThanOrEqual(v1.value);
-        expect(Math.abs(v2.value - v1.value - added.reduce((t, l) => t + l.points, 0))).toBeLessThanOrEqual(2);
+        expect(
+          Math.abs(v2.value - v1.value - added.reduce((t, l) => t + l.points, 0)),
+        ).toBeLessThanOrEqual(2);
         expect(v2.formulaVersion).toBe(2);
         expect(v1.formulaVersion).toBe(1);
       }

@@ -865,9 +865,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     classes: ['warrior'],
     tier: 4,
     minItemLevel: 29,
-    stats: [
-      { stat: 'physicalDamage', base: 17, perLevel: 2.2 },
-    ],
+    stats: [{ stat: 'physicalDamage', base: 17, perLevel: 2.2 }],
   },
   {
     id: 'emberheart-scepter',
@@ -877,9 +875,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     classes: ['mage', 'warlock'],
     tier: 4,
     minItemLevel: 29,
-    stats: [
-      { stat: 'magicDamage', base: 16, perLevel: 2.2 },
-    ],
+    stats: [{ stat: 'magicDamage', base: 16, perLevel: 2.2 }],
   },
   {
     id: 'slagbone-bow',
@@ -889,9 +885,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     classes: ['hunter'],
     tier: 4,
     minItemLevel: 29,
-    stats: [
-      { stat: 'physicalDamage', base: 16, perLevel: 2.15 },
-    ],
+    stats: [{ stat: 'physicalDamage', base: 16, perLevel: 2.15 }],
   },
   {
     id: 'obsidian-bulwark',

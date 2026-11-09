@@ -332,7 +332,5 @@ export function tiersForItemLevel(
 
 /** Whether a tier is unlocked at the item level with the rarity's level bonus (ticket 6.1 gate). */
 export function tierUnlocked(tier: AffixTier, itemLevel: number, levelBonus = 0): boolean {
-  return (
-    tier.minItemLevel <= itemLevel + levelBonus && (tier.minBaseItemLevel ?? 0) <= itemLevel
-  );
+  return tier.minItemLevel <= itemLevel + levelBonus && (tier.minBaseItemLevel ?? 0) <= itemLevel;
 }

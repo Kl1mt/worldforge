@@ -10,6 +10,8 @@ export interface SpriteAsset {
   height: number;
   /** Source orientation; the scene mirrors `right`-facing enemies so they face the hero. */
   facing?: 'front' | 'left' | 'right';
+  /** Ticket 6.1: drawn tinted (a stand-in for art still to be made, `ART_STAND_INS`). */
+  tint?: 'cinder';
 }
 
 const item = (name: string): SpriteAsset => ({
@@ -248,9 +250,38 @@ export function asset(id: AssetId): SpriteAsset {
   return ASSETS[id];
 }
 
-/** A registered sprite by a content asset id, or `null` when the art does not exist (yet). */
+/**
+ * Ticket 6.1: the Cinderwastes' fixed asset names (A.11 draws the backdrop and the four foes; the
+ * tier-4 item icons are an art follow-up). Until a name is registered in `ASSETS`, the UI shows the
+ * closest existing sprite with an ember tint. Registered art always wins, so A.11 needs no change
+ * here; remove an entry once its art lands.
+ */
+export const ART_STAND_INS: Readonly<Record<string, AssetId>> = {
+  'area.cinderwastes': 'area.ashen-pass',
+  'enemy.cinder-revenant': 'enemy.fallen-knight',
+  'enemy.slag-hound': 'enemy.cinder-hound',
+  'enemy.ember-wisp': 'enemy.ash-wraith',
+  'enemy.ash-colossus': 'enemy.ember-golem',
+  'item.cinderforged-blade': 'item.knights-greatsword',
+  'item.emberheart-scepter': 'item.drowned-crozier',
+  'item.slagbone-bow': 'item.horn-recurve',
+  'item.obsidian-bulwark': 'item.tower-shield',
+  'item.revenant-visage': 'item.great-helm',
+  'item.ashplate-hauberk': 'item.knights-plate',
+  'item.slagiron-gauntlets': 'item.plated-gauntlets',
+  'item.cinderstride-greaves': 'item.plate-sabatons',
+  'item.ember-reliquary': 'item.abbey-pendant',
+  'item.wispfire-band': 'item.abbey-signet',
+};
+
+/**
+ * A registered sprite by a content asset id; else its tinted stand-in (`ART_STAND_INS`); else
+ * `null` when the art does not exist (yet).
+ */
 export function findSprite(id: string): SpriteAsset | null {
-  return Object.hasOwn(ASSETS, id) ? ASSETS[id as AssetId] : null;
+  if (Object.hasOwn(ASSETS, id)) return ASSETS[id as AssetId];
+  const standIn = Object.hasOwn(ART_STAND_INS, id) ? ART_STAND_INS[id] : undefined;
+  return standIn ? { ...ASSETS[standIn], tint: 'cinder' } : null;
 }
 
 /**

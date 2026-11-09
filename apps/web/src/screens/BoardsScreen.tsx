@@ -3,7 +3,9 @@ import {
   BOARD_METRICS,
   CLASSES,
   LEVEL_BRACKETS,
-  PVE_MILESTONES,
+  FORMULA_VERSIONS,
+  powerConfig,
+  pveMilestones,
   findLevelBracket,
   isClassId,
   type ClassId,
@@ -47,19 +49,22 @@ import './boards.css';
 const CLASS_NAME = new Map(CLASSES.map((c) => [c.id, c.name]));
 
 /** Plain words: what each roll measures (the full formulas: Standing on the character screen). */
-const MEASURED: Record<ScoreMetric, string> = {
+// Ticket 6.1: the counts follow the formula version in force (a newer one waits for the season's end).
+const measured = (version: {
+  power: number;
+  pveProgress: number;
+}): Record<ScoreMetric, string> => ({
   level:
     'Your level. Between heroes of the same level, whoever has earned more experience toward the next is ahead.',
   gearScore:
     'How good your equipped items are, item by item: item level, rarity, upgrades and Void. Nothing else counts.',
-  power:
-    'How your hero fares in the Proving Grounds, 20 fixed trials fought as equipped: builds, crits, sets and Legendary effects all fight. Classes differ; filter by class to compare like with like.',
-  pveProgress: `How many of the ${PVE_MILESTONES.length} milestones your hero has reached; then how far the furthest one is, then the highest guild boss stage your hero helped break.`,
-};
+  power: `How your hero fares in the Proving Grounds, ${powerConfig(version.power).rungs.length} fixed trials fought as equipped: builds, crits, sets and Legendary effects all fight. Classes differ; filter by class to compare like with like.`,
+  pveProgress: `How many of the ${pveMilestones(version.pveProgress).length} milestones your hero has reached; then how far the furthest one is, then the highest guild boss stage your hero helped break.`,
+});
 
-function headline(metric: ScoreMetric, value: number): string {
+function headline(metric: ScoreMetric, value: number, version: number): string {
   if (metric === 'level') return `Level ${value}`;
-  if (metric === 'pveProgress') return `${value} of ${PVE_MILESTONES.length}`;
+  if (metric === 'pveProgress') return `${value} of ${pveMilestones(version).length}`;
   return formatNumber(value);
 }
 
@@ -224,7 +229,15 @@ function ScoreBoards({ loc }: { loc: ReturnType<typeof boardLocation> }) {
         </label>
         <details className="renown__measured">
           <summary>How is {name} measured?</summary>
-          <p>{MEASURED[metric]}</p>
+          <p>
+            {
+              measured(
+                state.kind === 'ready'
+                  ? { ...FORMULA_VERSIONS, [metric]: state.board.formulaVersion }
+                  : FORMULA_VERSIONS,
+              )[metric]
+            }
+          </p>
           <p>
             Ties go to whoever got there first. Your own breakdown is under Standing on the{' '}
             <a href={routeHref('character')}>character screen</a>.
@@ -344,7 +357,9 @@ function Roll({ board, stale, metric, pageIndex, onNext, onPrev, onReport }: Rol
                     · Level {e.hero.level} {CLASS_NAME.get(e.hero.classId)}
                   </span>
                 </span>
-                <span className="renown__yours-value">{headline(metric, e.value)}</span>
+                <span className="renown__yours-value">
+                  {headline(metric, e.value, board.formulaVersion)}
+                </span>
               </li>
             ))}
           </ul>
@@ -376,7 +391,13 @@ function Roll({ board, stale, metric, pageIndex, onNext, onPrev, onReport }: Rol
         ) : (
           <ol className="renown__list" start={first}>
             {board.entries.map((e) => (
-              <Row key={`${e.rank}`} entry={e} metric={metric} onReport={onReport} />
+              <Row
+                key={`${e.rank}`}
+                entry={e}
+                metric={metric}
+                version={board.formulaVersion}
+                onReport={onReport}
+              />
             ))}
           </ol>
         )}
@@ -411,10 +432,13 @@ function Roll({ board, stale, metric, pageIndex, onNext, onPrev, onReport }: Rol
 function Row({
   entry: e,
   metric,
+  version,
   onReport,
 }: {
   entry: BoardEntry;
   metric: ScoreMetric;
+  /** The board's formula version (6.1: the milestone count follows it). */
+  version: number;
   onReport: (r: Reporting) => void;
 }) {
   const name = e.player.displayName ?? 'Name withheld';
@@ -447,7 +471,7 @@ function Row({
         </span>
       </span>
       <span className="renown__value">
-        {headline(metric, e.value)}
+        {headline(metric, e.value, version)}
         <span className="renown__since">since {formatDay(e.achievedOn)}</span>
       </span>
       {e.you ? <span className="renown__actions" /> : <ReportMenu entry={e} onReport={onReport} />}

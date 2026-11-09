@@ -203,7 +203,9 @@ describe('generated items', () => {
           const tiers = tiersForItemLevel(affix, level, rarity.affixLevelBonus);
           // The tiers below 5 unlock exactly as before 6.1 (minItemLevel ≤ level + bonus).
           expect(tiers, `${affix.id} ${rarityId} @${level}`).toEqual(
-            affix.tiers.filter((t) => t.tier <= 4 && t.minItemLevel <= level + rarity.affixLevelBonus),
+            affix.tiers.filter(
+              (t) => t.tier <= 4 && t.minItemLevel <= level + rarity.affixLevelBonus,
+            ),
           );
         }
       }

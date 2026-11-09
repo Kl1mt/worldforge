@@ -1,7 +1,16 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ACHIEVEMENTS, CLASS_IDS, GUILD_EMBLEMS, PRESTIGE_METRICS } from '@worldforge/game-core';
 import {
+  ACHIEVEMENTS,
+  CLASS_IDS,
+  GUILD_EMBLEMS,
+  ITEM_BASES,
+  PRESTIGE_METRICS,
+  getArea,
+  getEnemy,
+} from '@worldforge/game-core';
+import {
+  ART_STAND_INS,
   ASSETS,
   SEASON_FRAME_TIERS,
   SEASON_FRAME_WINDOW,
@@ -40,6 +49,35 @@ describe('asset registry', () => {
       facing: m.facing,
     }));
     expect(registry).toEqual(fromManifest);
+  });
+});
+
+describe('Cinderwastes stand-ins (ticket 6.1)', () => {
+  it('shows a tinted existing sprite for every fixed Cinderwastes name until its art lands', () => {
+    const names = [
+      'area.cinderwastes',
+      'enemy.cinder-revenant',
+      'enemy.ash-colossus',
+      'enemy.ember-wisp',
+      'enemy.slag-hound',
+    ];
+    for (const id of names) {
+      const sprite = findSprite(id);
+      expect(sprite, id).not.toBeNull();
+      // Registered art wins; otherwise the stand-in is drawn with the ember tint.
+      if (!Object.hasOwn(ASSETS, id)) expect(sprite!.tint, id).toBe('cinder');
+    }
+    // Every content name of the Verge resolves (the area, its foes and its tier-4 icons).
+    const verge = getArea('ashfallVerge');
+    expect(findSprite(verge.assetId)).not.toBeNull();
+    for (const e of verge.enemies)
+      expect(findSprite(getEnemy(e.enemyId).assetId), e.enemyId).not.toBeNull();
+    for (const b of ITEM_BASES.filter((x) => x.tier === 4))
+      expect(findSprite(b.icon), b.id).not.toBeNull();
+    // Stand-ins point at registered art only.
+    for (const [id, target] of Object.entries(ART_STAND_INS)) {
+      expect(Object.hasOwn(ASSETS, target), `${id} → ${target}`).toBe(true);
+    }
   });
 });
 

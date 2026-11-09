@@ -19,7 +19,12 @@ const HOUR = 3_600_000;
 const SEEDS = Number(process.env.SEEDS ?? 3);
 
 function farm(c: G.ClassId, level: number, areaId: G.AreaId, items: G.EquippedItem[]) {
-  let kills = 0, deaths = 0, xp = 0, gold = 0, share = 0, enc = 0;
+  let kills = 0,
+    deaths = 0,
+    xp = 0,
+    gold = 0,
+    share = 0,
+    enc = 0;
   const mats: Record<string, number> = {};
   for (let s = 0; s < SEEDS; s++) {
     const r = G.settleFarming({
@@ -31,25 +36,49 @@ function farm(c: G.ClassId, level: number, areaId: G.AreaId, items: G.EquippedIt
       durationMs: HOUR,
       inventoryCount: 0,
     });
-    kills += r.kills; deaths += r.deaths; xp += r.xpGained; gold += r.goldLooted;
-    share += r.damageTaken / r.maxHealth; enc += r.encounters;
-    for (const [k, v] of Object.entries(r.materials)) mats[k] = (mats[k] ?? 0) + (v as number) / SEEDS;
+    kills += r.kills;
+    deaths += r.deaths;
+    xp += r.xpGained;
+    gold += r.goldLooted;
+    share += r.damageTaken / r.maxHealth;
+    enc += r.encounters;
+    for (const [k, v] of Object.entries(r.materials))
+      mats[k] = (mats[k] ?? 0) + (v as number) / SEEDS;
   }
-  return { kpm: kills / SEEDS / 60, dph: deaths / SEEDS, xph: xp / SEEDS, gph: gold / SEEDS, share: share / enc, mats };
+  return {
+    kpm: kills / SEEDS / 60,
+    dph: deaths / SEEDS,
+    xph: xp / SEEDS,
+    gph: gold / SEEDS,
+    share: share / enc,
+    mats,
+  };
 }
 
 /** balance.test.ts's kit: one item per droppable slot of the best regular base, implicit + rolled affixes. */
-function plainKit(c: G.ClassId, itemLevel: number, rarityId: G.RarityId, upgradeLevel: number): G.EquippedItem[] {
+function plainKit(
+  c: G.ClassId,
+  itemLevel: number,
+  rarityId: G.RarityId,
+  upgradeLevel: number,
+): G.EquippedItem[] {
   const rng = G.createRng(`cw-kit:${c}:${itemLevel}:${rarityId}`);
-  const bases = G.ITEM_BASES.filter((b) => !b.unique && b.minItemLevel <= itemLevel && G.canClassUseItem(b, c))
-    .sort((a, b) => b.tier - a.tier || b.minItemLevel - a.minItemLevel);
+  const bases = G.ITEM_BASES.filter(
+    (b) => !b.unique && b.minItemLevel <= itemLevel && G.canClassUseItem(b, c),
+  ).sort((a, b) => b.tier - a.tier || b.minItemLevel - a.minItemLevel);
   const taken = new Set<string>();
   const out: G.EquippedItem[] = [];
   for (const base of bases) {
     if (taken.has(base.slot)) continue;
     taken.add(base.slot);
     for (let i = 0; i < (base.slot === 'ring' ? 2 : 1); i++) {
-      const item = G.generateItem({ seed: rng.int(0, 2 ** 31), itemLevel, baseId: base.id, rarityId, classId: c })!;
+      const item = G.generateItem({
+        seed: rng.int(0, 2 ** 31),
+        itemLevel,
+        baseId: base.id,
+        rarityId,
+        classId: c,
+      })!;
       out.push({ ...item, effectId: undefined, upgradeLevel } as G.EquippedItem);
     }
   }
@@ -60,7 +89,12 @@ const bestPass = new Map<G.ClassId, ReturnType<typeof searchBuilds>[number]>();
 function best(c: G.ClassId) {
   let b = bestPass.get(c);
   if (!b) {
-    b = searchBuilds(c, PASS_FARM_JOB.itemLevel, (items) => farmRate(c, items, PASS_FARM_JOB), setChassis(c))[0]!;
+    b = searchBuilds(
+      c,
+      PASS_FARM_JOB.itemLevel,
+      (items) => farmRate(c, items, PASS_FARM_JOB),
+      setChassis(c),
+    )[0]!;
     bestPass.set(c, b);
   }
   return b;
@@ -82,13 +116,17 @@ if (mode === 'farm') {
     for (const [name, items] of kits) {
       const pass = farm(c, 28, 'ashenPass', items);
       console.log(`  ${name} Pass 28: ${fmt(pass)}`);
-      for (const level of [28, 31, 34]) console.log(`  ${name} Verge ${level}: ${fmt(farm(c, level, 'ashfallVerge', items))}`);
+      for (const level of [28, 31, 34])
+        console.log(`  ${name} Verge ${level}: ${fmt(farm(c, level, 'ashfallVerge', items))}`);
     }
   }
 }
 if (mode === 'xp') {
   for (const c of G.CLASS_IDS) {
-    const items = process.env.KIT === 'legendary' ? plainKit(c, 27, 'legendary', 10) : buildItems({ ...best(c).build, upgradeLevel: 10, void: true }, 27);
+    const items =
+      process.env.KIT === 'legendary'
+        ? plainKit(c, 27, 'legendary', 10)
+        : buildItems({ ...best(c).build, upgradeLevel: 10, void: true }, 27);
     const row: string[] = [];
     for (let level = 28; level <= 46; level++) {
       const pass = farm(c, level, 'ashenPass', items).xph;

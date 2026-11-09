@@ -210,7 +210,12 @@ describe('build diversity (ticket B.2)', () => {
       }
       // The same build in the Verge's own drops (tier 4, item level 33) kills faster at its top:
       // the new gear is worth chasing, but it is no new power tier (below 1.35 ×).
-      const job = (itemLevel: number) => ({ ...PASS_FARM_JOB, areaId: 'ashfallVerge' as const, level: 34, itemLevel });
+      const job = (itemLevel: number) => ({
+        ...PASS_FARM_JOB,
+        areaId: 'ashfallVerge' as const,
+        level: 34,
+        itemLevel,
+      });
       const old = farmRate(c, buildItems({ ...best, upgradeLevel: 5 }, 27), job(27));
       const fresh = farmRate(c, buildItems({ ...best, upgradeLevel: 5 }, 33), job(33));
       expect(fresh / old, `${c}: ${old.toFixed(1)} → ${fresh.toFixed(1)}`).toBeGreaterThan(1.03);

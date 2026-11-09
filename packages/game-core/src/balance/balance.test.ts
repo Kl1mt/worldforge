@@ -617,10 +617,17 @@ describe('balance (ticket B.1)', () => {
       expect(t4.length).toBe(10);
       for (const base of t4) {
         const t3 = ITEM_BASES.find(
-          (x) => x.tier === 3 && !x.unique && x.slot === base.slot && x.classes.join() === base.classes.join(),
+          (x) =>
+            x.tier === 3 &&
+            !x.unique &&
+            x.slot === base.slot &&
+            x.classes.join() === base.classes.join(),
         )!;
         const sum = (id: string, itemLevel: number) =>
-          getImplicitStats({ baseId: id, rarityId: 'rare', itemLevel }).reduce((s, x) => s + x.value, 0);
+          getImplicitStats({ baseId: id, rarityId: 'rare', itemLevel }).reduce(
+            (s, x) => s + x.value,
+            0,
+          );
         for (const il of [29, 32, 35]) {
           const ratio = sum(base.id, il) / sum(t3.id, il);
           expect(ratio, `${base.id} vs ${t3.id} @${il}`).toBeGreaterThan(1.05);
@@ -664,7 +671,9 @@ describe('balance (ticket B.1)', () => {
     it('drops the highest item levels, tier-4 bases and tier-5 affixes (never at the Pass)', () => {
       const table = getLootTable(verge.lootTableId);
       for (const a of AREAS.filter((x) => x.id !== verge.id)) {
-        expect(table.itemLevel!.min, a.id).toBeGreaterThan(getLootTable(a.lootTableId).itemLevel!.max - 1);
+        expect(table.itemLevel!.min, a.id).toBeGreaterThan(
+          getLootTable(a.lootTableId).itemLevel!.max - 1,
+        );
       }
       for (const e of table.entries) expect(getItemBase(e.baseId).tier, e.baseId).toBe(4);
       const maxTier = (tableId: string, itemLevel: number) => {
@@ -693,12 +702,18 @@ describe('balance (ticket B.1)', () => {
           // Salvage: tier-3 ore and soul shards, the same as before 6.1.
           const y = salvageYield(item);
           expect(y.gold, item.baseId).toBeGreaterThan(0);
-          expect((y.materials.ironOre ?? 0) + (y.materials.timber ?? 0), item.baseId).toBeGreaterThan(0);
+          expect(
+            (y.materials.ironOre ?? 0) + (y.materials.timber ?? 0),
+            item.baseId,
+          ).toBeGreaterThan(0);
           // Forge: the whole +10 path still prices in materials the Verge itself yields.
           const path = upgradePathCost(item, 0, 10);
           expect(path.worst.gold, item.baseId).toBeGreaterThan(0);
           for (const id of Object.keys(path.worst.materials)) {
-            expect(verge.materials.includes(id as MaterialId) || id === 'timber' || id === 'rawHide', id).toBe(true);
+            expect(
+              verge.materials.includes(id as MaterialId) || id === 'timber' || id === 'rawHide',
+              id,
+            ).toBe(true);
           }
         }
       }

@@ -34,7 +34,7 @@ import {
   type SecondaryStatId,
   type StatGroupId,
 } from '@worldforge/game-core';
-import { ASSETS, type ItemAssetId } from '../content/assets';
+import { findSprite } from '../content/assets';
 import type { ItemDto, SummaryItem } from './api';
 
 /**
@@ -83,7 +83,8 @@ export interface ItemView {
   id: string;
   baseId: string;
   /** Null when the art is missing (e.g. a base that was removed from content). */
-  icon: ItemAssetId | null;
+  /** Asset id of the icon (registered art or a tinted stand-in, `findSprite`). */
+  icon: string | null;
   name: string;
   rarity: RarityId;
   /** Null for a base that no longer exists in content. */
@@ -247,8 +248,8 @@ export function uniqueSourceOf(baseId: string): string | null {
   return dungeon ? `${getEnemy(dungeon.bossId).name} of ${dungeon.name}` : 'a boss';
 }
 
-function iconOf(id: string | undefined): ItemAssetId | null {
-  return id && id.startsWith('item.') && id in ASSETS ? (id as ItemAssetId) : null;
+function iconOf(id: string | undefined): string | null {
+  return id && id.startsWith('item.') && findSprite(id) ? id : null;
 }
 
 /** The fields of a server item that the display model reads (merchant offers have no row yet). */

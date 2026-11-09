@@ -32,7 +32,9 @@ describe('XP curve', () => {
     // Above 28 every step asks for more than the one before, and more again each level.
     for (let level = 29; level < MAX_LEVEL; level++) {
       const step = xpToNextLevel(level) - xpToNextLevel(level - 1);
-      expect(step, `L${level}`).toBeGreaterThan(xpToNextLevel(level - 1) - xpToNextLevel(level - 2));
+      expect(step, `L${level}`).toBeGreaterThan(
+        xpToNextLevel(level - 1) - xpToNextLevel(level - 2),
+      );
     }
     // Never below the Phase 1 curve (stored XP must stay below any later requirement).
     for (let level = 1; level < MAX_LEVEL; level++) {
@@ -41,7 +43,11 @@ describe('XP curve', () => {
   });
 
   it('keeps the XP penalty as B.1 set it: 15 % per level past two above the foe, at least 10 %', () => {
-    expect(DEFAULT_COMBAT_CONFIG.xpLevelPenalty).toEqual({ graceLevels: 2, perLevel: 0.15, min: 0.1 });
+    expect(DEFAULT_COMBAT_CONFIG.xpLevelPenalty).toEqual({
+      graceLevels: 2,
+      perLevel: 0.15,
+      min: 0.1,
+    });
     for (let hero = 1; hero <= MAX_LEVEL; hero++) {
       let prev = Number.POSITIVE_INFINITY;
       for (let foe = Math.max(1, hero - 12); foe <= hero; foe++) {

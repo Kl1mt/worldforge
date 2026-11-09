@@ -39,7 +39,9 @@ beforeAll(async () => {
   await app.ready();
   call = caller(app);
   // The Pass is open (its community project done): the Warden can be fought.
-  await db().insert(worldFlags).values({ flagId: 'ashenPassCleared', setAt: new Date(nowMs) });
+  await db()
+    .insert(worldFlags)
+    .values({ flagId: 'ashenPassCleared', setAt: new Date(nowMs) });
   app.worldState.invalidate();
 });
 
