@@ -43,7 +43,14 @@ Pure, deterministic rules in `@worldforge/game-core`. Content lives in `packages
 | Legendary | 4 | 1 |
 | Mythic | 6 | 1.5 |
 
-Table bias: Abandoned Fields 0, Crowwood 0.15, Old Burial Grounds 0.3, Blackwater 0.45, Sunken Abbey and the crypt's chambers 0.6, the Gravewarden 1; ticket 4.8: the Ashen Pass 0.8 (item levels 23–29, the only area table that reaches the tier-4 affixes at 25), the Ashen Warden 1.4.
+Table bias: Abandoned Fields 0, Crowwood 0.15, Old Burial Grounds 0.3, Blackwater 0.45, Sunken Abbey and the crypt's chambers 0.6, the Gravewarden 1; ticket 4.8: the Ashen Pass 0.8 (item levels 23–29, the only area table that reaches the tier-4 affixes at 25), the Ashen Warden 1.4; ticket 6.1: the Ashfall Verge 1 (item levels 29–35).
+
+## The curves above 28 (ticket 6.1)
+The Cinderwastes extend every curve without moving a value at or below 28 (the no-effects hashes, the item pins and the balance suites are unchanged; `loot.test.ts` and `progression.test.ts` assert it):
+- **Item tiers:** tier 4 (ten bases, `items/bases.ts`, appended after every earlier base) from item level 29, only in the Ashfall Verge's table; about a tenth above tier 3 at the same item level (`balance.test.ts`). Implicit stats keep their linear item-level curve.
+- **Affix tiers:** a fifth tier on the flat affixes that have a fourth (physical and magic damage 23–32, health 81–120, armour 33–48, resistance 25–36; weight 8 after tier 4's 15), unlocked at item level 31 with the rarity bonus as before, **and** never on an item below level 30 (`AffixTier.minBaseItemLevel`, checked by `tierUnlocked` in generation, the Forge and `validateItem`): no source before the Verge (top item level 29) can roll it, whatever its rarity, so every stored seed and roll is as it was. With the bonus, an Epic or better of item level 30 can roll it; a Rare needs 31. Gear Score's magic quality keeps its scale (the tiers an item of level ≤ 29 can roll): a tier-5 affix reads 100–125, and no version-2 value moved.
+- **Rarity:** rarities have no level curve (weights per table); the Verge uses the Pass's late-game odds (Mythics, a third of Legendaries as set pieces, Legendary weight 1.5, Void 10 %). Set pieces and named Mythics keep their fixed tier-3 bases, rolled at the Verge's item levels.
+- **Item levels:** the Verge's table drops 29–35 (enemy levels 28–34 ± 1, clamped from 29: the tier-4 bases' first level).
 
 **Gold multiplier** (ticket 4.8): a table may set `goldMultiplier`; the kill gold rolled there is multiplied by it (inside `rollGoldAmount`, before rounding, no extra draw). Only the Ashen Pass sets it (× 1.6: its foes take longer to kill); every other table rolls exactly what it did.
 

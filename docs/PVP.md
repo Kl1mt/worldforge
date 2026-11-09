@@ -200,7 +200,7 @@ Re-measured with `tools/balance/competitive.ts` (`ARENA=rating`), a season of ra
 ## The rules (game-core)
 
 ### Brackets
-`PVP_BRACKETS` are the 5.2 `LEVEL_BRACKETS` (ids, labels and ranges asserted equal), so a leaderboard's bracket filter is the arena's bracket. Each adds a **reference level**: 5, 15, 25 and 30 (30 for 30+: realistic heroes there are 30–37, and items stop at item level 29, the top content's drops). `simulateDuel` requires both fighters in one bracket, unless the caller names a `bracketId`, which normalises both toward that bracket.
+`PVP_BRACKETS` are the 5.2 `LEVEL_BRACKETS` (ids, labels and ranges asserted equal), so a leaderboard's bracket filter is the arena's bracket. Each adds a **reference level**: 5, 15, 25 and 30 (30 for 30+: realistic heroes there are 30–37; since ticket 6.1 the reference kit at item level 29 is the Cinderwastes' tier-4 bases, see "6.1: the 30+ bracket with tier-4 gear"). `simulateDuel` requires both fighters in one bracket, unless the caller names a `bracketId`, which normalises both toward that bracket.
 
 **Friendly challenges** (owner decision): friends and guildmates may duel across brackets, and both then fight normalised toward the **lower** hero's bracket. 5.5 passes `friendlyBracket(levelA, levelB).id` as `bracketId`. Rated duels stay inside one bracket.
 
@@ -213,7 +213,7 @@ Re-measured with `tools/balance/competitive.ts` (`ARENA=rating`), a season of ra
 4. **Effects** (`pvpEffects`): bonus magnitudes × **`effectKeep` = 0.25** (crit burn, execute bonus, fortitude bonus, thorns, skill rage, skill opener, skill rot) and the class-skill damage affix too. Thresholds, stack counts and the surge's power are mechanics, not bonuses, and stay (a surge at × 0.25 would hit softer than a plain attack). Boss slayer, life on kill and bloodrush are off. Other secondary modifiers (gold, item and XP find, resource yield, boss damage) are not read.
 5. **Class tuning** (`classDamage`, per bracket): the class's primary damage × a PvP-only factor (below).
 
-`DEFAULT_PVP_CONFIG` holds every number. **`PVP_RULES_VERSION` = 1** is in every `DuelResult`; bump it whenever a duel can end differently for the same input (a factor, a bracket, a reference, the engine, or a combat rule the duel runs through). Two pinned duel hashes in `pvp.test.ts` fail when a number moves without a bump, like the 5.1 formulas.
+`DEFAULT_PVP_CONFIG` holds every number. **`PVP_RULES_VERSION` = 2** (since ticket 6.1; 1 before) is in every `DuelResult`; bump it whenever a duel can end differently for the same input (a factor, a bracket, a reference, the engine, or a combat rule the duel runs through). Two pinned duel hashes in `pvp.test.ts` fail when a number moves without a bump, like the 5.1 formulas.
 
 ### The duel (`simulateDuel`)
 - **On the PvE engine:** each side strikes the other through `buildEncounter` (the target as the "enemy": its duel health, primary damage, defences and attack speed, `rank: 'normal'`), `attackHit` (class skill every n-th attack, crits, every in-fight effect against the opponent's health) and `thornsDamage`. Both use the bracket's **reference level** as the attacker level in the mitigation formula, so level never sneaks back in.
@@ -262,12 +262,18 @@ PvE class profiles are tuned against monsters, and a class's shape changes with 
 | 1–9 | 1.003 | 1.105 | 0.936 | 1.124 |
 | 10–19 | 0.946 | 1.097 | 0.925 | 1.111 |
 | 20–29 | 0.96 | 1.1 | 0.92 | 1.135 |
-| 30+ | 0.941 | 1.097 | 0.915 | 1.126 |
+| 30+ | 0.937 | 1.113 | 0.903 | 1.134 (ticket 6.1; was 0.941, 1.097, 0.915, 1.126) |
 
 ### Choices and their alternatives
 - **keep 0.25** (confirmed by the owner; measured at ±50 % luck against 0.5 and 0.15, same seeds; steps from common → rare to +5 → +10 Void): at 0.5 the rarity steps won 87–98 % (gear decides); at 0.15 every step shrank to 52–83 % (an upgrade is barely felt: +5 → +10 Void 57–74 %). 0.25 keeps every step a clear but not certain win (55–92 %), and the fresh-hero minimum holds at both 0.15 and 0.25.
 - **levelKeep 0** (measured at ±50 % luck): with level kept at 0.25, a hero at a bracket's entry won 2–7 % in 1–9 (4 % on average) and 19–28 % on average in 10–29, against 13–27 % and 32–38 % with levelKeep 0. Level still counts through item level.
 - **No health multiplier:** × 3 health (tried first) only stretched duels to ~25 s and took more chance out of them; duels of about 7 blows each read well in a log.
+
+## 6.1: the 30+ bracket with tier-4 gear
+The Cinderwastes' tier-4 bases start at item level 29, so the 30+ reference kit (rare, implicit stats, item level 29) and every measurement kit at 29+ now wear them: the reference kits for 30+ are the new gear, by the rule that picks the best regular base, with no new constant. That alone moved 30+ duels (`pvp.ts report` with the old factors: class means 45–55 %, mage–warlock 39 %, outside the 40–60 % pair band), so:
+- **The 30+ class factors were re-fitted** (`pvp.ts tune`, five rounds): warrior 0.941 → 0.937, mage 1.097 → 1.113, hunter 0.915 → 0.903, warlock 1.126 → 1.134. Measured after: pairs mage–warrior 59, mage–warlock 41, hunter–warrior 44, hunter–mage 51, hunter–warlock 54, warlock–warrior 47 %; class means 50 / 50 / 50 / 51 %; gear steps 99 / 92 / 90 / 94 / 73 / 77 % (as before: 99 / 92 / 90 / 95 / 74 / 78); every 30+ band of `pvp-balance.test.ts` holds. Brackets 1–29 are untouched.
+- **`PVP_RULES_VERSION` 1 → 2**, as the rule requires (a reference and a factor changed). The 20–29 pins prove nothing else moved: their whole duel result equals version 1's with only the version field changed; a new 30+ pin guards version 2. Stored duels keep their version and log; nothing replays them.
+- **Matchmaking** (no rule changed; bracket Power stays on Power version 1, `BRACKET_POWER_VERSION`): on the synthetic 30+ population (levels 30–35, gear at level − 1, now all tier 4), 90 %+ favourites rose from 8.2 % to 13.2 % and 95 %+ from 4 % to 6.5 %; mean favourite 69 % (≤ 72 %), no extreme pairs, no empty lists. The rise comes from the top gear (B.2 builds and Legendary +5 / +10 Void kits that Power ranks close but duels separate), not from the classes: a search over the warrior's Power scale (0.95–1.12), the class factors and the reference level (30 / 32 / 34), and bracket Power 2, moved it by under 2 points. The 30+ fairness band is recorded at the measured values (≤ 14 % / ≤ 7 %; other brackets ≤ 9 % / ≤ 5 % as before). **Open for the owner** (B.5 or 6.2): narrower Power steps in 30+, or a 30+ keep below 0.25. On the realistic heroes (B.4's season, Pass gear) the classes stay at 42–58 % and matchmaking 2 still narrows the spread (by 2.7 points; 3+ before, as the refit evened the classes under matchmaking 1 too).
 
 ## PvE stays untouched
 - Nothing in `combat/`, `effects/`, `items/`, `loot/` or `scoring/` changed; the PvP layer only reads them. The no-effects hashes, the balance and build suites and the 5.1 Power pins pass unchanged.
