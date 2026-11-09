@@ -883,12 +883,13 @@ GDD §7, §9, §11, §15 Phase 6. Read `docs/WORLD.md`, `docs/COMBAT.md` (heroes
 GDD §3.1. The 6.1 and 6.2 area backdrops, 4–6 enemies and the region boss, matching A.7's treatment. Budget: two backdrop jobs, two or three 32/64 px enemy jobs, one boss job, and at most one regeneration. Manifest and `assets.ts`. **Acceptance:** a contact sheet in the PR.
 - Done: `area.cinderwastes`, `area.cinder-depths` (384×216); `enemy.cinder-revenant`, `enemy.ash-colossus`, `enemy.ember-wisp`, `enemy.slag-hound` (64×64); `enemy.forge-tyrant` (128×128). Registered only, not drawn yet. 85 generations (seven jobs, one regeneration). See `docs/ASSET_GUIDELINES.md` "The Cinderwastes"; contact sheet `art/preview-cinderwastes.png`.
 
-### A.14 Combat scene animations — `todo`
+### A.14 Combat scene animations — `done (PR #108)`
 GDD §3.1, §3.2. Owner request: heroes and foes move in the fight scene so it doesn't look static. Owner decision: animate in code for every sprite now, plus a PixelLab frame-animation pilot for the four hero classes; enemy frames later only if the owner likes the pilot.
 - Code animation for every sprite in the area scene (and the crypt, the guild boss's niche): an idle breath in whole scaled pixels, desynchronised foes; while farming a cosmetic loop (hero swings, the target flashes and is knocked back, foes now and then answer, defeats crumble out and fresh foes fade in) with its rhythm from the hero's attack speed, flavoured by the chronicle (kills, level-ups, deaths). Resting: the breath only. No gameplay effect, no requests.
 - `prefers-reduced-motion`: static. Paused when the tab is hidden. Transforms and opacity only, one timer, no per-frame React renders. e2e and screenshots stay still.
 - Pilot: an attack loop per class from the class sprites (at most 4 jobs + 1 regeneration), cleaned to palette and outline, as sprite sheets with manifest and `assets.ts` entries; `PixelSprite` plays frame sheets (`steps()`, integer scale); heroes use their frames when present, the code animation otherwise.
 - Tests for the scheduling (injected clock), reduced motion and no network; evidence (GIF or frame strips, desktop and mobile; a contact sheet) on the `screenshots` branch and under `art/`.
+- Done: `apps/web/src/scene/` (pure scheduler, one-timer driver, scoped `scene-anim.css`); static with reduced motion and under automation (`navigator.webdriver`; override `worldforge.sceneMotion`). Pilot: an 8-frame attack loop per class (`character.<class>-attack`, 5 jobs, no generated idle: the frames shimmered), played by `PixelSprite`. `docs/DESIGN_SYSTEM.md` "Motion", `docs/ASSET_GUIDELINES.md` "Hero attack frames"; version 0.6.0. No server change, no migration.
 
 ### 6.2 Endgame region II & region boss, levels 34–40 (vertical) — `todo`
 Needs 6.1.
