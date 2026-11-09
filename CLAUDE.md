@@ -17,6 +17,7 @@ Browser-first dark-fantasy idle RPG: automatic combat, loot-driven builds, offli
 - Update docs when architecture or behavior changes.
 - Migrations: if `main` gained a migration while you worked, merge `main`, delete your generated migration (`.sql`, snapshot, journal entry) and re-run `pnpm db:generate`.
 - Patch notes: every PR that changes something a player can see adds an entry at the top of `PATCH_NOTES` and bumps `GAME_VERSION` (`packages/game-core/src/releases/notes.ts`): `0.<phase>.<patch>`, the patch number within the phase, the minor number (patch `0`) when a new phase starts. Plain player language (New / Changed / Fixed), no file names, jargon or security details. Tooling-, test- and docs-only PRs don't add one. If `main` gained a newer version while you worked, merge `main` and move your entry to the next number (like migrations).
+- Screenshots: never commit them to your branch (`docs/screenshots/` is git-ignored on `main`, and CI fails on tracked files there). Capture locally into `docs/screenshots/<phase>/`, then run `tools/screenshots/publish.sh docs/screenshots/<phase>` to push them to the `screenshots` branch, and link them in the PR description as `https://github.com/Kl1mt/worldforge/blob/screenshots/docs/screenshots/<phase>/<file>.png`. Art assets in `apps/web/public/` and contact sheets in `art/` are not screenshots and stay on `main`.
 - In `docs/ROADMAP.md`, set your ticket to `done (PR #n)`. In the PR description, report the changed files, decisions, test results and remaining risks.
 
 ## Writing tests that don't flake

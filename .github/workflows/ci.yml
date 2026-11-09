@@ -15,6 +15,15 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Screenshots stay off main
+        # They live on the `screenshots` branch (docs/screenshots/README.md, tools/screenshots/publish.sh).
+        run: |
+          extra=$(git ls-files docs/screenshots | grep -v '^docs/screenshots/README.md$' || true)
+          if [ -n "$extra" ]; then
+            echo "::error::Screenshots belong on the screenshots branch, not main (tools/screenshots/publish.sh):"
+            echo "$extra" | head -20
+            exit 1
+          fi
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:

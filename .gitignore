@@ -15,3 +15,6 @@ deploy/.lock
 # The owner's legal pages on the VPS (ticket D.2, docs/DEPLOY.md "Legal pages"): personal data.
 deploy/legal/*
 !deploy/legal/README.md
+# Screenshots live on the `screenshots` branch, not on main (docs/screenshots/README.md).
+docs/screenshots/*
+!docs/screenshots/README.md
