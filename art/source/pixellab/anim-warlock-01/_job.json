@@ -1,0 +1,14 @@
+{
+  "endpoint": "animate-with-text-v3",
+  "action": "curse attack: the hooded warlock holds the open book and thrusts the free hand forward toward the right side of the image, a small wisp of violet shadow leaves the hand, then the warlock settles back into the starting stance. Clear, exaggerated motion of the casting arm.",
+  "first_frame": "apps/web/public/assets/characters/warlock.png",
+  "frame_count": 9,
+  "job_id": "891f27f1-5327-453c-9433-d901e3047ce9",
+  "created_at": "2026-11-09T22:22:16.786412+00:00",
+  "seed": 0,
+  "loop": true,
+  "usage": {
+    "type": "generations",
+    "generations": 2.0
+  }
+}

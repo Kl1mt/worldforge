@@ -422,6 +422,58 @@
       "facing": "front"
     },
     {
+      "id": "character.warrior-attack",
+      "path": "/assets/characters/warrior-attack.png",
+      "kind": "character",
+      "size": {
+        "width": 128,
+        "height": 128
+      },
+      "frames": 8,
+      "prompt": "(animate-with-text-v3, first and last frame = character.warrior) side-on sword attack: the knight steps forward toward the right side of the image, raises the longsword overhead with both hands and swings it down in a big diagonal slash to the right, then steps back into the starting stance. Clear, exaggerated motion of the sword arm.",
+      "source": "art/source/pixellab/anim-warrior-02/01.png … 07.png, palette-snapped by tools/art/hero_frames.py; frame 0 = /assets/characters/warrior.png",
+      "facing": "front"
+    },
+    {
+      "id": "character.mage-attack",
+      "path": "/assets/characters/mage-attack.png",
+      "kind": "character",
+      "size": {
+        "width": 128,
+        "height": 128
+      },
+      "frames": 8,
+      "prompt": "(animate-with-text-v3, first and last frame = character.mage) spell attack: the robed mage leans forward toward the right side of the image and thrusts the gnarled staff forward, the crystal flares with a small pale blue burst of magic, then the mage settles back into the starting stance. Clear, exaggerated motion of the staff arm.",
+      "source": "art/source/pixellab/anim-mage-01/01.png … 07.png, palette-snapped by tools/art/hero_frames.py; frame 0 = /assets/characters/mage.png",
+      "facing": "front"
+    },
+    {
+      "id": "character.hunter-attack",
+      "path": "/assets/characters/hunter-attack.png",
+      "kind": "character",
+      "size": {
+        "width": 128,
+        "height": 128
+      },
+      "frames": 8,
+      "prompt": "(animate-with-text-v3, first and last frame = character.hunter) bow attack: the hunter raises the longbow toward the right side of the image, draws an arrow back to the cheek, looses it and lowers the bow back into the starting stance. Clear, exaggerated motion of both arms.",
+      "source": "art/source/pixellab/anim-hunter-01/01.png … 07.png, palette-snapped by tools/art/hero_frames.py; frame 0 = /assets/characters/hunter.png",
+      "facing": "front"
+    },
+    {
+      "id": "character.warlock-attack",
+      "path": "/assets/characters/warlock-attack.png",
+      "kind": "character",
+      "size": {
+        "width": 128,
+        "height": 128
+      },
+      "frames": 8,
+      "prompt": "(animate-with-text-v3, first and last frame = character.warlock) curse attack: the hooded warlock holds the open book and thrusts the free hand forward toward the right side of the image, a small wisp of violet shadow leaves the hand, then the warlock settles back into the starting stance. Clear, exaggerated motion of the casting arm.",
+      "source": "art/source/pixellab/anim-warlock-01/01.png … 07.png, palette-snapped by tools/art/hero_frames.py; frame 0 = /assets/characters/warlock.png",
+      "facing": "front"
+    },
+    {
       "id": "area.abandoned-fields",
       "path": "/assets/areas/abandoned-fields.png",
       "kind": "area",

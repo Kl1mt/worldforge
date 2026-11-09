@@ -6,6 +6,7 @@ import {
   SEASON_FRAME_TIERS,
   SEASON_FRAME_WINDOW,
   arenaBackdrop,
+  classAttackSheet,
   classPortrait,
   findSprite,
   seasonFrameAsset,
@@ -18,6 +19,7 @@ interface ManifestEntry {
   path: string;
   size: { width: number; height: number };
   facing?: string;
+  frames?: number;
   window?: { x: number; y: number; width: number; height: number };
 }
 
@@ -32,12 +34,14 @@ describe('asset registry', () => {
       path: a.path,
       size: { width: a.width, height: a.height },
       facing: 'facing' in a ? a.facing : undefined,
+      frames: 'frames' in a ? a.frames : undefined,
     }));
     const fromManifest = manifest.assets.map((m) => ({
       id: m.id,
       path: m.path,
       size: m.size,
       facing: m.facing,
+      frames: m.frames,
     }));
     expect(registry).toEqual(fromManifest);
   });
@@ -47,6 +51,30 @@ describe('classPortrait', () => {
   it('has a portrait for every class', () => {
     for (const classId of CLASS_IDS) {
       expect(classPortrait(classId).path).toBe(`/assets/characters/${classId}.png`);
+    }
+  });
+});
+
+describe('hero attack frames (A.14)', () => {
+  /** Width and height from a PNG's IHDR chunk. */
+  const pngSize = (path: string) => {
+    const buf = readFileSync(new URL(`../../public${path}`, import.meta.url));
+    return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+  };
+
+  it('has an 8-frame 128 px sheet for every class, one row wide', () => {
+    for (const classId of CLASS_IDS) {
+      const sheet = classAttackSheet(classId);
+      expect(sheet, classId).toMatchObject({ width: 128, height: 128, frames: 8 });
+      expect(pngSize(sheet!.path)).toEqual({ width: 128 * 8, height: 128 });
+    }
+  });
+
+  it('starts every sheet on the class portrait, so the loop rests on the familiar pose', () => {
+    // Frame 0 is pasted from the portrait; same palette and outline (tools/art/hero_frames.py).
+    for (const classId of CLASS_IDS) {
+      expect(classAttackSheet(classId)!.path).toBe(`/assets/characters/${classId}-attack.png`);
+      expect(classPortrait(classId).frames).toBeUndefined();
     }
   });
 });

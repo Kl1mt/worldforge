@@ -8,7 +8,7 @@ import {
   type AreaId,
 } from '@worldforge/game-core';
 import { useActiveCharacter } from '../characters/CharactersProvider';
-import { classPortrait, type SpriteAsset } from '../content/assets';
+import { classAttackSheet, classPortrait, type SpriteAsset } from '../content/assets';
 import { findAsset } from '../content/world';
 import { ItemFrame } from '../components/ItemFrame';
 import { LabeledMeter } from '../components/Meter';
@@ -23,6 +23,8 @@ import { routeHref } from '../lib/route';
 import { OfflineNote } from '../onboarding/OfflineNote';
 import { useOnboarding } from '../onboarding/OnboardingProvider';
 import { QuestTracker } from '../quests/QuestTracker';
+import { SceneActor } from '../scene/SceneActor';
+import { useSceneAnimation, useSceneMotion } from '../scene/useSceneAnimation';
 import { Trail } from '../shell/Trail';
 import './area.css';
 
@@ -108,8 +110,19 @@ function FoeSprite({ foe, scale, alt }: { foe: Foe; scale: number; alt: string }
 
 function Scene({ view, phone, farming }: { view: AreaView; phone: boolean; farming: boolean }) {
   const hero = useActiveCharacter();
-  const { inventory, activity } = useGame();
+  const { inventory, activity, chronicle } = useGame();
   const { area, backdrop, foes, levels } = view;
+  // A.14: a cosmetic fight loop while farming; only the idle breath while resting.
+  const motion = useSceneMotion();
+  const sheet = classAttackSheet(hero.classId);
+  const { heroRef, foeRef } = useSceneAnimation({
+    active: farming,
+    motion,
+    foes: foes.length,
+    attackSpeed: inventory.kind === 'ready' ? inventory.value.stats.attackSpeed : null,
+    framed: sheet !== null,
+    chronicle,
+  });
   const size = backdrop ?? BACKDROP_SIZE;
   const [ref, width] = useElementWidth<HTMLDivElement>(768);
   // Backdrop at ×N (even). Sprites match it on wider screens and stay at ×N/2 on phones.
@@ -147,16 +160,22 @@ function Scene({ view, phone, farming }: { view: AreaView; phone: boolean; farmi
         ) : (
           <span className="scene__backdrop scene__backdrop--missing" aria-hidden="true" />
         )}
-        <div className="scene__ground" style={{ ['--px' as string]: `${spriteScale}px` }}>
+        <div
+          className={`scene__ground${motion === 'full' ? ' scene-anim' : ''}`}
+          style={{ ['--px' as string]: `${spriteScale}px` }}
+        >
           <div className="scene__hero">
-            <PixelSprite
-              sprite={classPortrait(hero.classId)}
-              scale={spriteScale}
-              alt={`${hero.name}, ${getClass(hero.classId).name.toLowerCase()}`}
-            />
+            <SceneActor role="hero" framed={sheet !== null} actorRef={heroRef}>
+              <PixelSprite
+                sprite={sheet ?? classPortrait(hero.classId)}
+                fallback={classPortrait(hero.classId)}
+                scale={spriteScale}
+                alt={`${hero.name}, ${getClass(hero.classId).name.toLowerCase()}`}
+              />
+            </SceneActor>
           </div>
           <ul className="scene__foes" aria-label="Enemies of the area">
-            {foes.map((foe) => (
+            {foes.map((foe, i) => (
               <li key={foe.id} className="foe" style={{ marginBottom: foe.lift * spriteScale }}>
                 <div
                   className="foe__plate"
@@ -170,7 +189,9 @@ function Scene({ view, phone, farming }: { view: AreaView; phone: boolean; farmi
                   <span className="foe__name">{foe.name}</span>
                   <span className="foe__level">Lv {levels}</span>
                 </div>
-                <FoeSprite foe={foe} scale={spriteScale} alt={`${foe.name}, level ${levels}`} />
+                <SceneActor role="foe" index={i} actorRef={foeRef(i)}>
+                  <FoeSprite foe={foe} scale={spriteScale} alt={`${foe.name}, level ${levels}`} />
+                </SceneActor>
               </li>
             ))}
           </ul>
