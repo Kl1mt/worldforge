@@ -80,6 +80,12 @@ export const PROVING_CHAMPION: ReferenceFoe = {
 export interface PowerConfig {
   /** Trial levels, low to high. */
   rungs: readonly number[];
+  /**
+   * Ticket 6.1: the seed prefix of each trial (parallel to `rungs`). Version 2 keeps version 1's
+   * seeds for its 20 trials, so each of them scores exactly what it did; only the new trials draw
+   * new seeds. Absent: `power:v<version>:<index>`.
+   */
+  seeds?: readonly string[];
   /** The foes of a trial, in order, then the champion at `rung + championLevelOffset`. */
   foes: readonly ReferenceFoe[];
   champion: ReferenceFoe;
@@ -97,8 +103,11 @@ export interface PowerConfig {
   parMs: number;
 }
 
+/** Version 1 (ticket 5.1): 20 trials at levels 4, 8, … 80. */
+const RUNGS_V1 = Array.from({ length: 20 }, (_, i) => 4 * (i + 1));
+
 export const DEFAULT_POWER_CONFIG: Readonly<PowerConfig> = {
-  rungs: Array.from({ length: 20 }, (_, i) => 4 * (i + 1)),
+  rungs: RUNGS_V1,
   foes: [PROVING_BRUTE, PROVING_CASTER, PROVING_BRUTE],
   champion: PROVING_CHAMPION,
   championLevelOffset: 2,
@@ -110,6 +119,33 @@ export const DEFAULT_POWER_CONFIG: Readonly<PowerConfig> = {
   speedPoints: 100,
   parMs: 120_000,
 };
+
+/**
+ * Ticket 6.1: every Power version's config, so a stored row of any version can be recomputed and
+ * the server can keep the older version in force until a season ends (docs/LEADERBOARDS.md
+ * "Formula versions between seasons"). Version 2 adds trials at levels 30 and 34 (the Ashfall
+ * Verge's entry and top), so the Cinderwastes' gear shows where heroes now farm: 22 trials, at
+ * most 4,400. The foes, every other number and the 20 old trials' seeds are version 1's, so
+ * version 2 = version 1 + the two new trials (`scoring.test.ts` asserts it).
+ */
+export const POWER_CONFIGS: Readonly<Record<number, Readonly<PowerConfig>>> = {
+  1: DEFAULT_POWER_CONFIG,
+  2: (() => {
+    const rungs = [...RUNGS_V1, 30, 34].sort((a, b) => a - b);
+    const seeds = rungs.map((level) => {
+      const v1 = RUNGS_V1.indexOf(level);
+      return v1 >= 0 ? `power:v1:${v1}` : `power:v2:L${level}`;
+    });
+    return { ...DEFAULT_POWER_CONFIG, rungs, seeds };
+  })(),
+};
+
+/** The config of a Power version (throws for one that never existed). */
+export function powerConfig(version: number = POWER_FORMULA_VERSION): Readonly<PowerConfig> {
+  const config = POWER_CONFIGS[version];
+  if (!config) throw new RangeError(`Unknown Power version: ${version}`);
+  return config;
+}
 
 export interface PowerTrialResult {
   level: number;
@@ -223,8 +259,9 @@ function runTrial(
 /** Character Power of a hero as equipped. Pure and deterministic. */
 export function characterPower(
   input: PowerInput,
-  config: PowerConfig = DEFAULT_POWER_CONFIG,
+  version: number = POWER_FORMULA_VERSION,
 ): PowerResult {
+  const config = powerConfig(version);
   if (!isClassId(input.classId)) throw new RangeError(`Unknown class: ${String(input.classId)}`);
   if (!Number.isInteger(input.level) || input.level < 1 || input.level > MAX_LEVEL)
     throw new RangeError(`Invalid level: ${input.level}`);
@@ -237,7 +274,8 @@ export function characterPower(
     let won = 0;
     let clearedAll = true;
     for (let t = 0; t < config.trials; t++) {
-      const res = runTrial(input, rung, `power:v${POWER_FORMULA_VERSION}:${r}:${t}`, config);
+      const prefix = config.seeds?.[r] ?? `power:v${version}:${r}`;
+      const res = runTrial(input, rung, `${prefix}:${t}`, config);
       progress += res.progress;
       won += res.won;
       time += res.timeMs;
@@ -257,7 +295,7 @@ export function characterPower(
     trials.push(result);
     total += result.points;
   }
-  return { formulaVersion: POWER_FORMULA_VERSION, power: Math.round(total), trials };
+  return { formulaVersion: version, power: Math.round(total), trials };
 }
 
 /**
@@ -268,11 +306,12 @@ export function powerScore(
   classId: ClassId,
   level: number,
   equipment: readonly ScoredItem[],
-  config: PowerConfig = DEFAULT_POWER_CONFIG,
+  version: number = POWER_FORMULA_VERSION,
 ): Score {
+  const config = powerConfig(version);
   const checked = checkEquipment(classId, equipment);
   const counted = checked.flatMap((c) => (c.equipped ? [c.equipped] : []));
-  const result = characterPower({ classId, level, equipment: counted }, config);
+  const result = characterPower({ classId, level, equipment: counted }, version);
   const lines: ScoreLine[] = result.trials.map((t) => ({
     id: `trial:${t.level}`,
     label: `Trial ${t.level}`,

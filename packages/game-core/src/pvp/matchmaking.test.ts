@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   DEFAULT_MATCHMAKING,
   PVP_BRACKETS,
+  BRACKET_POWER_VERSION,
   bracketPower,
   characterPower,
   matchOdds,
@@ -75,11 +76,13 @@ describe('matchmaking (ticket 5.6)', () => {
     expect(matchOdds(0.3)).toBe('underdog');
   });
 
-  it('bracket Power is 5.1 Power at the reference level', () => {
+  it('bracket Power is 5.1 Power (version 1) at the reference level', () => {
     const b = PVP_BRACKETS.find((x) => x.id === '10-19')!;
     const f = { classId: 'warrior' as const, level: 19, equipment: [] };
+    // Ticket 6.1: matchmaking keeps Power 1 when the board moves to Power 2.
+    expect(BRACKET_POWER_VERSION).toBe(1);
     expect(bracketPower(f, b)).toBe(
-      characterPower({ classId: 'warrior', level: b.referenceLevel, equipment: [] }).power,
+      characterPower({ classId: 'warrior', level: b.referenceLevel, equipment: [] }, 1).power,
     );
     expect(bracketPower({ ...f, level: 11 }, b)).toBe(bracketPower(f, b));
   });

@@ -6,7 +6,13 @@ import { gearScore } from './gear.js';
 import { levelScore } from './level.js';
 import { powerScore } from './power.js';
 import { pveProgressScore } from './progress.js';
-import { FORMULA_VERSIONS, type Score, type ScoreMetric } from './types.js';
+import {
+  FORMULA_VERSIONS,
+  SUPPORTED_FORMULA_VERSIONS,
+  type FormulaVersions,
+  type Score,
+  type ScoreMetric,
+} from './types.js';
 
 /**
  * Everything the four scores read (ticket 5.1). The server builds it from its own rows; 5.2 stores
@@ -56,32 +62,48 @@ export function metricInput(metric: ScoreMetric, input: ScoringInput): unknown {
   }
 }
 
-/** One metric's score of a hero. Pure and deterministic. */
-export function computeScore(metric: ScoreMetric, input: ScoringInput): Score {
+/**
+ * One metric's score of a hero at a formula version (default: the newest). Pure and
+ * deterministic. Ticket 6.1: every version in `SUPPORTED_FORMULA_VERSIONS` can be computed, so the
+ * server can keep an older one in force until the season ends.
+ */
+export function computeScore(
+  metric: ScoreMetric,
+  input: ScoringInput,
+  version: number = FORMULA_VERSIONS[metric],
+): Score {
+  if (!SUPPORTED_FORMULA_VERSIONS[metric].includes(version))
+    throw new RangeError(`Unsupported ${metric} formula version: ${version}`);
   switch (metric) {
     case 'level':
       return levelScore(input.level, input.experience);
     case 'gearScore':
       return gearScore(input.classId, input.equipment);
     case 'power':
-      return powerScore(input.classId, input.level, input.equipment);
+      return powerScore(input.classId, input.level, input.equipment, version);
     case 'pveProgress':
-      return pveProgressScore({
-        level: input.level,
-        progress: input.progress,
-        ...(input.world ? { world: input.world } : {}),
-        guildBossStage: input.guildBossStage,
-      });
+      return pveProgressScore(
+        {
+          level: input.level,
+          progress: input.progress,
+          ...(input.world ? { world: input.world } : {}),
+          guildBossStage: input.guildBossStage,
+        },
+        version,
+      );
   }
 }
 
-/** All four scores of a hero. Pure and deterministic. */
-export function computeScores(input: ScoringInput): Scores {
+/** All four scores of a hero at the given versions (default: the newest). Pure. */
+export function computeScores(
+  input: ScoringInput,
+  versions: FormulaVersions = FORMULA_VERSIONS,
+): Scores {
   return {
-    formulaVersions: FORMULA_VERSIONS,
-    level: computeScore('level', input),
-    gearScore: computeScore('gearScore', input),
-    power: computeScore('power', input),
-    pveProgress: computeScore('pveProgress', input),
+    formulaVersions: versions,
+    level: computeScore('level', input, versions.level),
+    gearScore: computeScore('gearScore', input, versions.gearScore),
+    power: computeScore('power', input, versions.power),
+    pveProgress: computeScore('pveProgress', input, versions.pveProgress),
   };
 }
