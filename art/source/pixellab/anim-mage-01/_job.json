@@ -1,0 +1,14 @@
+{
+  "endpoint": "animate-with-text-v3",
+  "action": "spell attack: the robed mage leans forward toward the right side of the image and thrusts the gnarled staff forward, the crystal flares with a small pale blue burst of magic, then the mage settles back into the starting stance. Clear, exaggerated motion of the staff arm.",
+  "first_frame": "apps/web/public/assets/characters/mage.png",
+  "frame_count": 9,
+  "job_id": "6a72fae8-eff6-4c34-981d-cbb211fdd5b2",
+  "created_at": "2026-11-09T22:21:59.866731+00:00",
+  "seed": 0,
+  "loop": true,
+  "usage": {
+    "type": "generations",
+    "generations": 2.0
+  }
+}

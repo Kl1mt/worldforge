@@ -3,6 +3,8 @@ import type { MaterialId } from '@worldforge/game-core';
 import { useCharacters } from '../characters/CharactersProvider';
 import { MaterialStack } from '../components/MaterialStack';
 import { PixelSprite } from '../components/PixelSprite';
+import { SceneActor } from '../scene/SceneActor';
+import { useSceneMotion } from '../scene/useSceneAnimation';
 import { findSprite } from '../content/assets';
 import { ActionKeys } from '../game/economy';
 import { materialView } from '../game/materials';
@@ -80,6 +82,7 @@ function Siege({
   show: (v: GuildBossState) => void;
 }) {
   const sprite = findSprite(view.boss.assetId);
+  const motion = useSceneMotion();
   const [last, setLast] = useState<GuildBossAttempt | null>(null);
   const guild = view.guild;
   const nowMs = Date.parse(view.now);
@@ -88,7 +91,12 @@ function Siege({
       <header className="siege__head">
         <div className="siege__niche">
           {sprite ? (
-            <PixelSprite sprite={sprite} scale={1} alt={view.boss.name} />
+            // A.14: the boss breathes in its niche (idle only; the fight itself is a report).
+            <span className={motion === 'full' ? 'scene-anim' : undefined} style={{ ['--px' as string]: '1px' }}>
+              <SceneActor role="foe">
+                <PixelSprite sprite={sprite} scale={1} alt={view.boss.name} />
+              </SceneActor>
+            </span>
           ) : (
             <span className="siege__missing">{view.boss.name}</span>
           )}

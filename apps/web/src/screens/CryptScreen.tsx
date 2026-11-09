@@ -13,7 +13,7 @@ import {
   type UnlockBlocker,
 } from '@worldforge/game-core';
 import { useActiveCharacter, useCharacters } from '../characters/CharactersProvider';
-import { classPortrait } from '../content/assets';
+import { classAttackSheet, classPortrait } from '../content/assets';
 import { DUNGEON_WORDS } from '../content/dungeons';
 import { findAsset } from '../content/world';
 import { ItemFrame } from '../components/ItemFrame';
@@ -38,6 +38,8 @@ import { formatDuration, formatNumber } from '../lib/format';
 import { PHONE_QUERY, pixelScale, sceneSpriteScale } from '../lib/pixel';
 import { describeFiltered } from '../game/lootFilter';
 import { routeHref } from '../lib/route';
+import { SceneActor } from '../scene/SceneActor';
+import { useSceneAnimation, useSceneMotion } from '../scene/useSceneAnimation';
 import { Trail } from '../shell/Trail';
 import './area.css';
 import './crypt.css';
@@ -152,6 +154,17 @@ function CryptScene({
   // The 128 px warden at the hero's pixel scale: it towers over the 64 px hero, as it should.
   const foeScale = spriteScale;
   const fighting = progress !== null && !progress.finished;
+  // A.14: the same cosmetic loop as the areas, against the one foe in the room.
+  const { inventory } = useGame();
+  const motion = useSceneMotion();
+  const sheet = classAttackSheet(hero.classId);
+  const { heroRef, foeRef } = useSceneAnimation({
+    active: fighting && foe !== null,
+    motion,
+    foes: 1,
+    attackSpeed: inventory.kind === 'ready' ? inventory.value.stats.attackSpeed : null,
+    framed: sheet !== null,
+  });
 
   return (
     <div className={`scene crypt-scene${phone ? '' : ' scene--wide'}`} ref={ref}>
@@ -177,28 +190,36 @@ function CryptScene({
         ) : (
           <span className="scene__backdrop scene__backdrop--missing" aria-hidden="true" />
         )}
-        <div className="scene__ground" style={{ ['--px' as string]: `${spriteScale}px` }}>
+        <div
+          className={`scene__ground${motion === 'full' ? ' scene-anim' : ''}`}
+          style={{ ['--px' as string]: `${spriteScale}px` }}
+        >
           <div className="scene__hero">
             {progress ? (
-              <PixelSprite
-                sprite={classPortrait(hero.classId)}
-                scale={spriteScale}
-                alt={`${hero.name}, ${getClass(hero.classId).name.toLowerCase()}`}
-              />
+              <SceneActor role="hero" framed={sheet !== null} actorRef={heroRef}>
+                <PixelSprite
+                  sprite={sheet ?? classPortrait(hero.classId)}
+                  fallback={classPortrait(hero.classId)}
+                  scale={spriteScale}
+                  alt={`${hero.name}, ${getClass(hero.classId).name.toLowerCase()}`}
+                />
+              </SceneActor>
             ) : null}
           </div>
           {shown ? (
             <div className={`crypt-foe${isBoss ? ' crypt-foe--boss' : ''}`}>
-              {sprite ? (
-                <PixelSprite
-                  sprite={sprite}
-                  scale={foeScale}
-                  alt={shown.name}
-                  mirror={sprite.facing === 'right'}
-                />
-              ) : (
-                <span className="foe-missing">{shown.name}</span>
-              )}
+              <SceneActor role="foe" actorRef={foeRef(0)}>
+                {sprite ? (
+                  <PixelSprite
+                    sprite={sprite}
+                    scale={foeScale}
+                    alt={shown.name}
+                    mirror={sprite.facing === 'right'}
+                  />
+                ) : (
+                  <span className="foe-missing">{shown.name}</span>
+                )}
+              </SceneActor>
             </div>
           ) : null}
         </div>

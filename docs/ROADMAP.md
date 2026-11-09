@@ -882,6 +882,13 @@ GDD §7, §9, §11, §15 Phase 6. Read `docs/WORLD.md`, `docs/COMBAT.md` (heroes
 ### A.11 Cinderwastes art: backdrop, enemies & region boss — `todo`
 GDD §3.1. The 6.1 and 6.2 area backdrops, 4–6 enemies and the region boss, matching A.7's treatment. Budget: two backdrop jobs, two or three 32/64 px enemy jobs, one boss job, and at most one regeneration. Manifest and `assets.ts`. **Acceptance:** a contact sheet in the PR.
 
+### A.14 Combat scene animations — `todo`
+GDD §3.1, §3.2. Owner request: heroes and foes move in the fight scene so it doesn't look static. Owner decision: animate in code for every sprite now, plus a PixelLab frame-animation pilot for the four hero classes; enemy frames later only if the owner likes the pilot.
+- Code animation for every sprite in the area scene (and the crypt, the guild boss's niche): an idle breath in whole scaled pixels, desynchronised foes; while farming a cosmetic loop (hero swings, the target flashes and is knocked back, foes now and then answer, defeats crumble out and fresh foes fade in) with its rhythm from the hero's attack speed, flavoured by the chronicle (kills, level-ups, deaths). Resting: the breath only. No gameplay effect, no requests.
+- `prefers-reduced-motion`: static. Paused when the tab is hidden. Transforms and opacity only, one timer, no per-frame React renders. e2e and screenshots stay still.
+- Pilot: an attack loop per class from the class sprites (at most 4 jobs + 1 regeneration), cleaned to palette and outline, as sprite sheets with manifest and `assets.ts` entries; `PixelSprite` plays frame sheets (`steps()`, integer scale); heroes use their frames when present, the code animation otherwise.
+- Tests for the scheduling (injected clock), reduced motion and no network; evidence (GIF or frame strips, desktop and mobile; a contact sheet) on the `screenshots` branch and under `art/`.
+
 ### 6.2 Endgame region II & region boss, levels 34–40 (vertical) — `todo`
 Needs 6.1.
 - The second area (34–40) and a region boss dungeon in the Watch's style: a hoard that is always bound (T.1) and a boss material that has a sink, e.g. tier-5 upgrades or Awakening if 6.5 ships.

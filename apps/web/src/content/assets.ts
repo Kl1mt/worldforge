@@ -10,6 +10,11 @@ export interface SpriteAsset {
   height: number;
   /** Source orientation; the scene mirrors `right`-facing enemies so they face the hero. */
   facing?: 'front' | 'left' | 'right';
+  /**
+   * Ticket A.14: a frame sheet. The file is one row of `frames` frames, each `width` × `height`
+   * (so the PNG is `frames × width` wide); `PixelSprite` shows one frame at a time.
+   */
+  frames?: number;
 }
 
 const item = (name: string): SpriteAsset => ({
@@ -74,6 +79,15 @@ const character = (name: string): SpriteAsset => ({
   facing: 'front',
 });
 
+/** A.14: a class's attack frames; frame 0 is the portrait itself (the rest pose). */
+const attackSheet = (name: string): SpriteAsset => ({
+  path: `/assets/characters/${name}-attack.png`,
+  width: 128,
+  height: 128,
+  facing: 'front',
+  frames: 8,
+});
+
 export const ASSETS = {
   'item.longsword': item('longsword'),
   'item.longsword-notched': item('longsword-notched'),
@@ -120,6 +134,10 @@ export const ASSETS = {
   'character.mage': character('mage'),
   'character.hunter': character('hunter'),
   'character.warlock': character('warlock'),
+  'character.warrior-attack': attackSheet('warrior'),
+  'character.mage-attack': attackSheet('mage'),
+  'character.hunter-attack': attackSheet('hunter'),
+  'character.warlock-attack': attackSheet('warlock'),
   'area.abandoned-fields': { path: '/assets/areas/abandoned-fields.png', width: 384, height: 216 },
   'hub.graumark': { path: '/assets/hub/graumark.png', width: 384, height: 216 },
   'map.graumark': { path: '/assets/map/graumark.png', width: 384, height: 216 },
@@ -268,6 +286,14 @@ export function prestigeSprite(name: string): SpriteAsset | null {
 /** The full-body portrait for a class (`character.<classId>`), used wherever a hero is drawn. */
 export function classPortrait(classId: ClassId): SpriteAsset {
   return ASSETS[`character.${classId}`];
+}
+
+/**
+ * Ticket A.14: a class's attack frame sheet (8 frames, frame 0 = the portrait), or `null` when the
+ * class has none; the scene then animates the plain portrait in code.
+ */
+export function classAttackSheet(classId: ClassId): SpriteAsset | null {
+  return findSprite(`character.${classId}-attack`);
 }
 
 /** Season frame tiers, best to least (A.10). Ticket 5.3 maps its prestige ranks onto these. */

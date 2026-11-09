@@ -1,0 +1,14 @@
+{
+  "endpoint": "animate-with-text-v3",
+  "action": "bow attack: the hunter raises the longbow toward the right side of the image, draws an arrow back to the cheek, looses it and lowers the bow back into the starting stance. Clear, exaggerated motion of both arms.",
+  "first_frame": "apps/web/public/assets/characters/hunter.png",
+  "frame_count": 9,
+  "job_id": "6cf07af7-019a-499d-a3a1-f52586fdd72e",
+  "created_at": "2026-11-09T22:22:49.497292+00:00",
+  "seed": 0,
+  "loop": true,
+  "usage": {
+    "type": "generations",
+    "generations": 2.0
+  }
+}
