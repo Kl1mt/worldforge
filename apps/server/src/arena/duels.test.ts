@@ -272,7 +272,8 @@ describe('arena', () => {
       const second = await insertCharacter(db(), me.who.id, { level: 19 });
       await setOffer(db(), me.who.id, second.id, '10-19', [foeId], now());
       expect(code(await api.duel(me.who, me.hero.id, foeId, 'rated'))).toBe('not_offered');
-      expect(code(await api.duel(me.who, me.hero.id, randomUUID(), 'rated'))).toBe('not_found');
+      // Ticket 5.8: anything off the list is `not_offered`, whether it exists or not.
+      expect(code(await api.duel(me.who, me.hero.id, randomUUID(), 'rated'))).toBe('not_offered');
       expect(
         await db().select().from(duels).where(eq(duels.challengerAccountId, me.who.id)),
       ).toEqual([]);
@@ -292,8 +293,10 @@ describe('arena', () => {
       // Ticket 5.6: friends and guildmates meet in friendly challenges only.
       friend: { rated: 409, friendly: 201 },
       guildmate: { rated: 409, friendly: 201 },
-      'blocked-by-me': { rated: 404, friendly: 404, code: 'not_found' },
-      'blocked-by-them': { rated: 404, friendly: 404, code: 'not_found' },
+      // Ticket 5.8: a friendly challenge past a block answers like one to a stranger (a block is
+      // never announced); a rated one on the list like a defender gone.
+      'blocked-by-me': { rated: 404, friendly: 403 },
+      'blocked-by-them': { rated: 404, friendly: 403 },
     };
 
     it('answers every relation × kind as documented', async () => {
@@ -325,6 +328,7 @@ describe('arena', () => {
           expect(res.statusCode, `${relation} × ${kind}: ${res.body}`).toBe(table[relation][kind]);
           if (table[relation].code) expect(code(res)).toBe(table[relation].code);
           if (res.statusCode === 403) expect(code(res)).toBe('not_friend_or_guildmate');
+          if (res.statusCode === 404) expect(code(res)).toBe('not_found');
           if (res.statusCode === 409) expect(code(res)).toBe('friendly_only');
         }
       }
@@ -390,6 +394,25 @@ describe('arena', () => {
         (await api.state(friend.who, friend.hero.id)).json<ArenaStateResponse>().rated.offer!
           .opponents,
       ).toEqual([]);
+    });
+
+    it('ticket 5.8: a blocked player cannot tell the block from a stranger or a stale id', async () => {
+      const me = await player(17);
+      const stranger = await player(17);
+      const blocker = await player(17);
+      const strangerId = await defend(stranger);
+      const blockerId = await defend(blocker);
+      await block(db(), blocker.who.id, me.who.id);
+      // Off the list: the same answer for the blocker's defence and a stranger's.
+      await setOffer(db(), me.who.id, me.hero.id, '10-19', [], now());
+      const rated = [blockerId, strangerId].map((id) => api.duel(me.who, me.hero.id, id, 'rated'));
+      const [r1, r2] = await Promise.all(rated);
+      expect([r1!.statusCode, code(r1!)]).toEqual([r2!.statusCode, code(r2!)]);
+      expect(code(r1!)).toBe('not_offered');
+      // A friendly challenge: the same answer as to a stranger.
+      const f1 = await api.duel(me.who, me.hero.id, blockerId, 'friendly');
+      const f2 = await api.duel(me.who, me.hero.id, strangerId, 'friendly');
+      expect([f1.statusCode, code(f1)]).toEqual([f2.statusCode, code(f2)]);
     });
 
     it('a block after the offer takes the opponent off the list and refuses the duel', async () => {
@@ -582,13 +605,16 @@ describe('arena', () => {
         opponent: { player: { handle: me.who.handle }, blocked: false },
       });
 
-      // A block later hides the name in both views.
+      // A block later hides the name in both views; only the blocker is told it is their block
+      // (ticket 5.8: the blocked player sees a nameless opponent, as for a deleted account).
       await block(db(), foe.who.id, me.who.id);
       const hidden = (await api.history(foe.who)).json<{ duels: DuelSummaryView[] }>().duels[0]!;
       expect(hidden.opponent).toMatchObject({ player: null, blocked: true, hero: { name: null } });
       expect(
         (await api.view(me.who, duel.id)).json<{ duel: DuelView }>().duel.defender,
-      ).toMatchObject({ player: null, blocked: true });
+      ).toMatchObject({ player: null, blocked: false, hero: { name: null } });
+      const theirs2 = (await api.history(me.who)).json<{ duels: DuelSummaryView[] }>().duels[0]!;
+      expect(theirs2.opponent).toMatchObject({ player: null, blocked: false });
     });
 
     it('hides a hero name where the profile may not be opened', async () => {

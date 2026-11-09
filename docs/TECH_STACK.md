@@ -95,6 +95,14 @@ node tools/e2e/phase3-exit.mjs
 PLAYTEST_DATA_DIR=/tmp/wf-e2e pnpm report:telemetry -- --db playtest --reconcile
 ```
 
+The Phase 5 browser run (ticket 5.8), CI job `e2e-phase5` (~35 s), is `tools/e2e/phase5-exit.mjs`: the boards (your place, other players by name, metric, class and season filters, "how is it measured"), a rated duel from the server's opponent list and its result (verdict, the season's rating change, the combat log), a friendly challenge and the Arena Ladder, a gift of an Epic and gold between two friends (compose, send, accept, the 72-hour hold, history) and gold placed on the account shelf, and the account security screens (verification strip and panel, the mailed verify link, "log out other devices", the per-account login lock after wrong passwords, forgot and reset through the mailed link). `E2E_SEED_PHASE5=1` makes the e2e server open trading, restore the Warehouse, schedule Season 1 and seed three ready players at start (`apps/server/src/e2e/seed-phase5.ts`); the flows themselves go through the UI. It needs a fresh server (it logs in 8 times of the 10 a minute allowed per client) and reads the mailed links from `E2E_MAIL_DIR`:
+
+```
+E2E_SEED_PHASE5=1 E2E_MAIL_DIR=/tmp/wf-mail pnpm --filter @worldforge/server e2e:serve
+pnpm --filter @worldforge/web dev
+E2E_MAIL_DIR=/tmp/wf-mail node tools/e2e/phase5-exit.mjs
+```
+
 ### Local playtest without Docker (ticket P.1)
 `pnpm playtest` runs `apps/server/src/playtest/serve.ts`: the real `buildApp()` on a PGlite database persisted to `.playtest-data/` (git-ignored), plus the web dev server, for playtesting on a machine without Docker or PostgreSQL. Like the e2e server it is excluded from the production build and refuses `NODE_ENV=production`; auth and rules are unchanged. Optional fast time (`pnpm playtest:fast`, `PLAYTEST_TIME_SCALE`) speeds up only the server's farming clock and never runs it backwards across restarts. User guide and details: `docs/PLAYTEST.md`.
 

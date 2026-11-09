@@ -3263,7 +3263,19 @@ interface OfferView {
  *    gold cross the shelf to a second hero of B's account.
  * Every hero's holdings and every shelf equal a replay of the audit log, the rollups reconcile
  * and the trade telemetry counts what the audit rows say. The switches go back to the defaults.
+ *
+ * Ticket 5.8 (`played`): the Phase 5 exit run's players earned eligibility by playing (level 15
+ * farmed, the email verified through the mailed link), so nothing is written directly: the step
+ * checks each is eligible through the API, and the traded items are farmed Epics (or better) in
+ * the pack, tradeable under the switches, instead of pack items made Epic in place. `owner` and
+ * `warden` are the run's admin and moderator (roles from the CLI).
  */
+export interface TradingStepOptions {
+  played?: boolean;
+  owner?: Player;
+  warden?: Player;
+}
+
 export async function playTradingHardeningStep(
   app: FastifyInstance,
   database: DatabaseHandle,
@@ -3271,6 +3283,7 @@ export async function playTradingHardeningStep(
   a: Journey,
   b: Journey,
   c: Journey,
+  options: TradingStepOptions = {},
 ) {
   const DAY = 86_400_000;
   const heroes = [a, b, c];
@@ -3316,12 +3329,15 @@ export async function playTradingHardeningStep(
       .sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]))[0]?.[0];
   const packItem = async (j: Journey) => (await j.inventory()).inventory.find((it) => !it.locked);
 
-  // Eligibility, the quick way, and two friendships (A–B, C–B) a week and more old.
-  for (const [j, m] of [
-    [a, ma],
-    [b, mb],
-    [c, mc],
-  ] as const) {
+  // Eligibility, the quick way (unless the players earned it), and two friendships (A–B, C–B) a
+  // week and more old.
+  for (const [j, m] of options.played
+    ? []
+    : ([
+        [a, ma],
+        [b, mb],
+        [c, mc],
+      ] as const)) {
     await database.db.update(characters).set({ level: 15 }).where(eq(characters.id, j.characterId));
     await database.db
       .update(accounts)
@@ -3341,6 +3357,17 @@ export async function playTradingHardeningStep(
   }
   clock.set(clock.now() + 15 * DAY);
   for (const j of heroes) await settleNow(j);
+  if (options.played) {
+    for (const j of heroes) {
+      const seen = (await j.api('GET', '/api/trading/eligibility')).json<{
+        you: { eligible: boolean; requirements: { id: string; met: boolean }[] };
+      }>().you;
+      expect(
+        seen.requirements.filter((r) => !r.met && r.id !== 'trading_open'),
+        'earned by playing',
+      ).toEqual([]);
+    }
+  }
 
   // Something to trade: farm on one clock until A has gold, a stack and a pack item, B gold and a
   // pack item, C a stack (bounded; the farming rolls decide how long it takes, not whether).
@@ -3366,8 +3393,9 @@ export async function playTradingHardeningStep(
 
   // The owner (an admin) opens trading and the shelf through the admin route; the Warehouse
   // (the shelf's building) is restored.
-  const owner = await newPlayer(app, 'hardening-owner@graumark.test', 'Owner Thessaly');
-  await setAccountRole(database.db, 'hardening-owner@graumark.test', 'admin');
+  const owner =
+    options.owner ?? (await newPlayer(app, 'hardening-owner@graumark.test', 'Owner Thessaly'));
+  if (!options.owner) await setAccountRole(database.db, 'hardening-owner@graumark.test', 'admin');
   type Settings = typeof DEFAULT_TRADING_SETTINGS;
   const saveTrading = async (change: (s: Settings) => Settings) => {
     const current = (await owner.api('GET', '/api/mod/settings/trading')).json<{
@@ -3393,8 +3421,11 @@ export async function playTradingHardeningStep(
     'completed',
   );
   app.worldState.invalidate();
-  const warden = await newPlayer(app, 'hardening-warden@graumark.test', 'Warden Corvin');
-  await setAccountRole(database.db, 'hardening-warden@graumark.test', 'moderator');
+  const warden =
+    options.warden ?? (await newPlayer(app, 'hardening-warden@graumark.test', 'Warden Corvin'));
+  if (!options.warden) {
+    await setAccountRole(database.db, 'hardening-warden@graumark.test', 'moderator');
+  }
 
   // One farmed pack item each of A and B becomes a fresh, tradeable Epic in place (the row and
   // its drop's audit row stay; `insertTradeItem`'s shape), so the item swap doesn't hang on a drop.
@@ -3423,8 +3454,41 @@ export async function playTradingHardeningStep(
     expect(view).toMatchObject({ rarityId: 'epic', tradeable: true });
     return it.id;
   };
-  const itemA = await freshEpic(a);
-  const itemB = await freshEpic(b);
+  /**
+   * Ticket 5.8: a farmed item the switches make tradeable (an Epic, Legendary or set piece never
+   * worn). Farms on (without wearing anything new) until A and B each hold one, selling what can't
+   * be traded so drops always find room. Epics are 3.5 % of item drops; the bound is far beyond
+   * what the run needs (`docs/ROADMAP.md` 5.8 records the odds).
+   */
+  const farmedTradeable = async () => {
+    const found = new Map<Journey, string>();
+    for (let visit = 0; visit < 60 && found.size < 2; visit++) {
+      for (const j of [a, b]) {
+        if (found.has(j)) continue;
+        const pack = (await j.inventory()).inventory;
+        const pick = pack.find((it) => it.tradeable && !it.locked);
+        if (pick) {
+          found.set(j, pick.id);
+          continue;
+        }
+        const junk = pack.filter((it) => !it.tradeable && !it.locked && it.source !== 'quest');
+        if (junk.length > 0) {
+          const sold = await j.keyed(`${j.base}/merchant/sell`, { itemIds: junk.map((i) => i.id) });
+          expect(sold.statusCode, sold.body).toBe(200);
+        }
+      }
+      if (found.size === 2) break;
+      clock.set(clock.now() + STEP);
+      for (const j of heroes) await j.settle({ advance: false });
+      tradeableVisits = visit + 1;
+    }
+    expect(found.size, 'farming gave A and B a tradeable item').toBe(2);
+    return [found.get(a)!, found.get(b)!] as const;
+  };
+  let tradeableVisits = 0;
+  const [itemA, itemB] = options.played
+    ? await farmedTradeable()
+    : [await freshEpic(a), await freshEpic(b)];
 
   // 1a. B → C: a swap, B's gold for C's material. C receives with its hero.
   await minutes(1);
@@ -3506,6 +3570,16 @@ export async function playTradingHardeningStep(
   const shelveHeld = await b.keyed(`${shelfB}/deposit`, { itemIds: [itemA] });
   expect(shelveHeld.statusCode, shelveHeld.body).toBe(409);
   expect(err(shelveHeld).code).toBe('item_held');
+  // Ticket 5.8: a player who earned their gold by playing may hold more than one offer may carry;
+  // they put all but one piece of their own (unheld) gold on the shelf first, so the refusals below
+  // are about the hold and nothing else. `parked` stays on the shelf to the end.
+  let parked = 0;
+  const own0 = (await holdingsOf(b)).gold - goldA;
+  if (own0 + 1 > DEFAULT_TRADING_SETTINGS.limits.goldPerOffer) {
+    parked = own0 - 1;
+    const park = await b.keyed(`${shelfB}/deposit`, { gold: parked });
+    expect(park.statusCode, park.body).toBe(200);
+  }
   const hb2 = await holdingsOf(b);
   const ownGold = hb2.gold - goldA;
   const heldDeposit = await b.keyed(`${shelfB}/deposit`, { gold: ownGold + 1 });
@@ -3675,7 +3749,7 @@ export async function playTradingHardeningStep(
   expect(taken.statusCode, taken.body).toBe(200);
   expect(taken.json<ShelfMoveResponse>()).toMatchObject({
     character: { id: b2, gold: ownGold + 1 },
-    shelf: { items: [], gold: 0 },
+    shelf: { items: [], gold: parked },
   });
   expect(taken.json<ShelfMoveResponse>().inventory.inventory.map((i) => i.id)).toEqual([itemA]);
 
@@ -3705,5 +3779,5 @@ export async function playTradingHardeningStep(
   const check = (name: string) => checks.find((x) => x.check === name);
   expect(check('trades: completed')).toMatchObject({ audit: 3, rollup: 3, ok: true });
   expect(check('trades: reversed')).toMatchObject({ audit: 1, rollup: 1, ok: true });
-  return { b2 };
+  return { b2, tradeableVisits, items: [itemA, itemB] };
 }

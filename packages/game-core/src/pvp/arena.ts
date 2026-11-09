@@ -174,8 +174,10 @@ export interface DuelFacts {
  */
 export function duelDecision(kind: DuelKind, f: DuelFacts): DuelDecision {
   if (f.relation === 'self') return DUEL_REFUSALS.self;
+  // A block is never announced (ticket 5.8): a friendly challenge past one answers as to a
+  // stranger, a rated one as for a defender gone (the server checks its list first).
   if (f.relation === 'blocked-by-me' || f.relation === 'blocked-by-them')
-    return DUEL_REFUSALS.notFound;
+    return kind === 'friendly' ? DUEL_REFUSALS.notFriend : DUEL_REFUSALS.notFound;
   if (f.defenderSanctioned) return DUEL_REFUSALS.notFound;
   if (kind === 'friendly') {
     return f.relation === 'friend' || f.guildmate ? 'allowed' : DUEL_REFUSALS.notFriend;

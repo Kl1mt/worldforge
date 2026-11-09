@@ -19,6 +19,14 @@
  * - ticket 5.7: mail goes to an in-memory outbox and never leaves the process; with
  *   `E2E_MAIL_DIR=<dir>` every mail is also written there as `<n>-<kind>.json` (`to`, `subject`,
  *   `text`, `html`), so browser runs and screenshot scripts can open the links.
+ * - with `E2E_SEED_PHASE5=1` (ticket 5.8, `tools/e2e/phase5-exit.mjs`) the Phase 5 run's world is
+ *   set up at start (`seed-phase5.ts`): trading opened (master switch, Trade and Shelf on; trading
+ *   stays closed without this variable), the Warehouse restored, Season 1 scheduled from now, and
+ *   three seeded players: two trade-ready friends (Ilse Varrow `p5-ilse@graumark.test`, a level-15
+ *   warrior with gold and a tradeable Epic; Bertram Holt `p5-bertram@graumark.test`, a level-16
+ *   hunter with a saved defence) and a duel-ready stranger (Corvin Ashe `p5-corvin@graumark.test`,
+ *   a level-15 warrior in Ilse's kit with a saved defence), password `ashes-and-iron-42`. Done
+ *   directly in the database and through the server's own model functions, like the role seeds.
  * Auth, validation and rate limits are unchanged.
  *
  *   pnpm --filter @worldforge/server e2e:serve
@@ -31,6 +39,7 @@ import { scaledClock } from './clock.js';
 import { setAccountRole } from '../social/roles.js';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createMemoryMailer } from '../mail/mailer.js';
+import { seedPhase5 } from './seed-phase5.js';
 
 if (process.env.NODE_ENV === 'production') {
   console.error('src/e2e/serve.ts is a test server and does not run with NODE_ENV=production.');
@@ -107,6 +116,8 @@ if (seedAdmin) {
   if (res.statusCode !== 201) throw new Error(`seeding the admin failed: ${res.body}`);
   await setAccountRole(database.db, seedAdmin, 'admin');
 }
+
+if (process.env.E2E_SEED_PHASE5 === '1') await seedPhase5(app, database.db, now);
 
 await app.listen({ host: config.host, port: config.port });
 app.log.warn(

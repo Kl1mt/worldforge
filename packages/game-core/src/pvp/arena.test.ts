@@ -67,8 +67,9 @@ describe('the permission matrix (relation × kind)', () => {
     'requested-by-me': { rated: 'allowed', friendly: 'not_friend_or_guildmate' },
     'requested-by-them': { rated: 'allowed', friendly: 'not_friend_or_guildmate' },
     friend: { rated: 'friendly_only', friendly: 'allowed' },
-    'blocked-by-me': { rated: 'not_found', friendly: 'not_found' },
-    'blocked-by-them': { rated: 'not_found', friendly: 'not_found' },
+    // Ticket 5.8: a friendly challenge past a block answers like one to a stranger.
+    'blocked-by-me': { rated: 'not_found', friendly: 'not_friend_or_guildmate' },
+    'blocked-by-them': { rated: 'not_found', friendly: 'not_friend_or_guildmate' },
   };
   const code = (d: ReturnType<typeof duelDecision>) => (d === 'allowed' ? d : d.code);
 
@@ -85,7 +86,7 @@ describe('the permission matrix (relation × kind)', () => {
       expect(duelDecision('friendly', facts({ relation, guildmate: true }))).toBe('allowed');
     for (const relation of ['blocked-by-me', 'blocked-by-them'] as const)
       expect(duelDecision('friendly', facts({ relation, guildmate: true }))).toBe(
-        DUEL_REFUSALS.notFound,
+        DUEL_REFUSALS.notFriend,
       );
   });
 

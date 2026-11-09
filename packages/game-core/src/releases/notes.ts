@@ -23,9 +23,20 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.5.15';
+export const GAME_VERSION = '0.5.16';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.5.16',
+    date: '2026-11-09',
+    title: 'The season’s last watch',
+    changed: ['You can change your account’s email address up to three times an hour.'],
+    fixed: [
+      'The duel book now shows an opponent as “a blocked player” only when you are the one who blocked them; anyone else who is out of reach shows as a former player.',
+      'Logging in with many wrong passwords at once is now held back exactly like trying them one after another.',
+    ],
+    tickets: ['5.8'],
+  },
   {
     version: '0.5.15',
     date: '2026-11-09',

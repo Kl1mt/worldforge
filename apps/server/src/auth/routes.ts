@@ -488,79 +488,85 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
       // Ticket 5.7: per-account throttling, keyed by the address (known or not), checked before
       // the password so a locked key costs no argon2 and answers the same for every address.
       const key = throttleKey(email);
-      const lockedMs = throttle.lockedFor(key);
+      // Ticket 5.8: the check is reserved before the password is read, so guesses sent together
+      // get no more checks than the same guesses one after another.
+      const lockedMs = throttle.begin(key);
       if (lockedMs > 0) {
         await loginOutcome('throttled');
         throw loginThrottled(reply, lockedMs);
       }
-      const [account] =
-        email.length > 0 && email.length <= EMAIL_MAX
-          ? await app.db
-              .select()
-              .from(accounts)
-              .where(sql`lower(${accounts.email}) = lower(${email})`)
-              .limit(1)
-          : [];
+      try {
+        const [account] =
+          email.length > 0 && email.length <= EMAIL_MAX
+            ? await app.db
+                .select()
+                .from(accounts)
+                .where(sql`lower(${accounts.email}) = lower(${email})`)
+                .limit(1)
+            : [];
 
-      const ok = account
-        ? await verifyPassword(account.passwordHash, password)
-        : await verifyAgainstDummy(password);
-      if (!account || !ok) {
-        // Same status, code and message for both cases; only the audit row tells them apart.
-        const lockMs = throttle.fail(key);
-        await withTransaction(app.db, async (tx) => {
-          await writeAudit(tx, {
-            event: 'auth.login_failed',
-            accountId: account?.id ?? null,
-            data: { reason: account ? 'bad_password' : 'unknown_email' },
-          });
-          if (lockMs > 0) {
-            // Ticket 5.7: this failure locked the address for a while.
+        const ok = account
+          ? await verifyPassword(account.passwordHash, password)
+          : await verifyAgainstDummy(password);
+        if (!account || !ok) {
+          // Same status, code and message for both cases; only the audit row tells them apart.
+          const lockMs = throttle.fail(key);
+          await withTransaction(app.db, async (tx) => {
             await writeAudit(tx, {
-              event: 'auth.login_locked',
+              event: 'auth.login_failed',
               accountId: account?.id ?? null,
-              data: { lockSeconds: Math.ceil(lockMs / 1000) },
+              data: { reason: account ? 'bad_password' : 'unknown_email' },
             });
-          }
-          recordTelemetry(tx, now(), [
-            { metric: 'auth.login', dims: ['failed'] },
-            ...(lockMs > 0 ? [{ metric: 'auth.login' as const, dims: ['locked'] }] : []),
-          ]);
-        });
-        throw INVALID_CREDENTIALS();
-      }
-      // The right password: the address starts fresh, suspended or not.
-      throttle.clear(key);
+            if (lockMs > 0) {
+              // Ticket 5.7: this failure locked the address for a while.
+              await writeAudit(tx, {
+                event: 'auth.login_locked',
+                accountId: account?.id ?? null,
+                data: { lockSeconds: Math.ceil(lockMs / 1000) },
+              });
+            }
+            recordTelemetry(tx, now(), [
+              { metric: 'auth.login', dims: ['failed'] },
+              ...(lockMs > 0 ? [{ metric: 'auth.login' as const, dims: ['locked'] }] : []),
+            ]);
+          });
+          throw INVALID_CREDENTIALS();
+        }
+        // The right password: the address starts fresh, suspended or not.
+        throttle.clear(key);
 
-      // Ticket 4.1: a suspended account gets no session (told why only after the right password).
-      const [suspension] = await activeSanctions(app.db, account.id, now(), ['suspend']);
-      if (suspension) {
-        await writeAudit(app.db, {
-          event: 'auth.login_refused',
-          accountId: account.id,
-          data: { reason: 'suspended', sanctionId: suspension.id },
-        });
-        throw sanctionError(suspension);
-      }
+        // Ticket 4.1: a suspended account gets no session (told why only after the right password).
+        const [suspension] = await activeSanctions(app.db, account.id, now(), ['suspend']);
+        if (suspension) {
+          await writeAudit(app.db, {
+            event: 'auth.login_refused',
+            accountId: account.id,
+            data: { reason: 'suspended', sanctionId: suspension.id },
+          });
+          throw sanctionError(suspension);
+        }
 
-      const session = await withTransaction(app.db, async (tx) => {
-        // Ticket 5.7: the password checked above must still be the account's. A password reset
-        // locks the row and revokes every session; a login that read the old hash just before it
-        // either commits first (and is revoked by the reset) or sees the new hash here.
-        const [current] = await tx
-          .select({ passwordHash: accounts.passwordHash })
-          .from(accounts)
-          .where(eq(accounts.id, account.id))
-          .for('share');
-        if (current?.passwordHash !== account.passwordHash) return null;
-        const created = await createSession(tx, account.id, now(), options.sessionTtlMs);
-        await writeAudit(tx, { event: 'auth.login', accountId: account.id });
-        recordTelemetry(tx, now(), [{ metric: 'auth.login', dims: ['ok'] }]);
-        return created;
-      });
-      if (!session) throw INVALID_CREDENTIALS();
-      setSessionCookie(reply, session.token, session.expiresAt);
-      return { account: accountView(account) };
+        const session = await withTransaction(app.db, async (tx) => {
+          // Ticket 5.7: the password checked above must still be the account's. A password reset
+          // locks the row and revokes every session; a login that read the old hash just before it
+          // either commits first (and is revoked by the reset) or sees the new hash here.
+          const [current] = await tx
+            .select({ passwordHash: accounts.passwordHash })
+            .from(accounts)
+            .where(eq(accounts.id, account.id))
+            .for('share');
+          if (current?.passwordHash !== account.passwordHash) return null;
+          const created = await createSession(tx, account.id, now(), options.sessionTtlMs);
+          await writeAudit(tx, { event: 'auth.login', accountId: account.id });
+          recordTelemetry(tx, now(), [{ metric: 'auth.login', dims: ['ok'] }]);
+          return created;
+        });
+        if (!session) throw INVALID_CREDENTIALS();
+        setSessionCookie(reply, session.token, session.expiresAt);
+        return { account: accountView(account) };
+      } finally {
+        throttle.end(key);
+      }
     },
   );
 

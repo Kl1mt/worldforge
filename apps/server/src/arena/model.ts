@@ -26,7 +26,7 @@ import {
 import type { Executor } from '../db/types.js';
 import { queryRows } from '../db/query.js';
 import { ApiError } from '../errors.js';
-import { blockedEitherWay } from '../social/relations.js';
+import { blockedEitherWay, relationsFor } from '../social/relations.js';
 import { profileRelationsFor } from '../social/profiles.js';
 import { hiddenTargetKeys } from '../social/sanctions.js';
 import { characterNameKey, profileFieldKey } from '../social/targets.js';
@@ -339,7 +339,7 @@ export async function arenaPeople(
   now: Date,
 ) {
   const ids = [...new Set(accountIds)];
-  const [rows, relations, hidden] = await Promise.all([
+  const [rows, relations, raw, hidden] = await Promise.all([
     ids.length === 0
       ? Promise.resolve([])
       : executor
@@ -352,6 +352,7 @@ export async function arenaPeople(
           .from(accounts)
           .where(inArray(accounts.id, ids)),
     profileRelationsFor(executor, viewerId, ids),
+    relationsFor(executor, viewerId, ids),
     hiddenTargetKeys(
       executor,
       [
@@ -384,8 +385,12 @@ export async function arenaPeople(
         profile: canViewProfile(f.visibility, f.relation),
       };
     },
+    /**
+     * Whether the viewer blocks this account (their own block, shown so they know why the name is
+     * gone). Ticket 5.8: never true for a block the other side made, which is never announced.
+     */
     blocked(accountId: string | null): boolean {
-      return accountId ? facts.get(accountId)?.relation === 'blocked' : false;
+      return accountId ? raw.get(accountId) === 'blocked-by-me' : false;
     },
     hero(
       accountId: string | null,

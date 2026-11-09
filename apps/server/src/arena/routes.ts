@@ -670,6 +670,25 @@ export async function registerArena(
           await assertSocialWriteAllowed(tx, me, 'duel', authNow);
           await lockDuelAccount(tx, me);
           const hero = await lockOwnHeroShared(tx, me, characterId);
+          // Only an opponent the server offered this hero (never an id the client chose). Ticket
+          // 5.8: checked first, so an id off the list answers the same whatever it names (a block,
+          // a sanction or nothing at all).
+          const offered =
+            kind === 'rated'
+              ? (
+                  await tx
+                    .select()
+                    .from(duelOffers)
+                    .where(eq(duelOffers.characterId, hero.id))
+                    .for('update')
+                )[0]
+              : undefined;
+          if (kind === 'rated' && !offered?.defenceIds.includes(defenceId))
+            throw new ApiError(
+              404,
+              'not_offered',
+              'That opponent is not on your list. Ask for a fresh list.',
+            );
           const [defence] = await tx
             .select()
             .from(duelDefences)
@@ -692,20 +711,6 @@ export async function registerArena(
           });
           if (decision !== 'allowed')
             throw new ApiError(decision.status, decision.code, decision.message);
-          if (kind === 'rated') {
-            // Only an opponent the server offered this hero (never an id the client chose).
-            const [offer] = await tx
-              .select()
-              .from(duelOffers)
-              .where(eq(duelOffers.characterId, hero.id))
-              .for('update');
-            if (!offer || !offer.defenceIds.includes(defence.id))
-              throw new ApiError(
-                404,
-                'not_offered',
-                'That opponent is not on your list. Ask for a fresh list.',
-              );
-          }
 
           const challengerSnapshot = await heroDuelSnapshot(tx, hero);
           const bracketId =
