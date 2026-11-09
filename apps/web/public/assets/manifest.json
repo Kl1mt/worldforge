@@ -1808,6 +1808,88 @@
       },
       "prompt": "dark fantasy pixel art, backdrop, an empty duelling arena of a frontier town: a ruined round stone arena with a flat packed sand floor in the foreground, crumbling tiered stone stands, rusted iron spiked gates, tattered crimson and brass banners on poles, iron braziers with dim firelight, cold grey overcast sky, no people, muted desaturated palette, charcoal and stone grey, dim crimson accents, gloomy light",
       "source": "art/source/pixellab/area-arena-01/00.png"
+    },
+    {
+      "id": "area.cinderwastes",
+      "path": "/assets/areas/cinderwastes.png",
+      "kind": "area",
+      "size": {
+        "width": 384,
+        "height": 216
+      },
+      "prompt": "dark fantasy pixel art, backdrop, the Cinderwastes: a wide flat scorched volcanic wasteland, low rolling grey ash dunes in the foreground, a winding river of cracked cooled black lava crossing the plain with a dim ember glow in its cracks, the ruins of an old stone forge with a broken chimney and a rusted anvil half buried in ash, tall jagged black obsidian spires on the horizon, no trees, smoky dark sky with a low red-orange haze, drifting embers, muted desaturated palette, charcoal and ash grey, dim orange ember accents, gloomy light",
+      "source": "art/source/pixellab/area-cinderwastes-02/00.png"
+    },
+    {
+      "id": "area.cinder-depths",
+      "path": "/assets/areas/cinder-depths.png",
+      "kind": "area",
+      "size": {
+        "width": 384,
+        "height": 216
+      },
+      "prompt": "dark fantasy pixel art, backdrop, the Cinder Depths: a vast volcanic forge-caldera, a huge crater ringed by sheer black cliffs, giant ruined anvils and broken stone forge furnaces built into the caldera walls, rusted iron chains and collapsed bridges spanning the pit, a cooled lava lake with dim glowing cracks at the bottom, smoke columns rising, dark smoky sky, drifting embers, muted desaturated palette, charcoal and ash grey, dim orange ember accents, gloomy light",
+      "source": "art/source/pixellab/area-cinder-depths-01/00.png"
+    },
+    {
+      "id": "enemy.cinder-revenant",
+      "path": "/assets/enemies/cinder-revenant.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view facing left, neutral standing pose, enemies of the Cinderwastes: a cinder revenant, an undead knight in battered plate armour crusted with black cooled slag, faint ember glow in the visor and armour cracks, holding a notched sword; an ember wisp, a small floating fire spirit, a flickering dim orange flame with a dark hollow face and trailing smoke and cinders, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-cinderwastes-01/09.png",
+      "facing": "front"
+    },
+    {
+      "id": "enemy.ash-colossus",
+      "path": "/assets/enemies/ash-colossus.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view facing left, neutral standing pose, enemies of the Cinderwastes: an ash colossus, a huge hulking hunched elemental of pale grey packed ash and cracked stone slabs, heavy fists, dim ember light in the cracks; a slag hound, a stocky heavy-jawed hound covered in thick lumpy plates of molten slag crust, glowing orange drips of molten metal between the plates, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-cinderwastes-02/04.png",
+      "facing": "front"
+    },
+    {
+      "id": "enemy.ember-wisp",
+      "path": "/assets/enemies/ember-wisp.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view facing left, enemy of the Cinderwastes: an ember wisp, a small floating fire spirit no bigger than a skull, a hovering teardrop of dim orange flame around a dark charred ember core with two hollow eye holes, a trailing tail of grey smoke and falling cinders, small sprite with lots of empty space around it, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-cinderwastes-03/edits/10-dimmed.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.slag-hound",
+      "path": "/assets/enemies/slag-hound.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view facing left, neutral standing pose, enemies of the Cinderwastes: an ash colossus, a huge hulking hunched elemental of pale grey packed ash and cracked stone slabs, heavy fists, dim ember light in the cracks; a slag hound, a stocky heavy-jawed hound covered in thick lumpy plates of molten slag crust, glowing orange drips of molten metal between the plates, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-cinderwastes-02/12.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.forge-tyrant",
+      "path": "/assets/enemies/forge-tyrant.png",
+      "kind": "enemy",
+      "size": {
+        "width": 128,
+        "height": 128
+      },
+      "prompt": "dark fantasy pixel art, full body, side view facing left, neutral standing pose, boss: the Forge Tyrant, a towering fallen smith-king, a huge undead blacksmith in a heavy soot-black leather forge apron over scorched iron plate, a crude iron crown fused to his skull, a long charred beard, holding a massive forge hammer, ember glow in the eyes and the cracks of his armour, chains hanging from the belt, massive silhouette, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/boss-forge-tyrant-01/02.png",
+      "facing": "front"
     }
   ]
 }

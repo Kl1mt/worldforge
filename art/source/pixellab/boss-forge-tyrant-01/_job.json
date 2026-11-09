@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, full body, side view facing left, neutral standing pose, boss: the Forge Tyrant, a towering fallen smith-king, a huge undead blacksmith in a heavy soot-black leather forge apron over scorched iron plate, a crude iron crown fused to his skull, a long charred beard, holding a massive forge hammer, ember glow in the eyes and the cracks of his armour, chains hanging from the belt, massive silhouette, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+  "style_image": "apps/web/public/assets/enemies/ashen-warden.png",
+  "job_id": "793225cd-e474-49e7-8c8e-1380ade4ae94",
+  "created_at": "2026-11-09T22:12:11.425136+00:00",
+  "seed": 555475964,
+  "generations": 10.0,
+  "count": 4,
+  "width": 128,
+  "height": 128
+}

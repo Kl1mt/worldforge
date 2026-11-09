@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, full body, side view facing left, neutral standing pose, enemies of the Cinderwastes: an ash colossus, a huge hulking hunched elemental of pale grey packed ash and cracked stone slabs, heavy fists, dim ember light in the cracks; a slag hound, a stocky heavy-jawed hound covered in thick lumpy plates of molten slag crust, glowing orange drips of molten metal between the plates, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+  "style_image": "apps/web/public/assets/enemies/ember-golem.png",
+  "job_id": "d99b977b-7b26-4619-a18a-6dcb1a4ded08",
+  "created_at": "2026-11-09T22:12:11.414681+00:00",
+  "seed": 155210891,
+  "generations": 10.0,
+  "count": 16,
+  "width": 64,
+  "height": 64
+}

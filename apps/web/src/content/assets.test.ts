@@ -161,3 +161,41 @@ describe('season prestige art (A.10)', () => {
     expect(entry?.size).toEqual(resolve(ASSETS['area.ashen-pass']).entry?.size);
   });
 });
+
+describe('Cinderwastes art (A.11)', () => {
+  /** Width and height from a PNG's IHDR chunk. */
+  const pngSize = (path: string) => {
+    const bytes = readFileSync(new URL(`../../public${path}`, import.meta.url));
+    return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+  };
+
+  // The names tickets 6.1 (area, enemies) and 6.2 (deeper area, region boss) build on: keep them.
+  const ART = {
+    'area.cinderwastes': 'area.ashen-pass',
+    'area.cinder-depths': 'area.ashen-pass',
+    'enemy.cinder-revenant': 'enemy.cinder-hound',
+    'enemy.ash-colossus': 'enemy.ember-golem',
+    'enemy.ember-wisp': 'enemy.ash-wraith',
+    'enemy.slag-hound': 'enemy.cinder-hound',
+    'enemy.forge-tyrant': 'enemy.ashen-warden',
+  } as const;
+
+  it('resolves every name to a manifest entry and a file the size of its Ashen Pass peer', () => {
+    for (const [id, peer] of Object.entries(ART)) {
+      const sprite = findSprite(id);
+      expect(sprite, id).not.toBeNull();
+      const entry = manifest.assets.find((m) => m.id === id);
+      expect(entry?.path, id).toBe(sprite?.path);
+      expect(existsSync(new URL(`../../public${entry?.path}`, import.meta.url)), id).toBe(true);
+      expect(pngSize(entry!.path), id).toEqual(entry?.size);
+      const peerSprite = findSprite(peer);
+      expect(entry?.size, id).toEqual({ width: peerSprite?.width, height: peerSprite?.height });
+    }
+  });
+
+  it('faces the hero without mirroring, so a later animation pass can reuse the sprites', () => {
+    for (const id of Object.keys(ART).filter((k) => k.startsWith('enemy.'))) {
+      expect(findSprite(id)?.facing, id).not.toBe('right');
+    }
+  });
+});

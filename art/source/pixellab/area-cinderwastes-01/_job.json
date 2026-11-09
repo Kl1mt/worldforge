@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, backdrop, the Cinderwastes: a scorched volcanic wasteland beyond a burnt mountain pass, rolling grey ash dunes, cracked cooled black lava rivers with a dim ember glow in the cracks, ruined stone forges with collapsed chimneys, jagged black obsidian spires on the horizon, smoky dark overcast sky with a low red-orange haze, drifting embers, muted desaturated palette, charcoal and ash grey, dim orange ember accents, gloomy light",
+  "style_image": "apps/web/public/assets/areas/ashen-pass.png",
+  "job_id": "45c5505d-378d-40f6-92cd-f36e765893ac",
+  "created_at": "2026-11-09T22:12:11.606891+00:00",
+  "seed": 107479758,
+  "generations": 15.0,
+  "count": 1,
+  "width": 384,
+  "height": 216
+}

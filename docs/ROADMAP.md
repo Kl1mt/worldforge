@@ -879,8 +879,9 @@ GDD §7, §9, §11, §15 Phase 6. Read `docs/WORLD.md`, `docs/COMBAT.md` (heroes
   - screenshots on the `screenshots` branch.
 - Patch notes `0.6.0`.
 
-### A.11 Cinderwastes art: backdrop, enemies & region boss — `todo`
+### A.11 Cinderwastes art: backdrop, enemies & region boss — `done (PR #107)`
 GDD §3.1. The 6.1 and 6.2 area backdrops, 4–6 enemies and the region boss, matching A.7's treatment. Budget: two backdrop jobs, two or three 32/64 px enemy jobs, one boss job, and at most one regeneration. Manifest and `assets.ts`. **Acceptance:** a contact sheet in the PR.
+- Done: `area.cinderwastes`, `area.cinder-depths` (384×216); `enemy.cinder-revenant`, `enemy.ash-colossus`, `enemy.ember-wisp`, `enemy.slag-hound` (64×64); `enemy.forge-tyrant` (128×128). Registered only, not drawn yet. 85 generations (seven jobs, one regeneration). See `docs/ASSET_GUIDELINES.md` "The Cinderwastes"; contact sheet `art/preview-cinderwastes.png`.
 
 ### A.14 Combat scene animations — `todo`
 GDD §3.1, §3.2. Owner request: heroes and foes move in the fight scene so it doesn't look static. Owner decision: animate in code for every sprite now, plus a PixelLab frame-animation pilot for the four hero classes; enemy frames later only if the owner likes the pilot.

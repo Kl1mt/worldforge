@@ -255,6 +255,15 @@ export const ASSETS = {
   'badge.title-badge-power': badge('title-badge-power'),
   'badge.title-badge-pve-progress': badge('title-badge-pve-progress'),
   'area.arena': { path: '/assets/areas/arena.png', width: 384, height: 216 },
+  // The Cinderwastes (A.11): art only. Ticket 6.1 adds the first area and its enemies to
+  // game-core with these asset ids, 6.2 the deeper area and the region boss (128×128).
+  'area.cinderwastes': { path: '/assets/areas/cinderwastes.png', width: 384, height: 216 },
+  'area.cinder-depths': { path: '/assets/areas/cinder-depths.png', width: 384, height: 216 },
+  'enemy.cinder-revenant': enemy('cinder-revenant', 'front'),
+  'enemy.ash-colossus': enemy('ash-colossus', 'front'),
+  'enemy.ember-wisp': enemy('ember-wisp', 'left'),
+  'enemy.slag-hound': enemy('slag-hound', 'left'),
+  'enemy.forge-tyrant': enemy('forge-tyrant', 'front', 128),
 } as const satisfies Record<string, SpriteAsset>;
 
 export type AssetId = keyof typeof ASSETS;
