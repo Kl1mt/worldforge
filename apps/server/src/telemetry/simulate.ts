@@ -10,7 +10,11 @@
 // them), gives a daily share to the community projects, stores its keepsakes in the warehouse and
 // buys shelves when it is full, founds or joins a guild, fights the weekly guild boss three times a
 // week and claims its spoils. Ticket B.4: `--snapshots` writes every hero's scoring input at the
-// start and the end of each game day (`<dir>/snapshots/`, for tools/balance/competitive.ts). Then:
+// start and the end of each game day (`<dir>/snapshots/`, for tools/balance/competitive.ts). Ticket
+// T.7: `--trading on|all` opens trading and the account shelf (`simulate-trading.ts`): guildmates
+// gift the Epic and better finds they would salvage, small gold and material gifts and swaps, and
+// accept what they are sent; `--alts` (implied by `--trading`) gives the accounts of the level-21
+// and level-23 heroes a second hero who farms the night and, with the shelf, feeds the main. Then:
 //
 //   PLAYTEST_DATA_DIR=.telemetry-sample pnpm report:telemetry
 //
@@ -41,6 +45,7 @@ import { characterMaterials, characterQuests, characters, itemInstances } from '
 import { createPgliteDatabase } from '../test/db.js';
 import { makeCryptReady } from '../test/dungeon.js';
 import { scoringInput } from '../scores/routes.js';
+import { createSimTrading, simTradingSettings, type TradingMode } from './simulate-trading.js';
 
 const REPO_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
 const { values: args } = parseArgs({
@@ -52,6 +57,10 @@ const { values: args } = parseArgs({
     // Ticket B.4: write every hero's 5.1 scoring input at the end of each game day
     // (`<dir>/snapshots/day-NN.json`) for `tools/balance/competitive.ts`.
     snapshots: { type: 'boolean', default: false },
+    // Ticket T.7: trading and the shelf (`on`: the default categories; `all`: Mythic and Void
+    // too), and a second hero on some accounts (`--alts`, implied by `--trading on|all`).
+    trading: { type: 'string', default: 'off' },
+    alts: { type: 'boolean', default: false },
   },
   args: process.argv.slice(2).filter((a) => a !== '--'),
 });
@@ -60,6 +69,10 @@ const days = Math.max(1, Number(args.days) || 3);
 const realistic = args.play !== 'crude';
 /** Ticket B.3: the Phase 4 economy (projects, warehouse, guilds, guild boss, the Pass). */
 const social = realistic && args.social !== 'off';
+const tradingMode = (['on', 'all'].includes(args.trading!) ? args.trading : 'off') as TradingMode;
+const trading = tradingMode !== 'off';
+const alts = args.alts || trading;
+if ((trading || alts) && !social) throw new Error('--trading and --alts need the social player.');
 /** Rough worth of a piece for the realistic player: base value by level, rarity and upgrades. */
 const IMPLICIT: Record<string, number> = {
   common: 1,
@@ -87,7 +100,18 @@ const HOUR = 60 * 60 * 1000;
 let nowMs = Date.parse('2026-11-02T06:00:00Z');
 const app = buildApp({
   database,
-  auth: { registerRateLimit: { max: 10_000, timeWindowMs: 60_000 } },
+  auth: {
+    registerRateLimit: { max: 10_000, timeWindowMs: 60_000 },
+    // Ticket T.7: trades, holds and account age run on the game clock (the auth clock); the clock
+    // stands still within a visit, so the per-account request limit is lifted.
+    ...(alts
+      ? {
+          now: () => new Date(nowMs),
+          sessionTtlMs: 365 * 24 * HOUR,
+          accountRateLimit: { requests: 1e9, actions: 1e9, windowMs: 60_000 },
+        }
+      : {}),
+  },
   activity: { ...DEFAULT_ACTIVITY_OPTIONS, now: () => new Date(nowMs) },
 });
 await app.ready();
@@ -103,6 +127,10 @@ interface Hero {
   /** Ticket B.3: index in the population, and the guild this hero founded or joined. */
   n: number;
   guild: 'small' | 'large' | null;
+  /** Ticket T.7 (`--alts`): the account's second hero, and on that alt, its main. */
+  alt?: Hero;
+  main?: Hero;
+  handle?: string;
 }
 
 const send = (h: Hero, method: 'GET' | 'POST', path: string, payload?: object) =>
@@ -181,6 +209,64 @@ for (const classId of CLASS_IDS) {
   }
 }
 
+// Ticket T.7 (`--alts`): the accounts of the level-21 and level-23 heroes get a second hero of the
+// next class at level 14. Only one hero of an account farms at a time: the alt takes the night.
+const altHeroes: Hero[] = [];
+if (alts) {
+  for (const main of heroes.filter((h) => h.level === 21 || h.level === 23)) {
+    n += 1;
+    const classId = CLASS_IDS[(CLASS_IDS.indexOf(main.classId) + 1) % CLASS_IDS.length]!;
+    const created = await app.inject({
+      method: 'POST',
+      url: '/api/characters',
+      payload: {
+        name: `Simalt${String.fromCharCode(97 + (n % 26))}${String.fromCharCode(97 + Math.floor(n / 26))}`,
+        classId,
+        appearance: { banner: 'ash' },
+      },
+      cookies: { [SESSION_COOKIE]: main.token },
+    });
+    const id = created.json<{ character: { id: string } }>().character.id;
+    await makeCryptReady(database.db, id, classId, 14, { rarityId: 'uncommon' });
+    await database.db
+      .update(characters)
+      .set({ gold: 1_500 * 14, progress: { gravewardenDefeated: false, cryptTierCleared: 0 } })
+      .where(eq(characters.id, id));
+    await database.db
+      .insert(characterMaterials)
+      .values(MATERIAL_IDS.map((materialId) => ({ characterId: id, materialId, quantity: 140 })));
+    const alt: Hero = {
+      ...main,
+      id,
+      classId,
+      level: 14,
+      area: 'blackwater',
+      tier: 0,
+      n,
+      main,
+    };
+    main.alt = alt;
+    altHeroes.push(alt);
+    // Creating a hero selects it; the main plays the day.
+    await app.inject({
+      method: 'POST',
+      url: `/api/characters/${main.id}/select`,
+      cookies: { [SESSION_COOKIE]: main.token },
+    });
+    if (alt.filter) {
+      await send(alt, 'POST', '/loot-filter', {
+        rules: {
+          action: 'salvage',
+          belowRarity: 'rare',
+          wantedAffixes: [],
+          wantedEffects: [],
+          include: [],
+        },
+      });
+    }
+  }
+}
+
 for (const [i, h] of heroes.entries()) {
   if (h.filter) {
     await send(h, 'POST', '/loot-filter', {
@@ -207,6 +293,9 @@ const expectOk = (what: string, status: number, body: string) => {
 type ItemRow = typeof itemInstances.$inferSelect;
 const packOf = async (h: Hero): Promise<ItemRow[]> =>
   database.db.select().from(itemInstances).where(eq(itemInstances.characterId, h.id));
+/** Ticket T.7: out of the pack (warehouse, shelf, a trade's escrow), or held after a trade. */
+const away = (i: ItemRow) => i.inWarehouse || i.onShelf || i.escrowOfferId !== null;
+const held = (i: ItemRow) => i.holdUntil !== null && i.holdUntil.getTime() > nowMs;
 
 /**
  * The realistic player's visit (ticket B.2), after every settlement: wear any find of a better
@@ -216,7 +305,7 @@ const packOf = async (h: Hero): Promise<ItemRow[]> =>
 async function visit(h: Hero): Promise<void> {
   let inv = await packOf(h);
   const worn = new Map(inv.filter((i) => i.equippedSlot).map((i) => [i.equippedSlot!, i]));
-  for (const item of inv.filter((i) => i.equippedSlot === null && !i.inWarehouse)) {
+  for (const item of inv.filter((i) => i.equippedSlot === null && !away(i))) {
     if ((RARITY_RANK[item.rarityId] ?? 0) < 2) continue;
     const slots = equipmentSlotsForKind(getItemBase(item.baseId).slot);
     const slot = slots
@@ -227,7 +316,16 @@ async function visit(h: Hero): Promise<void> {
     if (res.statusCode === 200) worn.set(slot.s, item);
   }
   inv = await packOf(h);
-  const loose = inv.filter((i) => i.equippedSlot === null && !i.locked && !i.inWarehouse);
+  let loose = inv.filter((i) => i.equippedSlot === null && !i.locked && !away(i) && !held(i));
+  // Ticket T.7: an alt shelves what its main can use; a main gifts what a guildmate can use.
+  if (h.main && trader) {
+    await trader.shelfDeposit(h, loose);
+    inv = await packOf(h);
+    loose = inv.filter((i) => i.equippedSlot === null && !i.locked && !away(i) && !held(i));
+  } else if (trader) {
+    const given = await trader.giftItems(h, loose);
+    loose = loose.filter((i) => !given.has(i.id));
+  }
   const sell = loose.filter((i) => RARITY_RANK[i.rarityId]! <= 1).map((i) => i.id);
   // Rares, epics and plain Legendaries it does not wear; set pieces, Mythics and Void are kept.
   const salvage = loose
@@ -245,7 +343,7 @@ async function visit(h: Hero): Promise<void> {
       '',
     );
   const gear = inv
-    .filter((i) => i.equippedSlot !== null)
+    .filter((i) => i.equippedSlot !== null && !held(i))
     .sort((a, b) => a.upgradeLevel - b.upgradeLevel);
   const level = new Map(gear.map((g) => [g.id, g.upgradeLevel]));
   for (let attempts = 0; attempts < 60 && gear.length > 0; attempts++) {
@@ -443,9 +541,14 @@ async function store(h: Hero): Promise<void> {
     nextUpgrade: { gold: number } | null;
     gold: number;
   }>();
-  const keep = (await packOf(h)).filter(
-    (i) => i.equippedSlot === null && !i.inWarehouse && (i.setId || i.mythicId || i.variant),
+  let keep = (await packOf(h)).filter(
+    (i) => i.equippedSlot === null && !away(i) && !held(i) && (i.setId || i.mythicId || i.variant),
   );
+  // Ticket T.7: keepsakes its class can't wear go to a guildmate who can, before they're stored.
+  if (trader && !h.main && keep.length > 0) {
+    const given = await trader.giftItems(h, keep);
+    keep = keep.filter((i) => !given.has(i.id));
+  }
   if (keep.length === 0) return;
   let free = wh.capacity - wh.items.length;
   if (free < keep.length && wh.nextUpgrade && wh.gold >= wh.nextUpgrade.gold) {
@@ -507,6 +610,22 @@ async function socialVisit(h: Hero, day: number, visitNo: number): Promise<void>
   }
 }
 if (social) await formGuilds();
+/** Ticket T.7 (`--trading on|all`): trading and the shelf through the real API. */
+const trader = trading
+  ? createSimTrading({
+      app,
+      database,
+      now: () => nowMs,
+      heroes,
+      settings: simTradingSettings(tradingMode),
+      power,
+      unexpected: (what, status, body) => expectOk(what, status, body),
+    })
+  : null;
+if (trader) {
+  await trader.open();
+  for (const code of ['insufficient_gold', 'insufficient_materials']) EXPECTED_REFUSALS.add(code);
+}
 
 /** Ticket B.4 (`--snapshots`): every hero's 5.1 scoring input at the end of game day `day`. */
 async function snapshot(day: number): Promise<void> {
@@ -528,10 +647,30 @@ for (let day = 0; day < days; day++) {
   // at 3 h), so about 15 credited hours. Crude: a settle every 3 h around the clock (24 h).
   for (const [visitNo, gap] of (realistic ? [9, 4, 4, 4, 3] : [3, 3, 3, 3, 3, 3, 3, 3]).entries()) {
     nowMs += gap * HOUR;
+    // Ticket T.7: in the morning each alt comes back from its night (and fills the shelf), then
+    // its main is sent out again.
+    if (visitNo === 0 && day > 0) {
+      for (const alt of altHeroes) {
+        const r = await send(alt, 'POST', '/activity/settle');
+        expectOk('settle', r.statusCode, r.body);
+        await visit(alt);
+        await api(alt.main!, 'POST', `/api/characters/${alt.main!.id}/select`);
+        expectOk(
+          'main out',
+          (await send(alt.main!, 'POST', '/activity', { areaId: alt.main!.area })).statusCode,
+          '',
+        );
+      }
+    }
     for (const h of heroes) {
       const r = await send(h, 'POST', '/activity/settle');
       expectOk('settle', r.statusCode, r.body);
       if (social) await socialVisit(h, day, visitNo);
+      if (trader) {
+        await trader.checkIn(h);
+        if (visitNo === 0) await trader.dailyGifts(h, day);
+        if (visitNo === 0 && h.alt) await trader.shelfWithdraw(h);
+      }
       if (realistic) await visit(h);
     }
   }
@@ -541,7 +680,7 @@ for (let day = 0; day < days; day++) {
       .select()
       .from(itemInstances)
       .where(eq(itemInstances.characterId, h.id));
-    const loose = inv.filter((i) => i.equippedSlot === null && !i.locked && !i.inWarehouse);
+    const loose = inv.filter((i) => i.equippedSlot === null && !i.locked && !away(i) && !held(i));
     const sell = loose
       .filter((i) => i.rarityId === 'common' || i.rarityId === 'uncommon')
       .map((i) => i.id);
@@ -621,6 +760,23 @@ for (let day = 0; day < days; day++) {
     if (social) await watch(h, await worldFlags(h));
   }
   if (args.snapshots) await snapshot(day + 1);
+  // Ticket T.7: the alts farm the night (the account's one activity moves to them).
+  for (const alt of altHeroes) {
+    const flags = await worldFlags(alt);
+    const c = await heroState(alt);
+    alt.level = c.level;
+    const world = { ...NO_WORLD_FLAGS, ...flags };
+    const progress = { gravewardenDefeated: false, ...(c.progress as object) };
+    alt.area = AREAS.find(([, a]) =>
+      isAreaUnlocked(a as AreaId, { level: c.level, world }, progress),
+    )![1];
+    await api(alt, 'POST', `/api/characters/${alt.id}/select`);
+    expectOk(
+      'alt out',
+      (await send(alt, 'POST', '/activity', { areaId: alt.area })).statusCode,
+      '',
+    );
+  }
 }
 
 await app.close();
@@ -630,5 +786,10 @@ if (social) {
   console.log(`Social economy (ticket B.3):\n  ${log.join('\n  ')}`);
   for (const [k, v] of bossStages) console.log(`  guild boss week ${k}: stage ${v}`);
 }
+if (alts) console.log(`Alts (ticket T.7): ${altHeroes.length} accounts with a second hero.`);
+if (trader)
+  console.log(
+    `Trading (ticket T.7, --trading ${tradingMode}):\n  ${trader.summary().join('\n  ')}`,
+  );
 if (unexpected.length > 0) console.log(`Unexpected answers:\n  ${unexpected.join('\n  ')}`);
 console.log(`Report: PLAYTEST_DATA_DIR=${args.dir} pnpm report:telemetry`);
