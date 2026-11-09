@@ -44,6 +44,7 @@ export const TELEMETRY_METRICS = [
   'community.contribute',
   'community.stage',
   'warehouse.move',
+  'shelf.move',
   'warehouse.upgrade',
   // Ticket 5.5: duels (kind, bracket, outcome).
   'duel.fight',

@@ -8,10 +8,17 @@ import { toItemView } from '../game/items';
 import type { ApiResult } from '../lib/api';
 import { formatNumber } from '../lib/format';
 import { routeHref } from '../lib/route';
+import { AccountShelf } from './AccountShelf';
 import { ItemPicker } from './economy/ItemPicker';
 import { Gold, NoticeLine, ShopHeader, type Notice } from './economy/ShopHeader';
 import './economy/shop.css';
 import './warehouse.css';
+
+type Tab = 'own' | 'shelf';
+const TABS: { id: Tab; name: string }[] = [
+  { id: 'own', name: 'Your shelves' },
+  { id: 'shelf', name: 'Account shelf' },
+];
 
 type Load =
   | { kind: 'loading' }
@@ -34,6 +41,7 @@ export function WarehouseScreen() {
   const [toTake, setToTake] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState<'deposit' | 'withdraw' | 'upgrade' | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const [tab, setTab] = useState<Tab>('own');
   const keys = useRef(new ActionKeys()).current;
 
   const apply = useCallback((res: ApiResult<WarehouseState>) => {
@@ -129,7 +137,8 @@ export function WarehouseScreen() {
   const header = (
     <ShopHeader building="warehouse" title="The Warehouse">
       Stout shelves behind iron doors. What your hero leaves here is never sold, salvaged or swept
-      up by the loot filter, and it takes no room in the pack. Each hero keeps their own shelves.
+      up by the loot filter, and it takes no room in the pack. Each hero keeps their own shelves;
+      the account shelf is shared by all your heroes.
     </ShopHeader>
   );
 
@@ -179,138 +188,179 @@ export function WarehouseScreen() {
 
   const w = state.value;
   const next = w.nextUpgrade;
+  // Ticket T.3: the building's second tab, the shared account shelf.
+  const tabs = (
+    <div className="whtabs" role="tablist" aria-label="Warehouse">
+      {TABS.map((t, n) => (
+        <button
+          key={t.id}
+          type="button"
+          role="tab"
+          id={`wh-tab-${t.id}`}
+          aria-controls={`wh-panel-${t.id}`}
+          aria-selected={tab === t.id}
+          tabIndex={tab === t.id ? 0 : -1}
+          className="whtabs__tab"
+          onClick={() => setTab(t.id)}
+          onKeyDown={(e) => {
+            if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+            const step = e.key === 'ArrowRight' ? 1 : TABS.length - 1;
+            const to = TABS[(n + step) % TABS.length]!.id;
+            setTab(to);
+            document.getElementById(`wh-tab-${to}`)?.focus();
+          }}
+        >
+          {t.name}
+        </button>
+      ))}
+    </div>
+  );
+  if (tab === 'shelf') {
+    return (
+      <div className="shop">
+        {header}
+        {tabs}
+        <div role="tabpanel" id="wh-panel-shelf" aria-labelledby="wh-tab-shelf">
+          <AccountShelf />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="shop">
       {header}
-      <NoticeLine notice={notice} />
-      {packOver > 0 ? (
-        <p className="warehouse__over" role="status">
-          Your pack is {packOver} {packOver === 1 ? 'item' : 'items'} over capacity. Store the
-          valuables you are keeping here, and new drops find room again.
-        </p>
-      ) : null}
+      {tabs}
+      <div role="tabpanel" id="wh-panel-own" aria-labelledby="wh-tab-own" className="shop">
+        <NoticeLine notice={notice} />
+        {packOver > 0 ? (
+          <p className="warehouse__over" role="status">
+            Your pack is {packOver} {packOver === 1 ? 'item' : 'items'} over capacity. Store the
+            valuables you are keeping here, and new drops find room again.
+          </p>
+        ) : null}
 
-      <div className="shop__cols">
-        <section className="shop__panel panel-iron" aria-labelledby="wh-pack-title">
-          <header className="shop__panel-head">
-            <h2 id="wh-pack-title" className="display shop__panel-title">
-              Your pack
-            </h2>
-            <p className="shop__panel-note">
-              {packItems.length} / {w.pack.capacity} carried · equipped gear stays on your hero
-            </p>
-          </header>
-          {pack ? (
-            <ItemPicker
-              items={packItems}
-              picked={new Set(storePicks)}
-              onChange={setToStore}
-              label="Items to store"
-              emptyText="Your pack is empty. Bring something back from the fields."
-              lockedPickable
-            />
-          ) : (
-            <div className="shop__empty" role="status">
-              <p className="display">Opening the pack…</p>
-            </div>
-          )}
-          <footer className="shop__tally">
-            <p>
-              {storePicks.length === 0
-                ? free === 0
-                  ? 'The shelves are full.'
-                  : `Pick items to store (${free} ${free === 1 ? 'shelf' : 'shelves'} free).`
-                : `${storePicks.length} to store · ${free} free`}
-            </p>
-            <button
-              type="button"
-              className="btn btn--brass"
-              disabled={storePicks.length === 0 || busy !== null || storePicks.length > free}
-              aria-busy={busy === 'deposit'}
-              onClick={() => void move('deposit')}
-            >
-              {busy === 'deposit'
-                ? 'Storing…'
-                : storePicks.length > free
-                  ? 'Not enough room'
-                  : 'Store'}
-            </button>
-          </footer>
-        </section>
-
-        <section className="shop__panel panel-iron" aria-labelledby="wh-shelves-title">
-          <header className="shop__panel-head">
-            <h2 id="wh-shelves-title" className="display shop__panel-title">
-              On the shelves
-            </h2>
-            <p className="shop__panel-note">
-              {w.items.length} / {w.capacity} stored
-            </p>
-          </header>
-          <Meter
-            variant="xp"
-            label={`Warehouse: ${w.items.length} of ${w.capacity} shelves used`}
-            current={w.items.length}
-            max={w.capacity}
-          />
-          {free === 0 ? (
-            <p className="warehouse__full" role="status">
-              Every shelf is taken. Take something out or extend the warehouse.
-            </p>
-          ) : null}
-          <ItemPicker
-            items={stored}
-            picked={new Set(takePicks)}
-            onChange={setToTake}
-            label="Items to take out"
-            emptyText="The shelves are bare. Store what you want to keep from the pack."
-            lockedPickable
-            emptyAction="none"
-          />
-          <footer className="shop__tally">
-            <p>
-              {takePicks.length === 0
-                ? 'Pick items to take back.'
-                : `${takePicks.length} to take · ${packFree} free in the pack`}
-            </p>
-            <button
-              type="button"
-              className="btn"
-              disabled={takePicks.length === 0 || busy !== null || takePicks.length > packFree}
-              aria-busy={busy === 'withdraw'}
-              onClick={() => void move('withdraw')}
-            >
-              {busy === 'withdraw'
-                ? 'Taking…'
-                : takePicks.length > packFree
-                  ? 'No room in the pack'
-                  : 'Take out'}
-            </button>
-          </footer>
-          <div className="warehouse__extend">
-            {next ? (
-              <>
-                <p>
-                  <span className="display">Extend the warehouse</span>
-                  <br />
-                  Another {next.slots} shelves ({next.capacity} in all) for{' '}
-                  <Gold amount={next.gold} />. Gold paid to the keeper is not returned.
-                </p>
-                <button
-                  type="button"
-                  className="btn btn--brass"
-                  disabled={busy !== null || hero.gold < next.gold}
-                  aria-busy={busy === 'upgrade'}
-                  onClick={() => void upgrade()}
-                >
-                  {busy === 'upgrade' ? 'Paying…' : hero.gold < next.gold ? 'Too dear' : 'Extend'}
-                </button>
-              </>
+        <div className="shop__cols">
+          <section className="shop__panel panel-iron" aria-labelledby="wh-pack-title">
+            <header className="shop__panel-head">
+              <h2 id="wh-pack-title" className="display shop__panel-title">
+                Your pack
+              </h2>
+              <p className="shop__panel-note">
+                {packItems.length} / {w.pack.capacity} carried · equipped gear stays on your hero
+              </p>
+            </header>
+            {pack ? (
+              <ItemPicker
+                items={packItems}
+                picked={new Set(storePicks)}
+                onChange={setToStore}
+                label="Items to store"
+                emptyText="Your pack is empty. Bring something back from the fields."
+                lockedPickable
+              />
             ) : (
-              <p>Fully extended: {w.capacity} shelves, as many as the building holds.</p>
+              <div className="shop__empty" role="status">
+                <p className="display">Opening the pack…</p>
+              </div>
             )}
-          </div>
-        </section>
+            <footer className="shop__tally">
+              <p>
+                {storePicks.length === 0
+                  ? free === 0
+                    ? 'The shelves are full.'
+                    : `Pick items to store (${free} ${free === 1 ? 'shelf' : 'shelves'} free).`
+                  : `${storePicks.length} to store · ${free} free`}
+              </p>
+              <button
+                type="button"
+                className="btn btn--brass"
+                disabled={storePicks.length === 0 || busy !== null || storePicks.length > free}
+                aria-busy={busy === 'deposit'}
+                onClick={() => void move('deposit')}
+              >
+                {busy === 'deposit'
+                  ? 'Storing…'
+                  : storePicks.length > free
+                    ? 'Not enough room'
+                    : 'Store'}
+              </button>
+            </footer>
+          </section>
+
+          <section className="shop__panel panel-iron" aria-labelledby="wh-shelves-title">
+            <header className="shop__panel-head">
+              <h2 id="wh-shelves-title" className="display shop__panel-title">
+                On the shelves
+              </h2>
+              <p className="shop__panel-note">
+                {w.items.length} / {w.capacity} stored
+              </p>
+            </header>
+            <Meter
+              variant="xp"
+              label={`Warehouse: ${w.items.length} of ${w.capacity} shelves used`}
+              current={w.items.length}
+              max={w.capacity}
+            />
+            {free === 0 ? (
+              <p className="warehouse__full" role="status">
+                Every shelf is taken. Take something out or extend the warehouse.
+              </p>
+            ) : null}
+            <ItemPicker
+              items={stored}
+              picked={new Set(takePicks)}
+              onChange={setToTake}
+              label="Items to take out"
+              emptyText="The shelves are bare. Store what you want to keep from the pack."
+              lockedPickable
+              emptyAction="none"
+            />
+            <footer className="shop__tally">
+              <p>
+                {takePicks.length === 0
+                  ? 'Pick items to take back.'
+                  : `${takePicks.length} to take · ${packFree} free in the pack`}
+              </p>
+              <button
+                type="button"
+                className="btn"
+                disabled={takePicks.length === 0 || busy !== null || takePicks.length > packFree}
+                aria-busy={busy === 'withdraw'}
+                onClick={() => void move('withdraw')}
+              >
+                {busy === 'withdraw'
+                  ? 'Taking…'
+                  : takePicks.length > packFree
+                    ? 'No room in the pack'
+                    : 'Take out'}
+              </button>
+            </footer>
+            <div className="warehouse__extend">
+              {next ? (
+                <>
+                  <p>
+                    <span className="display">Extend the warehouse</span>
+                    <br />
+                    Another {next.slots} shelves ({next.capacity} in all) for{' '}
+                    <Gold amount={next.gold} />. Gold paid to the keeper is not returned.
+                  </p>
+                  <button
+                    type="button"
+                    className="btn btn--brass"
+                    disabled={busy !== null || hero.gold < next.gold}
+                    aria-busy={busy === 'upgrade'}
+                    onClick={() => void upgrade()}
+                  >
+                    {busy === 'upgrade' ? 'Paying…' : hero.gold < next.gold ? 'Too dear' : 'Extend'}
+                  </button>
+                </>
+              ) : (
+                <p>Fully extended: {w.capacity} shelves, as many as the building holds.</p>
+              )}
+            </div>
+          </section>
+        </div>
       </div>
     </div>
   );

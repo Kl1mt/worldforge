@@ -225,6 +225,13 @@
       "when": 1794176821008,
       "tag": "0031_game_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1794179169850,
+      "tag": "0032_account_shelf",
+      "breakpoints": true
     }
   ]
 }

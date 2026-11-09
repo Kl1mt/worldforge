@@ -449,6 +449,52 @@ export const warehouseApi = {
     apiRequest(`${c(id)}/warehouse/upgrade`, { method: 'POST', body: { level }, ...keyed(key) }, f),
 };
 
+/** Ticket T.3: the shared account shelf (the Warehouse's second tab). */
+export type ShelfKind = 'items' | 'materials' | 'gold';
+
+export interface ShelfItemDto extends ItemDto {
+  /** The hero of this account who put it on the shelf. */
+  placedBy: { characterId: string; name: string };
+}
+
+export interface ShelfState {
+  characterId: string;
+  capacity: number;
+  items: ShelfItemDto[];
+  gold: number;
+  materials: MaterialStackDto[];
+  /** Per kind: whether deposits are open. Withdrawals always are. */
+  deposits: Record<ShelfKind, boolean>;
+  hero: { gold: number; materials: MaterialStackDto[]; pack: { count: number; capacity: number } };
+}
+
+export interface ShelfMoveBody {
+  itemIds?: string[];
+  gold?: number;
+  materials?: Partial<Record<MaterialId, number>>;
+}
+
+export interface ShelfMoveResult {
+  shelf: ShelfState;
+  inventory: InventoryDto;
+  character: Character;
+  moved: { items: number; gold: number; materials: MaterialStackDto[] };
+}
+
+export const shelfApi = {
+  get: (id: string, o: Signal = {}, f?: typeof fetch): Promise<ApiResult<ShelfState>> =>
+    apiRequest(`${c(id)}/shelf`, o, f),
+  /** Gold and materials move: one key per action (a retry with it never moves twice). */
+  move: (
+    id: string,
+    direction: 'deposit' | 'withdraw',
+    body: ShelfMoveBody,
+    key: string,
+    f?: typeof fetch,
+  ): Promise<ApiResult<ShelfMoveResult>> =>
+    apiRequest(`${c(id)}/shelf/${direction}`, { method: 'POST', body, ...keyed(key) }, f),
+};
+
 export const forgeApi = {
   get: (id: string, o: Signal = {}, f?: typeof fetch): Promise<ApiResult<ForgeState>> =>
     apiRequest(`${c(id)}/forge`, o, f),
@@ -556,6 +602,16 @@ export function describeGameFailure(error: Pick<ApiFailure, 'code'>): string {
       return 'The warehouse has no room for that many. Take something out or extend it.';
     case 'item_in_warehouse':
       return 'That item is in the warehouse. Take it out first.';
+    case 'item_on_shelf':
+      return 'That item is on the account shelf. Take it out to a hero first.';
+    case 'shelf_paused':
+      return 'The town keeps the account shelf closed for that for now. Anything on it can still be taken out.';
+    case 'shelf_full':
+      return 'The account shelf has no room for that many. Take something out first.';
+    case 'item_held':
+      return 'That item was received in a trade and is held for now. It can go on the shelf once the hold ends.';
+    case 'nothing_to_move':
+      return 'Choose something to move first.';
     case 'level_changed':
       return 'The warehouse was extended meanwhile. The view has been refreshed.';
     case 'warehouse_max_level':

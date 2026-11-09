@@ -9,7 +9,7 @@ Every value path already writes an audit row in its own transaction. Next to tha
 Why not derive the numbers from the audit log instead:
 - **The audit log does not hold what telemetry needs.** It lists Epic+ farming drops individually and everything else as totals; drop rarity, Void, effects and sets per drop, upgrade outcomes per level and the hoard/chamber split would all have to be added to every audit row. Fatter audit rows on the hottest path (farming settlement) cost more than a few counter upserts, and the audit log is a ledger, not an analytics store.
 - **Reports stay cheap.** A report sums a few hundred rollup rows per day instead of scanning and parsing every `jsonb` audit row ever written.
-- **Consistency is the same.** The counters commit or roll back with the audit row they mirror, so they cannot drift from it. `reconcileWithAudit` proves it: it recomputes its totals from the audit log (gold, items kept/overflowed/filtered, materials, crypt wins/losses/hoards, turn-ins, merchant and forge counts and spending, guild founding, and since 4.6 community contributions, their gold and materials and the stages completed; since 4.7 warehouse items deposited and withdrawn, upgrades and their gold) and compares them with the rollups, exactly.
+- **Consistency is the same.** The counters commit or roll back with the audit row they mirror, so they cannot drift from it. `reconcileWithAudit` proves it: it recomputes its totals from the audit log (gold, items kept/overflowed/filtered, materials, crypt wins/losses/hoards, turn-ins, merchant and forge counts and spending, guild founding, and since 4.6 community contributions, their gold and materials and the stages completed; since 4.7 warehouse items deposited and withdrawn, upgrades and their gold; since T.3 account shelf moves per direction and kind) and compares them with the rollups, exactly. Since T.3 it also checks a conservation rule against stored state: what every account shelf holds (items, material units, gold) equals shelf deposits minus withdrawals in the audit log.
 
 Guarantees:
 - **Commit together, roll back together.** A refused request (`4xx`), a thrown error and a rolled-back attempt leave no counts. A deadlock/serialization retry re-runs the callback on a fresh transaction, whose counts start empty.
@@ -50,6 +50,7 @@ The audit log is stamped by the database clock, the rollups by the game clock, s
 | `community.stage` | project id | stage id | | stages completed (ticket 4.6) |
 | `warehouse.move` | `deposit` or `withdraw` | | | moves that changed something / items moved (ticket 4.7) |
 | `warehouse.upgrade` | `level1`…`level6` (the level bought) | | | upgrades (ticket 4.7) |
+| `shelf.move` | `deposit` or `withdraw` | `items`, `materials` or `gold` | | moves (one per kind per request) / items, material units or gold moved (ticket T.3, the account shelf). Shelf gold is not `gold.in`/`gold.out`: it stays with the account |
 | `xp.in` | `farming`, `crypt`, `quest`, `contract` | area, tier or quest id | | / XP |
 | `farming.settle` | area | | | settlements with a reward (one per `activity.reward` row) / simulated seconds |
 | `crypt.start` | `<dungeon>:<tier>` | `hoard_eligible` or `on_cooldown` | | runs entered |

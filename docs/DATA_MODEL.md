@@ -120,7 +120,7 @@ Append-only (the server never updates or deletes rows) for valuable or security-
 Indexes: `(account_id, created_at)`, `(event, created_at)`.
 
 ### item_instances — implemented (1.6 / 1.7; item model v2 in 3.1)
-One owned item, created from a game-core `GeneratedItem`. Location is a column, not a separate table: `equipped_slot` set = equipped in that slot; otherwise in the pack, or in the character's warehouse when `in_warehouse` (ticket 4.7; the same row moves, so identity, lock, forge state and audit history are kept).
+One owned item, created from a game-core `GeneratedItem`. Location is a column, not a separate table: `equipped_slot` set = equipped in that slot; otherwise in the pack, in the character's warehouse when `in_warehouse` (ticket 4.7), or on the account's shared shelf when `on_shelf` (ticket T.3). The same row moves, so identity, lock, binding, forge state and audit history are kept.
 | Column        | Type        | Notes                                                              |
 | ------------- | ----------- | ------------------------------------------------------------------ |
 | id            | uuid PK     | UUIDv7                                                             |
@@ -151,6 +151,8 @@ One owned item, created from a game-core `GeneratedItem`. Location is a column, 
 | first_equipped_at | timestamptz? | T.1. The first equip (kept on later equips); the backfill sets its own run time for items worn then. Null = not known to have been worn (items worn before T.1 and taken off count as fresh, TRADING.md's accepted risk) |
 | unprovenanced | boolean     | T.1. Set by the backfill on a bind-on-equip item whose creation is not in the audit log; T.4/T.5 refuse and flag it. Default false |
 | in_warehouse  | boolean     | 4.7 (migration `0024_warehouse`). In the character's warehouse, not the pack; default false. Check `item_instances_warehouse_check`: never equipped while stored. Stored items take no pack slot and are out of reach of sell, salvage, discard, the forge, the loot filter and placement until moved back (`docs/WAREHOUSE.md`) |
+| on_shelf      | boolean     | T.3 (migration `0032_account_shelf`). On the account's shared shelf (`docs/TRADING.md` §3); default false. `character_id` stays the hero who placed it until another hero of the account takes it out (the withdrawal sets it to the taker). Out of reach of sell, salvage, discard, lock, equip, the Forge and the warehouse (`item_on_shelf`), takes no pack slot (`isPackItem`). Moving it never changes `binding` or `traded_count` |
+| shelf_account_id | uuid FK → accounts (cascade) | T.3. The account whose shelf holds the item; set exactly while `on_shelf`. Check `item_instances_shelf_check`: `on_shelf` ⇔ `shelf_account_id` set, and a shelved item is neither worn nor stored. Partial index `item_instances_shelf_account_id_idx` |
 
 Indexes: `(character_id)`; partial unique `(character_id, equipped_slot) where equipped_slot is not null`. Checks: `item_level >= 1`, `upgrade_level` 0–10, the three counters `>= 0`, `variant`, `effect_roll`; T.1: `binding`, `traded_count >= 0`.
 
@@ -200,6 +202,13 @@ Materials a character holds. Granted by settlement and forge salvage, spent by f
 | updated_at   | timestamptz |                                                              |
 
 Settlement adds with `INSERT … ON CONFLICT DO UPDATE SET quantity = quantity + excluded.quantity` in the settlement transaction (under the character lock).
+
+### accounts.shelf_gold, account_shelf_materials — implemented (T.3)
+- `accounts.shelf_gold bigint not null default 0`, check `accounts_shelf_gold_check` (`>= 0`): gold on the account's shared shelf.
+- `account_shelf_materials (account_id FK accounts cascade, material_id text, quantity bigint check >= 0, updated_at)`, PK `(account_id, material_id)`: materials on the shelf, no capacity limit.
+- Both belong to the account, not a hero (`docs/TRADING.md` §3): a deposit takes from one hero, a withdrawal gives to any hero of the account. Written only under the account's shelf lock (advisory `shelf:<accountId>`); the checks are the backstop. Every change is a `shelf.deposit` / `shelf.withdraw` audit row, and `reconcileWithAudit` checks that what every shelf holds equals deposits minus withdrawals.
+
+Additive migration `0032_account_shelf` (one new table; two columns on `item_instances` and one on `accounts`, all with defaults that satisfy the new checks on existing rows, so no backfill).
 
 ### character_professions — implemented (2.3)
 Gathering profession progress (game-core `ProfessionState`). A missing row means level 1 with 0 XP.
@@ -472,7 +481,7 @@ account 1─* sessions
 account 1─* account_tokens
 account 1─* character 1─1 activity
                      1─* dungeon_runs (≤ 1 unclaimed per account)
-                     1─* item_instance (equipped_slot set = worn; else pack, or warehouse when in_warehouse)
+                     1─* item_instance (equipped_slot set = worn; else pack, warehouse when in_warehouse, or the account shelf when on_shelf)
                      1─* character_materials, 1─* character_professions
                      1─* character_quests
                      1─* currency_ledger

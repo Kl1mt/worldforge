@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest';
-import { activityApi, describeGameFailure, inventoryApi, warehouseApi, worldApi } from './api';
+import {
+  activityApi,
+  describeGameFailure,
+  inventoryApi,
+  shelfApi,
+  warehouseApi,
+  worldApi,
+} from './api';
 
 function recorder() {
   const calls: { url: string; method: string; body: unknown }[] = [];
@@ -104,5 +111,46 @@ describe('warehouse api (ticket 4.7)', () => {
     expect(describeGameFailure({ code: 'warehouse_closed' })).toMatch(/not open yet/);
     expect(describeGameFailure({ code: 'item_in_warehouse' })).toMatch(/Take it out first/);
     expect(describeGameFailure({ code: 'warehouse_full' })).toMatch(/no room/);
+  });
+});
+
+describe('account shelf api (ticket T.3)', () => {
+  it('sends ids and amounts only, always with an Idempotency-Key', async () => {
+    const calls: { url: string; method: string; body: unknown; key: string | null }[] = [];
+    const f = (async (url: string, init: RequestInit) => {
+      calls.push({
+        url,
+        method: init.method ?? 'GET',
+        body: init.body ? JSON.parse(String(init.body)) : undefined,
+        key: new Headers(init.headers).get('idempotency-key'),
+      });
+      return Response.json({});
+    }) as unknown as typeof fetch;
+    await shelfApi.get(C, {}, f);
+    await shelfApi.move(
+      C,
+      'deposit',
+      { itemIds: [I], gold: 10, materials: { timber: 2 } },
+      'k-1',
+      f,
+    );
+    await shelfApi.move(C, 'withdraw', { gold: 5 }, 'k-2', f);
+    expect(calls).toEqual([
+      { url: `/api/characters/${C}/shelf`, method: 'GET', body: undefined, key: null },
+      {
+        url: `/api/characters/${C}/shelf/deposit`,
+        method: 'POST',
+        body: { itemIds: [I], gold: 10, materials: { timber: 2 } },
+        key: 'k-1',
+      },
+      { url: `/api/characters/${C}/shelf/withdraw`, method: 'POST', body: { gold: 5 }, key: 'k-2' },
+    ]);
+  });
+
+  it('explains the shelf refusals in plain words', () => {
+    expect(describeGameFailure({ code: 'shelf_paused' })).toMatch(/can still be taken out/);
+    expect(describeGameFailure({ code: 'item_on_shelf' })).toMatch(/Take it out to a hero/);
+    expect(describeGameFailure({ code: 'shelf_full' })).toMatch(/no room/);
+    expect(describeGameFailure({ code: 'item_held' })).toMatch(/once the hold ends/);
   });
 });

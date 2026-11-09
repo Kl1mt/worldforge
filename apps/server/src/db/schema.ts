@@ -124,6 +124,12 @@ export const accounts = pgTable(
      * for them). Cleared when the email changes. Trading (T.4) reads it via `isEmailVerified`.
      */
     emailVerifiedAt: timestamp('email_verified_at', { withTimezone: true }),
+    /**
+     * Ticket T.3 (docs/TRADING.md "3. The shared account shelf"): gold on the account's shelf. It
+     * belongs to the account, not a hero: a deposit takes it from one hero, a withdrawal gives it to
+     * any hero of the account. Written only under the account's shelf lock.
+     */
+    shelfGold: bigint('shelf_gold', { mode: 'number' }).notNull().default(0),
     ...timestamps,
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -137,6 +143,7 @@ export const accounts = pgTable(
       sql`${t.profileVisibility} in ('public', 'friendsAndGuild', 'hidden')`,
     ),
     check('accounts_character_slots_check', sql`${t.characterSlots} >= 0`),
+    check('accounts_shelf_gold_check', sql`${t.shelfGold} >= 0`),
   ],
 );
 
@@ -367,6 +374,18 @@ export const itemInstances = pgTable(
      * T.4/T.5 refuse to trade it and flag it (docs/TRADING.md "Full audit", provenance).
      */
     unprovenanced: boolean('unprovenanced').notNull().default(false),
+    /**
+     * Ticket T.3: the item is on its account's shared shelf (`shelf_account_id`), out of the pack,
+     * the warehouse and the gear. `character_id` stays the hero who put it there until another
+     * hero takes it out (then it becomes theirs). Out of reach of selling, salvaging, discarding,
+     * locking, equipping and the Forge until taken out (`item_on_shelf`). Moving it neither binds
+     * it nor counts as a trade.
+     */
+    onShelf: boolean('on_shelf').notNull().default(false),
+    /** Ticket T.3: the account whose shelf holds the item; set exactly while `on_shelf`. */
+    shelfAccountId: uuid('shelf_account_id').references(() => accounts.id, {
+      onDelete: 'cascade',
+    }),
     ...timestamps,
   },
   (t) => [
@@ -394,6 +413,13 @@ export const itemInstances = pgTable(
       sql`${t.binding} is null or ${t.binding} in ('account', 'equip')`,
     ),
     check('item_instances_traded_count_check', sql`${t.tradedCount} >= 0`),
+    index('item_instances_shelf_account_id_idx')
+      .on(t.shelfAccountId)
+      .where(sql`${t.shelfAccountId} is not null`),
+    check(
+      'item_instances_shelf_check',
+      sql`(${t.onShelf} and ${t.shelfAccountId} is not null and ${t.equippedSlot} is null and not ${t.inWarehouse}) or (not ${t.onShelf} and ${t.shelfAccountId} is null)`,
+    ),
   ],
 );
 
@@ -549,6 +575,28 @@ export const characterMaterials = pgTable(
   (t) => [
     primaryKey({ columns: [t.characterId, t.materialId] }),
     check('character_materials_quantity_check', sql`${t.quantity} >= 0`),
+  ],
+);
+
+/**
+ * Materials on an account's shared shelf (ticket T.3, docs/TRADING.md §3). One row per material;
+ * they belong to the account, not a hero, and have no capacity limit. Written only under the
+ * account's shelf lock; the `quantity >= 0` check is the backstop.
+ */
+export const accountShelfMaterials = pgTable(
+  'account_shelf_materials',
+  {
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    /** game-core `MaterialId`. */
+    materialId: text('material_id').$type<MaterialId>().notNull(),
+    quantity: bigint('quantity', { mode: 'number' }).notNull().default(0),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.accountId, t.materialId] }),
+    check('account_shelf_materials_quantity_check', sql`${t.quantity} >= 0`),
   ],
 );
 

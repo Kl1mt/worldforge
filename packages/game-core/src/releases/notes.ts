@@ -23,9 +23,18 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.5.10';
+export const GAME_VERSION = '0.5.11';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.5.11',
+    date: '2026-11-08',
+    title: 'A shelf for the whole household',
+    new: [
+      'The Warehouse gains an account shelf for moving goods between your own heroes; the town opens it when ready. Once open, one hero can leave items, materials and gold there and any of your other heroes can take them, and anything left on it can always be taken out.',
+    ],
+    tickets: ['T.3'],
+  },
   {
     version: '0.5.10',
     date: '2026-11-08',

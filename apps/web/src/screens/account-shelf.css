@@ -1,0 +1,116 @@
+/* The account shelf (ticket T.3): the Warehouse's second tab. Builds on shop.css and warehouse.css. */
+.ashelf {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.ashelf__lead {
+  max-width: 72ch;
+  color: var(--text-muted);
+}
+
+.ashelf__paused,
+.ashelf__full {
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--brass-500);
+  background: var(--ink-900);
+  color: var(--text);
+}
+
+.ashelf__paused .caps {
+  margin-right: var(--space-2);
+  color: var(--brass-400);
+}
+
+.ashelf__closed-note,
+.ashelf__none {
+  color: var(--text-dim);
+}
+
+.ashelf__amount {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+}
+
+.ashelf__amount > span:first-child {
+  min-width: 10ch;
+}
+
+.ashelf__amount input {
+  width: 9ch;
+  min-height: 36px;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--iron-600);
+  border-radius: 0;
+  background: var(--ink-900);
+  color: var(--text);
+  font: inherit;
+  text-align: right;
+}
+
+.ashelf__amount input:focus-visible {
+  outline: 2px solid var(--brass-400);
+  outline-offset: 1px;
+}
+
+.ashelf__of {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.ashelf__mats {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3) 0 0;
+  list-style: none;
+  border-top: 1px solid var(--line);
+}
+
+/* Warehouse tabs: the pack's ledger tabs (inventory.css), scoped to the Warehouse screen. */
+.whtabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--brass-700);
+}
+
+.whtabs__tab {
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border: 1px solid transparent;
+  border-bottom: 0;
+  background: transparent;
+  color: var(--text-dim);
+  font-family: inherit;
+  font-size: var(--text-md);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  margin-bottom: -1px;
+}
+
+.whtabs__tab:hover {
+  color: var(--text);
+}
+
+.whtabs__tab[aria-selected='true'] {
+  color: var(--accent-strong);
+  background: var(--bg-surface);
+  border-color: var(--brass-700);
+  box-shadow: inset 0 2px 0 var(--brass-500);
+}
+
+.whtabs__tab:focus-visible {
+  outline: 2px solid var(--brass-400);
+  outline-offset: -2px;
+}
+
+@media (max-width: 640px) {
+  .whtabs__tab {
+    flex: 1 1 0;
+    padding: 0 var(--space-2);
+  }
+}
