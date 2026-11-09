@@ -38,6 +38,7 @@ import { registerWarehouse } from './warehouse/routes.js';
 import { registerShelf } from './shelf/routes.js';
 import { registerTrading } from './trading/routes.js';
 import { registerTradeOffers } from './trading/offer-routes.js';
+import { registerTradeModeration } from './trading/mod-routes.js';
 import { sweepTrades } from './trading/offers.js';
 import { registerLeaderboardRefresh, registerLeaderboards } from './leaderboards/routes.js';
 import { sweepLeaderboards } from './leaderboards/snapshot.js';
@@ -150,6 +151,7 @@ export function buildApp({
       await registerShelf(api, activityOptions);
       await registerTrading(api);
       await registerTradeOffers(api, activityOptions);
+      await registerTradeModeration(api, activityOptions);
       await registerLegal(api, legal ?? {});
       await registerAdmin(api, { gameNow: activityOptions.now, ...admin });
       await registerScores(api);

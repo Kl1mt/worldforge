@@ -90,7 +90,7 @@ async function placeholderName(tx: Executor): Promise<string> {
   throw new Error('no free placeholder name');
 }
 
-interface IssueInput {
+export interface IssueInput {
   actor: Account;
   subject: Account;
   action: SanctionAction;
@@ -106,7 +106,7 @@ interface IssueInput {
 
 /** Issues a sanction under the subject's row lock. `409 already_sanctioned` if one of the same
  * kind (and, for `hide`, the same content) is active. */
-async function issueSanction(tx: Transaction, input: IssueInput): Promise<Sanction> {
+export async function issueSanction(tx: Transaction, input: IssueInput): Promise<Sanction> {
   const { actor, subject, action, now } = input;
   const kind = SANCTION_FOR_ACTION[action];
   const active = await activeSanctions(tx, subject.id, now, [kind]);

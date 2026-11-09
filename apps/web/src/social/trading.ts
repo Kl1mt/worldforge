@@ -111,6 +111,8 @@ export interface TradeOffer {
   closedAt: string | null;
   heldUntil: string | null;
   endText: string | null;
+  /** Ticket T.6: a moderator reversed this trade (when, why, and what it means). */
+  reversal?: { at: string; reason: string; text: string } | null;
 }
 
 export interface TradeHold {

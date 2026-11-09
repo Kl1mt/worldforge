@@ -1,4 +1,4 @@
-import { and, eq, gt } from 'drizzle-orm';
+import { and, eq, gt, isNull } from 'drizzle-orm';
 import { isMaterialId, type HeldValue, type MaterialBundle } from '@worldforge/game-core';
 import { tradeHolds } from '../db/schema.js';
 import type { Executor } from '../db/types.js';
@@ -9,7 +9,8 @@ import type { Executor } from '../db/types.js';
  * can't be spent, traded or put on the shelf until the hold ends, so a reversal (T.6) can always
  * find them.
  *
- * A hold counts while its `held_until` lies after `now`, the transaction's clock (the window rule).
+ * A hold counts while its `held_until` lies after `now`, the transaction's clock (the window rule),
+ * and it hasn't been ended by a reversal (T.6).
  * Its release (`released_at`, the `trade.release` audit row) is bookkeeping written once
  * afterwards: spending never waits for it, so there is nothing to race. Read under the hero's row
  * lock: holds are only ever added by an accept, which locks the receiving hero too.
@@ -25,7 +26,15 @@ export async function heldValueOf(
   const rows = await tx
     .select({ gold: tradeHolds.gold, materials: tradeHolds.materials })
     .from(tradeHolds)
-    .where(and(eq(tradeHolds.characterId, characterId), gt(tradeHolds.heldUntil, now)));
+    .where(
+      and(
+        eq(tradeHolds.characterId, characterId),
+        gt(tradeHolds.heldUntil, now),
+        // Ticket T.6: a reversal ends its trade's holds (`released_at`) before their time, under
+        // the hero's row lock. The sweep releases only holds already past `held_until`.
+        isNull(tradeHolds.releasedAt),
+      ),
+    );
   let gold = 0;
   const materials: MaterialBundle = {};
   for (const r of rows) {

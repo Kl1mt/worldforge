@@ -488,6 +488,8 @@ Additive migration `0033_trade_rules` (one new table, empty; one widened check).
 
 Additive migration `0034_trade_offers` (three new tables, empty; one nullable column, an index and a check on `item_instances` that every existing row satisfies, so no backfill).
 
+**Ticket T.6** (migration `0035_trade_moderation`, additive, no backfill): `trade_offers.reversed_at timestamptz null`, `reversed_by uuid FK accounts set null`, `reverse_reason text null` (a moderator reversed the accepted trade; check `trade_offers_reversed_check`: only on `accepted`, the reason exactly with the time; status stays `accepted`); partial indexes `trade_offers_accepted_closed_idx (closed_at) where status = 'accepted'` and `trade_offers_reversed_idx (reversed_at) where reversed_at is not null`; `audit_log_trade_offer_idx ((data->>'offerId')) where event like 'trade.%'` (one trade's audit trail). A reversal sets `trade_holds.released_at` on the trade's open holds (with `trade.release`, `via: 'reverse'`); `heldValueOf` counts only holds with `released_at is null`.
+
 ## Relationships
 
 ```

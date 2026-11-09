@@ -3,13 +3,23 @@
  * action, through the HTTP API, including acting on oneself, on another moderator and on an admin.
  * The expected table is written out by hand, so a rule change has to change it here too.
  * Ticket 4.4: `renameGuild` and `disbandGuild` act on a reported guild whose leader is the subject.
+ * Ticket T.6: `reverseTrade` reverses a completed trade between the subject and a player.
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { eq } from 'drizzle-orm';
 import { MODERATION_ACTIONS, type AccountRole, type ModerationAction } from '@worldforge/game-core';
 import { buildApp } from '../app.js';
-import { guildMembers, guilds, reports, sanctions } from '../db/schema.js';
+import { accounts, guildMembers, guilds, reports, sanctions, tradeOffers } from '../db/schema.js';
+import { insertCharacter } from '../test/heroes.js';
+import {
+  befriendSince,
+  insertTradeItem,
+  insertTrader,
+  modTradeCalls,
+  setTradingSettings,
+  tradeCalls,
+} from '../test/trading.js';
 import { insertGuild } from '../test/guilds.js';
 import type { DatabaseHandle } from '../db/types.js';
 import { uuidv7 } from '../db/uuid.js';
@@ -47,7 +57,10 @@ describe('moderation permission matrix', () => {
     database = await createTestDatabase();
     app = buildApp({
       database,
-      auth: { socialWriteLimit: { windows: [{ windowMs: 60_000, max: 10_000 }] } },
+      auth: {
+        socialWriteLimit: { windows: [{ windowMs: 60_000, max: 10_000 }] },
+        tradeWriteLimit: { windows: [{ windowMs: 60_000, max: 10_000 }] },
+      },
     });
     await app.ready();
     call = caller(app);
@@ -94,7 +107,38 @@ describe('moderation permission matrix', () => {
     return res.json().error.details.reportId;
   }
 
+  /** Ticket T.6: a completed trade from a fresh player to the subject (made eligible here). */
+  async function tradeWith(subject: TestAccount): Promise<string> {
+    const now = new Date();
+    await setTradingSettings(app, database.db);
+    await database.db
+      .update(accounts)
+      .set({ createdAt: new Date(now.getTime() - 30 * 86_400_000), emailVerifiedAt: now })
+      .where(eq(accounts.id, subject.id));
+    // A self case reuses the actor, who may still carry the `liftSanction` row's mute.
+    await database.db
+      .update(sanctions)
+      .set({ liftedAt: now })
+      .where(eq(sanctions.subjectId, subject.id));
+    const hero = await insertCharacter(database.db, subject.id, { level: 20 });
+    const giver = await insertTrader(database.db, now);
+    await befriendSince(database.db, giver, subject, now);
+    const epic = await insertTradeItem(database.db, giver.hero.id);
+    const t = tradeCalls(app);
+    const sent = await t.send(giver, subject, { give: { itemIds: [epic.id] } });
+    expect(sent.statusCode, sent.body).toBe(201);
+    const ok = await t.act(subject, sent.json().id, 'accept', { characterId: hero.id });
+    expect(ok.statusCode, ok.body).toBe(200);
+    return sent.json().id;
+  }
+
   async function perform(actor: TestAccount, action: ModerationAction, subject: TestAccount) {
+    if (action === 'reverseTrade') {
+      const offerId = await tradeWith(subject);
+      const res = await modTradeCalls(app).reverse(actor, offerId, { reason: 'Matrix test' });
+      const [row] = await database.db.select().from(tradeOffers).where(eq(tradeOffers.id, offerId));
+      return { res, changed: row!.reversedAt !== null };
+    }
     if (action === 'liftSanction') {
       const id = uuidv7();
       await database.db.insert(sanctions).values({

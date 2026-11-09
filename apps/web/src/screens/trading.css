@@ -184,6 +184,31 @@
   border-left: 3px solid var(--iron-500);
 }
 
+/* Ticket T.6: a moderator reversed the trade; the report footer. */
+.trading__reversed {
+  border-left-color: var(--crimson-500);
+}
+
+.trading__reversed p {
+  margin: 0 0 var(--space-1);
+}
+
+.trading__report {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-5);
+  padding-top: var(--space-3);
+  border-top: 1px dashed var(--iron-500);
+}
+
+.trading__report .trading__fine {
+  flex: 1 1 22rem;
+  margin: 0;
+}
+
 .trading__scales {
   display: grid;
   grid-template-columns: 1fr 14px 1fr;

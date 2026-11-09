@@ -2,8 +2,9 @@
  * The trade step of the journey (ticket T.5, `journey.ts` `playTradeStep`) on its own: two heroes
  * farm, become friends, wait out the account age and the friendship's 7 days (the clock moves, it
  * is never waited on), and trade with the switches turned on in the test: a gift accepted and
- * held, an offer declined, one cancelled, the hold released once. Holdings of both heroes equal
- * the audit log; the rollups reconcile.
+ * held, an offer declined, one cancelled, the hold released once; then (ticket T.6) the gift
+ * reported, found in the queue and reversed by a moderator. Holdings of both heroes equal the
+ * audit log; the rollups reconcile.
  */
 import { afterAll, beforeAll, describe, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';

@@ -1,0 +1,369 @@
+/* Ticket T.6: the trade desk (docs/TRADING.md "T.6 as built"). A ledger of offers on the
+   moderators' docket and in the admin strongroom; one trade laid out as two pans, the reversal
+   verdict on an iron plate, the audit trail as a narrow column of dated lines. Scoped to
+   `.tdesk` / `.tpat`. Phones: everything stacks in one column. */
+.tdesk {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5);
+}
+
+.tdesk__head .caps {
+  color: var(--brass-500);
+}
+
+.tdesk__head h2 {
+  font-size: var(--text-2xl);
+  color: var(--bone-100);
+}
+
+.tdesk__lede,
+.tdesk__fine {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.tdesk__wait,
+.tdesk__empty,
+.tdesk__nothing {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.tdesk__filter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: end;
+}
+
+.tdesk__field {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 10rem;
+}
+
+.tdesk__field--wide {
+  min-width: min(100%, 32rem);
+}
+
+.tdesk__field input,
+.tdesk__field select {
+  min-height: 36px;
+  padding: var(--space-1) var(--space-2);
+  border: 1px solid var(--iron-600);
+  background: var(--ink-900);
+  color: var(--bone-100);
+  font: inherit;
+}
+
+.tdesk__field input:disabled {
+  opacity: 0.5;
+}
+
+.tdesk__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+
+.tdesk__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-4);
+  border-left: 3px solid var(--iron-500);
+  background: rgb(0 0 0 / 0.18);
+}
+
+.tdesk__row--accepted {
+  border-left-color: var(--brass-500);
+}
+
+.tdesk__row--reversed {
+  border-left-color: var(--crimson-400);
+}
+
+.tdesk__row-main p {
+  margin: 0;
+}
+
+.tdesk__row-who {
+  font-family: var(--font-display);
+  color: var(--bone-100);
+}
+
+.tdesk__arrow {
+  color: var(--brass-400);
+}
+
+.tdesk__row-sum,
+.tdesk__row-when {
+  color: var(--bone-300);
+  font-size: var(--text-sm);
+}
+
+.tdesk__chip {
+  padding: 0 var(--space-2);
+  border: 1px solid var(--iron-500);
+  font-size: var(--text-xs);
+}
+
+.tdesk__chip--accepted {
+  border-color: var(--brass-500);
+  color: var(--brass-300);
+}
+
+.tdesk__chip--reversed {
+  border-color: var(--crimson-400);
+  color: var(--bone-200);
+}
+
+.tdesk__back,
+.tdesk__link {
+  justify-self: start;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.tdesk__case {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.tdesk__case-head .caps {
+  color: var(--brass-500);
+}
+
+.tdesk__case-head h3 {
+  font-size: var(--text-xl);
+  color: var(--bone-100);
+}
+
+.tdesk__case-head h3:focus {
+  outline: none;
+}
+
+.tdesk__notice {
+  padding: var(--space-2) var(--space-4);
+  border-left: 3px solid var(--moss-400);
+  background: rgb(67 69 58 / 0.4);
+}
+
+.tdesk__parties {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: var(--space-3) var(--space-5);
+}
+
+.tdesk__party p {
+  margin: 0 0 var(--space-1);
+}
+
+.tdesk__party .caps {
+  color: var(--text-faint);
+}
+
+.tdesk__role {
+  color: var(--brass-300);
+  font-size: var(--text-xs);
+}
+
+.tdesk__handle {
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+}
+
+.tdesk__pairlink {
+  grid-column: 1 / -1;
+}
+
+.tdesk__scales {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+.tdesk__pan,
+.tdesk__move {
+  display: grid;
+  gap: var(--space-2);
+  align-content: start;
+  padding: var(--space-3) var(--space-4);
+  background: var(--ink-900);
+  box-shadow: inset 0 0 0 1px var(--iron-700);
+}
+
+.tdesk__pan h4,
+.tdesk__move h5 {
+  margin: 0;
+  color: var(--brass-400);
+}
+
+.tdesk__items {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+}
+
+.tdesk__item {
+  position: relative;
+}
+
+.tdesk__purse {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+}
+
+.tdesk__mat {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.tdesk__holds h4,
+.tdesk__trail h4 {
+  margin: 0 0 var(--space-2);
+  color: var(--text-faint);
+}
+
+.tdesk__holds ul,
+.tdesk__trail ol,
+.tdesk__refusals,
+.tdesk__move-items {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.tdesk__trail li {
+  margin-bottom: var(--space-1);
+}
+
+.tdesk__trail-when {
+  color: var(--text-faint);
+  font-size: var(--text-sm);
+}
+
+.tdesk__verdict {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: start;
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--brass-500);
+  background: rgb(0 0 0 / 0.2);
+}
+
+.tdesk__verdict p,
+.tdesk__verdict h4 {
+  margin: 0;
+}
+
+.tdesk__verdict--no {
+  border-left-color: var(--iron-500);
+}
+
+.tdesk__verdict--done {
+  border-left-color: var(--crimson-400);
+}
+
+.tdesk__confirm {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  background: var(--ink-850);
+  box-shadow: var(--frame-iron);
+}
+
+.tdesk__confirm h4 {
+  margin: 0;
+  font-size: var(--text-xl);
+  color: var(--bone-100);
+}
+
+.tdesk__confirm p {
+  margin: 0;
+}
+
+.tdesk__moves {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+.tdesk__sanction {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--iron-700);
+}
+
+.tdesk__sanction legend {
+  padding: 0 var(--space-1);
+  color: var(--text-faint);
+}
+
+.tdesk__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.tdesk__danger {
+  border-color: var(--crimson-400);
+  background: var(--crimson-800);
+  color: var(--bone-100);
+}
+
+.tdesk__danger:hover:not(:disabled) {
+  background: var(--crimson-700);
+}
+
+.tdesk__reports {
+  margin: 0;
+  color: var(--bone-200);
+}
+
+.tpat__totals {
+  margin: 0;
+  color: var(--bone-300);
+}
+
+.tpat__sub {
+  margin: var(--space-2) 0 0;
+  color: var(--text-faint);
+}
+
+@media (max-width: 720px) {
+  .tdesk {
+    padding: var(--space-3);
+  }
+
+  .tdesk__scales,
+  .tdesk__moves {
+    grid-template-columns: 1fr;
+  }
+
+  .tdesk__row {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .tdesk__field {
+    min-width: 100%;
+  }
+}

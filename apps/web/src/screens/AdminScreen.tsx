@@ -27,6 +27,7 @@ import { formatWhen } from '../social/api';
 import { daysLeft, seasonSpan, type SeasonView } from '../social/seasons';
 import { DEFAULT_SEASON_WEEKS, seasonName } from '@worldforge/game-core';
 import { TradingSettingsFolio } from './TradingSettingsFolio';
+import { TradeDesk } from './TradeDesk';
 import './gate.css';
 import './admin.css';
 
@@ -36,6 +37,7 @@ const SECTION_LABELS: Record<AdminSection, { label: string; hint: string }> = {
   telemetry: { label: 'Telemetry', hint: 'Loot & economy' },
   seasons: { label: 'Seasons', hint: 'Rolls & honours' },
   trading: { label: 'Trading', hint: 'Switches & limits' },
+  trades: { label: 'Trades', hint: 'History & patterns' },
   status: { label: 'Server', hint: 'Health & version' },
   roles: { label: 'Roles', hint: 'Wardens & admins' },
 };
@@ -172,6 +174,7 @@ export function AdminScreen() {
         {loc.section === 'telemetry' ? <TelemetryFolio /> : null}
         {loc.section === 'seasons' ? <SeasonsFolio /> : null}
         {loc.section === 'trading' ? <TradingSettingsFolio /> : null}
+        {loc.section === 'trades' ? <TradeDesk /> : null}
         {loc.section === 'status' ? <StatusFolio /> : null}
         {loc.section === 'roles' ? <RolesFolio /> : null}
       </div>

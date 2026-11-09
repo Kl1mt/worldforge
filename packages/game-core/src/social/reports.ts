@@ -18,7 +18,12 @@ export type ReportTarget =
   /** Ticket 4.4: a guild (its name and tag), by the guild's opaque handle. The subject is its leader. */
   | { kind: 'guild'; handle: string }
   /** Ticket 4.5: a guild chat message or guild notice, by its id. The subject is its author. */
-  | { kind: 'message'; id: string };
+  | { kind: 'message'; id: string }
+  /**
+   * Ticket T.6: a trade offer or completed trade, by its id. Only its two players may report it;
+   * the subject is the other one.
+   */
+  | { kind: 'trade'; id: string };
 
 export type ReportTargetKind = ReportTarget['kind'];
 
@@ -36,6 +41,8 @@ export const REPORT_TARGET_KINDS: Record<ReportTargetKind, ReportTargetKindInfo>
   guild: { hideable: false, label: 'Guild' },
   // Ticket 4.5: a hidden message renders as a tombstone for everyone in the guild.
   message: { hideable: true, label: 'Guild chat message' },
+  // Ticket T.6: moderators reverse the trade or sanction; there is nothing to hide.
+  trade: { hideable: false, label: 'Trade' },
 };
 
 export const REPORT_TARGET_KIND_IDS = Object.keys(REPORT_TARGET_KINDS) as ReportTargetKind[];
@@ -51,6 +58,8 @@ export const REPORT_REASONS = [
   { id: 'inappropriate', label: 'Inappropriate name or content' },
   { id: 'impersonation', label: 'Pretends to be staff or someone else' },
   { id: 'cheating', label: 'Cheating or exploiting' },
+  // Ticket T.6: for reported trades (any target may use it).
+  { id: 'scam', label: 'A scam, a stolen account or selling for real money' },
   { id: 'other', label: 'Something else' },
 ] as const;
 

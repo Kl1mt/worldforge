@@ -71,3 +71,5 @@ The building's second tab, *Account shelf* (`docs/TRADING.md` §3 has the rules 
 ## Screenshots
 
 `docs/screenshots/phase-4/`: `hub-warehouse-locked-*`, `warehouse-closed-*`, `warehouse-open-*`, `warehouse-full-*`, `pack-warehouse-*` (desktop and mobile), from `node tools/screenshots/warehouse.mjs` against dev servers on a scratch database (the script's header).
+
+**Trade reversal (ticket T.6).** A traded item that went into the Warehouse after its 72-hour hold can't be reversed by a moderator until it is taken out to the hero again (`item_in_warehouse`); a reversal never reaches into storage on its own (docs/TRADING.md "T.6 as built").

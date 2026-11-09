@@ -35,6 +35,8 @@ export const MODERATION_ACTIONS = [
   'disbandGuild',
   // Ticket T.4: the trade restriction (docs/TRADING.md).
   'restrictTrade',
+  // Ticket T.6: reverse a completed trade (both parties must be in reach).
+  'reverseTrade',
 ] as const;
 export type ModerationAction = (typeof MODERATION_ACTIONS)[number];
 
