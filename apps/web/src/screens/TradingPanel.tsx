@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useId, useState, type FormEvent } from 'react';
 import { TRADE_KINDS, type TradeCapMetric } from '@worldforge/game-core';
 import type { ApiFailure } from '../lib/api';
+import { routeHref } from '../lib/route';
 import { formatWhen } from '../social/api';
 import { friendsApi, type FriendEntry } from '../social/friends';
 import {
@@ -108,6 +109,10 @@ function Ready({ view }: { view: TradeEligibility }) {
         {view.you.eligible
           ? 'You meet every requirement.'
           : 'Not every requirement is met yet. Play goes on as usual.'}
+      </p>
+      <p className="trade-elig__summary">
+        <a href={routeHref('trading')}>Open the Trading screen</a>
+        {open ? ' to send or answer offers.' : ' (closed for now).'}
       </p>
       {open ? <Limits view={view} /> : null}
       <FriendCheck />

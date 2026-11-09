@@ -132,6 +132,8 @@ export interface ItemDto {
   binding: ItemBinding;
   bindingReason: ItemBindingReason;
   tradeable: boolean;
+  /** Ticket T.5: received in a trade, held until then (ISO); absent when not held. */
+  holdUntil?: string;
 }
 
 export interface InventoryDto {

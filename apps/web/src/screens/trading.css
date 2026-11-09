@@ -1,0 +1,352 @@
+/*
+ * Ticket T.5: the Trading screen, "the weighing table" (docs/DESIGN_SYSTEM.md). Scoped to
+ * `.trading`. A dark-wood table top; each offer is two sunken pans on a brass beam (what you give,
+ * what you get), the beam a thin brass bar with a fulcrum diamond. Held value has a brass edge.
+ */
+
+.trading {
+  max-width: var(--content-max);
+  margin: 0 auto;
+  padding: var(--space-5) var(--gutter);
+}
+
+.trading__head .display {
+  margin: 0;
+  font-size: var(--text-3xl);
+  color: var(--accent-strong);
+}
+
+.trading__lede,
+.trading__fine,
+.trading__meta,
+.trading__when {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.trading__lede {
+  max-width: 62ch;
+  margin: var(--space-2) 0 var(--space-5);
+}
+
+.trading__wait {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.trading__closed {
+  margin-bottom: var(--space-5);
+  padding: var(--space-4) var(--space-5);
+  background: var(--bg-sunken);
+  border-left: 3px solid var(--iron-500);
+  max-width: 70ch;
+}
+
+.trading__closed .display {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-xl);
+  color: var(--text);
+}
+
+.trading__closed a,
+.trading__empty a {
+  color: var(--accent);
+}
+
+.trading__holds {
+  margin-bottom: var(--space-5);
+  padding: var(--space-3) var(--space-4);
+  background: var(--bg-sunken);
+  border-left: 3px solid var(--brass-500);
+}
+
+.trading__holds h2 {
+  margin: 0 0 var(--space-2);
+  color: var(--brass-300);
+}
+
+.trading__holds ul {
+  margin: 0;
+  padding-left: var(--space-4);
+}
+
+.trading__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  border-bottom: var(--border-hair);
+}
+
+.trading__tab {
+  padding: var(--space-2) var(--space-4);
+  background: none;
+  border: none;
+  border-bottom: 3px solid transparent;
+  color: var(--text-dim);
+  font: inherit;
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.trading__tab[aria-pressed='true'] {
+  color: var(--accent-strong);
+  border-bottom-color: var(--brass-400);
+}
+
+.trading__tab:disabled {
+  color: var(--text-faint);
+  cursor: not-allowed;
+}
+
+.trading__tab:focus-visible,
+.trading__back:focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.trading__empty {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.trading__list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.trading__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-3) var(--space-4);
+  background:
+    repeating-linear-gradient(90deg, transparent 0 120px, rgb(0 0 0 / 0.12) 120px 122px),
+    var(--wood-800);
+  box-shadow: inset 0 0 0 1px var(--iron-700);
+}
+
+.trading__row--accepted {
+  box-shadow:
+    inset 3px 0 0 var(--moss-400),
+    inset 0 0 0 1px var(--iron-700);
+}
+
+.trading__row--void,
+.trading__row--expired,
+.trading__row--declined,
+.trading__row--cancelled {
+  opacity: 0.85;
+}
+
+.trading__who,
+.trading__sum,
+.trading__when {
+  margin: 0;
+}
+
+.trading__detail,
+.trading__compose {
+  padding: var(--space-5);
+  background:
+    repeating-linear-gradient(90deg, transparent 0 160px, rgb(0 0 0 / 0.14) 160px 163px),
+    var(--wood-800);
+  box-shadow:
+    inset 0 0 0 1px var(--iron-600),
+    0 6px 18px rgb(0 0 0 / 0.45);
+}
+
+.trading__detail h2 {
+  margin: 0;
+  color: var(--accent-strong);
+  font-size: var(--text-2xl);
+}
+
+.trading__back {
+  margin-bottom: var(--space-3);
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--accent);
+  font: inherit;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.trading__ended {
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--iron-500);
+}
+
+.trading__scales {
+  display: grid;
+  grid-template-columns: 1fr 14px 1fr;
+  gap: var(--space-4);
+  margin: var(--space-4) 0;
+}
+
+.trading__beam {
+  position: relative;
+  background: linear-gradient(90deg, var(--brass-700), var(--brass-500), var(--brass-700));
+  width: 4px;
+  justify-self: center;
+}
+
+.trading__beam::before {
+  content: '';
+  position: absolute;
+  top: -6px;
+  left: 50%;
+  width: 12px;
+  height: 12px;
+  background: var(--brass-400);
+  transform: translateX(-50%) rotate(45deg);
+}
+
+.trading__pan {
+  padding: var(--space-4);
+  background: var(--bg-sunken);
+  box-shadow:
+    inset 0 2px 6px rgb(0 0 0 / 0.6),
+    inset 0 0 0 1px var(--iron-700);
+  min-width: 0;
+}
+
+.trading__pan--held {
+  box-shadow:
+    inset 0 2px 6px rgb(0 0 0 / 0.6),
+    inset 0 0 0 1px var(--brass-700);
+}
+
+.trading__pan h3 {
+  margin: 0 0 var(--space-3);
+  color: var(--brass-300);
+}
+
+.trading__nothing {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.trading__items {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trading__item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.trading__purse {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  margin-top: var(--space-3);
+}
+
+.trading__mat {
+  display: inline-flex;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.trading__hold {
+  max-width: 75ch;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--brass-500);
+  background: rgb(0 0 0 / 0.2);
+}
+
+.trading__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: end;
+  margin-top: var(--space-4);
+}
+
+.trading__reasons {
+  margin: var(--space-3) 0 0;
+  padding: var(--space-2) var(--space-4);
+  border-left: 3px solid var(--crimson-400);
+  background: rgb(0 0 0 / 0.25);
+  list-style: square;
+  flex-basis: 100%;
+}
+
+.trading__pick,
+.trading__amounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.trading__amounts {
+  margin-top: var(--space-3);
+}
+
+.trading__field {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.trading__field select,
+.trading__field input {
+  min-height: 40px;
+  padding: 0 var(--space-2);
+  background: var(--ink-950);
+  border: var(--border-iron);
+  color: var(--text);
+  font: inherit;
+}
+
+.trading__field input {
+  width: 9rem;
+}
+
+.trading__choose {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (max-width: 760px) {
+  .trading__scales {
+    grid-template-columns: 1fr;
+  }
+
+  .trading__beam {
+    width: 100%;
+    height: 4px;
+  }
+
+  .trading__item {
+    grid-template-columns: 1fr;
+  }
+
+  .trading__row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .trading__detail,
+  .trading__compose {
+    padding: var(--space-3);
+  }
+}
