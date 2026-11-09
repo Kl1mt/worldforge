@@ -1,7 +1,16 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { ACHIEVEMENTS, CLASS_IDS, GUILD_EMBLEMS, PRESTIGE_METRICS } from '@worldforge/game-core';
 import {
+  ACHIEVEMENTS,
+  CLASS_IDS,
+  GUILD_EMBLEMS,
+  ITEM_BASES,
+  PRESTIGE_METRICS,
+  getArea,
+  getEnemy,
+} from '@worldforge/game-core';
+import {
+  ART_STAND_INS,
   ASSETS,
   SEASON_FRAME_TIERS,
   SEASON_FRAME_WINDOW,
@@ -44,6 +53,38 @@ describe('asset registry', () => {
       frames: m.frames,
     }));
     expect(registry).toEqual(fromManifest);
+  });
+});
+
+describe('Cinderwastes stand-ins (ticket 6.1)', () => {
+  it('resolves every Cinderwastes name: A.11’s art, and tinted stand-ins for the tier-4 icons', () => {
+    const names = [
+      'area.cinderwastes',
+      'enemy.cinder-revenant',
+      'enemy.ash-colossus',
+      'enemy.ember-wisp',
+      'enemy.slag-hound',
+    ];
+    for (const id of names) {
+      const sprite = findSprite(id);
+      expect(sprite, id).not.toBeNull();
+      // A.11 drew them: the real art, untinted.
+      expect(Object.hasOwn(ASSETS, id), id).toBe(true);
+      expect(sprite!.tint, id).toBeUndefined();
+    }
+    // Every content name of the Verge resolves (the area, its foes and its tier-4 icons).
+    const verge = getArea('ashfallVerge');
+    expect(findSprite(verge.assetId)).not.toBeNull();
+    for (const e of verge.enemies)
+      expect(findSprite(getEnemy(e.enemyId).assetId), e.enemyId).not.toBeNull();
+    for (const b of ITEM_BASES.filter((x) => x.tier === 4))
+      expect(findSprite(b.icon), b.id).not.toBeNull();
+    // Stand-ins (the tier-4 icons) point at registered art only, and only for art still missing.
+    for (const [id, target] of Object.entries(ART_STAND_INS)) {
+      expect(Object.hasOwn(ASSETS, target), `${id} → ${target}`).toBe(true);
+      expect(Object.hasOwn(ASSETS, id), `${id} is drawn now: remove its stand-in`).toBe(false);
+      expect(findSprite(id)!.tint, id).toBe('cinder');
+    }
   });
 });
 

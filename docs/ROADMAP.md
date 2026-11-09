@@ -864,7 +864,7 @@ GDD §15 Phase 6, §7.5 (variants), §8.2 (Item Awakening), §12 (community), §
 10. 6.9
 11. 6.10
 
-### 6.1 Endgame region I: the Cinderwastes, levels 28–34 (vertical) — `todo`
+### 6.1 Endgame region I: the Cinderwastes, levels 28–34 (vertical) — `done (PR #109)`
 GDD §7, §9, §11, §15 Phase 6. Read `docs/WORLD.md`, `docs/COMBAT.md` (heroes past the content's top), `docs/LOOT.md`, `docs/FARMING.md`, `docs/DUNGEONS.md` (the Ashen Watch).
 - First area of the new region: enemies 28–34, a tier-4 loot table (item levels 29–35, tier-5 affixes from 31 per the affix curve), gathering and an unlock (Ashen Warden defeated, level 28).
 - Extend the XP curve and penalty so the soft cap sits around 42; extend the level, affix and rarity curves without changing values at or below 28. The no-effects hashes and the existing balance suites stay unchanged up to level 28.
@@ -878,6 +878,7 @@ GDD §7, §9, §11, §15 Phase 6. Read `docs/WORLD.md`, `docs/COMBAT.md` (heroes
   - a journey step;
   - screenshots on the `screenshots` branch.
 - Patch notes `0.6.0`.
+- Done: the Ashfall Verge (`ashfallVerge`, region the Cinderwastes, 28–34; unlock level 28 + the Ashen Warden, seam for 6.7's flag), foes `cinderRevenant`/`slagHound`/`emberWisp`/`ashColossus` on A.11's asset names (its art, merged), ten tier-4 bases (icons stand in as tinted tier-3 ones) from item level 29, table 29–35 with gold × 2.3, tier-5 affixes from 31 (never below 30). Curves: no value ≤ 28 moved; XP formula and penalty unchanged, soft cap now ~41–42. Best Pass builds farm it at 16–20 kills/min with no deaths and more XP/gold than the Pass. Power 2 (+ trials 30, 34) and PvE Progress 2 (13 milestones) switch between seasons (`game_settings.leaderboards.formulas`, sweep recomputes). PvP 30+ refit, `PVP_RULES_VERSION` 2; 30+ matchmaking band widened to the measured 13 % / 6.5 % (open point). Version 0.6.1. Details: `docs/WORLD.md`, `COMBAT.md` "The Cinderwastes", `LOOT.md`, `LEADERBOARDS.md`, `PVP.md`.
 
 ### A.11 Cinderwastes art: backdrop, enemies & region boss — `done (PR #107)`
 GDD §3.1. The 6.1 and 6.2 area backdrops, 4–6 enemies and the region boss, matching A.7's treatment. Budget: two backdrop jobs, two or three 32/64 px enemy jobs, one boss job, and at most one regeneration. Manifest and `assets.ts`. **Acceptance:** a contact sheet in the PR.

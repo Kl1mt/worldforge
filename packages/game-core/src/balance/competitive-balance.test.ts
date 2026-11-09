@@ -198,7 +198,9 @@ describe('matchmaking 2 on realistic heroes (B.4)', () => {
         expect(v2.classMean[c], `${id} ${c}`).toBeGreaterThanOrEqual(0.42);
         expect(v2.classMean[c], `${id} ${c}`).toBeLessThanOrEqual(0.58);
       }
-      expect(v1.spread).toBeGreaterThan(v2.spread + 0.03);
+      // Ticket 6.1: the 30+ class factors were re-fitted (tier-4 gear), which evens the classes
+      // under matchmaking 1 too, so the gain there is 2.7 points (was over 3).
+      expect(v1.spread).toBeGreaterThan(v2.spread + (id === '30-plus' ? 0.02 : 0.03));
       // Fairness is no worse than 5.6's band (mean favourite, 95 %+ favourites).
       expect(v2.meanFavourite).toBeLessThanOrEqual(0.72);
       expect(v2.over95).toBeLessThanOrEqual(0.05);

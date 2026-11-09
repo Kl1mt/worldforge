@@ -45,10 +45,13 @@ export const GEAR_SCORE_WEIGHTS: Readonly<GearScoreWeights> = {
 export function affixQuality(affix: { affixId: string; tier: number; value: number }): number {
   const def = findAffix(affix.affixId);
   const band = def?.tiers.find((t) => t.tier === affix.tier);
-  if (!def || !band || def.tiers.length === 0) return 0;
+  // Ticket 6.1: the scale is the tiers an item of level 29 or below can roll (every tier before the
+  // Cinderwastes), so version 2's values stay as they were and a tier-5 affix reads above 100.
+  const scale = def?.tiers.filter((t) => (t.minBaseItemLevel ?? 0) <= 29).length ?? 0;
+  if (!def || !band || scale === 0) return 0;
   const span = band.max - band.min;
   const position = span > 0 ? Math.min(1, Math.max(0, (affix.value - band.min) / span)) : 1;
-  return Math.round((100 * (affix.tier - 1 + position)) / def.tiers.length);
+  return Math.round((100 * (affix.tier - 1 + position)) / scale);
 }
 
 /** Whether a class can use any off-hand base (only the warrior's shields today). */

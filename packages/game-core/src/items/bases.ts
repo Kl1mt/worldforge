@@ -34,7 +34,7 @@ export interface ItemBaseStat {
   perLevel: number;
 }
 
-export const ITEM_TIERS = [1, 2, 3] as const;
+export const ITEM_TIERS = [1, 2, 3, 4] as const;
 
 export type ItemTier = (typeof ITEM_TIERS)[number];
 
@@ -48,7 +48,8 @@ export interface ItemBaseDefinition {
   classes: readonly ClassId[];
   /**
    * Content tier (ticket 2.1): 1 = Phase 1 / Abandoned Fields, 2 = Crowwood to Blackwater,
-   * 3 = Blackwater, the Nameless Crypt and the Sunken Abbey. Higher tiers have stronger implicit
+   * 3 = Blackwater, the Nameless Crypt, the Sunken Abbey and the Ashen Pass, 4 = the Cinderwastes
+   * (ticket 6.1). Higher tiers have stronger implicit
    * stats at the same item level; area loot tables weight tiers by area.
    */
   tier: ItemTier;
@@ -850,6 +851,131 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     stats: [
       { stat: 'resistance', base: 4, perLevel: 0.9 },
       { stat: 'health', base: 6, perLevel: 1.8 },
+    ],
+  },
+  // Ticket 6.1: tier 4, the Cinderwastes (from item level 29). Appended after every earlier base
+  // so tier-wide tables and stored seeds keep their order. Each beats its tier-3 counterpart at the
+  // same item level by about a tenth; the icons are A.11's follow-up (the web shows the tier-3
+  // counterpart's art until they land, `apps/web/src/content/assets.ts`).
+  {
+    id: 'cinderforged-blade',
+    name: 'Cinderforged Blade',
+    slot: 'weapon',
+    icon: 'item.cinderforged-blade',
+    classes: ['warrior'],
+    tier: 4,
+    minItemLevel: 29,
+    stats: [{ stat: 'physicalDamage', base: 17, perLevel: 2.2 }],
+  },
+  {
+    id: 'emberheart-scepter',
+    name: 'Emberheart Scepter',
+    slot: 'weapon',
+    icon: 'item.emberheart-scepter',
+    classes: ['mage', 'warlock'],
+    tier: 4,
+    minItemLevel: 29,
+    stats: [{ stat: 'magicDamage', base: 16, perLevel: 2.2 }],
+  },
+  {
+    id: 'slagbone-bow',
+    name: 'Slagbone Bow',
+    slot: 'weapon',
+    icon: 'item.slagbone-bow',
+    classes: ['hunter'],
+    tier: 4,
+    minItemLevel: 29,
+    stats: [{ stat: 'physicalDamage', base: 16, perLevel: 2.15 }],
+  },
+  {
+    id: 'obsidian-bulwark',
+    name: 'Obsidian Bulwark',
+    slot: 'offhand',
+    icon: 'item.obsidian-bulwark',
+    classes: ['warrior'],
+    tier: 4,
+    minItemLevel: 29,
+    stats: [
+      { stat: 'armor', base: 14, perLevel: 2.2 },
+      { stat: 'resistance', base: 5, perLevel: 0.9 },
+    ],
+  },
+  {
+    id: 'revenant-visage',
+    name: 'Revenant’s Visage',
+    slot: 'head',
+    icon: 'item.revenant-visage',
+    classes: ALL_CLASSES,
+    tier: 4,
+    minItemLevel: 29,
+    stats: [
+      { stat: 'armor', base: 9, perLevel: 1.75 },
+      { stat: 'health', base: 10, perLevel: 2.85 },
+    ],
+  },
+  {
+    id: 'ashplate-hauberk',
+    name: 'Ashplate Hauberk',
+    slot: 'chest',
+    icon: 'item.ashplate-hauberk',
+    classes: ALL_CLASSES,
+    tier: 4,
+    minItemLevel: 29,
+    stats: [
+      { stat: 'armor', base: 16, perLevel: 3.5 },
+      { stat: 'health', base: 12, perLevel: 3.1 },
+    ],
+  },
+  {
+    id: 'slagiron-gauntlets',
+    name: 'Slag-Iron Gauntlets',
+    slot: 'hands',
+    icon: 'item.slagiron-gauntlets',
+    classes: ALL_CLASSES,
+    tier: 4,
+    minItemLevel: 29,
+    stats: [
+      { stat: 'armor', base: 6, perLevel: 1.65 },
+      { stat: 'resistance', base: 2, perLevel: 0.45 },
+    ],
+  },
+  {
+    id: 'cinderstride-greaves',
+    name: 'Cinderstride Greaves',
+    slot: 'feet',
+    icon: 'item.cinderstride-greaves',
+    classes: ALL_CLASSES,
+    tier: 4,
+    minItemLevel: 29,
+    stats: [
+      { stat: 'armor', base: 6, perLevel: 1.65 },
+      { stat: 'health', base: 5, perLevel: 1.65 },
+    ],
+  },
+  {
+    id: 'ember-reliquary',
+    name: 'Ember Reliquary',
+    slot: 'neck',
+    icon: 'item.ember-reliquary',
+    classes: ALL_CLASSES,
+    tier: 4,
+    minItemLevel: 29,
+    stats: [
+      { stat: 'resistance', base: 5, perLevel: 1 },
+      { stat: 'health', base: 10, perLevel: 2.4 },
+    ],
+  },
+  {
+    id: 'wispfire-band',
+    name: 'Wispfire Band',
+    slot: 'ring',
+    icon: 'item.wispfire-band',
+    classes: ALL_CLASSES,
+    tier: 4,
+    minItemLevel: 29,
+    stats: [
+      { stat: 'resistance', base: 5, perLevel: 1 },
+      { stat: 'health', base: 7, perLevel: 2 },
     ],
   },
 ];

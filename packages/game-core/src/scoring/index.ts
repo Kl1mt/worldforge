@@ -8,3 +8,4 @@ export * from './scores.js';
 export * from './boards.js';
 export * from './seasons.js';
 export * from './prestige.js';
+export * from './schedule.js';

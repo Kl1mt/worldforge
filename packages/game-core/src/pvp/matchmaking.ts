@@ -1,6 +1,9 @@
 import type { ClassId } from '../classes.js';
 import { createRng } from '../rng.js';
-import { characterPower, POWER_FORMULA_VERSION } from '../scoring/power.js';
+import { characterPower } from '../scoring/power.js';
+
+/** Ticket 6.1: matchmaking's Power version, kept at 1 when the board's Power moved to 2. */
+export const BRACKET_POWER_VERSION = 1;
 import type { PvpBracket, PvpFighterInput } from './normalise.js';
 import { PAIR_FACTORS } from './integrity.js';
 import { expectedScore, type Rating } from './rating.js';
@@ -36,19 +39,22 @@ export const MATCHMAKING_VERSION = 3;
  * bracket's reference level. A duel fights every hero at that level (5.4: level does not count
  * inside a bracket), so the level part of Power says nothing about a duel; measured, ranging on raw
  * Power left 4 % of offered pairs in 10–19 at a 95 %+ favourite against 0.5 % with bracket Power
- * (docs/PVP.md "Matchmaking"). Its version follows Power's (`BRACKET_POWER_VERSION`).
+ * (docs/PVP.md "Matchmaking"). Its version is `BRACKET_POWER_VERSION`: Power 1 since ticket 6.1
+ * (the board's Power 2 adds two trials; matchmaking keeps the measure it was fitted on).
  */
 export function bracketPower(
   fighter: PvpFighterInput,
   bracket: Pick<PvpBracket, 'referenceLevel'>,
 ) {
-  return characterPower({
-    classId: fighter.classId,
-    level: bracket.referenceLevel,
-    equipment: fighter.equipment,
-  }).power;
+  return characterPower(
+    {
+      classId: fighter.classId,
+      level: bracket.referenceLevel,
+      equipment: fighter.equipment,
+    },
+    BRACKET_POWER_VERSION,
+  ).power;
 }
-export const BRACKET_POWER_VERSION = POWER_FORMULA_VERSION;
 
 export interface MatchmakingConfig {
   /** Relative Power gaps tried in turn (0.1 = within 10 % of the stronger side). */

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import type { ClassId } from '../index.js';
+import { settleFarming, type AreaId, type ClassId, type EquippedItem } from '../index.js';
 import {
   BOSS_JOB,
   CLASS_IDS,
@@ -157,6 +157,69 @@ describe('build diversity (ticket B.2)', () => {
       const [r26, r35] = [at(26), at(35)];
       expect(r35 / r26, `${label}; L26 ${r26.toFixed(1)} L35 ${r35.toFixed(1)}`).toBeLessThan(1.05);
       expect(r35, label).toBeLessThan(abbeyBest * 0.97);
+    },
+    60_000,
+  );
+
+  // Ticket 6.1: the Ashfall Verge (the Cinderwastes, 28–34) against today's best Ashen Pass gear:
+  // the class's best Pass build at +10 Void and at +5, in item-level-27 gear (the Pass's best
+  // drops). Older gear keeps farming the new area profitably: it kills a little slower than at
+  // the Pass (the step up), never dies, and earns more XP and gold an hour than at the Pass.
+  it.each(CLASS_IDS)(
+    '%s: the best Pass gear farms the Ashfall Verge profitably at 28 and up to its top',
+    (c) => {
+      const best = topBuilds(pass.get(c)!, SHARE)[0]!.build;
+      const hour = (level: number, areaId: AreaId, items: EquippedItem[]) => {
+        const r = { kills: 0, deaths: 0, xp: 0, gold: 0 };
+        for (const seed of ['cw:1', 'cw:2', 'cw:3']) {
+          const f = settleFarming({
+            character: { classId: c, level, xp: 0 },
+            equipment: items,
+            areaId,
+            seed,
+            firstCycle: 0,
+            durationMs: 3_600_000,
+            inventoryCount: 0,
+          });
+          r.kills += f.kills / 180;
+          r.deaths += f.deaths / 3;
+          r.xp += f.xpGained / 3;
+          r.gold += f.goldLooted / 3;
+        }
+        return r;
+      };
+      for (const [name, items] of [
+        ['+10 Void', buildItems({ ...best, upgradeLevel: 10, void: true }, 27)],
+        ['+5', buildItems({ ...best, upgradeLevel: 5 }, 27)],
+      ] as const) {
+        const atPass = hour(28, 'ashenPass', items);
+        const at28 = hour(28, 'ashfallVerge', items);
+        const at34 = hour(34, 'ashfallVerge', items);
+        const label = `${c} ${name} ${describeBuild(best)}: Pass 28 ${JSON.stringify(atPass)}; Verge 28 ${JSON.stringify(at28)}; 34 ${JSON.stringify(at34)}`;
+        // Survival: no deaths to speak of, at the entry and at the top.
+        expect(at28.deaths, label).toBeLessThanOrEqual(1);
+        expect(at34.deaths, label).toBeLessThanOrEqual(2);
+        // Kill speed: idle-paced, a step up from the Pass (slower), never a wall.
+        expect(at28.kills, label).toBeGreaterThan(14);
+        expect(at34.kills, label).toBeGreaterThan(13);
+        expect(at28.kills / atPass.kills, label).toBeGreaterThan(0.7);
+        expect(at28.kills / atPass.kills, label).toBeLessThan(0.95);
+        // Profit: more XP and gold an hour than at the Pass's top, with the same gear.
+        expect(at28.xp, label).toBeGreaterThan(atPass.xp);
+        expect(at28.gold, label).toBeGreaterThan(atPass.gold);
+      }
+      // The same build in the Verge's own drops (tier 4, item level 33) kills faster at its top:
+      // the new gear is worth chasing, but it is no new power tier (below 1.35 ×).
+      const job = (itemLevel: number) => ({
+        ...PASS_FARM_JOB,
+        areaId: 'ashfallVerge' as const,
+        level: 34,
+        itemLevel,
+      });
+      const old = farmRate(c, buildItems({ ...best, upgradeLevel: 5 }, 27), job(27));
+      const fresh = farmRate(c, buildItems({ ...best, upgradeLevel: 5 }, 33), job(33));
+      expect(fresh / old, `${c}: ${old.toFixed(1)} → ${fresh.toFixed(1)}`).toBeGreaterThan(1.03);
+      expect(fresh / old, `${c}: ${old.toFixed(1)} → ${fresh.toFixed(1)}`).toBeLessThan(1.35);
     },
     60_000,
   );

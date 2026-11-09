@@ -85,9 +85,14 @@ describe('determinism', () => {
   // ambient state). If one moves, a formula changed: bump its `FORMULA_VERSIONS` entry and update
   // the pin and docs/LEADERBOARDS.md in the same change (5.2 recomputes stored values on a bump).
   it('pins the values of reference heroes (bump FORMULA_VERSIONS when one moves)', () => {
-    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 2, power: 1, pveProgress: 1 });
+    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 2, power: 2, pveProgress: 2 });
     const pinned = CLASS_IDS.map((classId) => {
-      const s = computeScores(hero({ classId, equipment: kit(classId, 19, 'rare', 3) }));
+      // Ticket 6.1: the version-1 pins, computed at version 1 (unchanged by 6.1).
+      const s = computeScores(hero({ classId, equipment: kit(classId, 19, 'rare', 3) }), {
+        ...FORMULA_VERSIONS,
+        power: 1,
+        pveProgress: 1,
+      });
       return [classId, s.level.sortKey, s.gearScore.sortKey, s.power.value, s.pveProgress.sortKey];
     });
     expect(pinned).toMatchInlineSnapshot(`
@@ -206,9 +211,17 @@ describe('Gear Score', () => {
   });
 
   it('version 2 (B.4): magic quality breaks ties and never moves the value', () => {
-    // Each affix scores 0–100 on its own tiers: the best roll of the top tier is 100.
+    // Each affix scores 0–100 on its own tiers: the best roll of the top tier is 100. Ticket 6.1:
+    // on the tiers before the Cinderwastes (item level ≤ 29); tier 5 scores above 100, so no
+    // version-2 value moved.
     for (const def of AFFIXES) {
-      const top = def.tiers[def.tiers.length - 1]!;
+      const legacy = def.tiers.filter((t) => t.minBaseItemLevel === undefined);
+      const top = legacy[legacy.length - 1]!;
+      const t5 = def.tiers.find((t) => t.tier === 5);
+      if (t5) {
+        expect(affixQuality({ affixId: def.id, tier: 5, value: t5.min }), def.id).toBe(100);
+        expect(affixQuality({ affixId: def.id, tier: 5, value: t5.max }), def.id).toBe(125);
+      }
       const low = def.tiers[0]!;
       expect(affixQuality({ affixId: def.id, tier: top.tier, value: top.max }), def.id).toBe(100);
       expect(affixQuality({ affixId: def.id, tier: low.tier, value: low.min }), def.id).toBe(0);
@@ -416,9 +429,46 @@ describe('Character Power', () => {
     }
   });
 
+  it('version 2 (6.1) is version 1 plus the trials at 30 and 34', () => {
+    for (const c of CLASS_IDS) {
+      for (const [level, il, rarity, up] of [
+        [12, 11, 'common', 0],
+        [23, 22, 'legendary', 5],
+        [30, 29, 'epic', 5],
+        [34, 33, 'legendary', 10],
+      ] as const) {
+        const items = kit(c, il, rarity, up);
+        const v1 = powerScore(c, level, items, 1);
+        const v2 = powerScore(c, level, items, 2);
+        const added = v2.lines.filter((l) => l.id === 'trial:30' || l.id === 'trial:34');
+        expect(added, c).toHaveLength(2);
+        // Every old trial gives exactly its version-1 points; the value only grows.
+        for (const line of v1.lines) {
+          expect(v2.lines.find((l) => l.id === line.id)?.points, `${c} ${line.id}`).toBe(
+            line.points,
+          );
+        }
+        expect(v2.value, `${c} L${level}`).toBeGreaterThanOrEqual(v1.value);
+        expect(
+          Math.abs(v2.value - v1.value - added.reduce((t, l) => t + l.points, 0)),
+        ).toBeLessThanOrEqual(2);
+        expect(v2.formulaVersion).toBe(2);
+        expect(v1.formulaVersion).toBe(1);
+      }
+    }
+    // The Cinderwastes' gear shows: tier-4 epics +10 score above the Pass's (item level 27).
+    for (const c of CLASS_IDS) {
+      expect(powerScore(c, 34, kit(c, 33, 'epic', 10)).value, c).toBeGreaterThan(
+        powerScore(c, 34, kit(c, 27, 'epic', 10)).value,
+      );
+    }
+    expect(() => powerScore('mage', 10, [], 3)).toThrow(RangeError);
+  });
+
   it('explains every trial', () => {
     const s = powerScore('hunter', 22, kit('hunter', 21, 'epic'));
-    expect(s.lines).toHaveLength(20);
+    expect(s.lines).toHaveLength(22);
+    expect(powerScore('hunter', 22, kit('hunter', 21, 'epic'), 1).lines).toHaveLength(20);
     expect(s.lines.reduce((t, l) => t + l.points, 0)).toBeGreaterThan(s.value - 20);
     expect(s.lines[0]!.detail).toMatch(/^Cleared in \d+ s$/);
     expect(s.lines.at(-1)!.detail).toMatch(/fights won$/);
@@ -475,8 +525,40 @@ describe('PvE Progress', () => {
       world: { ...NO_WORLD_FLAGS, ashenPassCleared: true },
       guildBossStage: 5,
     });
-    expect(top.sortKey).toEqual([10, 10, 5]);
-    expect(top.lines.every((l) => l.counted)).toBe(true);
+    // Version 2 (6.1): the Warden opens the Ashfall Verge at 28 (milestone 11 of 13).
+    expect(top.sortKey).toEqual([11, 11, 5]);
+    const v1 = (i: Parameters<typeof progress>[0]) =>
+      pveProgressScore(
+        { level: 1, progress: { gravewardenDefeated: false }, guildBossStage: 0, ...i },
+        1,
+      );
+    expect(
+      v1({
+        level: 28,
+        progress: { gravewardenDefeated: true, cryptTierCleared: 3, ashenWardenDefeated: true },
+        world: { ...NO_WORLD_FLAGS, ashenPassCleared: true },
+        guildBossStage: 5,
+      }).sortKey,
+    ).toEqual([10, 10, 5]);
+    const verge = (level: number) =>
+      progress({
+        level,
+        progress: { gravewardenDefeated: true, cryptTierCleared: 3, ashenWardenDefeated: true },
+        world: { ...NO_WORLD_FLAGS, ashenPassCleared: true },
+        guildBossStage: 5,
+      });
+    expect(verge(30).sortKey).toEqual([11, 11, 5]);
+    expect(verge(31).sortKey).toEqual([12, 12, 5]);
+    expect(verge(34).sortKey).toEqual([13, 13, 5]);
+    expect(verge(34).lines.every((l) => l.counted)).toBe(true);
+    // Level 34 without the Warden: none of the Verge's milestones.
+    expect(
+      progress({
+        level: 34,
+        progress: { gravewardenDefeated: true, cryptTierCleared: 3 },
+        world: { ...NO_WORLD_FLAGS, ashenPassCleared: true },
+      }).sortKey,
+    ).toEqual([9, 9, 0]);
   });
 
   it('never counts a guild boss stage that does not exist', () => {

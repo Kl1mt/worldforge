@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react';
-import { asset } from '../content/assets';
+import { findSprite } from '../content/assets';
 import type { ItemView } from '../game/items';
 import { PixelSprite } from './PixelSprite';
 import './item-frame.css';
@@ -71,7 +71,7 @@ export function ItemFrame({
       </span>
     ) : null;
   const art = item?.icon ? (
-    <PixelSprite sprite={asset(item.icon)} scale={scale} alt="" />
+    <PixelSprite sprite={findSprite(item.icon)!} scale={scale} alt="" />
   ) : item ? (
     // No art for this item (its base left the content): a marked socket, not a broken image.
     <span className="item-frame__empty" style={{ width: size, height: size }}>

@@ -139,6 +139,8 @@ Every all-Legendary/set build kills the boss before the earliest enrage (30 s), 
 **The Ashen Warden's material (decided: none).** The Warden's hoard stays items and gold. A boss material needs a sink to mean anything: the Gravewarden's seal has one (the Ashen Pass project); nothing is planned to use a Warden material before Item Awakening (GDD §8.2, optional) or trading (`TRADING.md`), it would need a new icon (an art ticket), and the Pass already feeds the upgrade track (iron ore, soul shards). Add it with the first content that consumes it.
 
 ## The Warden's Watch (ticket 4.8)
+
+*Ticket 6.1:* slaying the Ashen Warden (`progress.ashenWardenDefeated`) opens the Cinderwastes' first area, the Ashfall Verge, at level 28 (`docs/WORLD.md`).
 The Ashen Pass's boss (`docs/WORLD.md` "The Ashen Pass"), fought like the Gravewarden in a dungeon run, but **boss-only**: no chambers, a 30 s climb, then the Ashen Warden. Same engine and rules as the crypt (`simulateDungeonRun`: snapshot, server-only seed streams, enrage window, claim with `Idempotency-Key`, one unclaimed run per account across both dungeons, the farming stopped while it runs). Data: `DUNGEONS` entry `ashenWatch` (one tier), enemy `ashenWarden`. Screen: `#/watch` (the map marker beside the Pass, and a link in the Pass's description).
 
 - **Gate:** level 26, the Gravewarden slain, and the world flag `ashenPassCleared` (`409 dungeon_locked` with the blockers otherwise). A tier other than 1 is `400 validation_failed` ("Choose one of: 1.").

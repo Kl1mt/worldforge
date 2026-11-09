@@ -21,6 +21,7 @@ Breaking an item down gives materials by its base's tier, multiplied by rarity u
 | 1 | 1 timber |
 | 2 | 1 raw hide, 1 timber |
 | 3 | 2 iron ore |
+| 4 (ticket 6.1) | 3 iron ore |
 
 Rare and better items also give soul shards (rare 1, epic 2, legendary 3, mythic 4). Items whose base left the content salvage as tier 1.
 
@@ -71,7 +72,7 @@ An uncommon offer costs twice the common one (15–30 min). Recipes now take ~0.
 ## Forge work: upgrades, rerolls, affix improvement (ticket 3.4)
 GDD §8.1, §8.3. Rules and numbers in `packages/game-core/src/economy/forgeActions.ts` (`DEFAULT_FORGE_ACTION_CONFIG`) and `items/model.ts` (`UPGRADE_IMPLICIT_BONUS`); the server (`apps/server/src/forge/work.ts`) applies them. Works on worn and packed items alike.
 
-**Costs.** Every action costs gold plus the item's own **tier materials** (the salvage table's units: tier 1 timber, tier 2 raw hide + timber, tier 3 two iron ore per unit) and soul shards. Everything scales with the item level by `(itemLevel + 5) / 25` (× 1 at item level 20, × 0.4 at 5), so cheap gear is cheap to work. Upgrades and sell/salvage prices are independent: an upgraded item sells and salvages for the same as at +0 (the investment is a sink, not a deposit).
+**Costs.** Every action costs gold plus the item's own **tier materials** (the salvage table's units: tier 1 timber, tier 2 raw hide + timber, tier 3 two iron ore per unit, tier 4 three since ticket 6.1) and soul shards. Everything scales with the item level by `(itemLevel + 5) / 25` (× 1 at item level 20, × 0.4 at 5), so cheap gear is cheap to work. Upgrades and sell/salvage prices are independent: an upgraded item sells and salvages for the same as at +0 (the investment is a sink, not a deposit).
 
 **Upgrades +0 → +10.** Raise the item's implicit (base) stats only: cumulative +4, 8, 12, 16, 21, 26, 31, 37, 43, **50 %** at +10. Affixes and effects are untouched. A failure costs that attempt's gold and materials, **never** destroys or downgrades the item, and adds one to the pity; when the pity reaches the step's threshold the next attempt cannot fail; a success resets it.
 
@@ -171,6 +172,8 @@ The owner's playtest feedback had not arrived (`docs/PLAYTEST_FEEDBACK.md` is st
 How to reproduce: `pnpm --filter @worldforge/server telemetry:simulate -- --days 7` (about 8 minutes), then `PLAYTEST_DATA_DIR=.telemetry-sample pnpm report:telemetry`. Seeds are server-random, so numbers move by a few percent between runs.
 
 ## The top end (ticket 4.8)
+**The Ashfall Verge (ticket 6.1).** The same gear earns more there than at the Pass's top: the Pass's Legendaries +10 (item level 27) 1,570–2,720 kill gold an hour at 28 (the Pass at 28: 2,120–2,350), its best builds +10 Void 3,500–4,200 (Pass: 2,890–3,400), from × 2.3 kill gold (`goldMultiplier`). It yields 30–90 iron ore and 2–10 soul shards an hour (the revenants are undead); tier-4 items salvage to 3 iron ore a unit (tier 3: 2), so their Forge upgrades ask for more of the ore the Verge itself yields; sell and salvage gold depend only on rarity and item level, as before. Its merchant stock (item level 31) costs 3–20 minutes (common) of its kill gold (`balance.test.ts`). No new material.
+
 The Ashen Pass (`docs/WORLD.md`) pays more per hour than the Abbey's top for the gear that farms it: rares +5 earn 900–1,260 kill gold an hour at 24 (Abbey 22, same kit: 790–1,020), Legendary +10 kits 2,100–2,850 at 26. Its kills are slower (7–9 a minute), so its loot table multiplies kill gold by 1.6 (`goldMultiplier`; no other table is touched). It yields the upgrade track's materials: 27–36 iron ore and 3–5 soul shards an hour (the wraiths are undead), so the Pass feeds the +8 → +10 soul-shard step that bound Abbey farmers in B.2. The Ashen Warden's purse is 700–1,000 gold per hoard (20 h cooldown). Its merchant stock (item level 26) costs about 12 minutes (common) and 25 minutes (uncommon) of its kill gold. Forge costs are unchanged; B.3 measures the new income against the sinks with the realistic player.
 
 ## Balance pass: top end & social economy (ticket B.3)

@@ -13,6 +13,8 @@ export interface UnlockRule {
   gravewardenDefeated?: boolean;
   /** Ticket 3.6: this Nameless Crypt tier must have been cleared (`cryptTierCleared`). */
   cryptTierCleared?: number;
+  /** Ticket 6.1: the Ashen Warden must have fallen to this character (the Cinderwastes). */
+  ashenWardenDefeated?: boolean;
   /**
    * Ticket 4.6: a global world flag (set by a completed community project) must be set. Read from
    * `UnlockCharacter.world`; without it the place stays closed (the safe default).
@@ -40,8 +42,8 @@ export interface WorldProgress {
    */
   cryptTierCleared?: number;
   /**
-   * Ticket 4.8: the Ashen Warden (the Warden's Watch) has fallen to this character. Nothing is
-   * gated on it yet; absent on characters that never fought it.
+   * Ticket 4.8: the Ashen Warden (the Warden's Watch) has fallen to this character. Since ticket
+   * 6.1 it opens the Cinderwastes; absent on characters that never fought it.
    */
   ashenWardenDefeated?: boolean;
 }
@@ -58,6 +60,8 @@ export type UnlockBlocker =
   | { kind: 'gravewardenDefeated' }
   /** Ticket 3.6: clear this crypt tier first. */
   | { kind: 'cryptTier'; tier: number }
+  /** Ticket 6.1: slay the Ashen Warden first. */
+  | { kind: 'ashenWardenDefeated' }
   /** Ticket 4.6: a community project must complete first (it sets this flag). */
   | { kind: 'worldFlag'; flag: WorldFlagId };
 
@@ -77,6 +81,9 @@ export function unlockBlockers(
   }
   if (rule.cryptTierCleared !== undefined && cryptTierCleared(progress) < rule.cryptTierCleared) {
     blockers.push({ kind: 'cryptTier', tier: rule.cryptTierCleared });
+  }
+  if (rule.ashenWardenDefeated && progress.ashenWardenDefeated !== true) {
+    blockers.push({ kind: 'ashenWardenDefeated' });
   }
   if (rule.worldFlag !== undefined && character.world?.[rule.worldFlag] !== true) {
     blockers.push({ kind: 'worldFlag', flag: rule.worldFlag });

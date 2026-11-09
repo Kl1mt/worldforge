@@ -13,6 +13,13 @@ export interface AffixTier {
   weight: number;
   min: number;
   max: number;
+  /**
+   * Ticket 6.1: the item's own level (without the rarity's `affixLevelBonus`) must reach this as
+   * well. Tier 5 (item level 31) sets 30, so no source of item level 29 or below (everything before
+   * the Cinderwastes) can ever roll it, whatever its rarity: their stored seeds and rolls stay as
+   * they were.
+   */
+  minBaseItemLevel?: number;
 }
 
 export interface AffixDefinition {
@@ -83,6 +90,8 @@ export const AFFIXES: readonly AffixDefinition[] = [
       { tier: 2, minItemLevel: 8, weight: 60, min: 5, max: 8 },
       { tier: 3, minItemLevel: 16, weight: 30, min: 9, max: 14 },
       { tier: 4, minItemLevel: 25, weight: 15, min: 15, max: 22 },
+      // Ticket 6.1: the Cinderwastes (item level 31, never below item level 30).
+      { tier: 5, minItemLevel: 31, minBaseItemLevel: 30, weight: 8, min: 23, max: 32 },
     ],
   },
   {
@@ -97,6 +106,8 @@ export const AFFIXES: readonly AffixDefinition[] = [
       { tier: 2, minItemLevel: 8, weight: 60, min: 5, max: 8 },
       { tier: 3, minItemLevel: 16, weight: 30, min: 9, max: 14 },
       { tier: 4, minItemLevel: 25, weight: 15, min: 15, max: 22 },
+      // Ticket 6.1: the Cinderwastes (item level 31, never below item level 30).
+      { tier: 5, minItemLevel: 31, minBaseItemLevel: 30, weight: 8, min: 23, max: 32 },
     ],
   },
   {
@@ -150,6 +161,8 @@ export const AFFIXES: readonly AffixDefinition[] = [
       { tier: 2, minItemLevel: 8, weight: 60, min: 16, max: 30 },
       { tier: 3, minItemLevel: 16, weight: 30, min: 31, max: 50 },
       { tier: 4, minItemLevel: 25, weight: 15, min: 51, max: 80 },
+      // Ticket 6.1: the Cinderwastes (item level 31, never below item level 30).
+      { tier: 5, minItemLevel: 31, minBaseItemLevel: 30, weight: 8, min: 81, max: 120 },
     ],
   },
   {
@@ -164,6 +177,8 @@ export const AFFIXES: readonly AffixDefinition[] = [
       { tier: 2, minItemLevel: 8, weight: 60, min: 7, max: 12 },
       { tier: 3, minItemLevel: 16, weight: 30, min: 13, max: 20 },
       { tier: 4, minItemLevel: 25, weight: 15, min: 21, max: 32 },
+      // Ticket 6.1: the Cinderwastes (item level 31, never below item level 30).
+      { tier: 5, minItemLevel: 31, minBaseItemLevel: 30, weight: 8, min: 33, max: 48 },
     ],
   },
   {
@@ -178,6 +193,8 @@ export const AFFIXES: readonly AffixDefinition[] = [
       { tier: 2, minItemLevel: 8, weight: 60, min: 5, max: 9 },
       { tier: 3, minItemLevel: 16, weight: 30, min: 10, max: 15 },
       { tier: 4, minItemLevel: 25, weight: 15, min: 16, max: 24 },
+      // Ticket 6.1: the Cinderwastes (item level 31, never below item level 30).
+      { tier: 5, minItemLevel: 31, minBaseItemLevel: 30, weight: 8, min: 25, max: 36 },
     ],
   },
   {
@@ -310,5 +327,10 @@ export function tiersForItemLevel(
   itemLevel: number,
   levelBonus = 0,
 ): readonly AffixTier[] {
-  return affix.tiers.filter((t) => t.minItemLevel <= itemLevel + levelBonus);
+  return affix.tiers.filter((t) => tierUnlocked(t, itemLevel, levelBonus));
+}
+
+/** Whether a tier is unlocked at the item level with the rarity's level bonus (ticket 6.1 gate). */
+export function tierUnlocked(tier: AffixTier, itemLevel: number, levelBonus = 0): boolean {
+  return tier.minItemLevel <= itemLevel + levelBonus && (tier.minBaseItemLevel ?? 0) <= itemLevel;
 }

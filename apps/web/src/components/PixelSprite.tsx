@@ -94,7 +94,14 @@ export function PixelSprite({
       draggable={false}
       decoding="async"
       onError={() => setFailed(true)}
-      className={['pixel', mirror ? 'pixel--mirror' : '', className].filter(Boolean).join(' ')}
+      className={[
+        'pixel',
+        mirror ? 'pixel--mirror' : '',
+        sprite.tint ? `pixel--tint-${sprite.tint}` : '',
+        className,
+      ]
+        .filter(Boolean)
+        .join(' ')}
       style={style}
     />
   );

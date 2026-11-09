@@ -19,7 +19,7 @@ Loot → combat bridge (`packages/game-core/src/equipment.ts`, ticket 1.7): `ite
 - **Damage:** the class's primary damage stat (physical or magic) × skill multiplier × crit multiplier × (1 − mitigation), rounded, at least 1. Enemies never crit.
 - **Mitigation:** `defense / (defense + 50 + 10 · attackerLevel)`, capped at 75 %. Armor applies to physical damage, resistance to magic.
 - **Enemy roll:** weighted enemy pick, then level = character level ± 1, clamped to the area range.
-- **XP:** enemy XP × level factor (−15 % per level the character is more than 2 above the enemy, minimum 10 %). `xpToNextLevel(L) = 700 · L²` (ticket B.1; Phase 1 was `round(80 · L^1.6)`), cap level 60. A new curve must never ask less than an older one at any level, or stored XP could exceed the requirement. Level-ups recompute stats and restore full health.
+- **XP:** enemy XP × level factor (−15 % per level the character is more than 2 above the enemy, minimum 10 %; ticket 6.1: unchanged, the soft cap now sits around 42, "The Cinderwastes"). `xpToNextLevel(L) = 700 · L²` (ticket B.1; Phase 1 was `round(80 · L^1.6)`), cap level 60. A new curve must never ask less than an older one at any level, or stored XP could exceed the requirement. Level-ups recompute stats and restore full health.
 - **Cycle:** search 2 s (regenerate 10 % max health per second) → fight → if the character died, respawn after 10 s at full health. A fight that lasts more than 30 s is abandoned without reward (timeout).
 - **Timeline:** times are whole milliseconds. The character attacks at `j · interval`, the enemy at `k · interval` (j, k ≥ 1, interval = round(1000 / attack speed)). On equal timestamps the character acts first.
 - **Window end:** a cycle that would finish after the window is not applied. Its time is returned as `unusedMs`; the caller carries it into the next settlement, so no time is lost and nothing is half-awarded.
@@ -169,9 +169,33 @@ No combat number changed in B.3. What was checked (`tools/balance/top-end.ts`, g
 
 +10 Void adds 5–9 % and no build returns to the Abbey's one-shot cap (asserted: the top three at +10 Void stay below 0.97 × the class's Abbey best; the hunter's Ambush build is the closest, at 0.95 ×).
 
-**Heroes past the content's top.** Realistic heroes keep levelling past 28 (B.3's telemetry week ended at levels 26–37; the cap is 60). Levels add little next to gear: the best +10 Void build in item-level-27 gear makes the same kills at 26, 30 and 38 (warrior 22.4 · 22.1 · 22.6, mage 20.1 throughout, hunter 22.7 · 22.4 · 22.9, warlock 20.4 throughout; asserted: 35 is < 1.05 × 26). XP slows the climb: the Pass pays 210–250k XP an hour up to 30 (2–3 h a level), 160–180k at 32, 56–63k at 35 (14–15 h a level) and 23–26k at 38 (40–45 h a level), the B.1 XP penalty working as a soft cap around 35. A hard level cap or content above 28 is a design decision for a later phase (owner).
+**Heroes past the content's top.** Realistic heroes keep levelling past 28 (B.3's telemetry week ended at levels 26–37; the cap is 60). Levels add little next to gear: the best +10 Void build in item-level-27 gear makes the same kills at 26, 30 and 38 (warrior 22.4 · 22.1 · 22.6, mage 20.1 throughout, hunter 22.7 · 22.4 · 22.9, warlock 20.4 throughout; asserted: 35 is < 1.05 × 26). XP slows the climb: the Pass pays 210–250k XP an hour up to 30 (2–3 h a level), 160–180k at 32, 56–63k at 35 (14–15 h a level) and 23–26k at 38 (40–45 h a level), the B.1 XP penalty working as a soft cap around 35. A hard level cap or content above 28 is a design decision for a later phase (owner). *Since ticket 6.1 the Ashfall Verge (28–34) is that content; the soft cap is now about 42 ("The Cinderwastes" below).*
 
 **Crypt tier III** stays the Legendary tier (decided, no change: `docs/DUNGEONS.md` "Tier III is the Legendary tier").
+
+## The Cinderwastes (ticket 6.1)
+The first Phase 6 area, the Ashfall Verge (levels 28–34, `docs/WORLD.md`), is tuned against **today's best Ashen Pass gear**, so a hero who slew the Ashen Warden can move on without new drops, and its own tier-4 drops are worth chasing. Its foes have 1.8–1.9 × the Pass's health per level at about 1.5 × its damage.
+
+**Today's best Pass gear** (the class's best Pass build from 4.8's search, item level 27; 3 seeds × 1 h; `tools/balance/cinderwastes.ts farm`, guarded in `builds.test.ts`):
+
+| Class (build) | Pass 28: kills/min · XP/h · gold/h | Verge 28: kills/min · deaths/h · damage share · XP/h · gold/h | Verge 34: kills/min |
+|---|---|---|---|
+| Warrior (Bloodmoon 4, speed), +10 Void | 22.3 · 244k · 3,400 | 17.2 · 0 · 2 % · 263k · 3,790 | 16.1 |
+| Mage (Bloodmoon 4, speed), +10 Void | 20.3 · 222k · 2,880 | 17.0 · 0 · 2 % · 260k · 3,570 | 16.5 |
+| Hunter (Vigil 4, Ambush, speed), +10 Void | 22.6 · 248k · 3,350 | 19.9 · 0 · 1 % · 305k · 4,220 | 18.9 |
+| Warlock (Bloodmoon 4, speed), +10 Void | 20.5 · 224k · 2,890 | 17.3 · 0 · 2 % · 264k · 3,500 | 16.4 |
+
+The same builds at +5 (no Void): 18.6–21.3 kills a minute at 28, no deaths. **Asserted:** at +10 Void and at +5, ≤ 1 death an hour at 28 and ≤ 2 at 34, > 14 kills a minute at 28 and > 13 at 34, 0.7–0.95 × the Pass's kill rate (a step up, not a wall), and more XP and gold an hour than at the Pass with the same gear. The same build in the Verge's own drops (item level 33, tier 4, +5) kills 1.03–1.35 × as fast at 34 (worth chasing, no new power tier).
+
+**The Pass's plain Legendaries +10** (balance.test.ts's kit, item level 27; asserted bands in brackets): 0 deaths at 28 / 31 / 34 (≤ 2), damage share 7–11 % at 28 and 9–15 % at 34 (< 21 %; the Pass's top 3–5 %, so the entry is > 1.15 × it), 8.5–12 kills a minute at 28 (6–13), XP 143–204k and gold 2,180–2,720 an hour at 28 (above the Pass's 124–162k and 2,120–2,350). The Pass's own "geared" (rares +5) falls 41–64 times an hour here (> 20: endgame content). Iron ore 30–90 and soul shards 2–10 an hour (≤ 100 · ≤ 45).
+
+**The curves above 28.** Values at or below 28 do not move (pinned: `progression.test.ts`, the no-effects hashes, every B.1–B.3 and 4.8 band unchanged). The XP curve keeps its formula (`700 · L²`, every step above 28 larger than the one before) and the XP penalty its rule (−15 % per level past two above the foe, at least 10 %). Measured, no constant needed to change: with the Verge's foes at up to 35 the penalty's floor arrives at hero level 42 instead of 35, so the soft cap moved with the content. Hours per level for the best Pass build (+10 Void) farming the best open area (`tools/balance/cinderwastes.ts xp`; the Pass's plain Legendaries +10 take about twice as long):
+
+| Level | 28 | 30 | 32 | 34 | 36 | 38 | 40 | 41 | 42 | 44 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Hours (warrior · hunter) | 1.9 · 1.6 | 2.1 · 1.8 | 2.3 · 2.0 | 2.6 · 2.2 | 2.8 · 2.4 | 4.5 · 3.8 | 8.6 · 7.4 | 14 · 12 | 37 · 31 | 40 · 34 |
+
+Asserted (Legendaries +10): 28 → 34 takes 15–45 h of farming, a level at 39 takes under a day, and from 42 a level takes more than 2.2 × as long as at 40 and over two days. B.3's "soft cap around 35" is now about 41–42; 6.2's second area (34–40) will move it again.
 
 ## PvP (ticket 5.4)
 Hero-vs-hero duels run on this engine (`buildEncounter`, `attackHit`, `thornsDamage`) through a separate normalisation layer in `packages/game-core/src/pvp/`; nothing above changes for PvE. Rules, factors and balance bands: `docs/PVP.md`.

@@ -152,14 +152,24 @@ describe('duels', () => {
   it('are pinned: a changed number needs a new PVP_RULES_VERSION', () => {
     // Recompute with `hash(simulateDuel(lateDuel(seed)))` after a deliberate rules change, and
     // bump PVP_RULES_VERSION so 5.5 can tell stored duels of the old rules apart.
-    expect(PVP_RULES_VERSION).toBe(1);
+    // Version 2 (ticket 6.1): only the 30+ bracket changed; the 20–29 pins are version 1's.
+    expect(PVP_RULES_VERSION).toBe(2);
     const pinned: Record<string, string> = {
       'det:1': '613985dff82a41ce',
       'det:2': '67626f0715c65f80',
     };
     for (const [seed, h] of Object.entries(pinned)) {
-      expect(hash(simulateDuel(lateDuel(seed))), seed).toBe(h);
+      // The whole version-1 result, with only the stored version moved on.
+      const r = simulateDuel(lateDuel(seed));
+      expect(r.rulesVersion).toBe(2);
+      expect(hash({ ...r, rulesVersion: 1 }), seed).toBe(h);
     }
+    const top = (seed: string): DuelInput => ({
+      challenger: fighter('hunter', 32, sampleBuild('hunter', 31, 1)),
+      defender: fighter('warlock', 33, sampleBuild('warlock', 32, 2)),
+      seed,
+    });
+    expect(hash(simulateDuel(top('det:30'))), '30+').toBe('a450cde846945e0d');
   });
 
   it('write a consistent log: health follows the blows, and the end matches the result', () => {

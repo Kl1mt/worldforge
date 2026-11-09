@@ -88,5 +88,10 @@ export const DEFAULT_PROFESSION_CONFIG: ProfessionConfig = {
       yields: [{ materialId: 'ironOre', chance: 0.06 }],
       undeadDrops: [{ materialId: 'soulShard', chance: 0.03 }],
     },
+    // Ticket 6.1: tier-4 upgrades ask for 3 ore a unit; soul shards from the revenants.
+    ashfallVerge: {
+      yields: [{ materialId: 'ironOre', chance: 0.07 }],
+      undeadDrops: [{ materialId: 'soulShard', chance: 0.03 }],
+    },
   },
 };

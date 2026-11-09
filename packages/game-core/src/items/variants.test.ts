@@ -59,10 +59,11 @@ describe('Void content (ticket 3.5)', () => {
   it('only the late-game sources roll Void, and every chance is under the hard cap', () => {
     const withVoid = LOOT_TABLES.filter((t) => effectiveVoidChance(t) > 0).map((t) => t.id);
     // Ticket 3.6 adds the deeper crypt tiers' chambers and Gravewarden.
-    // Ticket 4.8 adds the Ashen Pass and the Ashen Warden's hoard.
+    // Ticket 4.8 adds the Ashen Pass and the Ashen Warden's hoard; 6.1 the Ashfall Verge.
     expect(withVoid.sort()).toEqual([
       'ashenPass',
       'ashenWarden',
+      'ashfallVerge',
       'gravewarden',
       'gravewardenII',
       'gravewardenIII',

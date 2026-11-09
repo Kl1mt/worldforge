@@ -12,12 +12,35 @@ export type ScoreMetric = (typeof SCORE_METRICS)[number];
  * 5.2 stores `(metric, version, inputs, value)` and recomputes stored values of an older version.
  * The pinned values in `scoring.test.ts` fail when a number moves without a bump.
  */
-export const FORMULA_VERSIONS: Readonly<Record<ScoreMetric, number>> = {
+export type FormulaVersions = Readonly<Record<ScoreMetric, number>>;
+
+export const FORMULA_VERSIONS: FormulaVersions = {
   level: 1,
   /** 2 (ticket B.4): equal scores are ordered by magic quality (`sortKey` [total, quality]). */
   gearScore: 2,
+  /** 2 (ticket 6.1): trials at levels 30 and 34 added (22 trials). */
+  power: 2,
+  /** 2 (ticket 6.1): the Cinderwastes' three milestones added (13). */
+  pveProgress: 2,
+};
+
+/**
+ * Ticket 6.1: the versions in force when formula switches became scheduled. A newer version in
+ * `FORMULA_VERSIONS` takes over only between seasons (`formulaVersionsAt`, `scoring/schedule.ts`).
+ */
+export const FORMULA_BASELINE: FormulaVersions = {
+  level: 1,
+  gearScore: 2,
   power: 1,
   pveProgress: 1,
+};
+
+/** Every version that can still be computed, per metric (stored rows of any of them recompute). */
+export const SUPPORTED_FORMULA_VERSIONS: Readonly<Record<ScoreMetric, readonly number[]>> = {
+  level: [1],
+  gearScore: [2],
+  power: [1, 2],
+  pveProgress: [1, 2],
 };
 
 /** One line of a score's breakdown: what counted, how much, and why (or why not). */

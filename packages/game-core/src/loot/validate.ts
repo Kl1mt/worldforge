@@ -1,5 +1,5 @@
 import { isRarityId } from '../rarity.js';
-import { affixPossibleOn, findAffix } from '../items/affixes.js';
+import { affixPossibleOn, findAffix, tierUnlocked } from '../items/affixes.js';
 import { findItemBase, type ItemBaseDefinition } from '../items/bases.js';
 import { findMythic, mythicForBase } from '../items/mythics.js';
 import { findSet, setForBase } from '../items/sets.js';
@@ -65,7 +65,7 @@ export function validateItem(
       continue;
     }
     const levelBonus = config.rarities[item.rarityId].affixLevelBonus;
-    if (tier.minItemLevel > item.itemLevel + levelBonus) {
+    if (!tierUnlocked(tier, item.itemLevel, levelBonus)) {
       errors.push(`affix ${affix.id} tier ${tier.tier} needs item level ${tier.minItemLevel}`);
     }
     if (

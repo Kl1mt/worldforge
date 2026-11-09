@@ -17,10 +17,12 @@ export type ProgressMilestone =
   /** This Nameless Crypt tier cleared (boss killed). */
   | { id: string; kind: 'cryptTier'; tier: number; name: string }
   /** The Ashen Warden fell to this hero (the Warden's Watch). */
-  | { id: string; kind: 'ashenWarden'; name: string };
+  | { id: string; kind: 'ashenWarden'; name: string }
+  /** Ticket 6.1: the area is open to the hero and the hero has reached this level. */
+  | { id: string; kind: 'areaLevel'; areaId: AreaId; level: number; name: string };
 
 /** In order: what a hero meets on the way up. Data; a new place adds a line (and a version). */
-export const PVE_MILESTONES: readonly ProgressMilestone[] = [
+const MILESTONES_V1: readonly ProgressMilestone[] = [
   { id: 'area:abandonedFields', kind: 'area', areaId: 'abandonedFields' },
   { id: 'area:crowwood', kind: 'area', areaId: 'crowwood' },
   { id: 'area:oldBurialGrounds', kind: 'area', areaId: 'oldBurialGrounds' },
@@ -32,6 +34,45 @@ export const PVE_MILESTONES: readonly ProgressMilestone[] = [
   { id: 'area:ashenPass', kind: 'area', areaId: 'ashenPass' },
   { id: 'watch', kind: 'ashenWarden', name: 'The Ashen Warden defeated' },
 ];
+
+/**
+ * Every version's milestones (ticket 6.1), so stored rows of either version recompute. Version 2
+ * adds the Cinderwastes: the Ashfall Verge reached (level 28 and the Warden), then holding its
+ * middle and its top (the hero at level 31 and 34 with the Verge open): 13 milestones.
+ */
+export const PVE_MILESTONES_BY_VERSION: Readonly<Record<number, readonly ProgressMilestone[]>> = {
+  1: MILESTONES_V1,
+  2: [
+    ...MILESTONES_V1,
+    { id: 'area:ashfallVerge', kind: 'area', areaId: 'ashfallVerge' },
+    {
+      id: 'verge:31',
+      kind: 'areaLevel',
+      areaId: 'ashfallVerge',
+      level: 31,
+      name: 'The Ashfall Verge, level 31',
+    },
+    {
+      id: 'verge:34',
+      kind: 'areaLevel',
+      areaId: 'ashfallVerge',
+      level: 34,
+      name: 'The Ashfall Verge, level 34',
+    },
+  ],
+};
+
+/** The milestones of a version (throws for one that never existed). */
+export function pveMilestones(
+  version: number = FORMULA_VERSIONS.pveProgress,
+): readonly ProgressMilestone[] {
+  const list = PVE_MILESTONES_BY_VERSION[version];
+  if (!list) throw new RangeError(`Unknown PvE Progress version: ${version}`);
+  return list;
+}
+
+/** The current version's milestones. */
+export const PVE_MILESTONES: readonly ProgressMilestone[] = pveMilestones();
 
 export interface PveProgressInput {
   level: number;
@@ -54,6 +95,7 @@ function reached(m: ProgressMilestone, input: PveProgressInput): boolean {
     ...(input.progress.cryptTierCleared !== undefined
       ? { cryptTierCleared: input.progress.cryptTierCleared }
       : {}),
+    ...(input.progress.ashenWardenDefeated === true ? { ashenWardenDefeated: true } : {}),
   };
   switch (m.kind) {
     case 'area':
@@ -66,6 +108,15 @@ function reached(m: ProgressMilestone, input: PveProgressInput): boolean {
       return cryptTierCleared(input.progress) >= m.tier;
     case 'ashenWarden':
       return input.progress.ashenWardenDefeated === true;
+    case 'areaLevel':
+      return (
+        input.level >= m.level &&
+        isAreaUnlocked(
+          m.areaId,
+          { level: input.level, world: input.world ?? NO_WORLD_FLAGS },
+          progress,
+        )
+      );
   }
 }
 
@@ -75,11 +126,15 @@ export function countedGuildStage(stage: number): number {
   return Number.isInteger(stage) && stage >= 0 ? Math.min(stage, GUILD_STAGES.length) : 0;
 }
 
-export function pveProgressScore(input: PveProgressInput): Score {
+export function pveProgressScore(
+  input: PveProgressInput,
+  version: number = FORMULA_VERSIONS.pveProgress,
+): Score {
+  const milestones = pveMilestones(version);
   const lines: ScoreLine[] = [];
   let count = 0;
   let furthest = 0;
-  for (const [i, m] of PVE_MILESTONES.entries()) {
+  for (const [i, m] of milestones.entries()) {
     const ok = reached(m, input);
     if (ok) {
       count++;
@@ -88,7 +143,7 @@ export function pveProgressScore(input: PveProgressInput): Score {
     lines.push({
       id: m.id,
       label: milestoneName(m),
-      detail: `Milestone ${i + 1} of ${PVE_MILESTONES.length}`,
+      detail: `Milestone ${i + 1} of ${milestones.length}`,
       points: ok ? 1 : 0,
       counted: ok,
       ...(ok ? {} : { reason: 'not_reached' }),
@@ -108,10 +163,10 @@ export function pveProgressScore(input: PveProgressInput): Score {
   });
   return {
     metric: 'pveProgress',
-    formulaVersion: FORMULA_VERSIONS.pveProgress,
+    formulaVersion: version,
     value: count,
     sortKey: [count, furthest, stage],
-    summary: `How many of the ${PVE_MILESTONES.length} milestones of Graumark and the Ashen Pass you have reached; ties go to the furthest milestone, then the guild boss.`,
+    summary: `How many of the ${milestones.length} milestones of ${version >= 2 ? 'Graumark, the Ashen Pass and the Cinderwastes' : 'Graumark and the Ashen Pass'} you have reached; ties go to the furthest milestone, then the guild boss.`,
     lines,
   };
 }

@@ -33,7 +33,9 @@ import { LEVEL_BRACKETS, type LevelBracket } from '../scoring/boards.js';
  * differently for the same input (a factor, a bracket, a reference, the engine or a combat rule
  * the duel runs through): 5.5/5.6 store it with every duel. `pvp.test.ts` pins a log hash.
  */
-export const PVP_RULES_VERSION = 1;
+export const PVP_RULES_VERSION = 2;
+// 2 (ticket 6.1): the 30+ reference kit wears the Cinderwastes' tier-4 bases (item level 29) and
+// the 30+ class factors were re-fitted; brackets 1–29 duel exactly as in version 1.
 
 /** A PvP bracket: a 5.2 leaderboard bracket plus its reference hero. */
 export interface PvpBracket extends LevelBracket {
@@ -112,7 +114,9 @@ export const DEFAULT_PVP_CONFIG: Readonly<PvpConfig> = {
     '1-9': { warrior: 1.003, mage: 1.105, hunter: 0.936, warlock: 1.124 },
     '10-19': { warrior: 0.946, mage: 1.097, hunter: 0.925, warlock: 1.111 },
     '20-29': { warrior: 0.96, mage: 1.1, hunter: 0.92, warlock: 1.135 },
-    '30-plus': { warrior: 0.941, mage: 1.097, hunter: 0.915, warlock: 1.126 },
+    // Ticket 6.1: re-fitted with the Cinderwastes' tier-4 gear in the reference and the kits
+    // (was 0.941, 1.097, 0.915, 1.126; docs/PVP.md "6.1: the 30+ bracket with tier-4 gear").
+    '30-plus': { warrior: 0.937, mage: 1.113, hunter: 0.903, warlock: 1.134 },
   },
   maxDuelMs: 60_000,
   suddenDeath: { atMs: 30_000, perSecond: 0.1 },

@@ -59,17 +59,17 @@ A better item (higher item level, rarer, more upgrades, or Void) never lowers yo
 ### Character Power
 How strong your hero is as equipped, from an actual fight, so your build counts and not only your numbers: crits, speed, set bonuses, Legendary effects and Mythic signatures all fight.
 
-Your hero runs the **Proving Grounds**: 20 trials at levels 4, 8, 12 … 80. Each trial is three foes back to back (a brute, a hexer, a brute: physical and magic damage) and then a champion two levels higher, a boss that enrages after 40 seconds. Between fights the hero searches for 2 seconds and heals as in the field; kill effects and bloodrush streaks carry from fight to fight.
+Your hero runs the **Proving Grounds**: 22 trials, at levels 4, 8, 12 … 80 and, since version 2 (the Cinderwastes, ticket 6.1), also at 30 and 34. Each trial is three foes back to back (a brute, a hexer, a brute: physical and magic damage) and then a champion two levels higher, a boss that enrages after 40 seconds. Between fights the hero searches for 2 seconds and heals as in the field; kill effects and bloodrush streaks carry from fight to fight.
 
 - **Getting through:** up to 100 points per trial: 15 for each foe and 55 for the champion. A fight you lose still counts for the share of its health you took.
 - **Clearing fast:** a cleared trial adds up to 100 more: 100 × (1 − time ÷ 120 seconds).
 
-Power is the sum over the trials (at most 4,000). The trials, the foes and every dice roll are fixed, so the same hero always gets the same Power. Gold find, item find, XP gain and resource yield do not fight and do not count. Items that fail the server's item check are left out, as if the slot were empty.
+Power is the sum over the trials (at most 4,400; 4,000 in version 1, which had the 20 trials every four levels). The trials, the foes and every dice roll are fixed, so the same hero always gets the same Power. Gold find, item find, XP gain and resource yield do not fight and do not count. Items that fail the server's item check are left out, as if the slot were empty.
 
 Power reflects class balance too: with the same kind of kit the classes are within about 20 % of each other (the hunter highest at level 28, the warlock lowest). Boards can be filtered by class.
 
 ### PvE Progress
-How far your hero has come. There are ten milestones, in the order heroes usually meet them:
+How far your hero has come. There are thirteen milestones (ten in version 1, before the Cinderwastes), in the order heroes usually meet them:
 
 1. Abandoned Fields reached
 2. Crowwood reached (level 5)
@@ -81,8 +81,11 @@ How far your hero has come. There are ten milestones, in the order heroes usuall
 8. The Nameless Crypt, tier III cleared
 9. The Ashen Pass reached (level 24, the Gravewarden slain, and the Pass opened by the community)
 10. The Ashen Warden defeated
+11. The Ashfall Verge reached (level 28 and the Ashen Warden slain) — version 2
+12. The Ashfall Verge, level 31 (the Verge open and level 31) — version 2
+13. The Ashfall Verge, level 34 (the Verge open and level 34) — version 2
 
-Your score is how many of them you have reached ("7 of 10"). If two heroes have the same number, the one whose furthest milestone is further down the list is ahead; then the one who helped break the higher **guild boss stage** (a stage your account earned the reward for, in a week this hero fought the boss for that guild). On the boards (5.2), a remaining tie goes to whoever got there first.
+Your score is how many of them you have reached ("7 of 13"). If two heroes have the same number, the one whose furthest milestone is further down the list is ahead; then the one who helped break the higher **guild boss stage** (a stage your account earned the reward for, in a week this hero fought the boss for that guild). On the boards (5.2), a remaining tie goes to whoever got there first.
 
 ## Boards (ticket 5.2)
 
@@ -163,8 +166,8 @@ Week by week (all players, max / 90th percentile / median): Level 37/36/27 in we
 **What it means and what changed.**
 - **Gear Score: a new version (2).** The score is an item-by-item product with a ceiling (item level stops at the top drops, rarity at Legendary or Mythic, upgrades at +10), and a realistic dedicated player reaches it by the fourth week. From then on the top of the board was decided only by who got there first. Version 2 keeps every value and adds **magic quality** as the tie-breaker (`affixQuality` in `scoring/gear.ts`, above for players): it is still about the items alone (GDD §10.2), and it gives the Forge's rerolls and improvements a place on the board after +10.
 - **Character Level: no change.** It favours time played, as the GDD expects; a cap of 60 with "first to reach it" at the very top is a fair race. 2 % of entries tie on level and XP.
-- **Character Power: no change.** It does not saturate (3,669 of 4,000, as 5.1 noted); the top is compressed but distinct. Content above 28 (Phase 6) adds trials in a new version.
-- **PvE Progress: no change possible now.** Ten milestones are done by nearly everyone within two weeks, so the season board is a race to the Ashen Warden. No finer milestone exists in the data; Phase 6's content should add milestones (a new version) — recommended there.
+- **Character Power: no change.** It does not saturate (3,669 of 4,000, as 5.1 noted); the top is compressed but distinct. Content above 28 (Phase 6) adds trials in a new version. *Done in ticket 6.1: Power 2 (trials 30 and 34).*
+- **PvE Progress: no change possible now.** Ten milestones are done by nearly everyone within two weeks, so the season board is a race to the Ashen Warden. No finer milestone exists in the data; Phase 6's content should add milestones (a new version) — recommended there. *Done in ticket 6.1: PvE Progress 2 (three Cinderwastes milestones).*
 
 **Migration path for Gear Score 2.** No migration (the stored input already holds every affix). The 5.2 sweep finds rows of version 1 (heroes without a current row come first, up to 200 per run) and rewrites them from the stored input; `achieved_at` is kept for a hero whose input did not change (5.2's version-only rule), so "who got there first" stays as it was where magic quality is equal. Version-1 rows are never shown, so a hero is missing from the Gear Score board until the sweep or its own next change reaches it (200 heroes per scheduler run, those without a current row first; a board read also refreshes the reader's own heroes). Season rows (5.3) take the new value and key in the same refresh; B.4 fixes the one case where a longer key would read as a rise: a hero whose standing did not move in the season (`base_sort_key = sort_key`) gets its base rewritten with the new key, so it is still not listed (`seasons.test.ts`, "a formula bump mid-season"). Any other base differs from the key in the total, which both versions share. So the change is safe mid-season too, though the 5.3 decision stands: the owner deploys formula changes between seasons where possible.
 
@@ -184,7 +187,16 @@ Before, a small town made every hero Exalted or Renowned; now each tier means ab
 ## Technical spec (for 5.2)
 
 ### Versioning
-`FORMULA_VERSIONS` (game-core `scoring/types.ts`) holds one version per metric (`level`, `gearScore`, `power`, `pveProgress`; Gear Score 2 since ticket B.4, the others 1). Bump a metric's version whenever its value can change for the same inputs: a weight, a reference foe, a trial, a milestone, or a combat rule that Power runs through (`buildEncounter`, `resolveDungeonFight`, effects, stat derivation, `validateItem`). The pinned values in `scoring/scoring.test.ts` fail when a number moves; the fix is a version bump, a new pin and an update here in the same change. The pinned no-effects hashes and balance suites are untouched by scoring (scoring only reads the rules).
+`FORMULA_VERSIONS` (game-core `scoring/types.ts`) holds the newest version per metric (`level` 1, `gearScore` 2 since ticket B.4, `power` 2 and `pveProgress` 2 since ticket 6.1). Since 6.1 every version in `SUPPORTED_FORMULA_VERSIONS` can still be computed (`computeScore(metric, input, version)`), and the version **in force** is decided between seasons ("Formula versions between seasons" below). Bump a metric's version whenever its value can change for the same inputs: a weight, a reference foe, a trial, a milestone, or a combat rule that Power runs through (`buildEncounter`, `resolveDungeonFight`, effects, stat derivation, `validateItem`). The pinned values in `scoring/scoring.test.ts` fail when a number moves; the fix is a version bump, a new pin and an update here in the same change. The pinned no-effects hashes and balance suites are untouched by scoring (scoring only reads the rules).
+
+### Formula versions between seasons (ticket 6.1)
+5.3 decided that formula changes ship between seasons; 6.1 makes the server enforce it. The pure rules are game-core `scoring/schedule.ts`; the server's are `apps/server/src/leaderboards/formulas.ts`.
+- **The plan.** `FORMULA_BASELINE` (level 1, Gear Score 2, Power 1, PvE Progress 1) is what was in force when the plan began. The first time a server sees a newer version in `FORMULA_VERSIONS` (on its first board write, read or check), it adds a **switch** (`FormulaSwitch`: metric, from, to, `afterSeason`) to `game_settings` key `leaderboards.formulas`, under an advisory lock (two instances plan it once), audited `leaderboards.formula_schedule`. `afterSeason` is the season under way at that moment; between seasons it is null (in force at once). Planning again adds nothing.
+- **In force.** `formulaVersionsAt(plan, seasons, now)`: a switch applies once `now` reaches the end of its season **as the season plan stands** (ending a season early or extending it moves the switch with it; a season that no longer exists counts as ended). Every refresh (at its request's game clock: the window rule), the sweep, the board read (all-time boards show only rows of the version in force), the recompute check and `GET …/scores` use the versions in force. The server caches the plan and the season windows (60 s, refreshed at once after a season plan change); the comparison with `now` runs on every call, so the switch lands exactly at the end.
+- **Recompute.** At the switch the version-1 rows stop being current: they are "outdated" in the check and "missing" for the 5.2 sweep, which recomputes those heroes first (200 a run) from their state; a board read also refreshes the reader's own heroes. A hero whose input did not change keeps `achieved_at` (5.2's version-only rule). The season that ended keeps its rows as they ended (version 1); its archive and awards read those.
+- **Matchmaking** keeps bracket Power version 1 (`BRACKET_POWER_VERSION`): its bands were fitted on it, and Power 2's two trials changed no measured list (`docs/PVP.md`).
+- **6.1's versions.** Power 2 = Power 1's 20 trials with their exact seeds and points, plus trials at 30 and 34 (the Verge's entry and top): no hero's Power falls (`scoring.test.ts`). PvE Progress 2 adds the Verge's three milestones after the Warden; a hero's value under version 2 is never below version 1's.
+- **Tested:** `scoring/schedule.test.ts` (planning, the season's end, ended early or extended, chained versions, a stored plan never trusted), `leaderboards/formula-switch.test.ts` (a season under way: version 1 for writes, reads and the check until the end, then the sweep recomputes every hero under version 2, the check is clean, the season row keeps its version-1 standing; no season: at once), the journey step `playCinderwastesStep`.
 
 ### Inputs
 `ScoringInput` (game-core `scoring/scores.ts`), built by the server only (`scoringInput` in `apps/server/src/scores/routes.ts`):
@@ -217,7 +229,7 @@ Power is the only non-trivial score: 20 trials × 2 runs × at most 4 fights (�
 ### Known limits and owner decisions
 - **Guild boss stages are a tie-breaker, not milestones** (the ticket listed them among the milestones). A stage is broken by a whole guild; counting it as a personal milestone would let a weak hero in a strong guild outrank a stronger solo hero. Owner can override (e.g. stage 5 as an 11th milestone).
 - **Areas count when they are open to the hero** (the unlock rule: level, Gravewarden, world flag), not when first visited: no "visited" record exists. When the community opens the Ashen Pass, every hero of level 24 with the Gravewarden slain gains milestone 9 at once.
-- **Power's scale** saturates at 4,000 (20 trials); today's best builds at level 23 score about 3,500–3,700 and level-35 heroes in epics +5 about 2,700–3,050. Content above level 28 (Phase 6) can add trials in a new version. B.4 measured a realistic season: the best hero reached 3,669 (92 %), none 3,800; the board's top stays distinct (below).
+- **Power's scale** saturates at 4,000 (20 trials; 4,400 with 22 since version 2); today's best builds at level 23 score about 3,500–3,700 and level-35 heroes in epics +5 about 2,700–3,050. Content above level 28 (Phase 6) can add trials in a new version. B.4 measured a realistic season: the best hero reached 3,669 (92 %), none 3,800; the board's top stays distinct (below).
 - **Power and class balance:** the spread between classes (up to × 1.21 with the same kit) is the combat balance, not the formula; a per-class board (5.2 filter) compares like with like.
 - **Farming-only value** (kill speed in an area, gold, item find) is not in Power. The three foes per trial let kill effects (Carrion Feast, Bloodrush, Ambush, the Bloodmoon opener) count, but Power leans toward the boss: against the B.2 build search it follows the tier III Gravewarden's boss times (Spearman 0.65–0.78 per class) more than farming rates.
 

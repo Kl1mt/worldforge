@@ -98,7 +98,11 @@ describe('the Ashen Pass behind the world flag (ticket 4.8)', () => {
       blockers: [{ kind: 'worldFlag', flag: 'ashenPassCleared' }],
     });
     // Every other area is open to this veteran: the flag closes only the pass.
-    expect(w.areas.filter((a) => !a.unlocked).map((a) => a.id)).toEqual(['ashenPass']);
+    // Ticket 6.1: the Ashfall Verge waits for the Ashen Warden (never slain here).
+    expect(w.areas.filter((a) => !a.unlocked).map((a) => a.id)).toEqual([
+      'ashenPass',
+      'ashfallVerge',
+    ]);
     expect(w.dungeons.find((d) => d.id === 'ashenWatch')).toEqual({
       id: 'ashenWatch',
       unlocked: false,
@@ -149,7 +153,7 @@ describe('the Ashen Pass behind the world flag (ticket 4.8)', () => {
 
     const p = await veteran();
     const w = await world(p);
-    expect(w.areas.every((a) => a.unlocked)).toBe(true);
+    expect(w.areas.every((a) => a.unlocked || a.id === 'ashfallVerge')).toBe(true);
     expect(w.dungeons.every((d) => d.unlocked)).toBe(true);
     expect((await world(young)).areas.find((a) => a.id === 'ashenPass')!.blockers).toEqual([
       { kind: 'level', required: 24 },

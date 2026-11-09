@@ -90,6 +90,8 @@ function blockerText(b: UnlockBlocker): string {
   // Ticket 4.6: a community project must finish first.
   if (b.kind === 'worldFlag') return getWorldFlag(b.flag).lockedText;
   if (b.kind === 'cryptTier') return `Clear Tier ${'I'.repeat(b.tier)} of the crypt`;
+  // Ticket 6.1: the Cinderwastes lie past the Warden's tower.
+  if (b.kind === 'ashenWardenDefeated') return 'Defeat the Ashen Warden';
   return 'Defeat the Gravewarden';
 }
 

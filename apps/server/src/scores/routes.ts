@@ -85,7 +85,10 @@ const idParamsSchema = {
   properties: { characterId: { type: 'string', format: 'uuid' } },
 } as const;
 
-export async function registerScores(app: FastifyInstance): Promise<void> {
+export async function registerScores(
+  app: FastifyInstance,
+  now: () => Date = () => new Date(),
+): Promise<void> {
   app.get<{ Params: { characterId: string } }>(
     '/characters/:characterId/scores',
     { preHandler: app.requireAccount, schema: { params: idParamsSchema } },
@@ -100,7 +103,9 @@ export async function registerScores(app: FastifyInstance): Promise<void> {
         )
         .limit(1);
       if (!hero) throw new ApiError(404, 'not_found', 'No such character.');
-      return { scores: computeScores(await scoringInput(app, app.db, hero)) };
+      // Ticket 6.1: the versions in force (an older one until the season under way ends).
+      const versions = await app.formulaVersions.at(now());
+      return { scores: computeScores(await scoringInput(app, app.db, hero), versions) };
     },
   );
 }

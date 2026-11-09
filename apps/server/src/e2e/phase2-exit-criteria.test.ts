@@ -86,8 +86,13 @@ describe('Phase 2 exit criteria', () => {
     // 5. Sunken Abbey: unlocked by level 17 + the Gravewarden, and farmed (its enemies were met).
     const w = await hero.world();
     expect(w.progress.gravewardenDefeated).toBe(true);
-    // Every Graumark area; the Ashen Pass waits for the community (ticket 4.8).
-    expect(w.areas.filter((a) => a.id !== 'ashenPass').every((a) => a.unlocked)).toBe(true);
+    // Every Graumark area; the Ashen Pass waits for the community (ticket 4.8), the Cinderwastes
+    // for the Ashen Warden (ticket 6.1).
+    expect(
+      w.areas
+        .filter((a) => a.id !== 'ashenPass' && a.id !== 'ashfallVerge')
+        .every((a) => a.unlocked),
+    ).toBe(true);
     expect(w.areas.find((a) => a.id === 'ashenPass')!.blockers).toContainEqual({
       kind: 'worldFlag',
       flag: 'ashenPassCleared',
