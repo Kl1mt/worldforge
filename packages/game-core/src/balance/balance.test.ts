@@ -19,6 +19,7 @@ import {
   getDungeonTier,
   getItemBase,
   getLootTable,
+  getImplicitStats,
   getMaterial,
   legendaryEffectPool,
   settleFarming,
@@ -33,7 +34,9 @@ import {
   type ProfessionId,
   type ProfessionState,
   type RarityId,
+  salvageYield,
   upgradePathCost,
+  xpToNextLevel,
 } from '../index.js';
 
 /**
@@ -548,6 +551,169 @@ describe('balance (ticket B.1)', () => {
       const perMin = CLASS_IDS.reduce((s, c) => s + at(c, mid(pass)).goldPerHour, 0) / 4 / 60;
       const price = (rarityId: RarityId) =>
         buyPrice({ rarityId, itemLevel: mid(pass) }, DEFAULT_ECONOMY_CONFIG) / perMin;
+      expect(price('common')).toBeGreaterThanOrEqual(3);
+      expect(price('common')).toBeLessThanOrEqual(20);
+      expect(price('uncommon')).toBeLessThanOrEqual(35);
+    });
+  });
+
+  describe('the Ashfall Verge (ticket 6.1)', () => {
+    const verge = getArea('ashfallVerge');
+    const plus = (items: GeneratedItem[], upgradeLevel: number) =>
+      items.map((i) => ({ ...i, upgradeLevel }));
+    /**
+     * The Verge's "geared": the Pass's best plain drops, Legendaries +10 at item level 27 (a hero
+     * who slew the Ashen Warden). The best Pass builds are in builds.test.ts "the Ashfall Verge".
+     */
+    const passBest = (c: ClassId) => plus(kit(c, 27, 'legendary'), 10);
+    const memo = new Map<string, FarmStats>();
+    const at = (c: ClassId, level: number, areaId: AreaId = 'ashfallVerge', il = 27) => {
+      const key = `${c}:${level}:${areaId}:${il}`;
+      let s = memo.get(key);
+      if (!s) memo.set(key, (s = farm(c, level, areaId, plus(kit(c, il, 'legendary'), 10))));
+      return s;
+    };
+    const levels = [verge.minLevel, verge.minLevel + 3, verge.maxLevel];
+    it('older Legendaries +10 farm it at every level: no deaths, idle-paced kills', () => {
+      for (const level of levels) {
+        const shares: number[] = [];
+        for (const c of CLASS_IDS) {
+          const s = at(c, level);
+          const label = `${c} L${level}`;
+          expect(s.deathsPerHour, label).toBeLessThanOrEqual(2);
+          expect(s.damageShare, label).toBeLessThan(0.21);
+          expect(s.killsPerMin, label).toBeGreaterThan(6);
+          expect(s.killsPerMin, label).toBeLessThan(13);
+          shares.push(s.damageShare);
+        }
+        // The hunter takes least (its Legendary kit's effects: 1.57 × at the Pass's top too).
+        expect(Math.max(...shares) / Math.min(...shares), `L${level}`).toBeLessThan(1.8);
+      }
+    });
+
+    it('pays at least the Pass’s XP and gold an hour with the same gear', () => {
+      for (const c of CLASS_IDS) {
+        const pass = at(c, 28, 'ashenPass');
+        const entry = at(c, verge.minLevel);
+        expect(entry.xpPerHour, c).toBeGreaterThan(pass.xpPerHour);
+        expect(entry.goldPerHour, c).toBeGreaterThan(pass.goldPerHour);
+        expect(entry.goldPerHour, c).toBeLessThan(4_000);
+      }
+    });
+
+    it('is a step up: more damage per fight than the Pass’s top, and the Pass’s rares fall', () => {
+      for (const c of CLASS_IDS) {
+        const entry = at(c, verge.minLevel).damageShare;
+        expect(entry, c).toBeGreaterThan(at(c, 28, 'ashenPass').damageShare * 1.15);
+        expect(entry, c).toBeGreaterThan(0.06);
+        // The Pass's own "geared" (rares +5) is not enough here.
+        const rares = farm(c, verge.minLevel, verge.id, plus(kit(c, 27, 'rare'), 5));
+        expect(rares.deathsPerHour, c).toBeGreaterThan(20);
+      }
+    });
+
+    it('its tier-4 bases beat their tier-3 counterparts by about a tenth at the same item level', () => {
+      const t4 = ITEM_BASES.filter((x) => x.tier === 4);
+      expect(t4.length).toBe(10);
+      for (const base of t4) {
+        const t3 = ITEM_BASES.find(
+          (x) => x.tier === 3 && !x.unique && x.slot === base.slot && x.classes.join() === base.classes.join(),
+        )!;
+        const sum = (id: string, itemLevel: number) =>
+          getImplicitStats({ baseId: id, rarityId: 'rare', itemLevel }).reduce((s, x) => s + x.value, 0);
+        for (const il of [29, 32, 35]) {
+          const ratio = sum(base.id, il) / sum(t3.id, il);
+          expect(ratio, `${base.id} vs ${t3.id} @${il}`).toBeGreaterThan(1.05);
+          expect(ratio, `${base.id} vs ${t3.id} @${il}`).toBeLessThan(1.3);
+        }
+      }
+    });
+
+    it('levels 28 → 34 take days, and the XP penalty soft-caps heroes around 42', () => {
+      for (const c of CLASS_IDS) {
+        const hours = (level: number) => {
+          // The best open area at that level (the Pass or the Verge), in the old kit.
+          const xph = Math.max(
+            at(c, level, 'ashenPass').xpPerHour,
+            at(c, Math.max(level, verge.minLevel)).xpPerHour,
+          );
+          return xpToNextLevel(level) / xph;
+        };
+        let climb = 0;
+        for (let level = 28; level < 34; level++) climb += hours(level);
+        expect(climb, c).toBeGreaterThan(15);
+        expect(climb, c).toBeLessThan(45);
+        // The soft cap: under a day a level up to 39, a cliff at 41–42, days a level from 42.
+        expect(hours(39), c).toBeLessThan(24);
+        expect(hours(42), c).toBeGreaterThan(2.2 * hours(40));
+        expect(hours(42), c).toBeGreaterThan(48);
+      }
+    });
+
+    it('yields existing materials at a gathering pace', () => {
+      for (const c of CLASS_IDS) {
+        const m = at(c, verge.minLevel + 3).materialsPerHour;
+        expect(Object.keys(m).sort(), c).toEqual(['ironOre', 'soulShard']);
+        expect(m.ironOre!, c).toBeGreaterThan(15);
+        expect(m.ironOre!, c).toBeLessThanOrEqual(100);
+        expect(m.soulShard!, c).toBeGreaterThan(1);
+        expect(m.soulShard!, c).toBeLessThanOrEqual(45);
+      }
+    });
+
+    it('drops the highest item levels, tier-4 bases and tier-5 affixes (never at the Pass)', () => {
+      const table = getLootTable(verge.lootTableId);
+      for (const a of AREAS.filter((x) => x.id !== verge.id)) {
+        expect(table.itemLevel!.min, a.id).toBeGreaterThan(getLootTable(a.lootTableId).itemLevel!.max - 1);
+      }
+      for (const e of table.entries) expect(getItemBase(e.baseId).tier, e.baseId).toBe(4);
+      const maxTier = (tableId: string, itemLevel: number) => {
+        const rng = createRng(`tier5:${tableId}`);
+        let best = 0;
+        for (let i = 0; i < 400; i++) {
+          const item = generateItem({
+            seed: rng.int(0, 2 ** 31),
+            itemLevel,
+            lootTable: getLootTable(tableId),
+            rarityId: 'mythic',
+            classId: 'warrior',
+          })!;
+          for (const a of item.affixes) best = Math.max(best, a.tier);
+        }
+        return best;
+      };
+      expect(maxTier(verge.lootTableId, 31)).toBe(5);
+      expect(maxTier('ashenPass', 29)).toBe(4);
+      expect(maxTier('ashenWarden', 29)).toBe(4);
+    });
+
+    it('older drops keep their salvage and Forge value', () => {
+      for (const c of CLASS_IDS) {
+        for (const item of passBest(c)) {
+          // Salvage: tier-3 ore and soul shards, the same as before 6.1.
+          const y = salvageYield(item);
+          expect(y.gold, item.baseId).toBeGreaterThan(0);
+          expect((y.materials.ironOre ?? 0) + (y.materials.timber ?? 0), item.baseId).toBeGreaterThan(0);
+          // Forge: the whole +10 path still prices in materials the Verge itself yields.
+          const path = upgradePathCost(item, 0, 10);
+          expect(path.worst.gold, item.baseId).toBeGreaterThan(0);
+          for (const id of Object.keys(path.worst.materials)) {
+            expect(verge.materials.includes(id as MaterialId) || id === 'timber' || id === 'rawHide', id).toBe(true);
+          }
+        }
+      }
+      // A tier-4 item salvages to more ore than a tier-3 one of the same rarity and level.
+      const t3 = salvageYield({ baseId: 'knights-plate', rarityId: 'epic', itemLevel: 30 });
+      const t4 = salvageYield({ baseId: 'ashplate-hauberk', rarityId: 'epic', itemLevel: 30 });
+      expect(t4.materials.ironOre!).toBeGreaterThan(t3.materials.ironOre!);
+      expect(t4.gold).toBe(t3.gold);
+    });
+
+    it('its merchant stock costs minutes of its farming gold, not hours', () => {
+      const perMin =
+        CLASS_IDS.reduce((s, c) => s + at(c, verge.minLevel + 3).goldPerHour, 0) / 4 / 60;
+      const price = (rarityId: RarityId) =>
+        buyPrice({ rarityId, itemLevel: verge.minLevel + 3 }, DEFAULT_ECONOMY_CONFIG) / perMin;
       expect(price('common')).toBeGreaterThanOrEqual(3);
       expect(price('common')).toBeLessThanOrEqual(20);
       expect(price('uncommon')).toBeLessThanOrEqual(35);

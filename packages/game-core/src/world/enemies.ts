@@ -360,11 +360,11 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     undead: true,
     rank: 'normal',
     attackSpeed: 0.9,
-    health: { base: 60, perLevel: 36 },
-    damage: { base: 9, perLevel: 2.6 },
+    health: { base: 96, perLevel: 58 },
+    damage: { base: 12.2, perLevel: 3.51 },
     armor: { base: 20, perLevel: 3.8 },
     resistance: { base: 12, perLevel: 2.2 },
-    xp: { base: 28, perLevel: 6.6 },
+    xp: { base: 38, perLevel: 9.08 },
   },
   // The hound: fast, light, hunts in packs (many small physical bites).
   {
@@ -375,11 +375,11 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     undead: false,
     rank: 'normal',
     attackSpeed: 1.5,
-    health: { base: 46, perLevel: 30 },
-    damage: { base: 6, perLevel: 1.8 },
+    health: { base: 74, perLevel: 48 },
+    damage: { base: 8.1, perLevel: 2.43 },
     armor: { base: 14, perLevel: 2.6 },
     resistance: { base: 10, perLevel: 2 },
-    xp: { base: 25, perLevel: 6 },
+    xp: { base: 34, perLevel: 8.25 },
   },
   // The wisp: frail and quick, magic fire, warded against spells.
   {
@@ -390,11 +390,11 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     undead: false,
     rank: 'normal',
     attackSpeed: 1.3,
-    health: { base: 36, perLevel: 24 },
-    damage: { base: 6.4, perLevel: 1.9 },
+    health: { base: 58, perLevel: 38 },
+    damage: { base: 8.6, perLevel: 2.56 },
     armor: { base: 6, perLevel: 1.2 },
     resistance: { base: 22, perLevel: 3.6 },
-    xp: { base: 24, perLevel: 5.8 },
+    xp: { base: 33, perLevel: 7.98 },
   },
   // The colossus: slow and huge, heavy armour, crushing physical blows.
   {
@@ -405,11 +405,11 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     undead: false,
     rank: 'normal',
     attackSpeed: 0.5,
-    health: { base: 120, perLevel: 54 },
-    damage: { base: 15, perLevel: 4.2 },
+    health: { base: 192, perLevel: 86 },
+    damage: { base: 20.2, perLevel: 5.67 },
     armor: { base: 30, perLevel: 5 },
     resistance: { base: 14, perLevel: 2.4 },
-    xp: { base: 36, perLevel: 8.4 },
+    xp: { base: 50, perLevel: 11.55 },
   },
 ];
 
