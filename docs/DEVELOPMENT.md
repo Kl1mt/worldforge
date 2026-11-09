@@ -56,3 +56,14 @@ The game has one version, `0.<phase>.<patch>` (the minor number is the roadmap p
 - `packages/game-core/src/releases/releases.test.ts` (part of `pnpm test`) checks that versions are valid, unique and strictly increasing, dates never go backwards, the newest entry is `GAME_VERSION`, every release has an entry, and the text stays free of file names and jargon.
 
 CI (`.github/workflows/ci.yml`) runs install, format check, lint, typecheck, test and build on every PR and on `main`, then applies the migrations to a fresh PostgreSQL 16 service container.
+
+## Screenshots
+
+Screenshots are evidence for tickets, not source, so they live on the **`screenshots` branch** (no shared history with `main`), at the same paths as before: `docs/screenshots/<phase>/…`. On `main` that folder is git-ignored apart from its README, and the CI `checks` job fails if a screenshot is committed there.
+
+- Capture as usual: the scripts in `tools/screenshots/` (and `tools/e2e/`) write into `docs/screenshots/<phase>/` locally.
+- Publish: `tools/screenshots/publish.sh docs/screenshots/<phase> ["message"]` copies the folder onto the `screenshots` branch in a temporary worktree, commits and pushes it (your current branch is untouched).
+- Link them in the PR as `https://github.com/Kl1mt/worldforge/blob/screenshots/docs/screenshots/<phase>/<file>.png`.
+- Browse them all: https://github.com/Kl1mt/worldforge/tree/screenshots/docs/screenshots
+
+The screenshots from phases 0–5 (about 640 MB) were moved there in Phase 5; they remain in `main`'s history, so a full clone still downloads them, but checkouts, CI and deploys no longer carry them. A shallow clone (`git clone --depth 1`) skips them entirely.
