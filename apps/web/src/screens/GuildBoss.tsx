@@ -92,7 +92,10 @@ function Siege({
         <div className="siege__niche">
           {sprite ? (
             // A.14: the boss breathes in its niche (idle only; the fight itself is a report).
-            <span className={motion === 'full' ? 'scene-anim' : undefined} style={{ ['--px' as string]: '1px' }}>
+            <span
+              className={motion === 'full' ? 'scene-anim' : undefined}
+              style={{ ['--px' as string]: '1px' }}
+            >
               <SceneActor role="foe">
                 <PixelSprite sprite={sprite} scale={1} alt={view.boss.name} />
               </SceneActor>

@@ -50,13 +50,14 @@ const CADENCE_SLOWDOWN = 1.6;
  * stats fall back to one swing every 1.6 s.
  */
 export function planFor(input: {
-  attackSpeed?: number | null;
+  attackSpeed?: number | null | undefined;
   foes: number;
   /** The hero swings with a frame sheet: the blow lands at the slash, later than a lunge's. */
   framed?: boolean;
 }): ScenePlan {
   const speed = input.attackSpeed;
-  const raw = speed && Number.isFinite(speed) && speed > 0 ? (1000 * CADENCE_SLOWDOWN) / speed : 1600;
+  const raw =
+    speed && Number.isFinite(speed) && speed > 0 ? (1000 * CADENCE_SLOWDOWN) / speed : 1600;
   const cadenceMs = Math.round(Math.min(CADENCE_MAX_MS, Math.max(CADENCE_MIN_MS, raw)));
   return {
     cadenceMs,

@@ -1,6 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useMediaQuery } from '../components/useMediaQuery';
-import { browserMotionFlags, REDUCED_MOTION_QUERY, sceneMotionMode, type SceneMotion } from './motion';
+import {
+  browserMotionFlags,
+  REDUCED_MOTION_QUERY,
+  sceneMotionMode,
+  type SceneMotion,
+} from './motion';
 import { startSceneDriver, type SceneDriver } from './sceneDriver';
 import { cuesSince, planFor, SceneLoop } from './sceneLoop';
 
@@ -59,7 +64,10 @@ export function useSceneAnimation(options: {
 
   useEffect(() => {
     if (!running) return;
-    const loop = new SceneLoop(planFor({ attackSpeed: speed, foes, framed: framed === true }), Math.random);
+    const loop = new SceneLoop(
+      planFor({ attackSpeed: speed, foes, framed: framed === true }),
+      Math.random,
+    );
     const d = startSceneDriver({
       loop,
       clock: browserClock,

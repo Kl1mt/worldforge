@@ -66,7 +66,9 @@ export function PixelSprite({
   if (frames > 1) {
     return (
       <span
-        className={['pixel-sheet', mirror ? 'pixel--mirror' : '', className].filter(Boolean).join(' ')}
+        className={['pixel-sheet', mirror ? 'pixel--mirror' : '', className]
+          .filter(Boolean)
+          .join(' ')}
         style={{ width, height, ['--frames' as string]: frames, ...style }}
       >
         <img

@@ -61,7 +61,11 @@ function setup(foes = 3, seed = 11) {
   const hero = actor();
   const line = Array.from({ length: foes }, actor);
   const loop = new SceneLoop(planFor({ attackSpeed: 1, foes }), seededRandom(seed));
-  const driver = startSceneDriver({ loop, clock: time.clock, actors: () => ({ hero, foes: line }) });
+  const driver = startSceneDriver({
+    loop,
+    clock: time.clock,
+    actors: () => ({ hero, foes: line }),
+  });
   return { time, hero, line, driver };
 }
 

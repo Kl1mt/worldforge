@@ -40,7 +40,11 @@ const fail = (msg) => {
 
 /** Hero names are unique and letters only: each run and each context gets its own suffix. */
 const heroName = (vp) =>
-  vp.hero + Array.from({ length: 4 }, () => 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)]).join('');
+  vp.hero +
+  Array.from(
+    { length: 4 },
+    () => 'abcdefghijklmnopqrstuvwxyz'[Math.floor(Math.random() * 26)],
+  ).join('');
 
 async function newHero(page, vp) {
   vp.current = heroName(vp);
@@ -93,7 +97,9 @@ for (const vp of VIEWPORTS) {
   const times = [];
   const t0 = Date.now();
   for (let i = 0; i < FRAMES; i++) {
-    await stage.screenshot({ path: `${outDir}/scene-${vp.name}-${String(i).padStart(2, '0')}.png` });
+    await stage.screenshot({
+      path: `${outDir}/scene-${vp.name}-${String(i).padStart(2, '0')}.png`,
+    });
     times.push(Date.now() - t0);
   }
   // For the record: the only API calls while filming are the client's 8-second settles (the
