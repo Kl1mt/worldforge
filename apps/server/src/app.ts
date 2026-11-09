@@ -36,6 +36,7 @@ import { registerAdmin, type AdminOptions } from './admin/routes.js';
 import { registerCommunity } from './community/routes.js';
 import { registerWarehouse } from './warehouse/routes.js';
 import { registerShelf } from './shelf/routes.js';
+import { registerTrading } from './trading/routes.js';
 import { registerLeaderboardRefresh, registerLeaderboards } from './leaderboards/routes.js';
 import { sweepLeaderboards } from './leaderboards/snapshot.js';
 import { registerSeasons } from './seasons/routes.js';
@@ -43,6 +44,7 @@ import { registerArena } from './arena/routes.js';
 import { runSeasonJobs } from './seasons/model.js';
 import { WorldStateCache } from './community/world-state.js';
 import { GameSettingsCache, SettingsEvents } from './settings/store.js';
+import { SanctionEvents } from './social/sanctions.js';
 import { registerSettingsRead } from './settings/routes.js';
 import type { Database, DatabaseHandle } from './db/types.js';
 
@@ -111,6 +113,7 @@ export function buildApp({
     new GameSettingsCache(database.db, settings?.ttlMs, settings?.clock),
   );
   app.decorate('settingsEvents', new SettingsEvents());
+  app.decorate('sanctionEvents', new SanctionEvents());
   registerErrorHandling(app);
   const activityOptions: ActivityOptions = { ...DEFAULT_ACTIVITY_OPTIONS, ...activity };
   const authNow = auth?.now ?? DEFAULT_AUTH_OPTIONS.now;
@@ -141,6 +144,7 @@ export function buildApp({
       await registerCommunity(api, activityOptions);
       await registerWarehouse(api, activityOptions);
       await registerShelf(api, activityOptions);
+      await registerTrading(api);
       await registerLegal(api, legal ?? {});
       await registerAdmin(api, { gameNow: activityOptions.now, ...admin });
       await registerScores(api);

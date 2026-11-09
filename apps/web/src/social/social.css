@@ -328,3 +328,12 @@
     min-height: 44px;
   }
 }
+
+/* Ticket T.4: a trade restriction stops trading only. */
+.writ__entry--trade {
+  border-left-color: var(--brass-400);
+}
+
+.writ__seal--trade {
+  background: var(--brass-600, var(--brass-500));
+}

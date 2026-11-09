@@ -320,7 +320,7 @@ Indexes: partial unique `(reporter_id, target_key) where status = 'open'` (one o
 | --- | --- | --- |
 | id | uuid PK | |
 | subject_id | uuid FK | → `accounts.id` `ON DELETE CASCADE` |
-| kind | text | `mute` / `suspend` / `rename` / `hide`, `CHECK` |
+| kind | text | `mute` / `suspend` / `rename` / `hide` / `trade` (T.4: a trade restriction), `CHECK` |
 | target_key, target | text, jsonb | the hidden content, for `hide` |
 | reason | text | shown to the player |
 | issued_by | uuid FK? | → `accounts.id` `SET NULL` |
@@ -473,6 +473,12 @@ Additive migration `0028_arena_rating` (one new table, nullable columns, two wid
 - `game_settings (key text PK, value jsonb, version int check >= 1, updated_by FK accounts set null?, updated_at timestamptz)`: settings the owner changes in the admin panel without a deploy. One row per group; today only `trading` (game-core `TradingSettings`, docs/TRADING.md "Admin switches"). `value` is read through `normaliseTradingSettings`: a missing row or field is its default and a stored number above its hard maximum is clamped, so nothing needs a backfill. `version` goes up by one per change (optimistic concurrency: an edit names the version it was made from). Every change also writes a `settings.update` audit row with the changed fields' old and new values.
 
 Additive migration `0031_game_settings` (one new table, no rows: the defaults live in code).
+
+### trade_counters — implemented (T.4)
+- `trade_counters (account_id FK accounts cascade, period text 'day'|'week', window_start date, metric text, direction text 'given'|'received'|'any', amount bigint check >= 0, updated_at timestamptz)`, PK `(account_id, period, window_start, metric, direction)`: what accepted trades moved for one account in one window (docs/TRADING.md "T.4 as built"). `metric` is game-core `TradeCapMetric` (`trades` per UTC day with direction `any`; `epic`, `legendarySet`, `mythicVoid`, `gold`, `commonMaterials`, `soulShards`, `abbeySilver` per UTC week, given and received apart); `window_start` is the day or the Monday the week starts on, from the accepting transaction's clock (the window rule). Written only by `commitTradeCounters` (check-then-increment under the accounts' `trade-counters:<id>` advisory locks, inside T.5's accept). Old windows stay for T.6's pattern report.
+- `sanctions_kind_check` widened to allow `trade`.
+
+Additive migration `0033_trade_rules` (one new table, empty; one widened check).
 
 ## Relationships
 

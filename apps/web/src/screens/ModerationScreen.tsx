@@ -48,6 +48,12 @@ const ACTIONS: { id: CaseAction; label: string; hint: string }[] = [
     label: 'Hide content',
     hint: 'Hides the reported field from other players.',
   },
+  // Ticket T.4: only trading stops; play, chat and the shelf continue.
+  {
+    id: 'restrictTrade',
+    label: 'Restrict trading',
+    hint: 'No trade offers sent or accepted; play, chat and the shelf continue.',
+  },
   // Ticket 4.4: guild cases (mute and suspend still act on the leader).
   {
     id: 'renameGuild',

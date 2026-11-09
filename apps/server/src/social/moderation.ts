@@ -18,6 +18,7 @@ import { writeAudit } from '../db/audit.js';
 import { uuidv7 } from '../db/uuid.js';
 import { ApiError, notFoundBody } from '../errors.js';
 import {
+  type SanctionEvents,
   activeSanctions,
   hiddenTargetKeys,
   sanctionView,
@@ -99,6 +100,8 @@ interface IssueInput {
   targetKey: string | null;
   target: Sanction['target'];
   now: Date;
+  /** Ticket T.4: listeners run in this transaction after the rows are written. */
+  events: SanctionEvents;
 }
 
 /** Issues a sanction under the subject's row lock. `409 already_sanctioned` if one of the same
@@ -157,6 +160,10 @@ async function issueSanction(tx: Transaction, input: IssueInput): Promise<Sancti
       ...data,
     },
   });
+  await input.events.emit(
+    { sanction: row!, kind, subjectId: subject.id, actorAccountId: actor.id, at: now },
+    tx,
+  );
   return row!;
 }
 
@@ -173,7 +180,10 @@ const resolveBodySchema = {
       additionalProperties: false,
       required: ['action', 'reason', 'durationHours'],
       properties: {
-        action: { type: 'string', enum: ['mute', 'suspend', 'forceRename', 'hideContent'] },
+        action: {
+          type: 'string',
+          enum: ['mute', 'suspend', 'forceRename', 'hideContent', 'restrictTrade'],
+        },
         reason: { type: 'string', maxLength: 2000 },
         durationHours: { type: 'integer', minimum: 1, maximum: 24 * 366 },
       },
@@ -544,6 +554,7 @@ export async function registerModeration(app: FastifyInstance): Promise<void> {
             targetKey: report.targetKey,
             target: report.target,
             now,
+            events: app.sanctionEvents,
           });
         }
         const closed = await tx

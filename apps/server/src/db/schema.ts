@@ -890,7 +890,7 @@ export const sanctions = pgTable(
     index('sanctions_target_key_idx')
       .on(t.targetKey)
       .where(sql`${t.targetKey} is not null`),
-    check('sanctions_kind_check', sql`${t.kind} in ('mute', 'suspend', 'rename', 'hide')`),
+    check('sanctions_kind_check', sql`${t.kind} in ('mute', 'suspend', 'rename', 'hide', 'trade')`),
     check('sanctions_expiry_check', sql`${t.expiresAt} > ${t.createdAt}`),
   ],
 );
@@ -1855,3 +1855,35 @@ export const gameSettings = pgTable(
 );
 
 export type GameSetting = typeof gameSettings.$inferSelect;
+
+/**
+ * Trade cap counters (ticket T.4, docs/TRADING.md "T.4 as built"): one row per account, window
+ * (`period` `day` or `week`, starting on `window_start`, UTC: the window holding the accepting
+ * transaction's clock, stored and never recomputed), metric (game-core `TradeCapMetric`) and
+ * direction (`given`, `received`, or `any` for completed trades). `amount` is what accepted trades
+ * moved in that window. Written only by `commitTradeCounters` under the accounts' counter locks,
+ * inside T.5's accept transaction, so the caps are exact under races. Old windows are kept for
+ * T.6's pattern report.
+ */
+export const tradeCounters = pgTable(
+  'trade_counters',
+  {
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    period: text('period').$type<'day' | 'week'>().notNull(),
+    windowStart: date('window_start', { mode: 'string' }).notNull(),
+    metric: text('metric').notNull(),
+    direction: text('direction').$type<'given' | 'received' | 'any'>().notNull(),
+    amount: bigint('amount', { mode: 'number' }).notNull().default(0),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.accountId, t.period, t.windowStart, t.metric, t.direction] }),
+    check('trade_counters_amount_check', sql`${t.amount} >= 0`),
+    check('trade_counters_period_check', sql`${t.period} in ('day', 'week')`),
+    check('trade_counters_direction_check', sql`${t.direction} in ('given', 'received', 'any')`),
+  ],
+);
+
+export type TradeCounter = typeof tradeCounters.$inferSelect;

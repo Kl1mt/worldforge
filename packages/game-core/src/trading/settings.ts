@@ -100,7 +100,7 @@ export const TRADING_LIMITS: Readonly<Record<TradingLimitId, Readonly<TradingLim
     unit: 'trades',
     default: 5,
     max: 20,
-    explains: 'Accepted offers per account in any 24 hours.',
+    explains: 'Accepted offers per account each day (UTC midnight to midnight).',
   },
   legendarySetPerWeek: {
     label: 'Legendary and set pieces per week',

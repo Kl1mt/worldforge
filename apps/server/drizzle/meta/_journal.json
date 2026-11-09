@@ -232,6 +232,13 @@
       "when": 1794179169850,
       "tag": "0032_account_shelf",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1794215714095,
+      "tag": "0033_trade_rules",
+      "breakpoints": true
     }
   ]
 }
