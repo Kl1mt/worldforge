@@ -27,7 +27,18 @@ export const DEFAULT_SOCIAL_WRITE_LIMIT: SocialWriteLimit = {
 
 const SWEEP_AT = 10_000;
 
-export function createSocialWriteLimiter(limit: SocialWriteLimit, now: () => Date) {
+/**
+ * A per-account limiter over several fixed windows. `limit` names the class in the `429` body
+ * (`details.limit`): `social` (4.1) or `trade` (T.4, `createTradeWriteLimiter`).
+ */
+export function createSocialWriteLimiter(
+  limit: SocialWriteLimit,
+  now: () => Date,
+  label: { limit: string; message: string } = {
+    limit: 'social',
+    message: 'Too many posts and reports.',
+  },
+) {
   const longest = Math.max(...limit.windows.map((w) => w.windowMs));
   const counts = new Map<string, { startedAt: number; used: number }[]>();
 
@@ -58,8 +69,8 @@ export function createSocialWriteLimiter(limit: SocialWriteLimit, now: () => Dat
       throw new ApiError(
         429,
         'rate_limited',
-        `Too many posts and reports. Try again in ${retryAfterSeconds} s.`,
-        { retryAfterSeconds, limit: 'social' },
+        `${label.message} Try again in ${retryAfterSeconds} s.`,
+        { retryAfterSeconds, limit: label.limit },
       );
     }
     for (const s of state) s.used += 1;

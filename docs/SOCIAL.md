@@ -61,7 +61,7 @@ It uses `DATABASE_URL`, locks the account row and writes `role.grant` / `role.re
 | moderator | 403 | allowed | 403 | 403 |
 | admin | 403 | allowed | allowed | 403 |
 
-Actions: `viewQueue` (allowed for staff, 404 for players), `dismissReport`, `mute`, `suspend`, `forceRename`, `hideContent`, `liftSanction`, and (ticket 4.4, on a reported guild whose leader is the subject) `renameGuild`, `disbandGuild`. Nobody acts on themselves; a subject of the actor's rank or higher is out of reach. Reports about admins are handled outside the app (the queue never shows a case its viewer cannot act on). Every action re-reads the actor's role under a share lock, so a revoke racing an action either precedes it (404) or follows it.
+Actions: `viewQueue` (allowed for staff, 404 for players), `dismissReport`, `mute`, `suspend`, `forceRename`, `hideContent`, `liftSanction`, (ticket T.4) `restrictTrade`, and (ticket 4.4, on a reported guild whose leader is the subject) `renameGuild`, `disbandGuild`. Nobody acts on themselves; a subject of the actor's rank or higher is out of reach. Reports about admins are handled outside the app (the queue never shows a case its viewer cannot act on). Every action re-reads the actor's role under a share lock, so a revoke racing an action either precedes it (404) or follows it.
 
 **404 for non-staff:** `/api/mod/*` uses `app.requireStaff` as an `onRequest` hook, before body validation, so players and anonymous visitors get exactly the not-found handler's body, whatever they send. The web client treats `#/moderation` like an unknown address for players.
 
@@ -91,14 +91,15 @@ The moderator queue groups open reports into cases, oldest first, with the subje
 | `suspend` | `suspend` | No login (`403 account_suspended` after a correct password) and every request of a live session answers `403 account_suspended` at once (checked in `requireAccount` on each request). Sessions are not revoked, so they work again when it expires. |
 | `rename` | `forceRename` | The display name becomes a placeholder (`Wanderer 482913`) at once; the player chooses a new one (`POST /api/account/display-name`, not the old name) within the duration. Lifting it restores the old name if still free. |
 | `hide` | `hideContent` | Hides one `hideable` target (the display name, a hero name) from other players (the lookup and the profile); kinds other than content answer `422 not_hideable`. |
+| `trade` | `restrictTrade` | Ticket T.4, a **trade restriction**: no trade offers sent or accepted (cancelling and declining still work); play, chat, every social write and the account shelf continue. Issued from a report like a mute (1 hour to 365 days). T.5 voids the subject's open offers through `app.sanctionEvents.onSanctionIssued` (docs/TRADING.md "T.4 as built"). |
 
-Every sanction has a reason (shown to the player), an expiry (`SANCTION_DURATIONS`: presets and bounds per kind), an issuer, and audit rows (`sanction.issue` on the subject's account with the issuer in the data; `sanction.lift`). One active sanction per kind (and per content for `hide`): a second is `409 already_sanctioned`, lift first. The player sees active sanctions in `GET /api/account/standing`, in the shell's standing strip and the account screen; the `403` bodies carry the sanction (`details.sanction`).
+Ticket T.4: every new sanction also runs the `onSanctionIssued` listeners inside the issuing transaction, after its rows are written (a throw refuses it), the seam trading uses. Every sanction has a reason (shown to the player), an expiry (`SANCTION_DURATIONS`: presets and bounds per kind), an issuer, and audit rows (`sanction.issue` on the subject's account with the issuer in the data; `sanction.lift`). One active sanction per kind (and per content for `hide`): a second is `409 already_sanctioned`, lift first. The player sees active sanctions in `GET /api/account/standing`, in the shell's standing strip and the account screen; the `403` bodies carry the sanction (`details.sanction`).
 
 **Locking:** sanction issue locks the subject's account row `FOR UPDATE`; every social write share-locks the writer's row before checking sanctions, so a write either commits before the sanction or sees it. Lock order everywhere: actor (share) → the case's reports (id order) → subject account (update) → sanctions (→ the guild, for guild actions).
 
 ## Social writes
 
-`socialWrite` counts each write in the **social-write rate-limit class** before any work (in-process, per account, on top of 3.9's limits): **12 a minute and 240 an hour** by default (`DEFAULT_SOCIAL_WRITE_LIMIT`, sized for guild chat at one message every 5 s), `429 rate_limited` with `Retry-After` and `details.limit: 'social'`. Refused writes are not counted. Configurable per app (`auth.socialWriteLimit`). Like the other limits it lives in process memory (one API instance; see "Rate limits and a second API instance" below).
+`socialWrite` counts each write in the **social-write rate-limit class** before any work (in-process, per account, on top of 3.9's limits): **12 a minute and 240 an hour** by default (`DEFAULT_SOCIAL_WRITE_LIMIT`, sized for guild chat at one message every 5 s), `429 rate_limited` with `Retry-After` and `details.limit: 'social'`. Refused writes are not counted. Configurable per app (`auth.socialWriteLimit`). Ticket T.4 adds the **trade class** (`apps/server/src/trading/trade-limit.ts`, `auth.tradeWriteLimit`): **20 trade writes a minute** per account (docs/TRADING.md "Per-account limits"), on top of 3.9's limits and separate from the social class (a trade write is not a social write and the reverse), `429 rate_limited` with `Retry-After` and `details.limit: 'trade'`; T.5's offer routes go through `tradeWrite`. Like the other limits it lives in process memory (one API instance; see "Rate limits and a second API instance" below).
 
 ## Profiles
 
@@ -190,7 +191,7 @@ Writes: chat at one line every 5 s is exactly the social class's 12 a minute; 24
 
 **Single instance.** Everything below lives in the API process's memory; with one instance (D.1's deployment) that is correct:
 - the login and registration limits per IP (`@fastify/rate-limit`, memory store);
-- the per-account request/action limits (3.9), the social-write class (4.1) and the admin reconcile class (D.3), fixed windows in a `Map`;
+- the per-account request/action limits (3.9), the social-write class (4.1), the trade class (T.4) and the admin reconcile class (D.3), fixed windows in a `Map`;
 - the presence recorder's "last write" per account (4.3), only a write throttle;
 - the world-state cache (4.6), invalidated by the completing commit in this process, 60 s TTL otherwise;
 - the settlement scheduler and the idempotency-key pruning (one timer per process).

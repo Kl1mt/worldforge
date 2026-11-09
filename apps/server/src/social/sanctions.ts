@@ -1,7 +1,7 @@
 import { and, eq, gt, inArray, isNull } from 'drizzle-orm';
 import type { ReportTarget, SanctionKind } from '@worldforge/game-core';
 import { sanctions, type Sanction } from '../db/schema.js';
-import type { Executor } from '../db/types.js';
+import type { Executor, Transaction } from '../db/types.js';
 import { ApiError } from '../errors.js';
 
 /** A sanction as its subject sees it (`GET /api/account/standing`, the 403 bodies). No issuer. */
@@ -93,4 +93,47 @@ export function sanctionError(s: Sanction): ApiError {
   return new ApiError(403, 'muted', 'You are muted and cannot post or reach other players.', {
     sanction,
   });
+}
+
+/**
+ * What a new sanction is, handed to every `onSanctionIssued` listener (ticket T.4). The seam T.5
+ * voids open offers from: a trade restriction or a suspension ends the subject's open offers
+ * ("What blocks and sanctions do", docs/TRADING.md). Like T.2's `onSettingsChanged`.
+ */
+export interface SanctionIssuedEvent {
+  sanction: Sanction;
+  kind: SanctionKind;
+  subjectId: string;
+  actorAccountId: string;
+  at: Date;
+}
+
+/**
+ * A listener runs **inside the issuing transaction**, after the sanction row and its
+ * `sanction.issue` audit row are written, under the subject's account lock: what it writes
+ * commits or rolls back with the sanction, and a throw refuses it.
+ */
+export type SanctionIssuedListener = (event: SanctionIssuedEvent, tx: Transaction) => Promise<void>;
+
+export class SanctionEvents {
+  private readonly listeners: SanctionIssuedListener[] = [];
+
+  onSanctionIssued(listener: SanctionIssuedListener): () => void {
+    this.listeners.push(listener);
+    return () => {
+      const i = this.listeners.indexOf(listener);
+      if (i >= 0) this.listeners.splice(i, 1);
+    };
+  }
+
+  async emit(event: SanctionIssuedEvent, tx: Transaction): Promise<void> {
+    for (const l of [...this.listeners]) await l(event, tx);
+  }
+}
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    /** Ticket T.4: the in-transaction seam for new sanctions (T.5 voids offers from it). */
+    sanctionEvents: SanctionEvents;
+  }
 }

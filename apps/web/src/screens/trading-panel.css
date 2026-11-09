@@ -1,0 +1,150 @@
+/* Ticket T.4: the account screen's trading panel. Scoped to `.trade-elig`. */
+
+.trade-elig {
+  margin-top: var(--space-5);
+  padding: var(--space-5);
+}
+
+.trade-elig__wait {
+  margin: 0;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.trade-elig__state {
+  margin: 0 0 var(--space-4);
+  max-width: 62ch;
+  padding-left: var(--space-3);
+  border-left: 3px solid var(--iron-500);
+  color: var(--text-muted);
+}
+
+.trade-elig__state--open {
+  border-left-color: var(--moss-400);
+  color: var(--text);
+}
+
+.trade-elig__reqs {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.trade-elig__req {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3);
+}
+
+/* A diamond seal like the standing writ's: brass while unmet, moss once met. */
+.trade-elig__seal {
+  width: 12px;
+  height: 12px;
+  margin-top: 5px;
+  transform: rotate(45deg);
+  background: var(--brass-500);
+  box-shadow: 0 0 0 2px var(--outline-dark);
+}
+
+.trade-elig__seal--ok {
+  background: var(--moss-400);
+}
+
+.trade-elig__label {
+  margin: 0;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.trade-elig__text {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.trade-elig__summary {
+  margin: var(--space-4) 0 0;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.trade-elig__sub {
+  margin: 0 0 var(--space-2);
+  color: var(--bone-100);
+  font-size: var(--text-md);
+}
+
+.trade-elig__limits,
+.trade-elig__check {
+  margin-top: var(--space-4);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--line);
+}
+
+.trade-elig__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm);
+  font-variant-numeric: tabular-nums;
+}
+
+.trade-elig__table th,
+.trade-elig__table td {
+  padding: var(--space-1) var(--space-2);
+  text-align: right;
+}
+
+.trade-elig__table th[scope='row'],
+.trade-elig__table thead th:first-child {
+  text-align: left;
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.trade-elig__table tbody tr {
+  border-top: 1px solid var(--line);
+}
+
+.trade-elig__fine {
+  margin: var(--space-2) 0 0;
+  color: var(--text-faint);
+  font-size: var(--text-sm);
+}
+
+.trade-elig__form {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.trade-elig__form .field__input {
+  flex: 1 1 12rem;
+  width: auto;
+  max-width: 20rem;
+}
+
+.trade-elig__answer {
+  margin-top: var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg-sunken);
+}
+
+.trade-elig__answer p {
+  margin: 0;
+}
+
+.trade-elig__why {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-4);
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 760px) {
+  .trade-elig {
+    padding: var(--space-4);
+  }
+}

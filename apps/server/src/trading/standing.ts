@@ -1,0 +1,76 @@
+import { and, eq, max, or } from 'drizzle-orm';
+import type { TradeRelationFacts, TradeStanding } from '@worldforge/game-core';
+import { accounts, characters, friendships, guildMembers } from '../db/schema.js';
+import type { Executor } from '../db/types.js';
+import { isEmailVerified } from '../auth/tokens.js';
+import { activeSanctions } from '../social/sanctions.js';
+import { isBlockedEitherWay, pairOf } from '../social/relations.js';
+
+/**
+ * The facts trade decisions read (ticket T.4, docs/TRADING.md "T.4 as built"): one account's
+ * standing and the relation between two accounts. Internal ids in, never shown to players. Inside
+ * a value transaction (T.5) pass the transaction, so the facts are the ones the locks protect.
+ */
+
+/** Account age, best hero level, verified email and active sanctions at `now`. */
+export async function loadTradeStanding(
+  executor: Executor,
+  accountId: string,
+  now: Date,
+): Promise<TradeStanding | null> {
+  const [account] = await executor
+    .select({ createdAt: accounts.createdAt })
+    .from(accounts)
+    .where(eq(accounts.id, accountId));
+  if (!account) return null;
+  const [best] = await executor
+    .select({ level: max(characters.level) })
+    .from(characters)
+    .where(eq(characters.accountId, accountId));
+  const [emailVerified, sanctions] = await Promise.all([
+    isEmailVerified(executor, accountId),
+    activeSanctions(executor, accountId, now),
+  ]);
+  return {
+    createdAt: account.createdAt,
+    highestHeroLevel: best?.level ?? 0,
+    emailVerified,
+    sanctions: sanctions.map((s) => s.kind),
+  };
+}
+
+/**
+ * The relation as trading sees it: a block either way, when the friendship was accepted, and when
+ * the two became guildmates (the later of their two joins of the guild they share now).
+ */
+export async function loadTradeRelation(
+  executor: Executor,
+  a: string,
+  b: string,
+): Promise<TradeRelationFacts> {
+  if (a === b) return { self: true, blocked: false, friendSince: null, guildmatesSince: null };
+  const { low, high } = pairOf(a, b);
+  const [blocked, [friendship], members] = await Promise.all([
+    isBlockedEitherWay(executor, a, b),
+    executor
+      .select({
+        status: friendships.status,
+        acceptedAt: friendships.acceptedAt,
+        createdAt: friendships.createdAt,
+      })
+      .from(friendships)
+      .where(and(eq(friendships.accountLow, low), eq(friendships.accountHigh, high))),
+    executor
+      .select({ guildId: guildMembers.guildId, joinedAt: guildMembers.joinedAt })
+      .from(guildMembers)
+      .where(or(eq(guildMembers.accountId, a), eq(guildMembers.accountId, b))),
+  ]);
+  // A friendship without an acceptance time (none should exist) counts from its row.
+  const friendSince =
+    friendship?.status === 'friends' ? (friendship.acceptedAt ?? friendship.createdAt) : null;
+  const shared =
+    members.length === 2 && members[0]!.guildId === members[1]!.guildId
+      ? new Date(Math.max(members[0]!.joinedAt.getTime(), members[1]!.joinedAt.getTime()))
+      : null;
+  return { self: false, blocked, friendSince, guildmatesSince: shared };
+}

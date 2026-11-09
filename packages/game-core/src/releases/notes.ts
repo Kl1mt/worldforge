@@ -23,9 +23,21 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.5.11';
+export const GAME_VERSION = '0.5.12';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.5.12',
+    date: '2026-11-09',
+    title: 'Where you stand for trading',
+    new: [
+      'Your account page shows where you would stand if trading between players is ever opened: an account at least two weeks old, a hero at level 15, a verified email address and good standing, each marked met or not. You can also check whether anything would stand between you and a friend. Trading itself is not open.',
+    ],
+    changed: [
+      'The wardens can now restrict a player’s trading alone, without muting or suspending them; play, chat and the account shelf carry on as usual.',
+    ],
+    tickets: ['T.4'],
+  },
   {
     version: '0.5.11',
     date: '2026-11-08',

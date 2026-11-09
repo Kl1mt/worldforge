@@ -25,6 +25,7 @@ import {
   type SocialWriteLimit,
 } from '../social/social-write.js';
 import { createPresenceRecorder } from '../social/presence.js';
+import { DEFAULT_TRADE_WRITE_LIMIT, createTradeWriteLimiter } from '../trading/trade-limit.js';
 import { inviteCodeHash, inviteStatus, normalizeInviteCode, redeemInvite } from './invites.js';
 import { hashPassword, verifyAgainstDummy, verifyPassword } from './password.js';
 import { createSession, resolveSession, revokeSession } from './session.js';
@@ -78,6 +79,8 @@ export interface AuthOptions {
   accountRateLimit: AccountRateLimit;
   /** Per account, for social writes (ticket 4.1), on top of `accountRateLimit`. */
   socialWriteLimit: SocialWriteLimit;
+  /** Per account, for trade writes (ticket T.4, `trade` class), on top of `accountRateLimit`. */
+  tradeWriteLimit: SocialWriteLimit;
   /**
    * Ticket D.2: who may register (`REGISTRATION_MODE`). Default `open`. Login and existing
    * sessions never depend on it.
@@ -119,6 +122,7 @@ export const DEFAULT_AUTH_OPTIONS: AuthOptions = {
   registerRateLimit: { max: 5, timeWindowMs: 60 * 60_000 },
   accountRateLimit: DEFAULT_ACCOUNT_RATE_LIMIT,
   socialWriteLimit: DEFAULT_SOCIAL_WRITE_LIMIT,
+  tradeWriteLimit: DEFAULT_TRADE_WRITE_LIMIT,
   registrationMode: 'open',
   mailer: DISABLED_MAILER,
   publicBaseUrl: 'http://localhost:5173',
@@ -312,6 +316,7 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
     });
   app.decorate('authNow', now);
   app.decorate('socialWriteLimit', createSocialWriteLimiter(options.socialWriteLimit, now));
+  app.decorate('tradeWriteLimit', createTradeWriteLimiter(options.tradeWriteLimit, now));
   const seen = createPresenceRecorder(
     app.db,
     (err) => app.log.warn({ err }, 'presence write failed'),

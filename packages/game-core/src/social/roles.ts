@@ -33,6 +33,8 @@ export const MODERATION_ACTIONS = [
   // Ticket 4.4: on a reported guild (the subject is its leader).
   'renameGuild',
   'disbandGuild',
+  // Ticket T.4: the trade restriction (docs/TRADING.md).
+  'restrictTrade',
 ] as const;
 export type ModerationAction = (typeof MODERATION_ACTIONS)[number];
 

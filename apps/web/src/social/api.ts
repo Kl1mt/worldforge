@@ -199,6 +199,8 @@ export function describeSanction(s: Sanction): string {
         return `One of your guild chat lines is hidden by the wardens until ${until}.`;
       }
       return `Your display name is hidden from other players until ${until}.`;
+    case 'trade':
+      return `Your trading is restricted until ${until}: you can’t send or accept trade offers. Play, chat and the account shelf work as usual.`;
   }
 }
 

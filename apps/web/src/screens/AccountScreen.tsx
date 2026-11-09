@@ -6,6 +6,7 @@ import { describeSanction, describeSocialFailure, formatWhen, socialApi } from '
 import { ReportDialog } from '../social/ReportDialog';
 import { useStanding } from '../social/useStanding';
 import { SecurityPanel } from './SecurityPanel';
+import { TradingPanel } from './TradingPanel';
 import './gate.css';
 import '../social/social.css';
 
@@ -89,6 +90,8 @@ export function AccountScreen() {
           </div>
           {/* Ticket 5.7: email verification, email change, other devices. */}
           <SecurityPanel />
+          {/* Ticket T.4: where you stand for trading (trading itself may still be closed). */}
+          <TradingPanel />
         </div>
 
         <aside className="writ__side panel-ledger" aria-labelledby="writ-report">

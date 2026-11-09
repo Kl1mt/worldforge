@@ -2828,3 +2828,125 @@ export async function playBindingStep(database: DatabaseHandle, hero: Journey) {
     expect(worn).toMatchObject({ binding: 'account', bindingReason: 'worn', tradeable: false });
   }
 }
+
+interface TradeEligibilityBody {
+  trading: { open: boolean };
+  you: { eligible: boolean; requirements: { id: string; met: boolean; metAt?: string }[] };
+  with: {
+    relation: string;
+    allowed: boolean;
+    reasons: { party: string; check: string; metAt?: string }[];
+  } | null;
+}
+
+/**
+ * Ticket T.4: trade eligibility after real play. While trading is closed the hero sees where
+ * they stand (a new account, no level-15 hero, an unverified email), verifies the email through
+ * the captured mail, makes a friend and asks whether they could trade with them: closed, the
+ * friendship too new, their own rules, and nothing about the friend until the friendship is a
+ * week old, then only one bit. A moderator restricts the hero's trading from a report and lifts
+ * it; social writes keep working throughout. Reading eligibility writes no audit row.
+ */
+export async function playTradeEligibilityStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  mailer: MemoryMailer,
+  clock: Clock,
+  hero: Journey,
+  email: string,
+) {
+  const reasonsOf = (b: TradeEligibilityBody) =>
+    b.with!.reasons.map((r) => `${r.party}:${r.check}`);
+  const mine = async (handle?: string) => {
+    const res = await hero.api(
+      'GET',
+      `/api/trading/eligibility${handle ? `?handle=${encodeURIComponent(handle)}` : ''}`,
+    );
+    expect(res.statusCode, res.body).toBe(200);
+    return res.json<TradeEligibilityBody>();
+  };
+  const met = (b: TradeEligibilityBody) =>
+    Object.fromEntries(b.you.requirements.map((r) => [r.id, r.met]));
+
+  // 1. A fresh account: trading closed, not eligible, every reason listed.
+  const first = await mine();
+  expect(first.trading.open).toBe(false);
+  expect(met(first)).toEqual({ accountAge: false, heroLevel: false, email: false, standing: true });
+
+  // 2. The verification letter from registration.
+  const verifyMail = mailer.last(email, 'verify_email');
+  expect(verifyMail, 'a verification mail on registration').toBeDefined();
+  const verified = await app.inject({
+    remoteAddress: nextAddress(),
+    method: 'POST',
+    url: '/api/auth/verify-email',
+    payload: { token: tokenIn(verifyMail!) },
+  });
+  expect(verified.statusCode, verified.body).toBe(200);
+  expect(met(await mine()).email).toBe(true);
+
+  // 3. A friend; asking about them says nothing about their standing yet.
+  const friend = await newPlayer(app, 'trader-friend@graumark.test', 'Merel of the Fens');
+  const { account: me } = (await hero.api('GET', '/api/account')).json<{
+    account: { handle: string };
+  }>();
+  expect(
+    (await hero.api('POST', '/api/friends/requests', { handle: friend.account.handle })).statusCode,
+  ).toBe(200);
+  expect((await friend.api('POST', `/api/friends/requests/${me.handle}/accept`)).statusCode).toBe(
+    200,
+  );
+  const auditBefore = await database.db.select({ n: sql<number>`count(*)::int` }).from(auditLog);
+  const fresh = await mine(friend.account.handle);
+  expect(fresh.with!.relation).toBe('friend');
+  expect(reasonsOf(fresh)).toEqual([
+    'game:trading_off',
+    'pair:relation_too_new',
+    'you:account_too_new',
+    'you:hero_too_low',
+  ]);
+
+  // 4. A week and more later (the account is 14 days old too): the friend is told as one bit.
+  const waitUntil = Math.max(
+    ...[...fresh.with!.reasons.map((r) => r.metAt), ...first.you.requirements.map((r) => r.metAt)]
+      .filter((x): x is string => Boolean(x))
+      .map((x) => Date.parse(x)),
+  );
+  clock.set(Math.max(clock.now(), waitUntil) + 1_000);
+  const later = await mine(friend.account.handle);
+  expect(reasonsOf(later)).toEqual([
+    'game:trading_off',
+    'you:hero_too_low',
+    'them:them_not_eligible',
+  ]);
+  const auditAfter = await database.db.select({ n: sql<number>`count(*)::int` }).from(auditLog);
+  expect(auditAfter[0]!.n, 'reading eligibility writes no audit row').toBe(auditBefore[0]!.n);
+
+  // 5. A moderator restricts the hero's trading from a report, then lifts it.
+  const warden = await newPlayer(app, 'trade-warden@graumark.test', 'Warden Osk');
+  await setAccountRole(database.db, 'trade-warden@graumark.test', 'moderator');
+  const filed = await friend.api('POST', '/api/reports', {
+    target: { kind: 'player', handle: me.handle },
+    reason: 'other',
+    note: 'Asked me for gold outside the game.',
+  });
+  expect(filed.statusCode, filed.body).toBe(201);
+  const reportId = filed.json<{ report: { id: string } }>().report.id;
+  const restricted = await warden.api('POST', `/api/mod/reports/${reportId}/resolve`, {
+    action: 'restrictTrade',
+    reason: 'Trading for real money is not allowed.',
+    durationHours: 7 * 24,
+  });
+  expect(restricted.statusCode, restricted.body).toBe(200);
+  const sanction = restricted.json<{ sanction: { id: string; kind: string } }>().sanction;
+  expect(sanction.kind).toBe('trade');
+  expect(met(await mine()).standing).toBe(false);
+  // Only trading: social writes and play go on.
+  expect((await hero.api('POST', '/api/account/presence', { hidden: false })).statusCode).toBe(200);
+  expect((await hero.api('GET', '/api/characters')).statusCode).toBe(200);
+  const lifted = await warden.api('POST', `/api/mod/sanctions/${sanction.id}/lift`, {
+    reason: 'Settled after a talk.',
+  });
+  expect(lifted.statusCode, lifted.body).toBe(200);
+  expect(met(await mine()).standing).toBe(true);
+}

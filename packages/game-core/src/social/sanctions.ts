@@ -7,17 +7,21 @@ import type { ModerationAction } from './roles.js';
  * - `suspend`: no login and no use of an existing session.
  * - `rename`: the display name is replaced by a placeholder; the player chooses a new one.
  * - `hide`: one piece of content (a report target that is `hideable`) is hidden from others.
+ * - `trade` (ticket T.4, docs/TRADING.md "What blocks and sanctions do"): a trade restriction.
+ *   Only trading is off (no sending or accepting offers; cancelling and declining still work);
+ *   play, chat and the account shelf continue. It blocks no social write.
  */
-export const SANCTION_KINDS = ['mute', 'suspend', 'rename', 'hide'] as const;
+export const SANCTION_KINDS = ['mute', 'suspend', 'rename', 'hide', 'trade'] as const;
 export type SanctionKind = (typeof SANCTION_KINDS)[number];
 
-export type SanctionAction = 'mute' | 'suspend' | 'forceRename' | 'hideContent';
+export type SanctionAction = 'mute' | 'suspend' | 'forceRename' | 'hideContent' | 'restrictTrade';
 
 export const SANCTION_FOR_ACTION: Record<SanctionAction, SanctionKind> = {
   mute: 'mute',
   suspend: 'suspend',
   forceRename: 'rename',
   hideContent: 'hide',
+  restrictTrade: 'trade',
 };
 
 export const ACTION_FOR_SANCTION: Record<SanctionKind, SanctionAction> = {
@@ -25,6 +29,7 @@ export const ACTION_FOR_SANCTION: Record<SanctionKind, SanctionAction> = {
   suspend: 'suspend',
   rename: 'forceRename',
   hide: 'hideContent',
+  trade: 'restrictTrade',
 };
 
 export function isSanctionAction(action: ModerationAction | string): action is SanctionAction {
@@ -44,6 +49,7 @@ export const SANCTION_DURATIONS: Record<
   // How long the player has to choose a new name; the placeholder stays until they do.
   rename: { min: DAY, max: 30 * DAY, presets: [7 * DAY, 30 * DAY] },
   hide: { min: HOUR, max: 365 * DAY, presets: [7 * DAY, 30 * DAY, 365 * DAY] },
+  trade: { min: HOUR, max: 365 * DAY, presets: [DAY, 7 * DAY, 30 * DAY, 365 * DAY] },
 };
 
 export function validSanctionDuration(kind: SanctionKind, hours: number): boolean {
@@ -153,4 +159,5 @@ export const SANCTION_LABELS: Record<SanctionKind, string> = {
   suspend: 'Suspended',
   rename: 'Rename required',
   hide: 'Content hidden',
+  trade: 'Trade restricted',
 };
