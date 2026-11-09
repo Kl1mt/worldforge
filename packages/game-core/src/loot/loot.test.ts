@@ -14,6 +14,7 @@ import {
   rollItemLevel,
   rollLoot,
   rollRarity,
+  tiersForItemLevel,
   validateItem,
   type GeneratedItem,
   type LootConfig,
@@ -182,13 +183,41 @@ describe('generated items', () => {
     const maxTier = (items: GeneratedItem[]) =>
       Math.max(0, ...items.flatMap((i) => i.affixes.map((a) => a.tier)));
     expect(maxTier(sampleItems(5000, 1))).toBe(1);
-    expect(maxTier(sampleItems(5000, 30))).toBe(4);
+    // Ticket 6.1: tier 5 needs item level 31 (Epic and better from 30) and never rolls at 29 or
+    // below, so every source before the Cinderwastes rolls exactly as it did.
+    expect(maxTier(sampleItems(5000, 29))).toBe(4);
+    expect(maxTier(sampleItems(5000, 30))).toBe(5);
+    expect(maxTier(sampleItems(5000, 31))).toBe(5);
 
     const low = getImplicitStats({ baseId: 'longsword', rarityId: 'common', itemLevel: 5 });
     const high = getImplicitStats({ baseId: 'longsword', rarityId: 'common', itemLevel: 25 });
     const epic = getImplicitStats({ baseId: 'longsword', rarityId: 'epic', itemLevel: 25 });
     expect(high[0]!.value).toBeGreaterThan(low[0]!.value);
     expect(epic[0]!.value).toBeGreaterThan(high[0]!.value);
+  });
+
+  it('never unlocks tier 5 at item level 29 or below, whatever the rarity (ticket 6.1)', () => {
+    for (const affix of AFFIXES) {
+      for (const [rarityId, rarity] of Object.entries(DEFAULT_LOOT_CONFIG.rarities)) {
+        for (let level = 1; level <= 29; level++) {
+          const tiers = tiersForItemLevel(affix, level, rarity.affixLevelBonus);
+          // The tiers below 5 unlock exactly as before 6.1 (minItemLevel ≤ level + bonus).
+          expect(tiers, `${affix.id} ${rarityId} @${level}`).toEqual(
+            affix.tiers.filter((t) => t.tier <= 4 && t.minItemLevel <= level + rarity.affixLevelBonus),
+          );
+        }
+      }
+      const t5 = affix.tiers.find((t) => t.tier === 5);
+      if (t5) {
+        expect(tiersForItemLevel(affix, 31).at(-1), affix.id).toBe(t5);
+        expect(tiersForItemLevel(affix, 30, 2).at(-1), affix.id).toBe(t5);
+        expect(tiersForItemLevel(affix, 30).at(-1)?.tier, affix.id).toBe(4);
+        // Monotone: each tier needs a higher item level and pays more than the one below.
+        const t4 = affix.tiers.find((t) => t.tier === 4)!;
+        expect(t5.min, affix.id).toBeGreaterThan(t4.max);
+        expect(t5.weight, affix.id).toBeLessThan(t4.weight);
+      }
+    }
   });
 
   it('honours fixed base and rarity', () => {

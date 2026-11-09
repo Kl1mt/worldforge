@@ -72,6 +72,15 @@ const CONTRACT = {
       ['ashWraith', 'cinderHound', 'pyreCultist', 'emberGolem'],
       ['ironOre', 'soulShard'],
     ],
+    // Ticket 6.1 (fixed asset names from A.11: cinder-revenant, slag-hound, ember-wisp, ash-colossus).
+    [
+      'ashfallVerge',
+      28,
+      34,
+      28,
+      ['cinderRevenant', 'slagHound', 'emberWisp', 'ashColossus'],
+      ['ironOre', 'soulShard'],
+    ],
   ],
   dungeon: [
     'namelessCrypt',
@@ -112,9 +121,16 @@ describe('content contract', () => {
       expect(a.unlock.gravewardenDefeated, a.id).toBeFalsy();
     }
     // Ticket 4.8: only the Ashen Pass waits for a world flag (the community's second project).
+    // Ticket 6.1: the Verge needs no flag yet (6.7 adds one); the Warden it needs guards the Pass's.
     expect(getArea('ashenPass').unlock.worldFlag).toBe('ashenPassCleared');
     for (const a of AREAS.filter((x) => x.id !== 'ashenPass')) {
       expect(a.unlock.worldFlag, a.id).toBeUndefined();
+    }
+    expect(getArea('ashfallVerge').unlock.ashenWardenDefeated).toBe(true);
+    expect(getArea('ashfallVerge').region).toBe('The Cinderwastes');
+    expect(getArea('ashfallVerge').assetId).toBe('area.cinderwastes');
+    for (const a of AREAS.filter((x) => x.id !== 'ashfallVerge')) {
+      expect(a.unlock.ashenWardenDefeated, a.id).toBeUndefined();
     }
   });
 
@@ -269,7 +285,9 @@ describe('areas and level ranges', () => {
     }
     // Graumark's areas overlap the next by one step. Ticket 4.8: the Ashen Pass starts two levels
     // above the Abbey's top instead; crypt tier III (21–24) bridges the gap.
-    const graumark = AREAS.filter((a) => a.id !== 'ashenPass');
+    const graumark = AREAS.filter((a) => a.id !== 'ashenPass' && a.id !== 'ashfallVerge');
+    // Ticket 6.1: the Cinderwastes start at the Pass's top (and the Ashen Warden's level, 28).
+    expect(getArea('ashfallVerge').minLevel).toBe(getArea('ashenPass').maxLevel);
     for (let i = 1; i < graumark.length; i++) {
       const prev = graumark[i - 1]!;
       const next = graumark[i]!;
@@ -363,7 +381,10 @@ describe('loot tables', () => {
     const v = DEFAULT_LOOT_CONFIG.itemLevelVariance;
     for (const p of places) {
       const t = getLootTable(p.lootTableId);
-      expect(t.itemLevel, p.id).toEqual({ min: Math.max(1, p.minLevel - v), max: p.maxLevel + v });
+      // Ticket 6.1: the Verge drops from item level 29 (the tier-4 bases' first level, one above
+      // the Pass's), not 27: its whole range is above every earlier source.
+      const min = p.id === 'ashfallVerge' ? p.minLevel + v : Math.max(1, p.minLevel - v);
+      expect(t.itemLevel, p.id).toEqual({ min, max: p.maxLevel + v });
       for (let level = t.itemLevel!.min; level <= t.itemLevel!.max; level++) {
         expect(eligibleBases(t, level).length, `${p.id} @${level}`).toBeGreaterThan(0);
       }
@@ -501,6 +522,34 @@ describe('unlock rules', () => {
     }
   });
 
+  it('gates the Ashfall Verge by level 28 and the Ashen Warden (ticket 6.1)', () => {
+    const warden = { gravewardenDefeated: true, ashenWardenDefeated: true };
+    expect(isAreaUnlocked('ashfallVerge', { level: 28 }, warden)).toBe(true);
+    expect(isAreaUnlocked('ashfallVerge', { level: 27 }, warden)).toBe(false);
+    expect(isAreaUnlocked('ashfallVerge', { level: 60 }, BOSS_DOWN)).toBe(false);
+    expect(areaUnlockBlockers('ashfallVerge', { level: 20 }, NO_PROGRESS)).toEqual([
+      { kind: 'level', required: 28 },
+      { kind: 'ashenWardenDefeated' },
+    ]);
+    // No world flag yet (6.7's seam): the flags change nothing for it.
+    const open = { ...NO_WORLD_FLAGS, ashenPassCleared: true, warehouseRestored: true };
+    for (const progress of [NO_PROGRESS, BOSS_DOWN, warden]) {
+      for (const level of [27, 28, 40]) {
+        expect(areaUnlockBlockers('ashfallVerge', { level, world: open }, progress)).toEqual(
+          areaUnlockBlockers('ashfallVerge', { level }, progress),
+        );
+      }
+    }
+    // The Warden opens nothing else.
+    for (const id of AREA_IDS.filter((x) => x !== 'ashfallVerge')) {
+      for (const level of [1, 24, 28]) {
+        expect(areaUnlockBlockers(id, { level, world: open }, warden), id).toEqual(
+          areaUnlockBlockers(id, { level, world: open }, BOSS_DOWN),
+        );
+      }
+    }
+  });
+
   it('gates the crypt by level', () => {
     expect(isDungeonUnlocked('namelessCrypt', { level: 11 }, NO_PROGRESS)).toBe(false);
     expect(isDungeonUnlocked('namelessCrypt', { level: 12 }, NO_PROGRESS)).toBe(true);
@@ -511,7 +560,7 @@ describe('unlock rules', () => {
 
   it('only ever needs the level for the first four areas, and rejects bad levels', () => {
     for (const id of AREA_IDS) {
-      if (id === 'sunkenAbbey' || id === 'ashenPass') continue;
+      if (id === 'sunkenAbbey' || id === 'ashenPass' || id === 'ashfallVerge') continue;
       const level = getArea(id).unlock.level;
       expect(isAreaUnlocked(id, { level }, NO_PROGRESS)).toBe(true);
       expect(isAreaUnlocked(id, { level }, BOSS_DOWN)).toBe(true);
@@ -556,7 +605,8 @@ describe('farming every area', () => {
         // Ticket 4.8: the Ashen Pass is top-end content; a bare hero is not meant to farm it (it
         // falls again and again, balance.test.ts), so only the kit is checked there.
         const kits = [[], commonKit(classId, area.lootTableId, level)];
-        for (const equipment of area.id === 'ashenPass' ? kits.slice(1) : kits) {
+        const topEnd = area.id === 'ashenPass' || area.id === 'ashfallVerge';
+        for (const equipment of topEnd ? kits.slice(1) : kits) {
           const r = settleFarming({
             character: { classId, level, xp: 0 },
             equipment,
@@ -582,7 +632,9 @@ describe('farming every area', () => {
           const t = getLootTable(area.lootTableId);
           const bases = new Set(t.entries.map((e) => e.baseId));
           for (const item of [...r.items, ...r.salvaged]) {
-            expect(bases.has(item.baseId), `${label} ${item.baseId}`).toBe(true);
+            // Set pieces and named Mythics come from their own rolls, on their fixed bases.
+            const special = item.setId !== undefined || item.rarityId === 'mythic';
+            expect(special || bases.has(item.baseId), `${label} ${item.baseId}`).toBe(true);
             expect(item.itemLevel).toBeGreaterThanOrEqual(t.itemLevel!.min);
             expect(item.itemLevel).toBeLessThanOrEqual(t.itemLevel!.max);
           }

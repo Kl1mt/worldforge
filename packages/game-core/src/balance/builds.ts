@@ -28,6 +28,7 @@ import {
   getItemBase,
   legendaryEffectPool,
   settleFarming,
+  tiersForItemLevel,
   simulateDungeonRun,
   type AreaId,
   type ClassId,
@@ -94,9 +95,7 @@ function packageAffixes(
     if (out.length >= rarity.affixCount) break;
     const affix = AFFIXES.find((a) => a.id === id)!;
     if (!affixAllowedOn(affix, base, c)) continue;
-    const tier = affix.tiers
-      .filter((t) => t.minItemLevel <= itemLevel + rarity.affixLevelBonus)
-      .at(-1)!;
+    const tier = tiersForItemLevel(affix, itemLevel, rarity.affixLevelBonus).at(-1)!;
     const value = Math.round((tier.min + tier.max) / 2 / affix.step) * affix.step;
     out.push({ affixId: id, tier: tier.tier, value: Number(value.toFixed(4)) });
   }

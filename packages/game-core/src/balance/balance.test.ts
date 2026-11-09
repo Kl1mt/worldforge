@@ -138,7 +138,8 @@ const mid = (a: AreaDefinition) => a.minLevel + 2;
  * Ticket 4.8: the B.1 bands are Graumark's (a common kit is what a player wears there). The Ashen
  * Pass is top-end content with its own bands against Phase 3 gear ("the Ashen Pass" below).
  */
-const GRAUMARK = AREAS.filter((a) => a.id !== 'ashenPass');
+// Graumark proper: the top-end regions (the Ashen Pass, ticket 4.8; the Cinderwastes, 6.1) have their own bands.
+const GRAUMARK = AREAS.filter((a) => a.id !== 'ashenPass' && a.region === 'Graumark');
 
 /** The kit with its first ring replaced by a synthetic Legendary ring carrying one effect. */
 function wearRing(gear: GeneratedItem[], effectId: string): GeneratedItem[] {

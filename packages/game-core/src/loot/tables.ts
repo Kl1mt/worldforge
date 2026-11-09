@@ -167,6 +167,21 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
     itemLevel: { min: 23, max: 29 },
     entries: tierEntries({ 3: 1 }),
   },
+  // Ticket 6.1: the Ashfall Verge (the Cinderwastes, levels 28–34). Tier-4 bases only, item levels
+  // 29–35 (tier-5 affixes from 31, never below 30), the Pass's late-game odds and a deeper affix
+  // bias; gold × 1.9 (its foes take longer to kill than the Pass's).
+  {
+    id: 'ashfallVerge',
+    affixTierBias: 1,
+    goldMultiplier: 1.9,
+    mythics: true,
+    setShare: SET_SHARE,
+    legendaryWeight: LEGENDARY_WEIGHT,
+    voidChance: VOID_CHANCE,
+    itemDropChance: 0.06,
+    itemLevel: { min: 29, max: 35 },
+    entries: tierEntries({ 4: 1 }),
+  },
 ];
 
 const BOSS_EXCLUSIVE: readonly LootTableEntry[] = [

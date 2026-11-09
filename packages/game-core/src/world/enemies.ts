@@ -32,6 +32,11 @@ export const ENEMY_IDS = [
   'emberGolem',
   // The Warden's Watch (ticket 4.8).
   'ashenWarden',
+  // The Ashfall Verge, the Cinderwastes (ticket 6.1).
+  'cinderRevenant',
+  'slagHound',
+  'emberWisp',
+  'ashColossus',
 ] as const;
 
 export type EnemyId = (typeof ENEMY_IDS)[number];
@@ -342,6 +347,69 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     armor: { base: 30, perLevel: 4.5 },
     resistance: { base: 20, perLevel: 2.5 },
     xp: { base: 600, perLevel: 105 },
+  },
+  // — The Ashfall Verge (ticket 6.1), the first area of the Cinderwastes beyond the Ashen Pass
+  // (levels 28–34, docs/WORLD.md). Tuned against the Pass's best gear: more health per level than
+  // the Pass, a little more damage, and one foe for each defence (armour, resistance, burst, bulk).
+  // The revenant: an armoured undead knight (soul shards), steady physical blows.
+  {
+    id: 'cinderRevenant',
+    name: 'Cinder Revenant',
+    assetId: 'enemy.cinder-revenant',
+    damageType: 'physical',
+    undead: true,
+    rank: 'normal',
+    attackSpeed: 0.9,
+    health: { base: 60, perLevel: 36 },
+    damage: { base: 9, perLevel: 2.6 },
+    armor: { base: 20, perLevel: 3.8 },
+    resistance: { base: 12, perLevel: 2.2 },
+    xp: { base: 28, perLevel: 6.6 },
+  },
+  // The hound: fast, light, hunts in packs (many small physical bites).
+  {
+    id: 'slagHound',
+    name: 'Slag Hound',
+    assetId: 'enemy.slag-hound',
+    damageType: 'physical',
+    undead: false,
+    rank: 'normal',
+    attackSpeed: 1.5,
+    health: { base: 46, perLevel: 30 },
+    damage: { base: 6, perLevel: 1.8 },
+    armor: { base: 14, perLevel: 2.6 },
+    resistance: { base: 10, perLevel: 2 },
+    xp: { base: 25, perLevel: 6 },
+  },
+  // The wisp: frail and quick, magic fire, warded against spells.
+  {
+    id: 'emberWisp',
+    name: 'Ember Wisp',
+    assetId: 'enemy.ember-wisp',
+    damageType: 'magic',
+    undead: false,
+    rank: 'normal',
+    attackSpeed: 1.3,
+    health: { base: 36, perLevel: 24 },
+    damage: { base: 6.4, perLevel: 1.9 },
+    armor: { base: 6, perLevel: 1.2 },
+    resistance: { base: 22, perLevel: 3.6 },
+    xp: { base: 24, perLevel: 5.8 },
+  },
+  // The colossus: slow and huge, heavy armour, crushing physical blows.
+  {
+    id: 'ashColossus',
+    name: 'Ash Colossus',
+    assetId: 'enemy.ash-colossus',
+    damageType: 'physical',
+    undead: false,
+    rank: 'normal',
+    attackSpeed: 0.5,
+    health: { base: 120, perLevel: 54 },
+    damage: { base: 15, perLevel: 4.2 },
+    armor: { base: 30, perLevel: 5 },
+    resistance: { base: 14, perLevel: 2.4 },
+    xp: { base: 36, perLevel: 8.4 },
   },
 ];
 

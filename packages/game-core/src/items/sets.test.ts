@@ -221,7 +221,13 @@ describe('set piece generation', () => {
       const n = 600;
       for (let i = 0; i < n; i++) {
         const item = generateItem(
-          { seed: rng.int(0, 2 ** 32 - 1), itemLevel: 17, lootTable: table, classId: 'mage' },
+          {
+            seed: rng.int(0, 2 ** 32 - 1),
+            // Ticket 6.1: the Verge's bases start at item level 29.
+            itemLevel: Math.max(17, table.itemLevel?.min ?? 0),
+            lootTable: table,
+            classId: 'mage',
+          },
           legendaryOnly,
         )!;
         if (item.setId === undefined) continue;
@@ -232,8 +238,15 @@ describe('set piece generation', () => {
         expect(setForBase(item.baseId)?.id).toBe(item.setId);
       }
       // Ticket 3.6: the deeper crypt tiers are late-game sources too.
-      // Ticket 4.8: the Ashen Pass and the Ashen Warden's hoard too.
-      const lateGame = ['sunkenAbbey', 'namelessCrypt', 'gravewarden', 'ashenPass', 'ashenWarden'];
+      // Ticket 4.8: the Ashen Pass and the Ashen Warden's hoard too; 6.1 the Ashfall Verge.
+      const lateGame = [
+        'sunkenAbbey',
+        'namelessCrypt',
+        'gravewarden',
+        'ashenPass',
+        'ashenWarden',
+        'ashfallVerge',
+      ];
       if (lateGame.some((id) => tableId.startsWith(id))) {
         // Ticket B.2: a third of the Legendary rolls (was half).
         expect(sets / n, tableId).toBeGreaterThan(SET_SHARE - 0.06);

@@ -51,6 +51,8 @@ export const DEFAULT_ECONOMY_CONFIG: EconomyConfig = {
         { materialId: 'timber', quantity: 1 },
       ],
       3: [{ materialId: 'ironOre', quantity: 2 }],
+      // Ticket 6.1: tier 4 (the Cinderwastes) asks for more of the same ore; no new material.
+      4: [{ materialId: 'ironOre', quantity: 3 }],
     },
     rarityUnits: { common: 1, uncommon: 1, rare: 2, epic: 3, legendary: 4, mythic: 5 },
     essence: { materialId: 'soulShard', byRarity: { rare: 1, epic: 2, legendary: 3, mythic: 4 } },

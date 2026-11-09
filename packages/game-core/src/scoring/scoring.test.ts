@@ -206,9 +206,17 @@ describe('Gear Score', () => {
   });
 
   it('version 2 (B.4): magic quality breaks ties and never moves the value', () => {
-    // Each affix scores 0–100 on its own tiers: the best roll of the top tier is 100.
+    // Each affix scores 0–100 on its own tiers: the best roll of the top tier is 100. Ticket 6.1:
+    // on the tiers before the Cinderwastes (item level ≤ 29); tier 5 scores above 100, so no
+    // version-2 value moved.
     for (const def of AFFIXES) {
-      const top = def.tiers[def.tiers.length - 1]!;
+      const legacy = def.tiers.filter((t) => t.minBaseItemLevel === undefined);
+      const top = legacy[legacy.length - 1]!;
+      const t5 = def.tiers.find((t) => t.tier === 5);
+      if (t5) {
+        expect(affixQuality({ affixId: def.id, tier: 5, value: t5.min }), def.id).toBe(100);
+        expect(affixQuality({ affixId: def.id, tier: 5, value: t5.max }), def.id).toBe(125);
+      }
       const low = def.tiers[0]!;
       expect(affixQuality({ affixId: def.id, tier: top.tier, value: top.max }), def.id).toBe(100);
       expect(affixQuality({ affixId: def.id, tier: low.tier, value: low.min }), def.id).toBe(0);

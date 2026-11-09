@@ -21,6 +21,8 @@ export const AREA_IDS = [
   'sunkenAbbey',
   // Ticket 4.8: the top-end region, opened for everyone by the community (world flag).
   'ashenPass',
+  // Ticket 6.1: the Cinderwastes beyond the Pass, first area.
+  'ashfallVerge',
 ] as const;
 
 export type AreaId = (typeof AREA_IDS)[number];
@@ -156,6 +158,29 @@ export const AREAS: readonly AreaDefinition[] = [
     ],
     materials: ['ironOre', 'soulShard'],
     lootTableId: 'ashenPass',
+  },
+  {
+    // Ticket 6.1: the first area of the Cinderwastes (GDD §15 Phase 6), past the Ashen Warden's
+    // watchtower. Open to heroes of level 28 who slew the Warden (which the Pass's world flag
+    // already guards). Seam for ticket 6.7: its community project adds `worldFlag` here (and a
+    // flag id in `WORLD_FLAG_IDS`); every server path already passes the world flags.
+    id: 'ashfallVerge',
+    name: 'The Ashfall Verge',
+    region: 'The Cinderwastes',
+    description:
+      'Beyond the Warden’s tower the ash never stops falling. Slag rivers glow under it, and the dead march out of the glow.',
+    assetId: 'area.cinderwastes',
+    minLevel: 28,
+    maxLevel: 34,
+    unlock: { level: 28, ashenWardenDefeated: true },
+    enemies: [
+      { enemyId: 'cinderRevenant', weight: 30 },
+      { enemyId: 'slagHound', weight: 30 },
+      { enemyId: 'emberWisp', weight: 25 },
+      { enemyId: 'ashColossus', weight: 15 },
+    ],
+    materials: ['ironOre', 'soulShard'],
+    lootTableId: 'ashfallVerge',
   },
 ];
 
