@@ -43,7 +43,7 @@ type Load<T> =
 
 const EMPTY_SIDE: TradeSideDraft = { itemIds: [], gold: 0, materials: {} };
 const HOLD_LINE =
-  'Everything received in a trade is held for 72 hours: items can be worn, but not sold, salvaged, discarded, forged or put on the shelf, and gold and materials can’t be spent, sent on or shelved until the hold ends.';
+  'Everything received in a trade is held for 72 hours: items can be worn, but not sold, salvaged, discarded, forged, stored in the Warehouse or put on the shelf, and gold and materials can’t be spent, sent on or shelved until the hold ends.';
 
 const keys = new ActionKeys();
 

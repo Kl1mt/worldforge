@@ -33,7 +33,7 @@ export const PATCH_NOTES: readonly PatchNote[] = [
     new: [
       'A Trading screen, reached from the status bar. Trading between players is still closed: the screen says so until the wardens open it.',
       'Once it opens, you will be able to send a friend or guildmate a gift or a swap of items, materials and gold. Both sides are shown in full before anything is sent or accepted, and a swap happens all at once or not at all.',
-      'Everything received in a trade is held for 72 hours: items can be worn but not sold, salvaged, discarded, forged or shelved, and gold and materials can’t be spent until the hold ends. Held items say so in their description.',
+      'Everything received in a trade is held for 72 hours: items can be worn but not sold, salvaged, discarded, forged, stored in the Warehouse or put on the shelf, and gold and materials can’t be spent until the hold ends. Held items say so in their description.',
     ],
     tickets: ['T.5'],
   },

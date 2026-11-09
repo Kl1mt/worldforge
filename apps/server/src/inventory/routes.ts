@@ -78,7 +78,7 @@ export interface ItemView {
   tradeable: boolean;
   /**
    * Ticket T.5: received in a trade, held until then (ISO): wearable, but not sold, salvaged,
-   * discarded, forged, shelved or traded. Present only while set.
+   * discarded, forged, stored in the Warehouse, shelved or traded. Present only while set.
    */
   holdUntil?: string;
 }

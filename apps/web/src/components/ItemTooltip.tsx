@@ -146,8 +146,8 @@ export function ItemTooltip({
           {item.heldUntil ? (
             <p className="tooltip__binding tooltip__binding--held">
               <span className="caps">Held until {formatHeld(item.heldUntil)}</span> Received in a
-              trade. You can wear it; it can’t be sold, salvaged, discarded, forged or shelved until
-              then.
+              trade. You can wear it; it can’t be sold, salvaged, discarded, forged, stored or
+              shelved until then.
             </p>
           ) : null}
         </header>

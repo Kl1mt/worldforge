@@ -12,7 +12,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { eq } from 'drizzle-orm';
 import { buildApp } from '../app.js';
-import { characters } from '../db/schema.js';
+import { characters, itemInstances } from '../db/schema.js';
 import type { DatabaseHandle } from '../db/types.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
 import { SESSION_COOKIE } from '../auth/index.js';
@@ -23,6 +23,7 @@ import {
   ALL_TRADING_ON,
   befriendSince,
   giveMaterials,
+  insertTradeItem,
   insertTrader,
   setTradingSettings,
   tradeCalls,
@@ -221,6 +222,77 @@ describe('held gold and materials on every spend path', () => {
  * and crypt settlement, quest rewards). A new file that writes either directly fails here: route
  * it through the helpers (or, if it only adds, list it with the reason).
  */
+/**
+ * Every way an item can leave its hero or be changed for good, tried on an item received in a
+ * trade (ticket T.5, docs/TRADING.md "Cooldowns"): each is refused with `item_held` until the
+ * 72-hour hold ends, so a reversal (T.6) always finds the item on the hero. Wearing it is allowed;
+ * taking items out of the warehouse is never refused.
+ */
+describe('held items on every path that moves or uses them up', () => {
+  const BASE = new Date(START.getTime() + 200 * HOUR);
+  let receiver: Trader;
+  let itemId: string;
+  const as = (path: string, payload: object, method: 'POST' | 'DELETE' = 'POST') =>
+    app.inject({
+      method,
+      url: `/api/characters/${receiver.hero.id}${path}`,
+      ...(method === 'POST' ? { payload, headers: { 'idempotency-key': randomUUID() } } : {}),
+      cookies: { [SESSION_COOKIE]: receiver.token },
+    });
+  const ITEM_PATHS: [
+    string,
+    () => Promise<{ statusCode: number; json: () => { error: { code: string } } }>,
+  ][] = [
+    ['merchant: sell', () => as('/merchant/sell', { itemIds: [itemId] })],
+    ['forge: salvage', () => as('/forge/salvage', { itemIds: [itemId] })],
+    ['forge: upgrade', () => as('/forge/upgrade', { itemId })],
+    ['inventory: discard', () => as(`/items/${itemId}`, {}, 'DELETE')],
+    ['shelf: deposit', () => as('/shelf/deposit', { itemIds: [itemId] })],
+    ['warehouse: deposit', () => as('/warehouse/deposit', { itemIds: [itemId] })],
+    ['trade: offer', () => t.send(receiver, giver, { give: { itemIds: [itemId] } })],
+  ];
+
+  beforeAll(async () => {
+    clock = BASE;
+    receiver = await insertTrader(database.db, clock, { gold: 0 });
+    await befriendSince(database.db, giver, receiver, clock);
+    const epic = await insertTradeItem(database.db, giver.hero.id);
+    itemId = epic.id;
+    const sent = await t.send(giver, receiver, { give: { itemIds: [itemId] } });
+    expect(sent.statusCode, sent.body).toBe(201);
+    const ok = await t.act(receiver, sent.json().id, 'accept', { characterId: receiver.hero.id });
+    expect(ok.statusCode, ok.body).toBe(200);
+  });
+
+  it('refuses every path while held (the trade offer as a bound item), and keeps the item', async () => {
+    clock = BASE;
+    for (const [name, attempt] of ITEM_PATHS) {
+      const res = await attempt();
+      expect(res.statusCode, `${name}: ${JSON.stringify(res.json())}`).toBe(409);
+      // A traded item is bound for good, so offering it again is refused for that reason first.
+      expect(['item_held', 'trade_refused'], name).toContain(res.json().error.code);
+      if (name !== 'trade: offer') expect(res.json().error.code, name).toBe('item_held');
+    }
+    const [row] = await database.db
+      .select()
+      .from(itemInstances)
+      .where(eq(itemInstances.id, itemId));
+    expect(row).toMatchObject({
+      characterId: receiver.hero.id,
+      inWarehouse: false,
+      onShelf: false,
+    });
+  });
+
+  it('lets it go into the warehouse once the hold ends, and out again', async () => {
+    clock = new Date(BASE.getTime() + 72 * HOUR);
+    const stored = await as('/warehouse/deposit', { itemIds: [itemId] });
+    expect(stored.statusCode, stored.body).toBe(200);
+    const back = await as('/warehouse/withdraw', { itemIds: [itemId] });
+    expect(back.statusCode, back.body).toBe(200);
+  });
+});
+
 describe('spend-path guard', () => {
   const SRC = join(import.meta.dirname, '..');
   const files = (dir: string): string[] =>

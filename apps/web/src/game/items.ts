@@ -120,7 +120,7 @@ export interface ItemView {
   binding: BindingView | null;
   /**
    * Ticket T.5: received in a trade and held until then (ISO): it can be worn, but not sold,
-   * salvaged, discarded, forged or shelved. Absent when not held.
+   * salvaged, discarded, forged, stored or shelved. Absent when not held.
    */
   heldUntil?: string;
   /** Ticket 3.7: the fields the loot filter reads (game-core `lootFilterHandles`), for previews. */

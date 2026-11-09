@@ -70,7 +70,7 @@ export const itemInOffer = (itemId: string) =>
 
 /**
  * Ticket T.5 (docs/TRADING.md "Cooldowns"): an item received in a trade is held for 72 hours. It
- * can be worn (and stored in the Warehouse), but not sold, salvaged, discarded, forged, shelved or
+ * can be worn, but not sold, salvaged, discarded, forged, stored in the Warehouse, shelved or
  * traded until `hold_until` passes the transaction's clock.
  */
 export function assertItemNotHeld(item: Pick<ItemInstance, 'id' | 'holdUntil'>, now: Date): void {

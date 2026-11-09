@@ -244,6 +244,21 @@ export async function registerWarehouse(
     // Ticket T.5: an item in a trade offer's escrow is out of reach until the offer ends.
     const offered = items.find((i) => i.escrowOfferId && itemIds.includes(i.id));
     if (offered) throw itemInOffer(offered.id);
+    // Ticket T.5: an item received in a trade stays on the hero (in the pack or worn) for its
+    // 72-hour hold, so a reversal always finds it there. Taking items out is never refused.
+    if (direction === 'deposit') {
+      const held = items.find(
+        (i) => itemIds.includes(i.id) && i.holdUntil && i.holdUntil.getTime() > now.getTime(),
+      );
+      if (held) {
+        throw new ApiError(
+          409,
+          'item_held',
+          'This item was received in a trade and is held for 72 hours. It can go into the warehouse once the hold ends.',
+          { itemId: held.id, holdUntil: held.holdUntil!.toISOString() },
+        );
+      }
+    }
     const plan = planWarehouseMove({
       direction,
       itemIds,
@@ -294,6 +309,9 @@ export async function registerWarehouse(
             eq(itemInstances.inWarehouse, !toWarehouse),
             sql`${itemInstances.equippedSlot} is null`,
             sql`${itemInstances.escrowOfferId} is null`,
+            ...(toWarehouse
+              ? [sql`(${itemInstances.holdUntil} is null or ${itemInstances.holdUntil} <= ${now})`]
+              : []),
           ),
         )
         .returning({ id: itemInstances.id });
