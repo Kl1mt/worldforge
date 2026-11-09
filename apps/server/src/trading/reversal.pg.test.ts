@@ -11,7 +11,17 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { eq } from 'drizzle-orm';
 import { buildApp } from '../app.js';
-import { auditLog, characters, itemInstances, tradeHolds, tradeOffers } from '../db/schema.js';
+import {
+  auditLog,
+  characters,
+  duelDefences,
+  itemInstances,
+  tradeHolds,
+  tradeOffers,
+} from '../db/schema.js';
+import { ITEM_BASES, canClassUseItem, generateItem } from '@worldforge/game-core';
+import { uuidv7 } from '../db/uuid.js';
+import { arenaCalls, equipKit } from '../test/arena.js';
 import type { DatabaseHandle } from '../db/types.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
 import { SESSION_COOKIE } from '../auth/index.js';
@@ -317,5 +327,82 @@ describe.skipIf(!url)('real PostgreSQL: trade reversal under races', () => {
       expect(transactionStats.retries).toBe(retries);
     }
     await expectReconciled();
+  });
+  it('a reversal vs a defence refresh vs a duel against that defence (T.7): the returned item never stays in it', async () => {
+    const arena = arenaCalls(app);
+    const retries = transactionStats.retries;
+    for (let round = 0; round < ROUNDS; round++) {
+      const [a, b] = await pair(0);
+      // A friend of B who fights B's defence (a friendly duel: no list, no daily limit).
+      const c = await insertTrader(db(), clock);
+      await befriendSince(db(), b, c, clock);
+      await equipKit(db(), b.hero.id, b.hero.classId, 20, 'rare', `t7-b-${round}`);
+      await equipKit(db(), c.hero.id, c.hero.classId, 20, 'rare', `t7-c-${round}`);
+      const base = ITEM_BASES.find(
+        (x) => !x.unique && x.minItemLevel <= 20 && canClassUseItem(x, b.hero.classId),
+      )!;
+      const gen = generateItem({
+        seed: 900_000 + round,
+        itemLevel: 20,
+        baseId: base.id,
+        rarityId: 'epic',
+        classId: b.hero.classId,
+      })!;
+      const [epic] = await db()
+        .insert(itemInstances)
+        .values({
+          id: uuidv7(),
+          characterId: a.hero.id,
+          seed: gen.seed,
+          baseId: gen.baseId,
+          rarityId: gen.rarityId,
+          itemLevel: gen.itemLevel,
+          affixes: gen.affixes,
+          source: 'farming',
+          binding: 'equip',
+        })
+        .returning();
+      const sent = await t.send(a, b, { give: { itemIds: [epic!.id] } });
+      expect(sent.statusCode, sent.body).toBe(201);
+      const offerId = sent.json().id as string;
+      expect((await t.act(b, offerId, 'accept', { characterId: b.hero.id })).statusCode).toBe(200);
+      const equip = await app.inject({
+        method: 'POST',
+        url: `/api/characters/${b.hero.id}/items/${epic!.id}/equip`,
+        payload: {},
+        cookies: { [SESSION_COOKIE]: b.token },
+      });
+      expect(equip.statusCode, equip.body).toBe(200);
+      const set = await arena.setDefence(b, b.hero.id);
+      expect(set.statusCode, set.body).toBe(200);
+      const [defence] = await db()
+        .select()
+        .from(duelDefences)
+        .where(eq(duelDefences.characterId, b.hero.id));
+      expect(defence!.snapshot.equipment.some((e) => e.seed === gen.seed)).toBe(true);
+
+      const head = round * 3;
+      const jobs = [
+        () => mod.reverse(moderators[0]!, offerId),
+        () => arena.setDefence(b, b.hero.id),
+        () => arena.duel(c, c.hero.id, defence!.id, 'friendly'),
+      ];
+      const order = [jobs, [jobs[1]!, jobs[2]!, jobs[0]!], [jobs[2]!, jobs[0]!, jobs[1]!]][round]!;
+      const results = await Promise.all(order.map((j, i) => later(i * head, j)));
+      for (const r of results) expect([200, 201], r.body).toContain(r.statusCode);
+      // In every order: the item is back with A, and B's stored defence doesn't hold it (the
+      // reversal took it out, or the refresh came after the item left B).
+      expect((await item(epic!.id)).characterId).toBe(a.hero.id);
+      const [after] = await db()
+        .select()
+        .from(duelDefences)
+        .where(eq(duelDefences.characterId, b.hero.id));
+      expect(
+        after!.snapshot.equipment.some((e) => e.seed === gen.seed),
+        `round ${round}`,
+      ).toBe(false);
+      await expectReconciled();
+    }
+    expect(transactionStats.retries - retries).toBe(0);
   });
 });

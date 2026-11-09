@@ -78,6 +78,57 @@ export async function ownHero(
   return hero;
 }
 
+/** The columns that identify an item inside a stored snapshot (snapshots carry no item ids). */
+export interface DefenceItemKey {
+  seed: number;
+  baseId: string;
+  rarityId: string;
+  itemLevel: number;
+}
+
+const sameItem = (a: DefenceItemKey, b: DefenceItemKey) =>
+  a.seed === b.seed &&
+  a.baseId === b.baseId &&
+  a.rarityId === b.rarityId &&
+  a.itemLevel === b.itemLevel;
+
+/**
+ * Ticket T.7: items leaving a hero's account (a trade's swap, a moderator's reversal) leave its
+ * stored defence too, in the same transaction, so an item never fights for an account that no
+ * longer owns it. Everything else about the defence stays as the player saved it (the rest of the
+ * gear, the level, when it was set): the slot is empty until the player refreshes. The bracket
+ * Power is recomputed for matchmaking. Locks the defence row for update after the caller's hero
+ * and item rows (a duel takes the challenger's hero, then the defence: the same direction).
+ * Returns how many snapshot items were removed (0 when the hero has no defence or none matched).
+ */
+export async function withdrawFromDefence(
+  tx: Executor,
+  characterId: string,
+  items: readonly DefenceItemKey[],
+): Promise<number> {
+  if (items.length === 0) return 0;
+  const [defence] = await tx
+    .select()
+    .from(duelDefences)
+    .where(eq(duelDefences.characterId, characterId))
+    .for('update');
+  if (!defence) return 0;
+  const equipment = defence.snapshot.equipment.filter((e) => !items.some((i) => sameItem(e, i)));
+  const removed = defence.snapshot.equipment.length - equipment.length;
+  if (removed === 0) return 0;
+  const snapshot: DuelSnapshot = { ...defence.snapshot, equipment };
+  const bracket = findPvpBracket(defence.bracketId) ?? pvpBracketOf(snapshot.level);
+  await tx
+    .update(duelDefences)
+    .set({
+      snapshot,
+      power: bracketPower(duelFighter(snapshot), bracket),
+      powerVersion: BRACKET_POWER_VERSION,
+    })
+    .where(eq(duelDefences.id, defence.id));
+  return removed;
+}
+
 /** The hero as it fights now: its equipped items, checked (5.1's rules). */
 export async function heroDuelSnapshot(tx: Executor, hero: Character): Promise<DuelSnapshot> {
   const rows = await tx

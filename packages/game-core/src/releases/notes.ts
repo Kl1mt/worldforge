@@ -23,9 +23,18 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.5.14';
+export const GAME_VERSION = '0.5.15';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.5.15',
+    date: '2026-11-09',
+    title: 'Every coin accounted for',
+    fixed: [
+      'When a warden undoes a trade, an item that goes back to its first owner now also leaves the other hero’s saved arena defence at once. The rest of that defence stays as it was saved; refresh it to fill the empty slot.',
+    ],
+    tickets: ['T.7'],
+  },
   {
     version: '0.5.14',
     date: '2026-11-09',

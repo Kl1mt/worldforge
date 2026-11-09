@@ -11,13 +11,20 @@ import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { and, eq, sql } from 'drizzle-orm';
-import { type MaterialId } from '@worldforge/game-core';
+import {
+  ITEM_BASES,
+  canClassUseItem,
+  equipmentSlotsForKind,
+  generateItem,
+  type MaterialId,
+} from '@worldforge/game-core';
 import { buildApp } from '../app.js';
 import {
   accounts,
   auditLog,
   characterMaterials,
   characters,
+  duelDefences,
   itemInstances,
   reports,
   sanctions,
@@ -43,6 +50,7 @@ import {
 } from '../test/trading.js';
 import { openWarehouse } from '../test/warehouse.js';
 import { reconcileWithAudit } from '../telemetry/report.js';
+import { uuidv7 } from '../db/uuid.js';
 
 const HOUR = 3_600_000;
 const DAY = 24 * HOUR;
@@ -254,6 +262,96 @@ describe('reversal within the hold', () => {
     expect((await hero(b.hero.id)).gold).toBe(10_000);
     expect(await stock(b.hero.id, 'ironOre')).toBe(30);
     expect(await stock(a.hero.id, 'ironOre')).toBe(0);
+    await expectReconciled();
+  });
+});
+
+describe('reversal and the arena defence (T.7)', () => {
+  it('takes a returned item out of the receiver’s saved defence, and only that item', async () => {
+    const [a, b] = await pair();
+    // A real, generator-valid Epic B's class can wear (a duel snapshot only keeps valid items).
+    const base = ITEM_BASES.find(
+      (x) => !x.unique && x.minItemLevel <= 20 && canClassUseItem(x, b.hero.classId),
+    )!;
+    const gen = generateItem({
+      seed: 424_242,
+      itemLevel: 20,
+      baseId: base.id,
+      rarityId: 'epic',
+      classId: b.hero.classId,
+    })!;
+    const [epic] = await db()
+      .insert(itemInstances)
+      .values({
+        id: uuidv7(),
+        characterId: a.hero.id,
+        seed: gen.seed,
+        baseId: gen.baseId,
+        rarityId: gen.rarityId,
+        itemLevel: gen.itemLevel,
+        affixes: gen.affixes,
+        source: 'farming',
+        binding: 'equip',
+      })
+      .returning();
+    // B already wears something else that must stay in the defence.
+    const otherBase = ITEM_BASES.find(
+      (x) =>
+        !x.unique &&
+        x.minItemLevel <= 20 &&
+        canClassUseItem(x, b.hero.classId) &&
+        x.slot !== base.slot,
+    )!;
+    const other = generateItem({
+      seed: 777,
+      itemLevel: 20,
+      baseId: otherBase.id,
+      rarityId: 'rare',
+      classId: b.hero.classId,
+    })!;
+    await db()
+      .insert(itemInstances)
+      .values({
+        id: uuidv7(),
+        characterId: b.hero.id,
+        seed: other.seed,
+        baseId: other.baseId,
+        rarityId: other.rarityId,
+        itemLevel: other.itemLevel,
+        affixes: other.affixes,
+        source: 'test',
+        equippedSlot: equipmentSlotsForKind(otherBase.slot)[0]!,
+      });
+    const sent = await t.send(a, b, { give: { itemIds: [epic!.id] } });
+    expect(sent.statusCode, sent.body).toBe(201);
+    const offerId = sent.json().id as string;
+    expect((await t.act(b, offerId, 'accept', { characterId: b.hero.id })).statusCode).toBe(200);
+    // Worn during the hold and saved into B's arena defence.
+    expect((await heroCall(b, `/items/${epic!.id}/equip`)).statusCode).toBe(200);
+    const saved = await app.inject({
+      method: 'POST',
+      url: '/api/arena/defence',
+      payload: { characterId: b.hero.id },
+      cookies: { [SESSION_COOKIE]: b.token },
+    });
+    expect(saved.statusCode, saved.body).toBe(200);
+    const defence = async () =>
+      (await db().select().from(duelDefences).where(eq(duelDefences.characterId, b.hero.id)))[0]!;
+    const before = await defence();
+    expect(before.snapshot.equipment.map((e) => e.seed).sort((x, y) => x - y)).toEqual([
+      777, 424_242,
+    ]);
+
+    const res = await mod.reverse(moderator, offerId);
+    expect(res.statusCode, res.body).toBe(200);
+    const after = await defence();
+    // The returned item no longer fights for B; the rest of the saved defence is untouched.
+    expect(after.snapshot.equipment.map((e) => e.seed)).toEqual([777]);
+    expect(after.setAt).toEqual(before.setAt);
+    expect(after.level).toBe(before.level);
+    expect(after.power).toBeLessThan(before.power!);
+    const [reverse] = await events('trade.reverse', offerId);
+    expect(reverse!.data).toMatchObject({ defenceItemsRemoved: 1 });
     await expectReconciled();
   });
 });

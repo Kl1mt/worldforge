@@ -57,6 +57,7 @@ import {
   type ItemView,
 } from '../inventory/routes.js';
 import { changeMaterialsTx, loadMaterialBundle } from '../materials/store.js';
+import { withdrawFromDefence } from '../arena/model.js';
 import { heldValueOf } from '../shelf/held.js';
 import { recordTelemetry } from '../telemetry/record.js';
 import type { TelemetryCount } from '../telemetry/record.js';
@@ -1091,6 +1092,11 @@ export async function acceptOffer(
       );
     }
   }
+
+  // Ticket T.7: what changes account leaves the giving hero's arena defence (only an item worn
+  // before T.1 recorded wear could be in one; a defence row lock, before the counter locks).
+  await withdrawFromDefence(tx, senderHero.id, giveRows);
+  await withdrawFromDefence(tx, receiverHero.id, askRows);
 
   // 6. The caps, last (T.4): both accounts, all or nothing.
   await commitTradeCounters(tx, {
