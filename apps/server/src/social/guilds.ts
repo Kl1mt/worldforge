@@ -1258,6 +1258,11 @@ export async function registerGuilds(
       // Ticket 4.5: the last chat line they could have read (the chat is read under this lock).
       chatSeq: await latestSeq(tx, guild.id),
     });
+    // Ticket T.5: offers that relied on the guild relation are voided.
+    await app.relationEvents.emit(
+      { accountIds: [them.id], cause: 'guild_kick', at: app.authNow() },
+      tx,
+    );
   });
 
   onMember('promote', 'guildPromote', 'promote', async ({ tx, me, guild, them }) => {
@@ -1300,6 +1305,11 @@ export async function registerGuilds(
           role: standing,
           chatSeq: await latestSeq(tx, guild!.id),
         });
+        // Ticket T.5: offers that relied on the guild relation are voided.
+        await app.relationEvents.emit(
+          { accountIds: [me.id], cause: 'guild_leave', at: app.authNow() },
+          tx,
+        );
         return { ok: true };
       }),
   );
@@ -1343,6 +1353,7 @@ export async function registerGuilds(
             guild!,
             { accountId: me.id, moderator: false, reason: null },
             now,
+            app.relationEvents,
           );
           return { ok: true };
         },

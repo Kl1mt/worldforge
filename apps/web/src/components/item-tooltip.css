@@ -265,3 +265,8 @@
   font-size: 0.85em;
   letter-spacing: 0.05em;
 }
+
+/* Ticket T.5: received in a trade and held for 72 hours. */
+.tooltip__binding--held .caps {
+  color: var(--brass-300);
+}

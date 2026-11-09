@@ -1,22 +1,40 @@
-import { NO_HELD_VALUE, type HeldValue } from '@worldforge/game-core';
+import { and, eq, gt } from 'drizzle-orm';
+import { isMaterialId, type HeldValue, type MaterialBundle } from '@worldforge/game-core';
+import { tradeHolds } from '../db/schema.js';
 import type { Executor } from '../db/types.js';
 
 /**
- * The held-value seam of the account shelf (ticket T.3, docs/TRADING.md "3. The shared account
- * shelf"): gold and materials a hero received in a trade under 72 hours ago can't go onto the
- * shelf until the hold ends, so a reversal can always find them.
+ * Held value (ticket T.3's seam, filled by T.5, docs/TRADING.md "Cooldowns"): gold and materials a
+ * hero received in a trade less than 72 hours ago. They sit in the hero's purse and stacks but
+ * can't be spent, traded or put on the shelf until the hold ends, so a reversal (T.6) can always
+ * find them.
  *
- * Trading doesn't exist yet, so nothing is held: this always answers `NO_HELD_VALUE`. T.5 adds
- * `trade_holds` (hero, gold, materials, until) and replaces the body with a read of that hero's
- * holds whose `until` lies after `now` (the transaction's clock: the window rule). The shelf's
- * deposit already subtracts what this returns from what the hero may move (game-core
- * `planShelfDeposit`), so T.5 changes this function only. Items carry their own hold (T.1's
- * `hold_until`), which the deposit checks directly.
+ * A hold counts while its `held_until` lies after `now`, the transaction's clock (the window rule).
+ * Its release (`released_at`, the `trade.release` audit row) is bookkeeping written once
+ * afterwards: spending never waits for it, so there is nothing to race. Read under the hero's row
+ * lock: holds are only ever added by an accept, which locks the receiving hero too.
+ *
+ * Every spend goes through `changeGold` / `changeMaterialsTx`, which call this (the
+ * `spend-paths.test.ts` guard fails if a new path writes gold or materials another way).
  */
 export async function heldValueOf(
-  _tx: Executor,
-  _characterId: string,
-  _now: Date,
+  tx: Executor,
+  characterId: string,
+  now: Date,
 ): Promise<HeldValue> {
-  return NO_HELD_VALUE;
+  const rows = await tx
+    .select({ gold: tradeHolds.gold, materials: tradeHolds.materials })
+    .from(tradeHolds)
+    .where(and(eq(tradeHolds.characterId, characterId), gt(tradeHolds.heldUntil, now)));
+  let gold = 0;
+  const materials: MaterialBundle = {};
+  for (const r of rows) {
+    gold += r.gold;
+    for (const [id, q] of Object.entries(r.materials ?? {})) {
+      if (isMaterialId(id) && typeof q === 'number' && q > 0) {
+        materials[id] = (materials[id] ?? 0) + q;
+      }
+    }
+  }
+  return { gold, materials };
 }

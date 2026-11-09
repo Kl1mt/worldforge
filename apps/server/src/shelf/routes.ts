@@ -47,7 +47,7 @@ import {
   type InventoryView,
   type ItemView,
 } from '../inventory/routes.js';
-import { isPackItem } from '../inventory/location.js';
+import { isPackItem, itemInOffer } from '../inventory/location.js';
 import { changeMaterialsTx, loadMaterialBundle } from '../materials/store.js';
 import { loadTradingSettings } from '../settings/store.js';
 import { recordTelemetry } from '../telemetry/record.js';
@@ -418,6 +418,10 @@ export async function registerShelf(
     switches: Readonly<TradingSwitches>,
   ): Promise<ShelfMoveResponse> {
     await lockShelf(tx, accountId);
+    // Ticket T.5 lock order: account row before the hero. A gold move updates `accounts`, and
+    // trade writes hold the account row (share) before they lock heroes; taking it here first
+    // means a shelf move and a trade never wait on each other in opposite orders.
+    await tx.execute(sql`select 1 from accounts where id = ${accountId} for no key update`);
     // Settle first (ticket 1.9): drops of the window so far are placed with the pack as it was.
     let character = await lockOwnedCharacter(tx, accountId, characterId, activity);
     const now = activity.now();
@@ -433,6 +437,11 @@ export async function registerShelf(
       gold: body.gold ?? 0,
       materials: body.materials ?? {},
     };
+    // Ticket T.5: an item in a trade offer's escrow can't go onto the shelf.
+    if (direction === 'deposit') {
+      const offered = heroItems.find((i) => i.escrowOfferId && request.itemIds.includes(i.id));
+      if (offered) throw itemInOffer(offered.id);
+    }
     const plan =
       direction === 'deposit'
         ? planShelfDeposit({
@@ -479,6 +488,7 @@ export async function registerShelf(
               eq(itemInstances.inWarehouse, false),
               isNull(itemInstances.equippedSlot),
               or(isNull(itemInstances.holdUntil), lte(itemInstances.holdUntil, now)),
+              isNull(itemInstances.escrowOfferId),
             ),
           )
           .returning();

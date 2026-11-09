@@ -35,6 +35,8 @@ export const GAME_ROUTES = [
   // Ticket 5.5: the arena, `#/arena`, `#/arena/duel/<id>` (a duel's result) or
   // `#/arena/friendly/<handle>` (a friend to challenge).
   'arena',
+  // Ticket T.5: trade offers, `#/trading` (says plainly that trading is closed until it opens).
+  'trading',
 ] as const;
 /** The gate: only shown to visitors without a session. Ticket 5.7: `forgot` (password). */
 export const AUTH_ROUTES = ['login', 'register', 'forgot'] as const;

@@ -386,6 +386,15 @@ export const itemInstances = pgTable(
     shelfAccountId: uuid('shelf_account_id').references(() => accounts.id, {
       onDelete: 'cascade',
     }),
+    /**
+     * Ticket T.5: the open trade offer holding the item in escrow. Set from send until the offer
+     * ends (accepted, cancelled, declined, expired or voided). An escrowed item keeps its
+     * `character_id` (the sender's hero) but is out of the pack, the gear, the Warehouse and the
+     * shelf, and out of reach of selling, salvaging, discarding, locking, equipping and the Forge.
+     */
+    escrowOfferId: uuid('escrow_offer_id').references((): AnyPgColumn => tradeOffers.id, {
+      onDelete: 'restrict',
+    }),
     ...timestamps,
   },
   (t) => [
@@ -416,6 +425,13 @@ export const itemInstances = pgTable(
     index('item_instances_shelf_account_id_idx')
       .on(t.shelfAccountId)
       .where(sql`${t.shelfAccountId} is not null`),
+    index('item_instances_escrow_offer_id_idx')
+      .on(t.escrowOfferId)
+      .where(sql`${t.escrowOfferId} is not null`),
+    check(
+      'item_instances_escrow_check',
+      sql`${t.escrowOfferId} is null or (${t.equippedSlot} is null and not ${t.inWarehouse} and not ${t.onShelf})`,
+    ),
     check(
       'item_instances_shelf_check',
       sql`(${t.onShelf} and ${t.shelfAccountId} is not null and ${t.equippedSlot} is null and not ${t.inWarehouse}) or (not ${t.onShelf} and ${t.shelfAccountId} is null)`,
@@ -1887,3 +1903,148 @@ export const tradeCounters = pgTable(
 );
 
 export type TradeCounter = typeof tradeCounters.$inferSelect;
+
+/**
+ * Trade offers (ticket T.5, docs/TRADING.md "T.5 as built"). One row per offer from send until it
+ * ends; rows are kept for history and T.6's moderation. `status` moves once from `open` to exactly
+ * one of `accepted`, `cancelled`, `declined`, `expired` or `void` (every such update is guarded by
+ * `status = 'open'` under the row lock). The sender's side sits in escrow while open: items via
+ * `item_instances.escrow_offer_id`, gold and materials as the offer's `give` lines.
+ */
+export const TRADE_OFFER_STATUSES = [
+  'open',
+  'accepted',
+  'cancelled',
+  'declined',
+  'expired',
+  'void',
+] as const;
+export type TradeOfferStatus = (typeof TRADE_OFFER_STATUSES)[number];
+export const TRADE_VOID_REASONS = ['switch', 'block', 'sanction', 'relation', 'deletion'] as const;
+export type TradeVoidReason = (typeof TRADE_VOID_REASONS)[number];
+
+export const tradeOffers = pgTable(
+  'trade_offers',
+  {
+    id: uuid('id').primaryKey(),
+    senderAccountId: uuid('sender_account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'restrict' }),
+    receiverAccountId: uuid('receiver_account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'restrict' }),
+    /** The hero whose items, gold and materials went into escrow (and who gets the ask side). */
+    senderCharacterId: uuid('sender_character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'restrict' }),
+    /**
+     * The receiver's hero: fixed at send when the sender asks for items (they are that hero's),
+     * otherwise chosen by the receiver at accept.
+     */
+    receiverCharacterId: uuid('receiver_character_id').references(() => characters.id, {
+      onDelete: 'restrict',
+    }),
+    status: text('status').$type<TradeOfferStatus>().notNull().default('open'),
+    /** The relation the offer was sent on (`friend` or `guildmate`). */
+    relation: text('relation').notNull(),
+    expiresAt: timestamp('expires_at', { withTimezone: true }).notNull(),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    voidReason: text('void_reason').$type<TradeVoidReason>(),
+    /** For a void: what was switched off, or which sanction; never personal data. */
+    voidDetail: jsonb('void_detail').$type<Record<string, unknown>>(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    index('trade_offers_sender_status_idx').on(t.senderAccountId, t.status),
+    index('trade_offers_receiver_status_idx').on(t.receiverAccountId, t.status),
+    index('trade_offers_open_expiry_idx')
+      .on(t.expiresAt)
+      .where(sql`${t.status} = 'open'`),
+    check(
+      'trade_offers_status_check',
+      sql`${t.status} in ('open', 'accepted', 'cancelled', 'declined', 'expired', 'void')`,
+    ),
+    check('trade_offers_void_check', sql`(${t.status} = 'void') = (${t.voidReason} is not null)`),
+    check('trade_offers_parties_check', sql`${t.senderAccountId} <> ${t.receiverAccountId}`),
+  ],
+);
+
+export type TradeOffer = typeof tradeOffers.$inferSelect;
+
+/**
+ * The contents of an offer: one row per item, per material and for gold, on the `give` side
+ * (the sender's, in escrow while open) or the `ask` side (the receiver's, moved only at accept).
+ * `snapshot` is the item as it was at send (rarity, base, affixes, effect, set, variant, …), so
+ * the history reads the same after the item changes or is gone.
+ */
+export const tradeOfferLines = pgTable(
+  'trade_offer_lines',
+  {
+    id: uuid('id').primaryKey(),
+    offerId: uuid('offer_id')
+      .notNull()
+      .references(() => tradeOffers.id, { onDelete: 'cascade' }),
+    side: text('side').$type<'give' | 'ask'>().notNull(),
+    kind: text('kind').$type<'item' | 'material' | 'gold'>().notNull(),
+    /** For items: the item's id (kept across the trade; not a foreign key, the item may go). */
+    itemId: uuid('item_id'),
+    materialId: text('material_id'),
+    /** 1 for an item; units for a material; gold. */
+    amount: bigint('amount', { mode: 'number' }).notNull(),
+    snapshot: jsonb('snapshot').$type<Record<string, unknown>>(),
+  },
+  (t) => [
+    index('trade_offer_lines_offer_id_idx').on(t.offerId),
+    index('trade_offer_lines_item_id_idx')
+      .on(t.itemId)
+      .where(sql`${t.itemId} is not null`),
+    check('trade_offer_lines_side_check', sql`${t.side} in ('give', 'ask')`),
+    check(
+      'trade_offer_lines_kind_check',
+      sql`(${t.kind} = 'item' and ${t.itemId} is not null and ${t.materialId} is null and ${t.amount} = 1) or (${t.kind} = 'material' and ${t.itemId} is null and ${t.materialId} is not null and ${t.amount} > 0) or (${t.kind} = 'gold' and ${t.itemId} is null and ${t.materialId} is null and ${t.amount} > 0)`,
+    ),
+  ],
+);
+
+export type TradeOfferLine = typeof tradeOfferLines.$inferSelect;
+
+/**
+ * Held value (ticket T.5, docs/TRADING.md "Cooldowns"): gold and materials a hero received in a
+ * trade. They sit in the hero's purse and stacks but can't be spent, traded or shelved while
+ * `held_until` lies after the transaction's clock. `released_at` is set exactly once (with a
+ * `trade.release` audit row) after the hold ends; spending never waits for it.
+ */
+export const tradeHolds = pgTable(
+  'trade_holds',
+  {
+    id: uuid('id').primaryKey(),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    offerId: uuid('offer_id')
+      .notNull()
+      .references(() => tradeOffers.id, { onDelete: 'restrict' }),
+    gold: bigint('gold', { mode: 'number' }).notNull().default(0),
+    materials: jsonb('materials')
+      .$type<Partial<Record<MaterialId, number>>>()
+      .notNull()
+      .default({}),
+    /** The items received with this hold (each also carries `hold_until`). */
+    itemIds: jsonb('item_ids').$type<string[]>().notNull().default([]),
+    heldUntil: timestamp('held_until', { withTimezone: true }).notNull(),
+    releasedAt: timestamp('released_at', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    index('trade_holds_character_id_idx').on(t.characterId, t.heldUntil),
+    index('trade_holds_unreleased_idx')
+      .on(t.heldUntil)
+      .where(sql`${t.releasedAt} is null`),
+    check('trade_holds_gold_check', sql`${t.gold} >= 0`),
+  ],
+);
+
+export type TradeHold = typeof tradeHolds.$inferSelect;

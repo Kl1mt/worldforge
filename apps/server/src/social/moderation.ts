@@ -519,6 +519,7 @@ export async function registerModeration(app: FastifyInstance): Promise<void> {
               guild,
               { accountId: actor.id, moderator: true, reason: reasonText, reportId },
               now,
+              app.relationEvents,
             );
           }
           guildActed = true;

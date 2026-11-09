@@ -39,6 +39,7 @@ import {
   type InventoryView,
   type ItemView,
   assertItemInReach,
+  assertItemNotHeld,
 } from '../inventory/routes.js';
 import { changeMaterialsTx, loadMaterialBundle } from '../materials/store.js';
 import { idempotentTransaction } from '../idempotency/index.js';
@@ -595,6 +596,8 @@ export async function registerForgeWork(
             const locked = await lockOwnedCharacter(tx, accountId, characterId, activity);
             const row = await lockItem(tx, characterId, body.itemId);
             const now = activity.now();
+            // Ticket T.5: an item received in a trade is never forged while held.
+            assertItemNotHeld(row, now);
             const { cost, apply } = run(row, locked, body);
             const held = await loadMaterialBundle(tx, characterId);
             const blockers = forgeCostBlockers(cost, locked.gold, held);

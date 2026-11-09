@@ -118,6 +118,11 @@ export interface ItemView {
   locked: boolean;
   /** Ticket T.1: the item's binding in plain words; null where the server sent none (offers). */
   binding: BindingView | null;
+  /**
+   * Ticket T.5: received in a trade and held until then (ISO): it can be worn, but not sold,
+   * salvaged, discarded, forged, stored or shelved. Absent when not held.
+   */
+  heldUntil?: string;
   /** Ticket 3.7: the fields the loot filter reads (game-core `lootFilterHandles`), for previews. */
   filterKey: LootFilterItem;
 }
@@ -264,6 +269,7 @@ export type ItemDisplaySource = Pick<
       | 'binding'
       | 'bindingReason'
       | 'tradeable'
+      | 'holdUntil'
     >
   >;
 
@@ -312,6 +318,9 @@ export function toItemView(dto: ItemDisplaySource): ItemView {
     ),
     locked: dto.locked ?? false,
     binding: bindingView(dto),
+    ...(dto.holdUntil && Date.parse(dto.holdUntil) > Date.now()
+      ? { heldUntil: dto.holdUntil }
+      : {}),
     filterKey: {
       rarityId: dto.rarityId,
       affixes: dto.affixes,

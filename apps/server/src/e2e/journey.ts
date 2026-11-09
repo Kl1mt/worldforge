@@ -10,7 +10,7 @@
 import { expect } from 'vitest';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { randomUUID } from 'node:crypto';
-import { and, eq, inArray, like, sql } from 'drizzle-orm';
+import { and, eq, inArray, like, or, sql } from 'drizzle-orm';
 import {
   CONTRACT_TEMPLATES,
   GUILD_BOSS_ATTEMPTS_PER_WEEK,
@@ -49,6 +49,7 @@ import {
   auditLog,
   characterMaterials,
   characters,
+  gameSettings,
   guilds,
   itemInstances,
   reports,
@@ -507,10 +508,19 @@ export async function startJourney(options: JourneyOptions) {
  * audit log: every grant and every spend has exactly one entry.
  */
 export async function expectHoldingsMatchAudit(database: DatabaseHandle, characterId: string) {
+  // Ticket T.5: a `trade.accept` row sits on the receiving hero but moves the sender's too.
   const audit = await database.db
     .select()
     .from(auditLog)
-    .where(eq(auditLog.characterId, characterId));
+    .where(
+      or(
+        eq(auditLog.characterId, characterId),
+        and(
+          eq(auditLog.event, 'trade.accept'),
+          sql`${auditLog.data}->>'senderCharacterId' = ${characterId}`,
+        ),
+      ),
+    );
   let gold = 0;
   let items = 0;
   const materials: Partial<Record<MaterialId, number>> = {};
@@ -593,6 +603,41 @@ export async function expectHoldingsMatchAudit(database: DatabaseHandle, charact
         if (d.kind === 'gold') gold += sign * d.gold!;
         else if (d.kind === 'items') items += sign * (d.items as unknown[]).length;
         else addMaterials(d.materials, sign);
+        break;
+      }
+      // Ticket T.5: an offer takes the sender's gold and materials into escrow (its items stay
+      // the hero's rows, in escrow); an offer ending without a trade gives them back.
+      case 'trade.offer': {
+        const give = d.give as { gold: number; materials: Record<string, number> };
+        gold -= give.gold;
+        addMaterials(give.materials, -1);
+        break;
+      }
+      case 'trade.cancel':
+      case 'trade.decline':
+      case 'trade.expire':
+      case 'trade.void': {
+        const back = d.returned as { gold: number; materials: Record<string, number> };
+        gold += back.gold;
+        addMaterials(back.materials);
+        break;
+      }
+      // The swap: the receiver gets the give side and pays the ask side; the sender the reverse
+      // (the sender's gold and materials left at the offer, so only the ask side arrives).
+      case 'trade.accept': {
+        type Side = { items: unknown[]; gold: number; materials: Record<string, number> };
+        const give = d.give as Side;
+        const ask = d.ask as Side;
+        if (d.receiverCharacterId === characterId) {
+          gold += give.gold - ask.gold;
+          items += give.items.length - ask.items.length;
+          addMaterials(give.materials);
+          addMaterials(ask.materials, -1);
+        } else {
+          gold += ask.gold;
+          items += ask.items.length - give.items.length;
+          addMaterials(ask.materials);
+        }
         break;
       }
     }
@@ -2949,4 +2994,145 @@ export async function playTradeEligibilityStep(
   });
   expect(lifted.statusCode, lifted.body).toBe(200);
   expect(met(await mine()).standing).toBe(true);
+}
+
+/**
+ * Ticket T.5: two players trade (the switches are turned on by the test, as the owner would in
+ * the admin panel). Both are made eligible the quick way (a shortcut, like B.3's guild members:
+ * levels and verified emails written directly; the clock moves past the 14-day account age and the
+ * 7-day friendship). The hero offers gold and materials it farmed; the friend accepts; everything
+ * received is held for 72 hours (it can't be sent on), then released exactly once. A second offer
+ * is declined and a third cancelled: escrow comes back. Both heroes' holdings equal a replay of
+ * the audit log, and the rollups reconcile.
+ */
+export async function playTradeStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  clock: Clock,
+  hero: Journey,
+  friend: Journey,
+) {
+  const DAY = 86_400_000;
+  const meOf = async (j: Journey) =>
+    (await j.api('GET', '/api/account')).json<{ account: { id: string; handle: string } }>()
+      .account;
+  const [me, them] = [await meOf(hero), await meOf(friend)];
+  // Eligibility, the quick way: a level-15 hero and a verified email for both.
+  for (const [j, a] of [
+    [hero, me],
+    [friend, them],
+  ] as const) {
+    await database.db.update(characters).set({ level: 15 }).where(eq(characters.id, j.characterId));
+    await database.db
+      .update(accounts)
+      .set({ emailVerifiedAt: new Date(clock.now()) })
+      .where(eq(accounts.id, a.id));
+  }
+  expect(
+    (await hero.api('POST', '/api/friends/requests', { handle: them.handle })).statusCode,
+  ).toBe(200);
+  expect((await friend.api('POST', `/api/friends/requests/${me.handle}/accept`)).statusCode).toBe(
+    200,
+  );
+  clock.set(clock.now() + 15 * DAY);
+
+  // Closed until the owner opens it.
+  const closed = (await hero.api('GET', '/api/trading/offers')).json<{ open: boolean }>();
+  expect(closed.open).toBe(false);
+  const open = {
+    ...structuredClone(DEFAULT_TRADING_SETTINGS),
+    trading: true,
+    trade: { items: true, materials: true, gold: true },
+  };
+  await database.db
+    .insert(gameSettings)
+    .values({ key: 'trading', value: open as never, version: 1, updatedAt: new Date(clock.now()) })
+    .onConflictDoUpdate({ target: gameSettings.key, set: { value: open as never } });
+  app.gameSettings.invalidate();
+
+  // What the hero can give: some of its gold and of its most plentiful material.
+  const mine = await holdingsOf(hero);
+  const gold = Math.min(500, mine.gold);
+  const [material, stock] = Object.entries(mine.mats).sort((a, b) => b[1] - a[1])[0] ?? [null, 0];
+  const units = material && material !== 'gravewardenSeal' ? Math.min(10, stock) : 0;
+  const give = {
+    ...(gold > 0 ? { gold } : {}),
+    ...(units > 0 ? { materials: { [material!]: units } } : {}),
+  };
+  if (gold === 0 && units === 0) return; // nothing farmed to give (never with the journey's farming)
+  const sent = await hero.keyed('/api/trading/offers', {
+    to: them.handle,
+    characterId: hero.characterId,
+    give,
+  });
+  expect(sent.statusCode, sent.body).toBe(201);
+  const offer = sent.json<{ id: string; gift: boolean }>();
+  expect(offer.gift).toBe(true);
+  const inbox = (await friend.api('GET', '/api/trading/offers')).json<{
+    received: { id: string }[];
+  }>();
+  expect(inbox.received.map((o) => o.id)).toContain(offer.id);
+  const accepted = await friend.keyed(`/api/trading/offers/${offer.id}/accept`, {
+    characterId: friend.characterId,
+  });
+  expect(accepted.statusCode, accepted.body).toBe(200);
+  // The accept settled the friend's farming first; what arrived is exactly the gift.
+  const got = accepted.json<{ give: { gold: number }; heldUntil: string }>();
+  expect(got.give.gold).toBe(gold);
+  expect(Date.parse(got.heldUntil)).toBe(clock.now() + 72 * 3_600_000);
+  const after = await holdingsOf(friend);
+
+  // Held: the friend can't send on more than its own (unheld) gold.
+  const spendable = after.gold - gold;
+  if (gold > 0 && spendable + 1 <= 5_000) {
+    const onward = await friend.keyed('/api/trading/offers', {
+      to: me.handle,
+      characterId: friend.characterId,
+      give: { gold: spendable + 1 },
+    });
+    expect(onward.statusCode, onward.body).toBe(422);
+    expect(onward.json<{ error: { details: { onHold: number } } }>().error.details.onHold).toBe(
+      gold,
+    );
+  }
+
+  // A second offer declined, a third cancelled: escrow back each time.
+  const second = await hero.keyed('/api/trading/offers', {
+    to: them.handle,
+    characterId: hero.characterId,
+    give,
+  });
+  if (second.statusCode === 201) {
+    const id = second.json<{ id: string }>().id;
+    expect((await friend.keyed(`/api/trading/offers/${id}/decline`, {})).statusCode).toBe(200);
+  }
+  const third = await hero.keyed('/api/trading/offers', {
+    to: them.handle,
+    characterId: hero.characterId,
+    give,
+  });
+  if (third.statusCode === 201) {
+    const id = third.json<{ id: string }>().id;
+    expect((await hero.keyed(`/api/trading/offers/${id}/cancel`, {})).statusCode).toBe(200);
+  }
+
+  // 72 hours on: the hold is released once, however often the inbox is read.
+  clock.set(clock.now() + 72 * 3_600_000);
+  await friend.api('GET', '/api/trading/offers');
+  await friend.api('GET', '/api/trading/offers');
+  const releases = await database.db
+    .select()
+    .from(auditLog)
+    .where(and(eq(auditLog.event, 'trade.release'), eq(auditLog.accountId, them.id)));
+  expect(releases).toHaveLength(1);
+  const holds = (await friend.api('GET', '/api/trading/offers')).json<{ holds: unknown[] }>().holds;
+  expect(holds).toEqual([]);
+
+  await expectHoldingsMatchAudit(database, hero.characterId);
+  await expectHoldingsMatchAudit(database, friend.characterId);
+  const checks = await reconcileWithAudit(database.db);
+  expect(checks.filter((c) => !c.ok)).toEqual([]);
+  // Back to closed, as the owner leaves it by default.
+  await database.db.delete(gameSettings).where(eq(gameSettings.key, 'trading'));
+  app.gameSettings.invalidate();
 }

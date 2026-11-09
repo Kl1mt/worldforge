@@ -16,6 +16,16 @@ import { SetTracker } from './SetTracker';
 import { formatStatDelta, formatStatValue, statDefinition } from '../lib/format';
 import './item-tooltip.css';
 
+/** Ticket T.5: a hold's end, e.g. "12 Mar, 14:05". */
+function formatHeld(iso: string): string {
+  return new Date(iso).toLocaleString('en-GB', {
+    day: 'numeric',
+    month: 'short',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
 const RARITY_NAME = new Map(RARITIES.map((r) => [r.id, r.name]));
 
 interface ItemTooltipProps {
@@ -131,6 +141,13 @@ export function ItemTooltip({
             <p className={`tooltip__binding tooltip__binding--${item.binding.kind}`}>
               <span className="caps">{item.binding.label}</span>
               {item.binding.detail ? <> {item.binding.detail}</> : null}
+            </p>
+          ) : null}
+          {item.heldUntil ? (
+            <p className="tooltip__binding tooltip__binding--held">
+              <span className="caps">Held until {formatHeld(item.heldUntil)}</span> Received in a
+              trade. You can wear it; it can’t be sold, salvaged, discarded, forged, stored or
+              shelved until then.
             </p>
           ) : null}
         </header>

@@ -258,6 +258,25 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
   const fate = (source: (d: RollupRow['dims']) => boolean, f: string) => (d: RollupRow['dims']) =>
     source(d) && d[1] === f;
   const goldPrefix = (p: string) => (d: RollupRow['dims']) => d[0].startsWith(p);
+  /** Material units both sides of every accepted trade moved (ticket T.5). */
+  const tradeMaterials = () =>
+    auditScalar(
+      db,
+      sql`select coalesce(sum(m.value::bigint), 0) as n
+          from audit_log a,
+          jsonb_each_text(coalesce(a.data->'give'->'materials', '{}'::jsonb)
+                          || '{}'::jsonb) m
+          where a.event = 'trade.accept'`,
+    ).then(
+      async (give) =>
+        give +
+        (await auditScalar(
+          db,
+          sql`select coalesce(sum(m.value::bigint), 0) as n
+            from audit_log a, jsonb_each_text(coalesce(a.data->'ask'->'materials', '{}'::jsonb)) m
+            where a.event = 'trade.accept'`,
+        )),
+    );
 
   const checks: [string, Promise<number>, number][] = [
     // Farming settlement
@@ -582,6 +601,54 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
     ]),
     // Discards
     ['items discarded', audit('item.discard', sql`count(*)`), sumRollups(rows, 'item.discarded')],
+    // Trades (ticket T.5): completed trades, traded items, and the gold and materials moved.
+    ['trades: completed', audit('trade.accept', sql`count(*)`), sumRollups(rows, 'trade.complete')],
+    [
+      'trades: items (trade.items)',
+      audit(
+        'trade.accept',
+        num(
+          sql`jsonb_array_length(data->'give'->'items') + jsonb_array_length(data->'ask'->'items')`,
+        ),
+      ),
+      sumRollups(rows, 'trade.items'),
+    ],
+    [
+      'trades: items (item.fate traded)',
+      audit(
+        'trade.accept',
+        num(
+          sql`jsonb_array_length(data->'give'->'items') + jsonb_array_length(data->'ask'->'items')`,
+        ),
+      ),
+      sumRollups(rows, 'item.fate', (d) => d[0] === 'trade' && d[1] === 'traded'),
+    ],
+    [
+      'trades: gold in',
+      audit(
+        'trade.accept',
+        num(sql`(data->'give'->>'gold')::bigint + (data->'ask'->>'gold')::bigint`),
+      ),
+      sumRollups(rows, 'gold.in', src('trade'), 'amount'),
+    ],
+    [
+      'trades: gold out',
+      audit(
+        'trade.accept',
+        num(sql`(data->'give'->>'gold')::bigint + (data->'ask'->>'gold')::bigint`),
+      ),
+      sumRollups(rows, 'gold.out', src('trade'), 'amount'),
+    ],
+    [
+      'trades: material units in',
+      tradeMaterials(),
+      sumRollups(rows, 'material.in', src('trade'), 'amount'),
+    ],
+    [
+      'trades: material units out',
+      tradeMaterials(),
+      sumRollups(rows, 'material.out', src('trade'), 'amount'),
+    ],
   ];
   const out: ReconcileCheck[] = [];
   for (const [check, auditValue, rollup] of checks) {
@@ -615,6 +682,72 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
       auditScalar(db, sql`select coalesce(sum(shelf_gold), 0) as n from accounts`),
     ],
   ];
+  // Ticket T.5: escrow and holds conserve value. What open offers hold in escrow equals what
+  // `trade.offer` put in minus what endings returned and accepts handed over; what is held now
+  // (unreleased holds) equals what accepts gave minus what `trade.release` released.
+  const escrowNet = (path: (side: string) => SQL) =>
+    auditScalar(
+      db,
+      sql`select coalesce(sum(case
+                 when event = 'trade.offer' then ${path('give')}
+                 when event = 'trade.accept' then -${path('give')}
+                 else -${path('returned')} end), 0) as n
+          from audit_log
+          where event in ('trade.offer', 'trade.accept', 'trade.cancel', 'trade.decline',
+                          'trade.expire', 'trade.void')`,
+    );
+  holdings.push(
+    [
+      'trade escrow: items = offered − returned − handed over',
+      escrowNet((side) => sql`jsonb_array_length(data->${side}->'items')`),
+      auditScalar(
+        db,
+        sql`select count(*) as n from item_instances where escrow_offer_id is not null`,
+      ),
+    ],
+    [
+      'trade escrow: gold = offered − returned − handed over',
+      escrowNet((side) => sql`(data->${side}->>'gold')::bigint`),
+      auditScalar(
+        db,
+        sql`select coalesce(sum(l.amount), 0) as n from trade_offer_lines l
+            join trade_offers o on o.id = l.offer_id
+            where o.status = 'open' and l.side = 'give' and l.kind = 'gold'`,
+      ),
+    ],
+    [
+      'trade escrow: materials = offered − returned − handed over',
+      escrowNet(
+        (side) =>
+          sql`(select coalesce(sum(m.value::bigint), 0) from jsonb_each_text(coalesce(data->${side}->'materials', '{}'::jsonb)) m)`,
+      ),
+      auditScalar(
+        db,
+        sql`select coalesce(sum(l.amount), 0) as n from trade_offer_lines l
+            join trade_offers o on o.id = l.offer_id
+            where o.status = 'open' and l.side = 'give' and l.kind = 'material'`,
+      ),
+    ],
+    [
+      'trade holds: gold held = received − released',
+      auditScalar(
+        db,
+        sql`select coalesce(sum(case when event = 'trade.accept'
+                 then (data->'give'->>'gold')::bigint + (data->'ask'->>'gold')::bigint
+                 else -(data->>'gold')::bigint end), 0) as n
+            from audit_log where event in ('trade.accept', 'trade.release')`,
+      ),
+      auditScalar(
+        db,
+        sql`select coalesce(sum(gold), 0) as n from trade_holds where released_at is null`,
+      ),
+    ],
+    [
+      'trade holds: released once each',
+      auditScalar(db, sql`select count(*) as n from audit_log where event = 'trade.release'`),
+      auditScalar(db, sql`select count(*) as n from trade_holds where released_at is not null`),
+    ],
+  );
   for (const [check, auditValue, held] of holdings) {
     const a = await auditValue;
     const h = await held;
