@@ -293,7 +293,13 @@ try {
 
     // 7. Empty (open, nothing waiting), loading and error.
     await page.unroute('**/api/trading/offers');
-    await stub('**/api/trading/offers', { ...INBOX, received: [], sent: [], recent: [], holds: [] });
+    await stub('**/api/trading/offers', {
+      ...INBOX,
+      received: [],
+      sent: [],
+      recent: [],
+      holds: [],
+    });
     await toTrading();
     await screen.getByText('No offers waiting for you.', { exact: false }).waitFor();
     await shoot('empty');

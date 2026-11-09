@@ -79,16 +79,16 @@ import { loadTradeRelation, loadTradeStanding } from './standing.js';
  *   `changeMaterialsTx`).
  *
  * ## Lock order (every trade transaction, and every listener that voids)
- * 1. account rows, `for share` (the actor in `tradeWrite`, then the other party): a sanction being
- *    issued holds its subject's row `for update`, so a trade write involving that account either
- *    commits first or sees the sanction;
- * 2. the trading settings row, `for share` (send and accept): a switch turned off serialises with
- *    them;
- * 3. the open-offer counters of both accounts (advisory `trade-offers:<id>`, id order; send only);
- * 4. offer rows `for update`, in id order;
- * 5. heroes `for no key update` (settling their activity first), in id order;
- * 6. their item rows `for update`, in `(created_at, id)` order;
- * 7. the trade cap counters (T.4's advisory `trade-counters:<id>`, id order), **last**, then the
+ * 1. the actor's account row `for share` (`tradeWrite`), the trading settings row `for share`
+ *    (send and accept: a switch turned off serialises with them), then the other party's account
+ *    row `for share`. A sanction being issued holds its subject's row `for update`, so a trade
+ *    write involving that account either commits first or sees the sanction; share locks never
+ *    wait on each other, and nothing that takes an account row exclusively waits on the settings;
+ * 2. the open-offer counters of both accounts (advisory `trade-offers:<id>`, id order; send only);
+ * 3. offer rows `for update`, in id order;
+ * 4. heroes `for no key update` (settling their activity first), in id order;
+ * 5. their item rows `for update`, in `(created_at, id)` order;
+ * 6. the trade cap counters (T.4's advisory `trade-counters:<id>`, id order), **last**, then the
  *    telemetry rows at commit.
  * Nothing that holds a hero ever waits for an offer row, and the shelf takes its account row
  * before its hero (T.3 changed in T.5), so two accounts trading both ways at once, a trade and a
@@ -976,7 +976,7 @@ export async function acceptOffer(
   if (!peek[0] || peek[0].receiver !== me.id) throw notFound();
   // 1. The other party's account row (ours is held by `tradeWrite`), before any offer row.
   await shareLockAccounts(tx, [peek[0].sender]);
-  // 4. The offer.
+  // 3. The offer.
   const offer = await lockOfferRow(tx, input.offerId);
   if (!offer || offer.receiverAccountId !== me.id) throw notFound();
   if (offer.status !== 'open') throw offerClosed(offer);
@@ -996,7 +996,7 @@ export async function acceptOffer(
       'This offer asks for items of another of your heroes; accept it with that hero.',
     );
   }
-  // 5. Both heroes, in id order (each settled first).
+  // 4. Both heroes, in id order (each settled first).
   const heroes = new Map<string, Character>();
   for (const [accountId, heroId] of [
     [offer.senderAccountId, offer.senderCharacterId],
@@ -1008,7 +1008,7 @@ export async function acceptOffer(
   let receiverHero = heroes.get(receiverHeroId)!;
   const sides = sidesOf(await loadLines(tx, [offer.id]));
 
-  // 6. Items: both sides' rows, in one statement, in the inventory order.
+  // 5. Items: both sides' rows, in one statement, in the inventory order.
   const ids = [...sides.give.itemIds, ...sides.ask.itemIds];
   const rows = ids.length
     ? await tx
@@ -1089,7 +1089,7 @@ export async function acceptOffer(
     }
   }
 
-  // 7. The caps, last (T.4): both accounts, all or nothing.
+  // 6. The caps, last (T.4): both accounts, all or nothing.
   await commitTradeCounters(tx, {
     actorId: me.id,
     limits: settings.limits,
