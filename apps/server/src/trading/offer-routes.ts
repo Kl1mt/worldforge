@@ -7,7 +7,6 @@ import {
   checkTradeCaps,
   isMaterialId,
   itemBinding,
-  standingRefusals,
   tradeCapIncrements,
   tradeCapText,
   tradeDecision,

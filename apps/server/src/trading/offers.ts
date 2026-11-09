@@ -65,7 +65,7 @@ import { hiddenTargetKeys } from '../social/sanctions.js';
 import { lockSocialAccounts } from '../social/relations.js';
 import { profileFieldKey } from '../social/targets.js';
 import { commitTradeCounters, readTradeCounters, tradeCapError } from './counters.js';
-import { hiddenCounterpart, loadTradeRelation, loadTradeStanding } from './standing.js';
+import { hiddenCounterpart, loadTradeRelation } from './standing.js';
 
 /**
  * Trade offers (ticket T.5, docs/TRADING.md "T.5 as built"): the transactions behind send,
