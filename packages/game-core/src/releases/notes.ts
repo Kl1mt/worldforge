@@ -23,9 +23,26 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.5.16';
+export const GAME_VERSION = '0.6.0';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.6.0',
+    date: '2026-11-09',
+    title: 'Beyond the Warden’s tower',
+    new: [
+      'The Cinderwastes: past the Ashen Warden’s watchtower lies the Ashfall Verge, a new area for levels 28 to 34. Heroes of level 28 who have slain the Ashen Warden can farm it.',
+      'Four new foes walk the ash: Cinder Revenants, Slag Hounds, Ember Wisps and the slow, enormous Ash Colossus.',
+      'New gear: the Verge drops a new, stronger family of weapons, armour and jewelry from item level 29, and the finest pieces can roll a new, fifth tier of magic properties.',
+      'The Ashfall Verge pays more experience and gold than the Ashen Pass. Your best Ashen Pass gear is enough to farm it, and it still salvages and upgrades at the Forge as before.',
+    ],
+    changed: [
+      'Heroes keep levelling at a steady pace into their late thirties now; the climb slows sharply around level 42.',
+      'Character Power adds two trials at levels 30 and 34, and PvE Progress adds three milestones in the Cinderwastes. Boards switch to them between seasons: a season already under way finishes as it began.',
+      'Duels in the 30+ bracket are measured against the new gear, and the classes there are rebalanced against each other.',
+    ],
+    tickets: ['6.1'],
+  },
   {
     version: '0.5.16',
     date: '2026-11-09',

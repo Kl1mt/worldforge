@@ -595,6 +595,7 @@ describe('areas & unlocks (ticket 2.2)', () => {
       ['blackwater', false],
       ['sunkenAbbey', false],
       ['ashenPass', false],
+      ['ashfallVerge', false],
     ]);
     expect(w.areas[4]!.blockers).toEqual([
       { kind: 'level', required: 17 },
@@ -605,6 +606,11 @@ describe('areas & unlocks (ticket 2.2)', () => {
       { kind: 'level', required: 24 },
       { kind: 'gravewardenDefeated' },
       { kind: 'worldFlag', flag: 'ashenPassCleared' },
+    ]);
+    // Ticket 6.1: the Cinderwastes wait for level 28 and the Ashen Warden.
+    expect(w.areas[6]!.blockers).toEqual([
+      { kind: 'level', required: 28 },
+      { kind: 'ashenWardenDefeated' },
     ]);
     expect(w.dungeons).toEqual([
       {

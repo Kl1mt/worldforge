@@ -13,9 +13,31 @@ Ticket 2.1. Data and pure rules in `packages/game-core/src/world/` (areas, dunge
 | Dungeon `namelessCrypt` | 12–16 | level 12 | rooms: `cryptGhoul` 55, `boneAcolyte` 45; boss `gravewarden` (level 16) | boss drop `gravewardenSeal` | tier 2 ×2, tier 3 ×1 (11–17), 18 % item chance |
 | `ashenPass` (ticket 4.8) | 24–28 | level 24 + Gravewarden defeated + world flag `ashenPassCleared` | `ashWraith` 30, `cinderHound` 30, `pyreCultist` 25, `emberGolem` 15 | `ironOre`, `soulShard` (wraiths) | tier 3 (23–29), gold × 1.6 |
 | Dungeon `ashenWatch` (ticket 4.8) | — (no chambers) | level 26 + Gravewarden + `ashenPassCleared` | boss `ashenWarden` (level 28) | — | boss hoard only: `ashenWarden` (27–29) |
+| `ashfallVerge` (ticket 6.1, the Cinderwastes) | 28–34 | level 28 + Ashen Warden defeated | `cinderRevenant` 30, `slagHound` 30, `emberWisp` 25, `ashColossus` 15 | `ironOre`, `soulShard` (revenants) | tier 4 (29–35), gold × 2.3 |
 
 - Each Graumark area overlaps the next by one level step (`next.minLevel = prev.maxLevel − 1`); the area's unlock level is its minimum enemy level. The Ashen Pass starts two levels above the Abbey's top (24 vs 22): crypt tier III (21–24) bridges the gap.
 - Rooms, run timing, the boss enrage and the boss loot (`gravewarden` table, boss-exclusive bases, cooldown) are data on `DungeonDefinition` since ticket 2.5; rules in `docs/DUNGEONS.md`.
+
+## The Cinderwastes: the Ashfall Verge (ticket 6.1)
+
+The first area of the endgame region beyond the Ashen Pass (GDD §15 Phase 6; ROADMAP Phase 6 defaults: the Cinderwastes for levels 28–40 in two areas and a region boss; 6.2 adds the second area and the boss). Its region is `The Cinderwastes`, its area id `ashfallVerge`, "The Ashfall Verge": the ash plain past the Warden's tower. Map marker in the map's north-west corner, beyond the Watch.
+
+**Unlock.** Level 28 and the Ashen Warden slain (`UnlockRule.ashenWardenDefeated`, blocker `{ kind: 'ashenWardenDefeated' }`, "Defeat the Ashen Warden"). The Warden can only be fought once the Pass is open, so its world flag guards the Verge too. **Seam for 6.7:** the region's community project adds a flag id to `WORLD_FLAG_IDS` and `worldFlag` to the Verge's rule; every server path already passes the world flags, and `world.test.ts` asserts today that the flags change nothing for it.
+
+**Art (A.11, in parallel).** Fixed asset names: backdrop `area.cinderwastes`; foes `enemy.cinder-revenant`, `enemy.slag-hound`, `enemy.ember-wisp`, `enemy.ash-colossus`. Until A.11 registers them, the web shows the nearest existing sprite with an ember tint (`ART_STAND_INS` in `apps/web/src/content/assets.ts`: the Pass's backdrop, the fallen knight, the cinder hound, the ash wraith, the ember golem); registered art always wins. The ten tier-4 item icons (`item.<base id>`) are an art follow-up and stand in as their tier-3 counterparts, tinted.
+
+| Enemy | Asset | Type | Health | Damage | Notes |
+|---|---|---|---|---|---|
+| `cinderRevenant` Cinder Revenant | `cinder-revenant` | physical | 96 + 58/level | 12.2 + 3.51 | undead (soul shards), armoured (20 + 3.8), attack speed 0.9 |
+| `slagHound` Slag Hound | `slag-hound` | physical | 74 + 48/level | 8.1 + 2.43 | fast (1.5), light |
+| `emberWisp` Ember Wisp | `ember-wisp` | magic | 58 + 38/level | 8.6 + 2.56 | quick (1.3), frail, warded (resistance 22 + 3.6) |
+| `ashColossus` Ash Colossus | `ash-colossus` | physical | 192 + 86/level | 20.2 + 5.67 | slow (0.5), huge, heavy armour (30 + 5) |
+
+Per level they have 1.8–1.9 × the Pass's health at about 1.5 × its damage; XP per kill is about 1.4 × the Pass's. Each foe tests a different defence (armour, burst, resistance, bulk), on the existing engine.
+
+**Rewards.** The loot table `ashfallVerge`: **tier-4 bases only** (ten, one per slot kind and weapon family, from item level 29, each about a tenth above its tier-3 counterpart at the same item level), item levels **29–35** (the first area table above the Pass's 29), affix bias 1.0, the Pass's late-game odds (Mythics, sets on their tier-3 bases, Legendary weight, Void), kill gold × 2.3. **Tier-5 affixes** (flat damage, health, armour, resistance) unlock at item level 31, Epic and better from 30, never at 29 or below (`AffixTier.minBaseItemLevel`), so no earlier source rolls differently. Gathering: iron ore (7 %; tier-4 items salvage to 3 ore a unit, so their upgrades ask for more of it) and soul shards from the revenants (3 %). No new material (none would have a sink yet; 6.2's boss material gets one).
+
+**Older content stays relevant** (asserted in `balance.test.ts` "the Ashfall Verge" and `builds.test.ts`): the Pass's best builds (4.8's search, +10 Void and +5, item level 27) farm it at 16–20 kills a minute with no deaths and earn more XP and gold an hour than at the Pass; the Pass's Legendaries +10 farm it with no deaths; older drops keep their salvage yields and Forge paths (their materials drop in the Verge). Numbers in `docs/COMBAT.md` "The Cinderwastes".
 
 ## Enemies
 `EnemyDefinition` adds `undead` (undead drop `soulShard`, ticket 2.3) and `rank` (`normal` or `boss`) to the Phase 1 fields; `damageType` is the damage family (physical → armor, magic → resistance). Each enemy is in exactly one roster. Asset ids are `enemy.<kebab-case id>` (the three Phase 1 enemies keep their existing ids).
@@ -25,7 +47,7 @@ Enemy damage was retuned in ticket B.1 (`docs/COMBAT.md`): each later area hits 
 ## Materials and professions
 `MATERIALS`: id, name, description, icon (`material.<kebab-case id>`, in `apps/web/public/assets/materials/`, A.4), rarity, source and profession, and the areas that list it.
 - `gathering`: `timber` (Woodcutting), `ashwort` (Herbalism), `rawHide` (Skinning), `ironOre` and `abbeySilver` (Mining; silver is rare).
-- `undeadDrop`: `soulShard` (listed in the Old Burial Grounds, where every enemy is undead).
+- `undeadDrop`: `soulShard` (listed in the Old Burial Grounds, where every enemy is undead; since 4.8 / 6.1 also in the Ashen Pass and the Ashfall Verge).
 - `bossDrop`: `gravewardenSeal`.
 
 Yields, gathering and profession levels (ticket 2.3): `packages/game-core/src/professions/`, rules in `docs/FARMING.md` ("Gathering & professions").
@@ -36,7 +58,7 @@ Ticket 4.6: a rule may also need a global world flag (`UnlockRule.worldFlag`, se
 `isAreaUnlocked(areaId, character, progress)` and `isDungeonUnlocked(…)` with `character = { level }` and `progress = { gravewardenDefeated }`. `areaUnlockBlockers` / `dungeonUnlockBlockers` return the unmet conditions in a stable order (`{ kind: 'level', required }`, then `{ kind: 'gravewardenDefeated' }`) for the world map. A non-integer or < 1 level throws. The rules live in `UnlockRule` on each place (data), so new places need no code.
 
 ## Item tiers
-Every item base has a `tier` (`items/bases.ts`): tier 1 are the 17 Phase 1 bases; tiers 2 and 3 add one base per slot kind with art and per weapon family (10 each: warrior sword, mage/warlock staff, hunter bow, shield, head, chest, hands, feet, neck, ring). Tier 2 drops from item level 9–10, tier 3 from 15–16, and each beats the tier below at the same item level. Each new base has its own icon `item.<base id>` (A.4).
+Every item base has a `tier` (`items/bases.ts`): tier 1 are the 17 Phase 1 bases; tiers 2, 3 and 4 add one base per slot kind with art and per weapon family (10 each: warrior sword, mage/warlock staff, hunter bow, shield, head, chest, hands, feet, neck, ring). Tier 2 drops from item level 9–10, tier 3 from 15–16, tier 4 (ticket 6.1, appended after every earlier base) from 29 and only in the Ashfall Verge, and each beats the tier below at the same item level. Each new base has its own icon `item.<base id>` (A.4).
 
 ## Loot in settlement
 `settleFarming` rolls the area's loot table (`AreaDefinition.lootTableId`) instead of the global `standard` table. Tables may set an `itemLevel` range that clamps the rolled item level (a clamp, no extra RNG draw). The `standard` table is now explicitly the tier-1 bases, so `generateItem` without a table and every stored Phase 1 seed reproduce what they did before. The Abandoned Fields table has the same entries and drop chance, so Fields settlements are bit-identical to Phase 1 (pinned in `world.test.ts`; checked against `main` over 48 class/level/seed combinations).

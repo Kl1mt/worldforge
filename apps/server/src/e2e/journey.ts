@@ -1731,6 +1731,83 @@ export async function playAshenPassStep(
 }
 
 /**
+ * Phase 6 Cinderwastes step (ticket 6.1): a hero of level 28 or more at the open Ashen Pass finds
+ * the Ashfall Verge closed until the Ashen Warden falls (map and farming start agree), fights the
+ * Warden's Watch until it does (the boss is a gear check, so the run counts attempts, bounded),
+ * then farms the Verge: tier-4 regular drops at its item levels and only its materials, from the
+ * second visit (the first can finish the previous area's cycle). The boards then count the Verge
+ * under the PvE Progress version in force (13 milestones from version 2, 10 before), and every
+ * stored row matches its formula. Returns what a composing run (6.10's exit run) reports.
+ */
+export async function playCinderwastesStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  hero: Journey,
+  now: () => Date,
+) {
+  const { api, base, state } = hero;
+  const vergeView = async () => (await hero.world()).areas.find((a) => a.id === 'ashfallVerge')!;
+  expect(state.level).toBeGreaterThanOrEqual(getArea('ashfallVerge').unlock.level);
+  const before = await vergeView();
+  let watchRuns = 0;
+  if (!before.unlocked) {
+    expect(before.blockers).toEqual([{ kind: 'ashenWardenDefeated' }]);
+    const refused = await api('POST', `${base}/activity`, { areaId: 'ashfallVerge' });
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json<{ error: { code: string } }>().error.code).toBe('area_locked');
+    while (!state.watch.some((w) => w.bossDefeated)) {
+      expect(watchRuns, 'the Warden should fall within a few runs').toBeLessThan(8);
+      await hero.runDungeon('ashenWatch');
+      watchRuns++;
+    }
+  }
+  expect(await vergeView()).toEqual({ id: 'ashfallVerge', unlocked: true, blockers: [] });
+  const go = await api('POST', `${base}/activity`, { areaId: 'ashfallVerge' });
+  expect([200, 201]).toContain(go.statusCode);
+  const area = getArea('ashfallVerge');
+  const table = getLootTable(area.lootTableId);
+  let kills = 0;
+  let tier4 = 0;
+  for (let i = 0; i < 3; i++) {
+    const { summary, activity } = await hero.settle();
+    expect(activity!.areaId).toBe('ashfallVerge');
+    kills += summary.kills;
+    if (i > 0) {
+      for (const item of summary.items) {
+        expect(item.itemLevel).toBeGreaterThanOrEqual(table.itemLevel!.min);
+        expect(item.itemLevel).toBeLessThanOrEqual(table.itemLevel!.max);
+        const b = findItemBase(item.baseId)!;
+        if (!item.setId && !item.mythicId) {
+          expect(b.tier, item.baseId).toBe(4);
+          tier4++;
+        }
+      }
+      for (const id of Object.keys(summary.materials ?? {})) {
+        expect(area.materials as readonly string[]).toContain(id);
+      }
+    }
+    await hero.equipBetterDrops();
+    await hero.sellJunk(await hero.inventory());
+  }
+  expect(kills).toBeGreaterThan(0);
+  expect(state.areasFarmed.has('ashfallVerge')).toBe(true);
+
+  // The boards: PvE Progress counts the Verge under the version in force.
+  const versions = await app.formulaVersions.at(now());
+  const read = await api('GET', '/api/leaderboards/pveProgress');
+  expect(read.statusCode).toBe(200);
+  const board = read.json<{
+    board: { formulaVersion: number; yours: { value: number; hero: { level: number } }[] };
+  }>().board;
+  expect(board.formulaVersion).toBe(versions.pveProgress);
+  const mine = board.yours.find((e) => e.hero.level === state.level)!;
+  expect(mine.value).toBeGreaterThanOrEqual(versions.pveProgress >= 2 ? 11 : 10);
+  const report = await checkLeaderboards(cliDeps(database.db), 200, now());
+  expect(report.problems.filter((p) => p.kind === 'wrong')).toEqual([]);
+  return { watchRuns, kills, tier4, level: state.level, pveProgress: mine.value };
+}
+
+/**
  * Phase 4 warehouse step (ticket 4.7): before the town restores it, the hero's warehouse answers
  * `warehouse_closed`; the owner CLI then completes "Restore the Graumark Warehouse" (4.11 does it
  * with several players' contributions). The hero farms until it has gold and loot, stores a locked
