@@ -62,9 +62,10 @@ import { heldValueOf } from '../shelf/held.js';
 import { recordTelemetry } from '../telemetry/record.js';
 import type { TelemetryCount } from '../telemetry/record.js';
 import { hiddenTargetKeys } from '../social/sanctions.js';
+import { lockSocialAccounts } from '../social/relations.js';
 import { profileFieldKey } from '../social/targets.js';
 import { commitTradeCounters, readTradeCounters, tradeCapError } from './counters.js';
-import { loadTradeRelation, loadTradeStanding } from './standing.js';
+import { hiddenCounterpart, loadTradeRelation, loadTradeStanding } from './standing.js';
 
 /**
  * Trade offers (ticket T.5, docs/TRADING.md "T.5 as built"): the transactions behind send,
@@ -163,9 +164,24 @@ export class TradeRefusedError extends ApiError {
     readonly flagged: string[],
   ) {
     super(409, 'trade_refused', 'This offer isn’t possible right now.', {
-      reasons: refusals.map(reasonView),
+      reasons: reasonsView(refusals),
     });
   }
+}
+
+/**
+ * Every refusal as the actor may see it, with the other account's collapsed to one line (T.7 F1:
+ * several "they can't" lines would count the rules they miss).
+ */
+export function reasonsView(refusals: readonly TradeRefusal[]) {
+  let them = false;
+  return refusals.flatMap((r) => {
+    if (r.party === 'them') {
+      if (them) return [];
+      them = true;
+    }
+    return [reasonView(r)];
+  });
 }
 
 /** A refusal as the actor may see it (T.4: the other account's reasons collapse to one line). */
@@ -375,6 +391,33 @@ export async function sendOffer(
   }
   await shareLockAccounts(tx, [receiver.id]);
   await lockTradeOfferCounters(tx, [me.id, receiver.id]);
+  // T.7 (exploit review F5): both accounts' social locks, the ones a block, an unfriend and the
+  // guild actions take, so the relation read below can't go stale before this offer commits (a
+  // block landing in between would miss the offer and leave it open). Holders of these locks
+  // take account rows only `for share`, before them, so no cycle.
+  await lockSocialAccounts(tx, [me.id, receiver.id]);
+  // T.7 (F1, F2): the pair first. Without a qualifying relation nothing about the receiver (their
+  // standing, heroes or items) is read, so a refusal can't describe them.
+  const relation = await loadTradeRelation(tx, me.id, receiver.id);
+  const theirs = await hiddenCounterpart(tx, {
+    actor: input.standing,
+    relation,
+    settings,
+    now,
+    otherAccountId: receiver.id,
+  });
+  if (theirs === null) {
+    refuseUnless(
+      tradeDecision({
+        action: 'send',
+        settings,
+        now,
+        actor: input.standing,
+        counterpart: null,
+        relation,
+      }),
+    );
+  }
   const hero = await lockOwnedCharacter(tx, me.id, input.characterId, activity);
 
   // The sender's items: every item of the hero, locked (the inventory order).
@@ -429,8 +472,6 @@ export async function sendOffer(
     give: { items: giveRows.map(itemFacts), gold: give.gold, materials: give.materials },
     ask: { items: askRows.map(itemFacts), gold: ask.gold, materials: ask.materials },
   };
-  const relation = await loadTradeRelation(tx, me.id, receiver.id);
-  const theirs = await loadTradeStanding(tx, receiver.id, now);
   const decision = tradeDecision({
     action: 'send',
     settings,
@@ -486,10 +527,9 @@ export async function sendOffer(
   }
   // Caps: checked now (refused up front), counted only at accept (T.4).
   const capRefusals = [];
-  for (const [party, accountId, role] of [
-    ['you', me.id, 'sender'],
-    ['them', receiver.id, 'receiver'],
-  ] as const) {
+  // T.7 (F3): only the sender's own. Checking the receiver's here let a sender binary-search
+  // what a friend received this week; their caps are checked at accept, where they see their own.
+  for (const [party, accountId, role] of [['you', me.id, 'sender']] as const) {
     const used = await readTradeCounters(tx, accountId, now);
     for (const r of checkTradeCaps({
       used,
@@ -791,18 +831,25 @@ export async function voidOffers(
     tx,
     locked.map((o) => o.id),
   );
-  let n = 0;
-  for (const offer of locked) {
-    if (offer.status !== 'open') continue;
+  const ending = locked.flatMap((offer) => {
+    if (offer.status !== 'open') return [];
     const d = detail(
       offer,
       lines.filter((l) => l.offerId === offer.id),
     );
-    if (!d) continue;
-    await endOffer(tx, offer, 'void', d, now, activity);
-    n++;
+    return d ? [{ offer, d }] : [];
+  });
+  // T.7 (exploit review F4): every sender hero, in hero-id order, before any escrow goes back.
+  // `endOffer` locks one offer's hero at a time in offer order, which against an accept or a
+  // reversal (offer → heroes in id order) could close a cycle; re-locking a held row is free.
+  const heroes = [
+    ...new Map(ending.map(({ offer }) => [offer.senderCharacterId, offer.senderAccountId])),
+  ].sort((a, b) => (a[0] < b[0] ? -1 : 1));
+  for (const [heroId, accountId] of heroes) {
+    await lockOwnedCharacter(tx, accountId, heroId, activity);
   }
-  return n;
+  for (const { offer, d } of ending) await endOffer(tx, offer, 'void', d, now, activity);
+  return ending.length;
 }
 
 async function openOfferIdsOf(tx: Executor, accountIds: string[]): Promise<TradeOffer[]> {
@@ -1049,7 +1096,13 @@ export async function acceptOffer(
     ask: { items: askRows.map(itemFacts), gold: sides.ask.gold, materials: sides.ask.materials },
   };
   const relation = await loadTradeRelation(tx, me.id, offer.senderAccountId);
-  const theirs = await loadTradeStanding(tx, offer.senderAccountId, now);
+  const theirs = await hiddenCounterpart(tx, {
+    actor: input.standing,
+    relation,
+    settings,
+    now,
+    otherAccountId: offer.senderAccountId,
+  });
   refuseUnless(
     tradeDecision({
       action: 'accept',

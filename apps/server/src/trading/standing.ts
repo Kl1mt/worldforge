@@ -1,5 +1,11 @@
 import { and, eq, max, or } from 'drizzle-orm';
-import type { TradeRelationFacts, TradeStanding } from '@worldforge/game-core';
+import {
+  standingRefusals,
+  tradeDecision,
+  type TradeRelationFacts,
+  type TradeStanding,
+  type TradingSettings,
+} from '@worldforge/game-core';
 import { accounts, characters, friendships, guildMembers } from '../db/schema.js';
 import type { Executor } from '../db/types.js';
 import { isEmailVerified } from '../auth/tokens.js';
@@ -73,4 +79,36 @@ export async function loadTradeRelation(
       ? new Date(Math.max(members[0]!.joinedAt.getTime(), members[1]!.joinedAt.getTime()))
       : null;
   return { self: false, blocked, friendSince, guildmatesSince: shared };
+}
+
+/**
+ * Ticket T.7 (exploit review F1): the other account's standing as a trade decision may see it.
+ * Read only once the pair qualifies (no block, a friend or guildmate of 7 days or more, judged by
+ * game-core with no standing at all), and then handed on as one bit, so no refusal can name, or
+ * count, the rules the other account misses. Every decision about another account (send, accept,
+ * the receiver's preview, the eligibility endpoint) goes through this.
+ */
+export async function hiddenCounterpart(
+  executor: Executor,
+  input: {
+    actor: TradeStanding;
+    relation: TradeRelationFacts;
+    settings: TradingSettings;
+    now: Date;
+    otherAccountId: string;
+  },
+): Promise<'hidden-eligible' | 'hidden-ineligible' | null> {
+  const probe = tradeDecision({
+    action: 'send',
+    settings: input.settings,
+    now: input.now,
+    actor: input.actor,
+    counterpart: null,
+    relation: input.relation,
+  });
+  if (probe.refusals.some((r) => r.party === 'pair')) return null;
+  const theirs = await loadTradeStanding(executor, input.otherAccountId, input.now);
+  return theirs && standingRefusals(theirs, input.now).length === 0
+    ? 'hidden-eligible'
+    : 'hidden-ineligible';
 }
