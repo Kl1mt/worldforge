@@ -12,6 +12,11 @@ export interface SpriteAsset {
   facing?: 'front' | 'left' | 'right';
   /** Ticket 6.1: drawn tinted (a stand-in for art still to be made, `ART_STAND_INS`). */
   tint?: 'cinder';
+  /**
+   * Ticket A.14: a frame sheet. The file is one row of `frames` frames, each `width` × `height`
+   * (so the PNG is `frames × width` wide); `PixelSprite` shows one frame at a time.
+   */
+  frames?: number;
 }
 
 const item = (name: string): SpriteAsset => ({
@@ -76,6 +81,15 @@ const character = (name: string): SpriteAsset => ({
   facing: 'front',
 });
 
+/** A.14: a class's attack frames; frame 0 is the portrait itself (the rest pose). */
+const attackSheet = (name: string): SpriteAsset => ({
+  path: `/assets/characters/${name}-attack.png`,
+  width: 128,
+  height: 128,
+  facing: 'front',
+  frames: 8,
+});
+
 export const ASSETS = {
   'item.longsword': item('longsword'),
   'item.longsword-notched': item('longsword-notched'),
@@ -122,6 +136,10 @@ export const ASSETS = {
   'character.mage': character('mage'),
   'character.hunter': character('hunter'),
   'character.warlock': character('warlock'),
+  'character.warrior-attack': attackSheet('warrior'),
+  'character.mage-attack': attackSheet('mage'),
+  'character.hunter-attack': attackSheet('hunter'),
+  'character.warlock-attack': attackSheet('warlock'),
   'area.abandoned-fields': { path: '/assets/areas/abandoned-fields.png', width: 384, height: 216 },
   'hub.graumark': { path: '/assets/hub/graumark.png', width: 384, height: 216 },
   'map.graumark': { path: '/assets/map/graumark.png', width: 384, height: 216 },
@@ -239,6 +257,15 @@ export const ASSETS = {
   'badge.title-badge-power': badge('title-badge-power'),
   'badge.title-badge-pve-progress': badge('title-badge-pve-progress'),
   'area.arena': { path: '/assets/areas/arena.png', width: 384, height: 216 },
+  // The Cinderwastes (A.11): art only. Ticket 6.1 adds the first area and its enemies to
+  // game-core with these asset ids, 6.2 the deeper area and the region boss (128×128).
+  'area.cinderwastes': { path: '/assets/areas/cinderwastes.png', width: 384, height: 216 },
+  'area.cinder-depths': { path: '/assets/areas/cinder-depths.png', width: 384, height: 216 },
+  'enemy.cinder-revenant': enemy('cinder-revenant', 'front'),
+  'enemy.ash-colossus': enemy('ash-colossus', 'front'),
+  'enemy.ember-wisp': enemy('ember-wisp', 'left'),
+  'enemy.slag-hound': enemy('slag-hound', 'left'),
+  'enemy.forge-tyrant': enemy('forge-tyrant', 'front', 128),
 } as const satisfies Record<string, SpriteAsset>;
 
 export type AssetId = keyof typeof ASSETS;
@@ -251,17 +278,11 @@ export function asset(id: AssetId): SpriteAsset {
 }
 
 /**
- * Ticket 6.1: the Cinderwastes' fixed asset names (A.11 draws the backdrop and the four foes; the
- * tier-4 item icons are an art follow-up). Until a name is registered in `ASSETS`, the UI shows the
- * closest existing sprite with an ember tint. Registered art always wins, so A.11 needs no change
- * here; remove an entry once its art lands.
+ * Ticket 6.1: content art still to be drawn, shown as the closest existing sprite with an ember
+ * tint: the ten tier-4 item icons (an art follow-up; A.11 drew the Cinderwastes' backdrop and
+ * foes). Registered art always wins; remove an entry once its art lands.
  */
 export const ART_STAND_INS: Readonly<Record<string, AssetId>> = {
-  'area.cinderwastes': 'area.ashen-pass',
-  'enemy.cinder-revenant': 'enemy.fallen-knight',
-  'enemy.slag-hound': 'enemy.cinder-hound',
-  'enemy.ember-wisp': 'enemy.ash-wraith',
-  'enemy.ash-colossus': 'enemy.ember-golem',
   'item.cinderforged-blade': 'item.knights-greatsword',
   'item.emberheart-scepter': 'item.drowned-crozier',
   'item.slagbone-bow': 'item.horn-recurve',
@@ -299,6 +320,14 @@ export function prestigeSprite(name: string): SpriteAsset | null {
 /** The full-body portrait for a class (`character.<classId>`), used wherever a hero is drawn. */
 export function classPortrait(classId: ClassId): SpriteAsset {
   return ASSETS[`character.${classId}`];
+}
+
+/**
+ * Ticket A.14: a class's attack frame sheet (8 frames, frame 0 = the portrait), or `null` when the
+ * class has none; the scene then animates the plain portrait in code.
+ */
+export function classAttackSheet(classId: ClassId): SpriteAsset | null {
+  return findSprite(`character.${classId}-attack`);
 }
 
 /** Season frame tiers, best to least (A.10). Ticket 5.3 maps its prestige ranks onto these. */

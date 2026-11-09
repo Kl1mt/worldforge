@@ -1,0 +1,14 @@
+{
+  "endpoint": "animate-with-text-v3",
+  "action": "side-on sword attack: the knight steps forward toward the right side of the image, raises the longsword overhead with both hands and swings it down in a big diagonal slash to the right, then steps back into the starting stance. Clear, exaggerated motion of the sword arm.",
+  "first_frame": "apps/web/public/assets/characters/warrior.png",
+  "frame_count": 9,
+  "job_id": "cea291ad-d555-48dd-911d-66de0730f761",
+  "created_at": "2026-11-09T22:20:02.922364+00:00",
+  "seed": 0,
+  "loop": true,
+  "usage": {
+    "type": "generations",
+    "generations": 2.0
+  }
+}

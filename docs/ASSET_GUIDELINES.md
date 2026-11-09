@@ -19,7 +19,10 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | `art/preview-project-achievements.png` | The two community-project achievement icons (A.9) below A.8's achievement set, at ×4. |
 | `art/preview-ashen-pass.png` | The Ashen Pass backdrop next to the Sunken Abbey, its four enemies below the existing ones, and the Ashen Warden next to the Gravewarden. |
 | `art/preview-prestige.png` | The season frames around a sample crest (×1, ×2) and the warrior portrait (×4), the title badges (×2, ×1, 24 and 16 px), and the arena backdrop next to the Ashen Pass and the Sunken Abbey (A.10). Same image as `docs/screenshots/phase-5/a10-contact-sheet.png`; rebuild with `python3 tools/art/preview_prestige.py`. |
+| `art/preview-hero-frames.png` | The four hero attack loops (A.14): raw PixelLab frames above the cleaned sheet, per class, at ×2. Rebuild with `python3 tools/art/hero_frames.py`. |
+| `art/preview-cinderwastes.png` | The Cinderwastes enemies at ×1 and ×2 next to the cinder hound and ember golem, the Forge Tyrant next to the Ashen Warden, both backdrops next to the Ashen Pass, and the enemies over the Cinderwastes (A.11). Rebuild with `python3 tools/art/preview_cinderwastes.py`. |
 | `tools/art/pixellab_gen.py` | Generate/collect/contact-sheet helper. |
+| `tools/art/pixellab_animate.py` | Frame-animation helper (`animate-with-text-v3`, async). |
 
 Curated files are byte-for-byte copies of a raw variant. Do not hand-edit them in place. If an asset needs fixing, save the edit as a new file and record it in the manifest `source`.
 
@@ -33,6 +36,7 @@ Curated files are byte-for-byte copies of a raw variant. Do not hand-edit them i
 | Title badge | 32×32 | Same pixel scale as item icons: a brass-rimmed dark disc with one emblem. |
 | Enemy | 64×64 | Transparent background, full body, feet on the bottom rows. |
 | Character | 128×128 | Transparent background, full body. |
+| Frame sheet | N × (frame size) in one row | Same frame size and treatment as the still; frame 0 is the still itself (A.14). |
 | Area backdrop, arena | 384×216 | Opaque, 16:9. It fills the scene. |
 | Hub, world map | 384×216 | Opaque, 16:9, same pixel scale as the backdrops. |
 
@@ -129,6 +133,7 @@ It uses only the async flow: it POSTs, then polls `GET /background-jobs/{id}` ev
 
 - `id` is `<kind>.<kebab-name>` and stays stable once referenced by content data.
 - `kind` is one of `item | material | enemy | character | area | hub | map | achievement | guild-emblem | frame | badge`.
+- `frames` (frame sheets only): the number of frames in the row; `size` is one frame's size, so the PNG is `frames × width` wide.
 - The optional fields are `slot` (items, using the GDD §7.1 slot family: `weapon`, `offhand`, `head`, `chest`, `hands`, `feet`, `neck`, `ring`) and `facing` (sprites).
 - `hotspots` (`hub` only): clickable buildings as `{ id, label, x, y, width, height }` rectangles in native image pixels (origin top-left). Building ids: `forge`, `merchant`, `tavern`, `guildHall`, `warehouse`, `summoningShrine`, `worldMap` (the signpost and map table). Rectangles do not overlap. Whether a building is locked is game state, not art data.
 - `window` (`frame` only): `{ x, y, width, height }`, the content box in native frame pixels (see the A.10 section).
@@ -180,6 +185,17 @@ The world map came out with opaque white pixels along its burnt edge (about 1,15
 - The art is registered in the manifest and `assets.ts`. Ticket 4.8 wired it: each enemy and the area carry these `assetId`s in game-core, and the Warden's Watch (the boss-only run) reuses `area.ashen-pass` as its backdrop. The map art has no painted spot for the pass, so `MAP_MARKERS` (and the manifest's `map.graumark` markers) place `ashenPass` (52, 40) and `ashenWatch` (104, 26) in the north-west mountains.
 - Preview: `art/preview-ashen-pass.png`.
 
+## The Cinderwastes (ticket A.11)
+
+- Art for the Phase 6 region (tickets 6.1 and 6.2). It is registered but not drawn anywhere yet; the names are fixed because 6.1 and 6.2 build on them:
+  - **Backdrops** (384×216): `area.cinderwastes` (ash dunes, a cooled lava river with ember cracks, a ruined forge with an anvil, obsidian spires; 6.1) and `area.cinder-depths` (a forge-caldera: ruined furnaces and giant anvils on the rim, chain bridges, a cracked lava lake below; 6.2).
+  - **Enemies** (64×64): `enemy.cinder-revenant` (slag-crusted undead knight, sword planted; `front`), `enemy.ash-colossus` (hulking pale ash-and-stone elemental, the large type; `front`), `enemy.ember-wisp` (a small floating flame around a charred skull core, trailing smoke; `left`), `enemy.slag-hound` (stocky, plated in lumpy slag with molten drips; `left`). The slag hound is bulky and plated where the cinder hound is gaunt and cracked, and the colossus is pale ash where the ember golem is black slag.
+  - **Region boss** (128×128, the Ashen Warden's size): `enemy.forge-tyrant`, a crowned undead smith-king in a forge apron over scorched plate, a great hammer held low. No greatsword on the shoulder, so its silhouette differs from the Warden's.
+- Same look as the Ashen Pass: ash grey and charcoal, orange only as a small accent. Every pose is neutral and none faces right (no mirroring), so a later animation pass can reuse the sprites.
+- Seven jobs (85 generations: two backdrops, three enemy jobs, one boss, one regeneration): `area-cinderwastes-01` (style image `areas/ashen-pass.png`) came out as a near copy of the Pass, so `area-cinderwastes-02` regenerated it with the new `area-cinder-depths-01` as style image. `enemies-cinderwastes-01` (style `fallen-knight.png`) returned only revenants, so the wisp got its own job, `enemies-cinderwastes-03` (style `ash-wraith.png`). `enemies-cinderwastes-02` (colossus and hound, style `ember-golem.png`); `boss-forge-tyrant-01` (style `ashen-warden.png`). Picks: backdrops `area-cinderwastes-02/00`, `area-cinder-depths-01/00`; revenant `01/09`, colossus `02/04`, hound `02/12`, wisp `03/10`, boss `02`. All are alpha-keyed with no partial alpha.
+- One edit, saved next to the raw file: `enemies-cinderwastes-03/edits/10-dimmed.png` dims the wisp's flame (warm pixels ×0.85 saturation, ×0.78 value) so it sits with the Ashen Pass embers instead of outshining them. Alpha and the grey smoke are untouched.
+- Preview: `art/preview-cinderwastes.png`. A web test checks that every name resolves to a manifest entry and a file of its Ashen Pass peer's size, and that no enemy needs mirroring.
+
 ## Achievement & guild heraldry icons (ticket A.8)
 
 - Each achievement (`ACHIEVEMENTS`, ticket 4.2) has a 32×32 icon at `/assets/achievements/<kebab-id>.png` (manifest id = the definition's `assetId`, e.g. `achievement.gravewarden-slain`). Each is an emblematic object for the deed (a violet-gem medallion, an ember-wreathed blade, a blood chalice, a helm on its breastplate, hammer, anvil, iron and brass laurels, a snapped crypt key, the crypt stair, a candle-skull, a sealed scroll, a coin purse, a contract pinned by a dagger). They are slightly more medallion-like than items, but they use the same palette and pixel scale.
@@ -206,3 +222,13 @@ The world map came out with opaque white pixels along its burnt edge (about 1,15
 - Three jobs, no regeneration (35 generations): `frames-season-01` (64×64, style image `achievements/level-10.png`; one row of four variants per tier), `badges-titles-01` (32×32, style image `achievements/level-20.png`) and `area-arena-01` (style image `areas/sunken-abbey.png`). Picks: frames `00` (veteran), `04` (renowned), `08` (exalted), `12` (champion); badges `00`, `01`, `02`, `19`; arena `00`. All are alpha-keyed with no partial alpha, like the rest of the art.
 - Two edits, saved next to the raw files (which stay unchanged). `frames-season-01/edits/12-trim.png` drops one duplicated row of the champion's side posts (row 50), so its opening ends at row 49 like the others and the shared window is centred. `badges-titles-01/edits/02-lifted.png` lifts the gauntlet (×1.6 brightness with a warm bias, then snapped to the batch's own palette) so it reads on the dark disc like the other emblems. The outline and the ring are untouched.
 - Preview: `art/preview-prestige.png`. A web test checks that every tier, metric and the arena resolves to a manifest entry and a file of the right size, and that the frames carry the shared window.
+
+## Hero attack frames (ticket A.14)
+
+- Each class has an attack loop next to its portrait: `/assets/characters/<classId>-attack.png`, manifest id `character.<classId>-attack`, helper `classAttackSheet(classId)`. One row of **8 frames of 128×128** (1024×128 PNG, `"frames": 8`). Frame 0 is the portrait itself (pasted, unchanged), so the sheet rests on the familiar pose; frames 1–7 are the swing and the return.
+- **Frame sheets in general:** one row, every frame the still's size, anchored the same way (feet on the same rows), alpha 0 or 255 only, the still's own palette. The UI plays a sheet with a CSS `steps(frames)` slide of the strip inside a one-frame window (`PixelSprite`), at an integer scale; nothing is resampled.
+- Made with `animate-with-text-v3` (async; `tools/art/pixellab_animate.py --loop`): the portrait as `first_frame` and as `last_frame`, 8 frames, an action that names the motion toward the right of the image. The job's last frame (a near-copy of the portrait) is dropped.
+- **Clean-up** (`tools/art/hero_frames.py`): every frame is snapped to the colours of its own portrait (nearest colour, weighted RGB) and alpha is forced to 0/255. That pulls the mage's cyan flare onto the crystal's pale blue and the warrior's slash onto his blade greys; outline and shading stay the portrait's.
+- **Budget:** 5 jobs (4 + the one regeneration). `anim-warrior-01` asked for an idle and an attack in one 12-frame loop: the first frames were usable but every frame redraws 3,000–6,000 pixels of the portrait, so an idle made from them shimmers instead of breathing, and the "attack" only turned the knight to face front. Rejected; **no generated idle ships**, the idle breath is code (DESIGN_SYSTEM "Motion"). `anim-warrior-02`, `anim-mage-01`, `anim-hunter-01`, `anim-warlock-01` (attack only, looped on the portrait) are the picks. The jobs report 11 generations in their `_job.json`.
+- Enemies have no frames yet; they use the code animation only.
+- Preview: `art/preview-hero-frames.png`. A web test checks that every class has an 8-frame 128 px sheet of the right PNG size.

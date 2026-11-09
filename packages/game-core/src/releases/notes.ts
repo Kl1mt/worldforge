@@ -23,11 +23,11 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.6.0';
+export const GAME_VERSION = '0.6.1';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
   {
-    version: '0.6.0',
+    version: '0.6.1',
     date: '2026-11-09',
     title: 'Beyond the Warden’s tower',
     new: [
@@ -42,6 +42,17 @@ export const PATCH_NOTES: readonly PatchNote[] = [
       'Duels in the 30+ bracket are measured against the new gear, and the classes there are rebalanced against each other.',
     ],
     tickets: ['6.1'],
+  },
+  {
+    version: '0.6.0',
+    date: '2026-11-09',
+    title: 'Steel in motion',
+    new: [
+      'Heroes and foes now move in battle: they breathe while they wait, your hero strikes, foes flinch, answer back and fall, and fresh ones come out of the fog.',
+      'Each class has its own attack: the warrior’s sword cut, the mage’s staff, the hunter’s bow and the warlock’s curse.',
+      'If your device asks for reduced motion, the battle scene stays still.',
+    ],
+    tickets: ['A.14'],
   },
   {
     version: '0.5.16',

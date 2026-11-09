@@ -1,0 +1,13 @@
+{
+  "endpoint": "animate-with-text-v3",
+  "action": "armored knight holds his sword in a calm ready stance, breathing slowly for a few frames, then lifts the sword and slashes forward to his left in one quick strike, then returns to the same ready stance; body stays in place, same proportions",
+  "first_frame": "apps/web/public/assets/characters/warrior.png",
+  "frame_count": 13,
+  "job_id": "6be1ca9a-b654-406e-914b-bd39c25e0fe7",
+  "created_at": "2026-11-09T22:16:53.118359+00:00",
+  "seed": 0,
+  "usage": {
+    "type": "generations",
+    "generations": 3.0
+  }
+}

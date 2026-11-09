@@ -93,6 +93,13 @@ a {
   filter: sepia(0.55) saturate(1.8) hue-rotate(-18deg) brightness(0.88) contrast(1.08);
 }
 
+/* A frame sheet (ticket A.14): a one-frame window; the strip inside slides by whole frames. */
+.pixel-sheet {
+  display: block;
+  flex: none;
+  overflow: hidden;
+}
+
 .pixel-missing {
   display: grid;
   place-items: center;

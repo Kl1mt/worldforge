@@ -97,7 +97,7 @@ Grain (`--texture-grain`, an inline SVG noise tile) is the only texture. Keep it
 
 ## Components
 
-- **PixelSprite**: renders a manifest asset at an integer scale with `image-rendering: pixelated`. It floors fractional scales. If the image fails to load, it shows a dashed "art missing" box (the error state).
+- **PixelSprite**: renders a manifest asset at an integer scale with `image-rendering: pixelated`. It floors fractional scales. If the image fails to load, it draws its `fallback` sprite when given one, else a dashed "art missing" box (the error state). A frame sheet (`frames` in the manifest, A.14) is drawn as a one-frame window (`.pixel-sheet`) showing frame 0; an ancestor's CSS plays it with a `steps()` slide of the strip.
 - **ItemFrame**: a 32 px icon socket (×1, ×2 or ×3). Its outer size is `socketSize(scale)` = 32 × scale + 8 px (`lib/pixel.ts`). It handles rarity frame, empty state (slot name), selected state, and keyboard/button semantics.
 - **ItemTooltip**: name (the base name from game-core), rarity and slot, item level, an optional crimson note ("Warrior only"), implicit stats, affixes (blue), an optional comparison block with ▲/▼ deltas, and an optional action row on a rule at the foot (Equip / Discard / Unequip). Item display data and comparison math are in `apps/web/src/game/items.ts`: server items (base id, rarity, item level, rolled affixes) are joined with game-core content for names, icons and implicit stats. Unique effects and flavour text have no data yet and are not shown.
 - **Meter**: health / rage / xp bars with `role="meter"`.
@@ -122,6 +122,26 @@ Ticket 0.4 raised every sprite on desktop by one integer step. Phone sizes (≤ 
 | Tooltips | ×2 | ×2 | Unchanged. |
 
 The large character and inventory variants are chosen from the measured width of the doll and the pack body, not from the viewport, so they only switch on when the bigger art actually fits. At 1440 px both are on. At 1280 px the approved ×3 / ×2 layout is used.
+
+## Motion (ticket A.14)
+
+Combat is settled on the server; the fight scene is a **cosmetic loop** that suggests the fight. It never affects gameplay and sends nothing (`apps/web/src/scene/`).
+
+| What | Where | Timing | Look |
+|---|---|---|---|
+| Idle breath | Hero and every foe (areas, crypt), the guild boss in its niche | 2.4 s (hero); foes 2.3–2.9 s, each offset so the line never moves in lockstep | One sprite pixel up and back, two states (`steps`), always on while motion is on, resting included. |
+| Hero swing | While farming / while a crypt fight runs | One swing every `1.6 / attackSpeed` s (the hero's own stat), clamped to 1.2–2.6 s, ±10 % | With a frame sheet: the class's 8 attack frames at 80 ms and a 2-pixel lean. Without: a 6-pixel lunge in 2-pixel steps (450 ms). |
+| Foe hit | The swing's target | At the blow (180 ms after a lunge starts, 420 ms into the frames), 300 ms | A white silhouette flash (90 ms) and a 2-pixel knock-back (4 on a heavy blow). |
+| Foe answers | Now and then (about every third swing) | Halfway between swings, 420 ms | The foe lunges 5 pixels toward the hero; the hero flashes crimson and flinches 2 pixels. |
+| Defeat and respawn | After 2–4 blows (or the next swing after the chronicle reports a kill) | Crumbles over 0.7 s (4 steps, sinking 2 pixels), down ≥ 1.6 s, fades back in over 0.7 s | Only the sprite; the name plate stays. |
+| Level-up | When the chronicle reports one | 0.9 s | The hero is lit in brass once. |
+
+Rules:
+- **Transforms and opacity only**, plus the short `filter` flashes. Every move is in whole sprite pixels (`--px`, the sprite scale) and stepped, so the art never blurs between pixels.
+- **One timer** (`sceneDriver.ts`) toggles classes on two wrappers per sprite (`.scene-anim__bob` for the breath, `.scene-anim__actor` for beats); React never re-renders per beat. The timer stops while the tab is hidden; foes due to rise meanwhile come back on return.
+- The chronicle flavours the loop (a kill fells the current target soon, a level-up glows, a death makes the hero flinch); it does not claim to replay the server's fight. No damage numbers: they would look like real ones.
+- **Reduced motion:** with `prefers-reduced-motion: reduce` the scene is static, exactly as before A.14. **Automation** (Playwright sets `navigator.webdriver`) also keeps it static, so e2e and screenshot runs never catch a sprite mid-swing; `localStorage['worldforge.sceneMotion'] = 'on'` turns it on for filming (`tools/screenshots/scene-motion.mjs`), `'off'` turns it off anywhere.
+- All classes are scoped under `.scene-anim` (`scene/scene-anim.css`), set on the scene's ground only when motion is on.
 
 ## Layout and responsiveness
 
@@ -148,7 +168,7 @@ The large character and inventory variants are chosen from the measured width of
 - A visible focus ring everywhere: 2 px `--focus-ring` (brass-300), offset 2 px.
 - A skip link. Focus moves to `<main>` after navigation.
 - Interactive sockets are `<button>`s with `aria-pressed` and full labels (slot, item, rarity). Rarity filters are a labelled button group.
-- `prefers-reduced-motion` disables transitions.
+- `prefers-reduced-motion` disables transitions and keeps the fight scene still (see Motion).
 
 ## Open points
 

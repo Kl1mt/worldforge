@@ -1,0 +1,211 @@
+/* ── Fight scene motion (ticket A.14) ─────────────────────────────────────
+   Only under `.scene-anim` (motion `full`; never with prefers-reduced-motion or under automation).
+   Transforms and opacity only, plus a brief filter flash on a hit. Every move is in whole sprite
+   pixels (`--px` = the sprite scale) and stepped, so the art never blurs between pixels.
+   Structure per actor: .scene-anim__bob (idle breathing, CSS only) > .scene-anim__actor (beats,
+   classes toggled by sceneDriver.ts) > the sprite. */
+
+.scene-anim__bob,
+.scene-anim__actor {
+  display: block;
+  flex: none;
+}
+
+/* Idle: a two-state breath, one sprite pixel up and back. Foes get their own length and delay. */
+.scene-anim .scene-anim__bob {
+  animation: scene-anim-bob var(--bob-ms, 2400ms) infinite;
+  animation-delay: var(--bob-delay, 0ms);
+}
+
+@keyframes scene-anim-bob {
+  0% {
+    transform: translateY(0);
+    animation-timing-function: steps(1, end);
+  }
+  50% {
+    transform: translateY(calc(var(--px, 1px) * -1));
+    animation-timing-function: steps(1, end);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+/* Hero swing without frames: a lunge of 6 sprite pixels toward the foes, in 2-pixel steps. */
+.scene-anim .scene-anim__actor--hero.scene-anim--strike {
+  animation: scene-anim-lunge-right 450ms;
+}
+
+@keyframes scene-anim-lunge-right {
+  0% {
+    transform: translateX(0);
+    animation-timing-function: steps(3, end);
+  }
+  40% {
+    transform: translateX(calc(var(--px, 1px) * 6));
+    animation-timing-function: steps(3, end);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* Hero swing with a frame sheet: the frames carry the motion, the hero leans in one pixel pair. */
+.scene-anim .scene-anim__actor--framed.scene-anim--strike {
+  animation: scene-anim-lean 640ms;
+}
+
+.scene-anim .scene-anim__actor--framed.scene-anim--strike .pixel-sheet__strip {
+  animation: scene-anim-sheet calc(var(--frames, 8) * 80ms) steps(var(--frames, 8), end);
+}
+
+@keyframes scene-anim-sheet {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+@keyframes scene-anim-lean {
+  0%,
+  100% {
+    transform: translateX(0);
+    animation-timing-function: steps(1, end);
+  }
+  30% {
+    transform: translateX(calc(var(--px, 1px) * 2));
+    animation-timing-function: steps(1, end);
+  }
+  80% {
+    transform: translateX(0);
+  }
+}
+
+/* A foe takes a blow: a white flash and a knock-back of 2 sprite pixels (4 on a heavy blow). */
+.scene-anim .scene-anim__actor--foe.scene-anim--hit {
+  animation: scene-anim-hit 300ms;
+}
+
+.scene-anim .scene-anim__actor--foe.scene-anim--hit.scene-anim--heavy {
+  --knock: 4;
+}
+
+@keyframes scene-anim-hit {
+  0% {
+    transform: translateX(calc(var(--px, 1px) * var(--knock, 2)));
+    filter: brightness(0) invert(0.92);
+    animation-timing-function: steps(1, end);
+  }
+  30% {
+    transform: translateX(calc(var(--px, 1px) * var(--knock, 2)));
+    filter: none;
+    animation-timing-function: steps(2, end);
+  }
+  100% {
+    transform: translateX(0);
+    filter: none;
+  }
+}
+
+/* A foe answers: a lunge of 5 sprite pixels toward the hero. */
+.scene-anim .scene-anim__actor--foe.scene-anim--lunge {
+  animation: scene-anim-lunge-left 420ms;
+}
+
+@keyframes scene-anim-lunge-left {
+  0% {
+    transform: translateX(0);
+    animation-timing-function: steps(2, end);
+  }
+  40% {
+    transform: translateX(calc(var(--px, 1px) * -5));
+    animation-timing-function: steps(3, end);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+/* The hero is struck: a short crimson flash and a 2-pixel flinch. */
+.scene-anim .scene-anim__actor--hero.scene-anim--hurt {
+  animation: scene-anim-hurt 300ms;
+}
+
+@keyframes scene-anim-hurt {
+  0% {
+    transform: translateX(calc(var(--px, 1px) * -2));
+    filter: brightness(0.8) sepia(1) saturate(5) hue-rotate(-40deg);
+    animation-timing-function: steps(1, end);
+  }
+  35% {
+    transform: translateX(calc(var(--px, 1px) * -2));
+    filter: none;
+    animation-timing-function: steps(1, end);
+  }
+  100% {
+    transform: translateX(0);
+    filter: none;
+  }
+}
+
+/* A level-up in the chronicle: the hero is lit in brass for a moment. */
+.scene-anim .scene-anim__actor--hero.scene-anim--glow {
+  animation: scene-anim-glow 900ms;
+}
+
+@keyframes scene-anim-glow {
+  0%,
+  100% {
+    filter: none;
+    animation-timing-function: steps(1, end);
+  }
+  10% {
+    filter: brightness(1.45) sepia(0.5);
+    animation-timing-function: steps(1, end);
+  }
+  60% {
+    filter: none;
+  }
+}
+
+/* Defeat and respawn: the foe crumbles out (sinking one pixel pair) and a new one fades in, each
+   in four steps over 0.7 s. */
+.scene-anim .scene-anim__actor--foe.scene-anim--down {
+  animation: scene-anim-fall 700ms steps(4, end) forwards;
+}
+
+.scene-anim .scene-anim__actor--foe.scene-anim--rise {
+  animation: scene-anim-rise 700ms steps(4, end);
+}
+
+@keyframes scene-anim-fall {
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(calc(var(--px, 1px) * 2));
+  }
+}
+
+@keyframes scene-anim-rise {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+/* Belt and braces: base.css already stops all animation for reduced motion, and the scene never
+   gets `.scene-anim` then. */
+@media (prefers-reduced-motion: reduce) {
+  .scene-anim .scene-anim__bob,
+  .scene-anim .scene-anim__actor,
+  .scene-anim .pixel-sheet__strip {
+    animation: none !important;
+  }
+}

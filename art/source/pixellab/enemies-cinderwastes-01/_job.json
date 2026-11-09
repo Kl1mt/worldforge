@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, full body, side view facing left, neutral standing pose, enemies of the Cinderwastes: a cinder revenant, an undead knight in battered plate armour crusted with black cooled slag, faint ember glow in the visor and armour cracks, holding a notched sword; an ember wisp, a small floating fire spirit, a flickering dim orange flame with a dark hollow face and trailing smoke and cinders, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
+  "style_image": "apps/web/public/assets/enemies/fallen-knight.png",
+  "job_id": "3b1b6136-5c33-45ea-99dc-a754093208ef",
+  "created_at": "2026-11-09T22:12:11.395022+00:00",
+  "seed": 1861791850,
+  "generations": 10.0,
+  "count": 16,
+  "width": 64,
+  "height": 64
+}
