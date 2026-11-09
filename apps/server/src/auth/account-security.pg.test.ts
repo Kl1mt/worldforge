@@ -213,7 +213,9 @@ describe.skipIf(!url)('account tokens on real PostgreSQL', () => {
     ]);
     expect(reset!.statusCode).toBe(200);
     for (const l of logins) {
-      expect([200, 401]).toContain(l.statusCode);
+      // Ticket 5.8: past the free attempts and one more, checks for one address wait their turn
+      // (`429`, nothing read, no session), so a burst like this one can be refused in part.
+      expect([200, 401, 429]).toContain(l.statusCode);
       const cookie = l.cookies.find((c) => c.name === SESSION_COOKIE)?.value;
       if (!cookie) continue;
       const me = await app.inject({
