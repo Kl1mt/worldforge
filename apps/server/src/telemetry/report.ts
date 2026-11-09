@@ -259,14 +259,14 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
     source(d) && d[1] === f;
   const goldPrefix = (p: string) => (d: RollupRow['dims']) => d[0].startsWith(p);
   /** Material units both sides of every accepted trade moved (ticket T.5). */
-  const tradeMaterials = () =>
+  const tradeMaterials = (event = 'trade.accept') =>
     auditScalar(
       db,
       sql`select coalesce(sum(m.value::bigint), 0) as n
           from audit_log a,
           jsonb_each_text(coalesce(a.data->'give'->'materials', '{}'::jsonb)
                           || '{}'::jsonb) m
-          where a.event = 'trade.accept'`,
+          where a.event = ${event}`,
     ).then(
       async (give) =>
         give +
@@ -274,7 +274,7 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
           db,
           sql`select coalesce(sum(m.value::bigint), 0) as n
             from audit_log a, jsonb_each_text(coalesce(a.data->'ask'->'materials', '{}'::jsonb)) m
-            where a.event = 'trade.accept'`,
+            where a.event = ${event}`,
         )),
     );
 
@@ -649,6 +649,32 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
       tradeMaterials(),
       sumRollups(rows, 'material.out', src('trade'), 'amount'),
     ],
+    // Ticket T.6: reversals are mirrored trades: counted, items moved back, gold and material
+    // units in = out (source `trade_reverse`), against the `trade.reverse` rows.
+    ['trades: reversed', audit('trade.reverse', sql`count(*)`), sumRollups(rows, 'trade.reverse')],
+    [
+      'trades: items moved back',
+      audit(
+        'trade.reverse',
+        num(
+          sql`jsonb_array_length(data->'give'->'items') + jsonb_array_length(data->'ask'->'items')`,
+        ),
+      ),
+      sumRollups(rows, 'trade.reverse', undefined, 'amount'),
+    ],
+    ...(['in', 'out'] as const).map((dir): [string, Promise<number>, number] => [
+      `trades: reversed gold ${dir}`,
+      audit(
+        'trade.reverse',
+        num(sql`(data->'give'->>'gold')::bigint + (data->'ask'->>'gold')::bigint`),
+      ),
+      sumRollups(rows, `gold.${dir}`, src('trade_reverse'), 'amount'),
+    ]),
+    ...(['in', 'out'] as const).map((dir): [string, Promise<number>, number] => [
+      `trades: reversed material units ${dir}`,
+      tradeMaterials('trade.reverse'),
+      sumRollups(rows, `material.${dir}`, src('trade_reverse'), 'amount'),
+    ]),
   ];
   const out: ReconcileCheck[] = [];
   for (const [check, auditValue, rollup] of checks) {

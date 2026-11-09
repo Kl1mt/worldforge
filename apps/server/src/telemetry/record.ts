@@ -57,6 +57,8 @@ export const TELEMETRY_METRICS = [
   // Ticket T.5: completed trades (gift or swap) and traded items (rarity, variant).
   'trade.complete',
   'trade.items',
+  // Ticket T.6: reversed trades (gift or swap; amount = items moved back).
+  'trade.reverse',
 ] as const;
 export type TelemetryMetric = (typeof TELEMETRY_METRICS)[number];
 

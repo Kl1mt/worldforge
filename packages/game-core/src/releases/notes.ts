@@ -23,9 +23,19 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.5.13';
+export const GAME_VERSION = '0.5.14';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.5.14',
+    date: '2026-11-09',
+    title: 'A word with the wardens',
+    new: [
+      'Every offer and trade on the Trading screen now has “Report this offer” (or “trade”), so you can ask the wardens to look at it, with a new reason for scams, stolen accounts and selling for real money. Trading between players is still closed until the wardens open it.',
+      'Once trading opens, a warden can undo a trade within 14 days if something was wrong with it: everything goes back to the hero it came from, all at once or not at all, and both players see the warden’s reason in their trade history. Staff never ask for your items or gold.',
+    ],
+    tickets: ['T.6'],
+  },
   {
     version: '0.5.13',
     date: '2026-11-09',

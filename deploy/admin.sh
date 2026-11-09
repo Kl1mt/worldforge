@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Admin commands inside the running server container (docs/DEPLOY.md §9 and "Registration"):
 # account roles (the production `admin:role:prod` build, dist/social/role-cli.js; docs/SOCIAL.md)
-# and invite codes (`admin:invite:prod`, dist/auth/invite-cli.js; ticket D.2); seasons (5.3).
+# and invite codes (`admin:invite:prod`, dist/auth/invite-cli.js; ticket D.2); seasons (5.3);
+# the trade pattern report (T.6).
 #
 #   deploy/admin.sh grant <email|handle> <moderator|admin>
 #   deploy/admin.sh revoke <email|handle>
@@ -17,12 +18,13 @@
 #   deploy/admin.sh seasons end <number>       (ends the season under way now)
 #   deploy/admin.sh seasons extend <number> --to <ISO>   (moves a season's end)
 #   deploy/admin.sh seasons close              (takes due archives and awards now)
+#   deploy/admin.sh trading patterns [--days 28] [--json]   (trade pattern report, ticket T.6)
 set -euo pipefail
 # shellcheck source=SCRIPTDIR/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 if (($# == 0)) || [[ $1 == -h || $1 == --help ]]; then
-  sed -n '2,19p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,21p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 0
 fi
 require_setup
@@ -39,6 +41,9 @@ elif [[ $1 == leaderboards ]]; then
 elif [[ $1 == seasons ]]; then
   shift
   compose exec -T server node dist/seasons/season-cli.js "$@"
+elif [[ $1 == trading ]]; then
+  shift
+  compose exec -T server node dist/trading/trading-cli.js "$@"
 else
   compose exec -T server node dist/social/role-cli.js "$@"
 fi

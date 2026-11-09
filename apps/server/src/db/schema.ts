@@ -828,6 +828,10 @@ export const auditLog = pgTable(
   (t) => [
     index('audit_log_account_id_created_at_idx').on(t.accountId, t.createdAt),
     index('audit_log_event_created_at_idx').on(t.event, t.createdAt),
+    // Ticket T.6: a trade's audit trail (every `trade.*` row names its offer).
+    index('audit_log_trade_offer_idx')
+      .on(sql`(${t.data}->>'offerId')`)
+      .where(sql`${t.event} like 'trade.%'`),
   ],
 );
 
@@ -1953,6 +1957,13 @@ export const tradeOffers = pgTable(
     /** For a void: what was switched off, or which sanction; never personal data. */
     voidDetail: jsonb('void_detail').$type<Record<string, unknown>>(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    /**
+     * Ticket T.6: a moderator reversed this accepted trade (everything went back), with the
+     * moderator and the reason both players see. Set once, under the offer's row lock.
+     */
+    reversedAt: timestamp('reversed_at', { withTimezone: true }),
+    reversedBy: uuid('reversed_by').references(() => accounts.id, { onDelete: 'set null' }),
+    reverseReason: text('reverse_reason'),
   },
   (t) => [
     index('trade_offers_sender_status_idx').on(t.senderAccountId, t.status),
@@ -1966,6 +1977,18 @@ export const tradeOffers = pgTable(
     ),
     check('trade_offers_void_check', sql`(${t.status} = 'void') = (${t.voidReason} is not null)`),
     check('trade_offers_parties_check', sql`${t.senderAccountId} <> ${t.receiverAccountId}`),
+    // Ticket T.6: the moderator's trade history and the pattern report read completed trades by
+    // time, and reversals.
+    index('trade_offers_accepted_closed_idx')
+      .on(t.closedAt)
+      .where(sql`${t.status} = 'accepted'`),
+    index('trade_offers_reversed_idx')
+      .on(t.reversedAt)
+      .where(sql`${t.reversedAt} is not null`),
+    check(
+      'trade_offers_reversed_check',
+      sql`(${t.reversedAt} is null or ${t.status} = 'accepted') and ((${t.reversedAt} is null) = (${t.reverseReason} is null))`,
+    ),
   ],
 );
 

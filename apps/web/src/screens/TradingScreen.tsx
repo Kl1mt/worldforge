@@ -11,6 +11,7 @@ import type { ApiFailure } from '../lib/api';
 import { formatNumber } from '../lib/format';
 import { routeHref } from '../lib/route';
 import { formatWhen } from '../social/api';
+import { ReportDialog } from '../social/ReportDialog';
 import {
   OFFER_STATUS_WORDS,
   describeOfferFailure,
@@ -275,7 +276,9 @@ function OfferList({
               <p className="trading__when">
                 {o.status === 'open'
                   ? `Expires ${formatWhen(o.expiresAt)}`
-                  : `${OFFER_STATUS_WORDS[o.status]} ${o.closedAt ? formatWhen(o.closedAt) : ''}`}
+                  : o.reversal
+                    ? `Reversed by a moderator ${formatWhen(o.reversal.at)}`
+                    : `${OFFER_STATUS_WORDS[o.status]} ${o.closedAt ? formatWhen(o.closedAt) : ''}`}
               </p>
             </div>
             <button type="button" className="btn btn--small" onClick={() => onOpen(o.id)}>
@@ -413,6 +416,7 @@ function OfferDetail({
   const [busy, setBusy] = useState(false);
   const [problems, setProblems] = useState<string[]>([]);
   const [done, setDone] = useState<string | null>(null);
+  const [reporting, setReporting] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -488,6 +492,14 @@ function OfferDetail({
         {offer.theirHero ? ` · their hero: ${offer.theirHero.name}` : ''}
       </p>
       {offer.endText ? <p className="trading__ended">{offer.endText}</p> : null}
+      {offer.reversal ? (
+        <div className="trading__ended trading__reversed" role="note">
+          <p>{offer.reversal.text}</p>
+          <p>
+            <span className="caps">The moderator’s reason</span> {offer.reversal.reason}
+          </p>
+        </div>
+      ) : null}
       <Scales
         give={p.give}
         get={p.get}
@@ -563,6 +575,25 @@ function OfferDetail({
           ))}
         </ul>
       ) : null}
+      {/* Ticket T.6: either player can report an offer or a trade to the moderators. */}
+      <footer className="trading__report">
+        <p className="trading__fine">
+          Something wrong with this {offer.status === 'accepted' ? 'trade' : 'offer'}? A moderator
+          can look at it and, within 14 days of a trade, undo it. Staff never ask for your items or
+          gold.
+        </p>
+        <button type="button" className="btn btn--small" onClick={() => setReporting(true)}>
+          Report this {offer.status === 'accepted' ? 'trade' : 'offer'}
+        </button>
+      </footer>
+      <ReportDialog
+        open={reporting}
+        onClose={() => setReporting(false)}
+        target={{
+          target: { kind: 'trade', id: offer.id },
+          label: `this ${offer.status === 'accepted' ? 'trade' : 'offer'} with ${who(offer)}`,
+        }}
+      />
     </article>
   );
 }

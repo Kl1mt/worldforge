@@ -21,6 +21,8 @@ import {
 import './gate.css';
 import '../social/social.css';
 import { ArenaPatterns } from './ArenaPatterns';
+import { TradeDesk } from './TradeDesk';
+import { tradeCaseHref } from '../social/tradeMod';
 import { TradingSettingsFolio } from './TradingSettingsFolio';
 import './moderation.css';
 
@@ -100,6 +102,8 @@ function targetLabel(c: ModCase): string {
     const where = c.reports[0]?.context.guild;
     return `Guild chat${typeof where === 'string' ? ` in ${where}` : ''} · “${c.current.value}” · by`;
   }
+  // Ticket T.6: a reported trade offer or completed trade (the subject is the other player).
+  if (c.target.kind === 'trade') return `Trade · ${c.current.value} · with`;
   return REPORT_TARGET_KINDS[c.target.kind].label;
 }
 
@@ -231,6 +235,8 @@ export function ModerationScreen() {
         </div>
       ) : null}
       <ArenaPatterns />
+      {/* Ticket T.6: the trade ledger, case view, reversal and the trade pattern report. */}
+      <TradeDesk />
       {/* Ticket T.2: moderators see the trading settings read-only. */}
       <section className="tset-docket" aria-labelledby="tset-docket-title">
         <header className="tset-docket__head">
@@ -298,6 +304,12 @@ function CaseFile({ c, onResolved }: { c: ModCase; onResolved: (message: string)
           {c.current.hidden ? ' · currently hidden' : ''} · {c.subject.pastSanctions} past sanction
           {c.subject.pastSanctions === 1 ? '' : 's'}
         </p>
+        {c.target.kind === 'trade' ? (
+          <p className="case__sub">
+            <a href={tradeCaseHref(c.target.id)}>Open the trade</a>: both sides in full, its trail,
+            and the reversal (within 14 days).
+          </p>
+        ) : null}
       </header>
 
       {c.subject.sanctions.length > 0 ? (

@@ -202,6 +202,21 @@ export const offerSchema = {
     closedAt: { type: ['string', 'null'] },
     heldUntil: { type: ['string', 'null'] },
     endText: { type: ['string', 'null'] },
+    // Ticket T.6: a moderator reversed the trade (both players see when and why).
+    reversal: {
+      anyOf: [
+        {
+          type: 'object',
+          required: ['at', 'reason', 'text'],
+          properties: {
+            at: { type: 'string' },
+            reason: { type: 'string' },
+            text: { type: 'string' },
+          },
+        },
+        { type: 'null' },
+      ],
+    },
   },
 } as const;
 

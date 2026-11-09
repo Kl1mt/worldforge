@@ -2,6 +2,7 @@ import { and, asc, desc, eq, inArray, isNull, lt, lte, or, sql } from 'drizzle-o
 import {
   DEFAULT_TRADING_SETTINGS,
   TRADE_CHECK_TEXT,
+  TRADE_REVERSED_TEXT,
   cleanSideMaterials,
   holdUntil as holdUntilAt,
   isMaterialId,
@@ -137,6 +138,8 @@ export interface TradeOfferView {
   heldUntil: string | null;
   /** Plain words for an offer that ended without a trade. */
   endText: string | null;
+  /** Ticket T.6: a moderator reversed this trade: when, the reason, and what it means. */
+  reversal: { at: string; reason: string; text: string } | null;
 }
 
 /** One hero's held value (inbox). */
@@ -1421,7 +1424,10 @@ function offerView(o: TradeOffer, me: string, ctx: ViewContext): TradeOfferView 
     createdAt: o.createdAt.toISOString(),
     expiresAt: o.expiresAt.toISOString(),
     closedAt: o.closedAt?.toISOString() ?? null,
-    heldUntil: o.status === 'accepted' && o.closedAt ? holdUntilAt(o.closedAt).toISOString() : null,
+    heldUntil:
+      o.status === 'accepted' && o.closedAt && !o.reversedAt
+        ? holdUntilAt(o.closedAt).toISOString()
+        : null,
     endText:
       o.status === 'open' || o.status === 'accepted'
         ? null
@@ -1431,6 +1437,9 @@ function offerView(o: TradeOffer, me: string, ctx: ViewContext): TradeOfferView 
               ? { switches: o.voidDetail.switches as TradingSwitchPath[] }
               : {}),
           }),
+    reversal: o.reversedAt
+      ? { at: o.reversedAt.toISOString(), reason: o.reverseReason ?? '', text: TRADE_REVERSED_TEXT }
+      : null,
   };
 }
 
@@ -1494,7 +1503,14 @@ export async function activeHoldsOf(
     .select({ hold: tradeHolds, heroName: characters.name })
     .from(tradeHolds)
     .innerJoin(characters, eq(characters.id, tradeHolds.characterId))
-    .where(and(eq(tradeHolds.accountId, accountId), sql`${tradeHolds.heldUntil} > ${now}`))
+    .where(
+      and(
+        eq(tradeHolds.accountId, accountId),
+        sql`${tradeHolds.heldUntil} > ${now}`,
+        // Ticket T.6: a reversal ends the trade's holds early.
+        isNull(tradeHolds.releasedAt),
+      ),
+    )
     .orderBy(asc(tradeHolds.heldUntil));
   return rows.map(({ hold, heroName }: { hold: TradeHold; heroName: string }) => ({
     characterId: hold.characterId,

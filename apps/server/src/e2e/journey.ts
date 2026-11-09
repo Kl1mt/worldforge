@@ -504,6 +504,80 @@ export async function startJourney(options: JourneyOptions) {
 }
 
 /**
+ * Ticket T.6: the gift is reported by the hero who received it, a moderator finds it in the queue,
+ * opens the trade's case (both sides, the trail, the dry run), reverses it with a reason (a
+ * retry replays) and reads the pattern report. Both heroes' holdings still equal the audit log
+ * and the rollups reconcile; both players read the reason in their history.
+ */
+export async function playTradeModerationStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  offerId: string,
+  hero: Journey,
+  friend: Journey,
+) {
+  const reported = await friend.api('POST', '/api/reports', {
+    target: { kind: 'trade', id: offerId },
+    reason: 'scam',
+    note: 'They asked for it back outside the game.',
+  });
+  expect(reported.statusCode, reported.body).toBe(201);
+  const warden = await newPlayer(app, 'trade-reverser@graumark.test', 'Warden Ilse');
+  await setAccountRole(database.db, 'trade-reverser@graumark.test', 'moderator');
+  const queue = (await warden.api('GET', '/api/mod/queue')).json<{
+    cases: { target: { kind: string; id?: string } }[];
+  }>();
+  expect(queue.cases.some((c) => c.target.kind === 'trade' && c.target.id === offerId)).toBe(true);
+  const view = await warden.api('GET', `/api/mod/trades/${offerId}`);
+  expect(view.statusCode, view.body).toBe(200);
+  const theCase = view.json<{
+    reversible: { possible: boolean; canAct: boolean };
+    reports: { open: number };
+    trail: { event: string }[];
+  }>();
+  expect(theCase.reports.open).toBe(1);
+  expect(theCase.trail.map((e) => e.event)).toEqual([
+    'trade.offer',
+    'trade.accept',
+    'trade.release',
+  ]);
+  // The friend may have spent the gift since it was released; the reversal says so if so.
+  const key = randomUUID();
+  const reverse = () =>
+    warden.api(
+      'POST',
+      `/api/mod/trades/${offerId}/reverse`,
+      { reason: 'Reported as a scam; reversed in the journey.' },
+      { 'idempotency-key': key },
+    );
+  const res = await reverse();
+  if (theCase.reversible.possible) {
+    expect(res.statusCode, res.body).toBe(200);
+    const replay = await reverse();
+    expect(replay.headers['idempotency-replayed']).toBe('true');
+    for (const j of [hero, friend]) {
+      const history = (await j.api('GET', '/api/trading/offers/history')).json<{
+        offers: { id: string; reversal: { reason: string } | null }[];
+      }>();
+      expect(history.offers.find((o) => o.id === offerId)?.reversal?.reason).toBe(
+        'Reported as a scam; reversed in the journey.',
+      );
+    }
+  } else {
+    expect(res.statusCode, res.body).toBe(409);
+    expect(res.json<{ error: { code: string } }>().error.code).toBe('trade_not_reversible');
+  }
+  const patterns = await warden.api('GET', '/api/mod/trading/patterns');
+  expect(patterns.statusCode, patterns.body).toBe(200);
+  expect(patterns.body).not.toContain('@');
+  expect((await hero.api('GET', '/api/mod/trading/patterns')).statusCode).toBe(404);
+  await expectHoldingsMatchAudit(database, hero.characterId);
+  await expectHoldingsMatchAudit(database, friend.characterId);
+  const checks = await reconcileWithAudit(database.db);
+  expect(checks.filter((c) => !c.ok)).toEqual([]);
+}
+
+/**
  * Asserts that everything the character holds (gold, items, materials) is accounted for by the
  * audit log: every grant and every spend has exactly one entry.
  */
@@ -516,7 +590,8 @@ export async function expectHoldingsMatchAudit(database: DatabaseHandle, charact
       or(
         eq(auditLog.characterId, characterId),
         and(
-          eq(auditLog.event, 'trade.accept'),
+          // Ticket T.6: a `trade.reverse` row likewise moves both heroes.
+          or(eq(auditLog.event, 'trade.accept'), eq(auditLog.event, 'trade.reverse')),
           sql`${auditLog.data}->>'senderCharacterId' = ${characterId}`,
         ),
       ),
@@ -637,6 +712,25 @@ export async function expectHoldingsMatchAudit(database: DatabaseHandle, charact
           gold += ask.gold;
           items += ask.items.length - give.items.length;
           addMaterials(ask.materials);
+        }
+        break;
+      }
+      // Ticket T.6: a reversal undoes the swap: the receiver gives back the give side and gets
+      // the ask side back; the sender gets its give side back and returns the ask side.
+      case 'trade.reverse': {
+        type Side = { items: unknown[]; gold: number; materials: Record<string, number> };
+        const give = d.give as Side;
+        const ask = d.ask as Side;
+        if (d.receiverCharacterId === characterId) {
+          gold += ask.gold - give.gold;
+          items += ask.items.length - give.items.length;
+          addMaterials(ask.materials);
+          addMaterials(give.materials, -1);
+        } else {
+          gold += give.gold - ask.gold;
+          items += give.items.length - ask.items.length;
+          addMaterials(give.materials);
+          addMaterials(ask.materials, -1);
         }
         break;
       }
@@ -3132,6 +3226,8 @@ export async function playTradeStep(
   await expectHoldingsMatchAudit(database, friend.characterId);
   const checks = await reconcileWithAudit(database.db);
   expect(checks.filter((c) => !c.ok)).toEqual([]);
+
+  await playTradeModerationStep(app, database, offer.id, hero, friend);
   // Back to closed, as the owner leaves it by default.
   await database.db.delete(gameSettings).where(eq(gameSettings.key, 'trading'));
   app.gameSettings.invalidate();

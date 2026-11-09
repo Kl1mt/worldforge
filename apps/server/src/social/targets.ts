@@ -6,7 +6,14 @@ import {
   type ReportTarget,
   type ReportTargetKind,
 } from '@worldforge/game-core';
-import { accounts, characters, guildMessages, guilds, type Account } from '../db/schema.js';
+import {
+  accounts,
+  characters,
+  guildMessages,
+  guilds,
+  tradeOffers,
+  type Account,
+} from '../db/schema.js';
 import type { Executor } from '../db/types.js';
 import { guildByHandle, guildLeaderId, guildTargetKey } from './guild-model.js';
 import { messageById, messageTargetKey, visibleMessage } from './chat-model.js';
@@ -138,6 +145,50 @@ const RESOLVERS: { [K in ReportTargetKind]: Resolver<K> } = {
       },
     };
   },
+  // Ticket T.6: a trade offer or completed trade. Only its two players may report it (anyone else
+  // gets the same `404` as an unknown id, so ids can't be probed); the subject is the other one.
+  trade: async (executor, t, viewerId) => {
+    if (!viewerId || typeof t.id !== 'string' || !UUID_RE.test(t.id)) return null;
+    const [offer] = await executor.select().from(tradeOffers).where(eq(tradeOffers.id, t.id));
+    if (!offer) return null;
+    const otherId =
+      offer.senderAccountId === viewerId
+        ? offer.receiverAccountId
+        : offer.receiverAccountId === viewerId
+          ? offer.senderAccountId
+          : null;
+    if (!otherId) return null;
+    const [subject] = await executor.select().from(accounts).where(eq(accounts.id, otherId));
+    if (!subject) return null;
+    return {
+      subject,
+      key: tradeKey(offer.id),
+      target: { kind: 'trade', id: offer.id },
+      context: {
+        displayName: subject.displayName,
+        status: offer.status,
+        reporterRole: offer.senderAccountId === viewerId ? 'sender' : 'receiver',
+        sentAt: offer.createdAt.toISOString(),
+        closedAt: offer.closedAt?.toISOString() ?? null,
+      },
+    };
+  },
+};
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** Ticket T.6: the report key of a trade offer (the case view counts its open reports). */
+export function tradeKey(offerId: string): string {
+  return `trade:${offerId}`;
+}
+
+const TRADE_STATUS_WORDS: Record<string, string> = {
+  open: 'Open offer',
+  accepted: 'Completed trade',
+  cancelled: 'Cancelled offer',
+  declined: 'Declined offer',
+  expired: 'Expired offer',
+  void: 'Withdrawn offer',
 };
 
 export function characterNameKey(characterId: string): string {
@@ -192,8 +243,30 @@ export async function currentTargetValues(
         .from(characters)
         .where(inArray(characters.id, heroIds))
     : [];
+  const tradeIds = rows
+    .map((r) => r.key)
+    .filter((k) => k.startsWith('trade:'))
+    .map((k) => k.slice('trade:'.length));
+  const tradeRows = tradeIds.length
+    ? await executor
+        .select({
+          id: tradeOffers.id,
+          status: tradeOffers.status,
+          reversedAt: tradeOffers.reversedAt,
+        })
+        .from(tradeOffers)
+        .where(inArray(tradeOffers.id, tradeIds))
+    : [];
   for (const r of rows) {
-    if (r.key.startsWith('characterName:')) {
+    if (r.key.startsWith('trade:')) {
+      const o = tradeRows.find((x) => tradeKey(x.id) === r.key);
+      out.set(
+        r.key,
+        !o
+          ? '(trade gone)'
+          : `${TRADE_STATUS_WORDS[o.status] ?? o.status}${o.reversedAt ? ' (reversed)' : ''}`,
+      );
+    } else if (r.key.startsWith('characterName:')) {
       const hero = heroes.find((h) => characterNameKey(h.id) === r.key);
       out.set(r.key, hero?.name ?? '(character deleted)');
     } else if (r.key.startsWith('guild:')) {
@@ -277,6 +350,16 @@ export const reportTargetSchema = {
       required: ['kind', 'id'],
       properties: {
         kind: { const: 'message' },
+        id: { type: 'string', minLength: 1, maxLength: 64 },
+      },
+    },
+    // Ticket T.6: a trade offer or completed trade, by id.
+    {
+      type: 'object',
+      additionalProperties: false,
+      required: ['kind', 'id'],
+      properties: {
+        kind: { const: 'trade' },
         id: { type: 'string', minLength: 1, maxLength: 64 },
       },
     },

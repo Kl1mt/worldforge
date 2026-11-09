@@ -194,3 +194,25 @@ export function tradeCalls(app: FastifyInstance) {
       app.inject({ method: 'GET', url, cookies: cookies(who), headers }),
   };
 }
+
+/** Ticket T.6: the moderators' trade routes. */
+export function modTradeCalls(app: FastifyInstance) {
+  const cookies = (t: TestAccount) => ({ [SESSION_COOKIE]: t.token });
+  return {
+    get: (who: TestAccount | null, url: string) =>
+      app.inject({ method: 'GET', url, ...(who ? { cookies: cookies(who) } : {}) }),
+    reverse: (
+      who: TestAccount | null,
+      offerId: string,
+      body: object = { reason: 'Reversed in a test.' },
+      key: string | null = randomUUID(),
+    ) =>
+      app.inject({
+        method: 'POST',
+        url: `/api/mod/trades/${offerId}/reverse`,
+        payload: body,
+        headers: key ? { 'idempotency-key': key } : {},
+        ...(who ? { cookies: cookies(who) } : {}),
+      }),
+  };
+}

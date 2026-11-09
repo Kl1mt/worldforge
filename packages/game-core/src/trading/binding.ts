@@ -174,7 +174,12 @@ export function itemTradeCategories(item: {
 }
 
 /** Whether any Forge work (upgrade attempt, reroll, improvement) has touched the item. */
-export function isForged(item: ItemBindingInput): boolean {
+export function isForged(
+  item: Pick<
+    ItemBindingInput,
+    'upgradeLevel' | 'upgradePity' | 'rerollCount' | 'forgeCounter' | 'affixes'
+  >,
+): boolean {
   return (
     (item.upgradeLevel ?? 0) > 0 ||
     (item.upgradePity ?? 0) > 0 ||

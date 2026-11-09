@@ -107,6 +107,8 @@ export const ADMIN_SECTIONS = [
   'telemetry',
   'seasons',
   'trading',
+  // Ticket T.6: the trade ledger, case view, reversal and pattern report.
+  'trades',
   'status',
   'roles',
 ] as const;
