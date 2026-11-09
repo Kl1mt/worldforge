@@ -180,12 +180,13 @@ describe.skipIf(!url)('real PostgreSQL: the warehouse races safely', () => {
         expect(row).toBeUndefined();
       } else {
         expect(row).toBeDefined();
-        const moves = [
-          ...(await events(h.id, 'warehouse.deposit')),
-          ...(await events(h.id, 'warehouse.withdraw')),
-        ].sort((a, b) => (a.id < b.id ? -1 : 1));
-        const last = moves.at(-1)?.event;
-        expect(row!.inWarehouse).toBe(last === 'warehouse.deposit');
+        // Order-free (ticket T.7): audit ids and stamps of racing transactions don't give the
+        // commit order (two serialised moves in one millisecond sort at random), but one item's
+        // moves alternate from the pack, so deposits − withdrawals is 1 exactly when it's stored.
+        const deposits = (await events(h.id, 'warehouse.deposit')).length;
+        const withdrawals = (await events(h.id, 'warehouse.withdraw')).length;
+        expect([0, 1], `round ${round}`).toContain(deposits - withdrawals);
+        expect(row!.inWarehouse).toBe(deposits - withdrawals === 1);
         expect(row!.equippedSlot).toBeNull();
       }
       // Each forge attempt that answered 200 drew once and is audited once.

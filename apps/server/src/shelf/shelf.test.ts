@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, relative } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { and, asc, eq, like } from 'drizzle-orm';
@@ -29,6 +31,8 @@ import { reconcileWithAudit } from '../telemetry/report.js';
 import { expectShelfMatchesAudit } from '../e2e/journey.js';
 import type { SettleResponse } from '../activity/routes.js';
 import type { ShelfMoveResponse, ShelfView } from './routes.js';
+import { rehomeShelfItemsForDeletion } from './deletion.js';
+import { withTransaction } from '../db/transaction.js';
 
 const HOUR = 3_600_000;
 const PACK = DEFAULT_ACTIVITY_CONFIG.inventory.capacity;
@@ -823,5 +827,90 @@ describe('shelf: reconciliation', () => {
     }
     const materials = await db().select().from(accountShelfMaterials);
     expect(materials.every((m) => m.quantity >= 0)).toBe(true);
+  });
+});
+
+/**
+ * Ticket T.7: hero deletion doesn't exist; if it comes, shelf items stay on the account. The seam
+ * hands a hero's shelf items to another hero of the account, or refuses; the guard below fails if
+ * any code deletes a hero row without calling it (and T.5's `voidForDeletion`).
+ */
+describe('shelf: a hero being deleted (T.7 seam)', () => {
+  beforeAll(async () => {
+    await openWarehouse(app, db());
+  });
+  beforeEach(async () => {
+    await setShelfSwitches(app, db(), ALL_SHELF_ON);
+  });
+
+  it('hands the hero’s shelf items to another hero of the account, still on the shelf', async () => {
+    const acc = await account(50);
+    const item = await insertItem(db(), acc.a, { rarityId: 'epic' });
+    expect(
+      (await s.move(acc.who.token, acc.a, 'deposit', { itemIds: [item.id], gold: 50 })).statusCode,
+    ).toBe(200);
+    const before = await itemRow(item.id);
+    const moved = await withTransaction(db(), (tx) =>
+      rehomeShelfItemsForDeletion(tx, acc.who.id, acc.a, new Date()),
+    );
+    expect(moved).toBe(1);
+    expect(await itemRow(item.id)).toEqual({ ...before, characterId: acc.b });
+    const [row] = await db()
+      .select()
+      .from(auditLog)
+      .where(and(eq(auditLog.accountId, acc.who.id), eq(auditLog.event, 'shelf.rehome')));
+    expect(row!.data).toMatchObject({
+      fromCharacterId: acc.a,
+      toCharacterId: acc.b,
+      itemIds: [item.id],
+    });
+    // Still the account's: shelf = audit, and the other hero can take it out.
+    expect(await expectShelfMatchesAudit(database, acc.who.id)).toMatchObject({
+      items: 1,
+      gold: 50,
+    });
+    const out = await s.move(acc.who.token, acc.b, 'withdraw', { itemIds: [item.id] });
+    expect(out.statusCode, out.body).toBe(200);
+    expect((await reconcileWithAudit(db())).filter((c) => !c.ok)).toEqual([]);
+  });
+
+  it('refuses when no other hero could hold them, and changes nothing', async () => {
+    const who = await insertAccount(db());
+    const only = await insertCharacter(db(), who.id, {
+      level: 10,
+      name: `Solo${randomUUID().slice(0, 6)}`,
+    });
+    const item = await insertItem(db(), only.id, { rarityId: 'epic' });
+    expect((await s.move(who.token, only.id, 'deposit', { itemIds: [item.id] })).statusCode).toBe(
+      200,
+    );
+    await expect(
+      withTransaction(db(), (tx) => rehomeShelfItemsForDeletion(tx, who.id, only.id, new Date())),
+    ).rejects.toMatchObject({ statusCode: 409, code: 'shelf_not_empty' });
+    expect((await itemRow(item.id)).characterId).toBe(only.id);
+    // A hero with nothing on the shelf has nothing to hand on.
+    expect(
+      await withTransaction(db(), (tx) =>
+        rehomeShelfItemsForDeletion(tx, who.id, randomUUID(), new Date()),
+      ),
+    ).toBe(0);
+  });
+
+  it('guard: no code deletes a hero without the shelf and offer seams', () => {
+    const root = join(__dirname, '..');
+    const files = (dir: string): string[] =>
+      readdirSync(dir).flatMap((f) => {
+        const p = join(dir, f);
+        if (statSync(p).isDirectory()) return files(p);
+        return p.endsWith('.ts') && !p.endsWith('.test.ts') && !p.includes('/test/') ? [p] : [];
+      });
+    const deleting = files(root).filter((p) =>
+      /\.delete\(characters\)|delete\s+from\s+characters\b/i.test(readFileSync(p, 'utf8')),
+    );
+    for (const p of deleting) {
+      const text = readFileSync(p, 'utf8');
+      expect(text, relative(root, p)).toContain('rehomeShelfItemsForDeletion(');
+      expect(text, relative(root, p)).toContain('voidForDeletion(');
+    }
   });
 });

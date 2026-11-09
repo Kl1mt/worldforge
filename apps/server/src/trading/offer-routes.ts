@@ -7,7 +7,6 @@ import {
   checkTradeCaps,
   isMaterialId,
   itemBinding,
-  standingRefusals,
   tradeCapIncrements,
   tradeCapText,
   tradeDecision,
@@ -42,7 +41,7 @@ import { accountBy } from '../social/friends.js';
 import { friendIds, relationBetween } from '../social/relations.js';
 import { materialList, materialListSchema, type MaterialStack } from '../economy/shared.js';
 import { readTradeCounters } from './counters.js';
-import { loadTradeRelation, loadTradeStanding } from './standing.js';
+import { hiddenCounterpart, loadTradeRelation, loadTradeStanding } from './standing.js';
 import { tradeWrite } from './trade-write.js';
 import {
   TradeRefusedError,
@@ -54,7 +53,7 @@ import {
   loadOwnOffer,
   offerViews,
   openOffersOf,
-  reasonView,
+  reasonsView,
   sendOffer,
   stepAway,
   sweepTrades,
@@ -367,22 +366,13 @@ async function pairVerdict(
   now: Date,
 ) {
   const relation = await loadTradeRelation(db, me.id, themId);
-  const probe = tradeDecision({
-    action: 'send',
+  const counterpart = await hiddenCounterpart(db, {
+    actor: me.standing,
+    relation,
     settings,
     now,
-    actor: me.standing,
-    counterpart: null,
-    relation,
+    otherAccountId: themId,
   });
-  let counterpart: 'hidden-eligible' | 'hidden-ineligible' | null = null;
-  if (!probe.refusals.some((r) => r.party === 'pair')) {
-    const theirs = await loadTradeStanding(db, themId, now);
-    counterpart =
-      theirs && standingRefusals(theirs, now).length === 0
-        ? 'hidden-eligible'
-        : 'hidden-ineligible';
-  }
   const decision = tradeDecision({
     action: 'send',
     settings,
@@ -394,7 +384,7 @@ async function pairVerdict(
   return {
     relation: tradeRelationKind(relation),
     allowed: decision.allowed,
-    reasons: decision.refusals.map(reasonView),
+    reasons: reasonsView(decision.refusals),
     pairOk: !decision.refusals.some((r) => r.party === 'pair' || r.party === 'game'),
   };
 }
@@ -433,8 +423,14 @@ async function previewAccept(
   };
   const facts = { give: side('give'), ask: side('ask') };
   const standing = (await loadTradeStanding(db, me, now))!;
-  const theirs = await loadTradeStanding(db, offer!.senderAccountId, now);
   const relation = await loadTradeRelation(db, me, offer!.senderAccountId);
+  const theirs = await hiddenCounterpart(db, {
+    actor: standing,
+    relation,
+    settings,
+    now,
+    otherAccountId: offer!.senderAccountId,
+  });
   const decision = tradeDecision({
     action: 'accept',
     settings,
@@ -444,7 +440,7 @@ async function previewAccept(
     relation,
     offer: facts,
   });
-  const reasons: Record<string, unknown>[] = decision.refusals.map(reasonView);
+  const reasons: Record<string, unknown>[] = reasonsView(decision.refusals);
   if (rows.length < ids.length) {
     reasons.push({
       check: 'item_gone',

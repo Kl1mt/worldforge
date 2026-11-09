@@ -42,6 +42,7 @@ import { writeAudit } from '../db/audit.js';
 import { ApiError } from '../errors.js';
 import type { ActivityOptions } from '../activity/settle.js';
 import { changeGold, materialList, type MaterialStack } from '../economy/shared.js';
+import { withdrawFromDefence } from '../arena/model.js';
 import { lockOwnedCharacter, type ItemView } from '../inventory/routes.js';
 import { changeMaterialsTx, loadMaterialBundle } from '../materials/store.js';
 import { heldValueOf } from '../shelf/held.js';
@@ -923,6 +924,14 @@ export async function reverseTrade(
       to: { accountId: to.accountId, characterId: to.id },
     });
   }
+  // Ticket T.7: an item going back leaves the arena defence of the hero it leaves (a received
+  // item may have been worn into a saved defence during the hold).
+  let defenceItemsRemoved = 0;
+  for (const party of ['receiver', 'sender'] as const) {
+    const from = party === 'receiver' ? receiverHero : senderHero;
+    const keys = plan.items.filter((i) => i.receivedBy === party).map((i) => i.row!);
+    defenceItemsRemoved += await withdrawFromDefence(tx, from.id, keys);
+  }
   // Gold and materials: both heroes give back first (no dip into another trade's hold), then both
   // get theirs.
   const { give, ask } = plan.sides;
@@ -994,6 +1003,7 @@ export async function reverseTrade(
       give: { items: itemAudit.receiver, gold: give.gold, materials: give.materials },
       ask: { items: itemAudit.sender, gold: ask.gold, materials: ask.materials },
       holdsEnded: ended.map((h) => h.id),
+      ...(defenceItemsRemoved > 0 ? { defenceItemsRemoved } : {}),
       sender: { goldAfter: senderHero.gold, materialsAfter: pickOf(senderMaterials, touched) },
       receiver: {
         goldAfter: receiverHero.gold,

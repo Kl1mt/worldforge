@@ -213,3 +213,58 @@ The two columns differ only by seed noise: with 28 accounts every project stage 
 **Input for trading (`docs/TRADING.md`, a later phase).** When trading opens, gold will flow between players whose incomes differ by × 5–6 (Fields ≈ 350/h against the Pass ≈ 2,000/h), and high-level players end weeks with 20k–150k spare gold and large material surpluses (iron ore, soul shards). Price limits, listing fees or a trade tax should be sized against that; the material surplus means material trades will be cheap, so they're no RMT lever. The project caps and the guild boss rewards are per account and need no change for trading (gifts to projects are not tradeable). Re-run this simulation with trading included when it's built.
 
 How to reproduce: `pnpm --filter @worldforge/server telemetry:simulate -- --days 7` (about 9 minutes, `--social off` for B.2's player), `PLAYTEST_DATA_DIR=.telemetry-sample pnpm report:telemetry`, and `tools/balance/sim-state.ts` for the end state of each hero.
+
+## Balance check: trading and the shelf (ticket T.7)
+TRADING.md §6 asked for B.2/B.3's realistic player to be re-run with trading on: the traded share of what drops, of what is worn and of income (alarm: more than 10 % of Legendary/set items in use, or more than 5 % of gold income, from trades), the shelf's effect on B.2's sink numbers ("one hero's purse" against "one account's purse"), and the worn-effect distribution.
+
+**In short.** With the default limits, trades move very little value: 0.3 % of gold income, 0.3–0.6 % of material income, 1.2–1.4 % of Epic and 4 % of Legendary drops. But because a gift goes exactly where it is an upgrade, **12–15 % of the Legendaries worn after the week came from a trade**, over the 10 % alarm (the weekly cap of 3 Legendary/set pieces per receiving account binds: most refusals were caps). The gifted pieces are finds that would otherwise have been salvaged for want of the right class, so no item enters the economy and the worn-effect distribution doesn't move. The shelf can't double an account's income (only one hero of an account farms at a time), so "one account's purse" earns what one hero would; it lets an alt's idle gold reach the main's Forge (14 % on top of the main's own income) and so raises the share sunk, as do material gifts to heroes held at B.2's tier-2 material gate. No limit or default changed.
+
+**Method.** `telemetry:simulate` (`docs/TELEMETRY.md` "Trading and the shelf") gained `--trading on|all` and `--alts`. Four 7-day runs side by side (about 13 minutes): **base**, B.3's player unchanged (28 heroes, 28 accounts); **alts**, the accounts of the eight level-21 and level-23 heroes get a second hero (level 14, the next class) who farms the night while the main farms the day, trading off; **on**, the same with trading and the shelf open (the "Tradeable" categories at their defaults, Mythic and Void off); **all**, also Mythic and Void. Accounts and guild memberships are dated 30 days back and emails verified, so every guild member with a hero at 15+ is eligible from day one (the two guilds of 4 and 20 are the relations; the level-1 heroes stay out). Guildmates gift the Epic and better finds they would salvage, and keepsakes their class can't wear, to whoever they improve most; small gold gifts (3,000) and material gifts or swaps (150 units; 20 soul shards); inboxes are emptied every visit. Every trade and shelf move goes through the real API, and the four runs reconcile with the audit log (**99 of 99 checks** each, trades' and the shelf's conservation checks included). Measured with `tools/balance/trading.ts`; seeds are server-random, so runs differ by a few percent (a first pair of on/all runs gave 11.8 % and 12.3 % for the Legendary alarm).
+
+| 7 game days | base | alts | on | all |
+| --- | --- | --- | --- | --- |
+| Heroes · accounts | 28 · 28 | 36 · 28 | 36 · 28 | 36 · 28 |
+| Gold in · out · sunk (trades excluded) | 6.13M · 5.00M · 81.6 % | 6.09M · 4.78M · 78.6 % | 6.21M · 6.05M · 97.5 % | 6.20M · 5.60M · 90.3 % |
+| Trades completed (offers over a cap declined) | — | — | 92 (16) | 81 (17) |
+| Epic: traded / dropped | — | — | 67 / 5,376 (1.2 %) | 71 / 5,205 (1.4 %) |
+| Legendary (not set): traded / dropped | — | — | 27 / 699 (3.9 %) | 27 / 669 (4.0 %) |
+| Set · Mythic · Void traded | — | — | 0 · 0 · 0 | 0 · 0 · 0 |
+| Epics worn at the end from a trade | 0 of 107 | 0 of 131 | 22 of 134 (16.4 %) | 23 of 132 (17.4 %) |
+| **Legendary + set worn from a trade (alarm > 10 %)** | 0 % | 0 % | **15.4 %** (20 of 130) | **12.1 %** (17 of 141) |
+| **Gold traded / gold income (alarm > 5 %)** | — | — | 18,000 (**0.3 %**) | 21,000 (**0.3 %**) |
+| Materials traded / material income | — | — | 2,550 (0.6 %) | 1,350 (0.3 %) |
+
+| The shelf: the 8 accounts with two heroes | alts (shelf off) | on | all |
+| --- | --- | --- | --- |
+| Gold earned: main · alt | 1.77M · 131k | 1.76M · 131k | 1.79M · 133k |
+| Moved over the shelf: gold · materials · items | 0 | 252k · 19.5k · 0 | 248k · 19.2k · 0 |
+| Shelf gold / the mains' own income | — | 14.3 % | 13.9 % |
+| Gold sunk: main · alt | 1.84M · 171k | 2.02M · 42k | 1.96M · 47k |
+| One hero's purse (main): sunk / earned | 103.9 % | 114.7 % | 109.4 % |
+| The main with the shelf: sunk / (earned + taken from the shelf) | 103.9 % | 100.3 % | 96.1 % |
+| One account's purse: sunk / earned | 105.7 % | 108.9 % | 104.3 % |
+| Gold left: mains · alts (median main) | 195k · 128k (7.0k) | 257k · 5.5k (36k) | 338k · 5.8k (42k) |
+| Upgrades bought: main · alt | 1,327 · 673 | 1,391 · 447 | 1,350 · 472 |
+| Mains' pieces at +10 · whole +10 kits | 47 · 2 of 8 | 65 · 7 of 8 | 61 · 5 of 8 |
+| The 20 one-hero accounts: sunk · whole +10 kits · median gold left | 66.3 % · 3 · 97k | 92.5 % · 3 · 7.1k | 84.0 % · 3 · 24k |
+
+Sunk shares over 100 % spend the starting purse (1,500 × level), as in B.2.
+
+| Worn at the end (all heroes) | base | alts | on | all |
+| --- | --- | --- | --- | --- |
+| Legendary effects worn · distinct | 108 · 11 | 127 · 11 | 130 · 10 | 140 · 11 |
+| Top effect (share) | `bramblemail` 16.7 % | `unbroken` 19.7 % | `unbroken` 16.9 % | `unbroken` 18.6 % |
+| Effects HHI · entropy | 0.134 · 3.02 bits | 0.140 · 2.97 | 0.132 · 3.04 | 0.134 · 3.03 |
+| Distinct effects per class (hunter · mage · warlock · warrior) | 8 · 8 · 8 · 8 | 8 · 8 · 8 · 8 | 8 · 9 · 7 · 9 | 8 · 8 · 8 · 8 |
+| Set pieces worn | 0 | 1 | 0 | 1 |
+
+**Reading.**
+- **Gold and materials are far under their alarms.** Gold gifts need a rich giver, and the realistic player spends nearly everything at the Forge, so a week saw 6–8 gifts of 3,000 (0.3 % of income against the 5 % alarm; the 10,000-a-week cap was reached once or twice). Material gifts and swaps are a fraction of a percent of what is gathered, as B.3 expected.
+- **The Legendary alarm trips in every run (12–15 %), with traded Legendaries only ~4 % of Legendary drops.** The alarm counts what is *worn*, and gifts are targeted: a Legendary goes to the guildmate whose slot it beats most, and the receiver's 3-a-week cap is the binding limit (63–65 item offers refused at send and 16–17 declined at accept for a cap). This is the sim's cooperative upper bound (a 20-member guild where everyone gifts every useful find from day one), and every gifted piece would otherwise have been salvaged for want of the right class, which TRADING.md §6 lists as a gain. Epics show the same pattern (16–17 % of worn Epics), with no alarm set for them.
+- **Build diversity is unchanged.** Distinct effects (10–11), the top effect's share (17–20 %), HHI (0.13–0.14) and entropy (≈ 3.0 bits) are within the noise between the two runs without trading. Gifts follow the receiver's class and slot, not one strongest effect. Mythic and Void being tradeable (`all`) changed nothing in the week: no Mythic, Void or set piece was traded, because to this player (who scores gear by level, rarity and upgrades) a fresh +0 Mythic or set piece never beats a guildmate's upgraded Legendary, and set pieces are hardly worn even without trading. **The simulation doesn't measure set completion or Mythic chasing**; the live telemetry (`trade.items` by rarity and variant, `docs/TELEMETRY.md`) must.
+- **The shelf changes the unit, not the income.** Only one hero of an account farms at a time (the activity is per account), so an account earns what one hero would (alts: the main's 1.77M plus the alt's 131k for its night, against 6.13M / 28 ≈ 219k a hero in base). TRADING.md §3's "at most doubles" doesn't happen. With the shelf, the alt's gold reaches the main (252k in the week, 14 % on top of the main's own income) instead of sitting on the alt (128k idle without it), and the main's purse stays fully spent (sunk / (earned + shelf) ≈ 100 %). The mains finished more +10 pieces (47 → 61–65) and kits (2 → 5–7 of 8). Finds didn't move over the shelf: a level-14 alt's drops never beat its level-21+ main's.
+- **The tier-2 material gate eases.** The one-hero accounts sank 84–93 % of their income with trading against 66 % without (median gold left 7–24k against 97k): small material gifts (raw hide, timber, 150 units) and gifted pieces unblock the heroes B.2 found stopped at +7–8 for want of old-tier materials. That's the gate TRADING.md expected trading to ease; the 300-units-a-week cap kept it a gift.
+
+**Decision: no limit or default changed.** Gold, materials and diversity give no reason to. The Legendary/set alarm is the one number over its line; it is reached with traded Legendaries at ~4 % of drops and binding caps, by items that would have been salvaged. If the owner wants the alarm to hold even for a guild that gifts everything, the lever is **"Legendary and set pieces per week" 3 → 2** (within its hard maximum of 10; at 2 the worn share would fall roughly in proportion, to ≈ 8–10 % in the first week). Recommended instead: keep 3, and watch the alarm in the live telemetry over several weeks, where gifting is rarer than in the simulation.
+
+How to reproduce (`tools/balance/README.md`): four runs side by side, `telemetry:simulate -- --days 7 --dir .telemetry-sample/t7-base` (also `t7-alts --alts`, `t7-on --trading on`, `t7-all --trading all`), then `tools/balance/trading.ts base=… alts=… on=… all=…`.
