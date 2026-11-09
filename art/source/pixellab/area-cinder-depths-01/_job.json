@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, backdrop, the Cinder Depths: a vast volcanic forge-caldera, a huge crater ringed by sheer black cliffs, giant ruined anvils and broken stone forge furnaces built into the caldera walls, rusted iron chains and collapsed bridges spanning the pit, a cooled lava lake with dim glowing cracks at the bottom, smoke columns rising, dark smoky sky, drifting embers, muted desaturated palette, charcoal and ash grey, dim orange ember accents, gloomy light",
+  "style_image": "apps/web/public/assets/areas/ashen-pass.png",
+  "job_id": "a90820ef-7381-45c4-895f-481e2fccb451",
+  "created_at": "2026-11-09T22:12:11.600917+00:00",
+  "seed": 1628503740,
+  "generations": 15.0,
+  "count": 1,
+  "width": 384,
+  "height": 216
+}

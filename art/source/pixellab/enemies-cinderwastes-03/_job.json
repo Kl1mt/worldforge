@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, full body, side view facing left, enemy of the Cinderwastes: an ember wisp, a small floating fire spirit no bigger than a skull, a hovering teardrop of dim orange flame around a dark charred ember core with two hollow eye holes, a trailing tail of grey smoke and falling cinders, small sprite with lots of empty space around it, muted desaturated palette, dark near-black outline, transparent background",
+  "style_image": "apps/web/public/assets/enemies/ash-wraith.png",
+  "job_id": "62b056d6-263b-4b4c-8847-83beb609d310",
+  "created_at": "2026-11-09T22:14:48.229711+00:00",
+  "seed": 1166444898,
+  "generations": 10.0,
+  "count": 16,
+  "width": 64,
+  "height": 64
+}
