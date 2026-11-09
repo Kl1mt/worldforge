@@ -1,6 +1,5 @@
 import { asc, eq, gt } from 'drizzle-orm';
 import {
-  FORMULA_VERSIONS,
   SCORE_METRICS,
   computeScore,
   type ScoreMetric,
@@ -35,8 +34,14 @@ export interface CheckReport {
   problems: CheckProblem[];
 }
 
-export async function checkLeaderboards(deps: SnapshotDeps, batch = 200): Promise<CheckReport> {
+export async function checkLeaderboards(
+  deps: SnapshotDeps,
+  batch = 200,
+  now: Date = new Date(),
+): Promise<CheckReport> {
   const report: CheckReport = { heroes: 0, rows: 0, matching: 0, problems: [] };
+  // Ticket 6.1: "current" is the version in force now (an older one until the season ends).
+  const versions = await deps.formulaVersions(now);
   const flags = await deps.worldFlags();
   const worldFlags = async () => flags;
   let cursor: string | null = null;
@@ -63,15 +68,15 @@ export async function checkLeaderboards(deps: SnapshotDeps, batch = 200): Promis
           continue;
         }
         report.rows += 1;
-        if (row.formulaVersion !== FORMULA_VERSIONS[metric]) {
-          problem('outdated', `version ${row.formulaVersion}, current ${FORMULA_VERSIONS[metric]}`);
+        if (row.formulaVersion !== versions[metric]) {
+          problem('outdated', `version ${row.formulaVersion}, current ${versions[metric]}`);
           continue;
         }
-        const score = computeScore(metric, row.input);
+        const score = computeScore(metric, row.input, versions[metric]);
         if (
           score.value !== row.value ||
           JSON.stringify(score.sortKey) !== JSON.stringify(row.sortKey) ||
-          inputsHash(metric, row.input) !== row.inputsHash
+          inputsHash(metric, row.input, versions[metric]) !== row.inputsHash
         ) {
           problem(
             'wrong',
@@ -79,8 +84,14 @@ export async function checkLeaderboards(deps: SnapshotDeps, batch = 200): Promis
           );
           continue;
         }
-        if (row.inputsHash !== inputsHash(metric, current) || row.level !== hero.level) {
-          problem('stale', `stored ${row.value}, now ${computeScore(metric, current).value}`);
+        if (
+          row.inputsHash !== inputsHash(metric, current, versions[metric]) ||
+          row.level !== hero.level
+        ) {
+          problem(
+            'stale',
+            `stored ${row.value}, now ${computeScore(metric, current, versions[metric]).value}`,
+          );
           continue;
         }
         report.matching += 1;

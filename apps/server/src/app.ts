@@ -40,7 +40,12 @@ import { registerTrading } from './trading/routes.js';
 import { registerTradeOffers } from './trading/offer-routes.js';
 import { registerTradeModeration } from './trading/mod-routes.js';
 import { sweepTrades } from './trading/offers.js';
-import { registerLeaderboardRefresh, registerLeaderboards } from './leaderboards/routes.js';
+import {
+  registerLeaderboardRefresh,
+  registerLeaderboards,
+  snapshotDeps,
+} from './leaderboards/routes.js';
+import { FormulaVersionSource } from './leaderboards/formulas.js';
 import { sweepLeaderboards } from './leaderboards/snapshot.js';
 import { registerSeasons } from './seasons/routes.js';
 import { registerArena } from './arena/routes.js';
@@ -112,6 +117,8 @@ export function buildApp({
   });
   app.decorate('db', database.db);
   app.decorate('worldState', new WorldStateCache(database.db, worldStateTtlMs));
+  // Ticket 6.1: board formula versions in force (a newer one waits for the season's end).
+  app.decorate('formulaVersions', new FormulaVersionSource(database.db, worldStateTtlMs));
   app.decorate(
     'gameSettings',
     new GameSettingsCache(database.db, settings?.ttlMs, settings?.clock),
@@ -154,7 +161,7 @@ export function buildApp({
       await registerTradeModeration(api, activityOptions);
       await registerLegal(api, legal ?? {});
       await registerAdmin(api, { gameNow: activityOptions.now, ...admin });
-      await registerScores(api);
+      await registerScores(api, activityOptions.now);
       await registerLeaderboards(api, { now: activityOptions.now, ...leaderboards });
       await registerSeasons(api, { now: activityOptions.now });
       await registerArena(api, activityOptions);
@@ -234,7 +241,7 @@ function registerSettlementScheduler(
         .then(async () => {
           // Ticket 5.2: the leaderboard sweep (backfill, then a rotation over every hero).
           const out = await sweepLeaderboards(
-            { db: app.db, worldFlags: () => app.worldState.flags() },
+            snapshotDeps(app),
             options.now(),
             { batch: LEADERBOARD_SWEEP_BATCH, cursor: sweepCursor },
           );

@@ -1,4 +1,3 @@
-import { seasonAt, type SeasonWindow } from './seasons.js';
 import {
   FORMULA_BASELINE,
   FORMULA_VERSIONS,
@@ -31,7 +30,8 @@ export interface FormulaSwitch {
 
 export type FormulaSchedule = readonly FormulaSwitch[];
 
-type Seasons = readonly Pick<SeasonWindow, 'number' | 'startsAt' | 'endsAt'>[];
+/** The season windows the plan reads (`seasons` rows; `[startsAt, endsAt)`). */
+type Seasons = readonly { number: number; startsAt: Date; endsAt: Date }[];
 
 /** Whether a switch is in force at `now`. A season that no longer exists counts as ended. */
 export function switchInForce(s: FormulaSwitch, seasons: Seasons, now: Date): boolean {
@@ -72,7 +72,9 @@ export function planFormulaSwitches(
   latest: FormulaVersions = FORMULA_VERSIONS,
 ): FormulaSwitch[] {
   const planned = plannedFormulaVersions(schedule);
-  const running = seasonAt(seasons as readonly SeasonWindow[], now);
+  // The season under way (its window holds `now`); kept local, as no rule may read seasons.ts.
+  const t = now.getTime();
+  const running = seasons.find((s) => s.startsAt.getTime() <= t && t < s.endsAt.getTime());
   return SCORE_METRICS.filter((m) => planned[m] !== latest[m]).map((metric) => ({
     metric,
     from: planned[metric],

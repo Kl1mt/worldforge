@@ -293,6 +293,8 @@ export async function registerSeasonAdmin(
         options.now(),
         { accountId: actor, via: 'admin', guard: (tx) => options.lockAdmin(tx, actor) },
       );
+      // Ticket 6.1: a formula switch waits for a season's end as planned now.
+      admin.formulaVersions.invalidate();
       return body();
     },
   );
@@ -327,6 +329,7 @@ export async function registerSeasonAdmin(
         via: 'admin',
         guard: (tx) => options.lockAdmin(tx, actor),
       });
+      admin.formulaVersions.invalidate();
       return body();
     },
   );

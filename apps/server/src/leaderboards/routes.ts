@@ -4,7 +4,6 @@ import { and, eq, sql, type SQL } from 'drizzle-orm';
 import {
   BOARD_SCOPES,
   CLASS_IDS,
-  FORMULA_VERSIONS,
   LEVEL_BRACKET_IDS,
   SCORE_METRICS,
   canViewProfile,
@@ -22,6 +21,15 @@ import { profileRelationsFor } from '../social/profiles.js';
 import { hiddenTargetKeys } from '../social/sanctions.js';
 import { characterNameKey, profileFieldKey } from '../social/targets.js';
 import { refreshAccountHeroes, refreshHeroScores, type SnapshotDeps } from './snapshot.js';
+
+/** The snapshot dependencies of a running app (world flags and formula versions, both cached). */
+export function snapshotDeps(app: FastifyInstance): SnapshotDeps {
+  return {
+    db: app.db,
+    worldFlags: () => app.worldState.flags(),
+    formulaVersions: (now) => app.formulaVersions.at(now),
+  };
+}
 import {
   NO_PRESTIGE_SHOWN,
   listSeasons,
@@ -65,7 +73,7 @@ const READ_METHODS = new Set(['GET', 'HEAD']);
 
 /** Registers the refresh hook on the app (before the API scope, so every route gets it). */
 export function registerLeaderboardRefresh(app: FastifyInstance, now: () => Date): void {
-  const deps: SnapshotDeps = { db: app.db, worldFlags: () => app.worldState.flags() };
+  const deps = snapshotDeps(app);
   app.decorateRequest('scoreClock', null);
   app.addHook('onRequest', async (request) => {
     if (!READ_METHODS.has(request.method)) request.scoreClock = now();
@@ -186,6 +194,8 @@ export async function readBoard(
   viewerId: string,
   q: BoardQuery,
   now: Date,
+  /** Ticket 6.1: the metric's formula version in force (all-time boards show only its rows). */
+  formulaVersion: number,
 ): Promise<BoardView> {
   // The rows a board ranks (ticket 5.3): all time, a season under way (its heroes whose score
   // rose), or an archived season (its final standings, in their archived order).
@@ -197,7 +207,7 @@ export async function readBoard(
         ? sql`season_standings`
         : sql`season_entries`;
   const where: SQL[] = [sql`e.metric = ${q.metric}`, notSanctioned(now)];
-  if (q.scope !== 'season') where.push(sql`e.formula_version = ${FORMULA_VERSIONS[q.metric]}`);
+  if (q.scope !== 'season') where.push(sql`e.formula_version = ${formulaVersion}`);
   else if (!season) where.push(sql`false`);
   else {
     where.push(sql`e.season = ${season.number}`);
@@ -281,7 +291,7 @@ export async function readBoard(
     metric: q.metric,
     scope: q.scope,
     season: null,
-    formulaVersion: FORMULA_VERSIONS[q.metric],
+    formulaVersion,
     filters: { classId: q.classId, bracket: bracket?.id ?? null },
     total,
     entries,
@@ -414,7 +424,7 @@ export async function registerLeaderboards(
   app: FastifyInstance,
   options: LeaderboardOptions,
 ): Promise<void> {
-  const deps: SnapshotDeps = { db: app.db, worldFlags: () => app.worldState.flags() };
+  const deps = snapshotDeps(app);
   const limit = options.readLimit ?? DEFAULT_BOARD_READ_LIMIT;
   const checkRead = createBoardReadLimiter(app, limit);
 
@@ -488,6 +498,7 @@ export async function registerLeaderboards(
           limit: request.query.limit ?? 50,
         },
         now,
+        (await app.formulaVersions.at(options.now()))[request.params.metric],
       );
       const body = { board: { ...board, season } };
       const etag = `"${createHash('sha256').update(JSON.stringify(body)).digest('base64url').slice(0, 22)}"`;

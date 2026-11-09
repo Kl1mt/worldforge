@@ -11,6 +11,7 @@ import { openCliDatabase } from '../db/cli-database.js';
 import type { Database } from '../db/types.js';
 import { loadWorldState } from '../community/world-state.js';
 import { checkLeaderboards, type CheckReport } from './check.js';
+import { FormulaVersionSource } from './formulas.js';
 import { refreshAll, type SnapshotDeps } from './snapshot.js';
 
 const USAGE = `Usage:
@@ -18,7 +19,12 @@ const USAGE = `Usage:
   pnpm admin:leaderboards refresh    (rewrite every hero's rows from current state)`;
 
 export function cliDeps(db: Database): SnapshotDeps {
-  return { db, worldFlags: async () => (await loadWorldState(db)).flags };
+  const formulas = new FormulaVersionSource(db, 0);
+  return {
+    db,
+    worldFlags: async () => (await loadWorldState(db)).flags,
+    formulaVersions: (now) => formulas.at(now),
+  };
 }
 
 /** Plain-text summary of a check; exported for tests. */

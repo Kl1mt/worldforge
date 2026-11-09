@@ -1,11 +1,11 @@
 import { createHash } from 'node:crypto';
 import { and, asc, eq, gt, sql } from 'drizzle-orm';
 import {
-  FORMULA_VERSIONS,
   SCORE_METRICS,
   computeScore,
   metricInput,
   type ScoreMetric,
+  type FormulaVersions,
   type ScoringInput,
   type WorldFlags,
 } from '@worldforge/game-core';
@@ -28,6 +28,11 @@ import { writeSeasonRows, type SeasonChange } from '../seasons/model.js';
 export interface SnapshotDeps {
   db: Database;
   worldFlags: () => Promise<WorldFlags>;
+  /**
+   * Ticket 6.1: the formula versions in force at a game-clock moment (`FormulaVersionSource`:
+   * a newer version waits for the season under way to end).
+   */
+  formulaVersions: (now: Date) => Promise<FormulaVersions>;
 }
 
 export type EntryRow = typeof leaderboardEntries.$inferSelect;
@@ -48,20 +53,21 @@ export async function snapshotInput(
 }
 
 /** SHA-256 of the canonical JSON of `metric`'s slice of the input (`inputs_hash`). */
-export function inputsHash(metric: ScoreMetric, input: ScoringInput): string {
+export function inputsHash(metric: ScoreMetric, input: ScoringInput, version: number): string {
   return createHash('sha256')
-    .update(`${metric}:v${FORMULA_VERSIONS[metric]}\n${canonicalJson(metricInput(metric, input))}`)
+    .update(`${metric}:v${version}\n${canonicalJson(metricInput(metric, input))}`)
     .digest('hex');
 }
 
-/** Whether a stored row is current for `input`: same formula version and slice hash. */
+/** Whether a stored row is current for `input`: the version in force and the same slice hash. */
 function isCurrent(
   row: Pick<EntryRow, 'formulaVersion' | 'inputsHash' | 'metric'>,
   input: ScoringInput,
+  versions: FormulaVersions,
 ) {
   return (
-    row.formulaVersion === FORMULA_VERSIONS[row.metric] &&
-    row.inputsHash === inputsHash(row.metric, input)
+    row.formulaVersion === versions[row.metric] &&
+    row.inputsHash === inputsHash(row.metric, input, versions[row.metric])
   );
 }
 
@@ -90,6 +96,8 @@ export async function refreshHeroScores(
   // Read once, outside the transaction: the cache may query the pool (PGlite has one connection).
   const flags = await deps.worldFlags();
   const fixedFlags = async () => flags;
+  // Ticket 6.1: the versions in force at the event's moment (the window rule's clock).
+  const versions = await deps.formulaVersions(now);
   const input = await snapshotInput(deps.db, hero, fixedFlags);
   const stored = await deps.db
     .select({
@@ -102,7 +110,7 @@ export async function refreshHeroScores(
     .where(eq(leaderboardEntries.characterId, characterId));
   if (
     stored.length === SCORE_METRICS.length &&
-    stored.every((r) => isCurrent(r, input) && r.level === hero.level)
+    stored.every((r) => isCurrent(r, input, versions) && r.level === hero.level)
   )
     return 'unchanged';
 
@@ -123,7 +131,7 @@ export async function refreshHeroScores(
     const changes: SeasonChange[] = [];
     for (const metric of SCORE_METRICS) {
       const row = rows.find((r) => r.metric === metric);
-      if (row && isCurrent(row, current)) {
+      if (row && isCurrent(row, current, versions)) {
         // The score did not move, but the bracket filter needs the hero's level on every row.
         if (row.level !== fresh.level) {
           levelChanged = true;
@@ -140,7 +148,7 @@ export async function refreshHeroScores(
         }
         continue;
       }
-      const score = computeScore(metric, current);
+      const score = computeScore(metric, current, versions[metric]);
       // `achieved_at` moves only when the standing does. A formula bump that changes the key
       // keeps it (the hero reached this standing then, measured anew), unless the slice moved too.
       const keyMoved = !row || !sameKey(row.sortKey, score.sortKey);
@@ -163,7 +171,7 @@ export async function refreshHeroScores(
         formulaVersion: score.formulaVersion,
         value: score.value,
         sortKey: score.sortKey,
-        inputsHash: inputsHash(metric, current),
+        inputsHash: inputsHash(metric, current, versions[metric]),
         input: current,
         achievedAt,
         updatedAt: now,
@@ -220,10 +228,14 @@ export async function refreshAccountHeroes(
 }
 
 /** Heroes without a current row for every metric (new heroes, existing ones before 5.2, bumps). */
-export async function heroesNeedingRows(db: Executor, limit: number): Promise<string[]> {
+export async function heroesNeedingRows(
+  db: Executor,
+  limit: number,
+  inForce: FormulaVersions,
+): Promise<string[]> {
   const versions = SCORE_METRICS.map(
     (m) =>
-      sql`(${leaderboardEntries.metric} = ${m} and ${leaderboardEntries.formulaVersion} = ${FORMULA_VERSIONS[m]})`,
+      sql`(${leaderboardEntries.metric} = ${m} and ${leaderboardEntries.formulaVersion} = ${inForce[m]})`,
   );
   const rows = await db
     .select({ id: characters.id })
@@ -250,7 +262,7 @@ export async function sweepLeaderboards(
   now: Date,
   options: { batch: number; cursor: string | null },
 ): Promise<{ cursor: string | null; refreshed: number; updated: number }> {
-  const missing = await heroesNeedingRows(deps.db, options.batch);
+  const missing = await heroesNeedingRows(deps.db, options.batch, await deps.formulaVersions(now));
   const room = Math.max(0, options.batch - missing.length);
   const rotation = room
     ? await deps.db
