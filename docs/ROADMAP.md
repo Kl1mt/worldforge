@@ -828,6 +828,175 @@ Checked and holding: staff and admin routes `404` before validation and re-read 
 - **Add the public leaderboards to the privacy policy** (every player listed by display name, no opt-out; owner decision 2026-11-07).
 - Answer B.4's open question 3 (the thin 10–19 bracket) and decide the trade partner page and the sanction rule for boards if they should differ (accepted risks above).
 
+## Phase 6 — Endgame expansion & long-term systems
+**Status: planned** (tickets written 2026-11-09; each starts on the owner's go-ahead).
+
+GDD §15 Phase 6, §7.5 (variants), §8.2 (Item Awakening), §12 (community), §13 (cosmetics), §16.4. **Exit:** endgame systems add meaningful choices without making older content or most item drops irrelevant (GDD §15). Concretely: a level-28 hero in good Ashen Pass gear can still farm and progress in the new region; Phase 1–5 drops keep a use (salvage value, set pieces, crafting inputs, Forge targets); no new system is required to stay competitive in PvE.
+
+**Ground rules for Phase 6** (all Phase 1–5 rules still apply, including `CLAUDE.md` "Writing tests that don't flake", the patch-notes and the screenshots rules)
+- **Phase 6 releases are 0.6.x.** The first Phase 6 PR players can see bumps to `0.6.0`.
+- **Content stays data-driven** (areas, enemies, loot tables, bosses, events, cosmetics). Balance numbers move only in their own ticket or a B-ticket, with before/after tables.
+- **Older content stays relevant.** New tiers extend the curves, they don't replace them. A ticket that adds power states how a hero in today's best gear fares, and the balance suites assert it.
+- **Boards move by versions, never resets** (5.2 sweep, 5.3 "formula changes between seasons"). New content adds Power trials and PvE Progress milestones as new formula versions, scheduled between seasons.
+- **Cosmetics and events never sell or grant power** (GDD §13.3). Event rewards are cosmetic or ordinary loot at ordinary odds.
+- **PvP stays separate.** New content may need new reference kits or class factors in the PvP normalisation layer (`PVP_RULES_VERSION` bump with measurements); PvE numbers never change for PvP's sake.
+- **Abuse first**, as in Phase 5. Phase 5's lessons apply: check-then-act across an `await`; check offered lists and ownership before relation-based refusals; test "the other side" of every view.
+
+**Defaults the owner can override** (recorded in the GDD when the ticket lands):
+- **New region:** the Cinderwastes (working name), beyond the Ashen Pass, for levels **28–40** in two areas plus a region boss. Unlocked by the Ashen Warden and a community project (6.7), like the Pass. There is no hard level cap (owner decision, F.1); the XP soft cap moves from about 35 to about 42.
+- **Harder mode:** **crypt tier IV "Heroic"** for the Legendary tier (owner decision, 4.11 follow-up). Same crypt, harder chambers and boss variants, better odds at the top rarities and no new power curve. Tier III stays "the Legendary tier".
+- **Boss variants:** a **weekly rotating modifier** on the crypt bosses, the Ashen Warden and the guild boss (e.g. "Burning", "Warded", "Frenzied"). It changes tactics and adds a small loot focus, and is announced in the Tavern.
+- **Prismatic:** a second variant **after Void, never stacked with it** in this phase (GDD §7.5, the 3.5 decision). Rarer than Void, Legendary/Mythic/set only, a different stat shape rather than more power. Stacking (a Void-Prismatic item) stays out until a later decision.
+- **Item Awakening:** **evaluate first** (a design doc and a game-core prototype behind a switch, off). Ship only on the owner's yes.
+- **Events:** **admin-scheduled rotating events** (e.g. a "Harvest of Bones" week): a world modifier, an event quest line in the Tavern and a cosmetic reward track. Up to one event at a time, scheduled in the admin panel like seasons.
+- **Cosmetics:** a **collection book** with hero appearance variants (palette swaps of the class sprites), banner and crest styles, and title colours. Earned from events, deeds, seasons and milestones; never bought; no stats.
+
+**Order** (one or two sessions at a time):
+1. 6.1 and A.11 (parallel)
+2. 6.2
+3. 6.3
+4. 6.4 and A.12 (parallel)
+5. 6.5
+6. 6.6
+7. 6.7
+8. 6.8 and A.13 (parallel)
+9. B.5
+10. 6.9
+11. 6.10
+
+### 6.1 Endgame region I: the Cinderwastes, levels 28–34 (vertical) — `todo`
+GDD §7, §9, §11, §15 Phase 6. Read `docs/WORLD.md`, `docs/COMBAT.md` (heroes past the content's top), `docs/LOOT.md`, `docs/FARMING.md`, `docs/DUNGEONS.md` (the Ashen Watch).
+- First area of the new region: enemies 28–34, a tier-4 loot table (item levels 29–35, tier-5 affixes from 31 per the affix curve), gathering and an unlock (Ashen Warden defeated, level 28).
+- Extend the XP curve and penalty so the soft cap sits around 42; extend the level, affix and rarity curves without changing values at or below 28. The no-effects hashes and the existing balance suites stay unchanged up to level 28.
+- 5.1 formulas get new versions, switched between seasons: Power gets trials for the new levels, PvE Progress gets milestones for the new area. Leaderboard docs updated.
+- PvP: reference kits for 30+ (`PVP_RULES_VERSION` bump only if needed, measured).
+- Tests:
+  - a level-28 hero in today's best gear can farm the area profitably;
+  - older drops keep salvage value;
+  - curve monotonicity;
+  - board recompute under the new versions;
+  - a journey step;
+  - screenshots on the `screenshots` branch.
+- Patch notes `0.6.0`.
+
+### A.11 Cinderwastes art: backdrop, enemies & region boss — `todo`
+GDD §3.1. The 6.1 and 6.2 area backdrops, 4–6 enemies and the region boss, matching A.7's treatment. Budget: two backdrop jobs, two or three 32/64 px enemy jobs, one boss job, and at most one regeneration. Manifest and `assets.ts`. **Acceptance:** a contact sheet in the PR.
+
+### 6.2 Endgame region II & region boss, levels 34–40 (vertical) — `todo`
+Needs 6.1.
+- The second area (34–40) and a region boss dungeon in the Watch's style: a hoard that is always bound (T.1) and a boss material that has a sink, e.g. tier-5 upgrades or Awakening if 6.5 ships.
+- A new PvE Progress milestone version.
+- Tests like 6.1.
+
+### 6.3 Crypt tier IV "Heroic" & boss variants (vertical) — `todo`
+GDD §9, §11. Read `docs/DUNGEONS.md`, `docs/GUILD_BOSS.md`.
+- Crypt tier IV: harder chambers and boss mechanics at levels 32+, better top-rarity odds with no new power curve, and the run-replay and seed rules as tier III.
+- **Weekly rotating boss modifiers** (data-driven, seeded by the week) on the crypt bosses, the Ashen Warden, the region boss and the guild boss. Each modifier gives a small loot focus. Announced in the Tavern.
+- Telemetry per modifier.
+- Tests:
+  - modifier determinism per week;
+  - the week boundary (window rule);
+  - replay equality;
+  - the guild boss's async attempts across a modifier change.
+
+### 6.4 Prismatic variant (game-core + vertical) — `todo`
+GDD §7.5. Read `docs/EFFECTS.md` (variants), `docs/LOOT.md`, `docs/TRADING.md` (the categories).
+- Prismatic: Legendary, Mythic and set items only, rarer than Void, and **never stacked with Void** (one variant per item).
+- A distinct stat shape, e.g. converting part of its main stat into a rotating element or secondary. Documented and balanced so the best Prismatic is a sidegrade to the best Void.
+- Drop odds only in Ashen-tier and newer content.
+- Trading: a new "Tradeable: Prismatic" switch, default off (T.2 settings, migration-free default).
+- `validateItem`, binding (T.1), Gear Score (5.1 version bump if counted), and PvP normalisation all cover it.
+- Tests:
+  - drop odds over many seeds;
+  - forged-item refusal;
+  - invariance of non-Prismatic numbers;
+  - trading-switch behaviour.
+
+### A.12 Prismatic & Void-plus visual treatment — `todo`
+The Prismatic shimmer treatment for item icons (the 3.5 Void pipeline: palette and overlay, not new sprites), plus tooltip and rarity-frame accents. Budget: one 32 px job at most; prefer a code/palette treatment. **Acceptance:** a contact sheet.
+
+### 6.5 Item Awakening: evaluation & prototype (design + game-core) — `todo`
+GDD §8.2. Read `docs/EFFECTS.md`, `docs/ECONOMY.md`, `docs/LOOT.md`.
+- A design doc `docs/AWAKENING.md`:
+  - options (an extra affix slot vs a special effect);
+  - costs and sinks (the 6.2 boss material and gold);
+  - eligibility (Legendary/Mythic/set at +10);
+  - binding (awakened = bound);
+  - PvP and board effects;
+  - risks (power creep, making older drops irrelevant).
+- A game-core prototype behind a switch (off) and a balance simulation with the realistic player.
+- **Owner decision gate:** the doc ends with a recommendation and questions. Server, UI and patch notes come only after the owner's yes, as a follow-up ticket 6.5b.
+
+### 6.6 Rotating events framework (vertical) — `todo`
+GDD §12, §13. Read `docs/QUESTS.md`, the 5.3 season model (scheduling, the window rule, archive).
+- An event model scheduled in the admin panel and by CLI (start/end UTC, one at a time), with data-driven event definitions:
+  - a world modifier (e.g. bonus material yield or a themed enemy variant);
+  - an event quest line in the Tavern;
+  - a cosmetic reward track.
+- Rewards are cosmetic (6.8) or ordinary loot at ordinary odds; never power.
+- One complete first event, "Harvest of Bones" (working name).
+- Tests:
+  - the event boundary (window rule);
+  - the reward track granted exactly once (real PG);
+  - an event ending mid-quest;
+  - invariance outside events;
+  - a journey step.
+
+### 6.7 Community & world progression expansion (vertical) — `todo`
+GDD §12. Read `docs/COMMUNITY.md`, the world flags.
+- A project chain that opens the new region's later parts: 6.2's area and the region boss gate, and a town upgrade.
+- World "eras": a visible long-term progression of Graumark, with stages that change town art and Tavern text, and world flags.
+- A larger-town scaling check (B.3's caps against monopoly).
+- Tests:
+  - stage pacing at 20/100/500 players;
+  - caps;
+  - the flag-unlock journey.
+
+### 6.8 Cosmetic collection book (vertical) — `todo`
+GDD §13. Read `docs/LEADERBOARDS.md` (5.3 prestige display), `docs/SOCIAL.md` (profiles).
+- A collection book: hero appearance variants (class palette swaps), banner and crest styles, and title colours. Each entry has a source (event, deed, season, milestone).
+- Equip and preview; shown on profiles, boards, rosters and the duel screen.
+- Never purchasable, no stats. Cosmetics are account-bound and not tradeable.
+- Tests:
+  - granted exactly once;
+  - display privacy (5.2 rules);
+  - invariance (no-effects hashes; 5.1 scores);
+  - screenshots.
+
+### A.13 Cosmetic art: appearance variants, banner and crest styles — `todo`
+Palette-swap sets for the four class sprites (code-driven where possible) and 6–10 banner and crest styles. Budget: one or two 32 px jobs; prefer palette work over new generations. **Acceptance:** a contact sheet.
+
+### B.5 Balance pass: endgame — `todo`
+GDD §16.4. Needs 6.1–6.8.
+- The realistic player through levels 28–40:
+  - XP and gold pacing;
+  - Heroic odds;
+  - Prismatic share;
+  - modifier fairness;
+  - event reward pacing;
+  - whether older drops still matter (salvage, Forge, set completion).
+- Boards and PvP re-measured with the new versions.
+- Address the owner's playtest feedback (`docs/PLAYTEST_FEEDBACK.md`) if it has arrived.
+- **Acceptance:** before/after tables; balance suites green and fast.
+
+### 6.9 Scale readiness: shared limiters, caches & schedulers — `todo`
+Carried risk from Phases 4–5: one API instance.
+- Move the in-memory rate limiters, the world-state and settings caches and the schedulers onto a shared store (PostgreSQL first, e.g. advisory-lock leader election and table-backed counters), so a second instance is safe.
+- Document how to run two instances in `docs/DEPLOY.md`; don't switch production to two.
+- Also the carried name risks: a reserved-names store and look-alike name checks (4.11).
+- Tests:
+  - two app instances against one real PG;
+  - limits holding across both;
+  - one scheduler leader at a time;
+  - cache invalidation across instances.
+
+### 6.10 Phase 6 hardening & exit — `todo`
+GDD §15 Phase 6 exit, §16.3.
+- An exit-criteria e2e with several players: the new region and boss, Heroic with a modifier, Prismatic drops, an event start to end with its reward track, a world era advancing, collection rewards, boards recomputed under the new versions, and duels in the 30+ bracket. Everything reconciled with the audit log and telemetry.
+- A browser run for the key flows (CI job `e2e-phase6`).
+- An exploit review of every Phase 6 endpoint and a rate-limit review.
+- A Phase 6 retrospective in this file.
+
 ## Deployment
 
 ### D.1 Production deployment — `done (PR #52)`
