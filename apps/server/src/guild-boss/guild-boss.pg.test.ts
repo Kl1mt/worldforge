@@ -336,7 +336,10 @@ describe.skipIf(!url)('real PostgreSQL: the guild boss races safely', () => {
       );
       const { attempts } = await expectExact(guild);
       expect(attempts.filter((a) => a.accountId === target.id)).toHaveLength(landed);
-      // Each landed attempt was audited before the kick (both run under the guild's lock).
+      // Each landed attempt is audited once and the kick once. Their order is not checked from
+      // the rows: `created_at` is the transaction's start, and a request queued on the guild's
+      // lock can start before the kick yet commit after it. "Before the kick" is what the 404s
+      // above and the membership below show (an attempt after it is refused).
       const events = await db()
         .select({ id: auditLog.id, event: auditLog.event })
         .from(auditLog)
@@ -347,10 +350,9 @@ describe.skipIf(!url)('real PostgreSQL: the guild boss races safely', () => {
           ),
         )
         .orderBy(sql`${auditLog.createdAt}`, auditLog.id);
-      expect(events.map((e) => e.event)).toEqual([
-        ...Array.from({ length: landed }, () => 'guild_boss.attempt'),
-        'guild.kick',
-      ]);
+      expect(events.map((e) => e.event).sort()).toEqual(
+        [...Array.from({ length: landed }, () => 'guild_boss.attempt'), 'guild.kick'].sort(),
+      );
       const [still] = await db()
         .select()
         .from(guildMembers)
