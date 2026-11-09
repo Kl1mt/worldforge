@@ -779,7 +779,7 @@ GDD: §10.1, §16.3. `docs/TRADING.md` in full (abuse cases, "Test strategy", th
 - Exploit review of T.1–T.6 (attack, prevention, proving test, residual risk), every hole fixed with a failing test first; the known items from T.3 and T.6; the journey with three players; a balance check with the realistic player and the switches on. No new trading features.
 - Done: see `docs/TRADING.md` "T.7 exploit review" and "T.7 as built", `docs/ECONOMY.md` "Balance check: trading and the shelf (ticket T.7)".
 
-### 5.8 Phase 5 hardening & exit — `done (PR #__PR__)`
+### 5.8 Phase 5 hardening & exit — `done (PR #105)`
 GDD: §15 Phase 5 exit, §16.3.
 - Exit-criteria e2e with several players: boards and recompute, a season ending with prestige awarded, rated and friendly duels, account security flows, and (with the switches on in the test) a full trade cycle with a reversal; everything reconciled with the audit log and telemetry. Browser run for the key flows.
 - Exploit review of every Phase 5 endpoint; rate limits reviewed; Phase 5 retrospective in this file.
