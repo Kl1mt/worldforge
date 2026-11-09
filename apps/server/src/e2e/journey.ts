@@ -28,6 +28,7 @@ import {
   getLootTable,
   itemBinding,
   DEFAULT_TRADING_SETTINGS,
+  tradeEndText,
   worldFlagsFrom,
   type AreaId,
   type ClassId,
@@ -57,7 +58,7 @@ import {
 } from '../db/schema.js';
 import type { DatabaseHandle } from '../db/types.js';
 import { setAccountRole } from '../social/roles.js';
-import { reconcileWithAudit } from '../telemetry/report.js';
+import { loadRollups, reconcileWithAudit, sumRollups } from '../telemetry/report.js';
 import { completeProject } from '../community/project-cli.js';
 import type { WarehouseMoveResponse, WarehouseView } from '../warehouse/routes.js';
 import type { ShelfMoveResponse, ShelfView } from '../shelf/routes.js';
@@ -3231,4 +3232,478 @@ export async function playTradeStep(
   // Back to closed, as the owner leaves it by default.
   await database.db.delete(gameSettings).where(eq(gameSettings.key, 'trading'));
   app.gameSettings.invalidate();
+}
+
+/** An offer as both players read it (`GET /api/trading/offers`, the history). */
+interface OfferView {
+  id: string;
+  status: string;
+  gift: boolean;
+  endText: string | null;
+  heldUntil: string | null;
+}
+
+/**
+ * Ticket T.7 (trading hardening): three players trade under every switch the owner controls, and
+ * nothing is created or lost on the way. A and B are friends, B and C are friends; all three are
+ * made eligible the quick way (`playTradeStep`'s shortcut: a level-15 hero and a verified email
+ * written directly; the clock moves past the 14-day account age and the 7-day friendships). The
+ * owner opens trading through the admin route. In order:
+ * 1. a gold↔material swap (B → C), a gold and material gift (A → B) and an item swap (A ↔ B; one
+ *    farmed pack item of each is made a fresh Epic in place, so the item count of the audit replay
+ *    is unchanged and its provenance is the drop's own `activity.reward` row);
+ * 2. the hold: a held item can't be sold or shelved (`409 item_held`), held gold can't be shelved
+ *    or sent on (`422 insufficient_gold` with what is held);
+ * 3. C reports the swap, a moderator finds it in the queue and reverses it within the hold;
+ * 4. the owner pauses "Trade: gold": A's open gold offer is voided, the gold back, a `trade.void`
+ *    row, and both players read the same withdrawn line;
+ * 5. B reports C, a moderator restricts C's trading from the queue: C's open offer is voided, C's
+ *    next send is refused (`trade_restricted`), C's shelf still works;
+ * 6. 72 hours on, the holds are released and the same spends go through; B's received item and
+ *    gold cross the shelf to a second hero of B's account.
+ * Every hero's holdings and every shelf equal a replay of the audit log, the rollups reconcile
+ * and the trade telemetry counts what the audit rows say. The switches go back to the defaults.
+ */
+export async function playTradingHardeningStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  clock: Clock,
+  a: Journey,
+  b: Journey,
+  c: Journey,
+) {
+  const DAY = 86_400_000;
+  const heroes = [a, b, c];
+  const err = (r: LightMyRequestResponse) =>
+    r.json<{ error: { code: string; details?: Record<string, unknown> } }>().error;
+  const meOf = async (j: Journey) =>
+    (await j.api('GET', '/api/account')).json<{ account: { id: string; handle: string } }>()
+      .account;
+  const [ma, mb, mc] = [await meOf(a), await meOf(b), await meOf(c)];
+  /** Settles at the current clock (catches up after a jump; a second call adds nothing). */
+  const settleNow = async (j: Journey) => {
+    const res = await j.api('POST', `${j.base}/activity/settle`);
+    expect(res.statusCode, res.body).toBe(200);
+  };
+  const minutes = async (n: number) => {
+    clock.set(clock.now() + n * MIN);
+    for (const j of heroes) await settleNow(j);
+  };
+  const historyOf = async (j: Journey) =>
+    (await j.api('GET', '/api/trading/offers/history')).json<{
+      offers: (OfferView & { reversal: { reason: string } | null })[];
+    }>().offers;
+  const inboxOf = async (j: Journey) =>
+    (await j.api('GET', '/api/trading/offers')).json<{
+      open: boolean;
+      received: OfferView[];
+      sent: OfferView[];
+      holds: unknown[];
+    }>();
+  const auditOf = async (event: string, offerId?: string) =>
+    database.db
+      .select()
+      .from(auditLog)
+      .where(
+        and(
+          eq(auditLog.event, event),
+          offerId ? sql`${auditLog.data}->>'offerId' = ${offerId}` : undefined,
+        ),
+      );
+  const tradeableMaterial = (mats: Record<string, number>, min: number) =>
+    Object.entries(mats)
+      .filter(([id, n]) => id !== 'gravewardenSeal' && n >= min)
+      .sort((x, y) => y[1] - x[1] || x[0].localeCompare(y[0]))[0]?.[0];
+  const packItem = async (j: Journey) => (await j.inventory()).inventory.find((it) => !it.locked);
+
+  // Eligibility, the quick way, and two friendships (A–B, C–B) a week and more old.
+  for (const [j, m] of [
+    [a, ma],
+    [b, mb],
+    [c, mc],
+  ] as const) {
+    await database.db.update(characters).set({ level: 15 }).where(eq(characters.id, j.characterId));
+    await database.db
+      .update(accounts)
+      .set({ emailVerifiedAt: new Date(clock.now()) })
+      .where(eq(accounts.id, m.id));
+  }
+  for (const [from, fromMe] of [
+    [a, ma],
+    [c, mc],
+  ] as const) {
+    expect(
+      (await from.api('POST', '/api/friends/requests', { handle: mb.handle })).statusCode,
+    ).toBe(200);
+    expect((await b.api('POST', `/api/friends/requests/${fromMe.handle}/accept`)).statusCode).toBe(
+      200,
+    );
+  }
+  clock.set(clock.now() + 15 * DAY);
+  for (const j of heroes) await settleNow(j);
+
+  // Something to trade: farm on one clock until A has gold, a stack and a pack item, B gold and a
+  // pack item, C a stack (bounded; the farming rolls decide how long it takes, not whether).
+  const ready = async () => {
+    const [ha, hb, hc] = [await holdingsOf(a), await holdingsOf(b), await holdingsOf(c)];
+    return (
+      ha.gold >= 20 &&
+      tradeableMaterial(ha.mats, 2) !== undefined &&
+      (await packItem(a)) !== undefined &&
+      hb.gold >= 10 &&
+      (await packItem(b)) !== undefined &&
+      tradeableMaterial(hc.mats, 3) !== undefined
+    );
+  };
+  for (let i = 0; i < 80 && !(await ready()); i++) {
+    clock.set(clock.now() + STEP);
+    for (const j of heroes) {
+      await j.settle({ advance: false });
+      await j.farmBestArea();
+    }
+  }
+  expect(await ready(), 'farming gave each player something to trade').toBe(true);
+
+  // The owner (an admin) opens trading and the shelf through the admin route; the Warehouse
+  // (the shelf's building) is restored.
+  const owner = await newPlayer(app, 'hardening-owner@graumark.test', 'Owner Thessaly');
+  await setAccountRole(database.db, 'hardening-owner@graumark.test', 'admin');
+  type Settings = typeof DEFAULT_TRADING_SETTINGS;
+  const saveTrading = async (change: (s: Settings) => Settings) => {
+    const current = (await owner.api('GET', '/api/mod/settings/trading')).json<{
+      settings: Settings;
+      version: number;
+    }>();
+    const put = await owner.api(
+      'PUT',
+      '/api/admin/settings/trading',
+      { expectedVersion: current.version, settings: change(structuredClone(current.settings)) },
+      { 'idempotency-key': randomUUID() },
+    );
+    expect(put.statusCode, put.body).toBe(200);
+  };
+  expect((await inboxOf(a)).open).toBe(false);
+  await saveTrading((s) => ({
+    ...s,
+    trading: true,
+    trade: { items: true, materials: true, gold: true },
+    shelf: { items: true, materials: true, gold: true },
+  }));
+  expect(await completeProject(database.db, 'restoreWarehouse', new Date(clock.now()))).toContain(
+    'completed',
+  );
+  app.worldState.invalidate();
+  const warden = await newPlayer(app, 'hardening-warden@graumark.test', 'Warden Corvin');
+  await setAccountRole(database.db, 'hardening-warden@graumark.test', 'moderator');
+
+  // One farmed pack item each of A and B becomes a fresh, tradeable Epic in place (the row and
+  // its drop's audit row stay; `insertTradeItem`'s shape), so the item swap doesn't hang on a drop.
+  const freshEpic = async (j: Journey) => {
+    const it = (await packItem(j))!;
+    await database.db
+      .update(itemInstances)
+      .set({
+        baseId: 'longsword',
+        rarityId: 'epic',
+        itemLevel: 20,
+        affixes: [],
+        variant: null,
+        effectId: null,
+        effectRoll: null,
+        setId: null,
+        mythicId: null,
+        source: 'farming',
+        binding: 'equip',
+        boundAccountId: null,
+        unprovenanced: false,
+        upgradeLevel: 0,
+      })
+      .where(eq(itemInstances.id, it.id));
+    const view = (await j.inventory()).inventory.find((x) => x.id === it.id)!;
+    expect(view).toMatchObject({ rarityId: 'epic', tradeable: true });
+    return it.id;
+  };
+  const itemA = await freshEpic(a);
+  const itemB = await freshEpic(b);
+
+  // 1a. B → C: a swap, B's gold for C's material. C receives with its hero.
+  await minutes(1);
+  const [hb0, hc0] = [await holdingsOf(b), await holdingsOf(c)];
+  const goldB = 5;
+  const matC = tradeableMaterial(hc0.mats, 3)!;
+  const swap = await b.keyed('/api/trading/offers', {
+    to: mc.handle,
+    characterId: b.characterId,
+    give: { gold: goldB },
+    ask: { materials: { [matC]: 2 } },
+  });
+  expect(swap.statusCode, swap.body).toBe(201);
+  const swapId = swap.json<OfferView>().id;
+  expect(swap.json<OfferView>().gift).toBe(false);
+  expect((await holdingsOf(b)).gold, 'the gold is in escrow').toBe(hb0.gold - goldB);
+  const swapped = await c.keyed(`/api/trading/offers/${swapId}/accept`, {
+    characterId: c.characterId,
+  });
+  expect(swapped.statusCode, swapped.body).toBe(200);
+  const [hb1, hc1] = [await holdingsOf(b), await holdingsOf(c)];
+  expect(hb1.mats[matC] ?? 0).toBe((hb0.mats[matC] ?? 0) + 2);
+  expect(hc1.gold).toBe(hc0.gold + goldB);
+  expect(hc1.mats[matC] ?? 0).toBe(hc0.mats[matC]! - 2);
+
+  // 1b. A → B: a gift of gold and a material; B receives with its hero.
+  const ha0 = await holdingsOf(a);
+  const goldA = 10;
+  const matA = tradeableMaterial(ha0.mats, 2)!;
+  const gift = await a.keyed('/api/trading/offers', {
+    to: mb.handle,
+    characterId: a.characterId,
+    give: { gold: goldA, materials: { [matA]: 1 } },
+  });
+  expect(gift.statusCode, gift.body).toBe(201);
+  const giftId = gift.json<OfferView>().id;
+  expect(gift.json<OfferView>().gift).toBe(true);
+  expect((await inboxOf(b)).received.map((o) => o.id)).toContain(giftId);
+  const gifted = await b.keyed(`/api/trading/offers/${giftId}/accept`, {
+    characterId: b.characterId,
+  });
+  expect(gifted.statusCode, gifted.body).toBe(200);
+  expect(Date.parse(gifted.json<OfferView>().heldUntil!)).toBe(clock.now() + 72 * HOUR);
+
+  // 1c. A ↔ B: an item swap, A's Epic for B's.
+  const items = await a.keyed('/api/trading/offers', {
+    to: mb.handle,
+    characterId: a.characterId,
+    receiverCharacterId: b.characterId,
+    give: { itemIds: [itemA] },
+    ask: { itemIds: [itemB] },
+  });
+  expect(items.statusCode, items.body).toBe(201);
+  const itemsId = items.json<OfferView>().id;
+  expect(
+    (await a.inventory()).inventory.map((i) => i.id),
+    'in escrow',
+  ).not.toContain(itemA);
+  const itemsDone = await b.keyed(`/api/trading/offers/${itemsId}/accept`, {});
+  expect(itemsDone.statusCode, itemsDone.body).toBe(200);
+  const packA = (await a.inventory()).inventory;
+  const packB = (await b.inventory()).inventory;
+  expect(packA.map((i) => i.id)).toContain(itemB);
+  expect(packB.map((i) => i.id)).toContain(itemA);
+  for (const it of [packA.find((i) => i.id === itemB)!, packB.find((i) => i.id === itemA)!]) {
+    expect(it).toMatchObject({ binding: 'account', bindingReason: 'traded', tradeable: false });
+  }
+
+  // 2. The hold: received items can't be sold or shelved, received gold can't be shelved or sent
+  // on. B settles at this clock first, so nothing more arrives between the read and the spend.
+  await settleNow(b);
+  const sellHeld = await b.keyed(`${b.base}/merchant/sell`, { itemIds: [itemA] });
+  expect(sellHeld.statusCode, sellHeld.body).toBe(409);
+  expect(err(sellHeld).code).toBe('item_held');
+  expect(err(await a.keyed(`${a.base}/merchant/sell`, { itemIds: [itemB] })).code).toBe(
+    'item_held',
+  );
+  const shelfB = `/api/characters/${b.characterId}/shelf`;
+  const shelveHeld = await b.keyed(`${shelfB}/deposit`, { itemIds: [itemA] });
+  expect(shelveHeld.statusCode, shelveHeld.body).toBe(409);
+  expect(err(shelveHeld).code).toBe('item_held');
+  const hb2 = await holdingsOf(b);
+  const ownGold = hb2.gold - goldA;
+  const heldDeposit = await b.keyed(`${shelfB}/deposit`, { gold: ownGold + 1 });
+  expect(heldDeposit.statusCode, heldDeposit.body).toBe(422);
+  expect(err(heldDeposit)).toMatchObject({ code: 'insufficient_gold', details: { held: goldA } });
+  const heldSend = await b.keyed('/api/trading/offers', {
+    to: ma.handle,
+    characterId: b.characterId,
+    give: { gold: ownGold + 1 },
+  });
+  expect(heldSend.statusCode, heldSend.body).toBe(422);
+  expect(err(heldSend)).toMatchObject({ code: 'insufficient_gold', details: { onHold: goldA } });
+  expect((await holdingsOf(b)).gold, 'refusals move nothing').toBe(hb2.gold);
+
+  // 3. C reports the swap; a moderator finds it in the queue and reverses it within the hold.
+  await minutes(1);
+  const reported = await c.api('POST', '/api/reports', {
+    target: { kind: 'trade', id: swapId },
+    reason: 'scam',
+    note: 'They promised more than they gave.',
+  });
+  expect(reported.statusCode, reported.body).toBe(201);
+  const queue = (await warden.api('GET', '/api/mod/queue')).json<{
+    cases: { target: { kind: string; id?: string } }[];
+  }>();
+  expect(queue.cases.some((x) => x.target.kind === 'trade' && x.target.id === swapId)).toBe(true);
+  const theCase = (await warden.api('GET', `/api/mod/trades/${swapId}`)).json<{
+    reversible: { possible: boolean; canAct: boolean };
+    reports: { open: number };
+  }>();
+  expect(theCase).toMatchObject({
+    reversible: { possible: true, canAct: true },
+    reports: { open: 1 },
+  });
+  const [hb3, hc3] = [await holdingsOf(b), await holdingsOf(c)];
+  const reason = 'Reported as a scam; reversed in the hardening journey.';
+  const reverse = () =>
+    warden.api(
+      'POST',
+      `/api/mod/trades/${swapId}/reverse`,
+      { reason },
+      { 'idempotency-key': randomUUID() },
+    );
+  const reversed = await reverse();
+  expect(reversed.statusCode, reversed.body).toBe(200);
+  const [hb4, hc4] = [await holdingsOf(b), await holdingsOf(c)];
+  expect(hb4.gold).toBe(hb3.gold + goldB);
+  expect(hb4.mats[matC] ?? 0).toBe(hb3.mats[matC]! - 2);
+  expect(hc4.gold).toBe(hc3.gold - goldB);
+  expect(hc4.mats[matC] ?? 0).toBe((hc3.mats[matC] ?? 0) + 2);
+  for (const j of [b, c]) {
+    expect((await historyOf(j)).find((o) => o.id === swapId)?.reversal?.reason).toBe(reason);
+  }
+  const again = await reverse();
+  expect(again.statusCode, again.body).toBe(409);
+
+  // 4. The owner pauses "Trade: gold": A's open gold offer is voided and the gold comes back.
+  await minutes(1);
+  const ha1 = await holdingsOf(a);
+  const doomed = await a.keyed('/api/trading/offers', {
+    to: mb.handle,
+    characterId: a.characterId,
+    give: { gold: 5 },
+  });
+  expect(doomed.statusCode, doomed.body).toBe(201);
+  const doomedId = doomed.json<OfferView>().id;
+  expect((await holdingsOf(a)).gold).toBe(ha1.gold - 5);
+  await saveTrading((s) => ({ ...s, trade: { ...s.trade, gold: false } }));
+  expect((await holdingsOf(a)).gold, 'escrow back').toBe(ha1.gold);
+  const paused = tradeEndText('void', { cause: 'switch', switches: ['trade.gold'] });
+  for (const j of [a, b]) {
+    const seen = (await historyOf(j)).find((o) => o.id === doomedId);
+    expect(seen).toMatchObject({ status: 'void', endText: paused });
+  }
+  const voidRows = await auditOf('trade.void', doomedId);
+  expect(voidRows).toHaveLength(1);
+  expect(voidRows[0]!.data).toMatchObject({
+    reason: 'switch',
+    switches: ['trade.gold'],
+    returned: { gold: 5 },
+  });
+  const goldOff = await a.keyed('/api/trading/offers', {
+    to: mb.handle,
+    characterId: a.characterId,
+    give: { gold: 5 },
+  });
+  expect(goldOff.statusCode, goldOff.body).toBe(409);
+  expect(err(goldOff).code).toBe('trade_refused');
+  await saveTrading((s) => ({ ...s, trade: { ...s.trade, gold: true } }));
+
+  // 5. B reports C; a moderator restricts C's trading from the queue. C's open offer is voided,
+  // C's next send refused, and C's shelf still works ("it reaches no one").
+  await minutes(1);
+  const hc5 = await holdingsOf(c);
+  const matC2 = tradeableMaterial(hc5.mats, 2)!;
+  const open = await c.keyed('/api/trading/offers', {
+    to: mb.handle,
+    characterId: c.characterId,
+    give: { materials: { [matC2]: 1 } },
+  });
+  expect(open.statusCode, open.body).toBe(201);
+  const openId = open.json<OfferView>().id;
+  const filed = await b.api('POST', '/api/reports', {
+    target: { kind: 'player', handle: mc.handle },
+    reason: 'other',
+    note: 'Keeps asking for gold outside the game.',
+  });
+  expect(filed.statusCode, filed.body).toBe(201);
+  const reportId = filed.json<{ report: { id: string } }>().report.id;
+  const restricted = await warden.api('POST', `/api/mod/reports/${reportId}/resolve`, {
+    action: 'restrictTrade',
+    reason: 'Trading for real money is not allowed.',
+    durationHours: 30 * 24,
+  });
+  expect(restricted.statusCode, restricted.body).toBe(200);
+  expect(restricted.json<{ sanction: { kind: string } }>().sanction.kind).toBe('trade');
+  const cannot = tradeEndText('void', { cause: 'sanction' });
+  for (const j of [b, c]) {
+    expect((await historyOf(j)).find((o) => o.id === openId)).toMatchObject({
+      status: 'void',
+      endText: cannot,
+    });
+  }
+  expect((await auditOf('trade.void', openId))[0]!.data).toMatchObject({
+    reason: 'sanction',
+    sanction: 'trade',
+  });
+  expect((await holdingsOf(c)).mats[matC2]).toBe(hc5.mats[matC2]);
+  const refused = await c.keyed('/api/trading/offers', {
+    to: mb.handle,
+    characterId: c.characterId,
+    give: { materials: { [matC2]: 1 } },
+  });
+  expect(refused.statusCode, refused.body).toBe(409);
+  expect(err(refused).details!.reasons as { check: string; party: string }[]).toContainEqual(
+    expect.objectContaining({ check: 'trade_restricted', party: 'you' }),
+  );
+  const shelfC = `/api/characters/${c.characterId}/shelf`;
+  const cDeposit = await c.keyed(`${shelfC}/deposit`, { materials: { [matC2]: 1 } });
+  expect(cDeposit.statusCode, cDeposit.body).toBe(200);
+  const cWithdraw = await c.keyed(`${shelfC}/withdraw`, { materials: { [matC2]: 1 } });
+  expect(cWithdraw.statusCode, cWithdraw.body).toBe(200);
+
+  // 6. 72 hours on: every hold is released, and the spends refused above go through. B's
+  // received item and gold cross the shelf to a second hero of B's account.
+  clock.set(clock.now() + 72 * HOUR + 1_000);
+  for (const j of heroes) await settleNow(j);
+  for (const j of heroes) {
+    await inboxOf(j);
+    expect((await inboxOf(j)).holds, 'released').toEqual([]);
+  }
+  const sold = await a.keyed(`${a.base}/merchant/sell`, { itemIds: [itemB] });
+  expect(sold.statusCode, sold.body).toBe(200);
+  const shelved = await b.keyed(`${shelfB}/deposit`, { itemIds: [itemA], gold: ownGold + 1 });
+  expect(shelved.statusCode, shelved.body).toBe(200);
+  const made = await b.api('POST', '/api/characters', {
+    name: 'Tamsin',
+    classId: 'hunter',
+    appearance: { banner: 'moss' },
+  });
+  expect(made.statusCode, made.body).toBe(201);
+  const b2 = made.json<{ character: { id: string } }>().character.id;
+  const taken = await b.keyed(`/api/characters/${b2}/shelf/withdraw`, {
+    itemIds: [itemA],
+    gold: ownGold + 1,
+  });
+  expect(taken.statusCode, taken.body).toBe(200);
+  expect(taken.json<ShelfMoveResponse>()).toMatchObject({
+    character: { id: b2, gold: ownGold + 1 },
+    shelf: { items: [], gold: 0 },
+  });
+  expect(taken.json<ShelfMoveResponse>().inventory.inventory.map((i) => i.id)).toEqual([itemA]);
+
+  // Back to the defaults (trading closed): nothing is left open to void.
+  await saveTrading(() => structuredClone(DEFAULT_TRADING_SETTINGS) as Settings);
+  for (const j of heroes) {
+    expect(await inboxOf(j)).toMatchObject({ open: false, received: [], sent: [] });
+  }
+
+  // 7. Everything adds up: holdings and shelves = the audit log, the rollups reconcile, and the
+  // trade telemetry counts exactly what the audit rows say.
+  for (const id of [a.characterId, b.characterId, b2, c.characterId]) {
+    await expectHoldingsMatchAudit(database, id);
+  }
+  for (const m of [ma, mb, mc]) await expectShelfMatchesAudit(database, m.id);
+  const checks = await reconcileWithAudit(database.db);
+  expect(checks.filter((x) => !x.ok)).toEqual([]);
+  const count = async (event: string) => (await auditOf(event)).length;
+  expect(await count('trade.offer')).toBe(5);
+  expect(await count('trade.accept')).toBe(3);
+  expect(await count('trade.void')).toBe(2);
+  expect(await count('trade.reverse')).toBe(1);
+  const { rows } = await loadRollups(database.db, { from: null, to: null });
+  expect(sumRollups(rows, 'trade.complete')).toBe(3);
+  expect(sumRollups(rows, 'trade.reverse')).toBe(1);
+  expect(sumRollups(rows, 'trade.items')).toBe(2);
+  const check = (name: string) => checks.find((x) => x.check === name);
+  expect(check('trades: completed')).toMatchObject({ audit: 3, rollup: 3, ok: true });
+  expect(check('trades: reversed')).toMatchObject({ audit: 1, rollup: 1, ok: true });
+  return { b2 };
 }
