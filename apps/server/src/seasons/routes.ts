@@ -1,7 +1,13 @@
 import type { FastifyInstance } from 'fastify';
 import { and, asc, desc, eq, sql } from 'drizzle-orm';
-import { PRESTIGE_METRICS, type PrestigeMetric } from '@worldforge/game-core';
-import { characters, prestigeDisplays, seasonAwards, type Season } from '../db/schema.js';
+import { PRESTIGE_METRICS, findCosmetic, type PrestigeMetric } from '@worldforge/game-core';
+import {
+  characters,
+  cosmeticUnlocks,
+  prestigeDisplays,
+  seasonAwards,
+  type Season,
+} from '../db/schema.js';
 import type { Executor, Transaction } from '../db/types.js';
 import { ApiError } from '../errors.js';
 import { socialWrite } from '../social/social-write.js';
@@ -165,13 +171,19 @@ export async function registerSeasons(
           type: 'object',
           additionalProperties: false,
           required: ['title', 'frame'],
-          properties: { title: choiceSchema, frame: choiceSchema },
+          properties: {
+            title: choiceSchema,
+            frame: choiceSchema,
+            /** Ticket 6.6: a cosmetic title of the account's own (kind `title`), or null. */
+            cosmeticTitle: { type: ['string', 'null'], minLength: 1, maxLength: 64 },
+          },
         },
         response: { 200: prestigeSettingsSchema },
       },
     },
     async (request, reply) => {
-      const body = request.body as { title: Choice; frame: Choice };
+      const body = request.body as { title: Choice; frame: Choice; cosmeticTitle?: string | null };
+      const cosmeticTitle = body.cosmeticTitle ?? null;
       return socialWrite(app, request, reply, 'profile', async (tx, { account, now }) => {
         for (const [field, choice] of [
           ['title', body.title],
@@ -183,7 +195,29 @@ export async function registerSeasons(
             });
           }
         }
+        if (cosmeticTitle !== null) {
+          if (body.title !== null) {
+            throw new ApiError(422, 'one_title', 'Show one title at a time.', {
+              fields: { cosmeticTitle: 'one_title' },
+            });
+          }
+          const [owned] = await tx
+            .select({ id: cosmeticUnlocks.cosmeticId })
+            .from(cosmeticUnlocks)
+            .where(
+              and(
+                eq(cosmeticUnlocks.accountId, account.id),
+                eq(cosmeticUnlocks.cosmeticId, cosmeticTitle),
+              ),
+            );
+          if (!owned || findCosmetic(cosmeticTitle)?.kind !== 'title') {
+            throw new ApiError(422, 'award_not_earned', 'You have not earned that title.', {
+              fields: { cosmeticTitle: 'not_earned' },
+            });
+          }
+        }
         const values = {
+          cosmeticTitle,
           titleSeason: body.title?.season ?? null,
           titleMetric: body.title?.metric ?? null,
           frameSeason: body.frame?.season ?? null,
@@ -197,7 +231,7 @@ export async function registerSeasons(
         await writeAudit(tx, {
           event: 'profile.prestige',
           accountId: account.id,
-          data: { title: body.title, frame: body.frame },
+          data: { title: body.title, frame: body.frame, cosmeticTitle },
         });
         return prestigeSettings(tx, account.id);
       });

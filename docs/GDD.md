@@ -339,10 +339,14 @@ Contribution systems should avoid allowing a tiny number of high-power players t
 
 **Phase 4 defaults (ticket 4.6, `docs/COMMUNITY.md`; the owner can override):** projects are global and staged; each stage needs gold and materials given from a hero's holdings. One player may give at most 20 % of each need of a stage per day (UTC), so a stage takes at least five player-days. Contributors earn a cosmetic achievement, never power. The first project, *Restore the Graumark Warehouse*, opens the Warehouse for everyone; the second, *Clear the Ashen Pass*, begins after it and opens the Ashen Pass.
 
+**Phase 6 defaults (ticket 6.6, `docs/EVENTS.md`; the owner can override):** rotating events are scheduled by the owner (admin panel or CLI), one at a time, for 1 hour to 4 weeks. Each has a world modifier (a modest bonus of one material for heroes who joined), a quest line in the Tavern paying tallies, and a cosmetic reward track per account; unfinished tasks lapse at the end and nothing earned is lost. The first is the *Harvest of Bones*.
+
 ## 13. Cosmetics and Monetization
 
 ### 13.1 Cosmetic Content
 Cosmetics are separate from character power. Potential content includes full character skins, weapon skins, companions, pets, and visual effects. The initial art pipeline uses complete character images rather than dynamically assembled sprite layers.
+
+**Phase 6 (ticket 6.6):** cosmetics earned in play (event titles, banner styles, title colours) are stored per account (`cosmetic_unlocks`), never bought, without stats; titles can be shown now, the rest once the collection book (6.8) opens.
 
 ### 13.2 Cosmetic Reward Shrine
 A cosmetic-only draw system is a possible later feature. A daily free draw was proposed, with a non-expiring claim opportunity so missing a day does not destroy the reward. Additional attempts could be earned through gameplay. No gameplay power should be attached to cosmetic draws.

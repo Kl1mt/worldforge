@@ -18,6 +18,7 @@ import { PLAYER_SEARCH_LIMIT, playerDetail, searchPlayers, staffList } from './p
 import { databaseStatus, migrationStatus, statusCounts, type BuildInfo } from './status.js';
 import { projectProgressSummary } from '../community/model.js';
 import { registerSeasonAdmin } from '../seasons/routes.js';
+import { registerEventAdmin } from '../events/routes.js';
 import { registerSettingsAdmin } from '../settings/routes.js';
 import type { ActivityOptions } from '../activity/settle.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
@@ -734,6 +735,13 @@ export async function registerAdmin(app: FastifyInstance, options: AdminOptions 
 
       // ---- Seasons (ticket 5.3): view, schedule the next, end early or extend -----------------
       await registerSeasonAdmin(admin, {
+        now: options.gameNow ?? (() => app.authNow()),
+        audit,
+        lockAdmin,
+      });
+
+      // ---- Events (ticket 6.6): view, schedule, extend, end early, cancel a future one ---------
+      await registerEventAdmin(admin, {
         now: options.gameNow ?? (() => app.authNow()),
         audit,
         lockAdmin,

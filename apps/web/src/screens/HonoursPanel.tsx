@@ -8,7 +8,8 @@ import {
   type PrestigeMetric,
 } from '@worldforge/game-core';
 import { describeSocialFailure } from '../social/api';
-import { FramedPlate, TitleBadge } from '../social/Prestige';
+import { CosmeticTitle, FramedPlate, TitleBadge } from '../social/Prestige';
+import { eventsApi, type CosmeticUnlock } from '../events/api';
 import { prestigeSprite } from '../content/assets';
 import {
   seasonsApi,
@@ -27,8 +28,11 @@ import { boardHref } from '../lib/route';
 
 type Load =
   | { kind: 'loading' }
-  | { kind: 'ready'; settings: PrestigeSettings }
+  | { kind: 'ready'; settings: PrestigeSettings; unlocks: CosmeticUnlock[] }
   | { kind: 'error'; error: ApiFailure };
+
+/** Ticket 6.6: a cosmetic title's value in the title select (season awards are `season:metric`). */
+const COSMETIC = 'cosmetic:';
 
 const BOARD_NAME = new Map<PrestigeMetric, string>([
   ...BOARD_METRICS.map((m) => [m.id, m.name] as const),
@@ -56,16 +60,23 @@ export function HonoursPanel({ onSaved }: { onSaved: () => void }) {
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const ids = useId();
 
-  const apply = (s: PrestigeSettings) => {
-    setLoad({ kind: 'ready', settings: s });
-    setTitle(keyOf(s.shown.title));
+  const apply = (s: PrestigeSettings, unlocks: CosmeticUnlock[]) => {
+    setLoad({ kind: 'ready', settings: s, unlocks });
+    setTitle(s.shown.cosmeticTitle ? `${COSMETIC}${s.shown.cosmeticTitle}` : keyOf(s.shown.title));
     setFrame(keyOf(s.shown.frame));
   };
 
   useEffect(() => {
     const controller = new AbortController();
-    seasonsApi.prestige(controller.signal).then(
-      (res) => (res.ok ? apply(res.value) : setLoad({ kind: 'error', error: res.error })),
+    Promise.all([
+      seasonsApi.prestige(controller.signal),
+      eventsApi.cosmetics(controller.signal),
+    ]).then(
+      ([res, cos]) => {
+        if (!res.ok) return setLoad({ kind: 'error', error: res.error });
+        if (!cos.ok) return setLoad({ kind: 'error', error: cos.error });
+        apply(res.value, cos.value.unlocks);
+      },
       () => undefined,
     );
     return () => controller.abort();
@@ -75,20 +86,28 @@ export function HonoursPanel({ onSaved }: { onSaved: () => void }) {
     e.preventDefault();
     setBusy(true);
     setMessage(null);
-    const res = await seasonsApi.savePrestige({ title: choiceOf(title), frame: choiceOf(frame) });
+    const cosmetic = title.startsWith(COSMETIC) ? title.slice(COSMETIC.length) : null;
+    const res = await seasonsApi.savePrestige({
+      title: cosmetic ? null : choiceOf(title),
+      frame: choiceOf(frame),
+      cosmeticTitle: cosmetic,
+    });
     setBusy(false);
     if (!res.ok) {
       setMessage({ ok: false, text: describeSocialFailure(res.error) });
       return;
     }
-    apply(res.value);
+    apply(res.value, load.kind === 'ready' ? load.unlocks : []);
     setMessage({ ok: true, text: 'Your honours are hung.' });
     onSaved();
   };
 
   const earned = load.kind === 'ready' ? load.settings.earned : [];
+  const unlocks = load.kind === 'ready' ? load.unlocks : [];
+  const titles = unlocks.filter((u) => u.kind === 'title');
   const find = (key: string) => earned.find((a) => keyOf(a) === key) ?? null;
   const previewTitle = find(title);
+  const previewCosmetic = title.startsWith(COSMETIC) ? title.slice(COSMETIC.length) : null;
   const previewFrame = find(frame);
 
   return (
@@ -109,7 +128,7 @@ export function HonoursPanel({ onSaved }: { onSaved: () => void }) {
           </button>
         </div>
       ) : null}
-      {load.kind === 'ready' && earned.length === 0 ? (
+      {load.kind === 'ready' && earned.length === 0 && titles.length === 0 ? (
         <div className="honours__none">
           <p>No honours yet.</p>
           <p className="herald__hint">
@@ -119,7 +138,7 @@ export function HonoursPanel({ onSaved }: { onSaved: () => void }) {
           </p>
         </div>
       ) : null}
-      {load.kind === 'ready' && earned.length > 0 ? (
+      {load.kind === 'ready' && (earned.length > 0 || titles.length > 0) ? (
         <form className="herald__form" onSubmit={submit} noValidate>
           <div className="honours__preview" aria-label="Preview">
             {previewFrame ? (
@@ -129,7 +148,9 @@ export function HonoursPanel({ onSaved }: { onSaved: () => void }) {
             ) : (
               <span className="herald__hint">No frame</span>
             )}
-            {previewTitle ? (
+            {previewCosmetic ? (
+              <CosmeticTitle id={previewCosmetic} />
+            ) : previewTitle ? (
               <TitleBadge badge={previewTitle} />
             ) : (
               <span className="herald__hint">No title</span>
@@ -150,6 +171,11 @@ export function HonoursPanel({ onSaved }: { onSaved: () => void }) {
                 {earned.map((a) => (
                   <option key={keyOf(a)} value={keyOf(a)}>
                     {awardLabel(a)}
+                  </option>
+                ))}
+                {titles.map((u) => (
+                  <option key={u.id} value={`${COSMETIC}${u.id}`}>
+                    {u.name} · event title
                   </option>
                 ))}
               </select>
@@ -190,6 +216,23 @@ export function HonoursPanel({ onSaved }: { onSaved: () => void }) {
               </li>
             ))}
           </ul>
+          {unlocks.length > 0 ? (
+            <div className="honours__keepsakes">
+              <p className="caps">Event keepsakes</p>
+              <ul className="honours__list">
+                {unlocks.map((u) => (
+                  <li key={u.id}>
+                    <span className="display">{u.name}</span>
+                    <span className="herald__hint">
+                      {u.shownToday
+                        ? 'A title: choose it above.'
+                        : 'Unlocked, shown once the collection book opens.'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
           {message ? (
             <p
               className={message.ok ? 'herald__saved' : 'gate__alert'}

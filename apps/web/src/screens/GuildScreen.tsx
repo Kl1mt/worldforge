@@ -31,7 +31,7 @@ import {
   type MyGuild,
 } from '../social/guilds';
 import { Gold, ShopHeader } from './economy/ShopHeader';
-import { FrameMark, TitleBadge } from '../social/Prestige';
+import { FrameMark, ShownTitle } from '../social/Prestige';
 import type { PrestigeShown } from '../social/seasons';
 import './gate.css';
 import './friends.css';
@@ -133,7 +133,7 @@ function Who({
         <span className={cls}>{name}</span>
       )}
       <span className="fellow__handle">@{person.handle}</span>
-      {prestige?.title ? <TitleBadge badge={prestige.title} compact /> : null}
+      <ShownTitle shown={prestige} compact />
     </span>
   );
 }

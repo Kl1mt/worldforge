@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { EventBanner } from '../events/EventBanner';
 import {
   AREAS,
   DUNGEONS,
@@ -276,6 +277,8 @@ export function MapScreen() {
           </p>
         ) : null}
       </header>
+
+      <EventBanner />
 
       <div
         className="map__grid"

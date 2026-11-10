@@ -56,6 +56,7 @@ import {
   auditLog,
   characterMaterials,
   characters,
+  eventParticipants,
   gameSettings,
   guilds,
   itemInstances,
@@ -80,6 +81,7 @@ import { createInvite } from '../auth/invites.js';
 import { checkLeaderboards } from '../leaderboards/check.js';
 import { cliDeps } from '../leaderboards/leaderboard-cli.js';
 import { runSeasonJobs, scheduleSeason } from '../seasons/model.js';
+import { runEventJobs } from '../events/model.js';
 
 export const MIN = 60_000;
 export const HOUR = 60 * MIN;
@@ -2924,6 +2926,100 @@ export async function playSeasonStep(
   expect(after.power.value).toBe(scores.power.value);
   expect(after.gearScore.value).toBe(scores.gearScore.value);
   return { season: number, rank: place.rank, tier: pick.tier };
+}
+
+/**
+ * Phase 6 event step (ticket 6.6, docs/EVENTS.md): the owner schedules the Harvest of Bones in the
+ * admin panel; the hero sees the banner, joins in the Tavern, farms the risen dead of the Fields
+ * until the first task is done and the reward track's first tier (a banner style) is granted, once.
+ * The owner ends the event early: unfinished tasks lapse, nothing earned is lost, later farming
+ * changes nothing, the close runs once, and the audit log and telemetry reconcile.
+ */
+export async function playEventStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  hero: Journey,
+  clock: Clock,
+  cast: StepCast & { ownerEmail?: string } = {},
+) {
+  type HeroEvent = {
+    current: { number: number; name: string } | null;
+    hero: {
+      quests: { id: string; progress: number; done: boolean }[];
+      bonus: Record<string, number>;
+    } | null;
+    track: { tallies: number; granted: { tier: number; cosmeticId: string }[] } | null;
+  };
+  const ownerEmail = cast.ownerEmail ?? 'harvest-keeper@graumark.test';
+  const owner = await newPlayer(app, ownerEmail, 'Harvest Keeper', cast.invite);
+  expect(await setAccountRole(database.db, ownerEmail, 'admin')).toMatchObject({ to: 'admin' });
+  const startsAt = new Date(clock.now()).toISOString();
+  const endsAt = new Date(clock.now() + 2 * 24 * HOUR).toISOString();
+  const planned = await owner.api('POST', '/api/admin/events', {
+    definitionId: 'harvestOfBones',
+    startsAt,
+    endsAt,
+  });
+  expect(planned.statusCode, planned.body).toBe(200);
+  const number = planned.json<{ current: { number: number } }>().current.number;
+
+  // The banner and the Tavern notice; the hero joins (settled first).
+  const banner = (await hero.api('GET', '/api/events')).json<{
+    current: { name: string } | null;
+  }>();
+  expect(banner.current?.name).toBe('Harvest of Bones');
+  const event = () =>
+    hero.api('GET', `${hero.base}/event`).then((r) => {
+      expect(r.statusCode, r.body).toBe(200);
+      return r.json<HeroEvent>();
+    });
+  expect((await event()).hero).toBeNull();
+  const joined = await hero.api('POST', `${hero.base}/event/join`);
+  expect(joined.statusCode, joined.body).toBe(201);
+
+  // Farm the Fields until the first task is done (60 of the risen dead).
+  const start = await hero.api('POST', `${hero.base}/activity`, { areaId: 'abandonedFields' });
+  expect([200, 201]).toContain(start.statusCode);
+  let mine = await event();
+  for (let i = 0; i < 20 && !mine.hero?.quests[0]?.done; i++) {
+    await hero.settle();
+    mine = await event();
+  }
+  expect(mine.hero?.quests[0]?.done, 'Turn the Furrows done').toBe(true);
+  expect(mine.track?.tallies).toBeGreaterThanOrEqual(10);
+  expect(mine.track?.granted).toContainEqual(
+    expect.objectContaining({ tier: 1, cosmeticId: 'banner.harvest-sheaf' }),
+  );
+  const cosmetics = (await hero.api('GET', '/api/account/cosmetics')).json<{
+    unlocks: { id: string; shownToday: boolean }[];
+  }>().unlocks;
+  expect(cosmetics).toContainEqual(
+    expect.objectContaining({ id: 'banner.harvest-sheaf', shownToday: false }),
+  );
+
+  // The owner ends it early; unfinished tasks lapse, nothing earned is lost.
+  const ended = await owner.api('POST', `/api/admin/events/${number}/end`, {});
+  expect(ended.statusCode, ended.body).toBe(200);
+  const after = await event();
+  expect(after.current).toBeNull();
+  await hero.settle();
+  const [row] = await database.db
+    .select()
+    .from(eventParticipants)
+    .where(
+      and(eq(eventParticipants.event, number), eq(eventParticipants.characterId, hero.characterId)),
+    );
+  expect(row!.progress).toEqual(mine.hero!.quests.map((q) => q.progress));
+  clock.set(clock.now() + 10 * MIN);
+  expect((await runEventJobs(database.db, new Date(clock.now()))).closed).toEqual([number]);
+  expect((await runEventJobs(database.db, new Date(clock.now()))).closed).toEqual([]);
+  const again = (await hero.api('GET', '/api/account/cosmetics')).json<{
+    unlocks: { id: string }[];
+  }>().unlocks;
+  expect(again.map((u) => u.id)).toEqual(cosmetics.map((u) => u.id));
+  const bad = (await reconcileWithAudit(database.db)).filter((c) => !c.ok);
+  expect(bad).toEqual([]);
+  return { event: number, tallies: mine.track!.tallies, bonus: mine.hero!.bonus };
 }
 
 /**

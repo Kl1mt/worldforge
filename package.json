@@ -27,6 +27,7 @@
     "admin:project": "pnpm --silent --filter @worldforge/server admin:project",
     "admin:leaderboards": "pnpm --silent --filter @worldforge/server admin:leaderboards",
     "admin:seasons": "pnpm --silent --filter @worldforge/server admin:seasons",
+    "admin:events": "pnpm --silent --filter @worldforge/server admin:events",
     "admin:trading": "pnpm --silent --filter @worldforge/server admin:trading",
     "admin:tools": "pnpm --silent --filter @worldforge/server admin:tools",
     "report:telemetry": "pnpm --silent --filter @worldforge/server report:telemetry"

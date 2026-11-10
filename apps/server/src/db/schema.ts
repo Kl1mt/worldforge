@@ -1723,6 +1723,127 @@ export const seasonAwards = pgTable(
  * picks the best one); a row with nulls: the player chose to show none. Each choice must be one of
  * the account's own awards (composite foreign keys).
  */
+/**
+ * Ticket 6.6: cosmetics an account has unlocked (docs/EVENTS.md "Cosmetics"). Additive and minimal:
+ * ticket 6.8's collection book extends it. `source` says where it came from (`event:<n>:tier:<t>`).
+ * Granted exactly once per account and cosmetic (the primary key, `on conflict do nothing`).
+ * Changes no number in the game.
+ */
+export const cosmeticUnlocks = pgTable(
+  'cosmetic_unlocks',
+  {
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    cosmeticId: text('cosmetic_id').notNull(),
+    source: text('source').notNull(),
+    grantedAt: timestamp('granted_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.accountId, t.cosmeticId] })],
+);
+
+export type CosmeticUnlock = typeof cosmeticUnlocks.$inferSelect;
+
+/**
+ * Ticket 6.6: scheduled events (docs/EVENTS.md). `[starts_at, ends_at)` in UTC (the game clock),
+ * windows of events that are not cancelled never overlap (game-core `planEventSchedule`, under an
+ * advisory lock). `closed_at`: closed (unfinished quests expired; no progress after it).
+ */
+export const worldEvents = pgTable(
+  'world_events',
+  {
+    number: integer('number').primaryKey(),
+    definitionId: text('definition_id').notNull(),
+    startsAt: timestamp('starts_at', { withTimezone: true }).notNull(),
+    endsAt: timestamp('ends_at', { withTimezone: true }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    cancelledAt: timestamp('cancelled_at', { withTimezone: true }),
+    closedAt: timestamp('closed_at', { withTimezone: true }),
+    /** The close's reward sweep finished (every account's tiers checked against its tallies). */
+    rewardsSweptAt: timestamp('rewards_swept_at', { withTimezone: true }),
+  },
+  (t) => [
+    check('world_events_window_check', sql`${t.endsAt} > ${t.startsAt}`),
+    check('world_events_number_check', sql`${t.number} >= 1`),
+    index('world_events_window_idx').on(t.startsAt, t.endsAt),
+  ],
+);
+
+export type WorldEvent = typeof worldEvents.$inferSelect;
+
+/**
+ * Ticket 6.6: a hero taking part in an event (joined in the Tavern). `progress`: one number per
+ * event quest, in the definition's order, capped at each target; `bounty_kills`: the running count
+ * of the modifier's foes (the bonus is split-invariant); `tallies`: what this hero's done quests
+ * gave the account's track.
+ */
+export const eventParticipants = pgTable(
+  'event_participants',
+  {
+    event: integer('event')
+      .notNull()
+      .references(() => worldEvents.number, { onDelete: 'cascade' }),
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    progress: integer('progress').array().notNull(),
+    bountyKills: integer('bounty_kills').notNull().default(0),
+    bonus: jsonb('bonus').$type<Partial<Record<MaterialId, number>>>().notNull().default({}),
+    tallies: integer('tallies').notNull().default(0),
+    joinedAt: timestamp('joined_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.event, t.characterId] }),
+    index('event_participants_character_idx').on(t.characterId),
+    index('event_participants_account_idx').on(t.event, t.accountId),
+  ],
+);
+
+export type EventParticipant = typeof eventParticipants.$inferSelect;
+
+/** Ticket 6.6: an account's tallies on an event's reward track (summed over its heroes). */
+export const eventTracks = pgTable(
+  'event_tracks',
+  {
+    event: integer('event')
+      .notNull()
+      .references(() => worldEvents.number, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    tallies: integer('tallies').notNull().default(0),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.event, t.accountId] }),
+    check('event_tracks_tallies_check', sql`${t.tallies} >= 0`),
+  ],
+);
+
+/**
+ * Ticket 6.6: the reward track's ledger: one row per (event, account, tier), exactly once (the
+ * primary key, `on conflict do nothing`), written with the tier's `cosmetic_unlocks` row.
+ */
+export const eventTrackGrants = pgTable(
+  'event_track_grants',
+  {
+    event: integer('event')
+      .notNull()
+      .references(() => worldEvents.number, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    tier: integer('tier').notNull(),
+    cosmeticId: text('cosmetic_id').notNull(),
+    grantedAt: timestamp('granted_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.event, t.accountId, t.tier] })],
+);
+
 export const prestigeDisplays = pgTable(
   'prestige_displays',
   {
@@ -1733,9 +1854,23 @@ export const prestigeDisplays = pgTable(
     titleMetric: text('title_metric').$type<PrestigeMetric>(),
     frameSeason: integer('frame_season'),
     frameMetric: text('frame_metric').$type<PrestigeMetric>(),
+    /**
+     * Ticket 6.6: a cosmetic title shown instead of a season title (one of the account's own
+     * `cosmetic_unlocks` of kind `title`); null = none. Never both with `title_season`.
+     */
+    cosmeticTitle: text('cosmetic_title'),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
   },
   (t) => [
+    foreignKey({
+      name: 'prestige_displays_cosmetic_title_fk',
+      columns: [t.accountId, t.cosmeticTitle],
+      foreignColumns: [cosmeticUnlocks.accountId, cosmeticUnlocks.cosmeticId],
+    }),
+    check(
+      'prestige_displays_one_title_check',
+      sql`${t.cosmeticTitle} is null or ${t.titleSeason} is null`,
+    ),
     foreignKey({
       name: 'prestige_displays_title_fk',
       columns: [t.titleSeason, t.accountId, t.titleMetric],

@@ -23,9 +23,22 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.6.7';
+export const GAME_VERSION = '0.6.8';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.6.8',
+    date: '2026-11-12',
+    title: 'Harvest of Bones',
+    new: [
+      'Events: from time to time the town calls a short event, announced on a banner in Graumark and on the map, and described in the Tavern. Only one runs at a time, and each lasts a few days.',
+      'The first is the Harvest of Bones. Join it in the Tavern: while it lasts, every 40 of the risen dead you put down in the Abandoned Fields or the Old Burial Grounds yield an extra Soul Shard, and four tasks from the Reeve earn bone tallies.',
+      'Bone tallies from all your heroes fill one reward track with three keepsakes: the Sheaf-and-Bone banner, the Bone-white title colour and the title “Reaper of the Harvest”. Each is yours once, for good. The title can be shown beside your name now (on your profile, under Season honours); the banner and the colour will show once the collection book opens.',
+      'Event rewards are for show only: they change no number in the game. Experience, gold and drops are as ever.',
+      'When an event ends, unfinished tasks lapse. Everything you earned during it, shards and keepsakes alike, stays yours.',
+    ],
+    tickets: ['6.6'],
+  },
   {
     version: '0.6.7',
     date: '2026-11-11',

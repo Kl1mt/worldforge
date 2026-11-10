@@ -492,6 +492,15 @@ Additive migration `0034_trade_offers` (three new tables, empty; one nullable co
 
 **Ticket T.6** (migration `0035_trade_moderation`, additive, no backfill): `trade_offers.reversed_at timestamptz null`, `reversed_by uuid FK accounts set null`, `reverse_reason text null` (a moderator reversed the accepted trade; check `trade_offers_reversed_check`: only on `accepted`, the reason exactly with the time; status stays `accepted`); partial indexes `trade_offers_accepted_closed_idx (closed_at) where status = 'accepted'` and `trade_offers_reversed_idx (reversed_at) where reversed_at is not null`; `audit_log_trade_offer_idx ((data->>'offerId')) where event like 'trade.%'` (one trade's audit trail). A reversal sets `trade_holds.released_at` on the trade's open holds (with `trade.release`, `via: 'reverse'`); `heldValueOf` counts only holds with `released_at is null`.
 
+### world_events, event_participants, event_tracks, event_track_grants, cosmetic_unlocks; prestige_displays.cosmetic_title — implemented (6.6)
+Migration `0039_world_events` (additive). `docs/EVENTS.md`.
+- `world_events`: `number` (PK), `definition_id` (game-core `EVENT_DEFINITIONS`), `[starts_at, ends_at)` UTC (check `ends_at > starts_at`), `created_at`, `cancelled_at`, `closed_at` (closed: no progress after), `rewards_swept_at` (the close's reward sweep finished). Non-cancelled windows never overlap (game-core plan rules under an advisory lock).
+- `event_participants`: PK `(event, character_id)`, `account_id`, `progress int[]` (one per task, capped), `bounty_kills` (the modifier's running count), `bonus` (materials given), `tallies` (from this hero's done tasks), `joined_at`, `updated_at`. Cascades with the hero and the event.
+- `event_tracks`: PK `(event, account_id)`, `tallies ≥ 0` (summed over the account's heroes).
+- `event_track_grants`: PK `(event, account_id, tier)`, `cosmetic_id`, `granted_at`: the reward ledger, exactly once.
+- `cosmetic_unlocks`: PK `(account_id, cosmetic_id)`, `source` (`event:<n>:tier:<t>`), `granted_at`. Minimal and additive; 6.8's collection book extends it.
+- `prestige_displays.cosmetic_title` (nullable): a title of kind `title` the account unlocked (composite FK `(account_id, cosmetic_title)` → `cosmetic_unlocks`); check: never together with `title_season`.
+
 ## Relationships
 
 ```

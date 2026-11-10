@@ -251,6 +251,21 @@ deploy/admin.sh seasons close                                            # seal 
 
 Trade patterns (ticket T.6, `docs/TRADING.md` "T.6 as built"): `deploy/admin.sh trading patterns` prints the trade pattern report of the last 28 days (`--days 1–90`, `--json` for the raw report): pairs with one-way flows or no other partners, the same invite or sign-up mailbox, accounts that received a lot while new, reached a weekly cap in several weeks, offered unprovenanced items or had trades reversed, and invite clusters. Players appear by handle and display name; no emails, ids or invite codes are printed. Read-only (`pnpm admin:trading patterns` in development). Moderators see the same report on the docket, and admins in the panel's "Trades" tab. Migration `0035` only adds three nullable columns and three indexes.
 
+### Events
+Rotating events (ticket 6.6, `docs/EVENTS.md`): nothing starts by itself; you schedule each one, in the admin panel (Events tab) or here. One runs at a time; times are UTC; every change is audited.
+
+```bash
+deploy/admin.sh events list                       # the events you can schedule (e.g. harvestOfBones)
+deploy/admin.sh events schedule harvestOfBones --start 2026-11-23T00:00:00Z --days 7
+deploy/admin.sh events status                     # current, next and past, with participation
+deploy/admin.sh events extend 1 --to 2026-12-01T00:00:00Z   # move the end (later or earlier)
+deploy/admin.sh events end 1                      # end the event under way now
+deploy/admin.sh events cancel 2                   # call off one that has not begun
+deploy/admin.sh events close                      # close ended events and give owed rewards now
+```
+
+The running server closes an ended event a few minutes after its end and gives any reward still owed, once. In development: `pnpm admin:events …`.
+
 ### Admin panel
 
 Signed in as an admin, the footer has an **Admin panel** link (`/#/admin`, ticket D.3). It covers what you would otherwise do with `deploy/admin.sh` and `pnpm report:telemetry` on the VPS:

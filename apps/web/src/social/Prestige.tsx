@@ -1,7 +1,13 @@
 import { useState, type ReactNode } from 'react';
-import { SEASON_TITLES, findPrestigeTier, prestigeTitle, seasonName } from '@worldforge/game-core';
+import {
+  SEASON_TITLES,
+  findCosmetic,
+  findPrestigeTier,
+  prestigeTitle,
+  seasonName,
+} from '@worldforge/game-core';
 import { SEASON_FRAME_WINDOW, prestigeSprite } from '../content/assets';
-import type { PrestigeBadge } from './seasons';
+import type { PrestigeBadge, PrestigeShown } from './seasons';
 import './prestige.css';
 
 /**
@@ -56,6 +62,37 @@ export function TitleBadge({
       <span className="honour__season">{compact ? `S${badge.season}` : season}</span>
     </span>
   );
+}
+
+/**
+ * Ticket 6.6: a cosmetic title (an event's, e.g. "Reaper of the Harvest"): the same plate as a
+ * season title, in bone with a wine-dark lozenge, and where it came from instead of the season.
+ */
+export function CosmeticTitle({ id, compact = false }: { id: string; compact?: boolean }) {
+  const c = findCosmetic(id);
+  if (!c || c.kind !== 'title') return null;
+  return (
+    <span
+      className={`honour honour--cosmetic${compact ? ' honour--compact' : ''}`}
+      title={`${c.name}: ${c.description}`}
+    >
+      <span className="honour__lozenge" aria-hidden="true" />
+      <span className="honour__words">{c.name}</span>
+      {compact ? null : <span className="honour__season">Event title</span>}
+    </span>
+  );
+}
+
+/** The title a player shows: a cosmetic title if chosen, else the season title (or nothing). */
+export function ShownTitle({
+  shown,
+  compact = false,
+}: {
+  shown: PrestigeShown | null | undefined;
+  compact?: boolean;
+}) {
+  if (shown?.cosmeticTitle) return <CosmeticTitle id={shown.cosmeticTitle} compact={compact} />;
+  return <TitleBadge badge={shown?.title ?? null} compact={compact} />;
 }
 
 /**
