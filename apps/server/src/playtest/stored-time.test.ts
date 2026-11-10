@@ -21,7 +21,15 @@ import { latestStoredTimeMs } from './stored-time.js';
 
 let database: DatabaseHandle;
 let app: FastifyInstance;
-let nowMs = Date.parse('2030-01-01T12:00:00Z');
+const DAY = 86_400_000;
+// The playtest clock runs ahead of the wall clock, and rows the database stamps with `now()` (an
+// item's `created_at`) must stay below the stamps under test. So every date here is an offset
+// from a midnight a few years past today, not a fixed date that the wall clock will overtake
+// (ticket F.6).
+const BASE = Math.floor(Date.now() / DAY) * DAY + 4 * 365 * DAY;
+const at = (days: number, ms = 0) => BASE + days * DAY + ms;
+const dayKey = (days: number) => new Date(at(days)).toISOString().slice(0, 10);
+let nowMs = at(0, 12 * 3_600_000);
 
 beforeAll(async () => {
   database = await createTestDatabase();
@@ -87,39 +95,42 @@ describe('latestStoredTimeMs (playtest clock floor)', () => {
   it('counts a telemetry day (ticket 3.8) at its start, UTC', async () => {
     await database.db
       .insert(telemetryDaily)
-      .values({ day: '2031-05-05', metric: 'gold.in', dim1: 'merchant_sell', amount: 5 });
-    expect(await latestStoredTimeMs(database.db)).toBe(Date.parse('2031-05-05T00:00:00Z'));
+      .values({ day: dayKey(489), metric: 'gold.in', dim1: 'merchant_sell', amount: 5 });
+    expect(await latestStoredTimeMs(database.db)).toBe(at(489));
   });
 
   it('counts community projects, contribution days and world flags (ticket 4.6)', async () => {
     await database.db
       .insert(communityProjects)
-      .values({ projectId: 'restoreWarehouse', updatedAt: new Date('2032-01-01T10:00:00Z') });
-    expect(await latestStoredTimeMs(database.db)).toBe(Date.parse('2032-01-01T10:00:00Z'));
+      .values({ projectId: 'restoreWarehouse', updatedAt: new Date(at(730, 10 * 3_600_000)) });
+    expect(await latestStoredTimeMs(database.db)).toBe(at(730, 10 * 3_600_000));
     const who = await insertAccount(database.db);
     await database.db.insert(communityContributions).values({
       projectId: 'restoreWarehouse',
       stageId: 'clearRubble',
       accountId: who.id,
-      day: '2032-02-02',
+      day: dayKey(762),
       resource: 'gold',
       amount: 1,
     });
-    expect(await latestStoredTimeMs(database.db)).toBe(Date.parse('2032-02-02T00:00:00Z'));
+    expect(await latestStoredTimeMs(database.db)).toBe(at(762));
+    const flagAt = at(792, 3 * 3_600_000);
     await database.db
       .insert(worldFlags)
-      .values({ flagId: 'warehouseRestored', setAt: new Date('2032-03-03T03:00:00Z') });
-    expect(await latestStoredTimeMs(database.db)).toBe(Date.parse('2032-03-03T03:00:00Z'));
+      .values({ flagId: 'warehouseRestored', setAt: new Date(flagAt) });
+    expect(await latestStoredTimeMs(database.db)).toBe(flagAt);
   });
 
   it('counts guild boss attempts and rewards (ticket 4.9)', async () => {
     const leader = await insertAccount(database.db);
     const guild = await insertGuild(database.db, leader.id);
-    const at = Date.parse('2034-02-03T04:05:06Z');
+    const attemptAt = at(1494, 14_706_000);
+    // The game week of the attempt (its Monday, UTC); stored as given, not checked here.
+    const week = dayKey(1494 - ((new Date(attemptAt).getUTCDay() + 6) % 7));
     await database.db.insert(guildBossAttempts).values({
       id: uuidv7(),
       accountId: leader.id,
-      week: '2034-01-30',
+      week,
       attemptNo: 1,
       guildId: guild.id,
       bossId: 'risenGravewarden',
@@ -128,22 +139,22 @@ describe('latestStoredTimeMs (playtest clock floor)', () => {
       counted: 10,
       end: 'fell',
       durationMs: 1000,
-      createdAt: new Date(at),
+      createdAt: new Date(attemptAt),
     });
-    expect(await latestStoredTimeMs(database.db)).toBe(at);
-    const claimed = Date.parse('2034-03-01T00:00:00Z');
+    expect(await latestStoredTimeMs(database.db)).toBe(attemptAt);
+    const claimed = at(1520);
     await database.db.insert(guildBossRewards).values({
       accountId: leader.id,
-      week: '2034-01-30',
+      week,
       stage: 1,
       guildId: guild.id,
       bossId: 'risenGravewarden',
       status: 'earned',
       gold: 1,
       materials: {},
-      earnedAt: new Date(at),
+      earnedAt: new Date(attemptAt),
       claimedAt: new Date(claimed),
-      createdAt: new Date(at),
+      createdAt: new Date(attemptAt),
     });
     expect(await latestStoredTimeMs(database.db)).toBe(claimed);
   });

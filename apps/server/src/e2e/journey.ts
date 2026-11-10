@@ -343,6 +343,20 @@ export async function startJourney(options: JourneyOptions) {
     }
   };
 
+  /**
+   * A buy or a craft adds an item, so a pack the last settlement filled refuses it
+   * (`422 inventory_full`; the town visit comes before `sellJunk`). That is the right answer,
+   * not a failure: check that the pack really is at the capacity it names, and try again on a
+   * later visit (ticket F.6, Flake hunt on PR #117).
+   */
+  const packWasFull = async (res: { statusCode: number; body: string; json: <T>() => T }) => {
+    if (res.statusCode !== 422) return false;
+    const { error } = res.json<{ error: { code: string; details: { capacity: number } } }>();
+    expect(error.code, res.body).toBe('inventory_full');
+    expect((await inventory()).inventory.length).toBeGreaterThanOrEqual(error.details.capacity);
+    return true;
+  };
+
   /** Merchant and Forge, once each, when the character can afford it. */
   const visitTown = async (inv: InventoryView) => {
     const spare = inv.inventory.filter((i) => i.source !== 'quest' && !isKept(i));
@@ -372,6 +386,7 @@ export async function startJourney(options: JourneyOptions) {
       if (offer) {
         const key = randomUUID();
         const res = await keyed(`${base}/merchant/buy`, { offerId: offer.offerId }, key);
+        if (await packWasFull(res)) return;
         expect(res.statusCode).toBe(200);
         const replay = await keyed(`${base}/merchant/buy`, { offerId: offer.offerId }, key);
         expect(replay.json()).toEqual(res.json());
@@ -388,6 +403,7 @@ export async function startJourney(options: JourneyOptions) {
           recipeId: recipe.recipeId,
           slot: recipe.slots[0],
         });
+        if (await packWasFull(res)) return;
         expect(res.statusCode).toBe(200);
         economy.crafted = true;
       }

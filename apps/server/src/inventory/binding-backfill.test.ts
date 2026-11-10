@@ -190,8 +190,8 @@ describe('item-binding backfill', () => {
       await legacy(h, { rarityId: 'legendary' }),
       await legacy(h, { equippedSlot: 'head' }),
     ];
-    await seed(a);
-    await seed(b);
+    const aIds = await seed(a);
+    const bIds = await seed(b);
     // A crash in the middle of a's transaction leaves a untouched.
     await expect(
       withTransaction(db(), async (tx) => {
@@ -213,12 +213,18 @@ describe('item-binding backfill', () => {
     nowMs += HOUR;
     const rerun = await backfillItemBinding(db(), { now });
     expect(rerun.skipped).toBe(0);
-    // b was not touched again; a ended exactly as b did (same state per position).
+    // b was not touched again; a ended exactly as b did (same state per seeded row). Rows are
+    // paired by the ids `seed` returned, not by position: UUIDv7 ids minted in the same
+    // millisecond sort in random order, so a's and b's id orders can differ.
     expect(await rowsOf(b.id)).toEqual(bDone);
-    const aDone = await rowsOf(a.id);
-    expect(aDone.map((r) => ({ ...pick(r), boundAccountId: r.boundAccountId && 'x' }))).toEqual(
-      bDone.map((r) => ({ ...pick(r), boundAccountId: r.boundAccountId && 'x' })),
-    );
+    const state = async (ids: string[]) =>
+      Promise.all(
+        ids.map(async (id) => {
+          const r = await row(id);
+          return { ...pick(r), boundAccountId: r.boundAccountId && 'x' };
+        }),
+      );
+    expect(await state(aIds)).toEqual(await state(bIds));
   });
 
   it('never overwrites what equip or the Forge set before it got there', async () => {

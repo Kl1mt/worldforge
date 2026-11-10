@@ -53,6 +53,18 @@ jobs:
             run: pnpm --filter @worldforge/server exec vitest run --shard=1/2
           - name: server 2/2
             run: pnpm --filter @worldforge/server exec vitest run --shard=2/2
+          # Time-bomb guard (ticket F.6): the date-sensitive suites with the wall clock (and
+          # PGlite's now()) a year ahead, so a hard-coded date that a DB default, an expiry, a
+          # season or a token is compared with fails now, not on the day it passes
+          # (tools/vitest/clock-shift.mjs). The nightly Flake hunt shifts the whole server suite.
+          - name: clock +400 days
+            run: |
+              export WF_CLOCK_SHIFT_DAYS=400
+              pnpm --filter @worldforge/game-core test
+              pnpm --filter @worldforge/web test
+              pnpm --filter @worldforge/server exec vitest run src/arena src/seasons src/auth \
+                src/social src/trading src/guild-boss src/leaderboards src/community src/admin \
+                src/playtest src/settings src/shelf src/warehouse src/telemetry src/achievements
     name: tests (${{ matrix.name }})
     steps:
       - uses: actions/checkout@v4
