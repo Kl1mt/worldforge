@@ -56,6 +56,24 @@ export interface BossMechanics {
    * event). A damage check at the start of the fight, before the enrage window opens.
    */
   shell?: { untilHealthShare: number; damageTakenMultiplier: number };
+  /**
+   * Ticket 6.3 (the weekly modifier "Burning"): from the start of the fight, every `everyMs` the
+   * hero burns for `damageShare` × the boss's ordinary blow (after mitigation, never enraged).
+   * Burns are their own timeline (`burn` events): no random draw.
+   */
+  burn?: { everyMs: number; damageShare: number };
+  /**
+   * Ticket 6.3 ("Warded"): while the boss's health share is at or below `fromHealthShare` and
+   * above `toHealthShare`, the hero's blows (and thorns) deal `damageTakenMultiplier` × damage
+   * (`wardRaised` / `wardBroken` events). A boss that cannot fall (the guild boss) reads the share
+   * from the fight's clock instead (1 at the start, 0 at its end).
+   */
+  ward?: { fromHealthShare: number; toHealthShare: number; damageTakenMultiplier: number };
+  /**
+   * Ticket 6.3 ("Frenzied"): once the boss's health share is at or below `belowHealthShare`, its
+   * blows come `attackSpeedMultiplier` × as often (a `frenzy` event; the share as for the ward).
+   */
+  frenzy?: { belowHealthShare: number; attackSpeedMultiplier: number };
 }
 
 /** One run's enrage: the moment drawn from `BossEnrage.atMs`. */
@@ -77,7 +95,8 @@ export interface DungeonBossLoot {
   gold: { min: number; max: number };
 }
 
-export const DUNGEON_TIERS = [1, 2, 3] as const;
+/** Ticket 6.3: tier IV is the crypt's Heroic tier. */
+export const DUNGEON_TIERS = [1, 2, 3, 4] as const;
 export type DungeonTier = (typeof DUNGEON_TIERS)[number];
 
 /** Multipliers on an enemy's health and damage (a deeper tier's boss is more than a level up). */
@@ -107,6 +126,13 @@ export interface DungeonTierDefinition {
    * (`WorldProgress.cryptTierCleared`).
    */
   unlock: UnlockRule;
+  /**
+   * Ticket 6.3: multipliers on the chamber enemies' stats (absent = 1: every tier before Heroic).
+   * The enemy and level draws are the same; only the drawn foe is tougher.
+   */
+  roomScale?: EnemyScale;
+  /** Ticket 6.3: the tier is a Heroic variant (drawn with the Heroic treatment). */
+  heroic?: boolean;
   /** Boss level: the tier's top level. */
   bossLevel: number;
   /** Multipliers on the boss's stats at `bossLevel` (absent = 1). */
@@ -263,6 +289,43 @@ export const DUNGEONS: readonly DungeonDefinition[] = [
           gold: { min: 420, max: 600 },
         },
         lootTableId: 'namelessCryptIII',
+      },
+      {
+        // Ticket 6.3: the Heroic crypt (owner decision: tier III stays the Legendary tier). The same
+        // crypt at levels 32–36 with tougher chambers and a harder Gravewarden variant (scaled and
+        // with a tolling heavy blow), for upgraded Verge Legendaries. It pays in odds, not in power:
+        // item levels 32–36 sit inside the Verge's and the Depths' bands (no new item level or
+        // affix tier), with far better Legendary, Mythic, set and Void odds than tier III.
+        tier: 4,
+        name: 'Heroic',
+        heroic: true,
+        minLevel: 32,
+        maxLevel: 36,
+        unlock: { level: 32, cryptTierCleared: 3 },
+        roomScale: { health: 1.6, damage: 1.6 },
+        bossLevel: 36,
+        bossScale: { health: 3.4, damage: 2.6, resistance: 0.5 },
+        bossMaxFightMs: 150_000,
+        bossEnrage: {
+          atMs: { min: 30_000, max: 60_000 },
+          damageMultiplier: 2,
+          attackSpeedMultiplier: 1.4,
+        },
+        bossMechanics: { heavyBlow: { every: 4, damageMultiplier: 3 } },
+        bossLoot: {
+          lootTableId: 'gravewardenIV',
+          items: 2,
+          rarityWeights: {
+            common: 0,
+            uncommon: 0,
+            rare: 2500,
+            epic: 3500,
+            legendary: 1100,
+            mythic: 110,
+          },
+          gold: { min: 1_000, max: 1_500 },
+        },
+        lootTableId: 'namelessCryptIV',
       },
     ],
   },

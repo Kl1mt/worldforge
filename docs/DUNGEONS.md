@@ -25,7 +25,7 @@ Server-authoritative dungeon runs (GDD §6.4, §11.2). Rules are pure functions 
 A boss kill emits the ticket 2.4 `QuestEvent` `{ type: 'bossDefeated', bossId: 'gravewarden' }` (game-core `quests/events.ts`): in `DungeonRunResult.questEvents`, in the claim response (`result.questEvents`) and in the `dungeon.claim` audit entry. The claim calls `recordQuestEventsTx` with these events inside its transaction, after locking the character row, so the story's last step ("defeat the Gravewarden", `docs/QUESTS.md`) completes with the claim, exactly once. Only quests accepted at or before the run's start count them (ticket 2.8): accepting the step after a won run has ended, but before claiming it, does not complete it. Chamber kills emit no `enemyKilled` events yet (quests count farming kills only).
 
 ## Lifecycle and exclusivity
-- **Start** (`POST …/dungeon`, body `{ dungeonId, tier? }`, tier 1–3, default 1): the account's active character only, the tier must be unlocked (tier I: level 12; deeper tiers: below; `409 dungeon_locked` with the tier's blockers, `400` for an unknown tier). Locks account → character (same order as the farming start). **Every farming activity of the account is settled and stopped first** (`activity.stop` with `reason: dungeon_started`). One unclaimed run per **account** (partial unique index `dungeon_runs_account_open_key`), so a run never stacks with farming of the same or another hero.
+- **Start** (`POST …/dungeon`, body `{ dungeonId, tier? }`, tier 1–4 since 6.3 (1–3 before), default 1): the account's active character only, the tier must be unlocked (tier I: level 12; deeper tiers: below; `409 dungeon_locked` with the tier's blockers, `400` for an unknown tier). Locks account → character (same order as the farming start). **Every farming activity of the account is settled and stopped first** (`activity.stop` with `reason: dungeon_started`). One unclaimed run per **account** (partial unique index `dungeon_runs_account_open_key`), so a run never stacks with farming of the same or another hero.
 - **While a run is unclaimed**, `POST …/activity` answers `409 in_dungeon` for every character of the account.
 - **Settle** (`POST …/dungeon/settle`) and `GET …/dungeon`: read-only reveal (nothing to write: the run is fixed).
 - **Claim** (`POST …/dungeon/claim`, `Idempotency-Key` required, via ticket 2.6's `idempotentTransaction`; the web client uses one key per run, `claim-<runId>`, since a run is claimed once): only once `now ≥ ends_at` (`409 run_in_progress` before). Locks the character, then the run row; grants XP, gold, items (`source: dungeon:namelessCrypt`; ticket T.1: boss-hoard drops `hoard:namelessCrypt`, recognised by replaying the run without the hoard as the 3.8 telemetry does, and account-bound), materials and progress, sets `claimed_at`, `outcome`, `boss_loot_granted`, `result`, and writes `dungeon.claim`, all in one transaction. Granted once by state (`claimed_at`); a retry with the same key replays the stored response; another key gets `409 no_dungeon_run`. Real-Postgres races (`concurrency.pg.test.ts`): parallel claims with different keys and with one key grant once; racing dungeon and farming starts never leave a run and an activity together.
@@ -44,6 +44,7 @@ Every tier reuses the crypt's rooms, enemies, boss, art and rules; a tier is dat
 | I | level 12 | 12–16 | level 16 | 3000/3500/1800/250/20 · 120–180 | rings and amulets × 3 (`slots`) |
 | II | level 18 + tier I cleared | 18–21 | level 21, health × 1.8, damage × 1.3, resistance × 0.5 (B.2) | 2000/3500/2400/350/30 · 260–380 | the Drowned Vigil (`sets`) |
 | III | level 21 + tier II cleared | 21–24 | level 24, health × 2.4, damage × 2.4 (4.8; was × 1.5), resistance × 0.5 (B.2) | 1000/3500/3000/500/45 · 420–600 | the Ashen Choir (`sets`) + Tyrant's Bane and Headsman's Due × 4 (`effects`) |
+| IV, Heroic (6.3) | level 32 + tier III cleared | 32–36, foes health and damage × 1.6 | level 36, health × 3.4, damage × 2.6, resistance × 0.5, every 4th blow × 3; enrage 30–60 s, × 2 | 0/2500/3500/1100/110 · 1,000–1,500 | *Heroic spoils*: better top-rarity odds (below) |
 
 All tiers: enrage window 30–70 s, × 1.8 damage and × 1.4 attack speed, 150 s limit, 2 boss items, one Gravewarden Seal. A Gravewarden kill of a character from before 3.6 counts as tier I cleared (`cryptTierCleared(progress)`), so nobody has to clear tier I again. The state (`GET …/dungeon`) lists every tier with `unlocked`, `blockers` (`{ kind: 'cryptTier', tier }` for the gate), levels and `lootFocus`, and the deepest `tierCleared`. Items from every tier keep the source `dungeon:namelessCrypt`; the audit entries (`dungeon.start`, `dungeon.claim`, `activity.stop`) carry the tier.
 
@@ -187,6 +188,80 @@ The Cinderwastes' region boss (`docs/WORLD.md` "The Cinder Depths and the Tyrant
 
 So good Verge gear beats him at 36–38, not trivially: upgraded Verge Legendaries win most runs, plain ones a third to a half, and nothing short of Legendaries wins. The mage (cloth against his physical blows) is the weakest class here, the hunter the strongest (as at the Watch); B.5 owns class balance. No best-in-slot build kills him in under 0.4 × the earliest enrage, and his shell breaks before every kill. He is harder than the Ashen Warden for the same kind of kit at each boss's entry (asserted). Measured with `tools/balance/cinder-depths.ts boss` too: the B.2 build search's best builds at item level 33 win every run at +5 and at +10 Void from 36 to 40, in 18–25 s (the warrior, mage and warlock) and 12–15 s (the hunter's Drowned Vigil with Ambush, 9 s at the fastest: below 0.4 × the earliest enrage, as that build was at the Watch; class balance is B.5's).
 
+## The Heroic crypt (ticket 6.3)
+
+The harder crypt mode the owner asked for (4.11 follow-up, F.1): **tier IV, "Heroic"**, the same Nameless Crypt with harder chambers and a harder Gravewarden, tuned for upgraded Cinderwastes Legendaries. Owner decisions: tier III stays "the Legendary tier"; Heroic pays in **better top-rarity odds, not a new power curve**.
+
+- **Gate:** level 32 and tier III cleared (`{ level: 32, cryptTierCleared: 3 }`); a clear sets `cryptTierCleared` to 4 ("Heroic cleared", PvE Progress 4's milestone 18).
+- **The run:** the crypt's run model unchanged (four chambers of two foes, the boss, the snapshot, the server-only seed streams, replay for every view, the shared 20 h hoard cooldown, one Gravewarden Seal). The tier is data on `DUNGEONS` (`heroic: true`, name "Heroic"):
+  - **Chambers:** the crypt's ghouls and acolytes at levels 32–36 with health and damage × 1.6 (`DungeonTierDefinition.roomScale`, new and optional: the same enemy and level draws, only the drawn foe is tougher; tiers I–III have none).
+  - **The Heroic Gravewarden:** level 36, health × 3.4, damage × 2.6, resistance × 0.5, an enrage window of 30–60 s for × 2 damage and × 1.4 attack speed, and a **grave-bell** heavy blow (every fourth blow × 3, the 6.2 `BossMechanics.heavyBlow`, its log line "The grave-bell tolls").
+- **Loot (the focus *Heroic spoils*):** item levels **31–37** in the chambers and **34–36** in the hoard, inside the Verge's (29–35) and the Depths' (35–41) bands: no new item level, no new affix tier, tier-3 and tier-4 bases (the hoard also the three Gravewarden bases). Its tables (`namelessCryptIV`, `gravewardenIV`) carry the top-rarity odds: Legendary weight × 2.5 (`HEROIC_LEGENDARY_WEIGHT`; the other late-game sources × 1.5), Void 15 % (`HEROIC_VOID_CHANCE`, the cap), Mythics in the chambers too, a third of Legendaries as set pieces; the hoard's rarity weights 0/2500/3500/1100/110 (tier III 1000/3500/3000/500/45). Items keep the source `dungeon:namelessCrypt` (hoard `hoard:namelessCrypt`, always bound).
+- **Art:** no new art. The crypt's backdrop, foes, Gravewarden and their attack frames are drawn with the **Heroic treatment** (`heroicSprite`, the `pixel--tint-heroic` filter: grave-cold, harder contrast, crisp pixels) and a cold rim and "Heroic" plaque on the stage; the admin animation gallery shows it as "The Nameless Crypt · Heroic".
+
+**Odds against tier III** (game-core, a Legendary +10 kit at item level 39 at each tier's top level, boss loot eligible, 200 runs per class; `tools/balance/heroic.ts odds`):
+
+| Per run | Tier III (24) | Heroic (36) |
+|---|---|---|
+| items | 3.54 | 3.54 |
+| Legendaries (not set) | 0.110 | 0.421 |
+| Mythics | 0.010 | 0.022 |
+| set pieces | 0.068 | 0.205 |
+| Void items | 0.029 | 0.113 |
+| top-rarity share of items (Legendary, Mythic, set) | 5.3 % | 18.3 % |
+| highest item level | 25 | 37 (today's top: 41) |
+
+**Win rates** (game-core, `balance.test.ts` kits: one item per slot, the class's best bases; 16 pinned seeds per class; warrior / mage / hunter / warlock, mean in brackets; `tools/balance/heroic.ts heroic`):
+
+| Verge gear (item level 33) | Level 32 (entry) | Level 35 |
+|---|---|---|
+| naked, epics +10 | 0 % | 0 / 0 / 0 / 0 % |
+| Legendaries (with effects) | 31/0/75/19 (31) | 56/0/94/31 (45) |
+| Legendaries +5 | 94/0/100/81 (69) | 100/0/100/94 (73) |
+| Legendaries +10 | 100/69/100/100 (92) | 100/88/100/100 (97) |
+| for comparison: tier III, Legendaries | 100 % | 100 % |
+
+So Heroic sits where the Forge Tyrant sits for the same kit (34 / 70 / 91 % at +0 / +5 / +10): upgraded Verge Legendaries win it, plain ones a third of the time, epics never. The mage (cloth against the Gravewarden's physical blows) is the weakest class, as at the Tyrant; class balance is B.5's. Asserted in `balance/heroic-balance.test.ts`: naked 0 %; epics +10 ≤ 10 %; Legendaries 15–60 %; +5 above +0 and ≤ 85 %; +10 ≥ 85 % with every class ≥ 50 %; harder than tier III for the same kit; far more top rarities than tier III and no item above item level 41.
+
+**Invariance.** Tiers I–III, the Watch and the Forge are untouched: the pinned no-effects hashes, 6.1's and 6.2's curve pins and every earlier balance suite pass unchanged.
+
+## Weekly boss modifiers (ticket 6.3)
+
+Every week one **modifier** holds at every boss: the crypt's Gravewarden (tiers I–IV), the Ashen Warden, the Forge Tyrant and the guild boss. It changes how the boss fights and gives its hoard a small loot focus. Data in game-core `dungeon/modifiers.ts` (`BOSS_MODIFIERS`); the fight rules are optional `BossMechanics` and boss-data changes on the existing engine, and none draws a random number, so a seed's other streams (rooms, loot, the enrage moment) stay as they are.
+
+| Modifier | Effect (as players read it) | Mechanics | Hoard focus |
+|---|---|---|---|
+| Burning | Every 4 seconds its flames burn you for a third of one of its blows, whatever your armour. | `burn`: a tick of ⅓ × its ordinary blow every 4 s (its own timeline; never enraged) | *Fire-hardened mail*: helms and chest pieces × 1.5 |
+| Warded | A ward rises at 60 % health and holds until 45 %: your blows deal 30 % less. | `ward` 0.6 → 0.45, hero blows and thorns × 0.7 | *Warding trinkets*: rings and amulets × 1.5 |
+| Frenzied | Below 40 % health the boss strikes a quarter faster. | `frenzy` below 0.4, attack speed × 1.25 | *Quick hands and feet*: gloves and boots × 1.5 |
+| Unyielding | 15 % more health, strikes 15 % slower. | health × 1.15, attack speed × 0.85 | *Siege arms*: weapons and off-hands × 1.5 |
+| Relentless | Its rage comes 5 seconds sooner. | enrage window − 5 s | *Slayer's lore*: Tyrant's Bane and Headsman's Due × 2 |
+
+- **The week (window rule):** the guild boss's week, Monday 00:00:00.000 UTC (inclusive) to the next Monday (exclusive), `guildBossWeek`. `bossModifierOfWeek(week)` is deterministic and public: weeks come in cycles of five (one week per modifier), each cycle in an order shuffled from its number, and a cycle never opens with the modifier the last one closed with, so no modifier holds two weeks running (pinned: the week of 2 November 2026 is Relentless, 9 November Warded, 16 November Burning, 23 November Frenzied, 30 November Unyielding).
+- **Stored with the run:** a run's start reads the game clock once in its transaction and stores that week's modifier (`dungeon_runs.boss_modifier`). Settles, claims and every view replay the run with the stored modifier, never the current week's: a run started on Sunday 23:59:59.999 that ends after midnight keeps Sunday's modifier. Runs from before 6.3 store `null` and replay exactly as they were (`simulateDungeonRun` without a modifier is bit-identical; the result has no `bossModifier` key, so the pinned hashes hold). The guild boss stores it the same way (`docs/GUILD_BOSS.md`).
+- **Its loot focus** is added to the hoard's table only (`LootTableDefinition.modifierFocus`): its slot and effect weights multiply those of the dungeon's own focus; it never limits set pieces, never touches the chambers, and only reweights the base and effect picks, so the hoard's rarities, item levels and set/Mythic/Void outcomes are the same with or without it (tested). The guild boss has no hoard: there the modifier changes the fight only.
+- **Shown:** the Tavern's notice (`docs/QUESTS.md`), every boss door (`GET …/dungeon` `bossModifier`, the run's own in `run.bossModifier`), the run panel ("This run's boss is"), the guild boss's siege plate and its blow-by-blow, and the admin world folio (this week and next). The log names the first burn, the ward rising and breaking and the frenzy.
+- **Telemetry** per modifier (`docs/TELEMETRY.md`): runs won and lost and hoard loot by rarity per boss, guild boss attempts and counted damage.
+
+**Win rates per modifier** (game-core, 16 pinned seeds per class, warrior / mage / hunter / warlock, mean; `tools/balance/heroic.ts modifiers`):
+
+| Boss · kit | none | Burning | Warded | Frenzied | Unyielding | Relentless |
+|---|---|---|---|---|---|---|
+| crypt I · 14, commons | 73 | 61 | 55 | 61 | 61 | 59 |
+| crypt I · 12, uncommons | 97 | 89 | 89 | 86 | 91 | 89 |
+| crypt II · 18, rares | 58 | 48 | 45 | 47 | 48 | 50 |
+| crypt II · 18, rares +5 | 98 | 95 | 94 | 91 | 95 | 95 |
+| crypt III · 21, epics +8 | 42 | 22 | 19 | 22 | 23 | 28 |
+| crypt III · 21, Legendaries | 81 | 77 | 78 | 77 | 77 | 81 |
+| Heroic · 34, Legendaries +5 | 75 | 75 | 72 | 70 | 75 | 72 |
+| Heroic · 34, Legendaries +10 | 94 | 94 | 89 | 91 | 94 | 91 |
+| Ashen Warden · 26, Legendaries | 73 | 61 | 52 | 61 | 55 | 55 |
+| Ashen Warden · 26, Legendaries +5 | 98 | 97 | 97 | 95 | 98 | 95 |
+| Forge Tyrant · 36, Legendaries +5 | 70 | 67 | 69 | 69 | 67 | 66 |
+| Forge Tyrant · 36, Legendaries +10 | 89 | 83 | 81 | 88 | 83 | 83 |
+
+A modifier makes a boss somewhat harder for a kit at the edge (up to about 20 points, most for the kits that only just win: epics +8 at tier III) and barely moves the best kits (0–8 points). Asserted (`heroic-balance.test.ts`, 12 seeds per class, one reference kit per boss): no modifier raises a boss's win rate by more than 5 points or lowers it by more than 30. The first tuning (Warded at half damage from 60 % to 35 %, Unyielding with a third more health, Relentless 10 s) cost up to 50 points and was toned down to these numbers. Guild boss damage per attempt (24 seeds, every class, level 14 commons · level 21 epics · level 28 Legendaries +10): Burning −3 to −4 %, Warded −5 to −8 %, Frenzied −1 to −5 %, **Unyielding +1 to +9 %** (its slower blows let a hero last longer; the extra health means nothing to a boss that can't fall), Relentless −1 to −8 % (asserted within ± 15 %).
+
 ## Targeted loot (ticket 3.6)
 Each tier declares a **loot focus** (`LootFocus` on its chamber and boss tables, `CRYPT_LOOT_FOCI`), shown at the crypt door, so the player can farm toward a build: a slot group (bases of those slots weigh × `slotWeight`), a set (a set-piece roll picks only that set's pieces) and/or an effect family (those Legendary effects weigh × `effectWeight`). A focus only reweights draws the generator makes anyway, so the same item seed rolls the same rarity, item level, set/Mythic outcome and Void flag with or without it (`loot/focus.test.ts`), and every drop stays deterministic per kill stream and split-invariant. Measured (warrior with a Legendary kit at each tier's level, boss loot eligible, 3,000 runs):
 
@@ -204,4 +279,4 @@ Each tier declares a **loot focus** (`LootFocus` on its chamber and boss tables,
 So a given Vigil piece drops about once per 140 tier II runs and a given Choir piece about once per 80 tier III runs (one boss hoard per 20 h; the chambers drop every run). Abbey contracts add a slot choice for a reward item (`docs/QUESTS.md`).
 
 ## UI (ticket 3.6)
-The crypt door lists the depths as a choice (Tier I–III: levels, loot focus, or what bars it), defaulting to the deepest open tier; the facts follow the chosen tier (levels, boss level, the enrage window, the focus, the shared hoard). A run's panel names its tier; the reckoning names it and, on a first clear, the tier it opens. Screenshots: `docs/screenshots/phase-3/crypt-tiers-*`, `crypt-tier3-enraged-*`, `crypt-tier2-reckoning-*` (`node tools/screenshots/crypt-tiers.mjs`).
+The crypt door lists the depths as a choice (Tier I–III, since 6.3 also Heroic with its own cold frame: levels, loot focus, or what bars it), defaulting to the deepest open tier; the facts follow the chosen tier (levels, boss level, the enrage window, the focus, the shared hoard). A run's panel names its tier; the reckoning names it and, on a first clear, the tier it opens. Screenshots: `docs/screenshots/phase-3/crypt-tiers-*`, `crypt-tier3-enraged-*`, `crypt-tier2-reckoning-*` (`node tools/screenshots/crypt-tiers.mjs`).

@@ -15,6 +15,7 @@ import {
   classPortrait,
   enemyAttackSheet,
   findSprite,
+  heroicSprite,
   type SpriteAsset,
 } from '../content/assets';
 
@@ -120,6 +121,21 @@ export function galleryCatalogue(): GalleryCatalogue {
       backdrops: [backdrop(dungeon.assetId)],
       enemies: [...foes, enemyEntry(dungeon.bossId, true)],
     });
+    // Ticket 6.3: a Heroic tier draws the same art with the Heroic treatment.
+    for (const tier of dungeon.tiers.filter((t) => t.heroic)) {
+      const treat = (x: SpriteAsset | null) => (x ? heroicSprite(x) : null);
+      groups.push({
+        id: `dungeon:${dungeon.id}:${tier.tier}`,
+        title: `${dungeon.name} · ${tier.name}`,
+        note: `Dungeon · Heroic treatment (levels ${tier.minLevel}–${tier.maxLevel})`,
+        backdrops: [{ assetId: dungeon.assetId, sprite: treat(findSprite(dungeon.assetId)) }],
+        enemies: [...foes, enemyEntry(dungeon.bossId, true)].map((e) => ({
+          ...e,
+          still: treat(e.still),
+          sheet: treat(e.sheet),
+        })),
+      });
+    }
   }
   groups.push({
     id: 'guild-boss',

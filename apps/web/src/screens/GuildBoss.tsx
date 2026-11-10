@@ -1,3 +1,4 @@
+import { BossModifierNotice } from '../components/BossModifierNotice';
 import { useId, useRef, useState } from 'react';
 import type { MaterialId } from '@worldforge/game-core';
 import { useCharacters } from '../characters/CharactersProvider';
@@ -118,6 +119,15 @@ function Siege({
           </p>
         </div>
       </header>
+      {view.bossModifier ? (
+        <BossModifierNotice
+          modifier={view.bossModifier}
+          week={view.week}
+          heading="This week the boss is"
+          showFocus={false}
+          compact
+        />
+      ) : null}
       {guild ? <StageTrack view={view} /> : null}
       <div className="siege__body">
         <div className="siege__left">
@@ -339,6 +349,7 @@ function Blow({ attempt, view }: { attempt: GuildBossAttempt; view: GuildBossSta
           {hits} blows, {crits} critical
         </li>
         <li>{raged ? `It raged at ${seconds(attempt.enrageAtMs)}` : 'It never raged'}</li>
+        {attempt.bossModifier ? <li>It was {attempt.bossModifier.name.toLowerCase()}</li> : null}
         <li>
           {attempt.end === 'fell'
             ? `${attempt.heroName} fell after ${seconds(attempt.durationMs)}`

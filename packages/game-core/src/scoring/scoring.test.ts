@@ -85,7 +85,7 @@ describe('determinism', () => {
   // ambient state). If one moves, a formula changed: bump its `FORMULA_VERSIONS` entry and update
   // the pin and docs/LEADERBOARDS.md in the same change (5.2 recomputes stored values on a bump).
   it('pins the values of reference heroes (bump FORMULA_VERSIONS when one moves)', () => {
-    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 2, power: 2, pveProgress: 3 });
+    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 2, power: 2, pveProgress: 4 });
     const pinned = CLASS_IDS.map((classId) => {
       // Ticket 6.1: the version-1 pins, computed at version 1 (unchanged by 6.1).
       const s = computeScores(hero({ classId, equipment: kit(classId, 19, 'rare', 3) }), {
@@ -580,7 +580,48 @@ describe('PvE Progress', () => {
     expect(depths(38, true).sortKey).toEqual([16, 16, 5]);
     expect(depths(40, false).sortKey).toEqual([16, 17, 5]);
     expect(depths(40, true).sortKey).toEqual([17, 17, 5]);
-    expect(depths(40, true).lines.every((l) => l.counted)).toBe(true);
+    // Version 4 (6.3): the Heroic crypt (milestone 18) is the one left.
+    expect(
+      depths(40, true)
+        .lines.filter((l) => !l.counted)
+        .map((l) => l.id),
+    ).toEqual(['crypt:4']);
+    const heroic = (level: number, tyrant: boolean) =>
+      progress({
+        level,
+        progress: {
+          gravewardenDefeated: true,
+          cryptTierCleared: 4,
+          ashenWardenDefeated: true,
+          ...(tyrant ? { forgeTyrantDefeated: true } : {}),
+        },
+        world: { ...NO_WORLD_FLAGS, ashenPassCleared: true },
+        guildBossStage: 5,
+      });
+    expect(heroic(40, true).sortKey).toEqual([18, 18, 5]);
+    expect(heroic(40, true).lines.every((l) => l.counted)).toBe(true);
+    // A level-32 Heroic clear is the furthest milestone: it breaks a tie of counts.
+    expect(heroic(32, false).sortKey).toEqual([13, 18, 5]);
+    const v3 = (level: number, tier: number) =>
+      pveProgressScore(
+        {
+          level,
+          progress: {
+            gravewardenDefeated: true,
+            cryptTierCleared: tier,
+            ashenWardenDefeated: true,
+          },
+          world: { ...NO_WORLD_FLAGS, ashenPassCleared: true },
+          guildBossStage: 5,
+        },
+        3,
+      );
+    // Version 3 ignores the Heroic clear; version 4 adds exactly it (never below version 3).
+    expect(v3(32, 4).sortKey).toEqual(v3(32, 3).sortKey);
+    for (const level of [1, 24, 28, 32, 34, 37, 40]) {
+      expect(heroic(level, false).value).toBeGreaterThanOrEqual(v3(level, 4).value);
+      expect(heroic(level, false).value - v3(level, 4).value).toBeLessThanOrEqual(1);
+    }
     // Every version-2 hero scores the same under version 3 or more (never less).
     for (const level of [1, 24, 28, 31, 34, 37, 40]) {
       expect(depths(level, false).value).toBeGreaterThanOrEqual(v2(level).value);

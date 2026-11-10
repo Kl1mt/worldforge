@@ -231,8 +231,9 @@ One dungeon run (`docs/DUNGEONS.md`). Claimed rows stay as history (the boss-loo
 | character_id       | uuid FK     | → `characters.id` `ON DELETE CASCADE`                                 |
 | account_id         | uuid FK     | → `accounts.id` `ON DELETE CASCADE`; partial unique where `claimed_at is null` (one open run per account) |
 | dungeon_id         | text        | game-core `DungeonId`                                                 |
-| tier               | smallint    | game-core `DungeonTier` (ticket 3.6), default 1, `CHECK (1–3)`; part of the replay input |
+| tier               | smallint    | game-core `DungeonTier` (ticket 3.6), default 1, `CHECK (1–4)` (1–3 before 6.3: tier IV is Heroic); part of the replay input |
 | seed_secret        | text        | 128 random bits; never sent to clients                                |
+| boss_modifier      | text?       | ticket 6.3 (migration `0037_boss_modifiers`): game-core `BossModifierId` of the week the run started in (stored once, never recomputed); null = none (runs from before 6.3, replayed as they were); part of the replay input |
 | snapshot           | jsonb       | `{ classId, level, xp, equipment: [{ baseId, rarityId, itemLevel, affixes }] }` at the start |
 | boss_loot_eligible | boolean     | off cooldown at the start                                             |
 | started_at, ends_at | timestamptz | `CHECK (ends_at >= started_at)`; result claimable from `ends_at`     |
@@ -427,7 +428,7 @@ Rules: `docs/GUILD_BOSS.md`. All additive; `week` is a `date`, the Monday (UTC) 
 | Table | Columns | Notes |
 | --- | --- | --- |
 | guild_boss_streams | account_id PK FK (`CASCADE`), seed_secret, created_at | one server-only secret per account, created on its first attempt; never sent |
-| guild_boss_attempts | id PK, account_id? FK (`SET NULL`: damage stays), week, attempt_no, guild_id FK, character_id? FK (`SET NULL`), boss_id, snapshot jsonb (crypt snapshot shape), damage, counted, end (`fell`/`endured`), duration_ms, created_at | unique `(account_id, week, attempt_no)` (attempts per account, not per guild); index `(guild_id, week)`; checks `attempt_no ≥ 1`, `0 ≤ counted ≤ damage` |
+| guild_boss_attempts | id PK, account_id? FK (`SET NULL`: damage stays), week, attempt_no, guild_id FK, character_id? FK (`SET NULL`), boss_id, boss_modifier? (ticket 6.3, migration `0037_boss_modifiers`: the modifier of `week`; null before 6.3), snapshot jsonb (crypt snapshot shape), damage, counted, end (`fell`/`endured`), duration_ms, created_at | unique `(account_id, week, attempt_no)` (attempts per account, not per guild); index `(guild_id, week)`; checks `attempt_no ≥ 1`, `0 ≤ counted ≤ damage` |
 | guild_boss_weeks | PK `(guild_id, week)`, boss_id, total bigint, attempts, stage, updated_at | the shared counter, written in the attempt's transaction under the guild lock |
 | guild_boss_stages | PK `(guild_id, week, stage)`, reached_at, attempt_id FK | when a stage was reached and by which attempt |
 | guild_boss_rewards | PK `(account_id, week, stage)`, guild_id, boss_id, status (`pending`/`earned`), gold, materials jsonb, earned_at?, claimed_at?, character_id? (`SET NULL`), created_at | one per account, week and stage whatever the guild; `claimed_at` only on `earned` rows (check) |

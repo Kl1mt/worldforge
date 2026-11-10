@@ -99,6 +99,13 @@ a {
   filter: sepia(0.7) saturate(2.6) hue-rotate(-30deg) brightness(0.8) contrast(1.25);
 }
 
+/* Ticket 6.3: the Heroic crypt's treatment of the crypt's own art: grave-cold, bled of warmth,
+   harder contrast; no blur (crisp pixels). */
+.pixel--tint-heroic {
+  filter: grayscale(0.35) sepia(0.25) hue-rotate(185deg) saturate(1.6) brightness(0.86)
+    contrast(1.22);
+}
+
 /* A frame sheet (ticket A.14): a one-frame window; the strip inside slides by whole frames. */
 .pixel-sheet {
   display: block;

@@ -14,6 +14,7 @@ import { DUNGEON_WORDS } from '../content/dungeons';
 import { formatNumber } from '../lib/format';
 import { apiRequest, type ApiFailure, type ApiResult } from '../lib/api';
 import type { LootFilterTally, SummaryItem } from './api';
+import type { BossModifierInfo, BossModifierWeek } from './bossModifier';
 
 /** Server shapes of the dungeon endpoints (ticket 2.5, docs/API_CONVENTIONS.md). */
 
@@ -23,6 +24,8 @@ export interface DungeonRun {
   dungeonId: DungeonId;
   /** Ticket 3.6. */
   tier: DungeonTier;
+  /** Ticket 6.3: the modifier this run fights (its start's week); null before 6.3. */
+  bossModifier: BossModifierInfo | null;
   startedAt: string;
   endsAt: string;
   /** Server time of the view (the client clock may differ). */
@@ -41,6 +44,8 @@ export interface DungeonTierEntry {
   maxLevel: number;
   bossLevel: number;
   lootFocus: { id: string; name: string; description: string } | null;
+  /** Ticket 6.3: the Heroic tier (the Heroic treatment). */
+  heroic: boolean;
 }
 
 export interface DungeonEntry {
@@ -51,12 +56,16 @@ export interface DungeonEntry {
   /** Boss loot cooldown, shared by every tier. */
   bossLootReadyAt: string | null;
   tiers: DungeonTierEntry[];
+  /** Ticket 6.3: this week's boss modifier. */
+  bossModifier: BossModifierInfo;
   /** Deepest tier cleared (0 = none). */
   tierCleared: number;
 }
 
 export interface DungeonState {
   dungeons: DungeonEntry[];
+  /** Ticket 6.3: this week's boss modifier and its week. */
+  bossModifier: BossModifierWeek;
   run: DungeonRun | null;
   busyCharacterId: string | null;
   character: Character;
@@ -67,6 +76,8 @@ export interface DungeonResult {
   dungeonId: DungeonId;
   /** Ticket 3.6; absent in results stored before it (tier I). */
   tier?: DungeonTier;
+  /** Ticket 6.3: the modifier the run fought (absent without one). */
+  bossModifier?: string;
   outcome: 'cleared' | 'failed';
   durationMs: number;
   roomsCleared: number;
@@ -151,6 +162,8 @@ export interface CryptLogLine {
 }
 
 const name = (id: EnemyId) => getEnemy(id).name;
+const bossName = (ctx: CryptLogContext) => (ctx.foe ? foeObject(ctx.foe) : 'the boss');
+const capital = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 
 /** The foe as the object of a sentence: "the Crypt Ghoul", "the Gravewarden". */
 export function foeObject(id: EnemyId): string {
@@ -166,6 +179,8 @@ export interface CryptLogContext {
   foe: EnemyId | null;
   /** Ticket 4.8: whose boss lines to use (default the crypt's). */
   dungeonId?: DungeonId;
+  /** Ticket 6.3: a burn was already logged (only the first one gets a line). */
+  burned?: boolean;
 }
 
 /**
@@ -228,6 +243,29 @@ export function cryptLogLine(e: DungeonEvent, ctx: CryptLogContext): CryptLogLin
         : null;
     case 'shellBroken':
       return words.shellBroken ? { t: e.t, tone: 'boss', text: words.shellBroken } : null;
+    // Ticket 6.3: the weekly boss modifier (Burning: the first burn only; it ticks every few s).
+    case 'burn':
+      if (ctx.burned) return null;
+      ctx.burned = true;
+      return {
+        t: e.t,
+        tone: 'boss',
+        text: `Burning: the flames catch you for ${formatNumber(e.damage)}, and keep burning.`,
+      };
+    case 'wardRaised':
+      return {
+        t: e.t,
+        tone: 'boss',
+        text: `A ward rises around ${bossName(ctx)}: your blows soften.`,
+      };
+    case 'wardBroken':
+      return { t: e.t, tone: 'hit', text: `The ward breaks. Your blows bite again.` };
+    case 'frenzy':
+      return {
+        t: e.t,
+        tone: 'boss',
+        text: `${capital(bossName(ctx))} is frenzied and strikes faster!`,
+      };
     case 'thorns':
       // Ticket 3.2: only the blow that finishes the foe is worth a line.
       return e.enemyHealth > 0

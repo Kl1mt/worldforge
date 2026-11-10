@@ -7,6 +7,7 @@ import {
   hoardSource,
   DUNGEON_IDS,
   applyXp,
+  bossModifierOfWeek,
   cryptTierCleared,
   dungeonRunProgress,
   dungeonUnlockBlockers,
@@ -18,6 +19,7 @@ import {
   isDungeonTier,
   normalizeProfessions,
   simulateDungeonRun,
+  type BossModifierId,
   type DungeonId,
   type DungeonRunProgress,
   type DungeonRunResult,
@@ -67,6 +69,12 @@ import {
 import { changeMaterialsTx, grantGatheringTx } from '../materials/store.js';
 import { recordQuestEventsTx } from '../quests/store.js';
 import { idempotentTransaction } from '../idempotency/index.js';
+import {
+  bossModifierView,
+  bossModifierWeekView,
+  type BossModifierView,
+  type BossModifierWeekView,
+} from '../world/boss-modifier.js';
 
 /** A run as clients see it: what has happened so far, never the seed or the future. */
 export interface DungeonRunView {
@@ -75,6 +83,8 @@ export interface DungeonRunView {
   dungeonId: DungeonId;
   /** Ticket 3.6. */
   tier: DungeonTier;
+  /** Ticket 6.3: the boss modifier this run fights (its start's week); null = none. */
+  bossModifier: BossModifierView | null;
   startedAt: string;
   endsAt: string;
   /** Server time of this view. */
@@ -100,6 +110,8 @@ export interface DungeonTierView {
   maxLevel: number;
   bossLevel: number;
   lootFocus: LootFocusView | null;
+  /** Ticket 6.3: the Heroic tier (drawn with the Heroic treatment). */
+  heroic: boolean;
 }
 
 export interface DungeonEntryView {
@@ -111,12 +123,16 @@ export interface DungeonEntryView {
   bossLootReadyAt: string | null;
   /** Ticket 3.6: every tier, in order. */
   tiers: DungeonTierView[];
+  /** Ticket 6.3: this week's boss modifier (a run started now fights it). */
+  bossModifier: BossModifierView;
   /** The deepest tier this character has cleared (0 = none). */
   tierCleared: number;
 }
 
 export interface DungeonStateResponse {
   dungeons: DungeonEntryView[];
+  /** Ticket 6.3: this week's boss modifier and its week (the same on every boss). */
+  bossModifier: BossModifierWeekView;
   /** This character's unclaimed run, if any. */
   run: DungeonRunView | null;
   /** Another character of the account with an unclaimed run (it blocks starting one here). */
@@ -153,6 +169,8 @@ export interface DungeonResultView {
   dungeonId: DungeonId;
   /** Ticket 3.6; absent in results stored before it (tier I). */
   tier?: DungeonTier;
+  /** Ticket 6.3: the modifier the run fought; absent without one (and before 6.3). */
+  bossModifier?: BossModifierId;
   outcome: 'cleared' | 'failed';
   durationMs: number;
   roomsCleared: number;
@@ -254,6 +272,8 @@ export function replayRun(
     bossLootEligible: run.bossLootEligible,
     inventoryCount,
     lootFilter,
+    // Ticket 6.3: the run's own stored modifier (null for runs from before it: as they were).
+    bossModifier: run.bossModifier ?? null,
   });
 }
 
@@ -290,11 +310,25 @@ export function claimTelemetry(
     filtered: filtered.filter((f) => hoard(f.item.seed) === inHoard),
   });
   const filter = filteredTotals(r.filtered);
+  const won = r.outcome === 'cleared' ? 'won' : 'lost';
+  // Ticket 6.3: win rates and hoard loot per boss modifier (`none` before 6.3), for B.5.
+  const modifier = run.bossModifier ?? 'none';
+  const hoardItems = [...r.items, ...r.salvaged, ...filtered.map((f) => f.item)].filter((i) =>
+    hoard(i.seed),
+  );
+  const byRarity = new Map<string, number>();
+  for (const i of hoardItems) byRarity.set(i.rarityId, (byRarity.get(i.rarityId) ?? 0) + 1);
   return [
     {
       metric: 'crypt.claim',
-      dims: [context, r.outcome === 'cleared' ? 'won' : 'lost', r.bossLoot ? 'hoard' : 'no_hoard'],
+      dims: [context, won, r.bossLoot ? 'hoard' : 'no_hoard'],
     },
+    { metric: 'boss_modifier.run', dims: [modifier, context, won] },
+    ...[...byRarity].map(([rarity, n]): TelemetryCount => ({
+      metric: 'boss_modifier.hoard',
+      dims: [modifier, context, rarity],
+      amount: n,
+    })),
     ...rolledDropCounts('crypt', context, part(false)),
     ...rolledDropCounts('crypt_hoard', context, part(true)),
     ...overflowCounts('crypt', context, r.salvaged.length),
@@ -315,6 +349,7 @@ export function runView(run: DungeonRun, now: Date): DungeonRunView {
     characterId: run.characterId,
     dungeonId: run.dungeonId,
     tier: run.tier,
+    bossModifier: run.bossModifier ? bossModifierView(run.bossModifier) : null,
     startedAt: run.startedAt.toISOString(),
     endsAt: run.endsAt.toISOString(),
     now: now.toISOString(),
@@ -393,6 +428,7 @@ export async function registerDungeons(
       .limit(1);
     if (!character) throw notFound();
     const now = options.now();
+    const week = bossModifierWeekView(now.getTime());
     const open = await openRunOfAccount(app.db, accountId);
     // Ticket 4.8: world flags open dungeons for everyone (the Warden's Watch).
     const world = await app.worldState.flags();
@@ -417,6 +453,7 @@ export async function registerDungeons(
           lootFocus: focus
             ? { id: focus.id, name: focus.name, description: focus.description }
             : null,
+          heroic: t.heroic === true,
         };
       });
       const ready = await bossLootReadyAt(app.db, characterId, id, now);
@@ -426,11 +463,13 @@ export async function registerDungeons(
         blockers: tiers[0]!.blockers,
         bossLootReadyAt: ready?.toISOString() ?? null,
         tiers,
+        bossModifier: week.modifier,
         tierCleared: tierClearedIn(id, character.progress),
       });
     }
     return {
       dungeons,
+      bossModifier: week,
       run: open && open.characterId === characterId ? runView(open, now) : null,
       busyCharacterId: open && open.characterId !== characterId ? open.characterId : null,
       character: characterView(character),
@@ -546,6 +585,9 @@ export async function registerDungeons(
             and(eq(itemInstances.characterId, characterId), isNotNull(itemInstances.equippedSlot)),
           );
         const ready = await bossLootReadyAt(tx, characterId, dungeonId, now);
+        // Ticket 6.3: the modifier of the week this transaction's clock reads (the window rule:
+        // stored with the run, so a run that ends after Monday keeps its own week's modifier).
+        const bossModifier = bossModifierOfWeek(now.getTime()).id;
         const row = {
           id: uuidv7(),
           characterId,
@@ -553,6 +595,7 @@ export async function registerDungeons(
           dungeonId,
           tier,
           seedSecret: newSeedSecret(),
+          bossModifier,
           snapshot: {
             classId: character.classId,
             level: character.level,
@@ -585,7 +628,13 @@ export async function registerDungeons(
           event: 'dungeon.start',
           accountId,
           characterId,
-          data: { runId: run.id, dungeonId, tier, bossLootEligible: run.bossLootEligible },
+          data: {
+            runId: run.id,
+            dungeonId,
+            tier,
+            bossModifier,
+            bossLootEligible: run.bossLootEligible,
+          },
         });
         recordTelemetry(tx, now, [
           {
@@ -743,6 +792,7 @@ export async function registerDungeons(
             runId: run.id,
             dungeonId: run.dungeonId,
             tier: run.tier,
+            ...(r.bossModifier ? { bossModifier: r.bossModifier } : {}),
             outcome: r.outcome,
             durationMs: r.durationMs,
             roomsCleared: r.roomsCleared,
@@ -804,6 +854,7 @@ export async function registerDungeons(
               runId: run.id,
               dungeonId: run.dungeonId,
               tier: run.tier,
+              bossModifier: run.bossModifier ?? null,
               outcome: r.outcome,
               xp: r.xpGained,
               gold,

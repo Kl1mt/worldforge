@@ -15,6 +15,7 @@ import {
   type DungeonEvent,
 } from '../dungeon/run.js';
 import { getEnemy } from '../world/enemies.js';
+import { applyBossModifier, isBossModifierId, type BossModifierId } from '../dungeon/modifiers.js';
 import {
   BOSS_HEALTH,
   countedDamage,
@@ -41,6 +42,11 @@ export interface GuildBossAttemptInput {
   equipment?: readonly EquippedItem[];
   /** Server-only seed of this attempt. Never accept a seed from the client. */
   seed: string;
+  /**
+   * Ticket 6.3: the boss modifier of the week the attempt was made in (stored with it). Null or
+   * absent = none: the attempt is exactly what it was before 6.3.
+   */
+  bossModifier?: BossModifierId | null;
 }
 
 export interface GuildBossAttemptOptions {
@@ -54,6 +60,8 @@ export type GuildBossAttemptEnd = 'fell' | 'endured';
 export interface GuildBossAttemptResult {
   bossId: string;
   bossLevel: number;
+  /** Ticket 6.3: the modifier it was fought with; absent without one (the pre-6.3 result). */
+  bossModifier?: BossModifierId;
   /** Damage dealt (attacks and thorns). */
   damage: number;
   /** What it adds to the guild's total (`countedDamage`: capped per attempt). */
@@ -86,6 +94,9 @@ export function simulateGuildBossAttempt(
     throw new RangeError(`Invalid level: ${level}`);
   if (typeof input.seed !== 'string' || input.seed.length === 0)
     throw new RangeError('A guild boss attempt needs a server seed.');
+  const bossModifier = input.bossModifier ?? null;
+  if (bossModifier !== null && !isBossModifierId(bossModifier))
+    throw new RangeError(`Unknown boss modifier: ${String(bossModifier)}`);
   const activity = options.activity ?? DEFAULT_ACTIVITY_CONFIG;
   const combat = options.combat ?? DEFAULT_COMBAT_CONFIG;
   const loot = options.loot ?? DEFAULT_LOOT_CONFIG;
@@ -98,26 +109,37 @@ export function simulateGuildBossAttempt(
   const effects = hasCombatEffects(modifiers.effects) ? modifiers.effects : undefined;
   const stats = deriveCharacterStats(classId, level, modifiers.stats);
   const bossLevel = guildBossLevel(boss, level);
-  const enemy = scaleEnemy(getEnemy(boss.enemyId), boss.scale);
+  // Ticket 6.3: the week's modifier (its health part means nothing here: the boss can't fall).
+  const fightData = applyBossModifier({ scale: boss.scale, enrage: boss.enrage }, bossModifier);
+  const enemy = scaleEnemy(getEnemy(boss.enemyId), fightData.scale);
+  const built = buildEncounter(
+    enemy,
+    bossLevel,
+    classId,
+    level,
+    stats,
+    combat,
+    {
+      xpGain: modifiers.xpGain,
+      skillDamage: modifiers.skillDamage,
+      bossDamage: modifiers.bossDamage,
+    },
+    effects ? { effects, momentum: 0 } : undefined,
+  );
   const setup = {
-    ...buildEncounter(
-      enemy,
-      bossLevel,
-      classId,
-      level,
-      stats,
-      combat,
-      {
-        xpGain: modifiers.xpGain,
-        skillDamage: modifiers.skillDamage,
-        bossDamage: modifiers.bossDamage,
-      },
-      effects ? { effects, momentum: 0 } : undefined,
-    ),
+    ...built,
+    ...(fightData.attackSpeedMultiplier !== 1
+      ? {
+          enemyIntervalMs: Math.max(
+            1,
+            Math.round(built.enemyIntervalMs / fightData.attackSpeedMultiplier),
+          ),
+        }
+      : {}),
     enemyHealth: BOSS_HEALTH,
     maxFightMs: boss.fightMs,
   };
-  const enrage = resolveEnrage(boss.enrage, createRng(`${input.seed}:enrage`));
+  const enrage = resolveEnrage(fightData.enrage, createRng(`${input.seed}:enrage`));
   const events: DungeonEvent[] = [];
   const outcome = resolveDungeonFight(
     setup,
@@ -126,6 +148,9 @@ export function simulateGuildBossAttempt(
     0,
     events,
     enrage,
+    fightData.mechanics,
+    // A boss that can't fall: the ward and frenzy follow the fight's clock.
+    boss.fightMs,
   );
   let damage = 0;
   let hits = 0;
@@ -141,6 +166,7 @@ export function simulateGuildBossAttempt(
   return {
     bossId: boss.id,
     bossLevel,
+    ...(bossModifier ? { bossModifier } : {}),
     damage,
     counted: countedDamage(boss, damage),
     end,

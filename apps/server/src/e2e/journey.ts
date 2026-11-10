@@ -26,6 +26,8 @@ import {
   getArea,
   getDungeonTier,
   getLootTable,
+  bossModifierOfWeek,
+  guildBossWeek,
   itemBinding,
   DEFAULT_TRADING_SETTINGS,
   tradeEndText,
@@ -38,11 +40,15 @@ import { SESSION_COOKIE } from '../auth/index.js';
 import { tokenIn, type MemoryMailer } from '../mail/mailer.js';
 import type { SettleResponse } from '../activity/routes.js';
 import type { InventoryView, ItemView } from '../inventory/routes.js';
-import type { WorldStateResponse } from '../world/routes.js';
+import type { BossModifierResponse, WorldStateResponse } from '../world/routes.js';
 import type { QuestBoardResponse } from '../quests/store.js';
 import type { MerchantResponse } from '../merchant/routes.js';
 import type { ForgeResponse } from '../forge/routes.js';
-import type { DungeonClaimResponse, DungeonRunView } from '../dungeon/routes.js';
+import type {
+  DungeonClaimResponse,
+  DungeonRunView,
+  DungeonStateResponse,
+} from '../dungeon/routes.js';
 import {
   accountAchievements,
   accountShelfMaterials,
@@ -1907,6 +1913,79 @@ export async function playCinderDepthsStep(
   const report = await checkLeaderboards(cliDeps(database.db), 200, now());
   expect(report.problems.filter((p) => p.kind === 'wrong')).toEqual([]);
   return { kills, runs, crafted, level: state.level, pveProgress: mine.value };
+}
+
+/**
+ * Phase 6 Heroic step (ticket 6.3): the Tavern announces this week's boss modifier, the crypt's
+ * door shows it and opens its Heroic tier (level 32 and tier III cleared); the hero runs Heroic
+ * until the Gravewarden falls, each run fighting the modifier of the week it started in (the last
+ * one starts a millisecond before Monday and ends after it), the hoard stays within today's item
+ * levels and is bound, the clear sets "Heroic cleared", and PvE Progress counts it under the
+ * version in force.
+ */
+export async function playHeroicStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  hero: Journey,
+  clock: Clock,
+  now: () => Date,
+) {
+  const { api, base, state } = hero;
+  const heroic = getDungeonTier('namelessCrypt', 4);
+  expect(state.level).toBeGreaterThanOrEqual(heroic.unlock.level);
+  // The Tavern's notice and the crypt door agree with the week's modifier.
+  const notice = (await api('GET', '/api/world/boss-modifier')).json<BossModifierResponse>();
+  expect(notice.modifier.id).toBe(bossModifierOfWeek(now().getTime()).id);
+  expect(notice.modifier.effect.length).toBeGreaterThan(20);
+  const door = (await api('GET', `${base}/dungeon`)).json<DungeonStateResponse>();
+  expect(door.bossModifier.modifier.id).toBe(notice.modifier.id);
+  const crypt = door.dungeons.find((d) => d.id === 'namelessCrypt')!;
+  expect(crypt.tiers[3]).toMatchObject({ tier: 4, name: 'Heroic', heroic: true, unlocked: true });
+
+  const table = getLootTable(heroic.lootTableId);
+  const boss = getLootTable(heroic.bossLoot.lootTableId);
+  const top = Math.max(table.itemLevel!.max, boss.itemLevel!.max);
+  const modifiers: string[] = [];
+  let hoard: DungeonClaimResponse['result'] | null = null;
+  let crossed = false;
+  const heroicRuns = () => state.crypt.filter((r) => r.tier === 4);
+  while (!heroicRuns().some((r) => r.bossDefeated) || !crossed) {
+    expect(heroicRuns().length, 'Heroic should fall within a few runs').toBeLessThan(20);
+    await hero.sellJunk(await hero.inventory());
+    // Once the boss has fallen, one more run across Monday 00:00 (the window rule).
+    if (heroicRuns().some((r) => r.bossDefeated)) {
+      clock.set(guildBossWeek(clock.now()).endMs - 1);
+      crossed = true;
+    }
+    const startedAt = clock.now();
+    const result = await hero.runDungeon('namelessCrypt', 4);
+    expect(result.bossModifier).toBe(bossModifierOfWeek(startedAt).id);
+    modifiers.push(result.bossModifier!);
+    if (result.bossLoot) hoard = result;
+    for (const item of result.items) expect(item.itemLevel).toBeLessThanOrEqual(top);
+  }
+  // The crossing run ended in the next week, with the week it started in.
+  expect(guildBossWeek(clock.now()).key).not.toBe(guildBossWeek(clock.now() - 2 * HOUR).key);
+  expect(hoard).not.toBeNull();
+  const inv = await hero.inventory();
+  for (const item of [...inv.inventory, ...Object.values(inv.equipped)])
+    if (item && item.source === 'hoard:namelessCrypt') expect(item.binding).toBe('account');
+  const [row] = await database.db
+    .select({ progress: characters.progress })
+    .from(characters)
+    .where(eq(characters.id, hero.characterId));
+  expect(row!.progress.cryptTierCleared).toBe(4);
+
+  const versions = await app.formulaVersions.at(now());
+  const read = await api('GET', '/api/leaderboards/pveProgress');
+  const board = read.json<{
+    board: { formulaVersion: number; yours: { value: number; hero: { level: number } }[] };
+  }>().board;
+  expect(board.formulaVersion).toBe(versions.pveProgress);
+  const mine = board.yours.find((e) => e.hero.level === state.level)!;
+  const report = await checkLeaderboards(cliDeps(database.db), 200, now());
+  expect(report.problems.filter((p) => p.kind === 'wrong')).toEqual([]);
+  return { runs: heroicRuns().length, modifiers, pveProgress: mine.value, level: state.level };
 }
 
 /**

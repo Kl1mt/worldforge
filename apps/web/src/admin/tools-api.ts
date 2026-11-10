@@ -130,6 +130,19 @@ export interface WorldView {
     pendingArchive: number;
   };
   deletedHeroes: { total: number; purgeDue: number };
+  /** Ticket 6.3: this week's boss modifier and next week's. */
+  bossModifiers: { current: BossModifierWeek; next: BossModifierWeek };
+}
+
+/** Ticket 6.3: a week's boss modifier (server `BossModifierWeekView`). */
+export interface BossModifierWeek {
+  week: { key: string; startsAt: string; endsAt: string };
+  modifier: {
+    id: string;
+    name: string;
+    effect: string;
+    lootFocus: { id: string; name: string; description: string };
+  };
 }
 
 export interface HeroViewAs {

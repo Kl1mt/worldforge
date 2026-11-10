@@ -22,12 +22,14 @@ import {
   isValuableDrop,
   type ClassId,
   type DungeonEvent,
+  type DungeonTier,
   type DungeonRunInput,
   type GeneratedItem,
   findItemBase,
   mythicForBase,
   setForBase,
 } from '../index.js';
+import { legendaryKit, upgraded } from '../balance/kits.js';
 
 /** One tier-3 item per slot at the given level (the gear a crypt-ready hero has collected). */
 export function cryptGear(classId: ClassId, level: number): GeneratedItem[] {
@@ -224,7 +226,8 @@ describe('boss mechanics (ticket 6.2)', () => {
     expect(fight().log.some((e) => e.type === 'enemyAttack' && 'heavy' in e)).toBe(false);
     for (const d of ['namelessCrypt', 'ashenWatch'] as const)
       for (const t of getDungeon(d).tiers)
-        expect(t.bossMechanics, `${d} ${t.tier}`).toBeUndefined();
+        // Ticket 6.3: the Heroic tier's boss variant has a heavy blow; tiers I–III have none.
+        if (!t.heroic) expect(t.bossMechanics, `${d} ${t.tier}`).toBeUndefined();
   });
 
   it('every n-th blow is heavy, and the shell softens the hero’s blows until it breaks', () => {
@@ -326,16 +329,21 @@ describe('the Gravewarden enrage', () => {
 });
 
 describe('crypt tiers (ticket 3.6)', () => {
-  const tierInput = (tier: 1 | 2 | 3, level: number, classId: ClassId = 'warrior') =>
+  const tierInput = (tier: DungeonTier, level: number, classId: ClassId = 'warrior') =>
     input({
       tier,
       character: { classId, level, xp: 0 },
-      equipment: cryptGear(classId, level - 1).map((i) => ({
-        ...i,
-        rarityId: 'legendary' as const,
-        // Ticket 4.8: tier III's boss is tougher (health × 3); +10 keeps this hero a sure winner.
-        upgradeLevel: 10,
-      })),
+      // Ticket 6.3: the Heroic boss is tuned for upgraded Legendaries (with affixes and effects);
+      // the Depths' top kit at +10 makes it sure.
+      equipment:
+        tier === 4
+          ? upgraded(legendaryKit(classId, 39), 10)
+          : cryptGear(classId, level - 1).map((i) => ({
+              ...i,
+              rarityId: 'legendary' as const,
+              // Ticket 4.8: tier III's boss is tougher (health × 3); +10 keeps this hero a sure winner.
+              upgradeLevel: 10,
+            })),
     });
 
   it('tier I is the default', () => {
@@ -408,7 +416,7 @@ describe('crypt tiers (ticket 3.6)', () => {
   });
 
   it('rejects an unknown tier', () => {
-    expect(() => simulateDungeonRun(input({ tier: 4 as never }))).toThrow(RangeError);
+    expect(() => simulateDungeonRun(input({ tier: 5 as never }))).toThrow(RangeError);
     expect(() => getDungeonTier('namelessCrypt', 0 as never)).toThrow();
   });
 });

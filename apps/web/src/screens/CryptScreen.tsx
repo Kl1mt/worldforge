@@ -13,7 +13,8 @@ import {
   type UnlockBlocker,
 } from '@worldforge/game-core';
 import { useActiveCharacter, useCharacters } from '../characters/CharactersProvider';
-import { classAttackSheet, classPortrait, enemyAttackSheet } from '../content/assets';
+import { classAttackSheet, classPortrait, enemyAttackSheet, heroicSprite } from '../content/assets';
+import { BossModifierNotice } from '../components/BossModifierNotice';
 import { DUNGEON_WORDS } from '../content/dungeons';
 import { findAsset } from '../content/world';
 import { ItemFrame } from '../components/ItemFrame';
@@ -66,6 +67,12 @@ function blockerText(b: UnlockBlocker): string {
   }
 }
 
+/** Ticket 6.3: a tier as players read it: "Tier II", or "Heroic". */
+function tierName(dungeonId: DungeonId, tier: DungeonTier): string {
+  const def = getDungeonTier(dungeonId, tier);
+  return def.heroic ? def.name : `Tier ${ROMAN[tier - 1]}`;
+}
+
 /** The enrage window of a tier in seconds, e.g. "30 and 70". */
 function enrageWindow(dungeonId: DungeonId, tier: DungeonTier): string {
   const { min, max } = getDungeonTier(dungeonId, tier).bossEnrage.atMs;
@@ -93,7 +100,7 @@ function TierChoice({
           type="button"
           role="radio"
           aria-checked={t.tier === selected}
-          className={`btn crypt-tier${t.unlocked ? '' : ' crypt-tier--locked'}`}
+          className={`btn crypt-tier${t.unlocked ? '' : ' crypt-tier--locked'}${t.heroic ? ' crypt-tier--heroic' : ''}`}
           onClick={() => onSelect(t.tier)}
         >
           <span className="crypt-tier__name display">{t.name}</span>
@@ -130,11 +137,15 @@ function clock(ms: number): string {
 function CryptScene({
   dungeon,
   progress,
+  heroic = false,
 }: {
   dungeon: DungeonDefinition;
   progress: DungeonRunProgress | null;
+  /** Ticket 6.3: the Heroic crypt, drawn from the same art with the Heroic treatment. */
+  heroic?: boolean;
 }) {
-  const BACKDROP = findAsset(dungeon.assetId);
+  const plainBackdrop = findAsset(dungeon.assetId);
+  const BACKDROP = plainBackdrop && heroic ? heroicSprite(plainBackdrop) : plainBackdrop;
   const words = DUNGEON_WORDS[dungeon.id];
   const hero = useActiveCharacter();
   const phone = useMediaQuery(PHONE_QUERY);
@@ -149,9 +160,11 @@ function CryptScene({
   // Idle: the warden waits at the far end of the crypt. Between fights: the next room is empty.
   const shownId: EnemyId | null = progress ? (foe?.enemyId ?? null) : dungeon.bossId;
   const shown = shownId ? getEnemy(shownId) : null;
-  const sprite = shown ? findAsset(shown.assetId) : null;
+  const plainSprite = shown ? findAsset(shown.assetId) : null;
+  const sprite = plainSprite && heroic ? heroicSprite(plainSprite) : plainSprite;
   // A.14b: attack frames when this foe has them (the crypt's bosses don't: code animation).
-  const foeSheet = shown && sprite ? enemyAttackSheet(shown.assetId) : null;
+  const plainSheet = shown && sprite ? enemyAttackSheet(shown.assetId) : null;
+  const foeSheet = plainSheet && heroic ? heroicSprite(plainSheet) : plainSheet;
   const isBoss = shown?.rank === 'boss';
   // The 128 px warden at the hero's pixel scale: it towers over the 64 px hero, as it should.
   const foeScale = spriteScale;
@@ -172,7 +185,7 @@ function CryptScene({
   return (
     <div className={`scene crypt-scene${phone ? '' : ' scene--wide'}`} ref={ref}>
       <figure
-        className={`scene__stage${progress ? '' : ' crypt-scene--waiting'}${progress?.enraged ? ' crypt-scene--enraged' : ''}`}
+        className={`scene__stage${progress ? '' : ' crypt-scene--waiting'}${progress?.enraged ? ' crypt-scene--enraged' : ''}${heroic ? ' crypt-scene--heroic' : ''}`}
         style={{ width: stageWidth || undefined, height: size.height * scale }}
         aria-label={
           foe
@@ -227,6 +240,11 @@ function CryptScene({
             </div>
           ) : null}
         </div>
+        {heroic ? (
+          <span className="crypt-scene__heroic caps" aria-hidden="true">
+            Heroic
+          </span>
+        ) : null}
         {progress ? (
           <figcaption className="scene__hud crypt-hud">
             <span className="scene__hud-name">{hero.name}</span>
@@ -372,7 +390,7 @@ function Reckoning({
     >
       <p className="caps">
         {words.reckoning} ·{' '}
-        {dungeon.tiers.length > 1 ? `Tier ${ROMAN[(result.tier ?? 1) - 1]} · ` : ''}
+        {dungeon.tiers.length > 1 ? `${tierName(dungeon.id, result.tier ?? 1)} · ` : ''}
         {formatDuration(result.durationMs)}
       </p>
       <h2 id="reckoning-title" className="display reckoning__title">
@@ -394,10 +412,15 @@ function Reckoning({
       ) : null}
       {result.firstTierClear && (result.tier ?? 1) < dungeon.tiers.length ? (
         <p className="reckoning__unlock" role="status">
-          A deeper stair opens: <strong>Tier {ROMAN[result.tier ?? 1]}</strong>
           {(() => {
             const next = getDungeonTier(dungeon.id, ((result.tier ?? 1) + 1) as DungeonTier);
-            return `, from level ${next.unlock.level}.`;
+            return (
+              <>
+                {next.heroic ? 'The Heroic crypt opens: ' : 'A deeper stair opens: '}
+                <strong>{next.heroic ? next.name : `Tier ${ROMAN[next.tier - 1]}`}</strong>, from
+                level {next.unlock.level}.
+              </>
+            );
           })()}
         </p>
       ) : null}
@@ -659,8 +682,16 @@ function DungeonScreen({ dungeonId }: { dungeonId: DungeonId }) {
       <section className="crypt-door panel-iron" aria-labelledby="crypt-run-title">
         <h2 id="crypt-run-title" className="rule-heading">
           {progress.finished ? 'The fighting has stopped' : words.runTitle}
-          {dungeon.tiers.length > 1 ? ` · Tier ${ROMAN[run.tier - 1]}` : ''}
+          {dungeon.tiers.length > 1 ? ` · ${tierName(dungeon.id, run.tier)}` : ''}
         </h2>
+        {run.bossModifier ? (
+          <BossModifierNotice
+            modifier={run.bossModifier}
+            heading="This run’s boss is"
+            showFocus={run.bossLootEligible}
+            compact
+          />
+        ) : null}
         {progress.finished ? (
           <>
             <p className="crypt-door__line">
@@ -712,6 +743,11 @@ function DungeonScreen({ dungeonId }: { dungeonId: DungeonId }) {
         {tiers.length > 1 ? (
           <TierChoice tiers={tiers} selected={selectedTier} onSelect={setChosenTier} />
         ) : null}
+        <BossModifierNotice
+          modifier={state.value.bossModifier.modifier}
+          week={state.value.bossModifier.week}
+          heading="This week the boss is"
+        />
         <ul className="crypt-door__facts">
           <li>
             {dungeon.rooms.length > 0 ? (
@@ -732,6 +768,14 @@ function DungeonScreen({ dungeonId }: { dungeonId: DungeonId }) {
             {dungeon.rooms.length > 0 ? 'it' : 'him'}, the safer.
           </li>
           {words.mechanics ? <li>{words.mechanics}</li> : null}
+          {selectedDef.heroic ? (
+            <li>
+              <strong>Heroic:</strong> the chambers’ foes hit harder and last longer, and every
+              fourth blow of the Gravewarden tolls three times as hard. Its spoils come at the item
+              levels of the Cinderwastes, with far better odds of Legendaries, Mythics, set pieces
+              and Void items.
+            </li>
+          ) : null}
           {selected?.lootFocus ? (
             <li>
               Loot focus: <em className="crypt-door__focus">{selected.lootFocus.name}</em>.{' '}
@@ -761,7 +805,9 @@ function DungeonScreen({ dungeonId }: { dungeonId: DungeonId }) {
               ? words.entering
               : selectedTier === 1
                 ? words.enter
-                : `Descend to ${selectedDef.name}`}
+                : selectedDef.heroic
+                  ? 'Enter the Heroic crypt'
+                  : `Descend to ${selectedDef.name}`}
           </button>
         )}
       </section>
@@ -777,7 +823,11 @@ function DungeonScreen({ dungeonId }: { dungeonId: DungeonId }) {
         </p>
       ) : null}
       <div className="crypt__grid">
-        <CryptScene dungeon={dungeon} progress={result ? null : progress} />
+        <CryptScene
+          dungeon={dungeon}
+          progress={result ? null : progress}
+          heroic={selectedDef.heroic === true}
+        />
         <aside className="crypt__side">
           <Descent
             dungeon={dungeon}

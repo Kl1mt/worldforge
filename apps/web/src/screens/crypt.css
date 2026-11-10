@@ -401,3 +401,37 @@
     margin-left: 0;
   }
 }
+
+/* Ticket 6.3: the Heroic crypt: the crypt's own art with the Heroic treatment (`pixel--tint-heroic`),
+   a cold rim on the stage and a plaque. No new art. */
+.crypt-scene--heroic::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 0 2px rgb(95 128 168 / 0.55),
+    inset 0 0 56px rgb(122 104 166 / 0.45);
+}
+
+.crypt-scene__heroic {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  z-index: 2;
+  padding: 2px var(--space-2);
+  background: var(--ink-950);
+  box-shadow: inset 0 0 0 1px var(--arcane-blue);
+  color: var(--void-light);
+}
+
+.btn.crypt-tier--heroic {
+  box-shadow:
+    inset 0 0 0 1px var(--arcane-blue),
+    inset 0 -2px 0 var(--arcane-violet);
+}
+
+.crypt-tier--heroic .crypt-tier__name {
+  color: var(--void-light);
+}

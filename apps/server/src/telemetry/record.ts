@@ -61,6 +61,12 @@ export const TELEMETRY_METRICS = [
   'trade.reverse',
   // Ticket D.4: admin-tool items (`grant` or `remove`, rarity; amount = items).
   'admin.item',
+  // Ticket 6.3: per weekly boss modifier (`none` before 6.3): dungeon runs claimed (modifier,
+  // `<dungeon>:<tier>`, won/lost), hoard items (modifier, `<dungeon>:<tier>`, rarity; amount =
+  // items) and guild boss attempts (modifier, boss, fell/endured; amount = counted damage).
+  'boss_modifier.run',
+  'boss_modifier.hoard',
+  'boss_modifier.guild_boss',
 ] as const;
 export type TelemetryMetric = (typeof TELEMETRY_METRICS)[number];
 

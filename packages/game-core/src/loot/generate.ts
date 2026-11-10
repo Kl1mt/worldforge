@@ -105,15 +105,16 @@ export function eligibleBases(
 ): { base: ItemBaseDefinition; weight: number }[] {
   const result: { base: ItemBaseDefinition; weight: number }[] = [];
   const focus = table.focus;
+  const extra = table.modifierFocus;
   for (const entry of table.entries) {
     const base = findItemBase(entry.baseId);
     if (base && entry.weight > 0 && base.minItemLevel <= itemLevel) {
       // Ticket 3.6: a slot-group focus reweights the bases; the pick is still one draw.
       const focused = focus?.slots?.includes(base.slot) === true;
-      result.push({
-        base,
-        weight: focused ? entry.weight * (focus!.slotWeight ?? 1) : entry.weight,
-      });
+      let weight = focused ? entry.weight * (focus!.slotWeight ?? 1) : entry.weight;
+      // Ticket 6.3: the week's boss modifier reweights on top (absent: the same number).
+      if (extra?.slots?.includes(base.slot) === true) weight *= extra.slotWeight ?? 1;
+      result.push({ base, weight });
     }
   }
   return result;
@@ -142,7 +143,12 @@ export function focusedEffectWeight(
 ): number {
   const w = effect.weight ?? 0;
   const focus = table.focus;
-  return focus?.effects?.includes(effect.id) === true ? w * (focus.effectWeight ?? 1) : w;
+  const focused = focus?.effects?.includes(effect.id) === true ? w * (focus.effectWeight ?? 1) : w;
+  // Ticket 6.3: the week's boss modifier's effect family, on top (absent: the same number).
+  const extra = table.modifierFocus;
+  return extra?.effects?.includes(effect.id) === true
+    ? focused * (extra.effectWeight ?? 1)
+    : focused;
 }
 
 /**

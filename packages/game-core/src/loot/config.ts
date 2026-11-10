@@ -102,6 +102,11 @@ export interface LootTableDefinition {
   voidChance?: number;
   /** Ticket 3.6: the table's loot focus (dungeon tiers and their bosses). */
   focus?: LootFocus;
+  /**
+   * Ticket 6.3: the week's boss modifier's small focus, on top of `focus` (a boss hoard only). Its
+   * slot and effect weights multiply those of `focus`; it never limits set pieces. Absent = none.
+   */
+  modifierFocus?: LootFocus;
 }
 
 export interface LootConfig {

@@ -379,7 +379,7 @@ export function XpLevelTool(ctx: HeroCtx) {
 
 // ---- Progress and professions --------------------------------------------------------------
 
-const TIER_NAMES = ['none', 'I', 'II', 'III'];
+const TIER_NAMES = ['none', 'I', 'II', 'III', 'IV (Heroic)'];
 
 function opens(level: number, progress: WorldProgress): string[] {
   return unlockSummary(level, progress)

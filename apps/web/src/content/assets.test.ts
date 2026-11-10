@@ -14,6 +14,7 @@ import {
 import {
   ART_STAND_INS,
   ART_VARIANTS,
+  heroicSprite,
   ASSETS,
   SEASON_FRAME_TIERS,
   SEASON_FRAME_WINDOW,
@@ -333,6 +334,19 @@ describe('Cinderwastes art (A.11)', () => {
   it('faces the hero without mirroring, so a later animation pass can reuse the sprites', () => {
     for (const id of Object.keys(ART).filter((k) => k.startsWith('enemy.'))) {
       expect(findSprite(id)?.facing, id).not.toBe('right');
+    }
+  });
+});
+
+describe('the Heroic treatment (ticket 6.3)', () => {
+  it('draws the crypt’s own art tinted, never new art', () => {
+    for (const id of ['area.nameless-crypt', 'enemy.gravewarden', 'enemy.crypt-ghoul'] as const) {
+      const plain = findSprite(id)!;
+      const heroic = heroicSprite(plain);
+      expect(heroic.path).toBe(plain.path);
+      expect([heroic.width, heroic.height]).toEqual([plain.width, plain.height]);
+      expect(heroic.tint).toBe('heroic');
+      expect(plain.tint).toBeUndefined();
     }
   });
 });

@@ -60,32 +60,41 @@ const MILESTONES_V2: readonly ProgressMilestone[] = [
   },
 ];
 
+/** Version 3 (ticket 6.2): the Cinder Depths and the Forge Tyrant. */
+const MILESTONES_V3: readonly ProgressMilestone[] = [
+  ...MILESTONES_V2,
+  { id: 'area:cinderDepths', kind: 'area', areaId: 'cinderDepths' },
+  {
+    id: 'depths:37',
+    kind: 'areaLevel',
+    areaId: 'cinderDepths',
+    level: 37,
+    name: 'The Cinder Depths, level 37',
+  },
+  { id: 'forge', kind: 'forgeTyrant', name: 'The Forge Tyrant defeated' },
+  {
+    id: 'depths:40',
+    kind: 'areaLevel',
+    areaId: 'cinderDepths',
+    level: 40,
+    name: 'The Cinder Depths, level 40',
+  },
+];
+
 /**
  * Every version's milestones (ticket 6.1), so stored rows of any of them recompute. Version 2
  * adds the Ashfall Verge (13 milestones); version 3 (ticket 6.2) the Cinder Depths reached (level
- * 34 and the Warden), its middle (level 37), the Forge Tyrant defeated and its top (level 40): 17.
+ * 34 and the Warden), its middle (level 37), the Forge Tyrant defeated and its top (level 40): 17;
+ * version 4 (ticket 6.3) the Heroic crypt cleared (tier IV, level 32 and tier III): 18. It comes
+ * last: the hardest crypt clear, often the last milestone a hero takes.
  */
 export const PVE_MILESTONES_BY_VERSION: Readonly<Record<number, readonly ProgressMilestone[]>> = {
   1: MILESTONES_V1,
   2: MILESTONES_V2,
-  3: [
-    ...MILESTONES_V2,
-    { id: 'area:cinderDepths', kind: 'area', areaId: 'cinderDepths' },
-    {
-      id: 'depths:37',
-      kind: 'areaLevel',
-      areaId: 'cinderDepths',
-      level: 37,
-      name: 'The Cinder Depths, level 37',
-    },
-    { id: 'forge', kind: 'forgeTyrant', name: 'The Forge Tyrant defeated' },
-    {
-      id: 'depths:40',
-      kind: 'areaLevel',
-      areaId: 'cinderDepths',
-      level: 40,
-      name: 'The Cinder Depths, level 40',
-    },
+  3: MILESTONES_V3,
+  4: [
+    ...MILESTONES_V3,
+    { id: 'crypt:4', kind: 'cryptTier', tier: 4, name: 'The Nameless Crypt, Heroic cleared' },
   ],
 };
 

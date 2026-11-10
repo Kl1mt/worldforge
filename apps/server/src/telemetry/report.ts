@@ -405,6 +405,17 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
       audit('dungeon.claim', sql`count(*)`, sql`data->>'outcome' = 'failed'`),
       sumRollups(rows, 'crypt.claim', (d) => d[1] === 'lost'),
     ],
+    // Ticket 6.3: per boss modifier (claims and attempts written since 6.3 carry the key).
+    [
+      'boss modifiers: runs claimed',
+      audit('dungeon.claim', sql`count(*)`, sql`(data->'bossModifier') is not null`),
+      sumRollups(rows, 'boss_modifier.run'),
+    ],
+    [
+      'boss modifiers: guild boss attempts',
+      audit('guild_boss.attempt', sql`count(*)`, sql`(data->'bossModifier') is not null`),
+      sumRollups(rows, 'boss_modifier.guild_boss'),
+    ],
     [
       'crypt: boss hoards',
       audit('dungeon.claim', sql`count(*)`, sql`(data->>'bossLoot')::boolean`),
@@ -1115,6 +1126,55 @@ export function telemetrySections(report: TelemetryReport): TelemetrySection[] {
         return [t, starts.get(t) ?? 0, won, lost, pct(won, won + lost), hoards];
       }),
     });
+  }
+
+  // Ticket 6.3: win rates and hoard loot per weekly boss modifier (`none`: runs from before 6.3).
+  const modRuns = rows.filter((r) => r.metric === 'boss_modifier.run');
+  const modGuild = rows.filter((r) => r.metric === 'boss_modifier.guild_boss');
+  if (modRuns.length > 0 || modGuild.length > 0) {
+    const s = section('Boss modifiers');
+    const keys = [...new Set(modRuns.map((r) => `${r.dims[0]}|${r.dims[1]}`))].sort();
+    if (keys.length > 0) {
+      s.tables.push({
+        headers: ['modifier', 'boss', 'won', 'lost', 'win rate', 'hoard items', 'Legendary+'],
+        rows: keys.map((k) => {
+          const [m, ctx] = k.split('|') as [string, string];
+          const at = (o: string) =>
+            sumRollups(
+              modRuns,
+              'boss_modifier.run',
+              (d) => d[0] === m && d[1] === ctx && d[2] === o,
+            );
+          const hoard = (top: boolean) =>
+            sumRollups(
+              rows,
+              'boss_modifier.hoard',
+              (d) =>
+                d[0] === m && d[1] === ctx && (!top || d[2] === 'legendary' || d[2] === 'mythic'),
+              'amount',
+            );
+          const won = at('won');
+          const lost = at('lost');
+          return [m, ctx, won, lost, pct(won, won + lost), hoard(false), hoard(true)];
+        }),
+      });
+    }
+    const gb = [...new Set(modGuild.map((r) => r.dims[0]))].sort();
+    if (gb.length > 0) {
+      s.tables.push({
+        headers: ['modifier', 'guild boss attempts', 'fell', 'counted damage', 'per attempt'],
+        rows: gb.map((m) => {
+          const n = sumRollups(modGuild, 'boss_modifier.guild_boss', (d) => d[0] === m);
+          const fell = sumRollups(
+            modGuild,
+            'boss_modifier.guild_boss',
+            (d) => d[0] === m && d[2] === 'fell',
+          );
+          const dmg = sumRollups(modGuild, 'boss_modifier.guild_boss', (d) => d[0] === m, 'amount');
+          return [m, n, fell, dmg, n > 0 ? Math.round(dmg / n) : 0];
+        }),
+      });
+    }
   }
 
   // Quests

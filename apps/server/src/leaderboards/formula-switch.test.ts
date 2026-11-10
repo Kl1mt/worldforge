@@ -157,7 +157,7 @@ describe('formula versions between seasons (ticket 6.1)', () => {
     expect(await seasonRow()).toMatchObject({ formulaVersion: 1, value: 10 });
   });
 
-  it('6.2: after 6.1’s plan, PvE Progress 3 waits for the season under way, then recomputes', async () => {
+  it('6.3: after 6.1’s and 6.2’s plans, PvE Progress 4 follows 3 at the season’s end, then recomputes', async () => {
     const fresh = await createTestDatabase();
     let t = Date.parse('2026-12-01T12:00:00Z');
     const at = () => new Date(t);
@@ -182,6 +182,14 @@ describe('formula versions between seasons (ticket 6.1)', () => {
           afterSeason: 1,
           plannedAt: '2026-11-09T12:00:00Z',
         },
+        // 6.2's switch, waiting for season 2 (production when 6.3 ships).
+        {
+          metric: 'pveProgress',
+          from: 2,
+          to: 3,
+          afterSeason: 2,
+          plannedAt: '2026-11-25T12:00:00Z',
+        },
       ];
       await fresh.db.insert(gameSettings).values({
         key: FORMULA_SCHEDULE_KEY,
@@ -205,8 +213,8 @@ describe('formula versions between seasons (ticket 6.1)', () => {
       };
       // During season 2: version 2 in force, the new switch waits for its end.
       expect(await app2.formulaVersions.at(at())).toEqual({ ...FORMULA_VERSIONS, pveProgress: 2 });
-      expect((await loadFormulaSchedule(fresh.db)).slice(2)).toEqual([
-        expect.objectContaining({ metric: 'pveProgress', from: 2, to: 3, afterSeason: 2 }),
+      expect((await loadFormulaSchedule(fresh.db)).slice(3)).toEqual([
+        expect.objectContaining({ metric: 'pveProgress', from: 3, to: 4, afterSeason: 2 }),
       ]);
       await refreshHeroScores(deps2, hero.id, at());
       const pve = async () =>
@@ -222,14 +230,14 @@ describe('formula versions between seasons (ticket 6.1)', () => {
             )
         )[0]!;
       expect(await pve()).toMatchObject({ formulaVersion: 2, value: 13 });
-      // At season 2's end: version 3, the sweep recomputes (the Depths, the Tyrant: 17 of 17).
+      // At season 2's end: version 4 (3 then 4), the sweep recomputes (17 of 18: not Heroic).
       t += 3 * DAY;
       expect(await app2.formulaVersions.at(at())).toEqual(FORMULA_VERSIONS);
       expect(
         (await checkLeaderboards(deps2, 200, at())).problems.filter((p) => p.kind === 'outdated'),
       ).toHaveLength(1);
       expect((await sweepLeaderboards(deps2, at(), { batch: 50, cursor: null })).updated).toBe(1);
-      expect(await pve()).toMatchObject({ formulaVersion: 3, value: 17 });
+      expect(await pve()).toMatchObject({ formulaVersion: 4, value: 17 });
       expect((await checkLeaderboards(deps2, 200, at())).problems).toEqual([]);
     } finally {
       await app2.close();

@@ -1,4 +1,6 @@
-import { useState } from 'react';
+import { BossModifierNotice } from '../components/BossModifierNotice';
+import { bossModifierApi, type BossModifierWeek } from '../game/bossModifier';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   findContractTemplate,
   getArea,
@@ -198,6 +200,57 @@ function ContractSlip({
 }
 
 /** The Tavern (ticket 2.4): the notice board with the story chain and daily contracts. */
+/**
+ * Ticket 6.3: the keeper's word on this week's boss modifier, nailed above the board (it holds at
+ * every boss: the crypt, the Watch, the Forge and the guild boss).
+ */
+function BossWeekNotice() {
+  const [state, setState] = useState<
+    { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; value: BossModifierWeek }
+  >({ kind: 'loading' });
+  const alive = useRef(true);
+  const fetchNotice = useCallback(async () => {
+    const res = await bossModifierApi.current();
+    if (!alive.current) return;
+    setState(res.ok ? { kind: 'ready', value: res.value } : { kind: 'error' });
+  }, []);
+  useEffect(() => {
+    alive.current = true;
+    void fetchNotice();
+    return () => {
+      alive.current = false;
+    };
+  }, [fetchNotice]);
+  const load = () => {
+    setState({ kind: 'loading' });
+    void fetchNotice();
+  };
+  if (state.kind === 'loading')
+    return (
+      <p className="tavern__wait tavern__boss-week" role="status">
+        The keeper squints at the boss notice…
+      </p>
+    );
+  if (state.kind === 'error')
+    return (
+      <div className="tavern__alert tavern__boss-week" role="alert">
+        <p>The boss notice cannot be read right now.</p>
+        <button type="button" className="btn" onClick={load}>
+          Try again
+        </button>
+      </div>
+    );
+  return (
+    <div className="tavern__boss-week">
+      <BossModifierNotice
+        modifier={state.value.modifier}
+        week={state.value.week}
+        heading="Word from the keeper · this week every boss is"
+      />
+    </div>
+  );
+}
+
 export function TavernScreen() {
   const phone = useMediaQuery(PHONE_QUERY);
   const quests = useQuests();
@@ -238,6 +291,8 @@ export function TavernScreen() {
           </a>
         </div>
       </header>
+
+      <BossWeekNotice />
 
       {lastReward ? (
         <div className="tavern__paid" role="status">

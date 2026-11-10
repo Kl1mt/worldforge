@@ -22,9 +22,9 @@ export const FORMULA_VERSIONS: FormulaVersions = {
   power: 2,
   /**
    * 2 (ticket 6.1): the Cinderwastes' three milestones added (13). 3 (ticket 6.2): the Cinder
-   * Depths and the Forge Tyrant, four more (17).
+   * Depths and the Forge Tyrant, four more (17). 4 (ticket 6.3): the Heroic crypt cleared (18).
    */
-  pveProgress: 3,
+  pveProgress: 4,
 };
 
 /**
@@ -43,7 +43,7 @@ export const SUPPORTED_FORMULA_VERSIONS: Readonly<Record<ScoreMetric, readonly n
   level: [1],
   gearScore: [2],
   power: [1, 2],
-  pveProgress: [1, 2, 3],
+  pveProgress: [1, 2, 3, 4],
 };
 
 /** One line of a score's breakdown: what counted, how much, and why (or why not). */
