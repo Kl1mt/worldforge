@@ -137,6 +137,17 @@ export interface WorldView {
   deletedHeroes: { total: number; purgeDue: number };
   /** Ticket 6.3: this week's boss modifier and next week's. */
   bossModifiers: { current: BossModifierWeek; next: BossModifierWeek };
+  /** Ticket 6.7: the world era (derived from the flags) and every project's stage. */
+  era: { id: string; name: string; title: string; index: number };
+  projects: {
+    id: string;
+    name: string;
+    status: 'locked' | 'open' | 'complete';
+    stage: number;
+    stages: number;
+    completedOn: string | null;
+    contributors: number;
+  }[];
 }
 
 /** Ticket 6.3: a week's boss modifier (server `BossModifierWeekView`). */
@@ -360,9 +371,11 @@ export const toolsApi = {
     key: string,
     b: { set: boolean; confirm: string; reason: string },
   ) =>
-    post<{ flagId: string; before: boolean; after: boolean }>(
-      `/admin/world/flags/${enc(flagId)}`,
-      key,
-      b,
-    ),
+    post<{
+      flagId: string;
+      before: boolean;
+      after: boolean;
+      /** Ticket 6.7: the era this toggle moved (null: none). */
+      era: { from: string; to: string } | null;
+    }>(`/admin/world/flags/${enc(flagId)}`, key, b),
 };

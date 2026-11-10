@@ -27,6 +27,9 @@ import {
   isDungeonUnlocked,
   isMaterialId,
   isWorldFlagId,
+  worldEra,
+  worldEraIndex,
+  worldFlagsFrom,
   merchantDay,
   objectiveTarget,
   validateItem,
@@ -38,6 +41,9 @@ import {
   guildBossWeek,
 } from '@worldforge/game-core';
 import { bossModifierWeekView } from '../world/boss-modifier.js';
+import { lockWorldFlags, recordEraChange } from '../community/era.js';
+import { loadWorldState } from '../community/world-state.js';
+import { projectProgressSummary } from '../community/model.js';
 import { randomInt } from 'node:crypto';
 import {
   accounts,
@@ -1371,6 +1377,20 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
         pendingArchive,
       },
       deletedHeroes: { total: deleted?.n ?? 0, ...(await purgeDueHint(app.db, app.authNow())) },
+      // Ticket 6.7: the era (derived from the flags above) and every project's stage.
+      era: (() => {
+        const era = worldEra(worldFlagsFrom(rows.map((r) => r.flagId)));
+        return { id: era.id, name: era.name, title: era.title, index: worldEraIndex(era.id) };
+      })(),
+      projects: (await projectProgressSummary(app.db)).map((p) => ({
+        id: p.id,
+        name: p.name,
+        status: p.status,
+        stage: p.stage,
+        stages: p.stages,
+        completedOn: p.completedOn,
+        contributors: p.contributors,
+      })),
       // Ticket 6.3: this week's boss modifier and next week's (public rotation, game clock).
       bossModifiers: {
         current: bossModifierWeekView(t),
@@ -1405,6 +1425,9 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
       const out = await tool(request, reply, async (tx, adminId) => {
         await lockAdmin(tx, adminId);
         assertConfirmed(flagId, b.confirm);
+        // Ticket 6.7: the world lock, then the flags before, for the era this toggle may move.
+        await lockWorldFlags(tx);
+        const flagsBefore = (await loadWorldState(tx)).flags;
         const [row] = await tx
           .select()
           .from(worldFlags)
@@ -1426,7 +1449,14 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
           after: { [flagId]: b.set },
           data: { flagId, projectId: row?.projectId ?? null },
         });
-        return { flagId, before: was, after: b.set };
+        const era = await recordEraChange(
+          tx,
+          flagsBefore,
+          { ...flagsBefore, [flagId]: b.set },
+          gameNow(),
+          { flagId, by: 'admin' },
+        );
+        return { flagId, before: was, after: b.set, era };
       });
       app.worldState.invalidate();
       return out;

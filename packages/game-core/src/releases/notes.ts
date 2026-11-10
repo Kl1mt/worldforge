@@ -23,9 +23,24 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.6.10';
+export const GAME_VERSION = '0.6.11';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.6.11',
+    date: '2026-11-13',
+    title: 'The Forgeward Outpost',
+    new: [
+      'Town works: a new project, Rebuild the Forgeward Outpost, opens once the Ashen Pass is clear. Three stages of gold, iron ore, soul shards, Abbey silver and, for the beacon, ten Tyrant’s Embers, given by the whole town a share a day, as before.',
+      'When the outpost stands, the Forge works the Tyrant’s fire at its beacon: Tyrantforged Work costs 20 % less gold (2,400 instead of 3,000). Everyone who helped earns the mark “Keeper of the Forgeward”.',
+      'Eras of Graumark: the town now shows which era it is in, from the works it has finished. The light over the town, its banners, the town crier’s calls and the talk in the Tavern change with each era. Graumark is in the Era of the Rekindling now; the outpost begins the Forgeward Age. Eras are only how the town looks and sounds.',
+    ],
+    changed: [
+      'Nothing you can reach today is closed by the new project: the Ashfall Verge, the Cinder Depths and the Tyrant’s Forge stay open as they are.',
+    ],
+    fixed: ['The Forge now names Tyrantforged Work’s tier (Tier IV).'],
+    tickets: ['6.7'],
+  },
   {
     version: '0.6.10',
     date: '2026-11-12',

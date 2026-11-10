@@ -361,3 +361,10 @@
   color: var(--text-faint);
   font-size: var(--text-sm);
 }
+
+/* Ticket 6.7: a town upgrade's lower price (the Forgeward bellows), next to the gold. */
+.recipe__town {
+  display: block;
+  color: var(--brass-400);
+  font-size: var(--text-xs);
+}

@@ -341,6 +341,8 @@ Contribution systems should avoid allowing a tiny number of high-power players t
 
 **Phase 6 defaults (ticket 6.6, `docs/EVENTS.md`; the owner can override):** rotating events are scheduled by the owner (admin panel or CLI), one at a time, for 1 hour to 4 weeks. Each has a world modifier (a modest bonus of one material for heroes who joined), a quest line in the Tavern paying tallies, and a cosmetic reward track per account; unfinished tasks lapse at the end and nothing earned is lost. The first is the *Harvest of Bones*.
 
+**Phase 6 defaults (ticket 6.7, `docs/COMMUNITY.md`, `docs/WORLD.md`; the owner can override):** the third project, *Rebuild the Forgeward Outpost*, follows the Ashen Pass (three stages, 300,000 gold and ten Tyrant's Embers in all, B.3's caps). It opens a town upgrade (Tyrantforged Work 20 % cheaper in gold) and a world flag for later content, and gates nothing players can already reach. The town moves through **eras** (the Long Dusk, the Ashen Siege, the Rekindling, the Forgeward Age), one per completed project, shown in the town's light, banners, crier and Tavern; eras are cosmetic. Test accounts don't contribute.
+
 ## 13. Cosmetics and Monetization
 
 ### 13.1 Cosmetic Content

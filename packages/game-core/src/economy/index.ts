@@ -4,3 +4,4 @@ export * from './forge.js';
 export * from './forgeActions.js';
 export * from './lootFilter.js';
 export * from './warehouse.js';
+export * from './town.js';

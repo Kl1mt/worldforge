@@ -412,13 +412,17 @@ describe('community projects: stages and completion', () => {
       flags: Record<string, boolean>;
       completed: unknown[];
     }>();
-    expect(world.flags).toEqual({ warehouseRestored: true, ashenPassCleared: false });
+    expect(world.flags).toEqual({
+      warehouseRestored: true,
+      ashenPassCleared: false,
+      forgewardRaised: false,
+    });
     expect(world.completed).toEqual([{ projectId: 'restoreWarehouse', completedOn: '2031-03-10' }]);
     const [flag] = await db().select().from(worldFlags);
     expect(flag).toMatchObject({ flagId: 'warehouseRestored', projectId: 'restoreWarehouse' });
 
     const b = await board(bystander);
-    expect(b.projects.map((p) => p.status)).toEqual(['complete', 'open']);
+    expect(b.projects.map((p) => p.status)).toEqual(['complete', 'open', 'locked']);
     expect(b.projects[0]).toMatchObject({
       completedOn: '2031-03-10',
       contributors: 5,

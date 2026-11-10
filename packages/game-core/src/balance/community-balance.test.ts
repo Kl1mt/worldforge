@@ -1,13 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
-  COMMUNITY_PROJECTS,
+  COMMUNITY_PROJECTS as ALL_PROJECTS,
   COMMUNITY_PROJECT_CONFIG,
-  stageCap,
   type CommunityProjectConfig,
   type CommunityProjectDefinition,
-  type ProjectResource,
-  type ResourceAmounts,
 } from '../index.js';
+import {
+  ENDLESS,
+  playTown as playAll,
+  town,
+  type StageResult,
+  type Supply,
+} from './community-town.js';
 
 /**
  * Community projects over time (ticket B.3, docs/COMMUNITY.md "How long a stage takes"): a day-by-
@@ -26,137 +30,18 @@ import {
  *   (veteran: the Abbey and the crypt, ~1,650–2,400 gold an hour) of its gold; materials outside
  *   its area come from salvage and stock (smaller). Seals: one per crypt hoard (20 h cooldown), so
  *   one a day per hero; silver: 0.8 % per Abbey cycle (~70 a day).
+ *
+ * Ticket 6.7 moved the model to `community-town.ts` (shared with `forgeward-balance.test.ts`) and
+ * pinned this suite to B.3's two projects, so its table stays exactly as B.3 measured it; the
+ * Forgeward Outpost's pacing is in its own suite.
  */
-type Supply = ResourceAmounts;
-const NEWCOMER: Supply = {
-  gold: 4_000,
-  timber: 150,
-  rawHide: 150,
-  ashwort: 150,
-  ironOre: 80,
-  soulShard: 60,
-};
-const VETERAN: Supply = {
-  gold: 10_000,
-  timber: 60,
-  rawHide: 60,
-  ashwort: 60,
-  ironOre: 250,
-  soulShard: 60,
-  abbeySilver: 25,
-  gravewardenSeal: 1,
-};
-const ENDLESS: Supply = Object.fromEntries(
-  [
-    'gold',
-    'timber',
-    'rawHide',
-    'ironOre',
-    'ashwort',
-    'soulShard',
-    'abbeySilver',
-    'gravewardenSeal',
-  ].map((r) => [r, 1e9]),
-);
-/** A town of n active players: a third veterans (at least one), the rest newcomers. */
-const town = (n: number): Supply[] =>
-  Array.from({ length: n }, (_, i) => (i < Math.max(1, Math.round(n / 3)) ? VETERAN : NEWCOMER));
-
-interface StageResult {
-  project: string;
-  stage: string;
-  /** Day (0-based) of the stage's first gift and the day it was finished. */
-  firstDay: number;
-  doneOn: number;
-  /** Distinct players who gave to it. */
-  givers: number;
-  /** Most of any need one player gave in one day, as a share of the need (any day; first day). */
-  maxDayShare: number;
-  maxFirstDayShare: number;
-}
-
-/**
- * Plays `days` days: every day each player, in a rotating order, gives what the current stage
- * still needs, up to its cap that day and what it can spare (unspent spare is not carried over;
- * seals are: a veteran keeps those it does not give). A stage finished mid-day opens the next one
- * the same day, with its own caps (as on the server).
- */
-function playTown(
+/** B.3's projects: the Warehouse and the Ashen Pass (ticket 6.7 added a third after them). */
+const COMMUNITY_PROJECTS = ALL_PROJECTS.slice(0, 2);
+const playTown = (
   players: Supply[],
   config: CommunityProjectConfig = COMMUNITY_PROJECT_CONFIG,
   projects: readonly CommunityProjectDefinition[] = COMMUNITY_PROJECTS,
-  days = 90,
-): StageResult[] {
-  const COMMUNITY_PROJECTS = projects;
-  const out: StageResult[] = [];
-  const stash = players.map(() => ({ gravewardenSeal: 0 }) as Record<string, number>);
-  let p = 0;
-  let s = 0;
-  let firstDay: number | null = null;
-  let delivered: Record<string, number> = {};
-  let givers = new Set<number>();
-  let maxDayShare = 0;
-  let maxFirstDayShare = 0;
-  for (let day = 0; day < days && p < COMMUNITY_PROJECTS.length; day++) {
-    const left = players.map((sup, i) => {
-      const today: Record<string, number> = { ...sup } as Record<string, number>;
-      stash[i]!.gravewardenSeal! += sup.gravewardenSeal ?? 0;
-      today.gravewardenSeal = stash[i]!.gravewardenSeal!;
-      return today;
-    });
-    const givenToday = new Map<string, number>();
-    for (let k = 0; k < players.length && p < COMMUNITY_PROJECTS.length; k++) {
-      const i = (k + day) % players.length;
-      // A player gives to every stage it can reach today (several, if one finishes).
-      for (let guard = 0; guard < 10 && p < COMMUNITY_PROJECTS.length; guard++) {
-        const project = COMMUNITY_PROJECTS[p]!;
-        const stage = project.stages[s]!;
-        const age = firstDay === null ? 0 : day - firstDay;
-        let gave = false;
-        for (const need of stage.needs) {
-          const r = need.resource as ProjectResource;
-          const key = `${p}:${s}:${i}:${r}`;
-          const cap = stageCap(stage, r, age, config) - (givenToday.get(key) ?? 0);
-          const amount = Math.min(cap, need.amount - (delivered[r] ?? 0), left[i]![r] ?? 0);
-          if (amount <= 0) continue;
-          gave = true;
-          delivered[r] = (delivered[r] ?? 0) + amount;
-          left[i]![r] = left[i]![r]! - amount;
-          if (r === 'gravewardenSeal') stash[i]!.gravewardenSeal! -= amount;
-          givenToday.set(key, (givenToday.get(key) ?? 0) + amount);
-          const share = (givenToday.get(key) ?? 0) / need.amount;
-          maxDayShare = Math.max(maxDayShare, share);
-          if (age === 0) maxFirstDayShare = Math.max(maxFirstDayShare, share);
-        }
-        if (!gave) break;
-        if (firstDay === null) firstDay = day;
-        givers.add(i);
-        if (!stage.needs.every((n) => (delivered[n.resource] ?? 0) >= n.amount)) break;
-        out.push({
-          project: project.id,
-          stage: stage.id,
-          firstDay: firstDay,
-          doneOn: day,
-          givers: givers.size,
-          maxDayShare,
-          maxFirstDayShare,
-        });
-        s += 1;
-        if (s >= project.stages.length) {
-          p += 1;
-          s = 0;
-        }
-        firstDay = null;
-        delivered = {};
-        givers = new Set();
-        maxDayShare = 0;
-        maxFirstDayShare = 0;
-      }
-    }
-  }
-  return out;
-}
-
+) => playAll(players, config, projects);
 /** Days from the start until each project is finished (1-based: finished on day 1 = 1). */
 const projectDays = (r: StageResult[]): [warehouse: number, pass: number] => {
   const [w, p] = COMMUNITY_PROJECTS.map((def) => {

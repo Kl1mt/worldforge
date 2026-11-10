@@ -222,7 +222,8 @@ describe('heraldry art (A.8)', () => {
    * Achievements whose icons are still to be drawn (an art follow-up); the UI shows the wax-seal
    * placeholder for them. Remove an id as soon as its icon lands (A.9 drew the 4.6 project deeds).
    */
-  const AWAITING_ART = new Set<string>([]);
+  // Ticket 6.7: the Forgeward Outpost's mark shows the wax-seal placeholder until its icon is drawn.
+  const AWAITING_ART = new Set<string>(['forgewardBuilder']);
 
   it('has a 32×32 icon for every achievement', () => {
     for (const a of ACHIEVEMENTS) {

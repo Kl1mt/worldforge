@@ -8,6 +8,8 @@ import {
   craftBlockers,
   craftItem,
   findForgeRecipe,
+  activeTownUpgrades,
+  townPricedRecipe,
   recipeSlots,
   salvageYield,
   sumYields,
@@ -16,6 +18,7 @@ import {
   type MaterialId,
 } from '@worldforge/game-core';
 import { characters, itemInstances } from '../db/schema.js';
+import { loadWorldState } from '../community/world-state.js';
 import { uuidv7 } from '../db/uuid.js';
 import { writeAudit } from '../db/audit.js';
 import { recordTelemetry } from '../telemetry/record.js';
@@ -77,6 +80,8 @@ export interface RecipeView {
   slots: ItemSlotKind[];
   /** Unmet requirements now; empty = craftable. */
   blockers: CraftBlocker[];
+  /** Ticket 6.7: a town upgrade lowered `gold` from `baseGold` (absent: the list price). */
+  townUpgrade?: { id: string; name: string; baseGold: number };
 }
 
 export interface ForgeResponse {
@@ -137,6 +142,15 @@ const forgeResponseSchema = {
         ],
         properties: {
           recipeId: { type: 'string' },
+          townUpgrade: {
+            type: 'object',
+            required: ['id', 'name', 'baseGold'],
+            properties: {
+              id: { type: 'string' },
+              name: { type: 'string' },
+              baseGold: { type: 'integer' },
+            },
+          },
           name: { type: 'string' },
           description: { type: 'string' },
           tier: { type: 'integer' },
@@ -232,6 +246,7 @@ export async function registerForge(
         );
       if (!character) throw characterNotFound();
       const held = await loadMaterialBundle(app.db, characterId);
+      const flags = await app.worldState.flags();
       const items = await app.db
         .select()
         .from(itemInstances)
@@ -241,17 +256,28 @@ export async function registerForge(
         characterId,
         gold: character.gold,
         materials: materialList(held),
-        recipes: FORGE_RECIPES.map((r) => ({
-          recipeId: r.id,
-          name: r.name,
-          description: r.description,
-          tier: r.tier,
-          level: r.level,
-          gold: r.gold,
-          materials: r.materials.map((m) => ({ materialId: m.materialId, quantity: m.quantity })),
-          slots: recipeSlots(r, character.classId),
-          blockers: craftBlockers(r, character, held),
-        })),
+        recipes: FORGE_RECIPES.map((listed) => {
+          // Ticket 6.7: the town's upgrades price the recipe (the Forgeward bellows).
+          const r = townPricedRecipe(listed, flags);
+          const upgrade =
+            r === listed
+              ? undefined
+              : activeTownUpgrades(flags).find((u) => u.forgeGoldDiscount?.recipeId === r.id);
+          return {
+            recipeId: r.id,
+            name: r.name,
+            description: r.description,
+            tier: r.tier,
+            level: r.level,
+            gold: r.gold,
+            materials: r.materials.map((m) => ({ materialId: m.materialId, quantity: m.quantity })),
+            slots: recipeSlots(r, character.classId),
+            blockers: craftBlockers(r, character, held),
+            ...(upgrade
+              ? { townUpgrade: { id: upgrade.id, name: upgrade.name, baseGold: listed.gold } }
+              : {}),
+          };
+        }),
         salvage: items.filter(isPackItem).map((i) => {
           const y = salvageYield(i);
           return { itemId: i.id, gold: y.gold, materials: materialList(y.materials) };
@@ -343,7 +369,7 @@ export async function registerForge(
       const accountId = request.auth!.account.id;
       const { characterId } = request.params;
       const { recipeId, slot } = request.body;
-      const recipe = findForgeRecipe(recipeId)!;
+      const listed = findForgeRecipe(recipeId)!;
       return idempotentTransaction(
         app,
         request,
@@ -352,6 +378,9 @@ export async function registerForge(
         async (tx): Promise<CraftResponse> => {
           const locked = await lockOwnedCharacter(tx, accountId, characterId, activity);
           const now = activity.now();
+          // Ticket 6.7: the price the town's upgrades set, from the flags table (exact, not the
+          // cache): what is charged, audited and counted below.
+          const recipe = townPricedRecipe(listed, (await loadWorldState(tx)).flags);
           if (!recipeSlots(recipe, locked.classId).includes(slot)) {
             throw new ApiError(422, 'wrong_slot', 'This recipe makes nothing for that slot.', {
               slot,

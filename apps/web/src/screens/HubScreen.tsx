@@ -13,6 +13,7 @@ import { Meter } from '../components/Meter';
 import { EventBanner } from '../events/EventBanner';
 import { projectProgress, useProjectBoard, type BoardState } from '../community/api';
 import { useOnboarding } from '../onboarding/OnboardingProvider';
+import { EraCrier, EraOverlay, EraTitle, useWorldEra } from '../community/Era';
 import './hub.css';
 import './works.css';
 import './arena.css';
@@ -145,6 +146,7 @@ export function HubScreen() {
   const phone = useMediaQuery(PHONE_QUERY);
   const { state: works } = useProjectBoard();
   const { worldFlags } = useOnboarding();
+  const era = useWorldEra();
   // The world flag is the source of truth (the server checks it on every warehouse route); the
   // board's finished project shows it as soon as the board arrives.
   const restored =
@@ -181,10 +183,13 @@ export function HubScreen() {
       <header className="hub__head">
         <p className="caps hub__region">Graumark · Frontier town</p>
         <h1 className="display hub__title">Graumark</h1>
+        <EraTitle era={era} />
         <HeroWhereabouts />
       </header>
 
       <EventBanner />
+
+      <EraCrier era={era} />
 
       <div className="hub__frame" ref={ref}>
         <div
@@ -199,6 +204,7 @@ export function HubScreen() {
             className="hub__art"
             style={{ left }}
           />
+          <EraOverlay era={era} />
           {ORDERED.map((h) => {
             const b = buildings[h.id];
             const cx = (h.x + h.width / 2) / HUB.width;

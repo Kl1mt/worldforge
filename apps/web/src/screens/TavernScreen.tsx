@@ -19,6 +19,7 @@ import { routeHref } from '../lib/route';
 import type { ContractOfferDto, QuestDto } from '../quests/api';
 import { useQuests } from '../quests/useQuests';
 import { useOnboarding } from '../onboarding/OnboardingProvider';
+import { useWorldEra } from '../community/Era';
 import { questKey } from '../onboarding/seen';
 import {
   contractTitle,
@@ -257,6 +258,8 @@ export function TavernScreen() {
   const quests = useQuests();
   const { board, busy, error, lastReward } = quests;
   const { newQuests } = useOnboarding();
+  // Ticket 6.7: the Tavern's ambient line follows the world era (the old line until it is known).
+  const era = useWorldEra();
   const spot = HUB_HOTSPOTS.find((h) => h.id === 'tavern')!;
   const scale = phone ? 2 : 3;
 
@@ -284,8 +287,9 @@ export function TavernScreen() {
             The Tavern
           </h1>
           <p className="tavern__text">
-            Smoke, spilt ale and a board full of nails. Whoever needs a sword pins a note here; the
-            keeper pays out when the work is done.
+            {era
+              ? era.tavern
+              : 'Smoke, spilt ale and a board full of nails. Whoever needs a sword pins a note here; the keeper pays out when the work is done.'}
           </p>
           <a className="btn" href={routeHref('hub')}>
             Back to town
