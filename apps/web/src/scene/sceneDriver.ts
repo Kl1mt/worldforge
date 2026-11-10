@@ -2,8 +2,16 @@ import type { SceneBeat, SceneCue, SceneLoop } from './sceneLoop';
 
 /**
  * Ticket A.14: drives a `SceneLoop` with ONE timer and turns its beats into CSS classes on the
- * scene's actor wrappers (`scene-anim.css` does the motion with transforms, opacity and a brief
+ * scene's actor layers (`scene-anim.css` does the motion with transforms, opacity and a brief
  * filter flash). No React state changes per beat and no requests: only `classList` calls.
+ *
+ * Ticket A.14b: each concern has its own layer element, nested inside the CSS-only breath:
+ *   fade (fall / rise, opacity) > act (own attack: strike / lunge) > hit (being struck: hit,
+ *   hurt, glow) > sprite.
+ * A layer carries **at most one** beat class at a time: playing a beat removes the layer's other
+ * beat classes first. Before A.14b finished beats kept their classes, several classes fought over
+ * one element's `animation`, and the stylesheet's order (not the newest beat) decided which one
+ * ran; after a foe's first respawn its hits, lunges and the hero's strikes silently stopped.
  *
  * Everything the browser provides is injected (clock, timer, the elements), so tests run it in
  * node with a fake clock.
@@ -16,9 +24,16 @@ export interface ActorElement {
   readonly offsetWidth?: number;
 }
 
+/** One sprite's beat layers (any may be missing, e.g. while React re-mounts). */
+export interface ActorLayers {
+  fade: ActorElement | null;
+  act: ActorElement | null;
+  hit: ActorElement | null;
+}
+
 export interface SceneActors {
-  hero: ActorElement | null;
-  foes: readonly (ActorElement | null)[];
+  hero: ActorLayers | null;
+  foes: readonly (ActorLayers | null)[];
 }
 
 export interface DriverClock {
@@ -27,70 +42,98 @@ export interface DriverClock {
   clearTimer(handle: unknown): void;
 }
 
-/** Transient classes: each plays its animation once and is restarted by the next beat. */
-export const BEAT_CLASS = {
-  heroStrike: 'scene-anim--strike',
-  foeHit: 'scene-anim--hit',
-  foeHeavy: 'scene-anim--heavy',
-  foeStrike: 'scene-anim--lunge',
-  heroHit: 'scene-anim--hurt',
-  foeRise: 'scene-anim--rise',
-  heroGlow: 'scene-anim--glow',
-} as const;
-/** Persistent while a foe is down. */
-export const DOWN_CLASS = 'scene-anim--down';
+export type LayerName = keyof ActorLayers;
 
-function restart(el: ActorElement | null | undefined, cls: string) {
+/** The beat classes of each layer. A layer never carries two of them at once. */
+export const LAYER_CLASSES = {
+  fade: ['scene-anim--down', 'scene-anim--rise'],
+  act: ['scene-anim--strike', 'scene-anim--lunge'],
+  hit: ['scene-anim--hit', 'scene-anim--heavy', 'scene-anim--hurt', 'scene-anim--glow'],
+} as const satisfies Record<LayerName, readonly string[]>;
+
+/** Which layer and class each beat plays (`null` for an actor-less beat). */
+export const BEAT_CLASS = {
+  heroStrike: { layer: 'act', cls: 'scene-anim--strike' },
+  foeStrike: { layer: 'act', cls: 'scene-anim--lunge' },
+  foeHit: { layer: 'hit', cls: 'scene-anim--hit' },
+  heroHit: { layer: 'hit', cls: 'scene-anim--hurt' },
+  heroGlow: { layer: 'hit', cls: 'scene-anim--glow' },
+  foeFall: { layer: 'fade', cls: 'scene-anim--down' },
+  foeRise: { layer: 'fade', cls: 'scene-anim--rise' },
+} as const satisfies Record<SceneBeat['kind'], { layer: LayerName; cls: string }>;
+
+export const HEAVY_CLASS = 'scene-anim--heavy';
+export const DOWN_CLASS = BEAT_CLASS.foeFall.cls;
+
+/**
+ * A one-shot beat this late is dropped instead of played (falls and rises are always applied):
+ * a throttled or busy tab would otherwise fire several beats in one tick and stack them.
+ */
+export const LATE_BEAT_MS = 250;
+
+/** Removes every beat class of a layer. */
+function clear(el: ActorElement | null | undefined, layer: LayerName) {
   if (!el) return;
-  if (el.classList.contains(cls)) {
-    el.classList.remove(cls);
-    void el.offsetWidth; // flush so the animation starts over
-  }
+  for (const cls of LAYER_CLASSES[layer]) el.classList.remove(cls);
+}
+
+/** Plays `cls` on a layer from its start: the layer's other classes go, then `cls` (re)starts. */
+function play(el: ActorElement | null | undefined, layer: LayerName, cls: string, extra?: string) {
+  if (!el) return;
+  const again = el.classList.contains(cls);
+  clear(el, layer);
+  if (again) void el.offsetWidth; // flush so the same animation starts over
   el.classList.add(cls);
+  if (extra) el.classList.add(extra);
+}
+
+/** The actor a beat plays on: `hero*` beats on the hero (a strike names its target foe, but the
+ * hero is the one who moves), `foe*` beats on that foe. */
+function actorOf(beat: SceneBeat, actors: SceneActors): ActorLayers | null | undefined {
+  switch (beat.kind) {
+    case 'heroStrike':
+    case 'heroHit':
+    case 'heroGlow':
+      return actors.hero;
+    default:
+      return actors.foes[beat.foe];
+  }
 }
 
 /** Applies one beat to the actors. Exported for tests. */
 export function applyBeat(beat: SceneBeat, actors: SceneActors) {
+  const actor = actorOf(beat, actors);
+  if (!actor) return;
+  const { layer, cls } = BEAT_CLASS[beat.kind];
   switch (beat.kind) {
-    case 'heroStrike':
-      restart(actors.hero, BEAT_CLASS.heroStrike);
+    case 'foeHit':
+      play(actor.hit, 'hit', cls, beat.heavy ? HEAVY_CLASS : undefined);
       return;
-    case 'heroHit':
-      restart(actors.hero, BEAT_CLASS.heroHit);
+    case 'foeFall':
+      // The foe is gone: its attack and its last blow end with it.
+      clear(actor.act, 'act');
+      clear(actor.hit, 'hit');
+      play(actor.fade, 'fade', cls);
       return;
-    case 'heroGlow':
-      restart(actors.hero, BEAT_CLASS.heroGlow);
+    case 'foeRise':
+      // A fresh foe: nothing of the last one carries over.
+      clear(actor.act, 'act');
+      clear(actor.hit, 'hit');
+      play(actor.fade, 'fade', cls);
       return;
-    case 'foeHit': {
-      const foe = actors.foes[beat.foe];
-      foe?.classList.remove(BEAT_CLASS.foeHeavy);
-      if (beat.heavy) foe?.classList.add(BEAT_CLASS.foeHeavy);
-      restart(foe, BEAT_CLASS.foeHit);
-      return;
-    }
-    case 'foeStrike':
-      restart(actors.foes[beat.foe], BEAT_CLASS.foeStrike);
-      return;
-    case 'foeFall': {
-      const foe = actors.foes[beat.foe];
-      foe?.classList.remove(BEAT_CLASS.foeRise);
-      foe?.classList.add(DOWN_CLASS);
-      return;
-    }
-    case 'foeRise': {
-      const foe = actors.foes[beat.foe];
-      foe?.classList.remove(DOWN_CLASS);
-      restart(foe, BEAT_CLASS.foeRise);
-      return;
-    }
+    default:
+      play(actor[layer], layer, cls);
   }
 }
 
+/** True for beats that change who is standing (always applied, even late). */
+const isState = (beat: SceneBeat) => beat.kind === 'foeFall' || beat.kind === 'foeRise';
+
 /** Strips every class the driver may have set (on stop, so a resting scene is clean). */
 export function resetActors(actors: SceneActors) {
-  const all = [...Object.values(BEAT_CLASS), DOWN_CLASS];
-  for (const el of [actors.hero, ...actors.foes]) {
-    if (el) for (const cls of all) el.classList.remove(cls);
+  for (const actor of [actors.hero, ...actors.foes]) {
+    if (!actor) continue;
+    for (const layer of Object.keys(LAYER_CLASSES) as LayerName[]) clear(actor[layer], layer);
   }
 }
 
@@ -125,11 +168,19 @@ export function startSceneDriver(options: {
     handle = clock.setTimer(tick, Math.max(0, next - elapsed()));
   };
 
+  /** Applies what is due; one-shot beats later than LATE_BEAT_MS (or all, when `skip`) drop. */
+  const flush = (skip: boolean) => {
+    const now = elapsed();
+    const current = actors();
+    for (const { at, beat } of loop.advance(now)) {
+      if (isState(beat) || (!skip && now - at <= LATE_BEAT_MS)) applyBeat(beat, current);
+    }
+  };
+
   function tick() {
     handle = null;
     if (!running || paused) return;
-    const current = actors();
-    for (const { beat } of loop.advance(elapsed())) applyBeat(beat, current);
+    flush(false);
     schedule();
   }
 
@@ -155,10 +206,7 @@ export function startSceneDriver(options: {
       if (!running || !paused) return;
       paused = false;
       // Skip what was due while hidden, but bring back any foe that should have risen meanwhile.
-      const current = actors();
-      for (const { beat } of loop.advance(elapsed())) {
-        if (beat.kind === 'foeRise' || beat.kind === 'foeFall') applyBeat(beat, current);
-      }
+      flush(true);
       schedule();
     },
     stop() {

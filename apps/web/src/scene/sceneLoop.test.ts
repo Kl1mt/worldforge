@@ -42,6 +42,15 @@ describe('planFor (A.14 cadence)', () => {
     expect(planFor({ foes: 1 }).impactMs).toBe(LUNGE_IMPACT_MS);
     expect(planFor({ foes: 1, framed: true }).impactMs).toBe(FRAMED_IMPACT_MS);
   });
+
+  it("times each foe's blow by its own attack, not the hero's (A.14b)", () => {
+    const plan = planFor({ foes: 3, framed: true, framedFoes: [true, false, true] });
+    expect(plan.foeImpactMs).toEqual([FRAMED_IMPACT_MS, LUNGE_IMPACT_MS, FRAMED_IMPACT_MS]);
+    expect(planFor({ foes: 2, framed: true }).foeImpactMs).toEqual([
+      LUNGE_IMPACT_MS,
+      LUNGE_IMPACT_MS,
+    ]);
+  });
 });
 
 describe('SceneLoop (A.14)', () => {
@@ -126,7 +135,7 @@ describe('SceneLoop (A.14)', () => {
         if (beat.kind !== 'foeStrike' || at > 29_000) return;
         answers += 1;
         const flinch = beats.slice(i + 1).find((b) => b.beat.kind === 'heroHit');
-        expect(flinch!.at - at).toBe(plan.impactMs);
+        expect(flinch!.at - at).toBe(plan.foeImpactMs[beat.foe]);
       });
     }
     // Across 200 seeds × 30 s the answer always appears (its odds per swing pair are 45 %).

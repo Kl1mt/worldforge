@@ -8,7 +8,12 @@ import {
   type AreaId,
 } from '@worldforge/game-core';
 import { useActiveCharacter } from '../characters/CharactersProvider';
-import { classAttackSheet, classPortrait, type SpriteAsset } from '../content/assets';
+import {
+  classAttackSheet,
+  classPortrait,
+  enemyAttackSheet,
+  type SpriteAsset,
+} from '../content/assets';
 import { findAsset } from '../content/world';
 import { ItemFrame } from '../components/ItemFrame';
 import { LabeledMeter } from '../components/Meter';
@@ -37,6 +42,8 @@ interface Foe {
   id: string;
   name: string;
   sprite: SpriteAsset | null;
+  /** A.14b: its attack frames (frame 0 = the still), or null: the scene animates the still. */
+  sheet: SpriteAsset | null;
   lift: number;
   weight: number;
 }
@@ -66,6 +73,7 @@ function areaView(areaId: AreaId): AreaView {
         id: def.id,
         name: def.name,
         sprite: findAsset(def.assetId),
+        sheet: enemyAttackSheet(def.assetId),
         lift: LIFTS[i] ?? 0,
         weight: entry.weight,
       };
@@ -84,8 +92,21 @@ function frequency(weight: number, total: number): string {
   return 'Rarely seen';
 }
 
-/** A foe sprite, or a framed silhouette plate while its art is missing. */
-function FoeSprite({ foe, scale, alt }: { foe: Foe; scale: number; alt: string }) {
+/**
+ * A foe sprite, or a framed silhouette plate while its art is missing. `animated` (the fight
+ * scene) draws its attack frames when it has them, falling back to the still.
+ */
+function FoeSprite({
+  foe,
+  scale,
+  alt,
+  animated = false,
+}: {
+  foe: Foe;
+  scale: number;
+  alt: string;
+  animated?: boolean;
+}) {
   if (!foe.sprite) {
     return (
       <span
@@ -96,6 +117,18 @@ function FoeSprite({ foe, scale, alt }: { foe: Foe; scale: number; alt: string }
       >
         <span aria-hidden="true">?</span>
       </span>
+    );
+  }
+  if (animated && foe.sheet) {
+    // Sheets are stored facing the hero; the still is the fallback if the sheet fails to load.
+    return (
+      <PixelSprite
+        sprite={foe.sheet}
+        fallback={foe.sprite}
+        scale={scale}
+        alt={alt}
+        mirror={foe.sheet.facing === 'right'}
+      />
     );
   }
   return (
@@ -121,6 +154,7 @@ function Scene({ view, phone, farming }: { view: AreaView; phone: boolean; farmi
     foes: foes.length,
     attackSpeed: inventory.kind === 'ready' ? inventory.value.stats.attackSpeed : null,
     framed: sheet !== null,
+    framedFoes: foes.map((foe) => foe.sheet !== null),
     chronicle,
   });
   const size = backdrop ?? BACKDROP_SIZE;
@@ -189,8 +223,13 @@ function Scene({ view, phone, farming }: { view: AreaView; phone: boolean; farmi
                   <span className="foe__name">{foe.name}</span>
                   <span className="foe__level">Lv {levels}</span>
                 </div>
-                <SceneActor role="foe" index={i} actorRef={foeRef(i)}>
-                  <FoeSprite foe={foe} scale={spriteScale} alt={`${foe.name}, level ${levels}`} />
+                <SceneActor role="foe" index={i} framed={foe.sheet !== null} actorRef={foeRef(i)}>
+                  <FoeSprite
+                    foe={foe}
+                    scale={spriteScale}
+                    alt={`${foe.name}, level ${levels}`}
+                    animated
+                  />
                 </SceneActor>
               </li>
             ))}

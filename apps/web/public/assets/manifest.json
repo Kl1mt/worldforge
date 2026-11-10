@@ -456,8 +456,8 @@
         "height": 128
       },
       "frames": 8,
-      "prompt": "(animate-with-text-v3, first and last frame = character.hunter) bow attack: the hunter raises the longbow toward the right side of the image, draws an arrow back to the cheek, looses it and lowers the bow back into the starting stance. Clear, exaggerated motion of both arms.",
-      "source": "art/source/pixellab/anim-hunter-01/01.png … 07.png, palette-snapped by tools/art/hero_frames.py; frame 0 = /assets/characters/hunter.png",
+      "prompt": "(animate-with-text-v3, first and last frame = character.hunter) bow shot, clearly readable: the hunter turns slightly to the right of the image, raises the longbow in the left hand pointing to the right, nocks an arrow and pulls the bowstring far back to the cheek with the right hand so the bow bends visibly, holds for a moment, releases so the string snaps forward and the arrow flies off to the right edge, then lowers the bow back into the starting stance. Big, exaggerated arm motion.",
+      "source": "art/source/pixellab/anim-hunter-02/01.png … 07.png, palette-snapped by tools/art/hero_frames.py; frame 0 = /assets/characters/hunter.png",
       "facing": "front"
     },
     {
@@ -2015,6 +2015,216 @@
       "prompt": "dark fantasy pixel art, full body, side view facing left, neutral standing pose, boss: the Forge Tyrant, a towering fallen smith-king, a huge undead blacksmith in a heavy soot-black leather forge apron over scorched iron plate, a crude iron crown fused to his skull, a long charred beard, holding a massive forge hammer, ember glow in the eyes and the cracks of his armour, chains hanging from the belt, massive silhouette, weathered worn gear, muted desaturated palette, dark near-black outline, transparent background",
       "source": "art/source/pixellab/boss-forge-tyrant-01/02.png",
       "facing": "front"
+    },
+    {
+      "id": "enemy.undead-farmer-attack",
+      "path": "/assets/enemies/undead-farmer-attack.png",
+      "kind": "enemy",
+      "size": {
+        "width": 82,
+        "height": 64
+      },
+      "frames": 8,
+      "lead": 18,
+      "prompt": "(animate-with-text-v3, six enemies per job in a 3x2 grid; first and last frame = the grid of stills) six separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left. All six attack at the same time, each staying inside its own cell: the zombie farmer jabs the pitchfork forward to the left, the wolf snaps its jaws and lunges its head to the left, the scarecrow swings its straw arms forward, the hooded bandit stabs the dagger to the left, the crow flaps its wings and pecks to the left, the skeleton swings its sword down to the left. Then each returns to its starting pose. Bodies stay in place, same size, same colours.",
+      "source": "art/source/pixellab/anim-enemies-01/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/undead-farmer.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.wolf-attack",
+      "path": "/assets/enemies/wolf-attack.png",
+      "kind": "enemy",
+      "size": {
+        "width": 82,
+        "height": 64
+      },
+      "frames": 8,
+      "lead": 18,
+      "prompt": "(animate-with-text-v3, six enemies per job in a 3x2 grid; first and last frame = the grid of stills) six separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left. All six attack at the same time, each staying inside its own cell: the zombie farmer jabs the pitchfork forward to the left, the wolf snaps its jaws and lunges its head to the left, the scarecrow swings its straw arms forward, the hooded bandit stabs the dagger to the left, the crow flaps its wings and pecks to the left, the skeleton swings its sword down to the left. Then each returns to its starting pose. Bodies stay in place, same size, same colours.",
+      "source": "art/source/pixellab/anim-enemies-01/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/wolf.png mirrored to face left",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.skeletal-scarecrow-attack",
+      "path": "/assets/enemies/skeletal-scarecrow-attack.png",
+      "kind": "enemy",
+      "size": {
+        "width": 82,
+        "height": 64
+      },
+      "frames": 8,
+      "lead": 18,
+      "prompt": "(animate-with-text-v3, six enemies per job in a 3x2 grid; first and last frame = the grid of stills) six separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left. All six attack at the same time, each staying inside its own cell: the zombie farmer jabs the pitchfork forward to the left, the wolf snaps its jaws and lunges its head to the left, the scarecrow swings its straw arms forward, the hooded bandit stabs the dagger to the left, the crow flaps its wings and pecks to the left, the skeleton swings its sword down to the left. Then each returns to its starting pose. Bodies stay in place, same size, same colours.",
+      "source": "art/source/pixellab/anim-enemies-01/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/skeletal-scarecrow.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.bandit-cutthroat-attack",
+      "path": "/assets/enemies/bandit-cutthroat-attack.png",
+      "kind": "enemy",
+      "size": {
+        "width": 82,
+        "height": 64
+      },
+      "frames": 8,
+      "lead": 18,
+      "prompt": "(animate-with-text-v3, six enemies per job in a 3x2 grid; first and last frame = the grid of stills) six separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left. All six attack at the same time, each staying inside its own cell: the zombie farmer jabs the pitchfork forward to the left, the wolf snaps its jaws and lunges its head to the left, the scarecrow swings its straw arms forward, the hooded bandit stabs the dagger to the left, the crow flaps its wings and pecks to the left, the skeleton swings its sword down to the left. Then each returns to its starting pose. Bodies stay in place, same size, same colours.",
+      "source": "art/source/pixellab/anim-enemies-01/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/bandit-cutthroat.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.corrupted-crow-attack",
+      "path": "/assets/enemies/corrupted-crow-attack.png",
+      "kind": "enemy",
+      "size": {
+        "width": 82,
+        "height": 64
+      },
+      "frames": 8,
+      "lead": 18,
+      "prompt": "(animate-with-text-v3, six enemies per job in a 3x2 grid; first and last frame = the grid of stills) six separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left. All six attack at the same time, each staying inside its own cell: the zombie farmer jabs the pitchfork forward to the left, the wolf snaps its jaws and lunges its head to the left, the scarecrow swings its straw arms forward, the hooded bandit stabs the dagger to the left, the crow flaps its wings and pecks to the left, the skeleton swings its sword down to the left. Then each returns to its starting pose. Bodies stay in place, same size, same colours.",
+      "source": "art/source/pixellab/anim-enemies-01/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/corrupted-crow.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.risen-skeleton-attack",
+      "path": "/assets/enemies/risen-skeleton-attack.png",
+      "kind": "enemy",
+      "size": {
+        "width": 82,
+        "height": 64
+      },
+      "frames": 8,
+      "lead": 18,
+      "prompt": "(animate-with-text-v3, six enemies per job in a 3x2 grid; first and last frame = the grid of stills) six separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left. All six attack at the same time, each staying inside its own cell: the zombie farmer jabs the pitchfork forward to the left, the wolf snaps its jaws and lunges its head to the left, the scarecrow swings its straw arms forward, the hooded bandit stabs the dagger to the left, the crow flaps its wings and pecks to the left, the skeleton swings its sword down to the left. Then each returns to its starting pose. Bodies stay in place, same size, same colours.",
+      "source": "art/source/pixellab/anim-enemies-01/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/risen-skeleton.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.ash-wraith-attack",
+      "path": "/assets/enemies/ash-wraith-attack.png",
+      "kind": "enemy",
+      "size": {
+        "width": 82,
+        "height": 64
+      },
+      "frames": 8,
+      "lead": 18,
+      "prompt": "(animate-with-text-v3, six enemies per job in a 3x2 grid; first and last frame = the grid of stills) six separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left. All six make a short physical attack at the same time, each staying inside its own cell, using only their bodies and weapons: the hooded wraith reaches its clawed hand forward to the left, the ember-cracked hound snaps its jaws forward to the left, the molten hound bites forward to the left, the flaming skull wisp bobs forward to the left, the armoured revenant swings its sword down to the left, the knight swings his greatsword down to the left. Then each returns to its starting pose. No fire bursts, no explosions, no flashes, no sparks, no particles, no glow; keep every creature's exact colours and size.",
+      "source": "art/source/pixellab/anim-enemies-04/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/ash-wraith.png mirrored to face left",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.pyre-cultist-attack",
+      "path": "/assets/enemies/pyre-cultist-attack.png",
+      "kind": "enemy",
+      "size": {
+        "width": 82,
+        "height": 64
+      },
+      "frames": 8,
+      "lead": 18,
+      "prompt": "(animate-with-text-v3, six enemies per job in a 3x2 grid; first and last frame = the grid of stills) six separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left. All six attack at the same time, each staying inside its own cell: the hooded ash wraith reaches its clawed hand forward to the left, the ember-cracked hound snaps its jaws and lunges its head to the left, the cultist swings the smoking censer forward to the left, the ember golem punches its stone fist forward to the left, the armoured revenant swings its sword up and down to the left, the molten slag hound bites forward to the left. Then each returns to its starting pose. Bodies stay in place, same size, same colours.",
+      "source": "art/source/pixellab/anim-enemies-02/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/pyre-cultist.png mirrored to face left",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.ember-golem-attack",
+      "path": "/assets/enemies/ember-golem-attack.png",
+      "kind": "enemy",
+      "size": {
+        "width": 82,
+        "height": 64
+      },
+      "frames": 8,
+      "lead": 18,
+      "prompt": "(animate-with-text-v3, six enemies per job in a 3x2 grid; first and last frame = the grid of stills) six separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left. All six attack at the same time, each staying inside its own cell: the hooded ash wraith reaches its clawed hand forward to the left, the ember-cracked hound snaps its jaws and lunges its head to the left, the cultist swings the smoking censer forward to the left, the ember golem punches its stone fist forward to the left, the armoured revenant swings its sword up and down to the left, the molten slag hound bites forward to the left. Then each returns to its starting pose. Bodies stay in place, same size, same colours.",
+      "source": "art/source/pixellab/anim-enemies-02/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/ember-golem.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.cinder-revenant-attack",
+      "path": "/assets/enemies/cinder-revenant-attack.png",
+      "kind": "enemy",
+      "size": {
+        "width": 82,
+        "height": 64
+      },
+      "frames": 8,
+      "lead": 18,
+      "prompt": "(animate-with-text-v3, six enemies per job in a 3x2 grid; first and last frame = the grid of stills) six separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left. All six make a short physical attack at the same time, each staying inside its own cell, using only their bodies and weapons: the hooded wraith reaches its clawed hand forward to the left, the ember-cracked hound snaps its jaws forward to the left, the molten hound bites forward to the left, the flaming skull wisp bobs forward to the left, the armoured revenant swings its sword down to the left, the knight swings his greatsword down to the left. Then each returns to its starting pose. No fire bursts, no explosions, no flashes, no sparks, no particles, no glow; keep every creature's exact colours and size.",
+      "source": "art/source/pixellab/anim-enemies-04/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/cinder-revenant.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.ash-colossus-attack",
+      "path": "/assets/enemies/ash-colossus-attack.png",
+      "kind": "enemy",
+      "size": {
+        "width": 82,
+        "height": 64
+      },
+      "frames": 8,
+      "lead": 18,
+      "prompt": "(animate-with-text-v3, six enemies per job in a 3x2 grid; first and last frame = the grid of stills) six separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left. All six attack at the same time, each staying inside its own cell: the flaming skull wisp darts forward to the left with its flame trail flaring, the stone colossus slams its huge fist forward to the left, the pale many-armed crawler lashes its long arms forward to the left, the drowned thrall swings its rusted anchor forward to the left, the bog horror heaves its mossy mass forward to the left, the fallen knight swings his greatsword down to the left. Then each returns to its starting pose. Bodies stay in place, same size, same colours.",
+      "source": "art/source/pixellab/anim-enemies-03/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/ash-colossus.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.grave-crawler-attack",
+      "path": "/assets/enemies/grave-crawler-attack.png",
+      "kind": "enemy",
+      "size": {
+        "width": 82,
+        "height": 64
+      },
+      "frames": 8,
+      "lead": 18,
+      "prompt": "(animate-with-text-v3, six enemies per job in a 3x2 grid; first and last frame = the grid of stills) six separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left. All six attack at the same time, each staying inside its own cell: the flaming skull wisp darts forward to the left with its flame trail flaring, the stone colossus slams its huge fist forward to the left, the pale many-armed crawler lashes its long arms forward to the left, the drowned thrall swings its rusted anchor forward to the left, the bog horror heaves its mossy mass forward to the left, the fallen knight swings his greatsword down to the left. Then each returns to its starting pose. Bodies stay in place, same size, same colours.",
+      "source": "art/source/pixellab/anim-enemies-03/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/grave-crawler.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.drowned-thrall-attack",
+      "path": "/assets/enemies/drowned-thrall-attack.png",
+      "kind": "enemy",
+      "size": {
+        "width": 82,
+        "height": 64
+      },
+      "frames": 8,
+      "lead": 18,
+      "prompt": "(animate-with-text-v3, six enemies per job in a 3x2 grid; first and last frame = the grid of stills) six separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left. All six attack at the same time, each staying inside its own cell: the flaming skull wisp darts forward to the left with its flame trail flaring, the stone colossus slams its huge fist forward to the left, the pale many-armed crawler lashes its long arms forward to the left, the drowned thrall swings its rusted anchor forward to the left, the bog horror heaves its mossy mass forward to the left, the fallen knight swings his greatsword down to the left. Then each returns to its starting pose. Bodies stay in place, same size, same colours.",
+      "source": "art/source/pixellab/anim-enemies-03/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/drowned-thrall.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.bog-horror-attack",
+      "path": "/assets/enemies/bog-horror-attack.png",
+      "kind": "enemy",
+      "size": {
+        "width": 82,
+        "height": 64
+      },
+      "frames": 8,
+      "lead": 18,
+      "prompt": "(animate-with-text-v3, six enemies per job in a 3x2 grid; first and last frame = the grid of stills) six separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left. All six attack at the same time, each staying inside its own cell: the flaming skull wisp darts forward to the left with its flame trail flaring, the stone colossus slams its huge fist forward to the left, the pale many-armed crawler lashes its long arms forward to the left, the drowned thrall swings its rusted anchor forward to the left, the bog horror heaves its mossy mass forward to the left, the fallen knight swings his greatsword down to the left. Then each returns to its starting pose. Bodies stay in place, same size, same colours.",
+      "source": "art/source/pixellab/anim-enemies-03/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/bog-horror.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.fallen-knight-attack",
+      "path": "/assets/enemies/fallen-knight-attack.png",
+      "kind": "enemy",
+      "size": {
+        "width": 82,
+        "height": 64
+      },
+      "frames": 8,
+      "lead": 18,
+      "prompt": "(animate-with-text-v3, six enemies per job in a 3x2 grid; first and last frame = the grid of stills) six separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left. All six make a short physical attack at the same time, each staying inside its own cell, using only their bodies and weapons: the hooded wraith reaches its clawed hand forward to the left, the ember-cracked hound snaps its jaws forward to the left, the molten hound bites forward to the left, the flaming skull wisp bobs forward to the left, the armoured revenant swings its sword down to the left, the knight swings his greatsword down to the left. Then each returns to its starting pose. No fire bursts, no explosions, no flashes, no sparks, no particles, no glow; keep every creature's exact colours and size.",
+      "source": "art/source/pixellab/anim-enemies-04/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/fallen-knight.png",
+      "facing": "left"
     }
   ]
 }

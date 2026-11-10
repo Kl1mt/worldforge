@@ -1,0 +1,14 @@
+{
+  "endpoint": "animate-with-text-v3",
+  "action": "bow shot, clearly readable: the hunter turns slightly to the right of the image, raises the longbow in the left hand pointing to the right, nocks an arrow and pulls the bowstring far back to the cheek with the right hand so the bow bends visibly, holds for a moment, releases so the string snaps forward and the arrow flies off to the right edge, then lowers the bow back into the starting stance. Big, exaggerated arm motion.",
+  "first_frame": "apps/web/public/assets/characters/hunter.png",
+  "frame_count": 9,
+  "job_id": "96f92dc2-bf5d-46b7-bade-65450808e87f",
+  "created_at": "2026-11-10T00:36:03.133208+00:00",
+  "seed": 0,
+  "loop": true,
+  "usage": {
+    "type": "generations",
+    "generations": 2.0
+  }
+}

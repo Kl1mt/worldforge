@@ -17,7 +17,7 @@ from PIL import Image
 
 
 def build(folder: Path, vp: str) -> None:
-    frames = sorted(folder.glob(f"scene-{vp}-[0-9][0-9].png"))
+    frames = sorted(folder.glob(f"scene-{vp}-[0-9][0-9]*.png"))
     if not frames:
         return
     times = json.loads((folder / f"scene-{vp}.json").read_text())["times"]
@@ -35,6 +35,7 @@ def build(folder: Path, vp: str) -> None:
         optimize=True,
     )
     picks = [small[round(i * (len(small) - 1) / 7)] for i in range(8)]
+    # Long runs (A.14b films 5+ kills) keep the GIF light: half-size frames for wide captures.
     cols = 4 if vp == "desktop" else 8
     rows = (len(picks) + cols - 1) // cols
     w, h = picks[0].size

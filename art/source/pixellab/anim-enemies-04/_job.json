@@ -1,0 +1,14 @@
+{
+  "endpoint": "animate-with-text-v3",
+  "action": "six separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left. All six make a short physical attack at the same time, each staying inside its own cell, using only their bodies and weapons: the hooded wraith reaches its clawed hand forward to the left, the ember-cracked hound snaps its jaws forward to the left, the molten hound bites forward to the left, the flaming skull wisp bobs forward to the left, the armoured revenant swings its sword down to the left, the knight swings his greatsword down to the left. Then each returns to its starting pose. No fire bursts, no explosions, no flashes, no sparks, no particles, no glow; keep every creature's exact colours and size.",
+  "first_frame": "art/source/pixellab/anim-enemies-04/_first.png",
+  "frame_count": 9,
+  "job_id": "c31cf150-53b7-4919-a1a5-9f8343cac28c",
+  "created_at": "2026-11-10T00:40:27.712646+00:00",
+  "seed": 0,
+  "loop": true,
+  "usage": {
+    "type": "generations",
+    "generations": 6.0
+  }
+}

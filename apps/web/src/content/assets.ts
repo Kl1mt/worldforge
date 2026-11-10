@@ -17,6 +17,12 @@ export interface SpriteAsset {
    * (so the PNG is `frames × width` wide); `PixelSprite` shows one frame at a time.
    */
   frames?: number;
+  /**
+   * Ticket A.14b: pixels of strike room in each frame before the sprite, on its facing side (the
+   * left: enemy sheets face the hero). The frame is `lead` px wider than the still; `PixelSprite`
+   * pulls the sheet back by `lead × scale`, so the body stands exactly where the still stood.
+   */
+  lead?: number;
 }
 
 const item = (name: string): SpriteAsset => ({
@@ -88,6 +94,16 @@ const attackSheet = (name: string): SpriteAsset => ({
   height: 128,
   facing: 'front',
   frames: 8,
+});
+
+/** A.14b: a common enemy's attack frames (8 frames of 82 × 64, `lead` 18), stored facing left. */
+const enemyAttack = (name: string): SpriteAsset => ({
+  path: `/assets/enemies/${name}-attack.png`,
+  width: 82,
+  height: 64,
+  facing: 'left',
+  frames: 8,
+  lead: 18,
 });
 
 export const ASSETS = {
@@ -277,6 +293,21 @@ export const ASSETS = {
   'enemy.ember-wisp': enemy('ember-wisp', 'left'),
   'enemy.slag-hound': enemy('slag-hound', 'left'),
   'enemy.forge-tyrant': enemy('forge-tyrant', 'front', 128),
+  'enemy.undead-farmer-attack': enemyAttack('undead-farmer'),
+  'enemy.wolf-attack': enemyAttack('wolf'),
+  'enemy.skeletal-scarecrow-attack': enemyAttack('skeletal-scarecrow'),
+  'enemy.bandit-cutthroat-attack': enemyAttack('bandit-cutthroat'),
+  'enemy.corrupted-crow-attack': enemyAttack('corrupted-crow'),
+  'enemy.risen-skeleton-attack': enemyAttack('risen-skeleton'),
+  'enemy.ash-wraith-attack': enemyAttack('ash-wraith'),
+  'enemy.pyre-cultist-attack': enemyAttack('pyre-cultist'),
+  'enemy.ember-golem-attack': enemyAttack('ember-golem'),
+  'enemy.cinder-revenant-attack': enemyAttack('cinder-revenant'),
+  'enemy.ash-colossus-attack': enemyAttack('ash-colossus'),
+  'enemy.grave-crawler-attack': enemyAttack('grave-crawler'),
+  'enemy.drowned-thrall-attack': enemyAttack('drowned-thrall'),
+  'enemy.bog-horror-attack': enemyAttack('bog-horror'),
+  'enemy.fallen-knight-attack': enemyAttack('fallen-knight'),
 } as const satisfies Record<string, SpriteAsset>;
 
 export type AssetId = keyof typeof ASSETS;
@@ -329,6 +360,15 @@ export function classPortrait(classId: ClassId): SpriteAsset {
  */
 export function classAttackSheet(classId: ClassId): SpriteAsset | null {
   return findSprite(`character.${classId}-attack`);
+}
+
+/**
+ * Ticket A.14b: an enemy's attack frame sheet by its still's asset id (`enemy.<name>` →
+ * `enemy.<name>-attack`), or `null` when it has none (bosses, and the few whose frames missed the
+ * bar); the scene then animates the still in code.
+ */
+export function enemyAttackSheet(assetId: string): SpriteAsset | null {
+  return findSprite(`${assetId}-attack`);
 }
 
 /** Season frame tiers, best to least (A.10). Ticket 5.3 maps its prestige ranks onto these. */

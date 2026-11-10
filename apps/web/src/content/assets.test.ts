@@ -2,6 +2,7 @@ import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   ACHIEVEMENTS,
+  AREAS,
   CLASS_IDS,
   GUILD_EMBLEMS,
   ITEM_BASES,
@@ -16,6 +17,7 @@ import {
   SEASON_FRAME_WINDOW,
   arenaBackdrop,
   classAttackSheet,
+  enemyAttackSheet,
   classPortrait,
   findSprite,
   seasonFrameAsset,
@@ -29,6 +31,7 @@ interface ManifestEntry {
   size: { width: number; height: number };
   facing?: string;
   frames?: number;
+  lead?: number;
   window?: { x: number; y: number; width: number; height: number };
   kind?: string;
   slot?: string;
@@ -46,6 +49,7 @@ describe('asset registry', () => {
       size: { width: a.width, height: a.height },
       facing: 'facing' in a ? a.facing : undefined,
       frames: 'frames' in a ? a.frames : undefined,
+      lead: 'lead' in a ? a.lead : undefined,
     }));
     const fromManifest = manifest.assets.map((m) => ({
       id: m.id,
@@ -53,6 +57,7 @@ describe('asset registry', () => {
       size: m.size,
       facing: m.facing,
       frames: m.frames,
+      lead: m.lead,
     }));
     expect(registry).toEqual(fromManifest);
   });
@@ -144,6 +149,39 @@ describe('hero attack frames (A.14)', () => {
     for (const classId of CLASS_IDS) {
       expect(classAttackSheet(classId)!.path).toBe(`/assets/characters/${classId}-attack.png`);
       expect(classPortrait(classId).frames).toBeUndefined();
+    }
+  });
+});
+
+describe('enemy attack frames (A.14b)', () => {
+  const pngSize = (path: string) => {
+    const buf = readFileSync(new URL(`../../public${path}`, import.meta.url));
+    return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+  };
+  /** Frames that missed the bar after the regeneration; they keep the code animation. */
+  const NO_FRAMES = new Set(['enemy.cinder-hound', 'enemy.slag-hound', 'enemy.ember-wisp']);
+
+  it('has a left-facing 8-frame sheet for every common enemy of the areas, bosses excepted', () => {
+    const ids = new Set(AREAS.flatMap((a) => a.enemies.map((e) => getEnemy(e.enemyId).assetId)));
+    // Every early, Pass and Verge enemy is covered, but for the recorded misses.
+    expect(ids.size).toBeGreaterThanOrEqual(17);
+    for (const id of ids) {
+      const sheet = enemyAttackSheet(id);
+      if (NO_FRAMES.has(id) || id === 'enemy.abbey-wraith') {
+        expect(sheet, id).toBeNull();
+        continue;
+      }
+      const still = findSprite(id)!;
+      expect(sheet, id).toMatchObject({ frames: 8, facing: 'left', height: still.height });
+      // The frame is the still plus its strike room.
+      expect(sheet!.width - (sheet!.lead ?? 0), id).toBe(still.width);
+      expect(pngSize(sheet!.path), id).toEqual({ width: sheet!.width * 8, height: still.height });
+    }
+  });
+
+  it('gives bosses no frames: they keep the code animation', () => {
+    for (const id of ['enemy.gravewarden', 'enemy.ashen-warden', 'enemy.forge-tyrant']) {
+      expect(enemyAttackSheet(id), id).toBeNull();
     }
   });
 });
