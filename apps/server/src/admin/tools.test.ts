@@ -538,6 +538,50 @@ describe('admin tools (D.4)', () => {
       expect(refused.json().error.code).toBe('test_account_required');
     });
 
+    it('grants an awakened +10 Legendary on a test account, and only an item the Forge could awaken (ticket 6.5b)', async () => {
+      const t = await target({ test: true, level: 38 });
+      const spec = {
+        baseId: 'longsword',
+        rarityId: 'legendary',
+        itemLevel: 37,
+        variant: 'void',
+        upgradeLevel: 10,
+        awakened: true,
+      };
+      const pre = await admin('POST', `${t.heroUrl}/items/preview`, spec);
+      expect(pre.statusCode, pre.body).toBe(200);
+      const { seed, item } = pre.json() as { seed: number; item: GeneratedItem };
+      expect(item.awakening).toEqual({ option: 'effect', effectStrength: 1.1 });
+      expect(validateItem(item)).toEqual([]);
+      const res = await admin('POST', `${t.heroUrl}/items/grant`, {
+        ...spec,
+        seed,
+        reason: 'awakening testing',
+      });
+      expect(res.statusCode, res.body).toBe(200);
+      expect(res.json().item.awakening).toEqual({ option: 'effect', effectStrength: 1.1 });
+      const [row] = await db()
+        .select()
+        .from(itemInstances)
+        .where(eq(itemInstances.characterId, t.hero.id));
+      expect(row).toMatchObject({
+        awakening: { option: 'effect', effectStrength: 1.1 },
+        variant: 'void',
+        upgradeLevel: 10,
+        source: 'admin',
+        binding: 'account',
+      });
+      expect(row!.awakenedAt).not.toBeNull();
+
+      // At +9, or below item level 23, the Forge couldn't awaken it: refused in plain words.
+      const at9 = await admin('POST', `${t.heroUrl}/items/preview`, { ...spec, upgradeLevel: 9 });
+      expect(at9.statusCode).toBe(422);
+      expect(at9.json().error.message).toBe('Only items at +10 can be awakened.');
+      const low = await admin('POST', `${t.heroUrl}/items/preview`, { ...spec, itemLevel: 22 });
+      expect(low.statusCode).toBe(422);
+      expect(low.json().error.details.fields.awakened).toMatch(/item level 23/);
+    });
+
     it('refuses an invalid combination with game-core’s reasons', async () => {
       const t = await target({ test: true });
       const res = await admin('POST', `${t.heroUrl}/items/preview`, {

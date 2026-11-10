@@ -501,3 +501,10 @@ Also checked and sound: expiry at the exact millisecond (both sides use `now >= 
 - **Invariance:** with trading off, or with no trades and an empty shelf, every existing test, hash and exit run is unchanged; a traded item's Forge stream behaves exactly as it would have for the first owner (the secret is never sent).
 - **Permission matrices:** every switch state × relation (stranger, friend < 7 days, friend, guildmate, blocked either way) × standing (eligible, too new, too low, muted, suspended, trade-restricted) × action, through the API.
 - **The exploit review (T.7):** client-trusted values (item ids, amounts, negative or huge gold, a forged "fresh" flag), ownership (`404` for foreign items, heroes and offers), provenance refusals, replays and expired keys, caps across day and week boundaries (window rule: the transaction's clock), deleted heroes and accounts with open offers or shelf contents, and a red-team pass over the attack table above.
+
+## Item Awakening (ticket 6.5b)
+- An **awakened item is account-bound for good and never tradeable**, whatever the switches: binding reason `awakened` (game-core `itemBindingState`, checked first), and its own trade check `item_awakened` ("Awakened items can never be traded.") next to `item_bound`, so no future switch can open it. (Awakening needs +10, which binds anyway.)
+- **The shelf:** an awakened item moves between the account's own heroes like any bound item (owner decision); it stays awakened. It can't be awakened while on the shelf (`item_on_shelf`).
+- **Holds:** awakening is Forge work: refused on a held item (`409 item_held`), and the price never dips into gold or materials on hold (`heldValueOf`), so a reversal always finds a received item untouched.
+- **Reversals:** awakening advances the item's forge counter, so an item awakened after its hold is no longer "untouched" and can't be reversed; the moderator sanctions instead.
+- **Races** (real Postgres, `forge/awaken.pg.test.ts`): awaken vs a shelf deposit of the same item (one place; paid once or not at all), awaken vs a trade offer of the same item (never escrowed), a double submit with one key.

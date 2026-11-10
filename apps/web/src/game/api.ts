@@ -1,4 +1,6 @@
 import type {
+  AwakeningRefusal,
+  ItemAwakening,
   ItemBinding,
   ItemBindingReason,
   AreaId,
@@ -134,6 +136,9 @@ export interface ItemDto {
   tradeable: boolean;
   /** Ticket T.5: received in a trade, held until then (ISO); absent when not held. */
   holdUntil?: string;
+  /** Ticket 6.5b: the item's awakening and when it happened (ISO); absent when not awakened. */
+  awakening?: ItemAwakening;
+  awakenedAt?: string;
 }
 
 export interface InventoryDto {
@@ -354,6 +359,16 @@ export interface ForgeItemDto {
     cost: ForgeCostDto | null;
     blockers: ForgeBlockerDto[];
   }[];
+  /**
+   * Ticket 6.5b: awakening. `refusal` says why the item can't (null when it can); `blockers` are
+   * what is missing (gold and materials on hold after a trade don't count). Null once awakened.
+   */
+  awaken: {
+    refusal: AwakeningRefusal | null;
+    cost: ForgeCostDto;
+    blockers: ForgeBlockerDto[];
+    effectStrength: number;
+  } | null;
 }
 
 export interface ForgeItemState {
@@ -373,7 +388,8 @@ export type ForgeOutcomeDto =
       upgradeLevel: number;
       upgradePity: number;
     }
-  | { action: 'reroll' | 'improve'; affixIndex: number; before: ItemAffix; after: ItemAffix };
+  | { action: 'reroll' | 'improve'; affixIndex: number; before: ItemAffix; after: ItemAffix }
+  | { action: 'awaken'; awakened: 'effect' | 'set'; effectStrength: number };
 
 export interface ForgeActionResult {
   character: Character;
@@ -557,6 +573,14 @@ export const forgeApi = {
       { method: 'POST', body: { itemId, affixIndex }, ...keyed(key) },
       f,
     ),
+  /** Ticket 6.5b: awaken a +10 Legendary, Mythic or set item (permanent). */
+  awaken: (
+    id: string,
+    itemId: string,
+    key: string,
+    f?: typeof fetch,
+  ): Promise<ApiResult<ForgeActionResult>> =>
+    apiRequest(`${c(id)}/forge/awaken`, { method: 'POST', body: { itemId }, ...keyed(key) }, f),
 };
 
 /** A short sentence for a failed game action (equip, farm, …), branching on the error code. */

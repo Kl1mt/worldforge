@@ -17,6 +17,7 @@ import {
   findItemBase,
   type EquipmentSlotId,
   type ItemVariantId,
+  type ItemAwakening,
   type RarityId,
   type RolledAffix,
   type StatBlock,
@@ -81,6 +82,12 @@ export interface ItemView {
    * discarded, forged, stored in the Warehouse, shelved or traded. Present only while set.
    */
   holdUntil?: string;
+  /**
+   * Ticket 6.5b: the item's awakening (its own effect, or its set's bonuses, × `effectStrength`)
+   * and when it happened (ISO). Present only on awakened items.
+   */
+  awakening?: ItemAwakening;
+  awakenedAt?: string;
 }
 
 export interface InventoryView {
@@ -115,6 +122,18 @@ export function itemView(i: ItemInstance, switches: Readonly<TradingSwitches>): 
     locked: i.locked,
     ...bindingView(i, switches),
     ...(i.holdUntil ? { holdUntil: i.holdUntil.toISOString() } : {}),
+    ...awakeningView(i),
+  };
+}
+
+/** Ticket 6.5b: the awakening fields of an item view (absent on an item that isn't awakened). */
+export function awakeningView(
+  i: Pick<ItemInstance, 'awakening' | 'awakenedAt'>,
+): Pick<ItemView, 'awakening' | 'awakenedAt'> {
+  if (!i.awakening) return {};
+  return {
+    awakening: i.awakening,
+    ...(i.awakenedAt ? { awakenedAt: i.awakenedAt.toISOString() } : {}),
   };
 }
 
@@ -189,6 +208,12 @@ export const itemSchema = {
     },
     equippedSlot: { type: ['string', 'null'] },
     holdUntil: { type: 'string' },
+    awakening: {
+      type: 'object',
+      required: ['option', 'effectStrength'],
+      properties: { option: { type: 'string' }, effectStrength: { type: 'number' } },
+    },
+    awakenedAt: { type: 'string' },
     source: { type: 'string' },
     createdAt: { type: 'string' },
     upgradeLevel: { type: 'integer' },

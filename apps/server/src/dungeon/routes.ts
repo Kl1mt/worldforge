@@ -583,6 +583,7 @@ export async function registerDungeons(
             setId: itemInstances.setId,
             upgradeLevel: itemInstances.upgradeLevel,
             variant: itemInstances.variant,
+            awakening: itemInstances.awakening,
           })
           .from(itemInstances)
           .where(

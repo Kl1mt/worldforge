@@ -75,18 +75,18 @@ function best(c: ClassId, variant: Variant, option: Option, itemLevel = TYRANT.i
   )[0]!;
 }
 
-describe('Item Awakening is switched off (ticket 6.5)', () => {
-  it('the default settings are off and refuse every piece of a top kit', () => {
-    expect(DEFAULT_AWAKENING_SETTINGS.enabled).toBe(false);
+describe('Item Awakening below +10 (ticket 6.5b)', () => {
+  it('refuses every piece of a +9 top kit, which fights exactly as before', () => {
+    expect(DEFAULT_AWAKENING_SETTINGS.effectStrength).toBe(1.1);
     const build = best('warrior', 'void', 'none').build;
     const items = buildItems(build, TYRANT.itemLevel).map((i) => ({
       ...i,
-      upgradeLevel: 10,
+      upgradeLevel: 9,
       variant: 'void' as const,
     }));
     const offered = items.map((item) => {
       const r = awakenItem(item);
-      expect(r).toEqual({ ok: false, reason: 'disabled' });
+      expect(r).toEqual({ ok: false, reason: 'upgrade_level' });
       return item;
     });
     expect(tyrant('warrior', offered)).toBe(tyrant('warrior', items));

@@ -79,8 +79,10 @@ describe('matchmaking (ticket 5.6)', () => {
   it('bracket Power is 5.1 Power (version 1) at the reference level', () => {
     const b = PVP_BRACKETS.find((x) => x.id === '10-19')!;
     const f = { classId: 'warrior' as const, level: 19, equipment: [] };
-    // Ticket 6.1: matchmaking keeps Power 1 when the board moves to Power 2.
-    expect(BRACKET_POWER_VERSION).toBe(1);
+    // Ticket 6.1: matchmaking keeps Power 1 when the board moves to Power 2. Ticket 6.5b: bracket
+    // Power 2 is Power 1 × the awakening factor (1 without an awakening).
+    expect(BRACKET_POWER_VERSION).toBe(2);
+    expect(bracketPower(f, b, 1)).toBe(bracketPower(f, b, 2));
     expect(bracketPower(f, b)).toBe(
       characterPower({ classId: 'warrior', level: b.referenceLevel, equipment: [] }, 1).power,
     );

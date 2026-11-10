@@ -153,6 +153,7 @@ export async function heroDuelSnapshot(tx: Executor, hero: Character): Promise<D
       affixes: itemInstances.affixes,
       upgradeLevel: itemInstances.upgradeLevel,
       variant: itemInstances.variant,
+      awakening: itemInstances.awakening,
       effectId: itemInstances.effectId,
       effectRoll: itemInstances.effectRoll,
       mythicId: itemInstances.mythicId,
@@ -224,6 +225,11 @@ export function defencePower(
   bracketId: string,
 ) {
   if (d.power !== null && d.powerVersion === BRACKET_POWER_VERSION) return d.power;
+  // Ticket 6.5b: bracket Power 2 equals 1 for a snapshot without an awakening (every defence set
+  // before 6.5b), so a stored version-1 value is still right for it.
+  if (d.power !== null && d.powerVersion === 1 && !d.snapshot.equipment.some((i) => i.awakening)) {
+    return d.power;
+  }
   const bracket = findPvpBracket(bracketId) ?? pvpBracketOf(d.snapshot.level);
   return bracketPower(duelFighter(d.snapshot), bracket);
 }

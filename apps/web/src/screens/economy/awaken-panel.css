@@ -1,0 +1,141 @@
+/* Ticket 6.5b: the Forge's awaken panel ("The Banked Fire"). Built from the shop and forge pieces;
+   ember accents (tokens `--ember-*`), never the Legendary orange. */
+.awaken {
+  display: grid;
+  grid-template-columns: minmax(200px, 0.7fr) minmax(0, 2fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.awaken__pick,
+.awaken__done {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.awaken__group {
+  color: var(--brass-500);
+}
+
+.awaken__detail {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-sunken);
+  border-top: 2px solid var(--ember-glow);
+  box-shadow: inset 0 0 0 1px var(--iron-700);
+  min-width: 0;
+}
+
+.awaken__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.awaken__name {
+  margin: 0;
+}
+
+.awaken__where {
+  margin: 0;
+  color: var(--bone-300);
+}
+
+.awaken__compare {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.awaken__compare > div {
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--iron-600);
+}
+
+.awaken__compare dt {
+  color: var(--bone-300);
+}
+
+.awaken__compare dd {
+  margin: var(--space-1) 0 0;
+}
+
+.awaken__after {
+  border-left-color: var(--ember-glow) !important;
+}
+
+.awaken__after dt {
+  color: var(--ember-core);
+}
+
+.awaken__set p {
+  margin: 0;
+}
+
+.awaken__bonuses,
+.awaken__changes,
+.awaken__confirm ul {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-4);
+}
+
+.awaken__bonuses .is-waking {
+  color: var(--ember-core);
+}
+
+.awaken__bonuses .is-asleep {
+  color: var(--bone-300);
+}
+
+.awaken__changes {
+  color: var(--ember-core);
+  font-variant-numeric: tabular-nums;
+}
+
+.awaken__warn,
+.awaken__blocked {
+  margin: 0;
+  color: var(--bone-200);
+  border-left: 2px solid var(--crimson-500);
+  padding-left: var(--space-2);
+}
+
+.awaken__confirm {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--ember-glow);
+  background: color-mix(in srgb, var(--ember-coal) 40%, var(--ink-900));
+}
+
+.awaken__confirm .display {
+  margin: 0;
+}
+
+.awaken__confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.awaken__go {
+  justify-self: start;
+}
+
+/* Scale-2 frames (72 px with the socket) on every width, like the Anvil's picker. */
+.awaken .picker__grid {
+  grid-template-columns: repeat(auto-fill, 72px);
+}
+
+@media (max-width: 760px) {
+  .awaken {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .awaken__compare {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -897,3 +897,11 @@
     justify-content: center;
   }
 }
+
+/* Ticket 6.5b: the grant tool's "Awakened" option. */
+.adt-tool__check {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 0.9em;
+}

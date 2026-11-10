@@ -540,7 +540,8 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
       bundle('forge.salvage', sql`a.data->'materials'`),
       sumRollups(rows, 'material.in', src('forge_salvage'), 'amount'),
     ],
-    ...(['craft', 'upgrade', 'reroll', 'improve'] as const).flatMap(
+    // Ticket 6.5b: awakening is a Forge action like the others (a new gold and material sink).
+    ...(['craft', 'upgrade', 'reroll', 'improve', 'awaken'] as const).flatMap(
       (action): [string, Promise<number>, number][] => [
         [
           `forge: ${action}s`,

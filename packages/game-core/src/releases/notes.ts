@@ -23,9 +23,22 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.6.7';
+export const GAME_VERSION = '0.6.8';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.6.8',
+    date: '2026-11-11',
+    title: 'Awakening',
+    new: [
+      'Awakening at the Forge: a +10 Legendary, Mythic or set item of item level 23 or higher can be awakened once. A Legendary’s effect or a Mythic’s signature becomes a tenth stronger. A set piece counts toward its set instead: each set bonus grows a tenth stronger once as many worn pieces of the set are awakened as the bonus needs.',
+      'An awakening costs 3 Tyrant’s Embers, 2 Gravewarden’s Seals from any crypt hoard, about 25,000 gold and 30 soul shards. The Forge shows the effect before and after, and warns you when it would change nothing for your hero right now. It is permanent.',
+      'Awakened items carry an ember sigil ☼ and a smouldering glow on their frame, next to a Void or Prismatic mark.',
+      'Awakened items are bound to your account for good and can never be traded. They can still move between your own heroes on the account shelf. Rerolls and improvements stay possible.',
+      'Awakening counts in duels, and arena matchmaking now takes it into account when it pairs opponents.',
+    ],
+    tickets: ['6.5b'],
+  },
   {
     version: '0.6.7',
     date: '2026-11-11',

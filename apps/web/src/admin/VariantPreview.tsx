@@ -1,7 +1,7 @@
 import type { RarityId } from '@worldforge/game-core';
 import { ItemFrame } from '../components/ItemFrame';
 import type { ShimmerMode } from '../components/itemVariant';
-import type { VariantView } from '../game/items';
+import type { AwakenedView, VariantView } from '../game/items';
 
 /**
  * Ticket A.12: the gallery's "Variants" section. One icon per rarity (and a set piece) in plain,
@@ -29,14 +29,31 @@ const fakeVariant = (id: string, name: string): VariantView => ({
   affixBonus: 0,
 });
 
+/** Ticket 6.5b: the awakened mark, on its own and on each variant. */
+const AWAKE: AwakenedView = { bonus: 0.1, kind: 'effect', at: null };
+
 export const VARIANT_PREVIEW_ROWS: readonly {
   key: string;
   label: string;
   variant: VariantView | null;
+  awakened?: AwakenedView;
 }[] = [
   { key: 'plain', label: 'Plain', variant: null },
   { key: 'void', label: 'Void', variant: fakeVariant('void', 'Void') },
   { key: 'prismatic', label: 'Prismatic', variant: fakeVariant('prismatic', 'Prismatic') },
+  { key: 'awakened', label: 'Awakened', variant: null, awakened: AWAKE },
+  {
+    key: 'void-awakened',
+    label: 'Void, awakened',
+    variant: fakeVariant('void', 'Void'),
+    awakened: AWAKE,
+  },
+  {
+    key: 'prismatic-awakened',
+    label: 'Prismatic, awakened',
+    variant: fakeVariant('prismatic', 'Prismatic'),
+    awakened: AWAKE,
+  },
 ];
 
 export function VariantPreview({ scale, shimmer }: { scale: number; shimmer: ShimmerMode }) {
@@ -45,8 +62,8 @@ export function VariantPreview({ scale, shimmer }: { scale: number; shimmer: Shi
       <h2 className="rule-heading anim-gallery__title">
         Variants{' '}
         <span className="anim-gallery__note">
-          item frames, plain, Void and Prismatic; in the game only Legendary, Mythic and set items
-          carry a variant
+          item frames, plain, Void and Prismatic, and awakened (☼); in the game only Legendary,
+          Mythic and set items carry a variant, and only +10 ones at item level 23+ awaken
         </span>
       </h2>
       <table className="anim-gallery__variants">
@@ -76,6 +93,7 @@ export function VariantPreview({ scale, shimmer }: { scale: number; shimmer: Shi
                       name: c.icon.replace(/^item\./, ''),
                       rarity: c.rarity,
                       variant: row.variant,
+                      ...(row.awakened ? { awakened: row.awakened, upgradeLevel: 10 } : {}),
                     }}
                     scale={scale}
                     context={`${c.label}, ${row.label}`}

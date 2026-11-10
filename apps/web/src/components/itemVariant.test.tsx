@@ -132,10 +132,11 @@ describe('Prismatic stylesheet (ticket A.12)', () => {
   it('animates the sweep only under no-preference, or when the gallery forces it', () => {
     expect(media).not.toBeNull();
     for (const [sel, body] of rules(media![1]!)) {
-      if (/animation:/.test(body)) expect(sel).toMatch(/^\.item-frame--shimmer /);
+      // Ticket 6.5b: the awakened ember glow follows the same rule.
+      if (/animation:/.test(body)) expect(sel).toMatch(/^\.item-frame--(shimmer|ember) /);
     }
     for (const [sel, body] of rules(outside)) {
-      if (/animation:/.test(body)) expect(sel).toMatch(/^\.item-frame--shimmer-forced /);
+      if (/animation:/.test(body)) expect(sel).toMatch(/^\.item-frame--(shimmer|ember)-forced /);
     }
     // Whole art pixels only: every Prismatic animation steps.
     for (const m of css.matchAll(/animation: item-prism-[a-z]+ [\d.]+s ([^;]+);/g)) {
@@ -168,9 +169,13 @@ describe('gallery Variants section (ticket A.12)', () => {
     const html = renderToStaticMarkup(<VariantPreview scale={2} shimmer="forced" />);
     const cells = VARIANT_PREVIEW_ICONS.length * VARIANT_PREVIEW_ROWS.length;
     expect(html.match(/class="item-frame /g)).toHaveLength(cells);
-    expect(html.match(/item-frame--prismatic/g)).toHaveLength(VARIANT_PREVIEW_ICONS.length);
-    expect(html.match(/item-frame--void/g)).toHaveLength(VARIANT_PREVIEW_ICONS.length);
-    expect(html.match(/item-frame--shimmer-forced/g)).toHaveLength(VARIANT_PREVIEW_ICONS.length);
+    // Ticket 6.5b: each variant row again awakened, and a plain awakened row.
+    const n = VARIANT_PREVIEW_ICONS.length;
+    expect(html.match(/item-frame--prismatic/g)).toHaveLength(2 * n);
+    expect(html.match(/item-frame--void/g)).toHaveLength(2 * n);
+    expect(html.match(/item-frame--shimmer-forced/g)).toHaveLength(2 * n);
+    expect(html.match(/item-frame--awakened/g)).toHaveLength(3 * n);
+    expect(html.match(/item-frame--ember-forced/g)).toHaveLength(3 * n);
     for (const r of ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']) {
       expect(html).toContain(`rarity-${r}`);
     }
@@ -180,5 +185,6 @@ describe('gallery Variants section (ticket A.12)', () => {
   it('stays still until Play', () => {
     const html = renderToStaticMarkup(<VariantPreview scale={1} shimmer="still" />);
     expect(html).not.toContain('item-frame--shimmer');
+    expect(html).not.toContain('item-frame--ember');
   });
 });

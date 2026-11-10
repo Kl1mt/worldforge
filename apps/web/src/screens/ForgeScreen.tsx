@@ -17,6 +17,7 @@ import { slotName, toItemView, type ItemView } from '../game/items';
 import { materialView } from '../game/materials';
 import { ItemPicker } from './economy/ItemPicker';
 import { ForgeWork } from './economy/ForgeWork';
+import { AwakenPanel } from './economy/AwakenPanel';
 import { Gold, NoticeLine, ShopHeader, type Notice } from './economy/ShopHeader';
 import './economy/shop.css';
 
@@ -264,6 +265,39 @@ export function ForgeScreen() {
         {inventory.kind === 'ready' ? (
           <ForgeWork
             heroId={hero.id}
+            gold={hero.gold}
+            equipped={inventory.value.equipped}
+            pack={items}
+            materials={ready?.materials ?? []}
+            onApplied={(r) => {
+              updateCharacter(r.character);
+              applyInventory(r.inventory);
+              refreshMaterials();
+              load();
+            }}
+            onNotice={setNotice}
+          />
+        ) : (
+          <div className="shop__empty" role="status">
+            <p className="display">Opening the pack…</p>
+          </div>
+        )}
+      </section>
+
+      <section className="shop__panel panel-iron" aria-labelledby="awaken-title">
+        <header className="shop__panel-head">
+          <h2 id="awaken-title" className="display shop__panel-title">
+            The Banked Fire
+          </h2>
+          <p className="shop__panel-note">
+            Awaken a finished item: its effect, or its set, burns a little stronger. Once, for good.
+          </p>
+        </header>
+        {inventory.kind === 'ready' ? (
+          <AwakenPanel
+            heroId={hero.id}
+            heroName={hero.name}
+            classId={hero.classId}
             gold={hero.gold}
             equipped={inventory.value.equipped}
             pack={items}

@@ -6,6 +6,7 @@ import { MAX_UPGRADE_LEVEL, type ItemVariantId } from '../items/model.js';
 import type { RolledAffix } from '../loot/generate.js';
 import type { GeneratedItem } from '../loot/generate.js';
 import { validateItem } from '../loot/validate.js';
+import { awakeningErrors, type ItemAwakening } from '../items/awakening.js';
 import type { EquippedItem } from '../activity/equipment.js';
 
 /**
@@ -25,6 +26,8 @@ export interface ScoredItem {
   effectRoll?: number | null;
   mythicId?: string | null;
   setId?: string | null;
+  /** Ticket 6.5b: the item's awakening (`item_instances.awakening`). */
+  awakening?: ItemAwakening | null;
 }
 
 export type ItemRejection =
@@ -59,6 +62,7 @@ export function toGeneratedItem(item: ScoredItem): GeneratedItem {
   if (item.mythicId != null) out.mythicId = item.mythicId;
   if (item.setId != null) out.setId = item.setId;
   if (item.variant != null) out.variant = item.variant;
+  if (item.awakening != null) out.awakening = item.awakening;
   return out;
 }
 
@@ -92,6 +96,10 @@ export function checkEquipment(classId: ClassId, items: readonly ScoredItem[]): 
     try {
       generated = toGeneratedItem(item);
       if (validateItem(generated).length > 0) return reject('invalid_item');
+      // Ticket 6.5b: an awakening needs +10 (the generator's item has no upgrade level).
+      if (awakeningErrors({ ...generated, upgradeLevel: item.upgradeLevel ?? 0 }).length > 0) {
+        return reject('invalid_item');
+      }
     } catch {
       return reject('invalid_item');
     }

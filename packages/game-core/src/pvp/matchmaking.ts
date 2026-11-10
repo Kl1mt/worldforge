@@ -1,9 +1,73 @@
 import type { ClassId } from '../classes.js';
+import type { EquippedItem } from '../activity/equipment.js';
 import { createRng } from '../rng.js';
 import { characterPower } from '../scoring/power.js';
+import { awakenedEffectStrength } from '../items/awakening-state.js';
+import { itemEffectInstances } from '../effects/resolve.js';
+import { setBonusInstances } from '../items/sets.js';
+import { findEffect } from '../effects/registry.js';
 
-/** Ticket 6.1: matchmaking's Power version, kept at 1 when the board's Power moved to 2. */
-export const BRACKET_POWER_VERSION = 1;
+/**
+ * Bracket Power's version (stored on a defence as `duel_defences.power_version`).
+ * - 1 (ticket 6.1): 5.1's Character Power 1 at the bracket's reference level (kept at 1 when the
+ *   board's Power moved to 2).
+ * - 2 (ticket 6.5b): version 1 × the awakening factor (`awakeningMatchFactor`), so matchmaking
+ *   sees an awakened kit (owner decision: awakening counts in duels). Equal to version 1 for every
+ *   kit without an awakening.
+ */
+export const BRACKET_POWER_VERSION = 2;
+/** The Character Power formula bracket Power evaluates (Power 1, ticket 6.1). */
+export const BRACKET_POWER_FORMULA = 1;
+
+/**
+ * Ticket 6.5b: what one awakened effect a duel reads is worth to matchmaking, as a share of
+ * bracket Power. Character Power barely sees an awakening (+0.1 % for a whole kit: it is a PvE
+ * evaluation), while a duel does. Fitted with the population's own yardstick
+ * (`tools/balance/awakening.ts match`): the duel log-odds per log bracket-Power gap on the arena
+ * population, against a whole awakened +10 Void kit's duel share over itself plain. 20–29 measures
+ * 0.22 % and 30+ 0.20 % per effect (a whole kit +0.7–1.4 %). See docs/PVP.md "6.5b".
+ */
+export const AWAKENING_MATCH_WEIGHT = 0.002;
+
+/** Effect components a duel never reads (`pvpEffects` turns them off). */
+const DUEL_OFF: ReadonlySet<string> = new Set(['bossSlayer', 'lifeOnKill', 'bloodrush']);
+
+/** Whether a duel reads an effect for a class: a component it keeps, and the class may use it. */
+function duelReads(effectId: string, classId: ClassId): boolean {
+  const def = findEffect(effectId);
+  if (!def || (def.classId !== undefined && def.classId !== classId)) return false;
+  return def.components.some((c) => !DUEL_OFF.has(c.type));
+}
+
+/**
+ * Awakened effects a kit brings into a duel: each item whose own effect is awakened, plus each
+ * set bonus that is awakened (n awakened distinct pieces for a bonus of n), counting only effects
+ * a duel reads for the class (not boss slayer, life on kill or bloodrush alone, not another
+ * class's effect). 0 without awakening.
+ */
+export function awakenedEffectCount(equipment: readonly EquippedItem[], classId: ClassId): number {
+  let n = 0;
+  for (const item of equipment) {
+    if (awakenedEffectStrength(item) <= 1) continue;
+    const own = itemEffectInstances(item)[0];
+    if (own && duelReads(own.effectId, classId)) n++;
+  }
+  if (equipment.some((i) => i.awakening && i.setId)) {
+    n += setBonusInstances(equipment).filter(
+      (b) => (b.strength ?? 1) > 1 && duelReads(b.effectId, classId),
+    ).length;
+  }
+  return n;
+}
+
+/** The factor bracket Power 2 puts on Power for a kit's awakenings (1 without any). */
+export function awakeningMatchFactor(
+  equipment: readonly EquippedItem[],
+  classId: ClassId,
+  weight = AWAKENING_MATCH_WEIGHT,
+): number {
+  return 1 + weight * awakenedEffectCount(equipment, classId);
+}
 import type { PvpBracket, PvpFighterInput } from './normalise.js';
 import { PAIR_FACTORS } from './integrity.js';
 import { expectedScore, type Rating } from './rating.js';
@@ -36,7 +100,7 @@ export const MATCHMAKING_VERSION = 3;
 
 /**
  * A hero's **bracket Power**: 5.1's Character Power of its (checked) gear, evaluated at the
- * bracket's reference level. A duel fights every hero at that level (5.4: level does not count
+ * bracket's reference level, × its awakening factor since version 2. A duel fights every hero at that level (5.4: level does not count
  * inside a bracket), so the level part of Power says nothing about a duel; measured, ranging on raw
  * Power left 4 % of offered pairs in 10–19 at a 95 %+ favourite against 0.5 % with bracket Power
  * (docs/PVP.md "Matchmaking"). Its version is `BRACKET_POWER_VERSION`: Power 1 since ticket 6.1
@@ -45,15 +109,20 @@ export const MATCHMAKING_VERSION = 3;
 export function bracketPower(
   fighter: PvpFighterInput,
   bracket: Pick<PvpBracket, 'referenceLevel'>,
+  version: 1 | 2 = BRACKET_POWER_VERSION,
+  weight = AWAKENING_MATCH_WEIGHT,
 ) {
-  return characterPower(
+  const power = characterPower(
     {
       classId: fighter.classId,
       level: bracket.referenceLevel,
       equipment: fighter.equipment,
     },
-    BRACKET_POWER_VERSION,
+    BRACKET_POWER_FORMULA,
   ).power;
+  if (version === 1) return power;
+  const factor = awakeningMatchFactor(fighter.equipment, fighter.classId, weight);
+  return factor === 1 ? power : Math.round(power * factor);
 }
 
 export interface MatchmakingConfig {

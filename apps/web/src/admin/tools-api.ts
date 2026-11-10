@@ -90,6 +90,8 @@ export interface GrantSpec {
   /** Void or (ticket 6.4) Prismatic. */
   variant: 'void' | 'prismatic' | null;
   upgradeLevel: number;
+  /** Ticket 6.5b: grant it awakened (only an item the Forge could awaken). */
+  awakened?: boolean;
 }
 
 /** The generated item a grant would create (a game-core `GeneratedItem` plus its upgrade level). */
@@ -104,6 +106,8 @@ export interface PreviewItem {
   setId?: string;
   mythicId?: string;
   variant?: 'void' | 'prismatic';
+  /** Ticket 6.5b: present on an awakened grant. */
+  awakening?: { option: 'effect'; effectStrength: number };
   upgradeLevel: number;
 }
 

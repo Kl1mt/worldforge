@@ -1,6 +1,6 @@
-# Item Awakening: evaluation and prototype (ticket 6.5)
+# Item Awakening: evaluation (ticket 6.5) and build (ticket 6.5b)
 
-GDD §8.2 ("a rare long-term project, not to make every item mandatory to awaken"), §15 Phase 6 exit ("endgame systems add meaningful choices without making older content or most item drops irrelevant"). **Status: evaluated, decision pending.** Nothing here is built for players: no route, screen, migration, setting or patch note. The prototype is game-core only and switched off (`packages/game-core/src/items/awakening.ts`, `DEFAULT_AWAKENING_SETTINGS.enabled = false`). If the owner says yes, ticket 6.5b builds it.
+GDD §8.2 ("a rare long-term project, not to make every item mandatory to awaken"), §15 Phase 6 exit ("endgame systems add meaningful choices without making older content or most item drops irrelevant"). **Status: built (ticket 6.5b, version 0.6.8).** The owner said yes to option (b) at × 1.1 on 2026-11-10, with one change to the recommendation: **awakening counts in duels and in matchmaking**. See "As built (ticket 6.5b)" at the end. Sections 1–10 are the 6.5 evaluation as it was written; where it says "duels ignore awakening", the owner overruled it.
 
 ## The short version
 
@@ -188,3 +188,37 @@ A +10 kit of Verge Legendaries with random effects and affixes (item level 33, `
 - `items/awakening-state.ts`: the `ItemAwakening` shape and the reader `awakenedEffectStrength`, read in two places: `itemEffectInstances` (an item's effect strength = variant strength × awakening) and `setBonusInstances` (a bonus of n pieces gets the strength once n distinct worn pieces are awakened). Without an awakening, both return exactly the pre-6.5 instance (no `strength` field), so every existing number is unchanged. No column, row, snapshot or route carries the field.
 - **Invariance:** `effects/noEffects.test.ts` reruns the pinned pre-3.2 hashes with `awakening: null`, with every item offered to the switched-off prototype, and with neutral awakenings. A late-game kit (+10 Void Legendaries and four Drowned Vigil pieces, item level 37) gives the same Depths settlement, Forge Tyrant run and Power when offered to the switched-off prototype, and different ones with the switch on (the check can fail). Every existing balance suite and curve pin is unchanged.
 - **Tests:** `items/awakening.test.ts` (the switch, eligibility, costs, both options' math, sets, readers ignoring invalid strengths) and `balance/awakening-balance.test.ts` (the guards above, about 4 s).
+
+## As built (ticket 6.5b)
+
+### The owner's answers (2026-11-10)
+1. **Ship (b) at × 1.1.** A +10 Legendary, Mythic or set item at item level ≥ 23 can be awakened once; its effect or signature counts × 1.1, set bonuses as in "Options (b)". Permanent.
+2. **The price as proposed:** 3 Tyrant's Embers, 2 Gravewarden's Seals (any crypt tier), 15,000 gold at item level 20 scaled by `(itemLevel + 5) / 25` (25,200 at 37) and 30 soul shards (`DEFAULT_AWAKENING_SETTINGS.cost`, data).
+3. **Awakening counts in PvP and in matchmaking** (overrides question 5): duels read the awakened effect through the normal normalisation, and matchmaking's bracket Power sees it (below).
+4. **Account-bound, never tradeable;** not while held after a trade; **may move between the account's own heroes via the shelf.**
+5. **Boards:** Gear Score unchanged; Power only through combat; no new version.
+
+### game-core
+- **The switch is gone** (decision: an admin kill switch adds a settings surface for a rule with no live risk the trading switches don't already cover; removing a shipped awakening would also strand paid items). `DEFAULT_AWAKENING_SETTINGS` (frozen) holds the numbers: option `effect`, rarities Legendary/Mythic, +10, item level 23, `effectStrength` 1.1, the cost. `awakenItem` / `awakeningRefusal` are the rule (`rarity`, `upgrade_level`, `item_level`, `already_awakened`, `nothing_to_awaken`, `unknown_base`); `shippedAwakening()` is what is stored: `{ option: 'effect', effectStrength: 1.1 }`. Option (a) stays in the module for `tools/balance/awakening.ts` only.
+- **Validation:** `GeneratedItem.awakening` (never rolled). `validateItem` accepts only the shipped awakening on an eligible item (`awakeningErrors`: exact shape and strength, rarity, item level, an effect or a set); scoring's `checkEquipment` also rejects one below +10 (`invalid_item`, counts 0), so a forged row or snapshot never fights awakened.
+- **Readers** (6.5's, unchanged): `itemEffectInstances` (variant × awakening: Void × 1.21, Prismatic × 1.1) and `setBonusInstances` (a bonus of n pieces is awakened once n distinct worn pieces are). Caps, thresholds and stack counts as before.
+- **Quote:** `awakeningPreview(item, rest of the kit, class)`: the effect text before and after, a set's progress (worn, awakened before and after, each bonus), and the capped combat numbers that move (empty: an effect at its cap, another class's effect, or a set bonus still short of awakened pieces).
+- **Binding and trading:** `itemBindingState` returns `account` / `awakened` first; the trade rules add the check `item_awakened` ("Awakened items can never be traded.") next to `item_bound`, so no future switch can open it.
+- **Forge interactions:** rerolls and improvements stay allowed (they never touch the effect); upgrades stop at +10 as before; the awakening survives every Forge action. Void and Prismatic are untouched.
+
+### Server
+- **Migration `0039_item_awakening`** (additive): `item_instances.awakening` (jsonb, null) and `awakened_at` (timestamptz), check: both null or both set.
+- **`POST /api/characters/:id/forge/awaken`** `{ itemId }`, `Idempotency-Key`, the Forge's lock order (key → hero, settling first → item). Refused before paying: another hero's item `404`; Warehouse `item_in_warehouse`, shelf `item_on_shelf`, escrow `item_in_offer`, held after a trade `409 item_held`; the rule's refusals `422 not_awakenable` / `already_awakened` with a plain message; the price with what is missing (`insufficient_materials` / `insufficient_gold`, **gold and materials on hold after a trade excluded**, `heldValueOf`). Pays, writes the awakening and the time, advances the forge counter (no draw; the counter guards the write and marks the item "touched" for a reversal), binds to the account, audits `forge.awaken` (gold, materials, the awakening, effect/set, variant, upgrade) and records telemetry (`forge` `awaken`, `gold.out` / `material.out` source `forge_awaken`). `reconcileWithAudit` checks count, gold and materials.
+- The Forge item view has `awaken: { refusal, cost, blockers, effectStrength } | null`; item views (pack, profile showcase) carry `awakening` and `awakenedAt` when set; every combat read (farming, crypt and Tyrant snapshots, guild boss, scores, arena) carries the column.
+- **Admin (D.4):** the grant tool's `awakened: true` (test accounts) creates an item the Forge could awaken, refused in the Forge's words otherwise.
+
+### Web
+- The Forge's **"The Banked Fire"** panel: items ready to awaken and those awakened, the price from the server, the before/after quote and set progress from `awakeningPreview`, a warning when nothing would change, a full confirm (permanent, the price, bound for good, shelf allowed, Forge afterwards). Loading, empty, error and success states; desktop and mobile.
+- **The awakened mark** (a code treatment like A.12): an ember sigil ☼ in the lower left corner (beside Void's ◇ or Prismatic's ✧), a coal line with ember pixels along the socket's base and a low ember glow behind the art (tokens `--ember-core/glow/coal`, not the Legendary orange). The glow breathes in four steps over 4.8 s; still under reduced motion and automation, forced in the admin gallery after Play. The tooltip says "☼ Awakened … Permanent." and the binding line; its header rule smoulders. The admin gallery's Variants table has awakened rows.
+
+### PvP and matchmaking (owner decision 3)
+- **Duels:** no duel rule changed. `normaliseFighter` reads `equipmentModifiers` and `setBonusInstances`, which read the awakening, and pulls the effects toward the reference with `effectKeep` like any gear. `PVP_RULES_VERSION` stays 2 (the same input fights the same; the pinned duel hashes pass).
+- **Matchmaking:** Character Power barely sees awakening (it is a PvE measure), so **bracket Power 2** (`BRACKET_POWER_VERSION` 1 → 2) = Power 1 × (1 + 0.002 × the awakened effects a duel reads). Equal to version 1 on every kit without an awakening, so every stored defence keeps its value (a stored version-1 value is reused when its snapshot has no awakening). `MATCHMAKING_VERSION` stays 3. Details and measurements: docs/PVP.md "6.5b".
+
+### Tests and tools
+`items/awakening-rule.test.ts`, `balance/awakening-pvp.test.ts` (duels, bracket Power, the bands with an awakened population), `forge/awaken.test.ts`, `forge/awaken.pg.test.ts` (awaken vs a shelf deposit, vs a trade offer, double submit; looped 20×), `e2e/awakening-journey.test.ts`, the admin grant, the web's `components/awakened.test.tsx`. Tools: `tools/balance/awakening.ts match`, `tools/balance/arena.ts` with `AWAKENED=1 POWER=1|2`, screenshots `tools/screenshots/awakening.mjs`.

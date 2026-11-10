@@ -327,6 +327,11 @@ describe('tradeDecision: the offer contents', () => {
       [fresh('a', { upgradeLevel: 1 }), ['item_bound']],
       [fresh('a', { firstEquippedAt: ago(3) }), ['item_bound']],
       [fresh('a', { tradedCount: 1 }), ['item_bound']],
+      // Ticket 6.5b: awakened is its own refusal (and binds), whatever the switches.
+      [
+        fresh('a', { awakening: { option: 'effect', effectStrength: 1.1 } }),
+        ['item_bound', 'item_awakened'],
+      ],
       [fresh('a', { rarityId: 'mythic' }), ['item_category_off']],
       [fresh('a', { variant: 'void' }), ['item_category_off']],
       [fresh('a', { unprovenanced: true }), ['item_unprovenanced']],
