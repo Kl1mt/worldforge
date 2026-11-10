@@ -192,6 +192,8 @@ export async function startJourney(options: JourneyOptions) {
     crypt: [] as { tier: number; level: number; outcome: string; bossDefeated: boolean }[],
     /** Ticket 4.8: runs of the Warden's Watch. */
     watch: [] as { level: number; outcome: string; bossDefeated: boolean }[],
+    /** Ticket 6.2: runs of the Tyrant's Forge. */
+    forge: [] as { level: number; outcome: string; bossDefeated: boolean }[],
     abbeyLockedBeforeBoss: false,
     /** Pause the junk sale (Phase 3 lets the pack fill to see drops kept over capacity). */
     tidy: true,
@@ -403,7 +405,10 @@ export async function startJourney(options: JourneyOptions) {
    * out on the server clock, settle, claim (and replay the claim). Returns the claim result.
    */
   const runCrypt = async (tier = 1) => runDungeon('namelessCrypt', tier);
-  const runDungeon = async (dungeonId: 'namelessCrypt' | 'ashenWatch', tier = 1) => {
+  const runDungeon = async (
+    dungeonId: 'namelessCrypt' | 'ashenWatch' | 'tyrantsForge',
+    tier = 1,
+  ) => {
     const start = await api('POST', `${base}/dungeon`, { dungeonId, tier });
     expect(start.statusCode, start.body).toBe(201);
     const { run } = start.json<{ run: DungeonRunView }>();
@@ -434,7 +439,8 @@ export async function startJourney(options: JourneyOptions) {
       bossDefeated: result.bossDefeated,
     };
     if (dungeonId === 'namelessCrypt') state.crypt.push({ tier, ...record });
-    else state.watch.push(record);
+    else if (dungeonId === 'ashenWatch') state.watch.push(record);
+    else state.forge.push(record);
     state.level = character.level;
     return result;
   };
@@ -1806,6 +1812,101 @@ export async function playCinderwastesStep(
   const report = await checkLeaderboards(cliDeps(database.db), 200, now());
   expect(report.problems.filter((p) => p.kind === 'wrong')).toEqual([]);
   return { watchRuns, kills, tier4, level: state.level, pveProgress: mine.value };
+}
+
+/**
+ * Phase 6 Cinder Depths step (ticket 6.2): from a hero of level 36 that slew the Ashen Warden, in
+ * good Verge gear. The Depths are open (the Verge's top milestone), farmed for a few visits (tier-4
+ * drops at 35–41, existing materials); the Tyrant's Forge is fought until the Forge Tyrant falls
+ * (bounded); his hoard is bound to the account and his ember is spent on Tyrantforged Work; PvE
+ * Progress counts the Depths and the Tyrant under the version in force.
+ */
+export async function playCinderDepthsStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  hero: Journey,
+  now: () => Date,
+) {
+  const { api, base, state, keyed } = hero;
+  const area = getArea('cinderDepths');
+  const depthsView = async () => (await hero.world()).areas.find((a) => a.id === area.id)!;
+  expect(state.level).toBeGreaterThanOrEqual(getDungeonTier('tyrantsForge', 1).unlock.level);
+  expect(await depthsView()).toEqual({ id: 'cinderDepths', unlocked: true, blockers: [] });
+  const go = await api('POST', `${base}/activity`, { areaId: area.id });
+  expect([200, 201]).toContain(go.statusCode);
+  const table = getLootTable(area.lootTableId);
+  let kills = 0;
+  for (let i = 0; i < 3; i++) {
+    const { summary, activity } = await hero.settle();
+    expect(activity!.areaId).toBe(area.id);
+    kills += summary.kills;
+    // The first settlement can still finish the previous area's cycle (CLAUDE.md).
+    if (i > 0) {
+      for (const item of summary.items) {
+        expect(item.itemLevel).toBeGreaterThanOrEqual(table.itemLevel!.min);
+        expect(item.itemLevel).toBeLessThanOrEqual(table.itemLevel!.max);
+        if (!item.setId && !item.mythicId) expect(findItemBase(item.baseId)!.tier).toBe(4);
+      }
+      for (const id of Object.keys(summary.materials ?? {}))
+        expect(area.materials as readonly string[]).toContain(id);
+    }
+    await hero.sellJunk(await hero.inventory());
+  }
+  expect(kills).toBeGreaterThan(0);
+  await api('POST', `${base}/activity/stop`);
+
+  // The Forge, until the Tyrant falls (bounded: balance.test.ts measures this kit's odds).
+  let hoard: DungeonClaimResponse['result'] | null = null;
+  while (!state.forge.some((f) => f.bossDefeated)) {
+    expect(state.forge.length, 'the Tyrant should fall within a few runs').toBeLessThan(20);
+    await hero.sellJunk(await hero.inventory());
+    const result = await hero.runDungeon('tyrantsForge');
+    if (result.bossLoot) hoard = result;
+  }
+  const runs = state.forge.length;
+  // The first kill took the hoard unless an earlier loss had (a loss never starts the cooldown).
+  expect(hoard).not.toBeNull();
+  expect(hoard!.materials).toEqual({ tyrantsEmber: 1 });
+  const inv = await hero.inventory();
+  const fromHoard = [...inv.inventory, ...Object.values(inv.equipped)].filter(
+    (i) => i && i.source === 'hoard:tyrantsForge',
+  );
+  for (const item of fromHoard) expect(item!.binding, item!.rarityId).toBe('account');
+  const ember = async () =>
+    (await api('GET', `${base}/materials`))
+      .json<{
+        materials: { materialId: string; quantity: number }[];
+      }>()
+      .materials.find((m) => m.materialId === 'tyrantsEmber')?.quantity ?? 0;
+  expect(await ember()).toBe(1);
+
+  // The ember's sink: one Tyrantforged Work (gold and ore topped up by the run's farming, or not).
+  const forge = (await api('GET', `${base}/forge`)).json<ForgeResponse>();
+  const recipe = forge.recipes.find((r) => r.recipeId === 'tyrantforgedWork')!;
+  expect(
+    recipe.blockers.some((b) => b.kind === 'material' && b.materialId === 'tyrantsEmber'),
+  ).toBe(false);
+  let crafted = false;
+  if (recipe.blockers.length === 0) {
+    const res = await keyed(`${base}/forge/craft`, { recipeId: recipe.recipeId, slot: 'chest' });
+    expect(res.statusCode, res.body).toBe(200);
+    expect(findItemBase(res.json<{ item: { baseId: string } }>().item.baseId)!.tier).toBe(4);
+    expect(await ember()).toBe(0);
+    crafted = true;
+  }
+
+  // The boards: PvE Progress counts the Depths and the Tyrant under the version in force.
+  const versions = await app.formulaVersions.at(now());
+  const read = await api('GET', '/api/leaderboards/pveProgress');
+  const board = read.json<{
+    board: { formulaVersion: number; yours: { value: number; hero: { level: number } }[] };
+  }>().board;
+  expect(board.formulaVersion).toBe(versions.pveProgress);
+  const mine = board.yours.find((e) => e.hero.level === state.level)!;
+  expect(mine.value).toBeGreaterThanOrEqual(versions.pveProgress >= 3 ? 15 : 13);
+  const report = await checkLeaderboards(cliDeps(database.db), 200, now());
+  expect(report.problems.filter((p) => p.kind === 'wrong')).toEqual([]);
+  return { kills, runs, crafted, level: state.level, pveProgress: mine.value };
 }
 
 /**

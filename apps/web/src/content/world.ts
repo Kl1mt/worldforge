@@ -49,6 +49,9 @@ export const MAP_MARKERS: readonly MapMarker[] = [
   { id: 'ashenWatch', x: 104, y: 26 },
   // Ticket 6.1: the Cinderwastes beyond the Warden's tower, at the map's north-west corner.
   { id: 'ashfallVerge', x: 46, y: 14 },
+  // Ticket 6.2: the Depths below the Verge, the Tyrant's Forge at their bottom (the map's west edge).
+  { id: 'cinderDepths', x: 16, y: 34 },
+  { id: 'tyrantsForge', x: 18, y: 62 },
 ];
 
 export function mapMarker(id: MapPlaceId): MapMarker | null {

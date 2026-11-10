@@ -9,9 +9,11 @@ import {
   PRESTIGE_METRICS,
   getArea,
   getEnemy,
+  getMaterial,
 } from '@worldforge/game-core';
 import {
   ART_STAND_INS,
+  ART_VARIANTS,
   ASSETS,
   SEASON_FRAME_TIERS,
   SEASON_FRAME_WINDOW,
@@ -112,6 +114,27 @@ describe('Cinderwastes art (tickets 6.1, A.11, A.15)', () => {
     expect(files.size).toBe(tier4.length);
   });
 
+  it('draws the Cinder Depths’ foes and the Tyrant’s ember as ember variants (ticket 6.2)', () => {
+    const depths = getArea('cinderDepths');
+    expect(findSprite(depths.assetId)!.tint).toBeUndefined();
+    for (const e of depths.enemies) {
+      const id = getEnemy(e.enemyId).assetId;
+      expect(Object.hasOwn(ASSETS, id), `${id} has no file of its own`).toBe(false);
+      const sprite = findSprite(id)!;
+      expect(sprite.tint, id).toBe('ember');
+      expect(sprite.path, id).toBe(ASSETS[ART_VARIANTS[id]!].path);
+      // Its attack frames are its Verge kin's, where that foe has them.
+      const kin = enemyAttackSheet(ART_VARIANTS[id]!);
+      expect(enemyAttackSheet(id)?.path ?? null, id).toBe(kin?.path ?? null);
+    }
+    for (const target of Object.values(ART_VARIANTS))
+      expect(Object.hasOwn(ASSETS, target), target).toBe(true);
+    // The region boss has his own art (A.11), untinted.
+    const tyrant = getEnemy('forgeTyrant');
+    expect(findSprite(tyrant.assetId)).toEqual(ASSETS['enemy.forge-tyrant']);
+    expect(findSprite(getMaterial('tyrantsEmber').icon)!.tint).toBe('ember');
+  });
+
   it('keeps the ember-tinted stand-in only as a fallback for art still missing', () => {
     for (const [id, target] of Object.entries(ART_STAND_INS)) {
       expect(Object.hasOwn(ASSETS, target), `${id} → ${target}`).toBe(true);
@@ -159,7 +182,14 @@ describe('enemy attack frames (A.14b)', () => {
     return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
   };
   /** Frames that missed the bar after the regeneration; they keep the code animation. */
-  const NO_FRAMES = new Set(['enemy.cinder-hound', 'enemy.slag-hound', 'enemy.ember-wisp']);
+  // Ticket 6.2: the Depths' mastiff and wisp are drawn as the slag hound and ember wisp (no frames).
+  const NO_FRAMES = new Set([
+    'enemy.cinder-hound',
+    'enemy.slag-hound',
+    'enemy.ember-wisp',
+    'enemy.slag-mastiff',
+    'enemy.ashflame-wisp',
+  ]);
 
   it('has a left-facing 8-frame sheet for every common enemy of the areas, bosses excepted', () => {
     const ids = new Set(AREAS.flatMap((a) => a.enemies.map((e) => getEnemy(e.enemyId).assetId)));

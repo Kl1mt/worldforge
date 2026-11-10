@@ -6,7 +6,7 @@ import type { GameRoute } from '../lib/route';
  * share one screen (`DungeonScreen`); only these lines differ.
  */
 export interface DungeonWords {
-  route: Extract<GameRoute, 'crypt' | 'watch'>;
+  route: Extract<GameRoute, 'crypt' | 'watch' | 'tyrant'>;
   /** "the crypt", in running text. */
   place: string;
   loading: string;
@@ -37,6 +37,10 @@ export interface DungeonWords {
   /** Log lines. */
   bossEnter: string;
   enrage: string;
+  /** Ticket 6.2: the boss's shell breaks (`shellBroken`); only bosses with a shell. */
+  shellBroken?: string;
+  /** Ticket 6.2: a heavy blow lands (`enemyAttack` with `heavy`); `{damage}` is the hit. */
+  heavyBlow?: string;
   won: string;
   lost: string;
   /** Another hero of the account is in this dungeon. */
@@ -104,10 +108,46 @@ export const DUNGEON_WORDS: Readonly<Record<DungeonId, DungeonWords>> = {
     lost: 'The warden keeps his watch. You stumble down through the smoke.',
     otherHero: 'Another of your heroes is on the watch. Switch to them to finish that run.',
   },
+  // Ticket 6.2: the Cinderwastes' region boss at the bottom of the Cinder Depths.
+  tyrantsForge: {
+    route: 'tyrant',
+    place: 'the forge',
+    loading: 'Descending through the slag…',
+    waiting:
+      'The Tyrant’s Forge. Its furnace roars at the bottom of the Depths; the Forge Tyrant works its anvil.',
+    inside: 'In the forge',
+    logTitle: 'Sparks from the furnace',
+    logEmpty: 'Heat rises from below. A hammer rings, slow and steady.',
+    doorTitle: 'Before you descend',
+    barredTitle: 'The furnace door is barred',
+    runTitle: 'In the forge',
+    runNote: 'The fight at the anvil plays out on its own.',
+    enter: 'Descend to the anvil',
+    entering: 'Descending…',
+    again: 'Descend again',
+    clearedLine: 'The hammer is still. The furnace burns low.',
+    fallenLine: 'Your hero has fallen back into the slag. The Tyrant returns to his anvil.',
+    reckoning: 'The forge’s reckoning',
+    wonTitle: 'The Forge Tyrant falls',
+    lostTitle: 'The Tyrant keeps his forge',
+    hoard:
+      'The Tyrant’s hoard: two pieces from his anvil, his purse and a Tyrant’s Ember, once per 20 hours. Hoard items are always bound to you.',
+    hoardBack: 'The Tyrant’s hoard returns {when}. You can still fight him.',
+    leaving:
+      'Your hero leaves the fields while in the forge. A fall costs nothing but the descent.',
+    bossEnter: 'The furnace floor. The Forge Tyrant sets down his tongs and lifts his hammer.',
+    enrage: 'The furnace roars white! The Tyrant’s blows fall faster and harder.',
+    shellBroken: 'His slag armour cracks and falls away. Your blows bite now.',
+    heavyBlow: 'The Tyrant’s hammer comes down for {damage}!',
+    won: 'The Forge Tyrant falls across his anvil. The furnace dims.',
+    lost: 'The Tyrant keeps his forge. You crawl back up through the slag.',
+    otherHero: 'Another of your heroes is in the forge. Switch to them to finish that run.',
+  },
 };
 
 /** The dungeon of a screen route. */
 export const DUNGEON_OF_ROUTE = {
   crypt: 'namelessCrypt',
   watch: 'ashenWatch',
+  tyrant: 'tyrantsForge',
 } as const satisfies Record<DungeonWords['route'], DungeonId>;

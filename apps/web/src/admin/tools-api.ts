@@ -273,6 +273,8 @@ export const toolsApi = {
       gravewardenDefeated: boolean;
       cryptTierCleared: number;
       ashenWardenDefeated: boolean;
+      /** Ticket 6.2. */
+      forgeTyrantDefeated: boolean;
       reason: string;
     },
   ) =>

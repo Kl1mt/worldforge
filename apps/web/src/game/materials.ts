@@ -6,7 +6,7 @@ import {
   type ProfessionId,
   type RarityId,
 } from '@worldforge/game-core';
-import { ASSETS, type AssetId, type SpriteAsset } from '../content/assets';
+import { findSprite, type SpriteAsset } from '../content/assets';
 
 export interface MaterialView {
   id: MaterialId;
@@ -27,7 +27,8 @@ export function professionName(id: ProfessionId): string {
 /** Display data for a material from game-core content and the asset registry (A.4). */
 export function materialView(id: MaterialId): MaterialView {
   const def = getMaterial(id);
-  const sprite = def.icon in ASSETS ? ASSETS[def.icon as AssetId] : null;
+  // Ticket 6.2: through `findSprite`, so an ember variant (the Tyrant's Ember) resolves too.
+  const sprite = findSprite(def.icon);
   let source: string;
   if (def.source === 'gathering' && def.profession) source = professionName(def.profession);
   else if (def.source === 'undeadDrop') source = 'Dropped by the undead';

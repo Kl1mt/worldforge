@@ -394,10 +394,12 @@ export function ProgressTool(ctx: HeroCtx) {
   const [grave, setGrave] = useState(hero.progress.gravewardenDefeated);
   const [tier, setTier] = useState(hero.progress.cryptTierCleared ?? 0);
   const [ashen, setAshen] = useState(hero.progress.ashenWardenDefeated ?? false);
+  const [tyrant, setTyrant] = useState(hero.progress.forgeTyrantDefeated ?? false);
   const next: WorldProgress = {
     gravewardenDefeated: grave,
     cryptTierCleared: tier,
     ashenWardenDefeated: ashen,
+    forgeTyrantDefeated: tyrant,
   };
   const before = opens(hero.level, hero.progress);
   const after = opens(hero.level, next);
@@ -406,7 +408,8 @@ export function ProgressTool(ctx: HeroCtx) {
   const same =
     grave === hero.progress.gravewardenDefeated &&
     tier === (hero.progress.cryptTierCleared ?? 0) &&
-    ashen === (hero.progress.ashenWardenDefeated ?? false);
+    ashen === (hero.progress.ashenWardenDefeated ?? false) &&
+    tyrant === (hero.progress.forgeTyrantDefeated ?? false);
   const yes = (b: boolean) => (b ? 'yes' : 'no');
   const review = () =>
     openWrit(
@@ -416,6 +419,7 @@ export function ProgressTool(ctx: HeroCtx) {
           `Gravewarden defeated: ${yes(hero.progress.gravewardenDefeated)} → ${yes(grave)}`,
           `Crypt tier cleared: ${TIER_NAMES[hero.progress.cryptTierCleared ?? 0]} → ${TIER_NAMES[tier]}`,
           `Ashen Warden defeated: ${yes(hero.progress.ashenWardenDefeated ?? false)} → ${yes(ashen)}`,
+          `Forge Tyrant defeated: ${yes(hero.progress.forgeTyrantDefeated ?? false)} → ${yes(tyrant)}`,
           gained.length > 0 ? `Opens: ${gained.join('; ')}.` : 'Opens nothing new at this level.',
           ...(lost.length > 0 ? [`Closes: ${lost.join('; ')}.`] : []),
         ],
@@ -427,6 +431,7 @@ export function ProgressTool(ctx: HeroCtx) {
               gravewardenDefeated: grave,
               cryptTierCleared: tier,
               ashenWardenDefeated: ashen,
+              forgeTyrantDefeated: tyrant,
               reason,
             }),
             (a) => `World progress set.${boardsNote(a)}`,
@@ -456,6 +461,10 @@ export function ProgressTool(ctx: HeroCtx) {
       <label className="adt-check">
         <input type="checkbox" checked={ashen} onChange={(e) => setAshen(e.target.checked)} />
         Ashen Warden defeated
+      </label>
+      <label className="adt-check">
+        <input type="checkbox" checked={tyrant} onChange={(e) => setTyrant(e.target.checked)} />
+        Forge Tyrant defeated
       </label>
       <p className="adt-dim">
         At level {hero.level} this opens: {after.length > 0 ? after.join('; ') : 'nothing'}.

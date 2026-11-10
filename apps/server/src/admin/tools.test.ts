@@ -699,6 +699,54 @@ describe('admin tools (D.4)', () => {
 
   // ---------------------------------------------------------------------------------------------
   describe('progress, quests, fast-forward, sessions', () => {
+    it('sets the Cinderwastes progress (ticket 6.2): the Depths, the Forge and the Tyrant', async () => {
+      const t = await target({ test: true, level: 36 });
+      const set = (forgeTyrantDefeated?: boolean) =>
+        admin('POST', `${t.heroUrl}/progress`, {
+          gravewardenDefeated: true,
+          cryptTierCleared: 3,
+          ashenWardenDefeated: true,
+          ...(forgeTyrantDefeated === undefined ? {} : { forgeTyrantDefeated }),
+          reason: 'test the Depths',
+        });
+      // The Warden alone opens the Depths and the Forge at 36; the Tyrant not yet slain.
+      expect((await set()).statusCode).toBe(200);
+      const world = await call(t.acc, 'GET', `/api/characters/${t.hero.id}/world`);
+      const depths = world.json().areas.find((a: { id: string }) => a.id === 'cinderDepths');
+      expect(depths).toMatchObject({ unlocked: true, blockers: [] });
+      const forge = () =>
+        call(t.acc, 'GET', `/api/characters/${t.hero.id}/dungeon`).then(
+          (r) =>
+            r.json().dungeons.find((d: { id: string }) => d.id === 'tyrantsForge') as {
+              unlocked: boolean;
+              tierCleared: number;
+            },
+        );
+      expect(await forge()).toMatchObject({ unlocked: true, tierCleared: 0 });
+      // Boss defeated: the Forge counts as cleared, PvE Progress counts the Tyrant.
+      const res = await set(true);
+      expect(res.json().after).toMatchObject({ forgeTyrantDefeated: true });
+      expect((await forge()).tierCleared).toBe(1);
+      expect((await lastAudit(t.acc.id, 'admin.progress'))!.data).toMatchObject({
+        after: { forgeTyrantDefeated: true },
+      });
+      // Absent leaves it as it is; false removes it.
+      expect((await set()).json().after.forgeTyrantDefeated).toBe(true);
+      expect((await set(false)).json().after.forgeTyrantDefeated).toBe(false);
+      expect((await forge()).tierCleared).toBe(0);
+      // A normal account: refused like every cheat tool.
+      const normal = await target({ level: 36 });
+      const refused = await admin('POST', `${normal.heroUrl}/progress`, {
+        gravewardenDefeated: true,
+        cryptTierCleared: 3,
+        ashenWardenDefeated: true,
+        forgeTyrantDefeated: true,
+        reason: 'not on a normal account',
+      });
+      expect(refused.json().error.code).toBe('test_account_required');
+      expect((await heroRow(normal.hero.id)).progress).not.toHaveProperty('forgeTyrantDefeated');
+    });
+
     it('fast-forwards through the normal settlement (rewards from game-core, time moved only)', async () => {
       const t = await target({ test: true, level: 5 });
       expect(

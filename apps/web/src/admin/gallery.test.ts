@@ -31,12 +31,16 @@ describe('animation gallery catalogue (A.14c)', () => {
     );
     expect(registered.length).toBeGreaterThan(20);
     for (const id of registered) expect(shownEnemyAssets, id).toContain(id);
+    // Ticket 6.2: the Forge Tyrant is placed now (the Tyrant's Forge), a boss on the code loop.
     const unplaced = catalogue.groups.find((g) => g.id === 'unplaced');
-    expect(unplaced?.enemies.map((e) => e.assetId)).toContain('enemy.forge-tyrant');
-    expect(unplaced?.enemies.find((e) => e.assetId === 'enemy.forge-tyrant')).toMatchObject({
-      name: 'Forge Tyrant',
+    expect(unplaced?.enemies.map((e) => e.assetId) ?? []).not.toContain('enemy.forge-tyrant');
+    const forge = catalogue.groups.find((g) => g.id === 'dungeon:tyrantsForge');
+    expect(forge?.enemies.find((e) => e.assetId === 'enemy.forge-tyrant')).toMatchObject({
+      name: 'The Forge Tyrant',
       boss: true,
+      sheet: null,
     });
+    expect(forge?.backdrops.map((b) => b.assetId)).toEqual(['area.cinder-depths']);
   });
 
   it('shows every area backdrop', () => {

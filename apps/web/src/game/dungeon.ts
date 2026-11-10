@@ -218,7 +218,16 @@ export function cryptLogLine(e: DungeonEvent, ctx: CryptLogContext): CryptLogLin
       };
     }
     case 'enemyAttack':
-      return null;
+      // Ticket 6.2: a boss's heavy blow is worth a line.
+      return e.heavy && words.heavyBlow
+        ? {
+            t: e.t,
+            tone: 'boss',
+            text: words.heavyBlow.replace('{damage}', formatNumber(e.damage)),
+          }
+        : null;
+    case 'shellBroken':
+      return words.shellBroken ? { t: e.t, tone: 'boss', text: words.shellBroken } : null;
     case 'thorns':
       // Ticket 3.2: only the blow that finishes the foe is worth a line.
       return e.enemyHealth > 0

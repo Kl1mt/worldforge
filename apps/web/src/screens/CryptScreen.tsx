@@ -480,6 +480,11 @@ export function WatchScreen() {
   return <DungeonScreen dungeonId="ashenWatch" />;
 }
 
+/** Ticket 6.2: the Tyrant's Forge below the Cinder Depths (`#/tyrant`). */
+export function TyrantScreen() {
+  return <DungeonScreen dungeonId="tyrantsForge" />;
+}
+
 /** A dungeon's door, run and reckoning (ticket 2.5; one screen for every dungeon since 4.8). */
 function DungeonScreen({ dungeonId }: { dungeonId: DungeonId }) {
   const dungeon = getDungeon(dungeonId);

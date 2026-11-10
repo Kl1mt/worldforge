@@ -38,7 +38,7 @@ function navEntries(areaName: string): NavEntry[] {
       hint: 'Graumark',
       also: ['tavern', 'forge', 'merchant', 'arena'],
     },
-    { route: 'map', label: 'Map', hint: 'Choose an area', also: ['crypt', 'watch'] },
+    { route: 'map', label: 'Map', hint: 'Choose an area', also: ['crypt', 'watch', 'tyrant'] },
     { route: 'area', label: 'Area', hint: areaName },
     { route: 'character', label: 'Character', hint: 'Equipment & stats' },
     { route: 'inventory', label: 'Pack', hint: 'Inventory' },

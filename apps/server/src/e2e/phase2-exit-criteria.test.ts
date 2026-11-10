@@ -90,7 +90,7 @@ describe('Phase 2 exit criteria', () => {
     // for the Ashen Warden (ticket 6.1).
     expect(
       w.areas
-        .filter((a) => a.id !== 'ashenPass' && a.id !== 'ashfallVerge')
+        .filter((a) => !['ashenPass', 'ashfallVerge', 'cinderDepths'].includes(a.id))
         .every((a) => a.unlocked),
     ).toBe(true);
     expect(w.areas.find((a) => a.id === 'ashenPass')!.blockers).toContainEqual({
