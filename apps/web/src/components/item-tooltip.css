@@ -108,6 +108,26 @@
   color: var(--void-light);
 }
 
+/* Prismatic (ticket A.12): the word and its note in opal amber (voidlight stays Void's), and the
+   header's rule becomes a stepped opal hairline: hard colour stops, no gradient blur. */
+.tooltip[data-variant='prismatic'] .tooltip__variant,
+.tooltip[data-variant='prismatic'] .tooltip__unique--void .caps,
+.tooltip[data-variant='prismatic'] .tooltip__unique--prismatic .caps {
+  color: var(--prism-amber);
+}
+
+.tooltip[data-variant='prismatic'] .tooltip__head {
+  border-image: linear-gradient(
+      to right,
+      var(--prism-rose) 0 20%,
+      var(--prism-amber) 0 40%,
+      var(--prism-mint) 0 60%,
+      var(--prism-sky) 0 80%,
+      var(--prism-lilac) 0
+    )
+    1;
+}
+
 /* Legendary effect / Mythic signature (ticket 3.2): a rarity rule and the effect in plain words. */
 .tooltip__effect {
   margin-top: var(--space-3);

@@ -221,3 +221,8 @@
 .return__chase-variant {
   color: var(--void-light);
 }
+
+/* Ticket A.12: a Prismatic find names its variant in opal amber (voidlight stays Void's). */
+.return__chase li[data-variant='prismatic'] .return__chase-variant {
+  color: var(--prism-amber);
+}

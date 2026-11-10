@@ -117,6 +117,97 @@
   pointer-events: none;
 }
 
+/* Ticket A.12: Prismatic, layered on the rarity like Void but its opposite. Void drains the art
+   and cuts it out in voidlight; Prismatic keeps the art's colour and lays a stepped opal tint over
+   it (muted rose, amber, mint, sky, lilac in 4-pixel diagonal bands), a slow light sweep crosses it
+   one art pixel at a time, an opal hairline (one colour per side) runs inside the rarity ring and
+   an open star marks the lower left corner. Both overlays are 32-pixel art
+   (`/assets/overlays/`, `tools/art/prismatic_overlays.py`) scaled by the icon's integer scale and
+   clipped to the icon's alpha: no blur, no glow beyond the rarity's own, no layout change. Still
+   under reduced motion (the tint stays) and under automation (`item-frame--shimmer` is not set). */
+.item-frame--prismatic {
+  isolation: isolate;
+}
+
+.item-frame--prismatic > .pixel,
+.item-frame__prism {
+  grid-area: 1 / 1;
+}
+
+.item-frame__prism {
+  pointer-events: none;
+  image-rendering: pixelated;
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+}
+
+.item-frame__prism--tint {
+  background: url('/assets/overlays/prismatic-tint.png') 0 0 / calc(32 * var(--px, 1px))
+    calc(32 * var(--px, 1px)) repeat;
+  mix-blend-mode: soft-light;
+  opacity: 0.85;
+}
+
+.item-frame__prism--sheen {
+  background: url('/assets/overlays/prismatic-sheen.png') 0 0 / calc(96 * var(--px, 1px))
+    calc(32 * var(--px, 1px)) repeat-x;
+  mix-blend-mode: screen;
+  opacity: 0.55;
+}
+
+.item-frame__prism-ring {
+  position: absolute;
+  inset: 2px;
+  border: 1px solid transparent;
+  border-image: conic-gradient(
+      from -45deg,
+      var(--prism-rose) 0 25%,
+      var(--prism-amber) 0 50%,
+      var(--prism-mint) 0 75%,
+      var(--prism-sky) 0
+    )
+    1;
+  opacity: 0.9;
+  pointer-events: none;
+}
+
+.item-frame--prismatic .item-frame__variant {
+  color: var(--prism-amber);
+}
+
+@keyframes item-prism-drift {
+  to {
+    background-position: calc(32 * var(--px, 1px)) 0;
+  }
+}
+
+@keyframes item-prism-sweep {
+  to {
+    background-position: calc(-96 * var(--px, 1px)) 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .item-frame--shimmer .item-frame__prism--tint {
+    animation: item-prism-drift 19.2s steps(32) infinite;
+  }
+
+  .item-frame--shimmer .item-frame__prism--sheen {
+    animation: item-prism-sweep 9.6s steps(96) infinite;
+  }
+}
+
+/* The admin gallery after Play (A.14c's rule): moves here even under reduced motion. */
+.item-frame--shimmer-forced .item-frame__prism--tint {
+  animation: item-prism-drift 19.2s steps(32) infinite;
+}
+
+.item-frame--shimmer-forced .item-frame__prism--sheen {
+  animation: item-prism-sweep 9.6s steps(96) infinite;
+}
+
 .item-frame--interactive {
   cursor: pointer;
   transition: transform var(--dur-fast) var(--ease);

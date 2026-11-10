@@ -88,6 +88,7 @@ export function ItemTooltip({
   return (
     <article
       className={`tooltip rarity-${item.rarity}`}
+      data-variant={item.variant?.id}
       id={id}
       aria-label={`${item.name} details`}
     >
