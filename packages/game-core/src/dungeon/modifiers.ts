@@ -61,7 +61,7 @@ export const BOSS_MODIFIERS: readonly BossModifierDefinition[] = [
     id: 'warded',
     name: 'Warded',
     effect:
-      'A ward rises when the boss falls to 60 % health and holds until 45 %: while it stands your blows deal 30 % less damage.',
+      'A ward rises when the boss falls to 60 % health and holds until 45 %: while it stands your blows deal 30 % less damage.',
     mechanics: { ward: { fromHealthShare: 0.6, toHealthShare: 0.45, damageTakenMultiplier: 0.7 } },
     lootFocus: {
       id: 'mod-warded',
@@ -74,7 +74,7 @@ export const BOSS_MODIFIERS: readonly BossModifierDefinition[] = [
   {
     id: 'frenzied',
     name: 'Frenzied',
-    effect: 'Below 40 % health the boss strikes a quarter faster.',
+    effect: 'Below 40 % health the boss strikes a quarter faster.',
     mechanics: { frenzy: { belowHealthShare: 0.4, attackSpeedMultiplier: 1.25 } },
     lootFocus: {
       id: 'mod-frenzied',
@@ -88,7 +88,7 @@ export const BOSS_MODIFIERS: readonly BossModifierDefinition[] = [
     id: 'unyielding',
     name: 'Unyielding',
     effect:
-      'The boss has 15 % more health but strikes 15 % slower. (The guild boss cannot fall anyway: there it only strikes slower.)',
+      'The boss has 15 % more health but strikes 15 % slower. (The guild boss cannot fall anyway: there it only strikes slower.)',
     healthMultiplier: 1.15,
     attackSpeedMultiplier: 0.85,
     lootFocus: {
