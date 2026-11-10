@@ -1,4 +1,4 @@
-import { and, eq, max, or } from 'drizzle-orm';
+import { and, eq, isNull, max, or } from 'drizzle-orm';
 import {
   standingRefusals,
   tradeDecision,
@@ -25,14 +25,14 @@ export async function loadTradeStanding(
   now: Date,
 ): Promise<TradeStanding | null> {
   const [account] = await executor
-    .select({ createdAt: accounts.createdAt })
+    .select({ createdAt: accounts.createdAt, isTest: accounts.isTest })
     .from(accounts)
     .where(eq(accounts.id, accountId));
   if (!account) return null;
   const [best] = await executor
     .select({ level: max(characters.level) })
     .from(characters)
-    .where(eq(characters.accountId, accountId));
+    .where(and(eq(characters.accountId, accountId), isNull(characters.deletedAt)));
   const [emailVerified, sanctions] = await Promise.all([
     isEmailVerified(executor, accountId),
     activeSanctions(executor, accountId, now),
@@ -42,6 +42,7 @@ export async function loadTradeStanding(
     highestHeroLevel: best?.level ?? 0,
     emailVerified,
     sanctions: sanctions.map((s) => s.kind),
+    ...(account.isTest ? { testAccount: true } : {}),
   };
 }
 

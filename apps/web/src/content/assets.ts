@@ -10,8 +10,11 @@ export interface SpriteAsset {
   height: number;
   /** Source orientation; the scene mirrors `right`-facing enemies so they face the hero. */
   facing?: 'front' | 'left' | 'right';
-  /** Drawn tinted: a stand-in for art still to be made (`ART_STAND_INS`, ticket 6.1). */
-  tint?: 'cinder';
+  /**
+   * Drawn tinted: `cinder`, a stand-in for art still to be made (`ART_STAND_INS`, ticket 6.1);
+   * `ember`, a forge-tempered variant of existing art (`ART_VARIANTS`, ticket 6.2).
+   */
+  tint?: 'cinder' | 'ember';
   /**
    * Ticket A.14: a frame sheet. The file is one row of `frames` frames, each `width` × `height`
    * (so the PNG is `frames × width` wide); `PixelSprite` shows one frame at a time.
@@ -328,11 +331,33 @@ export function asset(id: AssetId): SpriteAsset {
 export const ART_STAND_INS: Readonly<Record<string, AssetId>> = {};
 
 /**
- * A registered sprite by a content asset id; else its tinted stand-in (`ART_STAND_INS`); else
- * `null` when the art does not exist (yet).
+ * Ticket 6.2: content drawn as an existing sprite with the Depths' ember treatment, by design (no
+ * new art): the Cinder Depths' foes are forge-tempered kin of the Verge's (their attack frames
+ * too, where the Verge's foe has them), and the Forge Tyrant's ember is a soul shard gone to coal.
+ * Unlike a stand-in this is the art, not a placeholder.
+ */
+export const ART_VARIANTS: Readonly<Record<string, AssetId>> = {
+  'enemy.forge-revenant': 'enemy.cinder-revenant',
+  'enemy.forge-revenant-attack': 'enemy.cinder-revenant-attack',
+  'enemy.slag-mastiff': 'enemy.slag-hound',
+  'enemy.ashflame-wisp': 'enemy.ember-wisp',
+  'enemy.slag-colossus': 'enemy.ash-colossus',
+  'enemy.slag-colossus-attack': 'enemy.ash-colossus-attack',
+  'material.tyrants-ember': 'material.soul-shard',
+};
+
+/** One sprite object per variant (callers may compare sprites by identity). */
+const VARIANT_SPRITES: ReadonlyMap<string, SpriteAsset> = new Map(
+  Object.entries(ART_VARIANTS).map(([id, target]) => [id, { ...ASSETS[target], tint: 'ember' }]),
+);
+
+/**
+ * A registered sprite by a content asset id; else its ember variant (`ART_VARIANTS`, ticket 6.2);
+ * else its tinted stand-in (`ART_STAND_INS`); else `null` when the art does not exist (yet).
  */
 export function findSprite(id: string): SpriteAsset | null {
   if (Object.hasOwn(ASSETS, id)) return ASSETS[id as AssetId];
+  if (Object.hasOwn(ART_VARIANTS, id)) return VARIANT_SPRITES.get(id)!;
   const standIn = Object.hasOwn(ART_STAND_INS, id) ? ART_STAND_INS[id] : undefined;
   return standIn ? { ...ASSETS[standIn], tint: 'cinder' } : null;
 }

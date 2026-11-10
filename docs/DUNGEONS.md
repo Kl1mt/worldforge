@@ -140,7 +140,7 @@ Every all-Legendary/set build kills the boss before the earliest enrage (30 s), 
 
 ## The Warden's Watch (ticket 4.8)
 
-*Ticket 6.1:* slaying the Ashen Warden (`progress.ashenWardenDefeated`) opens the Cinderwastes' first area, the Ashfall Verge, at level 28 (`docs/WORLD.md`).
+*Ticket 6.1:* slaying the Ashen Warden (`progress.ashenWardenDefeated`) opens the Cinderwastes' first area, the Ashfall Verge, at level 28 (`docs/WORLD.md`); *ticket 6.2:* its second, the Cinder Depths, at 34, and the Tyrant's Forge at 36.
 The Ashen Pass's boss (`docs/WORLD.md` "The Ashen Pass"), fought like the Gravewarden in a dungeon run, but **boss-only**: no chambers, a 30 s climb, then the Ashen Warden. Same engine and rules as the crypt (`simulateDungeonRun`: snapshot, server-only seed streams, enrage window, claim with `Idempotency-Key`, one unclaimed run per account across both dungeons, the farming stopped while it runs). Data: `DUNGEONS` entry `ashenWatch` (one tier), enemy `ashenWarden`. Screen: `#/watch` (the map marker beside the Pass, and a link in the Pass's description).
 
 - **Gate:** level 26, the Gravewarden slain, and the world flag `ashenPassCleared` (`409 dungeon_locked` with the blockers otherwise). A tier other than 1 is `400 validation_failed` ("Choose one of: 1.").
@@ -160,6 +160,32 @@ The Ashen Pass's boss (`docs/WORLD.md` "The Ashen Pass"), fought like the Gravew
 | at 28: every best-in-slot build (sets, Mythic, +10, Void +10) | ≥ 95 % on average, ≥ 85 % per class | as measured |
 
 No best-in-slot build kills him in under 0.4 × the earliest enrage. The B.2 build search at level 28 (item level 27) finds several distinct builds within 7 % for every class with no set in all of them, and every class's best build needs longer than at the tier III Gravewarden (`builds.test.ts`). His health is set so that the best builds take about as long as at tier III: more health made the hunter's top builds all Ashen Choir (its rot grows with fight length), so the Watch is harder through its earlier, harsher enrage instead.
+
+## The Tyrant's Forge (ticket 6.2)
+
+The Cinderwastes' region boss (`docs/WORLD.md` "The Cinder Depths and the Tyrant's Forge"), fought like the Ashen Warden: a **boss-only** run, a 30 s descent, then the Forge Tyrant. Same engine and rules as the crypt and the Watch (`simulateDungeonRun`: snapshot, server-only seed streams, the enrage window drawn per run from its own stream, claim with `Idempotency-Key`, one unclaimed run per account across every dungeon, the farming stopped while it runs, replay of the stored run for every view). Data: `DUNGEONS` entry `tyrantsForge` (one tier, "The Forge"), enemy `forgeTyrant`. Screen: `#/tyrant` (the map marker beside the Depths, and a link in the Depths' description); `forge` stays the town's Forge.
+
+- **Gate:** level 36 and the Ashen Warden slain (the Depths open), `409 dungeon_locked` with the blockers otherwise. No world flag yet (6.7's seam, as for the Depths).
+- **The boss:** level 40, physical damage, 1,500 + 400 per level above 1 (17,100 health), enrage drawn per run between **35 and 65 s** for **× 2** damage and × 1.4 attack speed, 150 s limit. XP 900 + 150 per level above 1 (6,750): a winning run pays 0.8–2.5 × the XP of farming the Depths for the same time (asserted).
+- **His mechanics** (`BossMechanics` on the tier, ticket 6.2; data, no random draws, so every seed stream and replay stays as it was, and no earlier boss has any):
+  - **Slag shell:** while he holds more than 70 % of his health, the hero's blows (and thorns) deal × 0.6. It breaks once (a `shellBroken` event, a log line): a damage check before the enrage window opens.
+  - **The hammer:** every third blow is a heavy one, × 4 (on top of the enrage; `enemyAttack` events carry `heavy: true`, a log line): a health check in every phase of the fight.
+- **Hoard** (its own 20 h cooldown, separate from the crypt's and the Watch's): 2 items from `forgeTyrant` (tier-4 bases at item level 39–41, affix bias 1.4, the late-game Legendary/set/Mythic/Void odds) with the Watch's rarity weights (uncommon 500 / rare 3000 / epic 3500 / legendary 700 / mythic 60), 1,400–2,000 gold, and **one Tyrant's Ember** (`bossDrops`). Loot focus *The Tyrant's anvil*: helms, chest pieces, gloves and boots × 2. Hoard items are stored with the source `hoard:tyrantsForge`, so they are **always bound** (T.1, `docs/TRADING.md`), whatever their rarity; the ember is never tradeable (`UNTRADEABLE_MATERIALS`).
+- **Progress:** a kill sets `characters.progress.forgeTyrantDefeated` (the dungeon's `bossProgress`; since 6.2 every dungeon names its flag and the claim reads it, so the crypt's and the Watch's are unchanged); it gates nothing yet and counts for PvE Progress 3. The state's `tierCleared` for the Forge is 1 once he fell. Telemetry dimensions `tyrantsForge:1`; quest event `bossDefeated` with `bossId: 'forgeTyrant'` (no quest uses it yet). The admin progress tool (D.4) sets and clears the flag on test accounts (`forgeTyrantDefeated`, optional in the request).
+
+**Balance** (`balance.test.ts` "the Forge Tyrant"; balance.test's kits at item level 33, the Verge's drops, 24 pinned seeds per class; warrior / mage / hunter / warlock, mean):
+
+| Gear (item level 33) | Level 36 | Level 37 | Level 38 | Level 40 | Asserted at 36 and 38 |
+|---|---|---|---|---|---|
+| rares +5, epics +5 | 0 % | 0 % | 0 % | 0 % | 0 % (the gear that farms the Verge) |
+| epics +10 | 0 % | 0 % | 0/0/0/4 % (1 %) | 13/0/0/25 % | mean ≤ 15 % |
+| Legendaries (with effects) | 50/0/88/0 % (34 %) | 35 % | 79/0/88/0 % (42 %) | 49 % | mean 20–60 %, above epics +10 |
+| Legendaries +5 | 92/0/100/88 % (70 %) | 71 % | 71 % | 73 % | mean 55–90 %, above +0 |
+| Legendaries +10 | 100/63/100/100 % (91 %) | 94 % | 100/79/100/100 % (95 %) | 97 % | mean ≥ 80 %, every class ≥ 50 % |
+| plain Legendaries +10 (no effects) | 100/38/100/92 % (82 %) | 83 % | 88 % | 90 % | mean 60–95 % |
+| at 40: every best-in-slot build in the Depths' drops (item level 39) | | | | ≥ 94 % per class | mean ≥ 95 %, each class ≥ 85 % |
+
+So good Verge gear beats him at 36–38, not trivially: upgraded Verge Legendaries win most runs, plain ones a third to a half, and nothing short of Legendaries wins. The mage (cloth against his physical blows) is the weakest class here, the hunter the strongest (as at the Watch); B.5 owns class balance. No best-in-slot build kills him in under 0.4 × the earliest enrage, and his shell breaks before every kill. He is harder than the Ashen Warden for the same kind of kit at each boss's entry (asserted). Measured with `tools/balance/cinder-depths.ts boss` too: the B.2 build search's best builds at item level 33 win every run at +5 and at +10 Void from 36 to 40, in 18–25 s (the warrior, mage and warlock) and 12–15 s (the hunter's Drowned Vigil with Ambush, 9 s at the fastest: below 0.4 × the earliest enrage, as that build was at the Watch; class balance is B.5's).
 
 ## Targeted loot (ticket 3.6)
 Each tier declares a **loot focus** (`LootFocus` on its chamber and boss tables, `CRYPT_LOOT_FOCI`), shown at the crypt door, so the player can farm toward a build: a slot group (bases of those slots weigh × `slotWeight`), a set (a set-piece roll picks only that set's pieces) and/or an effect family (those Legendary effects weigh × `effectWeight`). A focus only reweights draws the generator makes anyway, so the same item seed rolls the same rarity, item level, set/Mythic outcome and Void flag with or without it (`loot/focus.test.ts`), and every drop stays deterministic per kill stream and split-invariant. Measured (warrior with a Legendary kit at each tier's level, boss loot eligible, 3,000 runs):

@@ -42,7 +42,7 @@ const DAY_MS = 86_400_000;
  * Materials that can never be traded: Gravewarden's seals are boss loot and gate the Ashen Pass
  * project (TRADING.md "Contents").
  */
-export const UNTRADEABLE_MATERIALS: readonly MaterialId[] = ['gravewardenSeal'];
+export const UNTRADEABLE_MATERIALS: readonly MaterialId[] = ['gravewardenSeal', 'tyrantsEmber'];
 
 /**
  * Every named check, in the order they are run and listed. The party says whose fact it is:
@@ -64,6 +64,8 @@ export const TRADE_CHECKS = [
   'suspended',
   'muted',
   'trade_restricted',
+  // Ticket D.4: a test account (set by the admin CLI) never trades.
+  'test_account',
   // The other account's standing, when the caller may not learn which rule fails (the
   // eligibility endpoint, docs/TRADING.md "T.4 as built": one bit, never the reason).
   'them_not_eligible',
@@ -94,6 +96,7 @@ export const STANDING_CHECKS = [
   'suspended',
   'muted',
   'trade_restricted',
+  'test_account',
 ] as const satisfies readonly TradeCheckId[];
 export type StandingCheckId = (typeof STANDING_CHECKS)[number];
 
@@ -158,6 +161,8 @@ export interface TradeStanding {
   emailVerified: boolean;
   /** Kinds of the account's active sanctions at `now`. */
   sanctions: readonly SanctionKind[];
+  /** Ticket D.4: a test account (admin CLI). Absent = not one. */
+  testAccount?: boolean;
 }
 
 /**
@@ -276,6 +281,7 @@ export function standingRefusals(
   for (const check of ['suspended', 'muted', 'trade_restricted'] as const) {
     if (s.sanctions.some((k) => TRADE_SANCTION_CHECK[k] === check)) out.push({ check });
   }
+  if (s.testAccount === true) out.push({ check: 'test_account' });
   return out;
 }
 
@@ -398,6 +404,7 @@ export const TRADE_CHECK_TEXT: Readonly<Record<TradeCheckId, string>> = {
   suspended: 'Your account is suspended.',
   muted: 'You are muted: you can’t send or accept offers, but you can still cancel and decline.',
   trade_restricted: 'A moderator has restricted your trading.',
+  test_account: 'Test accounts can’t trade.',
   them_not_eligible: 'They can’t trade right now.',
   empty_offer: 'Put something into the offer, or ask for something.',
   kind_off: 'Trading of this kind is paused.',

@@ -246,6 +246,9 @@ describe('set piece generation', () => {
         'ashenPass',
         'ashenWarden',
         'ashfallVerge',
+        // Ticket 6.2: the Cinder Depths and the Forge Tyrant's hoard.
+        'cinderDepths',
+        'forgeTyrant',
       ];
       if (lateGame.some((id) => tableId.startsWith(id))) {
         // Ticket B.2: a third of the Legendary rolls (was half).

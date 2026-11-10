@@ -93,5 +93,10 @@ export const DEFAULT_PROFESSION_CONFIG: ProfessionConfig = {
       yields: [{ materialId: 'ironOre', chance: 0.07 }],
       undeadDrops: [{ materialId: 'soulShard', chance: 0.03 }],
     },
+    // Ticket 6.2: the Depths keep the Verge's materials (no new gathering material).
+    cinderDepths: {
+      yields: [{ materialId: 'ironOre', chance: 0.07 }],
+      undeadDrops: [{ materialId: 'soulShard', chance: 0.03 }],
+    },
   },
 };

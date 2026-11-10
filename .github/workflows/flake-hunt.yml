@@ -51,6 +51,11 @@ jobs:
               --sequence.shuffle.files --sequence.seed=$seed || { failed=1; echo "::error::run $i failed (seed $seed)"; }
             echo "::endgroup::"
           done
+          # Time-bomb guard (ticket F.6): once more with the wall clock a year ahead.
+          echo "::group::clock +400 days"
+          WF_CLOCK_SHIFT_DAYS=400 pnpm --filter @worldforge/server exec vitest run \
+            --shard=${{ matrix.shard }}/2 || { failed=1; echo "::error::clock +400 days failed"; }
+          echo "::endgroup::"
           exit $failed
 
   postgres:

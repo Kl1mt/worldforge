@@ -19,7 +19,9 @@ export type ProgressMilestone =
   /** The Ashen Warden fell to this hero (the Warden's Watch). */
   | { id: string; kind: 'ashenWarden'; name: string }
   /** Ticket 6.1: the area is open to the hero and the hero has reached this level. */
-  | { id: string; kind: 'areaLevel'; areaId: AreaId; level: number; name: string };
+  | { id: string; kind: 'areaLevel'; areaId: AreaId; level: number; name: string }
+  /** Ticket 6.2: the Forge Tyrant fell to this hero (the Tyrant's Forge). */
+  | { id: string; kind: 'forgeTyrant'; name: string };
 
 /** In order: what a hero meets on the way up. Data; a new place adds a line (and a version). */
 const MILESTONES_V1: readonly ProgressMilestone[] = [
@@ -36,28 +38,53 @@ const MILESTONES_V1: readonly ProgressMilestone[] = [
 ];
 
 /**
- * Every version's milestones (ticket 6.1), so stored rows of either version recompute. Version 2
- * adds the Cinderwastes: the Ashfall Verge reached (level 28 and the Warden), then holding its
- * middle and its top (the hero at level 31 and 34 with the Verge open): 13 milestones.
+ * Version 2 (ticket 6.1) adds the Cinderwastes: the Ashfall Verge reached (level 28 and the
+ * Warden), then holding its middle and its top (the hero at level 31 and 34 with the Verge open).
+ */
+const MILESTONES_V2: readonly ProgressMilestone[] = [
+  ...MILESTONES_V1,
+  { id: 'area:ashfallVerge', kind: 'area', areaId: 'ashfallVerge' },
+  {
+    id: 'verge:31',
+    kind: 'areaLevel',
+    areaId: 'ashfallVerge',
+    level: 31,
+    name: 'The Ashfall Verge, level 31',
+  },
+  {
+    id: 'verge:34',
+    kind: 'areaLevel',
+    areaId: 'ashfallVerge',
+    level: 34,
+    name: 'The Ashfall Verge, level 34',
+  },
+];
+
+/**
+ * Every version's milestones (ticket 6.1), so stored rows of any of them recompute. Version 2
+ * adds the Ashfall Verge (13 milestones); version 3 (ticket 6.2) the Cinder Depths reached (level
+ * 34 and the Warden), its middle (level 37), the Forge Tyrant defeated and its top (level 40): 17.
  */
 export const PVE_MILESTONES_BY_VERSION: Readonly<Record<number, readonly ProgressMilestone[]>> = {
   1: MILESTONES_V1,
-  2: [
-    ...MILESTONES_V1,
-    { id: 'area:ashfallVerge', kind: 'area', areaId: 'ashfallVerge' },
+  2: MILESTONES_V2,
+  3: [
+    ...MILESTONES_V2,
+    { id: 'area:cinderDepths', kind: 'area', areaId: 'cinderDepths' },
     {
-      id: 'verge:31',
+      id: 'depths:37',
       kind: 'areaLevel',
-      areaId: 'ashfallVerge',
-      level: 31,
-      name: 'The Ashfall Verge, level 31',
+      areaId: 'cinderDepths',
+      level: 37,
+      name: 'The Cinder Depths, level 37',
     },
+    { id: 'forge', kind: 'forgeTyrant', name: 'The Forge Tyrant defeated' },
     {
-      id: 'verge:34',
+      id: 'depths:40',
       kind: 'areaLevel',
-      areaId: 'ashfallVerge',
-      level: 34,
-      name: 'The Ashfall Verge, level 34',
+      areaId: 'cinderDepths',
+      level: 40,
+      name: 'The Cinder Depths, level 40',
     },
   ],
 };
@@ -108,6 +135,8 @@ function reached(m: ProgressMilestone, input: PveProgressInput): boolean {
       return cryptTierCleared(input.progress) >= m.tier;
     case 'ashenWarden':
       return input.progress.ashenWardenDefeated === true;
+    case 'forgeTyrant':
+      return input.progress.forgeTyrantDefeated === true;
     case 'areaLevel':
       return (
         input.level >= m.level &&

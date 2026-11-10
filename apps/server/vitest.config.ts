@@ -6,6 +6,8 @@ export default defineConfig({
   test: {
     include: ['src/**/*.test.ts'],
     environment: 'node',
+    // No-op unless `WF_CLOCK_SHIFT_DAYS` is set (time-bomb guard, ticket F.6).
+    setupFiles: ['../../tools/vitest/clock-shift.mjs'],
     // Each test file creates and migrates its own PGlite database in `beforeAll`. On a cold
     // container (WASM compile + migrations) that exceeded the 10 s default, so CI could flake.
     hookTimeout: 60_000,

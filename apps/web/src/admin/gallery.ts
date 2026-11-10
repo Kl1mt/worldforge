@@ -129,8 +129,8 @@ export function galleryCatalogue(): GalleryCatalogue {
     enemies: GUILD_BOSSES.map((b) => ({ ...enemyEntry(b.enemyId, true), key: b.id, name: b.name })),
   });
 
-  // Registered art the game doesn't place yet (e.g. the Forge Tyrant, waiting for ticket 6.2),
-  // and backdrops no area or dungeon uses (the arena, …).
+  // Registered art the game doesn't place yet (the Forge Tyrant was, until ticket 6.2), and
+  // backdrops no area or dungeon uses (the arena, …).
   const shownEnemies = new Set(groups.flatMap((g) => g.enemies.map((e) => e.assetId)));
   const shownBackdrops = new Set(groups.flatMap((g) => g.backdrops.map((b) => b.assetId)));
   const unplaced = registered('enemy').filter((id) => !shownEnemies.has(id));

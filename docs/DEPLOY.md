@@ -267,6 +267,34 @@ Everything there is audited on your account. To other players and moderators `/a
 
 The commit and build time come from `deploy/deploy.sh`, which passes them to the image build (`WORLDFORGE_GIT_SHA`, `WORLDFORGE_BUILD_TIME`); an image built another way shows "Not recorded".
 
+### Admin tools (ticket D.4)
+
+Two more admin tabs for testing and support. Everything is admin-only (`404` for everyone else), needs a reason, and writes an `admin.*` audit row on the player's account (who, what, before and after, the reason). Roles stay CLI-only: no tool can change one.
+
+- **Inspector** (`#/admin/inspect/<handle>`): search by handle or display name, then the whole account on one page: test-account flag, "email verified" yes/no (never the address), sessions, login lock, account shelf, every hero with level, gold, materials, professions, quests, progress, daily limits, holds, arena defence and every item by location (pack, worn, Warehouse, shelf, escrow), deleted heroes, sanctions, open offers and the recent audit trail. **View as player** shows a hero's sheet read-only (gear, pack, Warehouse, stats, unlocked areas): nothing there can change the game.
+- **Support tools** (any account): remove an item (from the pack, the gear, the Warehouse or the shelf; an item held after a trade or in an open offer is refused with the reason), refund or remove gold and materials (never below zero or into what is held after a trade), rename a hero, delete and restore a hero, log an account out everywhere, clear its login lock.
+- **Testing tools** (only on **test accounts** or on your own account): grant an item (base, rarity, item level, Void, upgrade level; set pieces and Mythics are particular bases) after a preview of exactly the item that will be created, grant gold, materials or XP, set the level, set boss progress (which opens areas and Crypt tiers), set professions, reset the daily limits (rated duels, contracts, the merchant's stock for that hero), complete or reset quests, and fast-forward a hero's farming by up to the offline cap through the normal settlement. On your own account that is not a test account the panel warns you first: what you do shows on public boards. Granted items are account-bound for good and never tradeable.
+- **World** tab: the world flags (e.g. `ashenPassCleared`) with set/unset (affects every player, so typed confirmation), and the scheduler: last and next tick, each job's last run, the season under way and the next, and how many deleted heroes are due for the purge.
+- **Destructive actions** (deleting a hero, removing an item, gold or materials, logging out everywhere, a world flag) open a full-view confirmation listing exactly what changes, and need the hero's name, the handle or the flag id typed.
+
+**Test accounts** are set only on the server:
+
+```
+deploy/admin.sh test-account <handle> on    # mark (handle from the inspector or the profile)
+deploy/admin.sh test-account <handle> off   # back to a normal account
+```
+
+A test account is hidden from every leaderboard, the season archive and so its awards, and the arena ladder; it is matched in the arena only against other test accounts; it can't trade; and its telemetry is left out of the balance report (it still counts in the reconciliation). Turning the flag off puts it back on the boards as its heroes stand.
+
+**Hero deletion** is a soft delete: the hero disappears for the player and is frozen, its farming is settled and stopped, its open trade offers are voided (escrow goes back), its shelf items move to another hero of the account (refused when there is none: take them off the shelf first), its arena defence and board rows go. Guild roles belong to the account and don't change. Within **14 days** the inspector can restore it (refused when every hero slot is taken). After that, remove it for good:
+
+```
+deploy/admin.sh purge --dry-run    # list heroes past the 14 days
+deploy/admin.sh purge              # delete them
+```
+
+A hero that a past trade still names is kept soft-deleted for good (the trade history stays complete); the purge reports it as kept. Locally: `pnpm admin:tools test-account <handle> on|off`, `pnpm admin:tools purge [--dry-run]`.
+
 ### Legal pages
 
 The Impressum (`/#/impressum`) and the privacy policy (`/#/datenschutz`) are linked in the footer of every screen and in the consent line under the register button. Their text is **yours**: the image ships placeholder templates (`content/legal/*.md` in the repository, marked "Platzhalter" and shown with a "Template" note) that list what you must fill in. They are not legal advice.

@@ -6,7 +6,7 @@ import type { GameRoute } from '../lib/route';
  * share one screen (`DungeonScreen`); only these lines differ.
  */
 export interface DungeonWords {
-  route: Extract<GameRoute, 'crypt' | 'watch'>;
+  route: Extract<GameRoute, 'crypt' | 'watch' | 'tyrant'>;
   /** "the crypt", in running text. */
   place: string;
   loading: string;
@@ -34,9 +34,23 @@ export interface DungeonWords {
   /** The boss's hoard on cooldown; `{when}` is the time it returns. */
   hoardBack: string;
   leaving: string;
+  /** Ticket 6.2: the boss in running text at the start of a sentence ("The warden"). */
+  bossShort: string;
+  /** Ticket 6.2: the way to the boss in a boss-only run ("the stair"). */
+  approach: string;
+  /** Ticket 6.2: the reckoning's line when the boss fell with his hoard. */
+  hoardWon: string;
+  /** Ticket 6.2: the reckoning's line when a boss-only run is lost. */
+  bossStands: string;
+  /** Ticket 6.2: the boss's own mechanics, a door fact (absent: none beyond the enrage). */
+  mechanics?: string;
   /** Log lines. */
   bossEnter: string;
   enrage: string;
+  /** Ticket 6.2: the boss's shell breaks (`shellBroken`); only bosses with a shell. */
+  shellBroken?: string;
+  /** Ticket 6.2: a heavy blow lands (`enemyAttack` with `heavy`); `{damage}` is the hit. */
+  heavyBlow?: string;
   won: string;
   lost: string;
   /** Another hero of the account is in this dungeon. */
@@ -69,6 +83,10 @@ export const DUNGEON_WORDS: Readonly<Record<DungeonId, DungeonWords>> = {
     hoardBack: 'The warden’s hoard returns {when}, at every depth. You can still fight it.',
     leaving:
       'Your hero leaves the fields while in the crypt. A fall keeps what you took on the way down.',
+    bossShort: 'The warden',
+    approach: 'the stair',
+    hoardWon: 'Its seal is yours, and its hoard with it.',
+    bossStands: 'The warden stands.',
     bossEnter: 'The Gravewarden’s chamber. The door grinds shut behind you.',
     enrage: 'The Gravewarden enrages! Its blows fall faster and harder.',
     won: 'The Gravewarden is no more. The crypt falls silent.',
@@ -98,11 +116,56 @@ export const DUNGEON_WORDS: Readonly<Record<DungeonId, DungeonWords>> = {
     hoard: 'The warden’s hoard: two items from his armoury and his purse, once per 20 hours.',
     hoardBack: 'The warden’s hoard returns {when}. You can still fight him.',
     leaving: 'Your hero leaves the fields while on the watch. A fall costs nothing but the climb.',
+    bossShort: 'The warden',
+    approach: 'the stair',
+    hoardWon: 'His hoard is yours.',
+    bossStands: 'The warden stands. A fall costs nothing but the climb.',
     bossEnter: 'The top of the watchtower. The Ashen Warden turns from his fire.',
     enrage: 'The Ashen Warden’s blade catches fire! His blows fall faster and harder.',
     won: 'The Ashen Warden falls. The fire on the tower goes out.',
     lost: 'The warden keeps his watch. You stumble down through the smoke.',
     otherHero: 'Another of your heroes is on the watch. Switch to them to finish that run.',
+  },
+  // Ticket 6.2: the Cinderwastes' region boss at the bottom of the Cinder Depths.
+  tyrantsForge: {
+    route: 'tyrant',
+    place: 'the forge',
+    loading: 'Descending through the slag…',
+    waiting:
+      'The Tyrant’s Forge. Its furnace roars at the bottom of the Depths; the Forge Tyrant works its anvil.',
+    inside: 'In the forge',
+    logTitle: 'Sparks from the furnace',
+    logEmpty: 'Heat rises from below. A hammer rings, slow and steady.',
+    doorTitle: 'Before you descend',
+    barredTitle: 'The furnace door is barred',
+    runTitle: 'In the forge',
+    runNote: 'The fight at the anvil plays out on its own.',
+    enter: 'Descend to the anvil',
+    entering: 'Descending…',
+    again: 'Descend again',
+    clearedLine: 'The hammer is still. The furnace burns low.',
+    fallenLine: 'Your hero has fallen back into the slag. The Tyrant returns to his anvil.',
+    reckoning: 'The forge’s reckoning',
+    wonTitle: 'The Forge Tyrant falls',
+    lostTitle: 'The Tyrant keeps his forge',
+    hoard:
+      'The Tyrant’s hoard: two pieces from his anvil, his purse and a Tyrant’s Ember, once per 20 hours. Hoard items are always bound to you.',
+    hoardBack: 'The Tyrant’s hoard returns {when}. You can still fight him.',
+    leaving:
+      'Your hero leaves the fields while in the forge. A fall costs nothing but the descent.',
+    bossShort: 'The Tyrant',
+    approach: 'the descent',
+    hoardWon: 'His ember is yours, and his hoard with it.',
+    bossStands: 'The Tyrant stands. A fall costs nothing but the descent.',
+    mechanics:
+      'His slag armour softens your blows until a third of his strength is gone, and every third swing of his hammer lands four times as hard.',
+    bossEnter: 'The furnace floor. The Forge Tyrant sets down his tongs and lifts his hammer.',
+    enrage: 'The furnace roars white! The Tyrant’s blows fall faster and harder.',
+    shellBroken: 'His slag armour cracks and falls away. Your blows bite now.',
+    heavyBlow: 'The Tyrant’s hammer comes down for {damage}!',
+    won: 'The Forge Tyrant falls across his anvil. The furnace dims.',
+    lost: 'The Tyrant keeps his forge. You crawl back up through the slag.',
+    otherHero: 'Another of your heroes is in the forge. Switch to them to finish that run.',
   },
 };
 
@@ -110,4 +173,5 @@ export const DUNGEON_WORDS: Readonly<Record<DungeonId, DungeonWords>> = {
 export const DUNGEON_OF_ROUTE = {
   crypt: 'namelessCrypt',
   watch: 'ashenWatch',
+  tyrant: 'tyrantsForge',
 } as const satisfies Record<DungeonWords['route'], DungeonId>;

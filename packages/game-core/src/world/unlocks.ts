@@ -46,6 +46,11 @@ export interface WorldProgress {
    * 6.1 it opens the Cinderwastes; absent on characters that never fought it.
    */
   ashenWardenDefeated?: boolean;
+  /**
+   * Ticket 6.2: the Forge Tyrant (the Tyrant's Forge) has fallen to this character. Gates nothing
+   * yet (PvE Progress counts it); absent on characters that never fought him.
+   */
+  forgeTyrantDefeated?: boolean;
 }
 
 /** The deepest crypt tier cleared (ticket 3.6); a pre-3.6 Gravewarden kill counts as tier I. */

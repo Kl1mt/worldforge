@@ -613,6 +613,16 @@
           "id": "ashfallVerge",
           "x": 46,
           "y": 14
+        },
+        {
+          "id": "cinderDepths",
+          "x": 34,
+          "y": 70
+        },
+        {
+          "id": "tyrantsForge",
+          "x": 122,
+          "y": 70
         }
       ]
     },

@@ -275,7 +275,13 @@ export async function lockOwnedCharacter(
   const [character] = await tx
     .select()
     .from(characters)
-    .where(and(eq(characters.id, characterId), eq(characters.accountId, accountId)))
+    .where(
+      and(
+        eq(characters.id, characterId),
+        eq(characters.accountId, accountId),
+        isNull(characters.deletedAt),
+      ),
+    )
     .for('no key update');
   if (!character) throw characterNotFound();
   const settled = await settleActivityTx(tx, characterId, activity, { touch: true });
@@ -369,7 +375,9 @@ export async function registerInventory(
           .select()
           .from(characters)
           .where(eq(characters.id, characterId));
-        if (!character || character.accountId !== accountId) throw characterNotFound();
+        if (!character || character.accountId !== accountId || character.deletedAt) {
+          throw characterNotFound();
+        }
         const items = await tx
           .select()
           .from(itemInstances)

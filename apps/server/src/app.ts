@@ -33,6 +33,7 @@ import { registerGuildChat } from './social/guild-chat.js';
 import { registerGuildBoss } from './guild-boss/routes.js';
 import { registerLegal, type LegalOptions } from './legal/routes.js';
 import { registerAdmin, type AdminOptions } from './admin/routes.js';
+import { SchedulerState, type SchedulerJob } from './admin/scheduler-state.js';
 import { registerCommunity } from './community/routes.js';
 import { registerWarehouse } from './warehouse/routes.js';
 import { registerShelf } from './shelf/routes.js';
@@ -61,6 +62,8 @@ declare module 'fastify' {
   interface FastifyInstance {
     /** Drizzle database. Route handlers use this (or a transaction from `withTransaction`). */
     db: Database;
+    /** Ticket D.4: what the scheduler last did (the admin panel's World tab). */
+    schedulerState: SchedulerState;
   }
 }
 
@@ -126,6 +129,7 @@ export function buildApp({
   app.decorate('settingsEvents', new SettingsEvents());
   app.decorate('sanctionEvents', new SanctionEvents());
   app.decorate('relationEvents', new RelationEvents());
+  app.decorate('schedulerState', new SchedulerState());
   registerErrorHandling(app);
   const activityOptions: ActivityOptions = { ...DEFAULT_ACTIVITY_OPTIONS, ...activity };
   const authNow = auth?.now ?? DEFAULT_AUTH_OPTIONS.now;
@@ -160,7 +164,11 @@ export function buildApp({
       await registerTradeOffers(api, activityOptions);
       await registerTradeModeration(api, activityOptions);
       await registerLegal(api, legal ?? {});
-      await registerAdmin(api, { gameNow: activityOptions.now, ...admin });
+      await registerAdmin(api, {
+        gameNow: activityOptions.now,
+        activity: activityOptions,
+        ...admin,
+      });
       await registerScores(api, activityOptions.now);
       await registerLeaderboards(api, { now: activityOptions.now, ...leaderboards });
       await registerSeasons(api, { now: activityOptions.now });
@@ -212,6 +220,10 @@ function registerSettlementScheduler(
 ): void {
   const intervalMs = options.settleIntervalMs;
   if (intervalMs <= 0) return;
+  const state = app.schedulerState;
+  state.intervalMs = intervalMs;
+  const done = (job: SchedulerJob, ok: boolean, detail: string | null = null) =>
+    state.record(job, options.now(), ok, detail);
   let timer: NodeJS.Timeout | undefined;
   let running = false;
   let lastPrune = 0;
@@ -220,11 +232,16 @@ function registerSettlementScheduler(
     timer = setInterval(() => {
       if (running) return;
       running = true;
+      state.tick(options.now());
       settleDueActivities(app.db, options, { olderThanMs: intervalMs })
         .then((n) => {
           if (n > 0) app.log.info({ settled: n }, 'scheduled settlement');
+          done('settlement', true, `settled ${n}`);
         })
-        .catch((err: unknown) => app.log.error({ err }, 'scheduled settlement failed'))
+        .catch((err: unknown) => {
+          done('settlement', false);
+          app.log.error({ err }, 'scheduled settlement failed');
+        })
         .then(async () => {
           // Expired idempotency keys (ticket 2.6): at most once an hour.
           const now = options.now();
@@ -236,8 +253,12 @@ function registerSettlementScheduler(
           const auth = await pruneAuthRows(app.db, authNow());
           if (auth.sessions > 0 || auth.tokens > 0)
             app.log.info(auth, 'pruned sessions and tokens');
+          done('pruning', true, `keys ${n}, sessions ${auth.sessions}, tokens ${auth.tokens}`);
         })
-        .catch((err: unknown) => app.log.error({ err }, 'idempotency and session pruning failed'))
+        .catch((err: unknown) => {
+          done('pruning', false);
+          app.log.error({ err }, 'idempotency and session pruning failed');
+        })
         .then(async () => {
           // Ticket 5.2: the leaderboard sweep (backfill, then a rotation over every hero).
           const out = await sweepLeaderboards(snapshotDeps(app), options.now(), {
@@ -246,21 +267,37 @@ function registerSettlementScheduler(
           });
           sweepCursor = out.cursor;
           if (out.updated > 0) app.log.info({ updated: out.updated }, 'leaderboard sweep');
+          done('leaderboardSweep', true, `refreshed ${out.refreshed}, updated ${out.updated}`);
         })
-        .catch((err: unknown) => app.log.error({ err }, 'leaderboard sweep failed'))
+        .catch((err: unknown) => {
+          done('leaderboardSweep', false);
+          app.log.error({ err }, 'leaderboard sweep failed');
+        })
         .then(async () => {
           // Ticket 5.3: the next season, then every ended season's archive and awards.
           const out = await runSeasonJobs(app.db, options.now(), authNow());
           if (out.created !== null || out.archived.length > 0 || out.awarded.length > 0)
             app.log.info(out, 'season jobs');
+          done(
+            'seasonJobs',
+            true,
+            `archived ${out.archived.length}, awarded ${out.awarded.length}`,
+          );
         })
-        .catch((err: unknown) => app.log.error({ err }, 'season jobs failed'))
+        .catch((err: unknown) => {
+          done('seasonJobs', false);
+          app.log.error({ err }, 'season jobs failed');
+        })
         .then(async () => {
           // Ticket T.5: offers past their 48 hours expire, holds past their 72 hours release.
           const out = await sweepTrades(app.db, authNow(), options);
           if (out.expired > 0 || out.released > 0) app.log.info(out, 'trade sweep');
+          done('tradeSweep', true, `expired ${out.expired}, released ${out.released}`);
         })
-        .catch((err: unknown) => app.log.error({ err }, 'trade sweep failed'))
+        .catch((err: unknown) => {
+          done('tradeSweep', false);
+          app.log.error({ err }, 'trade sweep failed');
+        })
         .finally(() => {
           running = false;
         });

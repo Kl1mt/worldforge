@@ -176,6 +176,21 @@ How to reproduce: `pnpm --filter @worldforge/server telemetry:simulate -- --days
 
 The Ashen Pass (`docs/WORLD.md`) pays more per hour than the Abbey's top for the gear that farms it: rares +5 earn 900–1,260 kill gold an hour at 24 (Abbey 22, same kit: 790–1,020), Legendary +10 kits 2,100–2,850 at 26. Its kills are slower (7–9 a minute), so its loot table multiplies kill gold by 1.6 (`goldMultiplier`; no other table is touched). It yields the upgrade track's materials: 27–36 iron ore and 3–5 soul shards an hour (the wraiths are undead), so the Pass feeds the +8 → +10 soul-shard step that bound Abbey farmers in B.2. The Ashen Warden's purse is 700–1,000 gold per hoard (20 h cooldown). Its merchant stock (item level 26) costs about 12 minutes (common) and 25 minutes (uncommon) of its kill gold. Forge costs are unchanged; B.3 measures the new income against the sinks with the realistic player.
 
+**The Cinder Depths (ticket 6.2).** Good Verge gear (plain Legendaries +10, item level 33) earns 2,400–4,600 kill gold an hour at 34 (more than the Verge's top with the same gear: kill gold × 3, `goldMultiplier`), and yields 34–43 iron ore and 3–5 soul shards an hour. Drops salvage and sell as any tier-4 item (rarity and item level); no new gathering material. The Forge Tyrant's purse is 1,400–2,000 gold per hoard (20 h cooldown).
+
+### The Tyrant's Forge: the ember and its sink (ticket 6.2)
+The Forge Tyrant's hoard holds one **Tyrant's Ember** (`tyrantsEmber`, epic boss material, never tradeable: `UNTRADEABLE_MATERIALS`), so at most one per hero per 20 hours. Its only use, and a modest one, is a Forge recipe:
+
+| Recipe | Tier | Level | Gold | Materials | Rarity | Item level |
+|---|---|---|---|---|---|---|
+| Tyrantforged Work | 4 | 36 | 3,000 | 1 Tyrant's Ember, 60 iron ore, 12 soul shards | rare 65, epic 35 (never below Rare) | the hero's level, at most 41 (`ForgeRecipe.maxItemLevel`) |
+
+- **What it buys:** a Cinderwastes (tier-4) piece **in the slot the player picks**, at the Depths' item levels. That is the targeting the hoard and the farming lack: the hoard's two items are random within its anvil focus. It never makes a Legendary, so it doesn't compete with the hoard or with farming for the top rarities; its value is a guaranteed Rare/Epic base to upgrade in a slot the hero still lacks.
+- **What it costs:** the ember (one hoard), about 0.7–1.3 h of Depths kill gold, 1.5–2 h of Depths ore and 2.5–4 h of soul shards. It sits beside the +10 upgrade track (which keeps absorbing gold and ore) instead of replacing it.
+- **Crafted items** follow the T.1 table like every craft (by rarity: an Epic is bind-on-equip and tradeable only when the switches allow it). The ember itself never leaves the hero.
+- **No change elsewhere:** the earlier recipes keep their uncapped item level (only this recipe sets `maxItemLevel`); every Forge price and path is unchanged. A use in Item Awakening (6.5) is optional and later.
+- **Tested:** `economy.test.ts` (rarities, the item-level cap, the ember blocker, older recipes uncapped), `world/cinder-depths.test.ts` (the craft through the API spends exactly one ember, 3,000 gold, 60 ore and 12 shards and makes a tier-4 piece in the chosen slot; refused without the ember), the journey step (`playCinderDepthsStep`: the hoard's ember is spent on it).
+
 ## Balance pass: top end & social economy (ticket B.3)
 The owner's playtest feedback had not arrived (`docs/PLAYTEST_FEEDBACK.md` is still the template), so B.3 balances on simulations and telemetry. Top end: `docs/COMBAT.md` "The top end, checked" and `docs/DUNGEONS.md` "Tier III is the Legendary tier"; projects: `docs/COMMUNITY.md` "How long a stage takes"; guild boss: `docs/GUILD_BOSS.md` "Ticket B.3".
 

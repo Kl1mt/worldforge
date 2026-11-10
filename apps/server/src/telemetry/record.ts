@@ -1,5 +1,5 @@
-import { sql } from 'drizzle-orm';
-import { telemetryDaily } from '../db/schema.js';
+import { and, eq, inArray, sql } from 'drizzle-orm';
+import { accounts, telemetryDaily, telemetryDailyTest } from '../db/schema.js';
 import type { Executor, Transaction } from '../db/types.js';
 
 /**
@@ -59,6 +59,8 @@ export const TELEMETRY_METRICS = [
   'trade.items',
   // Ticket T.6: reversed trades (gift or swap; amount = items moved back).
   'trade.reverse',
+  // Ticket D.4: admin-tool items (`grant` or `remove`, rarity; amount = items).
+  'admin.item',
 ] as const;
 export type TelemetryMetric = (typeof TELEMETRY_METRICS)[number];
 
@@ -102,6 +104,24 @@ interface Pending {
 
 const SEP = '\u0000';
 const pending = new WeakMap<object, Map<string, Pending>>();
+/** Ticket D.4: the accounts a transaction's audit rows named (`writeAudit` notes them). */
+const auditedAccounts = new WeakMap<object, Set<string>>();
+
+/**
+ * Ticket D.4: called by `writeAudit` for every row it writes. At flush, a transaction that named a
+ * test account (`accounts.is_test`) writes its counts to `telemetry_daily_test`: the balance
+ * report leaves test play out, while the reconciliation sums both tables against the whole audit
+ * log, so it balances whatever the flag was when the rows were written.
+ */
+export function noteTelemetryAccount(executor: object, accountId: string | null | undefined) {
+  if (!accountId) return;
+  let set = auditedAccounts.get(executor);
+  if (!set) {
+    set = new Set();
+    auditedAccounts.set(executor, set);
+  }
+  set.add(accountId);
+}
 
 /** Adds counts to the transaction's pending rollups (written by `flushTelemetry`). */
 export function recordTelemetry(
@@ -152,21 +172,26 @@ export function pendingTelemetry(tx: Executor): Pending[] {
 export async function flushTelemetry(tx: Executor): Promise<void> {
   const rows = pendingTelemetry(tx);
   pending.delete(tx);
+  const named = auditedAccounts.get(tx);
+  auditedAccounts.delete(tx);
   if (rows.length === 0) return;
+  let table: typeof telemetryDaily | typeof telemetryDailyTest = telemetryDaily;
+  if (named && named.size > 0) {
+    const [test] = await tx
+      .select({ id: accounts.id })
+      .from(accounts)
+      .where(and(inArray(accounts.id, [...named]), eq(accounts.isTest, true)))
+      .limit(1);
+    if (test) table = telemetryDailyTest;
+  }
   await tx
-    .insert(telemetryDaily)
+    .insert(table)
     .values(rows)
     .onConflictDoUpdate({
-      target: [
-        telemetryDaily.day,
-        telemetryDaily.metric,
-        telemetryDaily.dim1,
-        telemetryDaily.dim2,
-        telemetryDaily.dim3,
-      ],
+      target: [table.day, table.metric, table.dim1, table.dim2, table.dim3],
       set: {
-        events: sql`${telemetryDaily.events} + excluded.events`,
-        amount: sql`${telemetryDaily.amount} + excluded.amount`,
+        events: sql`${table.events} + excluded.events`,
+        amount: sql`${table.amount} + excluded.amount`,
       },
     });
 }

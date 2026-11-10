@@ -8,6 +8,8 @@ export const GAME_ROUTES = [
   'crypt',
   // Ticket 4.8: the Warden's Watch (the Ashen Pass's boss).
   'watch',
+  // Ticket 6.2: the Tyrant's Forge (the Cinderwastes' region boss). `forge` is the town's Forge.
+  'tyrant',
   'character',
   'inventory',
   'tavern',
@@ -106,6 +108,9 @@ export function profileHref(handle?: string): string {
 export const ADMIN_SECTIONS = [
   'invites',
   'players',
+  // Ticket D.4: the account inspector (`#/admin/inspect/<handle>`) and the world flags/scheduler.
+  'inspect',
+  'world',
   'telemetry',
   'seasons',
   'trading',

@@ -67,6 +67,15 @@ export const ASHEN_WARDEN_FOCUS = {
   slotWeight: 3,
 } as const satisfies LootFocus;
 
+/** Ticket 6.2: the loot focus of the Forge Tyrant's hoard (docs/DUNGEONS.md, "The Tyrant's Forge"). */
+export const FORGE_TYRANT_FOCUS = {
+  id: 'forge-tyrant',
+  name: 'The Tyrant’s anvil',
+  description: 'Helms, chest pieces, gloves and boots drop twice as often.',
+  slots: ['head', 'chest', 'hands', 'feet'],
+  slotWeight: 2,
+} as const satisfies LootFocus;
+
 /**
  * Loot tables of the Phase 2 areas and dungeon (ticket 2.1). Higher areas shift the weight to
  * higher tiers; each base is still gated by its `minItemLevel`. The item-level range is the
@@ -182,6 +191,20 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
     itemLevel: { min: 29, max: 35 },
     entries: tierEntries({ 4: 1 }),
   },
+  // Ticket 6.2: the Cinder Depths (levels 34–40). The Verge's table one band higher: tier-4 bases,
+  // item levels 35–41 (more tier-5 affixes), the same late-game odds and affix bias.
+  {
+    id: 'cinderDepths',
+    affixTierBias: 1,
+    goldMultiplier: 3,
+    mythics: true,
+    setShare: SET_SHARE,
+    legendaryWeight: LEGENDARY_WEIGHT,
+    voidChance: VOID_CHANCE,
+    itemDropChance: 0.06,
+    itemLevel: { min: 35, max: 41 },
+    entries: tierEntries({ 4: 1 }),
+  },
 ];
 
 const BOSS_EXCLUSIVE: readonly LootTableEntry[] = [
@@ -245,5 +268,19 @@ export const BOSS_LOOT_TABLES: readonly LootTableDefinition[] = [
     itemLevel: { min: 27, max: 29 },
     entries: tierEntries({ 3: 1 }),
     focus: ASHEN_WARDEN_FOCUS,
+  },
+  // Ticket 6.2: the Forge Tyrant's hoard (the Tyrant's Forge). Tier-4 bases at the Depths' top
+  // item levels (39–41), the best affix bias, and his anvil as the loot focus: armour pieces.
+  {
+    id: 'forgeTyrant',
+    affixTierBias: 1.4,
+    mythics: true,
+    setShare: SET_SHARE,
+    legendaryWeight: LEGENDARY_WEIGHT,
+    voidChance: VOID_CHANCE,
+    itemDropChance: 1,
+    itemLevel: { min: 39, max: 41 },
+    entries: tierEntries({ 4: 1 }),
+    focus: FORGE_TYRANT_FOCUS,
   },
 ];

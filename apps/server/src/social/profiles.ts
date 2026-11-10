@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { and, asc, eq, inArray, isNotNull, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import {
   ACHIEVEMENT_IDS,
   EQUIPMENT_SLOT_IDS,
@@ -206,7 +206,7 @@ export async function profileView(
   const heroes = await executor
     .select()
     .from(characters)
-    .where(eq(characters.accountId, owner.id))
+    .where(and(eq(characters.accountId, owner.id), isNull(characters.deletedAt)))
     .orderBy(asc(characters.createdAt), asc(characters.id));
   const hidden = self
     ? new Set<string>()
@@ -439,7 +439,7 @@ async function settingsView(executor: Executor, account: Account) {
   const heroes = await executor
     .select({ id: characters.id, name: characters.name })
     .from(characters)
-    .where(eq(characters.accountId, account.id))
+    .where(and(eq(characters.accountId, account.id), isNull(characters.deletedAt)))
     .orderBy(asc(characters.createdAt), asc(characters.id));
   const earned = await executor
     .select()
@@ -586,6 +586,7 @@ export async function registerProfiles(app: FastifyInstance): Promise<void> {
               and(
                 sql`${characters.id}::text = ${body.showcaseCharacterId}`,
                 eq(characters.accountId, account.id),
+                isNull(characters.deletedAt),
               ),
             );
           if (!hero) {

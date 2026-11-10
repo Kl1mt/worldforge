@@ -32,6 +32,7 @@ import {
   seasonViewSchema,
 } from '../leaderboards/routes.js';
 import { ratingView, type RatingView } from './rating.js';
+import { notTestOrDeleted } from '../admin/eligibility.js';
 
 /**
  * The arena ladder (ticket 5.6, docs/PVP.md "The ladder"): a season's rated heroes by rating, next
@@ -49,7 +50,8 @@ import { ratingView, type RatingView } from './rating.js';
 
 const notSanctioned = (now: Date) =>
   sql`not exists (select 1 from sanctions s
-    where s.subject_id = e.account_id and s.lifted_at is null and s.expires_at > ${now.toISOString()}::timestamptz)`;
+    where s.subject_id = e.account_id and s.lifted_at is null and s.expires_at > ${now.toISOString()}::timestamptz)
+    and ${notTestOrDeleted}`;
 
 /** The ladder's order over `arena_ratings e`. */
 const LADDER_ORDER = sql`e.rating desc, e.games desc, e.last_rated_at asc, e.character_id asc`;

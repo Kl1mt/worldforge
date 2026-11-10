@@ -32,6 +32,7 @@ import { withTransaction } from '../db/transaction.js';
 import type { Database, Executor, Transaction } from '../db/types.js';
 import { writeAudit } from '../db/audit.js';
 import { ApiError } from '../errors.js';
+import { notTestOrDeleted } from '../admin/eligibility.js';
 
 /**
  * Seasons and prestige awards (ticket 5.3, docs/LEADERBOARDS.md "Seasons" and "Prestige rewards").
@@ -339,7 +340,8 @@ export async function ensureNextSeason(db: Database, now: Date): Promise<Season 
 /** An account with an active sanction of any kind (the boards' rule, 5.2) at `at`. */
 const notSanctioned = (at: Date) =>
   sql`not exists (select 1 from sanctions s
-    where s.subject_id = e.account_id and s.lifted_at is null and s.expires_at > ${at.toISOString()}::timestamptz)`;
+    where s.subject_id = e.account_id and s.lifted_at is null and s.expires_at > ${at.toISOString()}::timestamptz)
+    and ${notTestOrDeleted}`;
 
 /** Season rows that are on the board: the score rose during the season. */
 export const roseInSeason = sql`(e.base_sort_key is null or e.sort_key > e.base_sort_key)`;

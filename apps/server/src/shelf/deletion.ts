@@ -1,4 +1,4 @@
-import { and, asc, eq, ne } from 'drizzle-orm';
+import { and, asc, eq, isNull, ne } from 'drizzle-orm';
 import { characters, itemInstances } from '../db/schema.js';
 import type { Transaction } from '../db/types.js';
 import { writeAudit } from '../db/audit.js';
@@ -44,7 +44,14 @@ export async function rehomeShelfItemsForDeletion(
   const [heir] = await tx
     .select({ id: characters.id })
     .from(characters)
-    .where(and(eq(characters.accountId, accountId), ne(characters.id, characterId)))
+    .where(
+      and(
+        eq(characters.accountId, accountId),
+        ne(characters.id, characterId),
+        // Ticket D.4: never a soft-deleted hero.
+        isNull(characters.deletedAt),
+      ),
+    )
     .orderBy(asc(characters.createdAt), asc(characters.id))
     .limit(1)
     .for('update');

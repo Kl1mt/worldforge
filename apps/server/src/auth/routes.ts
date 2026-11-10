@@ -43,6 +43,7 @@ import {
   createLoginThrottle,
   throttleKey,
   type KeyedLimit,
+  type LoginThrottle,
   type LoginThrottleLimit,
 } from './login-throttle.js';
 import { VERIFY_TOKEN_TTL_MS, issueToken } from './tokens.js';
@@ -54,6 +55,13 @@ import {
   validateRegistration,
   type RegistrationInput,
 } from './validation.js';
+
+declare module 'fastify' {
+  interface FastifyInstance {
+    /** Ticket 5.7's per-account login throttle (in memory); D.4's admin tools clear a lock. */
+    loginThrottle: LoginThrottle;
+  }
+}
 
 export const SESSION_COOKIE = 'wf_session';
 /** The cookie is only needed by the API, so the browser never sends it for static files. */
@@ -315,6 +323,9 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
       recordTelemetry(tx, now(), [{ metric: 'auth.login', dims: [outcome] }]);
     });
   app.decorate('authNow', now);
+  // Ticket D.4: the admin panel's "clear login lock" (it computes the key from the stored email
+  // server-side; the address never leaves the server).
+  app.decorate('loginThrottle', throttle);
   app.decorate('socialWriteLimit', createSocialWriteLimiter(options.socialWriteLimit, now));
   app.decorate('tradeWriteLimit', createTradeWriteLimiter(options.tradeWriteLimit, now));
   const seen = createPresenceRecorder(

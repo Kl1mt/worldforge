@@ -130,6 +130,20 @@ export const accounts = pgTable(
      * any hero of the account. Written only under the account's shelf lock.
      */
     shelfGold: bigint('shelf_gold', { mode: 'number' }).notNull().default(0),
+    /**
+     * Ticket D.4 (docs/DEPLOY.md "Admin tools"): a test account. Set **only** by the CLI
+     * (`pnpm admin:tools test-account <handle> on|off`). Hidden from every board and season award,
+     * never offered in arena matchmaking, can't trade, and its telemetry goes to
+     * `telemetry_daily_test` (out of the balance report, still in the reconciliation). The admin
+     * panel's cheat tools work only on test accounts (or the admin's own account).
+     */
+    isTest: boolean('is_test').notNull().default(false),
+    /**
+     * Ticket D.4: an admin's "reset daily limits" on a test account. Rated duels fought on
+     * `duel_reset_day` up to the reset (`duel_reset_count`) no longer count toward that day's limit.
+     */
+    duelResetDay: text('duel_reset_day'),
+    duelResetCount: integer('duel_reset_count').notNull().default(0),
     ...timestamps,
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -279,11 +293,30 @@ export const characters = pgTable(
     warehouseLevel: integer('warehouse_level').notNull().default(0),
     /** Optimistic-concurrency counter for later value-changing writes. */
     version: integer('version').notNull().default(0),
+    /**
+     * Ticket D.4 (docs/TRADING.md "Hero deletion"): soft-deleted by an admin. While set the hero is
+     * hidden from its player and from every list, board and matchmaking, and frozen (no activity,
+     * every hero route answers `404`). An admin can restore it within 14 days; after that the
+     * CLI's `purge` deletes the row. Null = a live hero.
+     */
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+    /** The admin who deleted it (`set null` when that account goes). */
+    deletedBy: uuid('deleted_by').references((): AnyPgColumn => accounts.id, {
+      onDelete: 'set null',
+    }),
+    /** The admin's reason, required with `deleted_at`. */
+    deleteReason: text('delete_reason'),
+    /** What the deletion changed that a restore can bring back (`HeroDeletionState`). */
+    deletion: jsonb('deletion').$type<HeroDeletionState>(),
     ...timestamps,
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [
     index('characters_account_id_idx').on(t.accountId),
+    index('characters_deleted_at_idx')
+      .on(t.deletedAt)
+      .where(sql`${t.deletedAt} is not null`),
+    check('characters_deleted_check', sql`(${t.deletedAt} is null) = (${t.deleteReason} is null)`),
     uniqueIndex('characters_name_lower_key').on(sql`lower(${t.name})`),
     check('characters_level_check', sql`${t.level} >= 1`),
     check('characters_experience_check', sql`${t.experience} >= 0`),
@@ -1006,6 +1039,43 @@ export const telemetryDaily = pgTable(
   (t) => [
     primaryKey({ columns: [t.day, t.metric, t.dim1, t.dim2, t.dim3] }),
     check('telemetry_daily_events_check', sql`${t.events} >= 0`),
+  ],
+);
+
+/**
+ * Ticket D.4: what a hero's soft delete put aside, for a restore. The arena defence row as it was
+ * (the snapshot, bracket and Power); whether the hero was the account's active and showcase hero.
+ */
+export interface HeroDeletionState {
+  defence: Record<string, unknown> | null;
+  wasActive: boolean;
+  wasShowcase: boolean;
+  /** The area it was farming in (the activity is ended; the player starts it again). */
+  activityAreaId: string | null;
+  offersVoided: number;
+  shelfItemsRehomed: number;
+  leaderboardRowsRemoved: number;
+}
+
+/**
+ * Ticket D.4: telemetry of test accounts (`accounts.is_test`), the same shape as `telemetry_daily`.
+ * A transaction whose audit rows name a test account flushes here instead, so the balance report
+ * never sees test play while `reconcileWithAudit` (which sums both tables) still balances.
+ */
+export const telemetryDailyTest = pgTable(
+  'telemetry_daily_test',
+  {
+    day: date('day', { mode: 'string' }).notNull(),
+    metric: text('metric').notNull(),
+    dim1: text('dim1').notNull().default(''),
+    dim2: text('dim2').notNull().default(''),
+    dim3: text('dim3').notNull().default(''),
+    events: bigint('events', { mode: 'number' }).notNull().default(0),
+    amount: bigint('amount', { mode: 'number' }).notNull().default(0),
+  },
+  (t) => [
+    primaryKey({ columns: [t.day, t.metric, t.dim1, t.dim2, t.dim3] }),
+    check('telemetry_daily_test_events_check', sql`${t.events} >= 0`),
   ],
 );
 

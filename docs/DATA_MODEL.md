@@ -98,7 +98,7 @@ Written only by `pnpm admin:invite` (create, revoke) and by registration in `REG
 | experience     | bigint      | default 0, `CHECK (>= 0)`; within the current level |
 | gold           | bigint      | default 0, `CHECK (>= 0)`                        |
 | farm_state     | jsonb?      | `{ seedSecret, cycleIndex, health, areaId? }` saved when the character's activity ends and restored when it starts again (ticket 1.9), so stop → start neither heals nor re-rolls. `areaId` (ticket 2.2) is the area of a cycle left unfinished by the stop; the next start replays that cycle there before travelling on. Never sent to clients |
-| progress       | jsonb       | game-core `WorldProgress`, default `{"gravewardenDefeated": false}` (ticket 2.2). Unlock facts besides the level; written only by the server (the Gravewarden kill arrives with ticket 2.5). Ticket 3.6 adds `cryptTierCleared` (the deepest crypt tier cleared; absent before it, and a Gravewarden kill counts as tier I). Ticket 4.8 adds `ashenWardenDefeated` (set by a Warden's Watch kill; absent until then; no migration) |
+| progress       | jsonb       | game-core `WorldProgress`, default `{"gravewardenDefeated": false}` (ticket 2.2). Unlock facts besides the level; written only by the server (the Gravewarden kill arrives with ticket 2.5). Ticket 3.6 adds `cryptTierCleared` (the deepest crypt tier cleared; absent before it, and a Gravewarden kill counts as tier I). Ticket 4.8 adds `ashenWardenDefeated` (set by a Warden's Watch kill; absent until then; no migration). Ticket 6.2 adds `forgeTyrantDefeated` (set by a Tyrant's Forge kill, the dungeon's `bossProgress`; absent until then; no migration). `dungeon_runs.dungeon_id` gains `tyrantsForge` and `character_materials` the material `tyrantsEmber` (text columns, no migration) |
 | warehouse_level | integer    | 4.7 (migration `0024_warehouse`). Warehouse upgrades bought, default 0, `CHECK (>= 0)`; capacity is game-core `warehouseCapacity(level)`. Written only by `POST …/warehouse/upgrade` under the character lock |
 | loot_filter    | jsonb?      | game-core `LootFilterRules` (ticket 3.7, migration `0014_loot_filter`); null = no filter. Written only by `POST …/loot-filter` (validated, after settling with the old rules); read under the character lock by settlement and the crypt claim (`docs/LOOT.md` "Loot filter"). Stamps no game time |
 | version        | integer     | default 0; optimistic concurrency counter for later value-changing writes |
@@ -513,6 +513,13 @@ account 1─* community_contributions *─1 community_projects 1─* community_p
 character 1─* merchant_purchases
 season 1─* season_entries, season_standings *─1 character; season 1─* season_awards *─1 account 1─0..1 prestige_displays
 ```
+
+### accounts.is_test, duel_reset_*; characters.deleted_*; telemetry_daily_test — implemented (D.4)
+Migration `0036_admin_tools` (additive, no backfill).
+- `accounts.is_test` (default false): a test account, set only by the CLI (`deploy/admin.sh test-account`). Read at read time by the boards, the season archive and the arena ladder (`admin/eligibility.ts`), matchmaking, trading's standing and the telemetry flush.
+- `accounts.duel_reset_day`, `duel_reset_count`: an admin's daily reset on a test account; rated duels counted so far on that duel day are forgiven by `ratedDuelsOn`.
+- `characters.deleted_at`, `deleted_by` (admin, `set null`), `delete_reason` (check: set together with `deleted_at`), `deletion` (jsonb `HeroDeletionState`: the withdrawn defence row, whether it was the active or showcase hero, the area it farmed, counts of voided offers, rehomed shelf items and removed board rows), partial index `characters_deleted_at_idx`. A soft-deleted hero keeps its name reserved and doesn't count toward the account's slots.
+- `telemetry_daily_test`: the same shape and key as `telemetry_daily`, for test accounts (docs/TELEMETRY.md).
 
 ## Open questions
 - ~~Single `item_location` table vs. separate `equipment` / `inventory_entry`~~ Decided: a nullable `equipped_slot` column on `item_instances`.

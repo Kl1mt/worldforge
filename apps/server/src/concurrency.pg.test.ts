@@ -48,6 +48,7 @@ import type { DatabaseHandle } from './db/types.js';
 import { uuidv7 } from './db/uuid.js';
 import { createPostgresTestDatabase } from './test/db.js';
 import { makeCryptReady } from './test/dungeon.js';
+import { isPackItem } from './inventory/location.js';
 import { recordQuestEventsTx } from './quests/store.js';
 import { loadRollups, reconcileWithAudit, sumRollups } from './telemetry/report.js';
 
@@ -1059,7 +1060,26 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
       expect(results[0]!.statusCode).toBe(201);
       // A settle after the entry finds no activity (409); one before it settles normally.
       for (const r of results.slice(1, 3)) expect([200, 409]).toContain(r.statusCode);
-      expect(results.slice(3).map((r) => r.statusCode)).toEqual([200, 200, 200, 200]);
+      // The sell and the turn-in (no item reward) always go through. The buy and the craft each
+      // add an item, so they go through unless the hour's drops filled the pack first: about 1
+      // hero in 1,000 ends the hour at the 60-slot capacity (F.6, Flake hunt 2026-11-10). Then
+      // the refusal must be `inventory_full`, and the pack must really have been full: after a
+      // refusal only the sell can free a slot, so the pack ends at most one below capacity.
+      const [sell, buy, craft, turnIn] = results.slice(3);
+      expect([sell!.statusCode, turnIn!.statusCode]).toEqual([200, 200]);
+      const refused = [buy!, craft!].filter((r) => r.statusCode !== 200);
+      for (const r of refused) {
+        expect(r.statusCode, r.body).toBe(422);
+        expect(r.json<{ error: { code: string } }>().error.code).toBe('inventory_full');
+      }
+      if (refused.length > 0) {
+        const capacity = DEFAULT_ACTIVITY_OPTIONS.rules.inventory.capacity;
+        const items = await database.db
+          .select()
+          .from(itemInstances)
+          .where(eq(itemInstances.characterId, id));
+        expect(items.filter(isPackItem).length).toBeGreaterThanOrEqual(capacity - 1);
+      }
 
       const after = await holdings(id);
       const audit = await ledger(id);

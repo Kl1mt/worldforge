@@ -28,6 +28,8 @@ import { daysLeft, seasonSpan, type SeasonView } from '../social/seasons';
 import { DEFAULT_SEASON_WEEKS, seasonName } from '@worldforge/game-core';
 import { TradingSettingsFolio } from './TradingSettingsFolio';
 import { TradeDesk } from './TradeDesk';
+import { AdminInspector } from './AdminInspector';
+import { AdminWorld } from './AdminWorld';
 import { AnimationGallery } from '../admin/AnimationGallery';
 import './gate.css';
 import './admin.css';
@@ -35,6 +37,8 @@ import './admin.css';
 const SECTION_LABELS: Record<AdminSection, { label: string; hint: string }> = {
   invites: { label: 'Invites', hint: 'Who may join' },
   players: { label: 'Players', hint: 'Look someone up' },
+  inspect: { label: 'Inspector', hint: 'Support & testing' },
+  world: { label: 'World', hint: 'Flags & scheduler' },
   telemetry: { label: 'Telemetry', hint: 'Loot & economy' },
   seasons: { label: 'Seasons', hint: 'Rolls & honours' },
   trading: { label: 'Trading', hint: 'Switches & limits' },
@@ -173,6 +177,8 @@ export function AdminScreen() {
       <div className="strong__folio">
         {loc.section === 'invites' ? <InvitesFolio /> : null}
         {loc.section === 'players' ? <PlayersFolio handle={loc.arg} /> : null}
+        {loc.section === 'inspect' ? <AdminInspector handle={loc.arg} /> : null}
+        {loc.section === 'world' ? <AdminWorld /> : null}
         {loc.section === 'telemetry' ? <TelemetryFolio /> : null}
         {loc.section === 'seasons' ? <SeasonsFolio /> : null}
         {loc.section === 'trading' ? <TradingSettingsFolio /> : null}
@@ -646,7 +652,8 @@ function PlayerFileView({ handle }: { handle: string }) {
           {p.displayName}
         </h2>
         <p className="dossier__sub">
-          @{p.handle} · <a href={`#/profile/${p.handle}`}>Public profile</a>
+          @{p.handle} · <a href={`#/profile/${p.handle}`}>Public profile</a> ·{' '}
+          <a href={adminHref('inspect', p.handle)}>Open in inspector</a>
         </p>
       </header>
       <dl className="dossier__facts">

@@ -79,7 +79,7 @@ describe('formula versions between seasons (ticket 6.1)', () => {
     const plan = await loadFormulaSchedule(db());
     expect(plan.map((s) => [s.metric, s.from, s.to, s.afterSeason])).toEqual([
       ['power', 1, 2, 1],
-      ['pveProgress', 1, 2, 1],
+      ['pveProgress', 1, FORMULA_VERSIONS.pveProgress, 1],
     ]);
     // Planning again (another instance, a restart) adds nothing and audits once.
     expect((await ensureFormulaSchedule(db(), now())).added).toEqual([]);
@@ -136,24 +136,105 @@ describe('formula versions between seasons (ticket 6.1)', () => {
     nowMs = seasonEnd.getTime();
     expect(await app.formulaVersions.at(now())).toEqual(FORMULA_VERSIONS);
     // Version-1 rows are not shown any more; the check calls them outdated until the sweep runs.
-    expect((await board()).formulaVersion).toBe(2);
+    expect((await board()).formulaVersion).toBe(FORMULA_VERSIONS.pveProgress);
     const outdated = await checkLeaderboards(deps(), 200, now());
     expect(outdated.problems.filter((p) => p.kind === 'outdated').length).toBe(4);
     const swept = await sweepLeaderboards(deps(), now(), { batch: 50, cursor: null });
     expect(swept.updated).toBe(2);
     const v2 = await row('pveProgress');
-    expect(v2.formulaVersion).toBe(2);
-    expect(v2.value).toBe(13);
-    // The recomputed value is game-core's on the stored input, at version 2.
-    expect(computeScore('pveProgress', v2.input, 2).sortKey).toEqual(v2.sortKey);
+    expect(v2.formulaVersion).toBe(FORMULA_VERSIONS.pveProgress);
+    // Ticket 6.2: version 3 also counts the Cinder Depths, open at 34 (14 of 17).
+    expect(v2.value).toBe(14);
+    // The recomputed value is game-core's on the stored input, at the version in force.
+    expect(computeScore('pveProgress', v2.input, v2.formulaVersion).sortKey).toEqual(v2.sortKey);
     // A version-only change keeps when the hero got there.
     expect(v2.achievedAt).toEqual(v1.achievedAt);
     expect((await row('power')).formulaVersion).toBe(2);
     expect((await row('power')).value).toBeGreaterThanOrEqual(0);
     expect((await checkLeaderboards(deps(), 200, now())).problems).toEqual([]);
-    expect((await board()).entries.find((e) => e.you && e.hero.level === 34)?.value).toBe(13);
+    expect((await board()).entries.find((e) => e.you && e.hero.level === 34)?.value).toBe(14);
     // Season 1 ended on version 1: its row keeps the standing it ended with.
     expect(await seasonRow()).toMatchObject({ formulaVersion: 1, value: 10 });
+  });
+
+  it('6.2: after 6.1’s plan, PvE Progress 3 waits for the season under way, then recomputes', async () => {
+    const fresh = await createTestDatabase();
+    let t = Date.parse('2026-12-01T12:00:00Z');
+    const at = () => new Date(t);
+    const app2 = buildApp({
+      database: fresh,
+      auth: { now: at },
+      activity: { ...DEFAULT_ACTIVITY_OPTIONS, now: at },
+      worldStateTtlMs: 0,
+    });
+    try {
+      // Production already holds 6.1's switches, in force since season 1 ended.
+      await fresh.db.insert(seasons).values([
+        { number: 1, startsAt: new Date(t - 60 * DAY), endsAt: new Date(t - 10 * DAY) },
+        { number: 2, startsAt: new Date(t - 10 * DAY), endsAt: new Date(t + 3 * DAY) },
+      ]);
+      const v61 = [
+        { metric: 'power', from: 1, to: 2, afterSeason: 1, plannedAt: '2026-11-09T12:00:00Z' },
+        {
+          metric: 'pveProgress',
+          from: 1,
+          to: 2,
+          afterSeason: 1,
+          plannedAt: '2026-11-09T12:00:00Z',
+        },
+      ];
+      await fresh.db.insert(gameSettings).values({
+        key: FORMULA_SCHEDULE_KEY,
+        value: { switches: v61 },
+        version: 1,
+        updatedAt: at(),
+      });
+      await fresh.db.insert(worldFlags).values({ flagId: 'ashenPassCleared', setAt: at() });
+      await app2.ready();
+      const who = await insertAccount(fresh.db, { now: at() });
+      const tyrant = {
+        gravewardenDefeated: true,
+        cryptTierCleared: 3,
+        ashenWardenDefeated: true,
+        forgeTyrantDefeated: true,
+      };
+      const hero = await insertCharacter(fresh.db, who.id, { level: 40, progress: tyrant });
+      const deps2 = {
+        ...cliDeps(fresh.db),
+        formulaVersions: (d: Date) => app2.formulaVersions.at(d),
+      };
+      // During season 2: version 2 in force, the new switch waits for its end.
+      expect(await app2.formulaVersions.at(at())).toEqual({ ...FORMULA_VERSIONS, pveProgress: 2 });
+      expect((await loadFormulaSchedule(fresh.db)).slice(2)).toEqual([
+        expect.objectContaining({ metric: 'pveProgress', from: 2, to: 3, afterSeason: 2 }),
+      ]);
+      await refreshHeroScores(deps2, hero.id, at());
+      const pve = async () =>
+        (
+          await fresh.db
+            .select()
+            .from(leaderboardEntries)
+            .where(
+              and(
+                eq(leaderboardEntries.characterId, hero.id),
+                eq(leaderboardEntries.metric, 'pveProgress'),
+              ),
+            )
+        )[0]!;
+      expect(await pve()).toMatchObject({ formulaVersion: 2, value: 13 });
+      // At season 2's end: version 3, the sweep recomputes (the Depths, the Tyrant: 17 of 17).
+      t += 3 * DAY;
+      expect(await app2.formulaVersions.at(at())).toEqual(FORMULA_VERSIONS);
+      expect(
+        (await checkLeaderboards(deps2, 200, at())).problems.filter((p) => p.kind === 'outdated'),
+      ).toHaveLength(1);
+      expect((await sweepLeaderboards(deps2, at(), { batch: 50, cursor: null })).updated).toBe(1);
+      expect(await pve()).toMatchObject({ formulaVersion: 3, value: 17 });
+      expect((await checkLeaderboards(deps2, 200, at())).problems).toEqual([]);
+    } finally {
+      await app2.close();
+      await fresh.close();
+    }
   });
 
   it('switches at once when no season is under way', async () => {

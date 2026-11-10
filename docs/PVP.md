@@ -275,6 +275,19 @@ The Cinderwastes' tier-4 bases start at item level 29, so the 30+ reference kit 
 - **`PVP_RULES_VERSION` 1 → 2**, as the rule requires (a reference and a factor changed). The 20–29 pins prove nothing else moved: their whole duel result equals version 1's with only the version field changed; a new 30+ pin guards version 2. Stored duels keep their version and log; nothing replays them.
 - **Matchmaking** (no rule changed; bracket Power stays on Power version 1, `BRACKET_POWER_VERSION`): on the synthetic 30+ population (levels 30–35, gear at level − 1, now all tier 4), 90 %+ favourites rose from 8.2 % to 13.2 % and 95 %+ from 4 % to 6.5 %; mean favourite 69 % (≤ 72 %), no extreme pairs, no empty lists. The rise comes from the top gear (B.2 builds and Legendary +5 / +10 Void kits that Power ranks close but duels separate), not from the classes: a search over the warrior's Power scale (0.95–1.12), the class factors and the reference level (30 / 32 / 34), and bracket Power 2, moved it by under 2 points. The 30+ fairness band is recorded at the measured values (≤ 14 % / ≤ 7 %; other brackets ≤ 9 % / ≤ 5 % as before). **Open for the owner** (B.5 or 6.2): narrower Power steps in 30+, or a 30+ keep below 0.25. On the realistic heroes (B.4's season, Pass gear) the classes stay at 42–58 % and matchmaking 2 still narrows the spread (by 2.7 points; 3+ before, as the refit evened the classes under matchmaking 1 too).
 
+## 6.2: the 30+ bracket with the Cinder Depths' gear
+No PvP rule changed: `PVP_RULES_VERSION` stays 2, the class factors and reference kits are untouched (the 30+ reference kit is a rare of the best regular base at item level 29, and 6.2 adds no base: the Depths drop the same tier-4 bases at higher item levels), and matchmaking keeps bracket Power version 1. The 30+ band test (`arena-fairness.test.ts`, the synthetic population at levels 30–35) passes unchanged.
+
+**Re-measured with heroes up to level 40** (`tools/balance/arena.ts 120 32`, the 30+ population widened from 30–35 to 30–40, gear at level − 1, so up to item level 39, the Depths' drops; a measurement only, the fixture is unchanged):
+
+| 30+ | 90 %+ favourites | 95 %+ favourites | mean favourite | 3+ tiers apart | lists widened |
+|---|---|---|---|---|---|
+| 30–35 (6.1's population), season start | 13 % | 7 % | 69 % | 0 % | 3 % |
+| 30–40 (with the Depths), season start | 14 % | 9 % | 71 % | 0 % | 1 % |
+| 30–40, after a simulated season (20 rounds) | 5 % | 2 % | 66 % | 0 % | 1 % |
+
+So the wider spread of levels and item levels in 30+ makes the start of a season slightly less even (95 %+ favourites 7 → 9 %, beyond 6.1's recorded ≤ 7 % band for 30–35) while ratings even it out within the season as before. **Not loosened, left for B.5**, which owns the 30+ fairness band (the owner accepted 6.1's 13 % and asked B.5 to fix it): narrower Power steps or a level-aware range in 30+ are its candidates.
+
 ## PvE stays untouched
 - Nothing in `combat/`, `effects/`, `items/`, `loot/` or `scoring/` changed; the PvP layer only reads them. The no-effects hashes, the balance and build suites and the 5.1 Power pins pass unchanged.
 - `pvp.test.ts` runs duels between two Power and farming evaluations of the same hero and asserts identical results and unchanged default configs.
