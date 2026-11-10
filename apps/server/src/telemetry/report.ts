@@ -1,5 +1,5 @@
 import { and, gte, lte, sql, type SQL } from 'drizzle-orm';
-import { RARITY_IDS } from '@worldforge/game-core';
+import { COMMUNITY_PROJECTS, RARITY_IDS } from '@worldforge/game-core';
 import { queryRows } from '../db/query.js';
 import { telemetryDaily, telemetryDailyTest } from '../db/schema.js';
 
@@ -623,6 +623,26 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
       audit('community.stage_complete', sql`count(*)`),
       sumRollups(rows, 'community.stage'),
     ],
+    // Ticket 6.7: each project on its own (the Forgeward Outpost's chain among them), and the
+    // world era changes its completions and admin flag toggles caused.
+    ...COMMUNITY_PROJECTS.flatMap((p): [string, Promise<number>, number][] => [
+      [
+        `community: ${p.id} contributions`,
+        audit('community.contribute', sql`count(*)`, sql`data->>'projectId' = ${p.id}`),
+        sumRollups(rows, 'community.contribute', (d) => d[0] === p.id),
+      ],
+      [
+        `community: ${p.id} gold`,
+        audit('community.contribute', num(sql`data->>'gold'`), sql`data->>'projectId' = ${p.id}`),
+        sumRollups(
+          rows,
+          'gold.out',
+          (d) => d[0] === 'community_project' && d[1] === p.id,
+          'amount',
+        ),
+      ],
+    ]),
+    ['world: era changes', audit('world.era_change', sql`count(*)`), sumRollups(rows, 'world.era')],
     // Warehouse (ticket 4.7): moves are counted per item; upgrades spend gold.
     ...(['deposit', 'withdraw'] as const).map((direction): [string, Promise<number>, number] => [
       `warehouse: items ${direction === 'deposit' ? 'deposited' : 'withdrawn'}`,

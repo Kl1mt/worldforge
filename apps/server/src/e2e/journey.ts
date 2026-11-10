@@ -67,7 +67,7 @@ import type { DatabaseHandle } from '../db/types.js';
 import { setAccountRole } from '../social/roles.js';
 import { loadRollups, reconcileWithAudit, sumRollups } from '../telemetry/report.js';
 import { setTestAccount } from '../admin/test-accounts.js';
-import { completeProject } from '../community/project-cli.js';
+import { advanceStage, completeProject } from '../community/project-cli.js';
 import type { WarehouseMoveResponse, WarehouseView } from '../warehouse/routes.js';
 import type { ShelfMoveResponse, ShelfView } from '../shelf/routes.js';
 import type {
@@ -1563,6 +1563,7 @@ export async function playCommunityStep(database: DatabaseHandle, hero: Journey)
   expect(first.projects.map((p) => [p.id, p.status])).toEqual([
     ['restoreWarehouse', 'open'],
     ['clearAshenPass', 'locked'],
+    ['forgewardOutpost', 'locked'],
   ]);
   const stage = first.projects[0]!.stages[first.projects[0]!.stageIndex]!;
   const goldNeed = stage.needs.find((n) => n.resource === 'gold')!;
@@ -1938,6 +1939,81 @@ export async function playCinderDepthsStep(
   const report = await checkLeaderboards(cliDeps(database.db), 200, now());
   expect(report.problems.filter((p) => p.kind === 'wrong')).toEqual([]);
   return { kills, runs, crafted, level: state.level, pveProgress: mine.value };
+}
+
+/**
+ * Phase 6 world progression step (ticket 6.7): with the town's first two projects done (the
+ * owner's 4.6 CLI) the world is in the Rekindling and the Forgeward Outpost opens on the board; the
+ * hero farms and gives its share of gold to the slag road; the owner's test-setup `stage` command
+ * finishes the three stages (refused as production first); the flag is set, the era moves to the
+ * Forgeward Age, the hero's account earns the Forgeward mark, and everything reconciles.
+ */
+export async function playForgewardStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  hero: Journey,
+  now: () => Date,
+) {
+  type World = { flags: Record<string, boolean>; era: { id: string; title: string } };
+  type Board = {
+    projects: {
+      id: string;
+      status: string;
+      stageIndex: number;
+      stages: { id: string; needs: { resource: string; cap: number }[] }[];
+    }[];
+  };
+  for (const id of ['restoreWarehouse', 'clearAshenPass'])
+    await completeProject(database.db, id, now());
+  // The CLI writes from outside the request path: drop the cached world state like a restart.
+  app.worldState.invalidate();
+  const world = async () => (await hero.api('GET', '/api/world')).json<World>();
+  expect((await world()).era).toMatchObject({ id: 'rekindling', title: 'Era of the Rekindling' });
+  const board = (await hero.api('GET', '/api/community/projects')).json<Board>();
+  const fw = board.projects.find((p) => p.id === 'forgewardOutpost')!;
+  expect(fw).toMatchObject({ status: 'open', stageIndex: 0 });
+  const road = fw.stages[0]!;
+  const heroGold = async () =>
+    (await hero.api('GET', '/api/characters'))
+      .json<{ characters: { id: string; gold: number }[] }>()
+      .characters.find((c) => c.id === hero.characterId)!.gold;
+  await hero.farmBestArea();
+  for (let i = 0; i < 60 && (await heroGold()) < 100; i++) {
+    await hero.settle();
+    await hero.sellJunk(await hero.inventory());
+    await hero.farmBestArea();
+  }
+  const held = await heroGold();
+  expect(held).toBeGreaterThanOrEqual(100);
+  const offer = Math.min(held, road.needs.find((n) => n.resource === 'gold')!.cap);
+  const gave = await hero.keyed('/api/community/projects/forgewardOutpost/contribute', {
+    characterId: hero.characterId,
+    stageId: road.id,
+    offer: [{ resource: 'gold', amount: offer }],
+  });
+  expect(gave.statusCode, gave.body).toBe(200);
+  expect(await heroGold()).toBe(held - offer);
+  expect(await advanceStage(database.db, 'forgewardOutpost', now(), { production: true })).toMatch(
+    /^Refused/,
+  );
+  for (let i = 0; i < 3; i++)
+    await advanceStage(database.db, 'forgewardOutpost', now(), { production: false });
+  app.worldState.invalidate();
+  const after = await world();
+  expect(after.flags.forgewardRaised).toBe(true);
+  expect(after.era).toMatchObject({ id: 'forgewardAge', title: 'Era of the Forgeward Age' });
+  const marks = (await hero.api('GET', '/api/community/projects'))
+    .json<{ projects: { id: string; status: string; reward: { earned: boolean } }[] }>()
+    .projects.find((p) => p.id === 'forgewardOutpost')!;
+  expect(marks).toMatchObject({ status: 'complete', reward: { earned: true } });
+  await expectHoldingsMatchAudit(database, hero.characterId);
+  const checks = await reconcileWithAudit(database.db);
+  for (const c of checks.filter(
+    (c) => c.check.startsWith('community:') || c.check.startsWith('world:'),
+  )) {
+    expect(c, c.check).toMatchObject({ ok: true });
+  }
+  return { gave: offer, era: after.era.id };
 }
 
 /**
@@ -2706,6 +2782,8 @@ export async function playAdminPanelStep(
   expect(status.projects.map((p) => [p.id, p.status])).toEqual([
     ['restoreWarehouse', 'complete'],
     ['clearAshenPass', 'complete'],
+    // Ticket 6.7: the third project opens once the Pass is clear.
+    ['forgewardOutpost', 'open'],
   ]);
   const roles = (await admin.api('GET', '/api/admin/roles')).json<{
     staff: { role: string }[];

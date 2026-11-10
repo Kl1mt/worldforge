@@ -164,8 +164,8 @@ export const AREAS: readonly AreaDefinition[] = [
   {
     // Ticket 6.1: the first area of the Cinderwastes (GDD §15 Phase 6), past the Ashen Warden's
     // watchtower. Open to heroes of level 28 who slew the Warden (which the Pass's world flag
-    // already guards). Seam for ticket 6.7: its community project adds `worldFlag` here (and a
-    // flag id in `WORLD_FLAG_IDS`); every server path already passes the world flags.
+    // already guards). Ticket 6.7 left the `worldFlag` seam unused: the area is live and open, and no
+    // access is taken away (its Forgeward flag opens new things instead, docs/WORLD.md).
     id: 'ashfallVerge',
     name: 'The Ashfall Verge',
     region: 'The Cinderwastes',
@@ -187,8 +187,8 @@ export const AREAS: readonly AreaDefinition[] = [
   {
     // Ticket 6.2: the Cinderwastes' second area, the slag pits under the Verge where the Forge
     // Tyrant's furnace burns. Its gate is the Verge's top milestone: the Verge open (the Ashen
-    // Warden slain) and level 34. Seam for ticket 6.7: its community project adds `worldFlag` here
-    // (and a flag id in `WORLD_FLAG_IDS`); every server path already passes the world flags.
+    // Warden slain) and level 34. Ticket 6.7 left the `worldFlag` seam unused (live and open; no
+    // access is taken away).
     id: 'cinderDepths',
     name: 'The Cinder Depths',
     region: 'The Cinderwastes',

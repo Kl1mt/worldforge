@@ -24,7 +24,7 @@ Ticket 2.1. Data and pure rules in `packages/game-core/src/world/` (areas, dunge
 
 The first area of the endgame region beyond the Ashen Pass (GDD §15 Phase 6; ROADMAP Phase 6 defaults: the Cinderwastes for levels 28–40 in two areas and a region boss; 6.2 adds the second area and the boss). Its region is `The Cinderwastes`, its area id `ashfallVerge`, "The Ashfall Verge": the ash plain past the Warden's tower. Map marker in the map's north-west corner, beyond the Watch.
 
-**Unlock.** Level 28 and the Ashen Warden slain (`UnlockRule.ashenWardenDefeated`, blocker `{ kind: 'ashenWardenDefeated' }`, "Defeat the Ashen Warden"). The Warden can only be fought once the Pass is open, so its world flag guards the Verge too. **Seam for 6.7:** the region's community project adds a flag id to `WORLD_FLAG_IDS` and `worldFlag` to the Verge's rule; every server path already passes the world flags, and `world.test.ts` asserts today that the flags change nothing for it.
+**Unlock.** Level 28 and the Ashen Warden slain (`UnlockRule.ashenWardenDefeated`, blocker `{ kind: 'ashenWardenDefeated' }`, "Defeat the Ashen Warden"). The Warden can only be fought once the Pass is open, so its world flag guards the Verge too. **Seam (unused since 6.7):** the region's community project could add `worldFlag` to the Verge's rule; every server path already passes the world flags. Ticket 6.7 did not use it: the Verge is live and open, and no access is taken away (its Forgeward Outpost opens new things instead, `docs/COMMUNITY.md`); `world.test.ts` and `world-progression.test.ts` assert that the flags, the new one included, change nothing for it.
 
 **Art (A.11).** Backdrop `area.cinderwastes`; foes `enemy.cinder-revenant`, `enemy.slag-hound`, `enemy.ember-wisp`, `enemy.ash-colossus` (the names 6.1 was built on). **Art (A.15).** The ten tier-4 item icons (`item.<base id>`, see `docs/ASSET_GUIDELINES.md` "Tier-4 item icons"). Until they existed the web showed their tier-3 counterparts with an ember tint; that stand-in (`ART_STAND_INS` in `apps/web/src/content/assets.ts`) remains only as a fallback for a name whose art is missing, and registered art always wins.
 
@@ -45,7 +45,7 @@ Per level they have 1.8–1.9 × the Pass's health at about 1.5 × its damage; X
 
 The region's second area and its boss (GDD §15 Phase 6; the ROADMAP Phase 6 default: the Cinderwastes for 28–40 in two areas plus a region boss). Area id `cinderDepths`, "The Cinder Depths": the slag pits under the Verge where the Forge Tyrant's furnace burns. Its boss is fought alone in **the Tyrant's Forge** (`tyrantsForge`, `docs/DUNGEONS.md` "The Tyrant's Forge"). Map markers on the west edge under the Pass (`MAP_MARKERS`).
 
-**Unlock.** Level 34 and the Ashen Warden slain: the Verge's top milestone ("The Ashfall Verge, level 34" on PvE Progress), with no new progress flag. The Forge opens at 36 on the same condition. Blockers `{ kind: 'level', required: 34 }`, `{ kind: 'ashenWardenDefeated' }`. **Seam for 6.7:** the region's community project adds a flag id to `WORLD_FLAG_IDS` and `worldFlag` to the Depths' and the Forge's rules; every server path already passes the world flags, and `world.test.ts` asserts today that the flags change nothing for them.
+**Unlock.** Level 34 and the Ashen Warden slain: the Verge's top milestone ("The Ashfall Verge, level 34" on PvE Progress), with no new progress flag. The Forge opens at 36 on the same condition. Blockers `{ kind: 'level', required: 34 }`, `{ kind: 'ashenWardenDefeated' }`. **Seam (unused since 6.7):** a community project could add `worldFlag` to the Depths' and the Forge's rules; every server path already passes the world flags. Ticket 6.7 left them open (live content; no access taken away), and `world-progression.test.ts` asserts that the flags change nothing for them.
 
 **Art (no new art).** Backdrop `area.cinder-depths` (A.11) for the area and the Forge; boss `enemy.forge-tyrant` (A.11, 128×128, front; the code animation, like every boss). The four foes have their own asset ids (`enemy.forge-revenant`, `enemy.slag-mastiff`, `enemy.ashflame-wisp`, `enemy.slag-colossus`) that the web draws as their Verge kin's sprites (and attack frames, where the kin has them) with the Depths' **ember treatment** (`ART_VARIANTS` in `apps/web/src/content/assets.ts`, CSS `pixel--tint-ember`). The Tyrant's Ember is a soul shard drawn the same way.
 
@@ -135,3 +135,18 @@ XP per kill is about 1.4 × the Abbey's per level (so an hour pays more XP despi
 | Merchant (its stock at 26) | common 12 min, uncommon 25 min of its gold | common 3–20, uncommon ≤ 35 min |
 
 The existing Graumark bands (B.1: commons, `GRAUMARK` in the test) are unchanged and no longer include the Pass.
+
+## Eras of Graumark (ticket 6.7)
+
+A visible, long-term progression of the town, read from the world flags the community projects set (game-core `world/eras.ts`). **Cosmetic and world-flavour only:** an era is words and a tint key; nothing in combat, loot, prices, unlocks or progress reads it (`world-progression.test.ts`: every field of every era is text). A power or price change belongs to a project's own flag rule (e.g. the Forgeward bellows, `docs/ECONOMY.md`).
+
+| # | Era (`id`) | Begins with | Town | Crier (one call a day, in turn) |
+| --- | --- | --- | --- | --- |
+| 1 | The Long Dusk (`longDusk`) | — (a fresh world) | cold blue dusk, bare banner poles | the storehouse needs hands; bar the doors |
+| 2 | The Ashen Siege (`ashenSiege`) | `warehouseRestored` | grey ash light, grey watch pennants | the Warehouse is open; scouts wanted for the pass |
+| 3 | **The Rekindling** (`rekindling`) — **live today** | `ashenPassCleared` | warm ember dusk, ember-red pennants | the pass is open; the Cinderwastes burn; the forgeward fort wants gold and ore |
+| 4 | The Forgeward Age (`forgewardAge`) | `forgewardRaised` | the beacon's brass glow, brass-and-ember banners | the beacon is lit, the Forge works the Tyrant's fire for less; the outpost keeps watch |
+
+- **Derivation:** `worldEra(flags)` is the **latest** era whose flag is set, so the era only moves forward as projects complete; an older flag cleared by hand doesn't move it back. It is never stored: **live starts in the Rekindling** (the Warehouse and the Ashen Pass are done), so nothing jumps backward on deploy. New eras are appended with a new project's flag; ids are never renamed.
+- **Where it shows** (web `community/Era.tsx`, `era.css`, all classes `hub-era*`): a small "Era of …" title in the town header; a tint and light over the town backdrop and a row of banners along its top edge (CSS gradients and shapes over the existing picture, no new art); the crier's call of the day and the banners' words under the event banner; the Tavern's ambient line under its title. Until the first world poll answers (or after a failed one) the town shows no era and the Tavern its old line.
+- **Server:** `GET /api/world` returns `era { id, index, name, title, crier }` (the crier's call of the game-clock UTC day). Every flag change (a completing project, an admin toggle) compares the era before and after under a world lock and writes `world.era_change` (from, to, cause) plus telemetry `world.era` when it moved (`docs/TELEMETRY.md`). The admin world folio shows the era; it changes there only through the audited flag toggles (`docs/COMMUNITY.md` "Owner CLI").

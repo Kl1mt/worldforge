@@ -10,6 +10,9 @@ Code: game-core `world/projects.ts` (definitions, caps, the contribution plan, w
 | --- | --- | --- | --- | --- |
 | `restoreWarehouse` — Restore the Graumark Warehouse | — | `warehouseRestored` | 4.7 opens the Warehouse building (`docs/WAREHOUSE.md`: every warehouse route answers `409 warehouse_closed` and the hub shows it locked until then) | achievement `warehouseRestorer` "Mender of Graumark" |
 | `clearAshenPass` — Clear the Ashen Pass | `restoreWarehouse` | `ashenPassCleared` | 4.8 opens the area `ashenPass` and its boss run `ashenWatch` (`UnlockRule.worldFlag: 'ashenPassCleared'`) | achievement `ashenPassBreaker` "Through the Ash" |
+| `forgewardOutpost` — Rebuild the Forgeward Outpost (ticket 6.7) | `clearAshenPass` | `forgewardRaised` | the town upgrade *Forgeward bellows* (`docs/ECONOMY.md` "Town upgrades") and the era *the Forgeward Age* (`docs/WORLD.md` "Eras of Graumark"); free for later content. **Gates nothing players reach today** | achievement `forgewardBuilder` "Keeper of the Forgeward" (icon awaiting art: the wax-seal placeholder) |
+
+Every completed project also moves the town's **era** (ticket 6.7, below and `docs/WORLD.md`).
 
 Never rename or reuse a project, stage or flag id: progress rows, contributions, flags and achievements keep them. Adding a project: append a definition (stages, needs, `grantsFlag`, `rewardAchievementId`), a flag in `WORLD_FLAG_IDS`/`WORLD_FLAGS`, and the achievement (criterion `communityProject`).
 
@@ -44,6 +47,53 @@ Each stage needs gold and one to three materials. The **cap** is the share of ea
 
 **The trade-off, and what was not done.** *Scaling needs* to the number of active players (from presence) would keep a stage the same number of days for any town, but the target moves while people give, a few active players make it small enough to finish alone, and the total sink changes with the population. *Decaying needs* would do the same as the growing cap with less gold sunk. The growing cap keeps every need and the total sink fixed and changes only how fast a small town may pay it. The Warehouse's material needs were trimmed (it is the first project and the live town is tiny; materials are plentiful in the economy, e.g. 240k iron ore surplus in the telemetry week), the Ashen Pass's left alone. **Lowering a need is safe on live:** a stage that already holds its new needs is finished at the next contribution attempt, in its own transaction (`catchUpProject`; that attempt answers `stage_changed` and the board shows the next stage); anything given above the new need stays given.
 
+## The Forgeward Outpost (ticket 6.7)
+
+The Cinderwastes chain: one project of three stages after the Ashen Pass, in B.3's model unchanged (gold and materials from a hero's holdings, the 20 → 40 → 60 % cap per account per need and day, no over-fill, the window rule). It is a late-game sink (300,000 gold, more than three times the Pass) and the first to take **Tyrant's Embers**, sparingly: ten, all in the last stage, two per account on its first day.
+
+| Stage | Needs | Cap per account, day 1 · day 2 · day 3+ |
+| --- | --- | --- |
+| Forgeward 1 · Clear the slag road (`slagRoad`) | 60,000 gold · 1,000 iron ore · 400 soul shards | 12,000 · 24,000 · 36,000; 200 · 400 · 600; 80 · 160 · 240 |
+| Forgeward 2 · Raise the forgeward walls (`forgewardWalls`) | 100,000 gold · 1,500 iron ore · 80 Abbey silver | 20,000 · 40,000 · 60,000; 300 · 600 · 900; 16 · 32 · 48 |
+| Forgeward 3 · Kindle the beacon (`kindleBeacon`) | 140,000 gold · 800 soul shards · 10 Tyrant's Embers | 28,000 · 56,000 · 84,000; 160 · 320 · 480; 2 · 4 · 6 |
+
+**What it opens.** The flag `forgewardRaised` opens the **Forgeward bellows** (Tyrantforged Work 20 % cheaper in gold; `docs/ECONOMY.md`) and begins the **Forgeward Age** (`docs/WORLD.md`). It is a world flag like the others, free for later content to read.
+
+**No access is taken away.** The Ashfall Verge, the Cinder Depths and the Tyrant's Forge are live and open under their level and boss rules; the chain does **not** gate them (their `worldFlag` seams from 6.1/6.2 stay documented and unused). `world-progression.test.ts` (game-core) asserts that no area or dungeon tier waits for the new flag and that every unlock answers the same with or without it at every level and progress; the server test compares the world map and the dungeon list for heroes of 27–40 before and after the flag. *Gating considered:* putting the Depths or the Forge behind the chain would add a reason to give, but it would close content heroes reach today on live and hold endgame players hostage to a small town's ember supply; nothing about the chain is clearly better gated, so it is not proposed.
+
+**Test accounts never give** (D.4): a contribution from an account with `is_test` set is `403 test_account`, read in the contribution's transaction, for every project; nothing is taken or counted. Their play stays out of the shared world.
+
+### At scale: 20, 100 and 500 players (ticket 6.7)
+
+`balance/forgeward-balance.test.ts` plays the chain from the day it opens with B.3's model (now `balance/community-town.ts`, shared; B.3's own suite is pinned to its two projects and its table above is unchanged). The **realistic player** for a larger town (`largeTown`): a sixth **endgame** players (the Cinderwastes: 15,000 gold, 170 ore and 170 shards spared a day, half a Tyrant's Ember a day since not every Forge run is won and Item Awakening wants three), a third veterans, the rest newcomers (B.3's two profiles). Embers and seals are kept from day to day until given. *Cap-bound*: endless means, only the caps limit. Days (1-based) until done; per stage: days it stood · distinct givers · the largest share of the stage one account gave.
+
+**Before** (the town before 6.7: the Warehouse and the Ashen Pass, B.3's town; days to the Warehouse + days from there to the Pass):
+
+| Active players | Cap-bound | With gathering | Givers per stage (gathering) | Largest share of one account |
+| --- | --- | --- | --- | --- |
+| 20 | 1 + 2 | 1 + 2 | 5–8 | 20 % (38 % in the two-day wardstones) |
+| 100 | 1 + 1 | 1 + 1 | 5–10 | 20 % |
+| 500 | 1 + 1 | 1 + 1 | 5–10 | 20 % |
+
+**After** (the Forgeward Outpost; the stages' days in brackets):
+
+| Active players | Cap-bound | With gathering | Givers per stage (gathering) | Largest share of one account (gathering) |
+| --- | --- | --- | --- | --- |
+| 1 | 7 (3/3/3) | 30 (6/16/10) | 1 | 100 % |
+| 3 | 4 (2/2/2) | 20 (3/4/15) | 3 | 40–69 % |
+| 10 | 2 (1/1/2) | 10 (1/3/8) | 7–10 | 19–30 % |
+| **20** | 1 (1/1/1) | **8** (1/2/7) | 6 / 16 / 20 | 16–20 % |
+| **100** | 1 (1/1/1) | **2** (1/1/2) | 6 / 14 / 24 | 5–19 % |
+| **500** | 1 (1/1/1) | **2** (1/1/2) | 6 / 16 / 20 | 10–19 % |
+
+**Reading.** At 20 players the chain is about a week, held by the beacon's embers (three endgame players, half an ember a day each); at 100 and 500 the gold and ore go on the first day and the embers on the second (nobody is modelled holding a stockpile on day one; a live town of Tyrant hunters could finish on day one). A small town still gets there in three to four weeks. The needs do not scale with the town (B.3's trade-off, kept: a fixed sink, a target that doesn't move while people give).
+
+**No monopoly at scale** (asserted for every size and both towns): nobody gives more than a fifth of a need on a stage's first day; a stage finished on its first day had at least five givers, and nobody carried more than a fifth of it; nobody ever gives more than 60 % of a need in a day; four accounts with endless means (embers included) can't finish a Forgeward stage on its first day. In the cap-bound view a big town still finishes each stage with exactly five accounts at a fifth each: **the cap guarantees five givers, not more**. With the realistic player the largest share of any account from 20 players up is about a fifth (20.2 % at 20, the caps rounding up in the seven-day beacon). Embers are the only need a few high-level players hold, and they can't carry a stage with them alone: the gold and shards of the same stage need the rest of the town, and two embers per account on the first day need five ember holders to finish that day. *Owner option, not built:* a first-day `capShare` of 10 % for the Forgeward stages (per stage data) would need ten givers on a stage's first day in a big town and cost a small town about a day per stage.
+
+### Eras (ticket 6.7)
+
+Every completed project moves the town's era (`docs/WORLD.md` "Eras of Graumark"): the Warehouse begins the Ashen Siege, the Ashen Pass the Rekindling, the Forgeward Outpost the Forgeward Age. The era is derived from the world flags, never stored, so live starts where its finished projects put it (the Rekindling) and nothing jumps backward. The transaction that writes the flag (under the project lock and a world lock, `lockWorldFlags`) compares the era before and after and writes `world.era_change` (from, to, the project) with telemetry `world.era`.
+
 ## Contributing
 
 `POST /api/community/projects/:projectId/contribute`, body `{ characterId, stageId, offer: [{ resource, amount }] }` (`resource` `gold` or a material id), `Idempotency-Key` required. In one transaction:
@@ -77,17 +127,22 @@ The contribution window is the **game-clock UTC day** (`contributionWindow(now)`
 - **Town works** (`#/works`): the Warehouse niche from the hub picture as the header; each project as a ledger panel with its stage track, overall progress, and for the stage under way each need with the town's progress, *your share today / cap*, what the active hero holds and an amount field (pre-filled with the most that would be taken). Locked projects say what they wait for; finished ones the day and the number of players. Facts: what it opens, the contributor achievement (marked when yours), what you gave in all. Loading, error (retry), stale (last board kept) and success states; failures in plain words, nothing taken.
 - **Hub:** a works slip under the town picture (the project under way, its progress and stage, "Lend a hand"); the Warehouse's line says it is restored once it is.
 - **World notice** (2.7's herald slips, kind `world`): when a project completes, every player gets "Restore the Graumark Warehouse: done", once per device and account, if they come by within a week.
-- **Admin panel** (D.3 status): each project's stage and current totals, and the contributor counts.
+- **Admin panel** (D.3 status): each project's stage and current totals, and the contributor counts. Ticket 6.7: the D.4 world folio shows the era and each project's stage too.
+- **The era** (ticket 6.7): the town header's "Era of …" title, the tint and banners over the town picture, the crier's call of the day under it, and the Tavern's ambient line (`community/Era.tsx`, `docs/WORLD.md`).
 
 **Polling** (3.9's limits: 900 requests and 300 actions a minute per account): the board polls `GET /api/community/projects` every 60 s while the works screen or the hub is open, every game screen polls `GET /api/world` every 120 s; both send an `ETag` (`304` when unchanged). That is ≤ 2 requests a minute per tab. A contribution is one action and no social write.
 
 ## Owner CLI (playtesting)
 
-`pnpm admin:project status` prints every project's state; `pnpm admin:project complete <projectId>` finishes an **open** project's remaining stages through the same path as the last contribution (world flag, contributor achievements, telemetry), with the audit rows marked `by: admin` plus `community.admin_complete`. It refuses an unknown, locked or finished project. There is no API path, and no undo (a flag is never removed). On the VPS: `deploy/admin.sh project status|complete <projectId>`. Running servers see the flag within a minute (cache TTL).
+`pnpm admin:project status` prints every project's state; `pnpm admin:project complete <projectId>` finishes an **open** project's remaining stages through the same path as the last contribution (world flag, contributor achievements, era change, telemetry), with the audit rows marked `by: admin` plus `community.admin_complete`. It refuses an unknown, locked or finished project. There is no API path, and no undo (a flag is never removed). On the VPS: `deploy/admin.sh project status|complete <projectId>`. Running servers see the flag within a minute (cache TTL).
+
+Ticket 6.7: `pnpm admin:project stage <projectId>` finishes **only the current stage** the same way (audit `community.admin_stage`; the flag, achievements and era change when it was the last) and is for **test setups only**: it refuses when `NODE_ENV=production`, so it can't move a stage on live. The admin panel's world folio shows the era and every project's stage (read-only); the era changes there only through the audited flag toggles with the every-player warning (the writ says when a toggle would move the era, and the server records the change as `world.era_change` `by: admin`).
 
 ## Races
 
 `community.pg.test.ts` (real PostgreSQL, part of `test:pg`, three rounds each in varied orders, no retries): eight players racing their full caps into a stage with less left than they offer (exact totals, one completion, each hero paid exactly what it was told was accepted and what the audit says, the accepted amounts sum to the gap, the rest `stage_changed`); one account racing from four heroes (gives exactly its cap); eight players racing the last stage (one completion, one flag, the achievement for exactly the contributors, `reconcileWithAudit` all matching). Without the project lock all three fail.
+
+Ticket 6.7, `world-era.pg.test.ts` (part of `test:pg`): the Forgeward Outpost completing races an admin toggling the Ashen Pass's flag off, both moving the era. In either order the `world.era_change` rows chain (each starts where the last ended, exactly one starts from the Rekindling) and end at the era of the final flags, reconciled. Without the world lock (`lockWorldFlags`) it fails: both start from the Rekindling.
 
 ## Screenshots
 

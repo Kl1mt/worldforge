@@ -1,0 +1,116 @@
+/*
+ * Ticket 6.7: world eras in town. Presentation only: a tint and light over the hub picture, a row
+ * of banners along its top edge, a small title in the header and the crier's line. Scoped to
+ * `hub-era`.
+ */
+.hub-era__title {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  color: var(--brass-400);
+  font-family: var(--font-display, inherit);
+  font-size: var(--text-sm);
+  letter-spacing: 0.04em;
+}
+
+.hub-era__mark {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  background: var(--hub-era-banner, var(--brass-500));
+  transform: rotate(45deg);
+}
+
+.hub-era__overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.hub-era__tint {
+  position: absolute;
+  inset: 0;
+  background: var(--hub-era-tint, transparent);
+  mix-blend-mode: soft-light;
+}
+
+.hub-era__banners {
+  position: absolute;
+  top: 0;
+  left: 6%;
+  right: 6%;
+  display: flex;
+  justify-content: space-between;
+}
+
+.hub-era__banner {
+  width: 10px;
+  height: 22px;
+  background: var(--hub-era-banner, transparent);
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 72%, 0 100%);
+  box-shadow: inset 0 3px 0 rgb(0 0 0 / 35%);
+  opacity: var(--hub-era-banner-opacity, 0);
+}
+
+.hub-era__crier {
+  margin: var(--space-3) auto 0;
+  max-width: 72ch;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.hub-era__crier q {
+  color: var(--parchment-200, var(--text));
+  font-style: italic;
+}
+
+.hub-era__crier-who {
+  color: var(--hub-era-banner, var(--brass-500));
+}
+
+.hub-era__crier-banner {
+  display: block;
+  margin-top: var(--space-1);
+  font-size: var(--text-xs);
+}
+
+/* The eras, oldest first. Long Dusk: cold and dim, bare poles. */
+.hub-era--longDusk {
+  --hub-era-tint: linear-gradient(180deg, rgb(40 52 80 / 55%), rgb(10 12 20 / 60%));
+  --hub-era-banner: var(--iron-500, #6b6f78);
+  --hub-era-banner-opacity: 0;
+}
+
+/* The Ashen Siege: grey ash light, the watch's grey pennants. */
+.hub-era--ashenSiege {
+  --hub-era-tint: linear-gradient(180deg, rgb(120 116 110 / 45%), rgb(30 28 26 / 40%));
+  --hub-era-banner: #8a8a86;
+  --hub-era-banner-opacity: 0.9;
+}
+
+/* The Rekindling: warm dusk from the pass, ember-red pennants. */
+.hub-era--rekindling {
+  --hub-era-tint: linear-gradient(180deg, rgb(200 96 48 / 30%), rgb(60 20 10 / 25%));
+  --hub-era-banner: var(--crimson-400, #b8423a);
+  --hub-era-banner-opacity: 0.95;
+}
+
+/* The Forgeward Age: the beacon's brass glow, brass-and-ember banners. */
+.hub-era--forgewardAge {
+  --hub-era-tint: radial-gradient(
+    ellipse at 70% 10%,
+    rgb(255 190 90 / 45%),
+    rgb(120 60 20 / 20%) 55%,
+    transparent 80%
+  );
+  --hub-era-banner: var(--brass-400, #c9a24a);
+  --hub-era-banner-opacity: 1;
+}
+
+@media (prefers-contrast: more) {
+  .hub-era__tint {
+    display: none;
+  }
+}

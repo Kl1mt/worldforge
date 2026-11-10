@@ -73,6 +73,8 @@ export const TELEMETRY_METRICS = [
   'event.join',
   'event.quest',
   'event.reward',
+  // Ticket 6.7: world era changes (from era, to era), mirroring `world.era_change` audit rows.
+  'world.era',
 ] as const;
 export type TelemetryMetric = (typeof TELEMETRY_METRICS)[number];
 

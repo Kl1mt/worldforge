@@ -1003,7 +1003,7 @@ GDD §12, §13. Read `docs/QUESTS.md`, the 5.3 season model (scheduling, the win
   - a journey step.
 - Done: game-core `events/` (definitions, cosmetics catalogue, calendar and progress rules) and server `events/`. **Calendar:** `world_events`, one at a time (never overlapping, at most one waiting), 1 h – 4 weeks, schedule / extend / end early / cancel a future one from the admin panel's Events tab or `pnpm admin:events` / `deploy/admin.sh events`, audited; the window rule as seasons (a request at or after the end counts nothing), closed 5 min after the end under an advisory lock. **Harvest of Bones:** heroes join in the Tavern; modifier: every 40 risen dead in the Fields or the Burial Grounds yield 1 Soul Shard (split-invariant running count; ≈ 6/h in the Fields); four tasks (10/10/15/15 bone tallies; tallies only); account track 10/25/50 → `banner.harvest-sheaf`, `title-colour.bone-white`, `title.reaper-of-the-harvest`, granted exactly once in the completing transaction plus a resumable close sweep. `cosmetic_unlocks` (for 6.8); the title shows through the honours picker (`prestige_displays.cosmetic_title`). Unfinished tasks expire, nothing earned is lost. Banner in the town and on the map. Invariance: same XP, gold and items with no event, outside it, or joined (materials + bounty only). Telemetry `event.join|quest|reward`, `material.in event`, reconciled. Migration `0039_world_events` (additive). Version 0.6.8. `docs/EVENTS.md`.
 
-### 6.7 Community & world progression expansion (vertical) — `todo`
+### 6.7 Community & world progression expansion (vertical) — `done (PR #125)`
 GDD §12. Read `docs/COMMUNITY.md`, the world flags.
 - A project chain that opens the new region's later parts: 6.2's area and the region boss gate, and a town upgrade.
 - World "eras": a visible long-term progression of Graumark, with stages that change town art and Tavern text, and world flags.
@@ -1012,6 +1012,7 @@ GDD §12. Read `docs/COMMUNITY.md`, the world flags.
   - stage pacing at 20/100/500 players;
   - caps;
   - the flag-unlock journey.
+- Done: **Rebuild the Forgeward Outpost** (`forgewardOutpost`, after the Ashen Pass; 3 stages, 300,000 gold, 2,500 ore, 1,200 shards, 80 silver, 10 Tyrant's Embers in the last stage; B.3's caps) sets `forgewardRaised`. It **gates nothing live** (the Verge, Depths and Tyrant keep their rules; the seams stay unused, tested). Town upgrade **the Forgeward bellows**: Tyrantforged Work 20 % cheaper in gold (3,000 → 2,400; `economy/town.ts`). **Eras** derived from the flags (Long Dusk → Ashen Siege → **Rekindling**, live today → Forgeward Age): town title, CSS tint, banners, crier and Tavern line; words only. Test accounts refused (`403 test_account`). Era changes audited (`world.era_change`) and counted (`world.era`) under a world lock, with a real-PG race test; per-project reconcile. Admin world folio shows era and stages; `admin:project stage` for test setups only. Pacing: 8 / 2 / 2 days at 20 / 100 / 500 players with the realistic player, ≥ 5 givers on a stage's first day (`balance/forgeward-balance.test.ts`). No migration. Version 0.6.11. `docs/COMMUNITY.md`, `WORLD.md`, `ECONOMY.md`, `QUESTS.md`, `TELEMETRY.md`.
 
 ### 6.8 Cosmetic collection book (vertical) — `todo`
 GDD §13. Read `docs/LEADERBOARDS.md` (5.3 prestige display), `docs/SOCIAL.md` (profiles).

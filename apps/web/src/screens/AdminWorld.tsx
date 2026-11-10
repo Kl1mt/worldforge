@@ -1,5 +1,14 @@
 import { useCallback, useState } from 'react';
-import { getWorldFlag, isWorldFlagId, seasonName } from '@worldforge/game-core';
+import {
+  NO_WORLD_FLAGS,
+  getWorldEra,
+  getWorldFlag,
+  isWorldEraId,
+  isWorldFlagId,
+  seasonName,
+  worldEra,
+  worldFlagsFrom,
+} from '@worldforge/game-core';
 import { toolsApi, type WorldView } from '../admin/tools-api';
 import { nf } from '../admin/tools-view';
 import { formatDuration } from '../lib/format';
@@ -10,7 +19,10 @@ import './admin-tools.css';
 /**
  * Ticket D.4: the world folio ("Flags & scheduler"). The global world flags with set / unset
  * (each through the writ: it changes the game for every player), the scheduler's heartbeat and
- * jobs, the season roll and the deleted heroes waiting for the CLI purge.
+ * jobs, the season roll and the deleted heroes waiting for the CLI purge. Ticket 6.7: the world
+ * era (derived from the flags; a flag toggle that moves it says so in the writ) and every community
+ * project's stage. Stages move only by the town's gifts on live; `pnpm admin:project stage` sets
+ * them on a test setup.
  */
 export function AdminWorld() {
   const [state, refresh] = useAdminLoad(toolsApi.world);
@@ -53,8 +65,15 @@ function flagName(id: string): string {
 
 function WorldBody({ world }: { world: WorldView }) {
   const openWrit = useWrit();
+  const eraName = (id: string) => (isWorldEraId(id) ? getWorldEra(id).name : id);
   const toggle = (f: WorldView['flags'][number]) => {
     const set = !f.set;
+    // Ticket 6.7: what the era would become (the server derives the same from the flags).
+    const flags = worldFlagsFrom(world.flags.filter((x) => x.set).map((x) => x.id));
+    const nextEra = isWorldFlagId(f.id)
+      ? worldEra({ ...NO_WORLD_FLAGS, ...flags, [f.id]: set })
+      : null;
+    const eraMoves = nextEra !== null && nextEra.id !== world.era.id;
     openWrit({
       caps: 'World · every player',
       title: `${set ? 'Set' : 'Unset'} the flag “${f.id}”`,
@@ -72,6 +91,9 @@ function WorldBody({ world }: { world: WorldView }) {
         f.projectId
           ? `It was set by the community project ${f.projectId}; that project stays as it is.`
           : 'No community project is linked to it.',
+        eraMoves
+          ? `The town’s era changes from ${world.era.name} to ${nextEra.name} for every player.`
+          : `The town’s era stays ${world.era.name}.`,
       ],
       confirm: { expected: f.id, what: 'the flag id' },
       action: set ? 'Set the flag' : 'Unset the flag',
@@ -79,7 +101,8 @@ function WorldBody({ world }: { world: WorldView }) {
       run: (key, reason, confirm) =>
         answered(
           toolsApi.setWorldFlag(f.id, key, { set, confirm, reason }),
-          (a) => `“${a.flagId}” is now ${a.after ? 'set' : 'unset'}.`,
+          (a) =>
+            `“${a.flagId}” is now ${a.after ? 'set' : 'unset'}.${a.era ? ` The era is now ${eraName(a.era.to)}.` : ''}`,
         ),
     });
   };
@@ -92,6 +115,10 @@ function WorldBody({ world }: { world: WorldView }) {
           World flags
         </h3>
         <p className="adt-dim">Game time {formatWhen(world.gameNow)}.</p>
+        <p className="adt-era">
+          <span className="caps">Era</span> {world.era.title}{' '}
+          <span className="adt-dim">({world.era.index + 1} of the eras, from the flags below)</span>
+        </p>
         {world.flags.length === 0 ? <p className="adt-none">No world flags exist.</p> : null}
         <ul className="adt-flags">
           {world.flags.map((f) => (
@@ -113,6 +140,35 @@ function WorldBody({ world }: { world: WorldView }) {
             </li>
           ))}
         </ul>
+      </section>
+
+      <section className="panel-ledger adt-world__works" aria-labelledby="adt-works">
+        <h3 id="adt-works" className="rule-heading">
+          Town works
+        </h3>
+        <ul className="adt-flags">
+          {world.projects.map((p) => (
+            <li key={p.id} className={`adt-flag${p.status === 'complete' ? ' adt-flag--set' : ''}`}>
+              <div>
+                <p className="adt-flag__name">
+                  {p.name} <code className="adt-dim">{p.id}</code>
+                </p>
+                <p className="adt-dim">
+                  {p.status === 'complete'
+                    ? `Finished${p.completedOn ? ` on ${p.completedOn}` : ''}`
+                    : p.status === 'open'
+                      ? `Stage ${p.stage} of ${p.stages}`
+                      : 'Not begun (waits for the project before it)'}
+                  {` · ${nf(p.contributors)} contributors.`}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <p className="adt-dim">
+          Stages move by the town’s gifts. On a test setup, <code>pnpm admin:project stage</code>{' '}
+          finishes the current one.
+        </p>
       </section>
 
       <section className="adt-world__side" aria-labelledby="adt-sched">
