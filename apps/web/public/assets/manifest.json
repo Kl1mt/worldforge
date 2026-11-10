@@ -1690,6 +1690,17 @@
       "source": "art/source/pixellab/icons-achievements-02/28.png"
     },
     {
+      "id": "achievement.forgeward-builder",
+      "path": "/assets/achievements/forgeward-builder.png",
+      "kind": "achievement",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one emblematic object per icon, heraldic honour trophies: dark iron anvil standing under a tall iron beacon brazier with a small burning flame above it; anvil with a lit signal beacon on a post behind it; also hanging dark cloth banners with two crossed blacksmith hammers over a glowing ember; hanging dark cloth banner with a brass laurel wreath around a small five-pointed star, weathered aged brass, dark iron, ember orange, near-black outline, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-forgeward-01/28.png"
+    },
+    {
       "id": "guild-emblem.anvil",
       "path": "/assets/guild-emblems/anvil.png",
       "kind": "guild-emblem",
@@ -2235,6 +2246,140 @@
       "prompt": "(animate-with-text-v3, six enemies per job in a 3x2 grid; first and last frame = the grid of stills) six separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left. All six make a short physical attack at the same time, each staying inside its own cell, using only their bodies and weapons: the hooded wraith reaches its clawed hand forward to the left, the ember-cracked hound snaps its jaws forward to the left, the molten hound bites forward to the left, the flaming skull wisp bobs forward to the left, the armoured revenant swings its sword down to the left, the knight swings his greatsword down to the left. Then each returns to its starting pose. No fire bursts, no explosions, no flashes, no sparks, no particles, no glow; keep every creature's exact colours and size.",
       "source": "art/source/pixellab/anim-enemies-04/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/fallen-knight.png",
       "facing": "left"
+    },
+    {
+      "id": "banner.harvest-sheaf",
+      "path": "/assets/banners/harvest-sheaf.png",
+      "kind": "banner",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art heraldic banner icons, one hanging cloth banner per icon on a short iron crossbar, tattered lower edge, dark near-black cloth with one bold centred charge: bound sheaf of bone-white wheat; iron anvil under a beacon flame; round crypt seal with a skull and keyhole; laurel wreath around a small star; pale ashen grey flame; crossed smith hammers over a glowing ember; also an honour medallion icon of an iron anvil under a burning beacon brazier, aged brass and bone-white charges with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/banners-cosmetic-01/00.png"
+    },
+    {
+      "id": "banner.forgeward",
+      "path": "/assets/banners/forgeward.png",
+      "kind": "banner",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art heraldic banner icons, one hanging cloth banner per icon on a short iron crossbar, tattered lower edge, dark near-black cloth with one bold centred charge: bound sheaf of bone-white wheat; iron anvil under a beacon flame; round crypt seal with a skull and keyhole; laurel wreath around a small star; pale ashen grey flame; crossed smith hammers over a glowing ember; also an honour medallion icon of an iron anvil under a burning beacon brazier, aged brass and bone-white charges with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/banners-cosmetic-01/09.png"
+    },
+    {
+      "id": "banner.crypt-seal",
+      "path": "/assets/banners/crypt-seal.png",
+      "kind": "banner",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art heraldic banner icons, one hanging cloth banner per icon on a short iron crossbar, tattered lower edge, dark near-black cloth with one bold centred charge: bound sheaf of bone-white wheat; iron anvil under a beacon flame; round crypt seal with a skull and keyhole; laurel wreath around a small star; pale ashen grey flame; crossed smith hammers over a glowing ember; also an honour medallion icon of an iron anvil under a burning beacon brazier, aged brass and bone-white charges with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/banners-cosmetic-01/10.png"
+    },
+    {
+      "id": "banner.season-laurel",
+      "path": "/assets/banners/season-laurel.png",
+      "kind": "banner",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art heraldic banner icons, one hanging cloth banner per icon on a short iron crossbar, tattered lower edge, dark near-black cloth with one bold centred charge: bound sheaf of bone-white wheat; iron anvil under a beacon flame; round crypt seal with a skull and keyhole; laurel wreath around a small star; pale ashen grey flame; crossed smith hammers over a glowing ember; also an honour medallion icon of an iron anvil under a burning beacon brazier, aged brass and bone-white charges with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/banners-cosmetic-01/19.png"
+    },
+    {
+      "id": "banner.warden-flame",
+      "path": "/assets/banners/warden-flame.png",
+      "kind": "banner",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art heraldic banner icons, one hanging cloth banner per icon on a short iron crossbar, tattered lower edge, dark near-black cloth with one bold centred charge: bound sheaf of bone-white wheat; iron anvil under a beacon flame; round crypt seal with a skull and keyhole; laurel wreath around a small star; pale ashen grey flame; crossed smith hammers over a glowing ember; also an honour medallion icon of an iron anvil under a burning beacon brazier, aged brass and bone-white charges with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/banners-cosmetic-01/12.png"
+    },
+    {
+      "id": "banner.ember-standard",
+      "path": "/assets/banners/ember-standard.png",
+      "kind": "banner",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art heraldic banner icons, one hanging cloth banner per icon on a short iron crossbar, tattered lower edge, dark near-black cloth with one bold centred charge: bound sheaf of bone-white wheat; iron anvil under a beacon flame; round crypt seal with a skull and keyhole; laurel wreath around a small star; pale ashen grey flame; crossed smith hammers over a glowing ember; also an honour medallion icon of an iron anvil under a burning beacon brazier, aged brass and bone-white charges with dark near-black outline, flat heraldic shading, few colours, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/banners-cosmetic-01/13.png"
+    },
+    {
+      "id": "crest.iron",
+      "path": "/assets/crests/crest-iron.png",
+      "kind": "crest",
+      "size": {
+        "width": 48,
+        "height": 56
+      },
+      "prompt": "(drawn in code, no generation)",
+      "source": "tools/art/crest_styles.py",
+      "window": {
+        "x": 4,
+        "y": 4,
+        "width": 40,
+        "height": 48
+      }
+    },
+    {
+      "id": "crest.gilt",
+      "path": "/assets/crests/crest-gilt.png",
+      "kind": "crest",
+      "size": {
+        "width": 48,
+        "height": 56
+      },
+      "prompt": "(drawn in code, no generation)",
+      "source": "tools/art/crest_styles.py",
+      "window": {
+        "x": 4,
+        "y": 4,
+        "width": 40,
+        "height": 48
+      }
+    },
+    {
+      "id": "crest.bone",
+      "path": "/assets/crests/crest-bone.png",
+      "kind": "crest",
+      "size": {
+        "width": 48,
+        "height": 56
+      },
+      "prompt": "(drawn in code, no generation)",
+      "source": "tools/art/crest_styles.py",
+      "window": {
+        "x": 4,
+        "y": 4,
+        "width": 40,
+        "height": 48
+      }
+    },
+    {
+      "id": "crest.ember",
+      "path": "/assets/crests/crest-ember.png",
+      "kind": "crest",
+      "size": {
+        "width": 48,
+        "height": 56
+      },
+      "prompt": "(drawn in code, no generation)",
+      "source": "tools/art/crest_styles.py",
+      "window": {
+        "x": 4,
+        "y": 4,
+        "width": 40,
+        "height": 48
+      }
     }
   ]
 }

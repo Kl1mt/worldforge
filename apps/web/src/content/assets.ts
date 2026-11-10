@@ -77,6 +77,31 @@ const seasonFrame = (tier: string): SeasonFrameSprite => ({
   window: SEASON_FRAME_WINDOW,
 });
 
+/** A.13: a banner style (cosmetic `banner.<name>`), a 32×32 hanging banner like the A.8 heraldry. */
+const bannerStyle = (name: string): SpriteAsset => ({
+  path: `/assets/banners/${name}.png`,
+  width: 32,
+  height: 32,
+});
+
+/**
+ * A.13: the box a crest style frames, in native frame pixels: the `md` guild crest's 40 × 48 shield
+ * (`social/crest.css`). Draw the crest in it and the frame on top at the same integer scale (×1
+ * around `md`, ×2 around `lg`); the band covers the crest's rim and 2 px of its edge.
+ */
+export const CREST_STYLE_WINDOW = { x: 4, y: 4, width: 40, height: 48 } as const;
+
+export interface CrestStyleSprite extends SpriteAsset {
+  window: typeof CREST_STYLE_WINDOW;
+}
+
+const crestStyle = (name: string): CrestStyleSprite => ({
+  path: `/assets/crests/crest-${name}.png`,
+  width: 48,
+  height: 56,
+  window: CREST_STYLE_WINDOW,
+});
+
 const enemy = (name: string, facing: 'front' | 'left' | 'right', size = 64): SpriteAsset => ({
   path: `/assets/enemies/${name}.png`,
   width: size,
@@ -264,6 +289,8 @@ export const ASSETS = {
   // Ticket A.9: the two community-project deeds (4.6).
   'achievement.warehouse-restorer': achievement('warehouse-restorer'),
   'achievement.ashen-pass-breaker': achievement('ashen-pass-breaker'),
+  // Ticket A.13: the Forgeward Outpost's deed (6.7), an anvil under a beacon.
+  'achievement.forgeward-builder': achievement('forgeward-builder'),
   // Guild crests (A.8): the charge drawn on the dyed shield (`assetId` in GUILD_EMBLEMS).
   'guild-emblem.anvil': guildEmblem('anvil'),
   'guild-emblem.crow': guildEmblem('crow'),
@@ -312,6 +339,18 @@ export const ASSETS = {
   'enemy.drowned-thrall-attack': enemyAttack('drowned-thrall'),
   'enemy.bog-horror-attack': enemyAttack('bog-horror'),
   'enemy.fallen-knight-attack': enemyAttack('fallen-knight'),
+  // Cosmetics (A.13): banner styles and crest-style frames for the collection book (6.8). The ids
+  // are the cosmetic ids; hero appearance palettes are code (`palettes.ts`), not files.
+  'banner.harvest-sheaf': bannerStyle('harvest-sheaf'),
+  'banner.forgeward': bannerStyle('forgeward'),
+  'banner.crypt-seal': bannerStyle('crypt-seal'),
+  'banner.season-laurel': bannerStyle('season-laurel'),
+  'banner.warden-flame': bannerStyle('warden-flame'),
+  'banner.ember-standard': bannerStyle('ember-standard'),
+  'crest.iron': crestStyle('iron'),
+  'crest.gilt': crestStyle('gilt'),
+  'crest.bone': crestStyle('bone'),
+  'crest.ember': crestStyle('ember'),
 } as const satisfies Record<string, SpriteAsset>;
 
 export type AssetId = keyof typeof ASSETS;
@@ -438,4 +477,36 @@ export function titleBadgeAsset(metric: PrestigeMetric): SpriteAsset {
 /** The duel arena backdrop (A.10), 384×216 like the area backdrops. Ticket 5.5 draws it. */
 export function arenaBackdrop(): SpriteAsset {
   return ASSETS['area.arena'];
+}
+
+/** Banner styles (A.13), the ids ticket 6.8's collection book uses. */
+export const BANNER_STYLE_IDS = [
+  'banner.harvest-sheaf',
+  'banner.forgeward',
+  'banner.crypt-seal',
+  'banner.season-laurel',
+  'banner.warden-flame',
+  'banner.ember-standard',
+] as const;
+export type BannerStyleId = (typeof BANNER_STYLE_IDS)[number];
+
+/**
+ * The 32×32 art of a banner style (`banner.<name>`), or `null` for an id with no art yet (the UI
+ * then draws its own fallback). Draw it at an integer scale like the A.8 heraldry.
+ */
+export function bannerStyleAsset(id: string): SpriteAsset | null {
+  return id.startsWith('banner.') ? findSprite(id) : null;
+}
+
+/** Crest styles (A.13), plainest first. */
+export const CREST_STYLE_IDS = ['crest.iron', 'crest.gilt', 'crest.bone', 'crest.ember'] as const;
+export type CrestStyleId = (typeof CREST_STYLE_IDS)[number];
+
+/**
+ * The 48×56 frame of a crest style (`crest.<name>`), drawn over a guild or hero crest that fills
+ * `CREST_STYLE_WINDOW` at the same integer scale; `null` for an id with no art (draw the bare crest).
+ */
+export function crestStyleAsset(id: string): CrestStyleSprite | null {
+  if (!(CREST_STYLE_IDS as readonly string[]).includes(id)) return null;
+  return ASSETS[id as CrestStyleId];
 }

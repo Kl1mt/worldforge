@@ -13,6 +13,11 @@ import {
 } from '@worldforge/game-core';
 import {
   ART_STAND_INS,
+  BANNER_STYLE_IDS,
+  CREST_STYLE_IDS,
+  CREST_STYLE_WINDOW,
+  bannerStyleAsset,
+  crestStyleAsset,
   ART_VARIANTS,
   heroicSprite,
   ASSETS,
@@ -222,8 +227,8 @@ describe('heraldry art (A.8)', () => {
    * Achievements whose icons are still to be drawn (an art follow-up); the UI shows the wax-seal
    * placeholder for them. Remove an id as soon as its icon lands (A.9 drew the 4.6 project deeds).
    */
-  // Ticket 6.7: the Forgeward Outpost's mark shows the wax-seal placeholder until its icon is drawn.
-  const AWAITING_ART = new Set<string>(['forgewardBuilder']);
+  // A.13 drew the Forgeward Outpost's mark (6.7), so every deed has its icon again.
+  const AWAITING_ART = new Set<string>([]);
 
   it('has a 32×32 icon for every achievement', () => {
     for (const a of ACHIEVEMENTS) {
@@ -349,5 +354,52 @@ describe('the Heroic treatment (ticket 6.3)', () => {
       expect(heroic.tint).toBe('heroic');
       expect(plain.tint).toBeUndefined();
     }
+  });
+});
+
+describe('cosmetic art (A.13)', () => {
+  const fileSize = (sprite: SpriteAsset) => {
+    const buf = readFileSync(new URL(`../../public${sprite.path}`, import.meta.url));
+    return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+  };
+
+  // The ids ticket 6.8's collection book stores: keep them stable.
+  it('resolves every banner style to a 32×32 file', () => {
+    expect(BANNER_STYLE_IDS).toEqual([
+      'banner.harvest-sheaf',
+      'banner.forgeward',
+      'banner.crypt-seal',
+      'banner.season-laurel',
+      'banner.warden-flame',
+      'banner.ember-standard',
+    ]);
+    for (const id of BANNER_STYLE_IDS) {
+      const sprite = bannerStyleAsset(id);
+      expect(sprite, id).toMatchObject({ width: 32, height: 32 });
+      expect(fileSize(sprite!), id).toEqual({ width: 32, height: 32 });
+      expect(manifest.assets.find((m) => m.id === id)?.kind, id).toBe('banner');
+    }
+    expect(bannerStyleAsset('banner.not-drawn')).toBeNull();
+    expect(bannerStyleAsset('crest.iron')).toBeNull();
+  });
+
+  it('resolves every crest style to a 48×56 frame around the md crest window', () => {
+    expect(CREST_STYLE_IDS).toEqual(['crest.iron', 'crest.gilt', 'crest.bone', 'crest.ember']);
+    for (const id of CREST_STYLE_IDS) {
+      const sprite = crestStyleAsset(id);
+      expect(sprite, id).toMatchObject({ width: 48, height: 56, window: CREST_STYLE_WINDOW });
+      expect(fileSize(sprite!), id).toEqual({ width: 48, height: 56 });
+      const entry = manifest.assets.find((m) => m.id === id);
+      expect(entry?.kind, id).toBe('crest');
+      expect(entry?.window, id).toEqual(CREST_STYLE_WINDOW);
+    }
+    expect(crestStyleAsset('crest.velvet')).toBeNull();
+    expect(crestStyleAsset('banner.forgeward')).toBeNull();
+  });
+
+  it('draws the Forgeward builder deed', () => {
+    const sprite = findSprite('achievement.forgeward-builder');
+    expect(sprite).toMatchObject({ width: 32, height: 32 });
+    expect(fileSize(sprite!)).toEqual({ width: 32, height: 32 });
   });
 });
