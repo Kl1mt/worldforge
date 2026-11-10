@@ -512,9 +512,16 @@ async function main() {
       await page.getByRole('button', { name: 'Turn off' }).click();
       await page.waitForTimeout(500);
     }
+    if (filling && (state.overCapacity ?? 0) > 0 && state.pack <= CAPACITY) {
+      // The first settlement after the filter is turned off can still belong to a visit that
+      // started with it on and tidied the pack (CLAUDE.md: a switch's first settlement can finish
+      // the previous cycle). Read the state again on the next visit instead of failing; the run's
+      // budget still bounds the wait.
+      log(`Pack: over-capacity drop on a tidied visit (pack ${state.pack}), waiting for the next`);
+      continue;
+    }
     if (filling && (state.overCapacity ?? 0) > 0) {
       seen.overCapacity = state.overCapacity;
-      if (state.pack <= CAPACITY) throw new Error(`pack not over capacity: ${state.pack}`);
       log('Pack: a valuable drop kept over capacity');
       await page.goto(`${baseUrl}/#/inventory`);
       await page.getByRole('tab', { name: /^Items/ }).click();
