@@ -2,13 +2,17 @@ import type { CSSProperties } from 'react';
 import { findSprite } from '../content/assets';
 import type { ItemView } from '../game/items';
 import { PixelSprite } from './PixelSprite';
+import { shimmerClass, VARIANT_MARK, variantTreatment, type ShimmerMode } from './itemVariant';
 import './item-frame.css';
 
 interface ItemFrameProps {
   item:
     | (Pick<ItemView, 'icon' | 'name' | 'rarity'> & {
         upgradeLevel?: number;
-        /** Ticket 3.5: a Void item gets the void overlay (only when the variant applies). */
+        /**
+         * Ticket 3.5: a Void item gets the void overlay (only when the variant applies); ticket
+         * A.12: a Prismatic item gets the opal tint and sweep.
+         */
         variant?: ItemView['variant'];
         /** Ticket 3.7: a padlock in the upper right corner. */
         locked?: boolean;
@@ -26,6 +30,8 @@ interface ItemFrameProps {
   isNew?: boolean;
   /** Ticket 3.7: shown but not selectable (e.g. a locked item in a sell picker). */
   disabled?: boolean;
+  /** Ticket A.12: whether the Prismatic sweep may move (`itemVariant.ts`); `auto` in the game. */
+  shimmer?: ShimmerMode;
 }
 
 /**
@@ -43,10 +49,13 @@ export function ItemFrame({
   context,
   isNew,
   disabled,
+  shimmer = 'auto',
 }: ItemFrameProps) {
   const size = 32 * scale;
   // One art pixel in CSS pixels, for the Void edge (`--px`).
   const px = { '--px': `${Math.max(1, Math.floor(scale))}px` } as CSSProperties;
+  const treatment = variantTreatment(item?.variant?.id);
+  const sprite = item?.icon ? findSprite(item.icon) : undefined;
   const classes = [
     'item-frame',
     item ? `rarity-${item.rarity}` : 'item-frame--empty',
@@ -54,6 +63,7 @@ export function ItemFrame({
     onSelect ? 'item-frame--interactive' : '',
     item && isNew ? 'item-frame--new' : '',
     item?.variant ? `item-frame--${item.variant.id}` : '',
+    treatment === 'prismatic' ? shimmerClass(shimmer) : '',
     item?.locked ? 'item-frame--locked' : '',
   ]
     .filter(Boolean)
@@ -71,7 +81,7 @@ export function ItemFrame({
       </span>
     ) : null;
   const art = item?.icon ? (
-    <PixelSprite sprite={findSprite(item.icon)!} scale={scale} alt="" />
+    <PixelSprite sprite={sprite!} scale={scale} alt="" />
   ) : item ? (
     // No art for this item (its base left the content): a marked socket, not a broken image.
     <span className="item-frame__empty" style={{ width: size, height: size }}>
@@ -89,17 +99,40 @@ export function ItemFrame({
         +{upgrade}
       </span>
     ) : null;
-  // Ticket 3.5: the Void mark, a hollow diamond (shape, not only colour).
+  // Ticket 3.5: the Void mark, a hollow diamond; A.12: Prismatic's open star (shape, not colour).
   const voidMark = item?.variant ? (
     <span className="item-frame__variant" aria-hidden="true">
-      ◇
+      {VARIANT_MARK[treatment ?? 'void']}
     </span>
   ) : null;
+  // Ticket A.12: Prismatic's layers. The tint and the sweep share the icon's grid cell and are
+  // clipped to its alpha (no layout change); the opal hairline runs inside the rarity ring.
+  const prism =
+    treatment === 'prismatic' && sprite ? (
+      <>
+        <span className="item-frame__prism-ring" aria-hidden="true" />
+        {(['tint', 'sheen'] as const).map((layer) => (
+          <span
+            key={layer}
+            className={`item-frame__prism item-frame__prism--${layer}`}
+            aria-hidden="true"
+            style={{
+              // The sprite's own box at PixelSprite's integer scale.
+              width: sprite.width * Math.max(1, Math.floor(scale)),
+              height: sprite.height * Math.max(1, Math.floor(scale)),
+              maskImage: `url("${sprite.path}")`,
+              WebkitMaskImage: `url("${sprite.path}")`,
+            }}
+          />
+        ))}
+      </>
+    ) : null;
   // Ticket 3.7: a small iron padlock (shape, not colour) in the upper right corner.
   const lockMark = item?.locked ? <span className="item-frame__lock" aria-hidden="true" /> : null;
   const inner = (
     <>
       {art}
+      {prism}
       {tag}
       {mark}
       {voidMark}
