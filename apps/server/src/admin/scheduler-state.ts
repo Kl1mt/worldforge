@@ -4,13 +4,15 @@
  * starts empty. Holds job names, times and counts only.
  */
 export type SchedulerJob =
-  'settlement' | 'pruning' | 'leaderboardSweep' | 'seasonJobs' | 'tradeSweep';
+  'settlement' | 'pruning' | 'leaderboardSweep' | 'seasonJobs' | 'eventJobs' | 'tradeSweep';
 
 export const SCHEDULER_JOBS: readonly SchedulerJob[] = [
   'settlement',
   'pruning',
   'leaderboardSweep',
   'seasonJobs',
+  // Ticket 6.6: ended events closed and their reward sweep.
+  'eventJobs',
   'tradeSweep',
 ];
 

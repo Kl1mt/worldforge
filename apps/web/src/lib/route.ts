@@ -113,6 +113,8 @@ export const ADMIN_SECTIONS = [
   'world',
   'telemetry',
   'seasons',
+  // Ticket 6.6: the event calendar (schedule, extend, end early, cancel a future one).
+  'events',
   'trading',
   // Ticket T.6: the trade ledger, case view, reversal and pattern report.
   'trades',

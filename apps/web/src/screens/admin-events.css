@@ -1,0 +1,49 @@
+/* Ticket 6.6: the admin panel's Events tab (scoped `evfolio`). */
+.evfolio {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.evfolio__card .display {
+  margin: var(--space-1) 0;
+}
+
+.evfolio__hint {
+  margin: 0;
+}
+
+.evfolio__past {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.evfolio__row {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1.2fr) minmax(12rem, 2fr) auto minmax(10rem, 1.5fr);
+  gap: var(--space-3);
+  align-items: baseline;
+}
+
+.evfolio__status {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.evfolio__status--closed {
+  color: var(--brass-500);
+}
+
+.evfolio__status--cancelled {
+  color: var(--text-dim);
+  text-decoration: line-through;
+}
+
+@media (width <= 720px) {
+  .evfolio__row {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+}

@@ -451,7 +451,12 @@ describe('season boards, archive integrity and awards', () => {
       frame: null,
     });
     expect(chose.statusCode, chose.body).toBe(200);
-    const want = { title: { season: 1, metric: award.metric, tier: award.tier }, frame: null };
+    const want = {
+      title: { season: 1, metric: award.metric, tier: award.tier },
+      frame: null,
+      // Ticket 6.6: no event title shown.
+      cosmeticTitle: null,
+    };
     expect(chose.json().shown).toEqual(want);
 
     // The board, the profile and the guild rosters show it.
@@ -482,7 +487,7 @@ describe('season boards, archive integrity and awards', () => {
 
     // Showing none is a choice; a later award does not override it.
     const none = await call(owner, 'POST', '/api/account/prestige', { title: null, frame: null });
-    expect(none.json().shown).toEqual({ title: null, frame: null });
+    expect(none.json().shown).toEqual({ title: null, frame: null, cosmeticTitle: null });
     const [row] = await w.db
       .select()
       .from(prestigeDisplays)

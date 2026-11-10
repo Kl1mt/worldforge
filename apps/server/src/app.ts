@@ -51,6 +51,8 @@ import { sweepLeaderboards } from './leaderboards/snapshot.js';
 import { registerSeasons } from './seasons/routes.js';
 import { registerArena } from './arena/routes.js';
 import { runSeasonJobs } from './seasons/model.js';
+import { runEventJobs } from './events/model.js';
+import { registerEvents } from './events/routes.js';
 import { WorldStateCache } from './community/world-state.js';
 import { GameSettingsCache, SettingsEvents } from './settings/store.js';
 import { SanctionEvents } from './social/sanctions.js';
@@ -172,6 +174,7 @@ export function buildApp({
       await registerScores(api, activityOptions.now);
       await registerLeaderboards(api, { now: activityOptions.now, ...leaderboards });
       await registerSeasons(api, { now: activityOptions.now });
+      await registerEvents(api, activityOptions);
       await registerArena(api, activityOptions);
       if (testRoutes) await testRoutes(api);
 
@@ -287,6 +290,16 @@ function registerSettlementScheduler(
         .catch((err: unknown) => {
           done('seasonJobs', false);
           app.log.error({ err }, 'season jobs failed');
+        })
+        .then(async () => {
+          // Ticket 6.6: close every ended event and sweep its reward track.
+          const out = await runEventJobs(app.db, options.now());
+          if (out.closed.length > 0 || out.swept.length > 0) app.log.info(out, 'event jobs');
+          done('eventJobs', true, `closed ${out.closed.length}, swept ${out.swept.length}`);
+        })
+        .catch((err: unknown) => {
+          done('eventJobs', false);
+          app.log.error({ err }, 'event jobs failed');
         })
         .then(async () => {
           // Ticket T.5: offers past their 48 hours expire, holds past their 72 hours release.

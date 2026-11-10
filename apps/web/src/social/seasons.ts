@@ -29,9 +29,11 @@ export interface PrestigeBadge {
 export interface PrestigeShown {
   title: PrestigeBadge | null;
   frame: PrestigeBadge | null;
+  /** Ticket 6.6: a cosmetic title (an event's) shown instead of a season title. */
+  cosmeticTitle?: string | null;
 }
 
-export const NO_PRESTIGE: PrestigeShown = { title: null, frame: null };
+export const NO_PRESTIGE: PrestigeShown = { title: null, frame: null, cosmeticTitle: null };
 
 export interface EarnedAward extends PrestigeBadge {
   rank: number;
@@ -51,8 +53,11 @@ export const seasonsApi = {
     apiRequest('/seasons', signal ? { signal } : {}),
   prestige: (signal?: AbortSignal): Promise<ApiResult<PrestigeSettings>> =>
     apiRequest('/account/prestige', signal ? { signal } : {}),
-  savePrestige: (body: { title: PrestigeChoice; frame: PrestigeChoice }) =>
-    apiRequest<PrestigeSettings>('/account/prestige', { method: 'POST', body }),
+  savePrestige: (body: {
+    title: PrestigeChoice;
+    frame: PrestigeChoice;
+    cosmeticTitle?: string | null;
+  }) => apiRequest<PrestigeSettings>('/account/prestige', { method: 'POST', body }),
 };
 
 const DAY = new Intl.DateTimeFormat('en-GB', {

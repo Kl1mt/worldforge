@@ -28,7 +28,7 @@ import {
   type ProfileSettings,
 } from '../social/api';
 import { ReportDialog } from '../social/ReportDialog';
-import { FramedPlate, TitleBadge } from '../social/Prestige';
+import { FramedPlate, ShownTitle } from '../social/Prestige';
 import { HonoursPanel } from './HonoursPanel';
 import './characters.css';
 import './gate.css';
@@ -99,9 +99,9 @@ export function ProfileScreen() {
           <h1 id="herald-title" className="display">
             {name ?? (load.kind === 'missing' ? 'No such name' : 'The herald of names')}
           </h1>
-          {profile?.prestige.title ? (
+          {profile?.prestige.title || profile?.prestige.cosmeticTitle ? (
             <p className="herald__title">
-              <TitleBadge badge={profile.prestige.title} />
+              <ShownTitle shown={profile.prestige} />
             </p>
           ) : null}
           {profile ? (

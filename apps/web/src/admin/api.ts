@@ -8,6 +8,7 @@ import type {
 } from '@worldforge/game-core';
 import { apiRequest, type ApiFailure, type ApiResult } from '../lib/api';
 import type { SeasonList } from '../social/seasons';
+import type { EventView } from '../events/api';
 
 /** Client side of `/api/admin/*` (ticket D.3). Every route answers 404 to non-admins. */
 
@@ -197,6 +198,18 @@ export const adminApi = {
       body: { expectedVersion, settings },
       headers: { 'Idempotency-Key': key },
     }),
+  /** Ticket 6.6: the event calendar. */
+  events: (signal?: AbortSignal) => get<AdminEvents>('/admin/events', signal),
+  scheduleEvent: (input: { definitionId: string; startsAt: string; endsAt: string }) =>
+    apiRequest<AdminEvents>('/admin/events', { method: 'POST', body: input }),
+  /** `endsAt` omitted: end the event now. */
+  endEvent: (number: number, endsAt?: string) =>
+    apiRequest<AdminEvents>(`/admin/events/${number}/end`, {
+      method: 'POST',
+      body: endsAt ? { endsAt } : {},
+    }),
+  cancelEvent: (number: number) =>
+    apiRequest<AdminEvents>(`/admin/events/${number}/cancel`, { method: 'POST' }),
   /** `endsAt` omitted: end the season now. */
   endSeason: (number: number, endsAt?: string) =>
     apiRequest<AdminSeasons>(`/admin/seasons/${number}/end`, {
@@ -228,6 +241,21 @@ export interface TradingSettingsView {
 /** Ticket 5.3: the admin panel's season view (`GET /api/admin/seasons`). */
 export interface AdminSeasons extends SeasonList {
   counts: { season: number; entries: number; standings: number; awards: number }[];
+}
+
+/** Ticket 6.6: the admin panel's event view (`GET /api/admin/events`). */
+export interface AdminEvents {
+  now: string;
+  definitions: { id: string; name: string; tagline: string; defaultDays: number }[];
+  current: EventView | null;
+  next: EventView | null;
+  past: {
+    event: EventView;
+    closedAt: string | null;
+    cancelledAt: string | null;
+    rewardsSweptAt: string | null;
+  }[];
+  counts: { event: number; heroes: number; accounts: number; questsDone: number; grants: number }[];
 }
 
 /** The register link an invite code opens (D.2's hash form), on this site's own address. */

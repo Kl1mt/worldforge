@@ -67,6 +67,12 @@ export const TELEMETRY_METRICS = [
   'boss_modifier.run',
   'boss_modifier.hoard',
   'boss_modifier.guild_boss',
+  // Ticket 6.6: events: heroes joined (event id), quests done (event, quest; amount = tallies)
+  // and reward-track tiers granted (event, tier, cosmetic id). Bonus materials are `material.in`
+  // source `event`.
+  'event.join',
+  'event.quest',
+  'event.reward',
 ] as const;
 export type TelemetryMetric = (typeof TELEMETRY_METRICS)[number];
 

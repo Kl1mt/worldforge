@@ -30,6 +30,7 @@ import { TradingSettingsFolio } from './TradingSettingsFolio';
 import { TradeDesk } from './TradeDesk';
 import { AdminInspector } from './AdminInspector';
 import { AdminWorld } from './AdminWorld';
+import { EventsFolio } from './AdminEvents';
 import { AnimationGallery } from '../admin/AnimationGallery';
 import './gate.css';
 import './admin.css';
@@ -41,6 +42,7 @@ const SECTION_LABELS: Record<AdminSection, { label: string; hint: string }> = {
   world: { label: 'World', hint: 'Flags & scheduler' },
   telemetry: { label: 'Telemetry', hint: 'Loot & economy' },
   seasons: { label: 'Seasons', hint: 'Rolls & honours' },
+  events: { label: 'Events', hint: 'Harvests & keepsakes' },
   trading: { label: 'Trading', hint: 'Switches & limits' },
   trades: { label: 'Trades', hint: 'History & patterns' },
   status: { label: 'Server', hint: 'Health & version' },
@@ -181,6 +183,7 @@ export function AdminScreen() {
         {loc.section === 'world' ? <AdminWorld /> : null}
         {loc.section === 'telemetry' ? <TelemetryFolio /> : null}
         {loc.section === 'seasons' ? <SeasonsFolio /> : null}
+        {loc.section === 'events' ? <EventsFolio /> : null}
         {loc.section === 'trading' ? <TradingSettingsFolio /> : null}
         {loc.section === 'trades' ? <TradeDesk /> : null}
         {loc.section === 'status' ? <StatusFolio /> : null}

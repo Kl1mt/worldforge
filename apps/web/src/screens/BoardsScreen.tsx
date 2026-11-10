@@ -17,7 +17,7 @@ import { boardHref, boardLocation, profileHref, routeHref } from '../lib/route';
 import { ReportDialog } from '../social/ReportDialog';
 import type { ApiFailure } from '../lib/api';
 import { useBoard, type BoardEntry, type BoardView } from '../social/boards';
-import { FrameMark, TitleBadge } from '../social/Prestige';
+import { FrameMark, ShownTitle } from '../social/Prestige';
 import {
   LADDER_BRACKET_IDS,
   rangeWords,
@@ -463,7 +463,7 @@ function Row({
               {name}
             </span>
           )}
-          <TitleBadge badge={e.player.prestige.title} compact />
+          <ShownTitle shown={e.player.prestige} compact />
         </span>
         <span className="renown__hero">
           {e.hero.name ? `${e.hero.name}, ` : ''}level {e.hero.level} {cls}
@@ -829,7 +829,7 @@ function LadderRow({
               {name}
             </span>
           )}
-          <TitleBadge badge={e.player.prestige.title} compact />
+          <ShownTitle shown={e.player.prestige} compact />
         </span>
         <span className="renown__hero">
           {e.hero.name ? `${e.hero.name}, ` : ''}level {e.hero.level} {cls} ·{' '}

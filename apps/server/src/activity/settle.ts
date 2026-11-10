@@ -39,6 +39,7 @@ import {
 import { uuidv7 } from '../db/uuid.js';
 import { changeMaterialsTx, grantGatheringTx, loadProfessions } from '../materials/store.js';
 import { recordQuestEventsTx } from '../quests/store.js';
+import { recordEventProgressTx } from '../events/progress.js';
 
 export interface ActivityOptions {
   /** Offline accumulation cap (GDD §9.1: 3 h, `OFFLINE_CAP_SECONDS`). */
@@ -273,16 +274,20 @@ export async function settleActivityTx(
     await changeMaterialsTx(tx, characterId, filter.materials, now);
 
     // Quest progress from the same settlement, under the same character lock (ticket 2.4).
-    await recordQuestEventsTx(
+    const questEvents = questEventsFromSettlement({
+      startAreaId: activity.areaId,
+      endAreaId: settlement.areaId,
+      encounters: settlement.encounters,
+      killsByEnemy: settlement.killsByEnemy,
+      materials: settlement.materials,
+    });
+    await recordQuestEventsTx(tx, characterId, questEvents);
+    // Ticket 6.6: the event under way (if the hero joined it): its quests and its modifier's bonus.
+    await recordEventProgressTx(
       tx,
-      characterId,
-      questEventsFromSettlement({
-        startAreaId: activity.areaId,
-        endAreaId: settlement.areaId,
-        encounters: settlement.encounters,
-        killsByEnemy: settlement.killsByEnemy,
-        materials: settlement.materials,
-      }),
+      character,
+      { questEvents, killsByEnemy: settlement.killsByEnemy },
+      now,
     );
 
     const [written] = await tx
