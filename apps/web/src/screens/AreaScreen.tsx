@@ -1,3 +1,5 @@
+import { appearancePalette } from '../content/appearance';
+import { useHeroPalette } from '../cosmetics/store';
 import {
   MAX_LEVEL,
   getArea,
@@ -148,6 +150,8 @@ function Scene({ view, phone, farming }: { view: AreaView; phone: boolean; farmi
   // A.14: a cosmetic fight loop while farming; only the idle breath while resting.
   const motion = useSceneMotion();
   const sheet = classAttackSheet(hero.classId);
+  // Ticket 6.8: the hero's appearance (a palette swap of its frames, own colours if none).
+  const palette = appearancePalette(useHeroPalette(hero.id), hero.classId);
   const { heroRef, foeRef } = useSceneAnimation({
     active: farming,
     motion,
@@ -203,6 +207,7 @@ function Scene({ view, phone, farming }: { view: AreaView; phone: boolean; farmi
               <PixelSprite
                 sprite={sheet ?? classPortrait(hero.classId)}
                 fallback={classPortrait(hero.classId)}
+                palette={palette}
                 scale={spriteScale}
                 alt={`${hero.name}, ${getClass(hero.classId).name.toLowerCase()}`}
               />

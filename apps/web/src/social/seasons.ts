@@ -31,6 +31,10 @@ export interface PrestigeShown {
   frame: PrestigeBadge | null;
   /** Ticket 6.6: a cosmetic title (an event's) shown instead of a season title. */
   cosmeticTitle?: string | null;
+  /** Ticket 6.8: the account's banner style, crest style and title colour (null = plain). */
+  banner?: string | null;
+  crest?: string | null;
+  titleColour?: string | null;
 }
 
 export const NO_PRESTIGE: PrestigeShown = { title: null, frame: null, cosmeticTitle: null };

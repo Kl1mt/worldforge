@@ -194,7 +194,13 @@ describe('public profiles (ticket 4.2)', () => {
     // Before choosing: characters only, no achievements, no showcase.
     let view = (await profile(viewer, acc.handle)).json().profile;
     expect(view.characters).toEqual([
-      { name: hero.name, classId: 'warrior', level: 20, appearance: { banner: 'ash' } },
+      {
+        name: hero.name,
+        classId: 'warrior',
+        level: 20,
+        appearance: { banner: 'ash' },
+        palette: null,
+      },
     ]);
     expect(view.achievements).toEqual([]);
     expect(view.showcase).toBeNull();

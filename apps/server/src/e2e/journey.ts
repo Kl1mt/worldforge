@@ -3071,8 +3071,9 @@ export async function playEventStep(
   const cosmetics = (await hero.api('GET', '/api/account/cosmetics')).json<{
     unlocks: { id: string; shownToday: boolean }[];
   }>().unlocks;
+  // Ticket 6.8: shown in the collection book since it opened.
   expect(cosmetics).toContainEqual(
-    expect.objectContaining({ id: 'banner.harvest-sheaf', shownToday: false }),
+    expect.objectContaining({ id: 'banner.harvest-sheaf', shownToday: true }),
   );
 
   // The owner ends it early; unfinished tasks lapse, nothing earned is lost.
@@ -4342,4 +4343,65 @@ export async function playAdminToolsStep(
   expect((await reconcileWithAudit(database.db)).filter((c) => !c.ok)).toEqual([]);
   for (const body of answers)
     expect(body.includes(email), 'no email in an admin answer').toBe(false);
+}
+
+/**
+ * Phase 6 collection book step (ticket 6.8, docs/COSMETICS.md): after the event step, the hero's
+ * account owns the Sheaf-and-Bone banner. It opens the book (every cosmetic, owned or locked with
+ * its source), cannot equip a locked crest or another kind in the banner slot, equips the banner
+ * (Idempotency-Key, replayed safely) and sees it on its own profile; the hero keeps its class's own
+ * colours (no appearance owned) and its scores are unchanged.
+ */
+export async function playCollectionStep(hero: Journey) {
+  type Book = {
+    entries: { id: string; kind: string; owned: boolean; source: { kind: string } }[];
+    equipped: { banner: string | null; crest: string | null; titleColour: string | null };
+    heroes: { id: string; palette: string | null }[];
+  };
+  const scores = async () => {
+    const r = await hero.api('GET', `${hero.base}/scores`);
+    expect(r.statusCode, r.body).toBe(200);
+    return r.json();
+  };
+  const before = await scores();
+  const opened = await hero.api('GET', '/api/account/collection');
+  expect(opened.statusCode, opened.body).toBe(200);
+  const book = opened.json<Book>();
+  const owned = book.entries.filter((e) => e.owned).map((e) => e.id);
+  expect(owned).toEqual(expect.arrayContaining(['appearance.default', 'banner.harvest-sheaf']));
+  expect(book.entries.find((e) => e.id === 'crest.gilt')).toMatchObject({
+    owned: false,
+    source: { kind: 'season' },
+  });
+  expect(book.heroes).toEqual([expect.objectContaining({ id: hero.characterId, palette: null })]);
+
+  const locked = await hero.keyed('/api/account/cosmetics/equip', { crest: 'crest.gilt' });
+  expect(locked.statusCode).toBe(422);
+  const wrong = await hero.keyed('/api/account/cosmetics/equip', {
+    banner: 'title-colour.bone-white',
+  });
+  expect(wrong.statusCode).toBe(422);
+  const key = randomUUID();
+  const worn = await hero.keyed(
+    '/api/account/cosmetics/equip',
+    { banner: 'banner.harvest-sheaf' },
+    key,
+  );
+  expect(worn.statusCode, worn.body).toBe(200);
+  const replay = await hero.keyed(
+    '/api/account/cosmetics/equip',
+    { banner: 'banner.harvest-sheaf' },
+    key,
+  );
+  expect(replay.headers['idempotency-replayed']).toBe('true');
+  expect(worn.json<Book>().equipped.banner).toBe('banner.harvest-sheaf');
+  // Shown wherever honours are (boards, profile, rosters): the prestige display carries it.
+  const me = await hero.api('GET', '/api/account/prestige');
+  expect(me.statusCode, me.body).toBe(200);
+  expect(me.json<{ shown: { banner: string | null } }>().shown.banner).toBe('banner.harvest-sheaf');
+  const palette = await hero.keyed(`${hero.base}/appearance`, { appearance: 'appearance.ember' });
+  expect(palette.statusCode).toBe(422);
+  // Cosmetics carry no power.
+  expect(await scores()).toEqual(before);
+  return { owned };
 }

@@ -288,6 +288,13 @@
       "when": 1794345466402,
       "tag": "0040_item_awakening",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "7",
+      "when": 1794353294289,
+      "tag": "0041_cosmetic_collection",
+      "breakpoints": true
     }
   ]
 }

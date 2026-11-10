@@ -1739,8 +1739,10 @@ export const seasonAwards = pgTable(
  * the account's own awards (composite foreign keys).
  */
 /**
- * Ticket 6.6: cosmetics an account has unlocked (docs/EVENTS.md "Cosmetics"). Additive and minimal:
- * ticket 6.8's collection book extends it. `source` says where it came from (`event:<n>:tier:<t>`).
+ * Ticket 6.6: cosmetics an account has unlocked (docs/EVENTS.md "Cosmetics"); ticket 6.8's
+ * collection book extends it (docs/COSMETICS.md). `source` says where it came from:
+ * `event:<n>:tier:<t>`, `achievement:<id>`, `milestone:<character id>`, `season:<n>`, or the same
+ * with a `backfill:` prefix. Account-bound: never traded.
  * Granted exactly once per account and cosmetic (the primary key, `on conflict do nothing`).
  * Changes no number in the game.
  */
@@ -1758,6 +1760,70 @@ export const cosmeticUnlocks = pgTable(
 );
 
 export type CosmeticUnlock = typeof cosmeticUnlocks.$inferSelect;
+
+/**
+ * Ticket 6.8: the cosmetics an account shows (docs/COSMETICS.md): its banner style, crest style and
+ * title colour, each one of the account's own `cosmetic_unlocks` (composite foreign keys) or null
+ * (the plain look). No row = never chosen (plain). Changes no number in the game.
+ */
+export const cosmeticDisplays = pgTable(
+  'cosmetic_displays',
+  {
+    accountId: uuid('account_id')
+      .primaryKey()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    banner: text('banner'),
+    crest: text('crest'),
+    titleColour: text('title_colour'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    foreignKey({
+      name: 'cosmetic_displays_banner_fk',
+      columns: [t.accountId, t.banner],
+      foreignColumns: [cosmeticUnlocks.accountId, cosmeticUnlocks.cosmeticId],
+    }),
+    foreignKey({
+      name: 'cosmetic_displays_crest_fk',
+      columns: [t.accountId, t.crest],
+      foreignColumns: [cosmeticUnlocks.accountId, cosmeticUnlocks.cosmeticId],
+    }),
+    foreignKey({
+      name: 'cosmetic_displays_title_colour_fk',
+      columns: [t.accountId, t.titleColour],
+      foreignColumns: [cosmeticUnlocks.accountId, cosmeticUnlocks.cosmeticId],
+    }),
+  ],
+);
+
+export type CosmeticDisplay = typeof cosmeticDisplays.$inferSelect;
+
+/**
+ * Ticket 6.8: a hero's appearance (a palette of its class sprite), one of its account's own
+ * `cosmetic_unlocks` of kind `appearance` (composite foreign key). No row = the class's own
+ * colours (`appearance.default`, never stored).
+ */
+export const heroAppearances = pgTable(
+  'hero_appearances',
+  {
+    characterId: uuid('character_id')
+      .primaryKey()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    appearance: text('appearance').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    foreignKey({
+      name: 'hero_appearances_unlock_fk',
+      columns: [t.accountId, t.appearance],
+      foreignColumns: [cosmeticUnlocks.accountId, cosmeticUnlocks.cosmeticId],
+    }),
+    index('hero_appearances_account_idx').on(t.accountId),
+  ],
+);
 
 /**
  * Ticket 6.6: scheduled events (docs/EVENTS.md). `[starts_at, ends_at)` in UTC (the game clock),

@@ -3,17 +3,15 @@ import { ENEMIES } from '../world/enemies.js';
 import { MATERIALS } from '../world/materials.js';
 import { DUNGEONS } from '../world/dungeons.js';
 import type { QuestEvent } from '../quests/events.js';
+import { COSMETICS, cosmeticShownToday, findCosmetic } from '../cosmetics/catalogue.js';
 import {
-  COSMETICS,
   EVENT_CLOSE_GRACE_MS,
   EVENT_DEFINITIONS,
   applyEventProgress,
   completedEventQuests,
-  cosmeticShownToday,
   eventAt,
   eventStatus,
   eventTallies,
-  findCosmetic,
   getEventDefinition,
   inEventWindow,
   initialEventProgress,
@@ -43,14 +41,15 @@ describe('event content', () => {
       cosmetics: new Set(COSMETICS.map((c) => c.id)),
     };
     for (const def of EVENT_DEFINITIONS) expect(validateEventDefinition(def, known)).toEqual([]);
-    // Every cosmetic names its event and kind prefix.
+    // Every event cosmetic names its event and kind prefix (6.8 adds other sources).
     for (const c of COSMETICS) {
       expect(c.id.startsWith(c.kind === 'titleColour' ? 'title-colour.' : `${c.kind}.`)).toBe(true);
-      expect(EVENT_DEFINITIONS.some((d) => d.id === c.source.eventId)).toBe(true);
+      const s = c.source;
+      if (s.kind === 'event') expect(EVENT_DEFINITIONS.some((d) => d.id === s.eventId)).toBe(true);
     }
   });
 
-  it('Harvest of Bones: four quests, three tiers, a title shown today', () => {
+  it('Harvest of Bones: four quests, three tiers, every keepsake shown (6.8)', () => {
     expect(harvest.quests).toHaveLength(4);
     expect(harvest.track.map((t) => t.tallies)).toEqual([10, 25, 50]);
     expect(harvest.track.map((t) => t.cosmeticId)).toEqual([
@@ -60,7 +59,8 @@ describe('event content', () => {
     ]);
     const title = findCosmetic('title.reaper-of-the-harvest')!;
     expect(cosmeticShownToday(title)).toBe(true);
-    expect(cosmeticShownToday(findCosmetic('banner.harvest-sheaf')!)).toBe(false);
+    // Ticket 6.8: the collection book shows banners and title colours too.
+    expect(cosmeticShownToday(findCosmetic('banner.harvest-sheaf')!)).toBe(true);
     // The modifier counts only undead of the first areas.
     for (const id of harvest.modifier.enemyIds) {
       expect(ENEMIES.find((e) => e.id === id)!.undead).toBe(true);

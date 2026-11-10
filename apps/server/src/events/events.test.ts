@@ -422,8 +422,9 @@ describe('an event ending mid-quest; the reward track exactly once', () => {
     expect(
       cos.json().unlocks.map((u: { id: string; shownToday: boolean }) => [u.id, u.shownToday]),
     ).toEqual([
-      ['banner.harvest-sheaf', false],
-      ['title-colour.bone-white', false],
+      // Ticket 6.8: the collection book shows every keepsake.
+      ['banner.harvest-sheaf', true],
+      ['title-colour.bone-white', true],
       ['title.reaper-of-the-harvest', true],
     ]);
   });
