@@ -511,6 +511,9 @@ async function main() {
       await page.getByRole('tab', { name: /Loot filter/ }).click();
       await page.getByRole('button', { name: 'Turn off' }).click();
       await page.waitForTimeout(500);
+      // The visit above still tidied (sold junk, so its pack is post-sale) while its settle can
+      // report items that arrived over capacity: judge the pack only on visits with tidy off.
+      continue;
     }
     if (filling && (state.overCapacity ?? 0) > 0) {
       seen.overCapacity = state.overCapacity;

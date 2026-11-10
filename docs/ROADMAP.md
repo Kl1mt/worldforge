@@ -653,6 +653,10 @@ Owner request: a tab kept open through a deploy notices that a newer version is 
 - Failed loads after a deploy: Vite's `vite:preloadError` or an unhandled chunk-load rejection brings the slip back (whatever Later said); a screen that throws while rendering shows an in-world reload panel (`ReloadBoundary`, keyed by route inside the shell, plus one around the whole app) instead of a blank page. The web still ships as one bundle, so today this guards future lazy screens and late assets.
 - Tests: the comparison, the offer (newer only, Later per version, guide), the poll with an injected clock, timers and fetch, the chunk-error watcher and the boundary's panel; screenshots `docs/screenshots/phase-5/reload-hint-*` (`node tools/screenshots/reload.mjs`, local server only). No server or gameplay changes.
 
+### F.5 Phase 3 browser run: pack-capacity flake — `done (PR #TBD)`
+`tools/e2e/phase3-exit.mjs` (CI job `e2e-phase3`) failed on PR #112 with `pack not over capacity: 8` (CLAUDE.md "Capacity"). The iteration that turned the loot filter off also judged the pack against the visit made *before* the switch: that visit still tidied, so it reported the pack after selling junk, while its settle could still report items that arrived over capacity. Whether it did depended on the drops (an unpinned seed).
+- The switch iteration now ends with `continue`, so the over-capacity check only runs on visits made with tidy and the filter off. The assertion is unchanged. Test tooling only; no game, server or web changes.
+
 ## Phase 5 — Leaderboards, competitive systems & trading
 **Status: complete** (ticket 5.8; see the Phase 5 retrospective below).
 
