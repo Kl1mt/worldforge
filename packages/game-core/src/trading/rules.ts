@@ -42,7 +42,7 @@ const DAY_MS = 86_400_000;
  * Materials that can never be traded: Gravewarden's seals are boss loot and gate the Ashen Pass
  * project (TRADING.md "Contents").
  */
-export const UNTRADEABLE_MATERIALS: readonly MaterialId[] = ['gravewardenSeal'];
+export const UNTRADEABLE_MATERIALS: readonly MaterialId[] = ['gravewardenSeal', 'tyrantsEmber'];
 
 /**
  * Every named check, in the order they are run and listed. The party says whose fact it is:

@@ -15,7 +15,7 @@ import {
  * Dungeons (GDD §11.2). Data from ticket 2.1; rooms, the boss mechanic and boss loot are ticket 2.5
  * (rules in `src/dungeon/`).
  */
-export const DUNGEON_IDS = ['namelessCrypt', 'ashenWatch'] as const;
+export const DUNGEON_IDS = ['namelessCrypt', 'ashenWatch', 'tyrantsForge'] as const;
 
 export type DungeonId = (typeof DUNGEON_IDS)[number];
 
@@ -37,6 +37,25 @@ export interface BossEnrage {
   atMs: { min: number; max: number };
   damageMultiplier: number;
   attackSpeedMultiplier: number;
+}
+
+/**
+ * Ticket 6.2: extra boss mechanics on the existing fight engine (`resolveDungeonFight`). Data on a
+ * tier; absent = none, so every earlier boss fights exactly as before. Neither draws a random
+ * number: they reshape blows the fight makes anyway, so replays and seed streams are unchanged.
+ */
+export interface BossMechanics {
+  /**
+   * Every `every`-th blow of the boss strikes `damageMultiplier` × as hard (on top of the enrage).
+   * A health check: a hero who can only just outlast its ordinary blows falls to the heavy one.
+   */
+  heavyBlow?: { every: number; damageMultiplier: number };
+  /**
+   * While the boss holds more than `untilHealthShare` of its health, the hero's blows (and thorns)
+   * deal `damageTakenMultiplier` × damage. The shell breaks once, at that share (a `shellBroken`
+   * event). A damage check at the start of the fight, before the enrage window opens.
+   */
+  shell?: { untilHealthShare: number; damageTakenMultiplier: number };
 }
 
 /** One run's enrage: the moment drawn from `BossEnrage.atMs`. */
@@ -95,6 +114,8 @@ export interface DungeonTierDefinition {
   /** A boss fight that lasts longer is lost. */
   bossMaxFightMs: number;
   bossEnrage: BossEnrage;
+  /** Ticket 6.2: the boss's extra mechanics in this tier (absent = none). */
+  bossMechanics?: BossMechanics;
   bossLoot: DungeonBossLoot;
   /** Loot table rolled for room kills (`getLootTable`; its `focus` is the tier's loot focus). */
   lootTableId: string;
@@ -115,6 +136,11 @@ export interface DungeonDefinition {
   travelMs: number;
   /** The boss at the end of a run (an enemy of rank `boss`). */
   bossId: EnemyId;
+  /**
+   * Ticket 6.2: the `WorldProgress` flag a boss kill sets (each dungeon keeps its own boss progress;
+   * the crypt also records its tier in `cryptTierCleared`).
+   */
+  bossProgress: BossProgressFlag;
   /** Materials the boss always drops (one each) while boss loot is off cooldown. */
   bossDrops: readonly MaterialId[];
   /**
@@ -125,6 +151,10 @@ export interface DungeonDefinition {
   /** Difficulty tiers, in order (ticket 3.6). Tier I is the Phase 2 crypt. */
   tiers: readonly DungeonTierDefinition[];
 }
+
+/** The progress flags a dungeon boss kill sets (ticket 6.2). */
+export type BossProgressFlag =
+  'gravewardenDefeated' | 'ashenWardenDefeated' | 'forgeTyrantDefeated';
 
 export const DUNGEONS: readonly DungeonDefinition[] = [
   {
@@ -141,6 +171,7 @@ export const DUNGEONS: readonly DungeonDefinition[] = [
     rooms: [{ enemies: 2 }, { enemies: 2 }, { enemies: 2 }, { enemies: 2 }],
     travelMs: 20_000,
     bossId: 'gravewarden',
+    bossProgress: 'gravewardenDefeated',
     bossDrops: ['gravewardenSeal'],
     bossLootCooldownHours: 20,
     tiers: [
@@ -249,6 +280,7 @@ export const DUNGEONS: readonly DungeonDefinition[] = [
     rooms: [],
     travelMs: 30_000,
     bossId: 'ashenWarden',
+    bossProgress: 'ashenWardenDefeated',
     bossDrops: [],
     bossLootCooldownHours: 20,
     tiers: [
@@ -279,6 +311,60 @@ export const DUNGEONS: readonly DungeonDefinition[] = [
           gold: { min: 700, max: 1_000 },
         },
         lootTableId: 'ashenPass',
+      },
+    ],
+  },
+  {
+    // Ticket 6.2: the Cinderwastes' region boss. A boss-only run like the Watch (the descent to
+    // the furnace, then the Forge Tyrant), with its rules (snapshot, seed streams, enrage window,
+    // claim, its own hoard cooldown) plus two mechanics: a slag shell and a hammer. Opens with
+    // the Cinder Depths at level 36. His hoard is always bound (source `hoard:tyrantsForge`) and
+    // carries his ember, the input of the Tyrantforged Work recipe (docs/ECONOMY.md).
+    id: 'tyrantsForge',
+    name: 'The Tyrant’s Forge',
+    region: 'The Cinderwastes',
+    description:
+      'At the bottom of the Depths a furnace older than Graumark still burns. Its smith wears the slag as armour.',
+    assetId: 'area.cinder-depths',
+    enemies: [],
+    rooms: [],
+    travelMs: 30_000,
+    bossId: 'forgeTyrant',
+    bossProgress: 'forgeTyrantDefeated',
+    bossDrops: ['tyrantsEmber'],
+    bossLootCooldownHours: 20,
+    tiers: [
+      {
+        tier: 1,
+        name: 'The Forge',
+        minLevel: 36,
+        maxLevel: 40,
+        unlock: { level: 36, ashenWardenDefeated: true },
+        bossLevel: 40,
+        bossMaxFightMs: 150_000,
+        bossEnrage: {
+          atMs: { min: 35_000, max: 65_000 },
+          damageMultiplier: 2,
+          attackSpeedMultiplier: 1.4,
+        },
+        bossMechanics: {
+          shell: { untilHealthShare: 0.7, damageTakenMultiplier: 0.6 },
+          heavyBlow: { every: 3, damageMultiplier: 4 },
+        },
+        bossLoot: {
+          lootTableId: 'forgeTyrant',
+          items: 2,
+          rarityWeights: {
+            common: 0,
+            uncommon: 500,
+            rare: 3000,
+            epic: 3500,
+            legendary: 700,
+            mythic: 60,
+          },
+          gold: { min: 1_400, max: 2_000 },
+        },
+        lootTableId: 'cinderDepths',
       },
     ],
   },

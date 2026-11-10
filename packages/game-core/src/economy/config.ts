@@ -76,6 +76,8 @@ export interface ForgeRecipe {
   materials: readonly MaterialCost[];
   /** Rarity weights of the crafted item (never common: crafting beats a plain drop). */
   rarities: Readonly<Partial<Record<RarityId, number>>>;
+  /** Ticket 6.2: the crafted item level never exceeds this (absent = the loot config's cap). */
+  maxItemLevel?: number;
 }
 
 const CRAFT_RARITIES = { uncommon: 70, rare: 25, epic: 5 } as const;
@@ -121,6 +123,24 @@ export const FORGE_RECIPES: readonly ForgeRecipe[] = [
       { materialId: 'ashwort', quantity: 20 },
     ],
     rarities: CRAFT_RARITIES,
+  },
+  // Ticket 6.2: the Forge Tyrant's ember as a sink (docs/ECONOMY.md "The Tyrant's Forge"). Tier-4
+  // gear in the slot the player picks, never below Rare, at most at the Depths' top item level.
+  {
+    id: 'tyrantforgedWork',
+    name: 'Tyrantforged Work',
+    description:
+      'Cinderwastes steel worked in the Tyrant’s own fire. One ember, and the slot is yours to choose.',
+    tier: 4,
+    level: 36,
+    gold: 3_000,
+    materials: [
+      { materialId: 'tyrantsEmber', quantity: 1 },
+      { materialId: 'ironOre', quantity: 60 },
+      { materialId: 'soulShard', quantity: 12 },
+    ],
+    rarities: { rare: 65, epic: 35 },
+    maxItemLevel: 41,
   },
 ];
 

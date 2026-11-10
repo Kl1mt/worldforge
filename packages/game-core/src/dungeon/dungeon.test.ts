@@ -205,6 +205,59 @@ describe('simulateDungeonRun', () => {
   });
 });
 
+describe('boss mechanics (ticket 6.2)', () => {
+  const tier = getDungeonTier('tyrantsForge', 1);
+  const stats = deriveCharacterStats('warrior', 38, []);
+  const setup = {
+    ...buildEncounter(getEnemy('forgeTyrant'), 40, 'warrior', 38, stats, DEFAULT_COMBAT_CONFIG),
+    maxFightMs: tier.bossMaxFightMs,
+  };
+  const fight = (mechanics?: Parameters<typeof resolveDungeonFight>[6], hp = 1_000_000) => {
+    const log: DungeonEvent[] = [];
+    const out = resolveDungeonFight(setup, hp, createRng('mech'), 0, log, undefined, mechanics);
+    return { out, log };
+  };
+
+  it('without mechanics (or with none set) a fight is exactly as before', () => {
+    expect(fight({})).toEqual(fight());
+    expect(fight().log.some((e) => e.type === 'shellBroken')).toBe(false);
+    expect(fight().log.some((e) => e.type === 'enemyAttack' && 'heavy' in e)).toBe(false);
+    for (const d of ['namelessCrypt', 'ashenWatch'] as const)
+      for (const t of getDungeon(d).tiers)
+        expect(t.bossMechanics, `${d} ${t.tier}`).toBeUndefined();
+  });
+
+  it('every n-th blow is heavy, and the shell softens the hero’s blows until it breaks', () => {
+    const { heavyBlow, shell } = tier.bossMechanics!;
+    const { log } = fight(tier.bossMechanics);
+    const blows = log.filter((e) => e.type === 'enemyAttack');
+    for (const [i, b] of blows.entries()) {
+      const heavy = (i + 1) % heavyBlow!.every === 0;
+      expect(b.damage, `blow ${i}`).toBe(
+        heavy ? Math.round(setup.enemyHit * heavyBlow!.damageMultiplier) : setup.enemyHit,
+      );
+    }
+    const plain = fight().log.filter((e) => e.type === 'attack');
+    const shelled = log.filter((e) => e.type === 'attack');
+    const broke = log.findIndex((e) => e.type === 'shellBroken');
+    expect(log.filter((e) => e.type === 'shellBroken')).toHaveLength(1);
+    // The same draws: crits land on the same blows; softened until the break, plain after it.
+    for (const [i, a] of shelled.entries()) {
+      expect(a.crit, `attack ${i}`).toBe(plain[i]!.crit);
+      const softened = log.indexOf(a) < broke;
+      expect(a.damage, `attack ${i}`).toBe(
+        softened
+          ? Math.max(1, Math.round(plain[i]!.damage * shell!.damageTakenMultiplier))
+          : plain[i]!.damage,
+      );
+    }
+    const at = log[broke - 1];
+    expect(
+      at?.type === 'attack' && at.enemyHealth <= setup.enemyHealth * shell!.untilHealthShare,
+    ).toBe(true);
+  });
+});
+
 describe('the Gravewarden enrage', () => {
   it('hits harder and faster from the enrage time on', () => {
     const tier = getDungeonTier('namelessCrypt', 1);

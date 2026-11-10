@@ -93,6 +93,12 @@ a {
   filter: sepia(0.55) saturate(1.8) hue-rotate(-18deg) brightness(0.88) contrast(1.08);
 }
 
+/* Ticket 6.2: a forge-tempered variant (the Cinder Depths' foes, the Tyrant's ember): hotter and
+   darker than the Verge's kin, no blur (crisp pixels). */
+.pixel--tint-ember {
+  filter: sepia(0.7) saturate(2.6) hue-rotate(-30deg) brightness(0.8) contrast(1.25);
+}
+
 /* A frame sheet (ticket A.14): a one-frame window; the strip inside slides by whole frames. */
 .pixel-sheet {
   display: block;

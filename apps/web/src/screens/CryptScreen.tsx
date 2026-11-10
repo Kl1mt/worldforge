@@ -381,13 +381,11 @@ function Reckoning({
       <p className="reckoning__line">
         {won
           ? result.bossLoot
-            ? dungeon.bossDrops.length > 0
-              ? 'Its seal is yours, and its hoard with it.'
-              : 'His hoard is yours.'
+            ? words.hoardWon
             : 'It falls, but its hoard is spent. Boss loot returns after the cooldown.'
           : result.totalRooms > 0
             ? `You cleared ${result.roomsCleared} of ${result.totalRooms} chambers. What you took on the way down is yours.`
-            : 'The warden stands. A fall costs nothing but the climb.'}
+            : words.bossStands}
       </p>
       {result.firstBossKill && dungeon.id === 'namelessCrypt' ? (
         <p className="reckoning__unlock" role="status">
@@ -478,6 +476,11 @@ export function CryptScreen() {
 /** Ticket 4.8: the Warden's Watch in the Ashen Pass (`#/watch`). */
 export function WatchScreen() {
   return <DungeonScreen dungeonId="ashenWatch" />;
+}
+
+/** Ticket 6.2: the Tyrant's Forge below the Cinder Depths (`#/tyrant`). */
+export function TyrantScreen() {
+  return <DungeonScreen dungeonId="tyrantsForge" />;
 }
 
 /** A dungeon's door, run and reckoning (ticket 2.5; one screen for every dungeon since 4.8). */
@@ -677,8 +680,8 @@ function DungeonScreen({ dungeonId }: { dungeonId: DungeonId }) {
           <p className="crypt-door__line">
             {words.runNote} Rewards are counted when you claim them at the end.
             {run.bossLootEligible
-              ? ' The warden’s hoard is waiting.'
-              : ' The warden’s hoard is spent for now: no boss loot this run.'}
+              ? ` ${words.bossShort}’s hoard is waiting.`
+              : ` ${words.bossShort}’s hoard is spent for now: no boss loot this run.`}
           </p>
         )}
       </section>
@@ -718,16 +721,17 @@ function DungeonScreen({ dungeonId }: { dungeonId: DungeonId }) {
                 {selectedDef.minLevel}–{selectedDef.maxLevel}), then{' '}
               </>
             ) : (
-              'No chambers: the stair, then '
+              `No chambers: ${words.approach}, then `
             )}
             {getEnemy(dungeon.bossId).name.replace(/^The /, 'the ')} (Lv {selectedDef.bossLevel}
             {selectedTier > 1 ? ', stronger than its level' : ''}).
           </li>
           <li>
-            The warden <strong>enrages</strong> between {enrageWindow(dungeonId, selectedTier)} s
-            into the fight. The faster you kill {dungeon.rooms.length > 0 ? 'it' : 'him'}, the
-            safer.
+            {words.bossShort} <strong>enrages</strong> between{' '}
+            {enrageWindow(dungeonId, selectedTier)} s into the fight. The faster you kill{' '}
+            {dungeon.rooms.length > 0 ? 'it' : 'him'}, the safer.
           </li>
+          {words.mechanics ? <li>{words.mechanics}</li> : null}
           {selected?.lootFocus ? (
             <li>
               Loot focus: <em className="crypt-door__focus">{selected.lootFocus.name}</em>.{' '}

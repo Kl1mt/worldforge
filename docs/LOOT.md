@@ -67,6 +67,12 @@ The Cinderwastes extend every curve without moving a value at or below 28 (the n
 Boss and skill damage caps are low on purpose: the crypt's entry-level check was a cliff (an L12 hero in item-level-11 commons lost every run, yet +12 % boss and skill damage turned some classes into near-certain wins; ticket 3.6 turned it into a curve, `docs/DUNGEONS.md`). `balance.test.ts` checks that capped boss and skill damage still leave the boss fight 90 % of the earliest enrage moment (27 s), and that XP, item and resource bonuses stay within their caps.
 
 
+## The Cinder Depths (ticket 6.2)
+No curve moved: no value at or below level 34 changed (`balance/curve-pins-6-2.test.ts` pins an hour in the Verge at 28/31/34 for every class, a Watch run, the Verge's rolls at every item level it drops and the XP curve to 34, hashes computed on `main` before 6.2; 6.1's ≤ 28 pins, the no-effects hashes and every earlier balance suite are unchanged).
+- **The Depths' table** `cinderDepths`: the Verge's one band higher: tier-4 bases only, item levels **35–41** (enemy levels 34–40 + 1, from one above the Verge's top), the same late-game odds (Mythics, set share, Legendary weight, Void 10 %), affix bias 1.0, kill gold × 3. No new affix tier: tier 5 (from 31) simply weighs more at the higher item levels. Set pieces and named Mythics keep their tier-3 bases, rolled at the Depths' item levels.
+- **The Forge Tyrant's hoard** `forgeTyrant`: tier-4 bases at 39–41, affix bias 1.4, the late-game odds, focus *The Tyrant's anvil* (head, chest, hands, feet × 2); rarity weights as the Ashen Warden's. Stored as `hoard:tyrantsForge`, always bound (T.1).
+- **Crafting:** Tyrantforged Work makes tier 4 at the hero's level capped at 41 (`ForgeRecipe.maxItemLevel`), Rare or Epic (`docs/ECONOMY.md`).
+
 ## Loot filter (ticket 3.7)
 Rules in `packages/game-core/src/economy/lootFilter.ts`, placement in `activity/placement.ts`; per character in `characters.loot_filter` (`docs/DATA_MODEL.md`), edited at `…/loot-filter` (`docs/API_CONVENTIONS.md`), UI in the Pack's "Loot filter" tab.
 - **Rules** (`LootFilterRules`): `action` (`salvage`: the forge's `salvageYield`, materials and a little gold; `sell`: the merchant's `sellPrice`), `belowRarity` (drops of a lower rarity are handled), `wantedAffixes` / `wantedEffects` (when any is listed, a drop with none of them is handled; effects are the Legendary pool) and `include`. Either rule is enough (OR). Rules that can handle nothing (none set, or "below Common") are stored as no filter.

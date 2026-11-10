@@ -216,7 +216,13 @@ export function MapScreen() {
     const words = DUNGEON_WORDS[selected.id as DungeonId];
     action = (
       <a className="btn btn--brass" href={routeHref(words.route)}>
-        {words.route === 'crypt' ? 'Go to the crypt door' : 'Go to the watchtower'}
+        {
+          {
+            crypt: 'Go to the crypt door',
+            watch: 'Go to the watchtower',
+            tyrant: 'Go down to the forge',
+          }[words.route]
+        }
       </a>
     );
   } else if (selected.state === 'sealed' && selected.blockers.some((b) => b.kind === 'worldFlag')) {

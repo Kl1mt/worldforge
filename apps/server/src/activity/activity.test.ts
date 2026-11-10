@@ -596,6 +596,7 @@ describe('areas & unlocks (ticket 2.2)', () => {
       ['sunkenAbbey', false],
       ['ashenPass', false],
       ['ashfallVerge', false],
+      ['cinderDepths', false],
     ]);
     expect(w.areas[4]!.blockers).toEqual([
       { kind: 'level', required: 17 },
@@ -610,6 +611,11 @@ describe('areas & unlocks (ticket 2.2)', () => {
     // Ticket 6.1: the Cinderwastes wait for level 28 and the Ashen Warden.
     expect(w.areas[6]!.blockers).toEqual([
       { kind: 'level', required: 28 },
+      { kind: 'ashenWardenDefeated' },
+    ]);
+    // Ticket 6.2: the Depths at 34, past the Verge's top.
+    expect(w.areas[7]!.blockers).toEqual([
+      { kind: 'level', required: 34 },
       { kind: 'ashenWardenDefeated' },
     ]);
     expect(w.dungeons).toEqual([
@@ -628,6 +634,12 @@ describe('areas & unlocks (ticket 2.2)', () => {
           { kind: 'gravewardenDefeated' },
           { kind: 'worldFlag', flag: 'ashenPassCleared' },
         ],
+      },
+      {
+        id: 'tyrantsForge',
+        unlocked: false,
+        available: true,
+        blockers: [{ kind: 'level', required: 36 }, { kind: 'ashenWardenDefeated' }],
       },
     ]);
     expect((await call(await newPlayer(), 'GET', `/api/characters/${id}/world`)).statusCode).toBe(

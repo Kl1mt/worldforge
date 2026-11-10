@@ -27,6 +27,8 @@ export const MATERIAL_IDS = [
   'soulShard',
   'abbeySilver',
   'gravewardenSeal',
+  // Ticket 6.2: the Forge Tyrant's boss material (sink: the Tyrantforged Work recipe).
+  'tyrantsEmber',
 ] as const;
 
 export type MaterialId = (typeof MATERIAL_IDS)[number];
@@ -92,7 +94,7 @@ export const MATERIALS: readonly MaterialDefinition[] = [
     rarity: 'uncommon',
     source: 'gathering',
     profession: 'mining',
-    areas: ['blackwater', 'sunkenAbbey', 'ashenPass', 'ashfallVerge'],
+    areas: ['blackwater', 'sunkenAbbey', 'ashenPass', 'ashfallVerge', 'cinderDepths'],
   },
   {
     id: 'soulShard',
@@ -102,7 +104,7 @@ export const MATERIALS: readonly MaterialDefinition[] = [
     rarity: 'uncommon',
     source: 'undeadDrop',
     profession: null,
-    areas: ['oldBurialGrounds', 'ashenPass', 'ashfallVerge'],
+    areas: ['oldBurialGrounds', 'ashenPass', 'ashfallVerge', 'cinderDepths'],
   },
   {
     id: 'abbeySilver',
@@ -119,6 +121,17 @@ export const MATERIALS: readonly MaterialDefinition[] = [
     name: 'Gravewarden’s Seal',
     description: 'The iron seal the Gravewarden kept the crypt shut with.',
     icon: 'material.gravewarden-seal',
+    rarity: 'epic',
+    source: 'bossDrop',
+    profession: null,
+    areas: [],
+  },
+  {
+    id: 'tyrantsEmber',
+    name: 'Tyrant’s Ember',
+    description:
+      'A coal from the Forge Tyrant’s furnace heart. It never cools; smiths say it remembers every blade.',
+    icon: 'material.tyrants-ember',
     rarity: 'epic',
     source: 'bossDrop',
     profession: null,

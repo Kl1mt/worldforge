@@ -22,7 +22,7 @@ const season = (number: number, from: number, to: number) => ({
 describe('formula versions between seasons (ticket 6.1)', () => {
   it('knows the baseline and the newest versions', () => {
     expect(FORMULA_BASELINE).toEqual({ level: 1, gearScore: 2, power: 1, pveProgress: 1 });
-    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 2, power: 2, pveProgress: 2 });
+    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 2, power: 2, pveProgress: 3 });
     expect(formulaVersionsAt([], [], t0)).toEqual(FORMULA_BASELINE);
   });
 
@@ -31,7 +31,7 @@ describe('formula versions between seasons (ticket 6.1)', () => {
     const plan = planFormulaSwitches([], seasons, t0);
     expect(plan.map((s) => [s.metric, s.from, s.to, s.afterSeason])).toEqual([
       ['power', 1, 2, null],
-      ['pveProgress', 1, 2, null],
+      ['pveProgress', 1, 3, null],
     ]);
     expect(formulaVersionsAt(plan, seasons, t0)).toEqual(FORMULA_VERSIONS);
     // Planning again adds nothing.
@@ -71,6 +71,27 @@ describe('formula versions between seasons (ticket 6.1)', () => {
     expect(normaliseFormulaSchedule('x')).toEqual([]);
   });
 
+  it('adds 6.2’s PvE Progress 3 after a stored 6.1 plan, at the end of the season under way', () => {
+    // Production already holds 6.1's switches (power 1 → 2, PvE Progress 1 → 2, in force).
+    const v61 = planFormulaSwitches([], [season(1, -60, -4)], at(-30), {
+      ...FORMULA_VERSIONS,
+      pveProgress: 2,
+    });
+    expect(v61.map((s) => [s.metric, s.from, s.to])).toEqual([
+      ['power', 1, 2],
+      ['pveProgress', 1, 2],
+    ]);
+    const seasons = [season(1, -60, -4), season(2, -3, 40)];
+    const added = planFormulaSwitches(v61, seasons, t0);
+    expect(added.map((s) => [s.metric, s.from, s.to, s.afterSeason])).toEqual([
+      ['pveProgress', 2, 3, 2],
+    ]);
+    const plan = [...v61, ...added];
+    expect(formulaVersionsAt(plan, seasons, t0)).toEqual({ ...FORMULA_VERSIONS, pveProgress: 2 });
+    expect(formulaVersionsAt(plan, seasons, at(40))).toEqual(FORMULA_VERSIONS);
+    expect(planFormulaSwitches(plan, seasons, at(1))).toEqual([]);
+  });
+
   it('computes every supported version and refuses others', () => {
     const input = {
       classId: 'mage' as const,
@@ -84,7 +105,10 @@ describe('formula versions between seasons (ticket 6.1)', () => {
     expect(computeScore('power', input).formulaVersion).toBe(2);
     expect(computeScore('pveProgress', input, 1).value).toBe(7);
     expect(computeScore('pveProgress', input, 2).value).toBe(8);
+    expect(computeScore('pveProgress', input, 3).value).toBe(8);
+    expect(computeScore('pveProgress', { ...input, level: 34 }, 3).value).toBe(11);
     expect(() => computeScore('gearScore', input, 1)).toThrow(RangeError);
     expect(() => computeScore('power', input, 3)).toThrow(RangeError);
+    expect(() => computeScore('pveProgress', input, 4)).toThrow(RangeError);
   });
 });

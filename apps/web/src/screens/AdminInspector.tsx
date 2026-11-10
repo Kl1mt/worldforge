@@ -466,7 +466,8 @@ function HeroPanel({
           <dd>
             Gravewarden {yes(hero.progress.gravewardenDefeated)} · crypt tier{' '}
             {tiers[hero.progress.cryptTierCleared ?? 0]} · Ashen Warden{' '}
-            {yes(hero.progress.ashenWardenDefeated)}
+            {yes(hero.progress.ashenWardenDefeated)} · Forge Tyrant{' '}
+            {yes(hero.progress.forgeTyrantDefeated)}
           </dd>
         </div>
         <div>

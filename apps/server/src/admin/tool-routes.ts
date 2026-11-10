@@ -864,6 +864,8 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
             gravewardenDefeated: { type: 'boolean' },
             cryptTierCleared: { type: 'integer', minimum: 0, maximum: DUNGEON_TIERS.length },
             ashenWardenDefeated: { type: 'boolean' },
+            // Ticket 6.2: optional (absent = unchanged), so older clients keep working.
+            forgeTyrantDefeated: { type: 'boolean' },
             reason: reasonSchema,
           },
           ['gravewardenDefeated', 'cryptTierCleared', 'ashenWardenDefeated', 'reason'],
@@ -876,6 +878,7 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
         gravewardenDefeated: boolean;
         cryptTierCleared: number;
         ashenWardenDefeated: boolean;
+        forgeTyrantDefeated?: boolean;
         reason: string;
       };
       const out = await tool(request, reply, async (tx, adminId) => {
@@ -886,6 +889,9 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
           gravewardenDefeated: b.gravewardenDefeated,
           cryptTierCleared: b.cryptTierCleared,
           ashenWardenDefeated: b.ashenWardenDefeated,
+          ...(b.forgeTyrantDefeated !== undefined
+            ? { forgeTyrantDefeated: b.forgeTyrantDefeated }
+            : {}),
         };
         await tx
           .update(characters)

@@ -188,4 +188,36 @@ describe('forge recipes', () => {
       craftBlockers(t2, { level: 9, gold: 150 }, { timber: 25, rawHide: 25, soulShard: 4 }),
     ).toEqual([]);
   });
+
+  it('Tyrantforged Work (ticket 6.2): the Forge Tyrant’s ember is its sink, one per item', () => {
+    const r = findForgeRecipe('tyrantforgedWork')!;
+    expect(r.tier).toBe(4);
+    expect(r.materials.find((m) => m.materialId === 'tyrantsEmber')?.quantity).toBe(1);
+    // It is the only use of the ember, and the ember is only a boss drop.
+    expect(
+      FORGE_RECIPES.filter((x) => x.materials.some((m) => m.materialId === 'tyrantsEmber')),
+    ).toEqual([r]);
+    // Never below Rare, and never above the Depths' top item level, whatever the hero's level.
+    expect(Object.keys(r.rarities).sort()).toEqual(['epic', 'rare']);
+    for (const level of [36, 40, 41, 50, 60]) {
+      for (let seed = 1; seed <= 30; seed++) {
+        const item = craftItem({ recipe: r, classId: 'warrior', level, slot: 'chest', seed })!;
+        expect(item.itemLevel).toBe(Math.min(level, 41));
+        expect(['rare', 'epic']).toContain(item.rarityId);
+        expect(validateItem(item)).toEqual([]);
+      }
+    }
+    // Older recipes keep their uncapped item level (no stored craft changes).
+    const t3 = findForgeRecipe('knightlyWork')!;
+    expect(t3.maxItemLevel).toBeUndefined();
+    expect(
+      craftItem({ recipe: t3, classId: 'warrior', level: 50, slot: 'chest', seed: 1 })!.itemLevel,
+    ).toBe(50);
+    // Without the ember, nothing.
+    const held = { ironOre: 60, soulShard: 12 };
+    expect(craftBlockers(r, { level: 36, gold: 3_000 }, held)).toEqual([
+      { kind: 'material', materialId: 'tyrantsEmber', required: 1, held: 0 },
+    ]);
+    expect(craftBlockers(r, { level: 36, gold: 3_000 }, { ...held, tyrantsEmber: 1 })).toEqual([]);
+  });
 });

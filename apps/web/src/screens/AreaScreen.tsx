@@ -503,6 +503,13 @@ export function AreaScreen() {
               Above the road stands <a href={routeHref('watch')}>the Warden’s Watch</a>.
             </>
           ) : null}
+          {/* Ticket 6.2: the region boss waits in his own run, the Tyrant's Forge. */}
+          {area.id === 'cinderDepths' ? (
+            <>
+              {' '}
+              At their bottom burns <a href={routeHref('tyrant')}>the Tyrant’s Forge</a>.
+            </>
+          ) : null}
         </p>
         {pending ? (
           <p className="area__travel" role="status">

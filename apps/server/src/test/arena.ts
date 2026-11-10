@@ -87,12 +87,16 @@ export async function sanction(
   subjectId: string,
   kind: 'mute' | 'suspend',
   expiresAt: Date,
+  // Issued on the test's clock, not the database's wall clock: the expiry check needs it before
+  // `expiresAt`, and a fixed test date falls behind the wall clock (`sanctions_expiry_check`).
+  createdAt: Date = new Date(expiresAt.getTime() - 86_400_000),
 ) {
   await db.insert(sanctions).values({
     id: uuidv7(),
     subjectId,
     kind,
     reason: 'Test sanction.',
+    createdAt,
     expiresAt,
   });
 }

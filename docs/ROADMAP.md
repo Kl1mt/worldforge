@@ -913,11 +913,12 @@ GDD §3.1. Follow-up from 6.1: its ten tier-4 bases show their tier-3 counterpar
 - Patch notes: the next 0.6.x version.
 - Done: `item.<base id>` for all ten (`cinderforged-blade` … `wispfire-band`). One job (`icons-tier4-01`, style image `knights-plate.png`, 10 generations) covered every base; no second job or regeneration. Picks cleaned with `tools/art/tier4_icons.py` (edits next to the raw files). `ART_STAND_INS` is empty and stays as the fallback. Contact sheet `art/preview-tier4-icons.png` (`node tools/art/preview_tier4_icons.mjs`, the game's own frame CSS); screenshots `tools/screenshots/tier4-icons.mjs`. Version 0.6.2. `docs/ASSET_GUIDELINES.md` "Tier-4 item icons".
 
-### 6.2 Endgame region II & region boss, levels 34–40 (vertical) — `todo`
+### 6.2 Endgame region II & region boss, levels 34–40 (vertical) — `done (PR #116)`
 Needs 6.1.
 - The second area (34–40) and a region boss dungeon in the Watch's style: a hoard that is always bound (T.1) and a boss material that has a sink, e.g. tier-5 upgrades or Awakening if 6.5 ships.
 - A new PvE Progress milestone version.
 - Tests like 6.1.
+- Done: the Cinder Depths (`cinderDepths`, 34–40; unlock level 34 + the Ashen Warden = the Verge's top milestone; seam for 6.7's flag), four forge-tempered foes drawn as the Verge's sprites with an ember tint (`ART_VARIANTS`, no new art), tier-4 loot 35–41, gold × 3. The Tyrant's Forge (`tyrantsForge`, `#/tyrant`, level 36): the Forge Tyrant (level 40) with a slag shell (× 0.6 until 70 %) and a hammer (every third blow × 4) as optional `BossMechanics` data (no draws; earlier bosses unchanged), the Watch's replay/seed rules, an always-bound hoard (`hoard:tyrantsForge`) and one Tyrant's Ember (untradeable) whose sink is the Tyrantforged Work recipe (slot-targeted tier 4, Rare/Epic, item level ≤ 41). `progress.forgeTyrantDefeated` (each dungeon names its `bossProgress`; D.4's progress tool sets it). Good Verge gear farms the Depths with no deaths; Verge Legendaries beat the Tyrant at 36–38 34–42 % (+0), ~70 % (+5), 91–95 % (+10). PvE Progress 3 (17 milestones), no new Power version. No value ≤ 34 moved (`curve-pins-6-2.test.ts`); soft cap ~47–48. PvP unchanged (rules 2); 30+ start-of-season fairness re-measured with levels to 40 (95 %+ favourites 7 → 9 %), left for B.5. Version 0.6.5. Details: `docs/WORLD.md`, `DUNGEONS.md`, `ECONOMY.md`, `LOOT.md`, `LEADERBOARDS.md`, `COMBAT.md`, `PVP.md`.
 
 ### 6.3 Crypt tier IV "Heroic" & boss variants (vertical) — `todo`
 GDD §9, §11. Read `docs/DUNGEONS.md`, `docs/GUILD_BOSS.md`.

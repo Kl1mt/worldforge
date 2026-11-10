@@ -23,9 +23,21 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.6.4';
+export const GAME_VERSION = '0.6.5';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.6.5',
+    date: '2026-11-10',
+    title: 'The Tyrant’s Forge',
+    new: [
+      'The Cinder Depths, the second area of the Cinderwastes, for levels 34 to 40: forge-tempered revenants, slag mastiffs, ashflame wisps and slag colossi, with better Cinderwastes gear. They open at level 34 for heroes who slew the Ashen Warden.',
+      'The Tyrant’s Forge at the bottom of the Depths, from level 36: the Forge Tyrant, the region’s lord. His slag armour softens your blows until it cracks, and every third swing of his hammer lands far harder. His hoard is yours alone and holds a Tyrant’s Ember.',
+      'Tyrantforged Work at the Forge: spend a Tyrant’s Ember with ore and soul shards to make a Cinderwastes piece of your choice, Rare or better.',
+      'PvE Progress has four new milestones: the Cinder Depths reached, its levels 37 and 40, and the Forge Tyrant defeated. They join the board between seasons, never during one.',
+    ],
+    tickets: ['6.2'],
+  },
   {
     version: '0.6.4',
     date: '2026-11-10',

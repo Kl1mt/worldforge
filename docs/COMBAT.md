@@ -195,7 +195,31 @@ The same builds at +5 (no Void): 18.6–21.3 kills a minute at 28, no deaths. **
 |---|---|---|---|---|---|---|---|---|---|---|
 | Hours (warrior · hunter) | 1.9 · 1.6 | 2.1 · 1.8 | 2.3 · 2.0 | 2.6 · 2.2 | 2.8 · 2.4 | 4.5 · 3.8 | 8.6 · 7.4 | 14 · 12 | 37 · 31 | 40 · 34 |
 
-Asserted (Legendaries +10): 28 → 34 takes 15–45 h of farming, a level at 39 takes under a day, and from 42 a level takes more than 2.2 × as long as at 40 and over two days. B.3's "soft cap around 35" is now about 41–42; 6.2's second area (34–40) will move it again.
+Asserted (Legendaries +10): 28 → 34 takes 15–45 h of farming, a level at 39 takes under a day, and from 42 a level takes more than 2.2 × as long as at 40 and over two days. B.3's "soft cap around 35" is now about 41–42; 6.2's second area (34–40) moved it to about 47–48 (below).
+
+## The Cinder Depths (ticket 6.2)
+The Cinderwastes' second area (levels 34–40, `docs/WORLD.md`) is tuned against **good Verge gear**: what a hero who farmed the Verge to its top wears. Its foes have 1.27–1.37 × the Verge's health per level at 1–1.16 × its damage and about 1.1 × its XP per kill; kill gold × 3.
+
+**The Verge's plain Legendaries +10** (balance.test.ts's kit, item level 33; asserted bands in brackets):
+
+| Class | Verge 34: kills/min · XP/h · gold/h | Depths 34 / 37 / 40: kills/min | damage share 34 / 40 | Depths 34: XP/h · gold/h |
+|---|---|---|---|---|
+| Warrior | 9.8 · 194k · 2,390 | 8.3 / 8.0 / 7.6 | 9 % / 12 % | 206k · 2,540 |
+| Mage | 8.2 · 174k · 2,330 | 6.7 / 6.5 / 6.4 | 15 % / 19 % | 179k · 2,400 |
+| Hunter | 11.6 · 230k · 4,040 | 9.9 / 9.6 / 9.4 | 8 % / 11 % | 248k · 4,610 |
+| Warlock | 8.7 · 173k · 2,520 | 7.2 / 7.0 / 6.8 | 13 % / 17 % | 180k · 2,680 |
+
+No deaths at 34, 37 or 40 (≤ 2), damage share < 21 %, 6–13 kills a minute, iron ore 30–45 and soul shards 3–5 an hour (≤ 100 · ≤ 45). **Asserted:** more XP and gold an hour than the Verge's top with the same gear (gold < 5,500), a step up (damage share > 1.15 × the Verge's at 34, kill rate 0.75–0.95 × the Verge's: measured 0.82–0.85), the Verge's rares +5 fall > 20 times an hour, and the Depths' own drops (item level 39, +5) kill 1.03–1.4 × as fast at 40 as the same kit at item level 33 (measured 1.07–1.22).
+
+**The best Pass builds in Verge drops** (4.8's search, item level 33; `tools/balance/cinder-depths.ts farm`, 3 seeds × 1 h): at +5, 15.0–17.5 kills a minute at 34 and 13.7–16.6 at 40, no deaths, 2–5 % damage share, 372–437k XP and 4,400–5,300 gold an hour at 34 (the Verge's top: 338–390k, 3,900–4,640); at +10 Void, 15.8–18.6 at 34 and 15.2–18.2 at 40.
+
+**The curves.** No value at or below 34 moved (`balance/curve-pins-6-2.test.ts`, hashes from `main`; 6.1's ≤ 28 pins unchanged). The XP formula and penalty are unchanged. With the Depths' foes up to 41, the penalty's floor arrives at about 48 instead of 42, so the soft cap moved with the content again. Hours per level for the best Pass build in Verge drops (+10 Void, item level 33) farming the best open area (`tools/balance/cinder-depths.ts xp`):
+
+| Level | 34 | 36 | 38 | 40 | 42 | 44 | 46 | 47 | 48 | 50 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Hours (warrior · hunter) | 2.1 · 1.7 | 2.2 · 1.9 | 2.4 · 2.0 | 2.6 · 2.2 | 2.8 · 2.4 | 4.4 · 3.7 | 8.4 · 7.1 | 14 · 12 | 36 · 31 | 39 · 33 |
+
+6.1's soft cap "about 41–42" is now about 47–48. The Forge Tyrant: `docs/DUNGEONS.md` "The Tyrant's Forge".
 
 ## PvP (ticket 5.4)
 Hero-vs-hero duels run on this engine (`buildEncounter`, `attackHit`, `thornsDamage`) through a separate normalisation layer in `packages/game-core/src/pvp/`; nothing above changes for PvE. Rules, factors and balance bands: `docs/PVP.md`.

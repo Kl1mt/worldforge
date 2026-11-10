@@ -240,7 +240,7 @@ Under D.3's `/api/admin` scope: the not-found `404` for everyone but admins (bef
 | `POST …/heroes/:id/gold` · `…/materials` | grant: cheat; refund, remove: support | `{ mode, amount \| materials, confirm? (remove), reason }`; `422 insufficient_gold` / `insufficient_materials` (also into held value) |
 | `POST …/heroes/:id/xp` · `…/level` | cheat | `{ xp }` (game-core `applyXp`) · `{ level }` (XP 0) |
 | `POST …/heroes/:id/delete` · `…/restore` · `…/rename` | support | `{ confirm, reason }` · `{ reason }` (`409 restore_window_passed`, `no_free_slot`) · `{ name, reason }` (`409 name_taken`); delete: `409 shelf_not_empty` |
-| `POST …/heroes/:id/progress` · `…/professions` · `…/daily-reset` | cheat | `{ gravewardenDefeated, cryptTierCleared, ashenWardenDefeated }` · `{ professions: { id: level } }` · `{ limits: ['ratedDuels' \| 'contracts' \| 'merchant'] }` |
+| `POST …/heroes/:id/progress` · `…/professions` · `…/daily-reset` | cheat | `{ gravewardenDefeated, cryptTierCleared, ashenWardenDefeated, forgeTyrantDefeated? }` (6.2: optional, absent = unchanged) · `{ professions: { id: level } }` · `{ limits: ['ratedDuels' \| 'contracts' \| 'merchant'] }` |
 | `POST …/heroes/:id/quests/:questRowId/complete\|reset` | cheat | `{ reason }`; complete fills the objectives (the player turns it in), reset deletes the row |
 | `POST …/heroes/:id/fast-forward` | cheat | `{ minutes }` (1 … the offline cap): moves the activity's clock back, then the normal settlement; `409 no_activity` |
 | `POST /admin/accounts/:handle/sessions/revoke` · `…/login-lock/clear` | support | `{ confirm, reason }` → `{ revoked }` (keeps the admin's own current session) · `{ reason }` |

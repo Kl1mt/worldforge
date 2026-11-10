@@ -14,6 +14,8 @@ Ticket 2.1. Data and pure rules in `packages/game-core/src/world/` (areas, dunge
 | `ashenPass` (ticket 4.8) | 24–28 | level 24 + Gravewarden defeated + world flag `ashenPassCleared` | `ashWraith` 30, `cinderHound` 30, `pyreCultist` 25, `emberGolem` 15 | `ironOre`, `soulShard` (wraiths) | tier 3 (23–29), gold × 1.6 |
 | Dungeon `ashenWatch` (ticket 4.8) | — (no chambers) | level 26 + Gravewarden + `ashenPassCleared` | boss `ashenWarden` (level 28) | — | boss hoard only: `ashenWarden` (27–29) |
 | `ashfallVerge` (ticket 6.1, the Cinderwastes) | 28–34 | level 28 + Ashen Warden defeated | `cinderRevenant` 30, `slagHound` 30, `emberWisp` 25, `ashColossus` 15 | `ironOre`, `soulShard` (revenants) | tier 4 (29–35), gold × 2.3 |
+| `cinderDepths` (ticket 6.2, the Cinderwastes) | 34–40 | level 34 + Ashen Warden defeated (the Verge's top) | `forgeRevenant` 30, `slagMastiff` 30, `ashflameWisp` 25, `slagColossus` 15 | `ironOre`, `soulShard` (revenants) | tier 4 (35–41), gold × 3 |
+| Dungeon `tyrantsForge` (ticket 6.2) | — (no chambers) | level 36 + Ashen Warden defeated | boss `forgeTyrant` (level 40) | boss drop `tyrantsEmber` | boss hoard only: `forgeTyrant` (39–41) |
 
 - Each Graumark area overlaps the next by one level step (`next.minLevel = prev.maxLevel − 1`); the area's unlock level is its minimum enemy level. The Ashen Pass starts two levels above the Abbey's top (24 vs 22): crypt tier III (21–24) bridges the gap.
 - Rooms, run timing, the boss enrage and the boss loot (`gravewarden` table, boss-exclusive bases, cooldown) are data on `DungeonDefinition` since ticket 2.5; rules in `docs/DUNGEONS.md`.
@@ -39,6 +41,28 @@ Per level they have 1.8–1.9 × the Pass's health at about 1.5 × its damage; X
 
 **Older content stays relevant** (asserted in `balance.test.ts` "the Ashfall Verge" and `builds.test.ts`): the Pass's best builds (4.8's search, +10 Void and +5, item level 27) farm it at 16–20 kills a minute with no deaths and earn more XP and gold an hour than at the Pass; the Pass's Legendaries +10 farm it with no deaths; older drops keep their salvage yields and Forge paths (their materials drop in the Verge). Numbers in `docs/COMBAT.md` "The Cinderwastes".
 
+## The Cinderwastes: the Cinder Depths and the Tyrant's Forge (ticket 6.2)
+
+The region's second area and its boss (GDD §15 Phase 6; the ROADMAP Phase 6 default: the Cinderwastes for 28–40 in two areas plus a region boss). Area id `cinderDepths`, "The Cinder Depths": the slag pits under the Verge where the Forge Tyrant's furnace burns. Its boss is fought alone in **the Tyrant's Forge** (`tyrantsForge`, `docs/DUNGEONS.md` "The Tyrant's Forge"). Map markers on the west edge under the Pass (`MAP_MARKERS`).
+
+**Unlock.** Level 34 and the Ashen Warden slain: the Verge's top milestone ("The Ashfall Verge, level 34" on PvE Progress), with no new progress flag. The Forge opens at 36 on the same condition. Blockers `{ kind: 'level', required: 34 }`, `{ kind: 'ashenWardenDefeated' }`. **Seam for 6.7:** the region's community project adds a flag id to `WORLD_FLAG_IDS` and `worldFlag` to the Depths' and the Forge's rules; every server path already passes the world flags, and `world.test.ts` asserts today that the flags change nothing for them.
+
+**Art (no new art).** Backdrop `area.cinder-depths` (A.11) for the area and the Forge; boss `enemy.forge-tyrant` (A.11, 128×128, front; the code animation, like every boss). The four foes have their own asset ids (`enemy.forge-revenant`, `enemy.slag-mastiff`, `enemy.ashflame-wisp`, `enemy.slag-colossus`) that the web draws as their Verge kin's sprites (and attack frames, where the kin has them) with the Depths' **ember treatment** (`ART_VARIANTS` in `apps/web/src/content/assets.ts`, CSS `pixel--tint-ember`). The Tyrant's Ember is a soul shard drawn the same way.
+
+| Enemy | Drawn as | Type | Health | Damage | Notes |
+|---|---|---|---|---|---|
+| `forgeRevenant` Forge-tempered Revenant | `cinder-revenant` | physical | 120 + 78/level | 13.6 + 3.9 | undead (soul shards), the heaviest armour of any regular foe (26 + 4.6), attack speed 0.9 |
+| `slagMastiff` Slag Mastiff | `slag-hound` | physical | 90 + 61/level | 8.0 + 2.4 | the fastest bites in the game (1.7) |
+| `ashflameWisp` Ashflame Wisp | `ember-wisp` | magic | 70 + 50/level | 9.6 + 2.86 | quick (1.3), warded far beyond the Verge's wisps (resistance 28 + 4.4) |
+| `slagColossus` Slag Colossus | `ash-colossus` | physical | 240 + 118/level | 23.5 + 6.6 | the slowest (0.45) and the most health of any regular foe, heavy armour |
+| `forgeTyrant` The Forge Tyrant (boss) | `forge-tyrant` | physical | 1,500 + 400/level (17,100 at 40) | 10 + 2.2 | slag shell and hammer (`docs/DUNGEONS.md`) |
+
+Per level they have 1.27–1.37 × the Verge's health at 1–1.16 × its damage, and about 1.1 × its XP per kill. Each leans harder on its kin's defence (armour, speed, resistance, bulk), on the existing engine.
+
+**Rewards.** The loot table `cinderDepths`: the Verge's table one band higher: tier-4 bases only, item levels **35–41** (more tier-5 affixes; no new affix tier), affix bias 1.0, the late-game odds, kill gold × 3 (its foes take longer to kill). Gathering: iron ore (7 %) and soul shards from the revenants (3 %); no new gathering material. The Tyrant's hoard and his ember: `docs/DUNGEONS.md`, the ember's sink: `docs/ECONOMY.md` "The Tyrant's Forge".
+
+**Older content stays relevant** (asserted in `balance.test.ts` "the Cinder Depths" and "the Forge Tyrant"): good Verge gear (the Verge's plain Legendaries +10, item level 33) farms the Depths at 34–40 with no deaths and more XP and gold an hour than the Verge's top, while the Verge's rares fall; the Depths' own drops (item level 39) kill 1.07–1.22 × as fast at 40. The Pass's and the Verge's drops keep their salvage yields and Forge paths (their materials drop in the Depths). Numbers in `docs/COMBAT.md` "The Cinder Depths".
+
 ## Enemies
 `EnemyDefinition` adds `undead` (undead drop `soulShard`, ticket 2.3) and `rank` (`normal` or `boss`) to the Phase 1 fields; `damageType` is the damage family (physical → armor, magic → resistance). Each enemy is in exactly one roster. Asset ids are `enemy.<kebab-case id>` (the three Phase 1 enemies keep their existing ids).
 
@@ -48,7 +72,7 @@ Enemy damage was retuned in ticket B.1 (`docs/COMBAT.md`): each later area hits 
 `MATERIALS`: id, name, description, icon (`material.<kebab-case id>`, in `apps/web/public/assets/materials/`, A.4), rarity, source and profession, and the areas that list it.
 - `gathering`: `timber` (Woodcutting), `ashwort` (Herbalism), `rawHide` (Skinning), `ironOre` and `abbeySilver` (Mining; silver is rare).
 - `undeadDrop`: `soulShard` (listed in the Old Burial Grounds, where every enemy is undead; since 4.8 / 6.1 also in the Ashen Pass and the Ashfall Verge).
-- `bossDrop`: `gravewardenSeal`.
+- `bossDrop`: `gravewardenSeal`; `tyrantsEmber` (ticket 6.2, the Forge Tyrant; never tradeable, spent only by Tyrantforged Work).
 
 Yields, gathering and profession levels (ticket 2.3): `packages/game-core/src/professions/`, rules in `docs/FARMING.md` ("Gathering & professions").
 
@@ -58,7 +82,7 @@ Ticket 4.6: a rule may also need a global world flag (`UnlockRule.worldFlag`, se
 `isAreaUnlocked(areaId, character, progress)` and `isDungeonUnlocked(…)` with `character = { level }` and `progress = { gravewardenDefeated }`. `areaUnlockBlockers` / `dungeonUnlockBlockers` return the unmet conditions in a stable order (`{ kind: 'level', required }`, then `{ kind: 'gravewardenDefeated' }`) for the world map. A non-integer or < 1 level throws. The rules live in `UnlockRule` on each place (data), so new places need no code.
 
 ## Item tiers
-Every item base has a `tier` (`items/bases.ts`): tier 1 are the 17 Phase 1 bases; tiers 2, 3 and 4 add one base per slot kind with art and per weapon family (10 each: warrior sword, mage/warlock staff, hunter bow, shield, head, chest, hands, feet, neck, ring). Tier 2 drops from item level 9–10, tier 3 from 15–16, tier 4 (ticket 6.1, appended after every earlier base) from 29 and only in the Ashfall Verge, and each beats the tier below at the same item level. Each new base has its own icon `item.<base id>` (A.4).
+Every item base has a `tier` (`items/bases.ts`): tier 1 are the 17 Phase 1 bases; tiers 2, 3 and 4 add one base per slot kind with art and per weapon family (10 each: warrior sword, mage/warlock staff, hunter bow, shield, head, chest, hands, feet, neck, ring). Tier 2 drops from item level 9–10, tier 3 from 15–16, tier 4 (ticket 6.1, appended after every earlier base) from 29 and only in the Cinderwastes (the Ashfall Verge, since 6.2 the Cinder Depths and the Forge Tyrant's hoard), and each beats the tier below at the same item level. Each new base has its own icon `item.<base id>` (A.4).
 
 ## Loot in settlement
 `settleFarming` rolls the area's loot table (`AreaDefinition.lootTableId`) instead of the global `standard` table. Tables may set an `itemLevel` range that clamps the rolled item level (a clamp, no extra RNG draw). The `standard` table is now explicitly the tier-1 bases, so `generateItem` without a table and every stored Phase 1 seed reproduce what they did before. The Abandoned Fields table has the same entries and drop chance, so Fields settlements are bit-identical to Phase 1 (pinned in `world.test.ts`; checked against `main` over 48 class/level/seed combinations).
