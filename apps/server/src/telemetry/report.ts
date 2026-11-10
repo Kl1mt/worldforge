@@ -1034,7 +1034,8 @@ export function telemetrySections(report: TelemetryReport): TelemetrySection[] {
       if (list.length > 12) shown.push(`+${list.length - 12} more (see --json)`);
       s.notes.push(`${label}: ${shown.join(', ')}`);
     };
-    special('item.variant', 'Void');
+    // Ticket 6.4: Void and Prismatic drops, by source and variant.
+    special('item.variant', 'Variants (Void, Prismatic)');
     special('item.effect', 'Effects');
     special('item.set', 'Set pieces');
 

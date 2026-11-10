@@ -39,7 +39,7 @@ export function simTradingSettings(mode: TradingMode): TradingSettings {
   s.trading = true;
   s.trade = { items: true, materials: true, gold: true };
   s.shelf = { items: true, materials: true, gold: true };
-  if (mode === 'all') s.tradeable = { ...s.tradeable, mythic: true, void: true };
+  if (mode === 'all') s.tradeable = { ...s.tradeable, mythic: true, void: true, prismatic: true };
   return s;
 }
 

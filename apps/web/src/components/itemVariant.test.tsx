@@ -16,6 +16,7 @@ const variant = (id: string): VariantView => ({
   name: id === 'void' ? 'Void' : 'Prismatic',
   implicitBonus: 0.1,
   effectBonus: 0,
+  affixBonus: 0,
 });
 const item = (v: VariantView | null) => ({
   icon: 'item.cinderforged-blade',

@@ -23,7 +23,15 @@ describe('trading settings defaults (docs/TRADING.md "Admin switches")', () => {
     expect(DEFAULT_TRADING_SETTINGS).toEqual({
       trading: false,
       trade: { items: false, materials: false, gold: false },
-      tradeable: { epic: true, legendary: true, set: true, mythic: false, void: false },
+      tradeable: {
+        epic: true,
+        legendary: true,
+        set: true,
+        mythic: false,
+        void: false,
+        // Ticket 6.4: "Tradeable: Prismatic" starts off. A stored row without it reads this default.
+        prismatic: false,
+      },
       shelf: { items: false, materials: false, gold: false },
       limits: {
         openOffersSent: 3,
@@ -65,6 +73,22 @@ describe('trading settings defaults (docs/TRADING.md "Admin switches")', () => {
     }
   });
 
+  it('read a row stored before 6.4 (no Prismatic key) with Prismatic off', () => {
+    const stored = clone(DEFAULT_TRADING_SETTINGS) as unknown as {
+      tradeable: Record<string, boolean>;
+    };
+    stored.tradeable = { epic: true, legendary: true, set: true, mythic: true, void: true };
+    const read = normaliseTradingSettings(stored);
+    expect(read.tradeable).toEqual({
+      epic: true,
+      legendary: true,
+      set: true,
+      mythic: true,
+      void: true,
+      prismatic: false,
+    });
+  });
+
   it('agree with T.1 binding switches, so nothing is tradeable at launch', () => {
     expect(tradingSwitchesOf(DEFAULT_TRADING_SETTINGS)).toEqual(DEFAULT_TRADING_SWITCHES);
   });
@@ -74,7 +98,7 @@ describe('trading settings defaults (docs/TRADING.md "Admin switches")', () => {
       expect(TRADING_SWITCHES[p].label.length).toBeGreaterThan(0);
       expect(TRADING_SWITCHES[p].whenOff.length).toBeGreaterThan(10);
     }
-    expect(TRADING_SWITCH_PATHS).toHaveLength(12);
+    expect(TRADING_SWITCH_PATHS).toHaveLength(13);
   });
 });
 

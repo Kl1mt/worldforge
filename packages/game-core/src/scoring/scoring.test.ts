@@ -210,6 +210,28 @@ describe('Gear Score', () => {
     expect(gearScore('mage', []).value).toBe(0);
   });
 
+  it('counts Prismatic like Void (ticket 6.4), with no new version', () => {
+    const item = { itemLevel: 30, rarityId: 'mythic' as const, upgradeLevel: 3, variant: null };
+    const prism = gearItemPoints({ ...item, variant: 'prismatic' });
+    expect(prism.points).toBe(gearItemPoints({ ...item, variant: 'void' }).points);
+    expect(prism.points).toBe(Math.round(30 * 10 * 2 * 1.12 * 1.1));
+    // A stray flag on an Epic (never valid) counts nothing extra.
+    expect(gearItemPoints({ ...item, rarityId: 'epic', variant: 'prismatic' }).points).toBe(
+      gearItemPoints({ ...item, rarityId: 'epic' }).points,
+    );
+    // The version is unchanged: no item could be stored as Prismatic before 6.4.
+    expect(FORMULA_VERSIONS.gearScore).toBe(2);
+    // The breakdown names the variant; a kit with one Prismatic piece scores above the plain kit.
+    const items = kit('hunter', 27, 'legendary', 1);
+    const plain = gearScore('hunter', items);
+    const one = gearScore(
+      'hunter',
+      items.map((i, n) => (n === 0 ? { ...i, variant: 'prismatic' as const } : i)),
+    );
+    expect(one.value).toBeGreaterThan(plain.value);
+    expect(one.lines.some((l) => l.detail.includes('Prismatic'))).toBe(true);
+  });
+
   it('version 2 (B.4): magic quality breaks ties and never moves the value', () => {
     // Each affix scores 0–100 on its own tiers: the best roll of the top tier is 100. Ticket 6.1:
     // on the tiers before the Cinderwastes (item level ≤ 29); tier 5 scores above 100, so no

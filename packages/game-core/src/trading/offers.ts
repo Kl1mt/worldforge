@@ -73,6 +73,7 @@ const SWITCH_WORDS: Readonly<Record<TradingSwitchPath, string>> = {
   'tradeable.set': 'set pieces',
   'tradeable.mythic': 'Mythic items',
   'tradeable.void': 'Void items',
+  'tradeable.prismatic': 'Prismatic items',
   'shelf.items': 'items on the shelf',
   'shelf.materials': 'materials on the shelf',
   'shelf.gold': 'gold on the shelf',

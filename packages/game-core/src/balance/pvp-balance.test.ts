@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { PVP_BRACKETS, simulateDuel, type ClassId, type PvpBracket } from '../index.js';
+import {
+  PVP_BRACKETS,
+  simulateDuel,
+  type ClassId,
+  type EquippedItem,
+  type PvpBracket,
+} from '../index.js';
 import {
   CLASS_IDS,
   GEAR_TIERS,
@@ -174,3 +180,66 @@ describe.each(PVP_BRACKETS.map((b) => [b.id, b] as const))('PvP bracket %s', (_i
     expect(timeLimits / durations.length).toBeLessThanOrEqual(0.01);
   });
 });
+
+/**
+ * Ticket 6.4: Prismatic through the normalisation layer, in the brackets where it can drop (item
+ * level 23 and up: 20–29 and 30+). Which variant wins a duel depends on the item's affixes, the
+ * intended shape: on the 5.4 random-roll kits (find affixes included) +10 Void beats +10 Prismatic
+ * about 61–63 % to 37–39 %, while on B.2-shaped builds (chosen affixes) the same build as
+ * Prismatic beats it as Void 58–64 %. Asserted: neither ever wins more than 2 duels in 3, and +10
+ * Prismatic over +5 is a real step inside the 5.4 band (52–98 %), like Void. No PvP rule changed
+ * (`PVP_RULES_VERSION` unchanged); measurements in docs/PVP.md "Prismatic".
+ */
+const PRISMATIC_BRACKETS = PVP_BRACKETS.filter((b) => b.id === '20-29' || b.id === '30-plus');
+
+describe.each(PRISMATIC_BRACKETS.map((b) => [b.id, b] as const))(
+  'Prismatic in bracket %s',
+  (_id, b) => {
+    const L = b.referenceLevel;
+    const kitShare = (d: 'legendary+10void' | 'legendary+5') => {
+      let total = 0;
+      for (const c of CLASS_IDS) {
+        for (let s = 0; s < 3; s++) {
+          total += winShare(
+            fighter(c, L, gear(c, L, 'legendary+10prismatic', s)),
+            fighter(c, L, gear(c, L, d, s + 7)),
+            24,
+            `pvp-prismatic:${b.id}:${c}:${d}:${s}`,
+          ).share;
+        }
+      }
+      return total / (CLASS_IDS.length * 3);
+    };
+    const dress = (items: EquippedItem[], variant: 'void' | 'prismatic') =>
+      items.map((i) => ({ ...i, upgradeLevel: 10, variant }));
+
+    it('+10 Prismatic and +10 Void kits: neither wins more than 2 in 3', SLOW, () => {
+      const s = kitShare('legendary+10void');
+      expect(s).toBeGreaterThan(1 / 3);
+      expect(s).toBeLessThan(2 / 3);
+    });
+
+    it('the same B.2 build as Prismatic and as Void: neither wins more than 2 in 3', SLOW, () => {
+      for (const c of CLASS_IDS) {
+        let share = 0;
+        for (let s = 0; s < 6; s++) {
+          const build = sampleBuild(c, L - 1, s);
+          share += winShare(
+            fighter(c, L, dress(build, 'prismatic')),
+            fighter(c, L, dress(build, 'void')),
+            24,
+            `pvp-prismatic-build:${b.id}:${c}:${s}`,
+          ).share;
+        }
+        expect(share / 6, c).toBeGreaterThan(1 / 3);
+        expect(share / 6, c).toBeLessThan(2 / 3 + 0.04);
+      }
+    });
+
+    it('+10 Prismatic beats +5 like Void does, never overwhelmingly', SLOW, () => {
+      const s = kitShare('legendary+5');
+      expect(s).toBeGreaterThan(0.52);
+      expect(s).toBeLessThanOrEqual(0.98);
+    });
+  },
+);

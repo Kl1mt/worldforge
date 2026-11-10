@@ -52,8 +52,9 @@ export interface GeneratedItem {
    */
   setId?: string;
   /**
-   * Ticket 3.5: the item's variant (`ITEM_VARIANTS`; only `void`). Rolled last, only on a
-   * Legendary or Mythic (set pieces included) from a table with `voidChance`. Absent otherwise.
+   * Ticket 3.5: the item's variant (`ITEM_VARIANTS`). Rolled last, only on a Legendary or Mythic
+   * (set pieces included) from a table with `voidChance` (Void) or, when that roll failed,
+   * `prismaticChance` (Prismatic, ticket 6.4). Absent otherwise.
    */
   variant?: ItemVariantId;
 }
@@ -304,7 +305,35 @@ export function generateItem(
   if (voidChance > 0 && activeVariant({ rarityId, variant: 'void' }) && rng.chance(voidChance)) {
     item.variant = 'void';
   }
+  // Prismatic (ticket 6.4): never with Void (one variant per item). One more draw after a failed
+  // Void roll, only from a table with a Prismatic chance (Ashen-tier content and newer), so every
+  // item of every other table, and every Void roll, stays exactly as before.
+  const prismaticChance =
+    params.baseId === undefined && item.variant === undefined
+      ? effectivePrismaticChance(table, config)
+      : 0;
+  if (
+    prismaticChance > 0 &&
+    activeVariant({ rarityId, variant: 'prismatic' }) &&
+    rng.chance(prismaticChance)
+  ) {
+    item.variant = 'prismatic';
+  }
   return item;
+}
+
+/**
+ * Ticket 6.4: the chance that a Legendary or Mythic (set pieces included) from this table that is
+ * not Void becomes Prismatic: the table's `prismaticChance`, never above the config's
+ * `maxPrismaticChance`.
+ */
+export function effectivePrismaticChance(
+  table: LootTableDefinition,
+  config: LootConfig = DEFAULT_LOOT_CONFIG,
+): number {
+  const chance = table.prismaticChance ?? 0;
+  if (!Number.isFinite(chance) || chance <= 0) return 0;
+  return Math.min(chance, Math.max(0, config.maxPrismaticChance ?? 0));
 }
 
 /**
@@ -399,7 +428,7 @@ export function getImplicitStats(
 ): ItemStatValue[] {
   const base = getItemBase(item.baseId);
   const mult = config.rarities[item.rarityId].statMultiplier;
-  // Upgrade (3.4) and Void (3.5) bonuses add up; both are 0 on a plain item.
+  // Upgrade (3.4) and Void (3.5) bonuses add up; both are 0 on a plain item (and on Prismatic).
   const bonus = upgradeImplicitBonus(item.upgradeLevel) + (activeVariant(item)?.implicitBonus ?? 0);
   return base.stats.map((s) => {
     const raw = (s.base + s.perLevel * (item.itemLevel - 1)) * mult;

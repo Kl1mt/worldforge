@@ -8,6 +8,7 @@ import {
   DUNGEON_TIERS,
   HANDLE_RE,
   ITEM_VARIANT_IDS,
+  type ItemVariantId,
   MATERIAL_IDS,
   MAX_LEVEL,
   PROFESSION_IDS,
@@ -152,7 +153,8 @@ export interface GrantItemSpec {
   baseId: string;
   rarityId: RarityId;
   itemLevel: number;
-  variant: 'void' | null;
+  /** Void or (ticket 6.4) Prismatic; `validateItem` refuses either on the wrong rarity. */
+  variant: ItemVariantId | null;
   upgradeLevel: number;
   seed: number;
 }

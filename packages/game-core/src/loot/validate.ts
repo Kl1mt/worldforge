@@ -89,7 +89,7 @@ export function validateItem(
   return errors;
 }
 
-/** Ticket 3.5: a variant must be known and allowed on the item's rarity (Void: Legendary, Mythic). */
+/** Tickets 3.5, 6.4: a variant must be known and allowed on the item's rarity (Void, Prismatic: Legendary, Mythic). */
 function variantErrors(item: GeneratedItem): string[] {
   const id: unknown = item.variant;
   if (id === undefined || id === null) return [];

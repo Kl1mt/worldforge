@@ -10,7 +10,7 @@
  *   since B.2, so the search never picks one twice);
  * - an **affix package** for every item's affixes (see `AFFIX_PACKAGES`), at the middle of the
  *   highest tier the item level unlocks: what forge rerolls and improvements aim for;
- * - optionally upgrades and Void on every piece.
+ * - optionally upgrades and a variant (Void, or Prismatic since 6.4) on every piece.
  *
  * Bases are the class's best regular base per slot (they are the same in every build), so the
  * pieces that differ between builds are set pieces and Mythics.
@@ -132,6 +132,8 @@ export interface Build {
   pkg: AffixPackage;
   upgradeLevel?: number;
   void?: boolean;
+  /** Ticket 6.4: Prismatic on every piece (ignored when `void` is set: one variant per item). */
+  prismatic?: boolean;
 }
 
 /** A chassis from set pieces (in the set's slot order) and Mythics. */
@@ -236,6 +238,7 @@ export function buildItems(b: Build, itemLevel: number): EquippedItem[] {
     }
     if (b.upgradeLevel) item = { ...item, upgradeLevel: b.upgradeLevel };
     if (b.void) item = { ...item, variant: 'void' };
+    else if (b.prismatic) item = { ...item, variant: 'prismatic' };
     return item;
   });
 }

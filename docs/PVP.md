@@ -288,6 +288,19 @@ No PvP rule changed: `PVP_RULES_VERSION` stays 2, the class factors and referenc
 
 So the wider spread of levels and item levels in 30+ makes the start of a season slightly less even (95 %+ favourites 7 → 9 %, beyond 6.1's recorded ≤ 7 % band for 30–35) while ratings even it out within the season as before. **Not loosened, left for B.5**, which owns the 30+ fairness band (the owner accepted 6.1's 13 % and asked B.5 to fix it): narrower Power steps or a level-aware range in 30+ are its candidates.
 
+## 6.4: Prismatic
+
+No PvP rule changed and `PVP_RULES_VERSION` stays 2: Prismatic's bonus is part of the item's stats (`itemStatContribution`, `itemSecondaryModifiers`), so `normaliseFighter` reads it like any gear and pulls it toward the reference with `keep` (skill damage with `effectKeep`; boss damage does nothing in a duel). The 30+ band is untouched (B.5 owns it). Measured (`tools/balance/prismatic.ts pvp|pvp-builds`; win share of the Prismatic side, all classes, the 5.4 seeds' shape):
+
+| Bracket | +10 Prismatic kit vs +10 Void kit | +10 Prismatic vs +5 | +10 Void vs +5 | same B.2 build, Prismatic vs Void (+10) |
+|---|---|---|---|---|
+| 1–9 | 51 % | 64 % | 62 % | 70 % |
+| 10–19 | 39 % | 67 % | 70 % | 62 % |
+| 20–29 | 37 % | 73 % | 76 % | 64 % (59–69 % per class) |
+| 30+ | 47 % | 80 % | 84 % | 58 % (53–63 % per class) |
+
+Which variant wins depends on the item's affixes, as in PvE: the 5.4 kits roll random affixes (find affixes included, which Prismatic never raises), so Void's base bonus wins there; on B.2-shaped builds with the affixes the build wants, Prismatic wins. Asserted in `pvp-balance.test.ts` for the brackets where Prismatic can drop (item level 23 and up: 20–29 and 30+): neither variant wins more than about 2 duels in 3 (kits; builds per class within 2/3 + 4 points), and +10 Prismatic over +5 stays inside the 5.4 step band (52–98 %). The lower brackets only see Prismatic through the shelf, like any high-level item.
+
 ## PvE stays untouched
 - Nothing in `combat/`, `effects/`, `items/`, `loot/` or `scoring/` changed; the PvP layer only reads them. The no-effects hashes, the balance and build suites and the 5.1 Power pins pass unchanged.
 - `pvp.test.ts` runs duels between two Power and farming evaluations of the same hero and asserts identical results and unchanged default configs.

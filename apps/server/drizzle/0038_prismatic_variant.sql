@@ -1,0 +1,2 @@
+ALTER TABLE "item_instances" DROP CONSTRAINT "item_instances_variant_check";--> statement-breakpoint
+ALTER TABLE "item_instances" ADD CONSTRAINT "item_instances_variant_check" CHECK ("item_instances"."variant" is null or "item_instances"."variant" in ('void', 'prismatic'));

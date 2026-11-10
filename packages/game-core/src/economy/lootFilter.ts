@@ -18,13 +18,14 @@ import { sellPrice } from './merchant.js';
  *
  * **Protected categories** (`LOOT_FILTER_CATEGORIES`): Legendary (non-set), Mythic, set pieces and
  * Void items are always kept unless the player opted that category in (`include`). An item in
- * several categories (a Void set piece) needs every one of them opted in.
+ * several categories (a Void set piece) needs every one of them opted in. Ticket 6.4 adds
+ * Prismatic: a filter saved before it doesn't include it, so Prismatic drops are kept.
  */
 
 export const LOOT_FILTER_ACTIONS = ['salvage', 'sell'] as const;
 export type LootFilterAction = (typeof LOOT_FILTER_ACTIONS)[number];
 
-export const LOOT_FILTER_CATEGORIES = ['legendary', 'mythic', 'set', 'void'] as const;
+export const LOOT_FILTER_CATEGORIES = ['legendary', 'mythic', 'set', 'void', 'prismatic'] as const;
 export type LootFilterCategory = (typeof LOOT_FILTER_CATEGORIES)[number];
 
 /** At most this many wanted affixes and effects each. */
@@ -71,6 +72,7 @@ export function lootFilterCategories(item: LootFilterItem): LootFilterCategory[]
   if (item.setId) out.push('set');
   else if (item.rarityId === 'legendary') out.push('legendary');
   if (item.variant === 'void') out.push('void');
+  else if (item.variant === 'prismatic') out.push('prismatic');
   return out;
 }
 

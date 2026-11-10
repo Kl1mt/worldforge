@@ -46,7 +46,7 @@ const FRESH_STATES = new Set(['fresh', 'storedEquip']);
 
 /** Item kinds: rarity × variant × set, every combination (invalid ones included). */
 const KINDS = RARITY_IDS.flatMap((rarityId) =>
-  [null, 'void' as const].flatMap((variant) =>
+  [null, 'void' as const, 'prismatic' as const].flatMap((variant) =>
     [null, 'abbey-penitent'].map((setId) => ({ rarityId, variant, setId })),
   ),
 );
@@ -54,7 +54,7 @@ const KINDS = RARITY_IDS.flatMap((rarityId) =>
 /** The expected categories, written out from TRADING.md's rarity table. */
 function expectedCategories(kind: {
   rarityId: RarityId;
-  variant: 'void' | null;
+  variant: 'void' | 'prismatic' | null;
   setId: string | null;
 }): TradeCategory[] {
   const out: TradeCategory[] = [];
@@ -62,8 +62,9 @@ function expectedCategories(kind: {
   if (kind.rarityId === 'legendary') out.push(kind.setId ? 'set' : 'legendary');
   if (kind.rarityId === 'mythic') out.push('mythic');
   // Void only exists on Legendary and Mythic (set pieces included); elsewhere it does nothing.
-  if (kind.variant === 'void' && (kind.rarityId === 'legendary' || kind.rarityId === 'mythic')) {
-    out.push('void');
+  // Ticket 6.4: Prismatic likewise, a category of its own.
+  if (kind.variant && (kind.rarityId === 'legendary' || kind.rarityId === 'mythic')) {
+    out.push(kind.variant);
   }
   return out;
 }
@@ -71,7 +72,14 @@ function expectedCategories(kind: {
 const ALL_ON: TradingSwitches = {
   trading: true,
   items: true,
-  categories: { epic: true, legendary: true, set: true, mythic: true, void: true },
+  categories: {
+    epic: true,
+    legendary: true,
+    set: true,
+    mythic: true,
+    void: true,
+    prismatic: true,
+  },
 };
 
 describe('itemBinding (ticket T.1)', () => {
@@ -161,6 +169,31 @@ describe('itemBinding (ticket T.1)', () => {
     }
   });
 
+  it('needs "Tradeable: Prismatic" for a Prismatic item, and its rarity switch too (ticket 6.4)', () => {
+    const mythic: ItemBindingInput = {
+      rarityId: 'mythic',
+      variant: 'prismatic',
+      source: 'farming',
+    };
+    const set: ItemBindingInput = { ...mythic, rarityId: 'legendary', setId: 'abbey-penitent' };
+    expect(itemTradeCategories(mythic)).toEqual(['mythic', 'prismatic']);
+    expect(itemTradeCategories(set)).toEqual(['set', 'prismatic']);
+    expect(itemBinding(mythic, ALL_ON).tradeable).toBe(true);
+    const off = { ...ALL_ON, categories: { ...ALL_ON.categories, prismatic: false } };
+    expect(itemBinding(mythic, off).tradeable).toBe(false);
+    expect(itemBinding(set, off).tradeable).toBe(false);
+    // Void's switch does not open a Prismatic item, nor Prismatic's a Void one.
+    const voidOnly = { ...off, categories: { ...off.categories, void: true } };
+    expect(itemBinding(set, voidOnly).tradeable).toBe(false);
+    const prismOnly = { ...ALL_ON, categories: { ...ALL_ON.categories, void: false } };
+    expect(itemBinding({ ...set, variant: 'void' }, prismOnly).tradeable).toBe(false);
+    expect(itemBinding(set, prismOnly).tradeable).toBe(true);
+    // Forged or worn, it binds like any other item.
+    expect(itemBinding({ ...set, upgradeLevel: 1 }, ALL_ON).binding).toBe('account');
+    // A stray Prismatic flag on an Epic does nothing (never generated, rejected by validateItem).
+    expect(itemTradeCategories({ rarityId: 'epic', variant: 'prismatic' })).toEqual(['epic']);
+  });
+
   it('starts with the master and items off, so nothing is tradeable (T.2 defaults)', () => {
     expect(DEFAULT_TRADING_SWITCHES.trading).toBe(false);
     expect(DEFAULT_TRADING_SWITCHES.items).toBe(false);
@@ -170,6 +203,7 @@ describe('itemBinding (ticket T.1)', () => {
       set: true,
       mythic: false,
       void: false,
+      prismatic: false,
     });
     for (const k of KINDS) {
       expect(itemBinding({ ...k, source: 'farming' }).tradeable).toBe(false);

@@ -25,8 +25,8 @@ export function upgradeImplicitBonus(upgradeLevel: number | null | undefined): n
   return UPGRADE_IMPLICIT_BONUS[Math.min(upgradeLevel, MAX_UPGRADE_LEVEL)] ?? 0;
 }
 
-/** Item variants (GDD §7.5). Only Void in Phase 3 (ticket 3.5); Prismatic is deferred. */
-export const ITEM_VARIANT_IDS = ['void'] as const;
+/** Item variants (GDD §7.5): Void (ticket 3.5) and Prismatic (ticket 6.4), one per item. */
+export const ITEM_VARIANT_IDS = ['void', 'prismatic'] as const;
 
 export type ItemVariantId = (typeof ITEM_VARIANT_IDS)[number];
 
@@ -38,7 +38,7 @@ export function isItemVariantId(value: unknown): value is ItemVariantId {
 export interface ItemProgressState {
   /** 0…`MAX_UPGRADE_LEVEL` (ticket 3.4). */
   upgradeLevel: number;
-  /** Null or a variant (ticket 3.5). */
+  /** Null or a variant (Void 3.5, Prismatic 6.4). */
   variant: ItemVariantId | null;
   /** Legendary effect or Mythic signature effect id in the effect registry (ticket 3.2). */
   effectId: string | null;

@@ -35,6 +35,27 @@ export const HEROIC_LEGENDARY_WEIGHT = 2.5;
 export const HEROIC_VOID_CHANCE = 0.15;
 
 /**
+ * Ticket 6.4: in Ashen-tier and newer content (the Ashen Pass and the Warden's Watch, the Ashfall
+ * Verge, the Cinder Depths and the Tyrant's Forge, the Heroic crypt), a Legendary or Mythic (set
+ * pieces included) that did not become Void is Prismatic this often: 5 % (4.5 % of all such
+ * rolls, against Void's 10 %), in the Heroic crypt 7.5 % (6.4 %, against 15 %). Capped by
+ * `DEFAULT_LOOT_CONFIG.maxPrismaticChance`. Older sources never drop it. See docs/EFFECTS.md.
+ */
+export const PRISMATIC_CHANCE = 0.05;
+export const HEROIC_PRISMATIC_CHANCE = 0.075;
+
+/** Ticket 6.4: the tables that roll Prismatic (each source of the Ashen tier and newer). */
+export const PRISMATIC_TABLE_IDS = [
+  'ashenPass',
+  'ashenWarden',
+  'ashfallVerge',
+  'cinderDepths',
+  'forgeTyrant',
+  'namelessCryptIV',
+  'gravewardenIV',
+] as const;
+
+/**
  * Ticket 3.6: the loot focus of each Nameless Crypt tier. A tier's chambers and its Gravewarden
  * share it, so the player knows what a tier is for (docs/DUNGEONS.md, "Targeted loot").
  */
@@ -72,7 +93,7 @@ export const CRYPT_LOOT_FOCI = {
     id: 'crypt-iv',
     name: 'Heroic spoils',
     description:
-      'Legendaries, Mythics, set pieces and Void items drop far more often than in Tier III, at the item levels of the Cinderwastes.',
+      'Legendaries, Mythics, set pieces, Void and Prismatic items drop far more often than in Tier III, at the item levels of the Cinderwastes.',
   },
 } as const satisfies Record<1 | 2 | 3 | 4, LootFocus>;
 
@@ -187,6 +208,7 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
     setShare: SET_SHARE,
     legendaryWeight: HEROIC_LEGENDARY_WEIGHT,
     voidChance: HEROIC_VOID_CHANCE,
+    prismaticChance: HEROIC_PRISMATIC_CHANCE,
     itemDropChance: 0.18,
     itemLevel: { min: 31, max: 37 },
     entries: tierEntries({ 3: 1, 4: 2 }),
@@ -204,6 +226,7 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
     setShare: SET_SHARE,
     legendaryWeight: LEGENDARY_WEIGHT,
     voidChance: VOID_CHANCE,
+    prismaticChance: PRISMATIC_CHANCE,
     itemDropChance: 0.06,
     itemLevel: { min: 23, max: 29 },
     entries: tierEntries({ 3: 1 }),
@@ -219,6 +242,7 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
     setShare: SET_SHARE,
     legendaryWeight: LEGENDARY_WEIGHT,
     voidChance: VOID_CHANCE,
+    prismaticChance: PRISMATIC_CHANCE,
     itemDropChance: 0.06,
     itemLevel: { min: 29, max: 35 },
     entries: tierEntries({ 4: 1 }),
@@ -233,6 +257,7 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
     setShare: SET_SHARE,
     legendaryWeight: LEGENDARY_WEIGHT,
     voidChance: VOID_CHANCE,
+    prismaticChance: PRISMATIC_CHANCE,
     itemDropChance: 0.06,
     itemLevel: { min: 35, max: 41 },
     entries: tierEntries({ 4: 1 }),
@@ -296,6 +321,7 @@ export const BOSS_LOOT_TABLES: readonly LootTableDefinition[] = [
     setShare: SET_SHARE,
     legendaryWeight: HEROIC_LEGENDARY_WEIGHT,
     voidChance: HEROIC_VOID_CHANCE,
+    prismaticChance: HEROIC_PRISMATIC_CHANCE,
     itemDropChance: 1,
     itemLevel: { min: 34, max: 36 },
     entries: [...tierEntries({ 3: 1, 4: 2 }), ...BOSS_EXCLUSIVE],
@@ -310,6 +336,7 @@ export const BOSS_LOOT_TABLES: readonly LootTableDefinition[] = [
     setShare: SET_SHARE,
     legendaryWeight: LEGENDARY_WEIGHT,
     voidChance: VOID_CHANCE,
+    prismaticChance: PRISMATIC_CHANCE,
     itemDropChance: 1,
     itemLevel: { min: 27, max: 29 },
     entries: tierEntries({ 3: 1 }),
@@ -324,6 +351,7 @@ export const BOSS_LOOT_TABLES: readonly LootTableDefinition[] = [
     setShare: SET_SHARE,
     legendaryWeight: LEGENDARY_WEIGHT,
     voidChance: VOID_CHANCE,
+    prismaticChance: PRISMATIC_CHANCE,
     itemDropChance: 1,
     itemLevel: { min: 39, max: 41 },
     entries: tierEntries({ 4: 1 }),

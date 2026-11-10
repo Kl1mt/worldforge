@@ -26,6 +26,7 @@ const fakeVariant = (id: string, name: string): VariantView => ({
   name,
   implicitBonus: 0,
   effectBonus: 0,
+  affixBonus: 0,
 });
 
 export const VARIANT_PREVIEW_ROWS: readonly {

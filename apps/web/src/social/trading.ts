@@ -63,7 +63,7 @@ export const CAP_LABELS: Record<TradeCapMetric, string> = {
   trades: 'Completed trades today',
   epic: 'Epic items',
   legendarySet: 'Legendary and set items',
-  mythicVoid: 'Mythic or Void items',
+  mythicVoid: 'Mythic, Void or Prismatic items',
   gold: 'Gold',
   commonMaterials: 'Common materials',
   soulShards: 'Soul shards',

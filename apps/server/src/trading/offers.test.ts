@@ -566,6 +566,71 @@ describe('voiding', () => {
     await expectReconciled();
   });
 
+  it('"Tradeable: Prismatic" gates Prismatic items alone, voids them when turned off, and counts toward the Mythic/Void week (ticket 6.4)', async () => {
+    const [a, b] = await pair();
+    const prism = await insertTradeItem(db(), a.hero.id, {
+      rarityId: 'legendary',
+      variant: 'prismatic',
+    });
+    const voided = await insertTradeItem(db(), a.hero.id, {
+      rarityId: 'legendary',
+      variant: 'void',
+    });
+    // Off (the default for this switch): the Prismatic item is refused, the Void one is not.
+    await setTradingSettings(app, db(), {
+      ...ALL_TRADING_ON,
+      tradeable: { ...ALL_TRADING_ON.tradeable, prismatic: false },
+    });
+    const refused = await t.send(a, b, { give: { itemIds: [prism.id] } });
+    expect(refused.statusCode).toBeGreaterThanOrEqual(400);
+    expect(refused.json().error.details.reasons).toEqual([
+      expect.objectContaining({ check: 'item_category_off', itemId: prism.id }),
+    ]);
+    const voidOffer = await t.send(a, b, { give: { itemIds: [voided.id] } });
+    expect(voidOffer.statusCode, voidOffer.body).toBe(201);
+
+    // On: it can be offered; turned off again, only its offer is voided.
+    await setTradingSettings(app, db(), ALL_TRADING_ON);
+    const sent = await t.send(a, b, { give: { itemIds: [prism.id] } });
+    expect(sent.statusCode, sent.body).toBe(201);
+    const { updateTradingSettings, loadGameSettings } = await import('../settings/store.js');
+    const { trading } = await loadGameSettings(db());
+    await withTransaction(db(), (tx) =>
+      updateTradingSettings(tx, {
+        settings: {
+          ...ALL_TRADING_ON,
+          tradeable: { ...ALL_TRADING_ON.tradeable, prismatic: false },
+        },
+        expectedVersion: trading.version,
+        actorAccountId: a.id,
+        now: clock,
+        events: app.settingsEvents,
+      }),
+    );
+    expect((await offerOf(sent.json().id)).status).toBe('void');
+    expect((await offerOf(sent.json().id)).voidReason).toBe('switch');
+    expect((await offerOf(voidOffer.json().id)).status).toBe('open');
+    // The escrowed item is back with its sender, still Prismatic.
+    expect((await item(prism.id))!.characterId).toBe(a.hero.id);
+    expect((await item(prism.id))!.variant).toBe('prismatic');
+    await expectReconciled();
+  });
+
+  it('a Prismatic item counts toward "Mythic, Void or Prismatic items per week" (ticket 6.4)', async () => {
+    const [a, b] = await pair();
+    await setTradingSettings(app, db(), {
+      ...ALL_TRADING_ON,
+      limits: { ...ALL_TRADING_ON.limits, mythicVoidPerWeek: 0 },
+    });
+    const prism = await insertTradeItem(db(), a.hero.id, {
+      rarityId: 'legendary',
+      variant: 'prismatic',
+    });
+    const res = await t.send(a, b, { give: { itemIds: [prism.id] } });
+    expect(res.statusCode).toBeGreaterThanOrEqual(400);
+    expect(res.body).toContain('mythicVoid');
+  });
+
   it('a block, an unfriend, a trade restriction and a suspension void; a mute doesn’t', async () => {
     const { sanctions } = await import('../db/schema.js');
     for (const trigger of ['block', 'unfriend', 'trade', 'suspend', 'mute'] as const) {

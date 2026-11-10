@@ -28,12 +28,12 @@ import { insertAccount, type TestAccount } from './social.js';
 
 const DAY = 86_400_000;
 
-/** Trading fully open: the master, every kind, every category (Mythic and Void too). */
+/** Trading fully open: the master, every kind, every category (Mythic, Void and Prismatic too). */
 export const ALL_TRADING_ON: TradingSettings = {
   ...structuredClone(DEFAULT_TRADING_SETTINGS),
   trading: true,
   trade: { items: true, materials: true, gold: true },
-  tradeable: { epic: true, legendary: true, set: true, mythic: true, void: true },
+  tradeable: { epic: true, legendary: true, set: true, mythic: true, void: true, prismatic: true },
   shelf: { items: true, materials: true, gold: true },
 };
 
@@ -106,7 +106,7 @@ export async function insertTradeItem(
     unprovenanced = false,
   }: {
     rarityId?: RarityId;
-    variant?: 'void' | null;
+    variant?: 'void' | 'prismatic' | null;
     setId?: string | null;
     locked?: boolean;
     unprovenanced?: boolean;

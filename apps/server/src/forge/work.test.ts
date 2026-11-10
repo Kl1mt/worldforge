@@ -466,3 +466,57 @@ describe('Void items (ticket 3.5)', () => {
     expect(res.json<ForgeActionResponse>().item.variant).toBe('void');
   });
 });
+
+describe('Prismatic items (ticket 6.4)', () => {
+  it('the inventory shows the variant and its stats; forge work never adds, removes or swaps it', async () => {
+    const p = await newPlayer();
+    // Known affixes: two combat affixes (raised × 1.1) and gold find (never raised).
+    const affixes = [
+      { affixId: 'health', tier: 3, value: 40 },
+      { affixId: 'armor', tier: 3, value: 15 },
+      { affixId: 'resistance', tier: 3, value: 12 },
+      { affixId: 'gold-find', tier: 2, value: 0.08 },
+    ];
+    const prismId = await grant(
+      p,
+      { rarityId: 'legendary', seed: 11 },
+      { equippedSlot: 'head', variant: 'prismatic', affixes },
+    );
+    const voidId = await grant(p, { rarityId: 'legendary', seed: 12 }, { variant: 'void' });
+    const plainId = await grant(p, { rarityId: 'legendary', seed: 13 });
+    const inventory = async () =>
+      (
+        await app.inject({
+          method: 'GET',
+          url: `/api/characters/${p.id}/inventory`,
+          cookies: { [SESSION_COOKIE]: p.token },
+        })
+      ).json<{
+        stats: { health: number; armor: number; resistance: number };
+        equipped: { id: string; variant: string | null }[];
+      }>();
+    const prism = await inventory();
+    expect(prism.equipped.find((i) => i.id === prismId)!.variant).toBe('prismatic');
+    await setItem(prismId, { variant: null });
+    const plain = await inventory();
+    // Affixes × 1.1 (rounded per affix), base values unchanged.
+    expect(prism.stats.health - plain.stats.health).toBe(4);
+    expect(prism.stats.armor - plain.stats.armor).toBe(2);
+    expect(prism.stats.resistance - plain.stats.resistance).toBe(1);
+    await setItem(prismId, { variant: 'prismatic' });
+
+    for (const id of [prismId, voidId, plainId]) {
+      const variant = (await row(id)).variant;
+      await setItem(id, { upgradePity: 9 });
+      expect((await post(p, 'upgrade', { itemId: id })).statusCode).toBe(200);
+      expect((await post(p, 'reroll', { itemId: id, affixIndex: 0 })).statusCode).toBe(200);
+      const improved = await post(p, 'improve', { itemId: id, affixIndex: 1 });
+      expect([200, 422]).toContain(improved.statusCode);
+      const after = await row(id);
+      expect(after.forgeCounter).toBeGreaterThanOrEqual(2);
+      expect(after.variant, id).toBe(variant);
+    }
+    const res = await post(p, 'upgrade', { itemId: prismId });
+    expect(res.json<ForgeActionResponse>().item.variant).toBe('prismatic');
+  });
+});

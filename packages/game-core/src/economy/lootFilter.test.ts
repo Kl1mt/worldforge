@@ -112,6 +112,19 @@ describe('lootFilterHandles', () => {
       expect(lootFilterHandles(voidSet, { ...harshest, include: ['set'] })).toBe(false);
       expect(lootFilterHandles(voidSet, { ...harshest, include: ['set', 'void'] })).toBe(true);
     });
+
+    it('protects Prismatic as its own category; a filter saved before 6.4 keeps it', () => {
+      const prism = { ...legendary, variant: 'prismatic' as const };
+      expect(lootFilterCategories(prism)).toEqual(['legendary', 'prismatic']);
+      expect(lootFilterHandles(prism, harshest)).toBe(false);
+      // Opting in Legendary and Void (all a pre-6.4 filter could) still keeps it.
+      expect(
+        lootFilterHandles(prism, { ...harshest, include: ['legendary', 'mythic', 'set', 'void'] }),
+      ).toBe(false);
+      expect(lootFilterHandles(prism, { ...harshest, include: ['legendary', 'prismatic'] })).toBe(
+        true,
+      );
+    });
   });
 });
 
