@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { and, asc, eq, gt, sql } from 'drizzle-orm';
+import { and, asc, eq, gt, isNull, sql } from 'drizzle-orm';
 import {
   SCORE_METRICS,
   computeScore,
@@ -93,6 +93,8 @@ export async function refreshHeroScores(
   // Fast path without the lock: nothing moved since the last refresh.
   const [hero] = await deps.db.select().from(characters).where(eq(characters.id, characterId));
   if (!hero) return 'missing';
+  // Ticket D.4: a soft-deleted hero has no rows (its deletion removed them); never write new ones.
+  if (hero.deletedAt) return 'missing';
   // Read once, outside the transaction: the cache may query the pool (PGlite has one connection).
   const flags = await deps.worldFlags();
   const fixedFlags = async () => flags;
@@ -119,7 +121,7 @@ export async function refreshHeroScores(
       sql`select pg_advisory_xact_lock(hashtextextended(${`leaderboard:${characterId}`}, 0))`,
     );
     const [fresh] = await tx.select().from(characters).where(eq(characters.id, characterId));
-    if (!fresh) return 'missing';
+    if (!fresh || fresh.deletedAt) return 'missing';
     const current = await snapshotInput(tx, fresh, fixedFlags);
     const rows = await tx
       .select()
@@ -216,6 +218,7 @@ export async function refreshAccountHeroes(
     .where(
       and(
         eq(characters.accountId, accountId),
+        isNull(characters.deletedAt),
         characterId ? eq(characters.id, characterId) : undefined,
       ),
     )
@@ -241,7 +244,7 @@ export async function heroesNeedingRows(
     .select({ id: characters.id })
     .from(characters)
     .where(
-      sql`(select count(*) from ${leaderboardEntries}
+      sql`${characters.deletedAt} is null and (select count(*) from ${leaderboardEntries}
         where ${leaderboardEntries.characterId} = ${characters.id}
           and (${sql.join(versions, sql` or `)})) < ${SCORE_METRICS.length}`,
     )
@@ -268,7 +271,12 @@ export async function sweepLeaderboards(
     ? await deps.db
         .select({ id: characters.id })
         .from(characters)
-        .where(options.cursor ? gt(characters.id, options.cursor) : undefined)
+        .where(
+          and(
+            isNull(characters.deletedAt),
+            options.cursor ? gt(characters.id, options.cursor) : undefined,
+          ),
+        )
         .orderBy(asc(characters.id))
         .limit(room)
     : [];
@@ -289,7 +297,7 @@ export async function refreshAll(deps: SnapshotDeps, now: Date, batch = 200): Pr
     const rows = await deps.db
       .select({ id: characters.id })
       .from(characters)
-      .where(cursor ? gt(characters.id, cursor) : undefined)
+      .where(and(isNull(characters.deletedAt), cursor ? gt(characters.id, cursor) : undefined))
       .orderBy(asc(characters.id))
       .limit(batch);
     for (const r of rows) {

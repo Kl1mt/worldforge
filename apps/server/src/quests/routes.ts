@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { characters, type Character } from '../db/schema.js';
 import type { Transaction } from '../db/types.js';
 import { withTransaction } from '../db/transaction.js';
@@ -53,7 +53,13 @@ async function lockAndSettle(
   const [character] = await tx
     .select()
     .from(characters)
-    .where(and(eq(characters.id, characterId), eq(characters.accountId, accountId)))
+    .where(
+      and(
+        eq(characters.id, characterId),
+        eq(characters.accountId, accountId),
+        isNull(characters.deletedAt),
+      ),
+    )
     .for('no key update');
   if (!character) throw characterNotFound();
   const settled = await settleActivityTx(tx, characterId, activity, { touch: true });
@@ -79,7 +85,11 @@ export async function registerQuests(
         })
         .from(characters)
         .where(
-          and(eq(characters.id, request.params.characterId), eq(characters.accountId, accountId)),
+          and(
+            eq(characters.id, request.params.characterId),
+            eq(characters.accountId, accountId),
+            isNull(characters.deletedAt),
+          ),
         )
         .limit(1);
       if (!character) throw characterNotFound();

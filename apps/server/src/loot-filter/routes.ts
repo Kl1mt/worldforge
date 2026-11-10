@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import {
   LOOT_FILTER_ACTIONS,
   LOOT_FILTER_AFFIX_IDS,
@@ -113,7 +113,13 @@ export async function registerLootFilter(
       const [row] = await app.db
         .select({ lootFilter: characters.lootFilter })
         .from(characters)
-        .where(and(eq(characters.id, characterId), eq(characters.accountId, accountId)));
+        .where(
+          and(
+            eq(characters.id, characterId),
+            eq(characters.accountId, accountId),
+            isNull(characters.deletedAt),
+          ),
+        );
       if (!row) throw characterNotFound();
       return view(characterId, row.lootFilter ?? null);
     },

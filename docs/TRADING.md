@@ -287,6 +287,14 @@ That's why the caps are small, why everything starts switched off, and why the t
 - With the shelf's gold and materials on, a player's two heroes share one purse (by design, 8c).
 - Settings are cached for up to a minute (like the world flags) except in the process that changed them, so a switch turned off can still let an accept through for a few seconds. Turning a switch off also voids open offers, and the hold makes any trade in that window reversible.
 
+## Hero deletion (ticket D.4)
+
+Hero deletion now exists, for admins only (the panel's Inspector, `apps/server/src/admin/heroes.ts`), as a **soft delete** with a 14-day restore window and a CLI purge after it. It goes through both seams: T.5's `voidForDeletion` (every open offer the hero sends or receives is voided, `void_reason = 'deletion'`, the escrow goes back to the sender) and T.7's `rehomeShelfItemsForDeletion` (the hero's shelf items go to the account's oldest other **live** hero, still on the shelf; without one the deletion is refused with `409 shelf_not_empty`). Lock order: the shelf lock, the account row `for no key update` (a trade write holds it `for share`, so an accept or a send serialises with the deletion; `for update` would deadlock with any write's idempotency-key insert, which holds `for key share` on the account row), the admin's row, then the seams (offers, heroes, items). Real-Postgres races: deletion vs an accept of the hero's offer, deletion vs a shelf deposit of its item (`admin/tools.pg.test.ts`).
+- While deleted the hero is hidden from its player, every list, board and matchmaking, and frozen (its activity settled and ended, every hero route `404`); `deleted_at is null` on every hero read is guarded by `admin/tools.test.ts`. A deleted hero can't receive an offer, and can't be the heir of shelf items.
+- **Restore** (within 14 days, a free hero slot needed) brings back the hero, its arena defence as saved and its active and showcase choice; its board rows are recomputed. Not brought back: voided offers (the escrow already went home), shelf items handed to another hero (they stay on the account's shelf), the ended activity (the player starts again; the seed stream continues).
+- **Purge** (`deploy/admin.sh purge`): deletes the row through both seams again. The offers' `restrict` keys keep any hero that a past trade names: such a hero stays soft-deleted for good, reported as kept, so the trade history and audit stay whole.
+- Guilds are per account: deleting a hero never changes a guild role.
+
 ## Ticket outline for the phase that builds it
 
 Not part of `docs/ROADMAP.md`; the owner places it. Ground rules from Phases 1–4 apply (vertical slices, invariance tests, real-Postgres races from the ticket that adds a lock, `Idempotency-Key` on every value route, the migration rule, nothing secret from public ids, permission matrices, extend the journey).

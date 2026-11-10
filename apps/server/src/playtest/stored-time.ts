@@ -29,6 +29,7 @@ export async function latestStoredTimeMs(db: Database): Promise<number | null> {
       (select max(created_at) from item_instances),
       (select max(created_at) from idempotency_keys),
       (select max(day)::timestamp at time zone 'UTC' from telemetry_daily),
+      (select max(day)::timestamp at time zone 'UTC' from telemetry_daily_test),
       (select max(created_at) from guild_boss_attempts),
       (select max(greatest(earned_at, claimed_at, created_at)) from guild_boss_rewards)
 ,

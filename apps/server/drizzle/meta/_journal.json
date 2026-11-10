@@ -253,6 +253,13 @@
       "when": 1794231607947,
       "tag": "0035_trade_moderation",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1794304805880,
+      "tag": "0036_admin_tools",
+      "breakpoints": true
     }
   ]
 }

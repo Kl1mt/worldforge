@@ -441,7 +441,11 @@ export async function sendOffer(
       .select()
       .from(characters)
       .where(
-        and(eq(characters.id, input.receiverCharacterId), eq(characters.accountId, receiver.id)),
+        and(
+          eq(characters.id, input.receiverCharacterId),
+          eq(characters.accountId, receiver.id),
+          isNull(characters.deletedAt),
+        ),
       );
     if (!row) throw characterNotFound();
     receiverHero = row;

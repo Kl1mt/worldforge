@@ -1,4 +1,4 @@
-import { asc, eq, gt } from 'drizzle-orm';
+import { and, asc, eq, gt, isNull } from 'drizzle-orm';
 import { SCORE_METRICS, computeScore, type ScoreMetric } from '@worldforge/game-core';
 import { characters, leaderboardEntries } from '../db/schema.js';
 import { inputsHash, snapshotInput, type SnapshotDeps } from './snapshot.js';
@@ -45,7 +45,7 @@ export async function checkLeaderboards(
     const heroes = await deps.db
       .select()
       .from(characters)
-      .where(cursor ? gt(characters.id, cursor) : undefined)
+      .where(and(isNull(characters.deletedAt), cursor ? gt(characters.id, cursor) : undefined))
       .orderBy(asc(characters.id))
       .limit(batch);
     for (const hero of heroes) {

@@ -1,4 +1,4 @@
-import { and, asc, count, eq, inArray, isNotNull, ne, sql } from 'drizzle-orm';
+import { and, asc, count, eq, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import {
   BRACKET_POWER_VERSION,
   DUEL_OFFER_SIZE,
@@ -58,7 +58,13 @@ export async function lockOwnHeroShared(
   const [hero] = await tx
     .select()
     .from(characters)
-    .where(and(eq(characters.id, characterId), eq(characters.accountId, accountId)))
+    .where(
+      and(
+        eq(characters.id, characterId),
+        eq(characters.accountId, accountId),
+        isNull(characters.deletedAt),
+      ),
+    )
     .for('share');
   if (!hero) throw new ApiError(404, 'not_found', 'No such character.');
   return hero;
@@ -73,7 +79,13 @@ export async function ownHero(
   const [hero] = await db
     .select()
     .from(characters)
-    .where(and(eq(characters.id, characterId), eq(characters.accountId, accountId)));
+    .where(
+      and(
+        eq(characters.id, characterId),
+        eq(characters.accountId, accountId),
+        isNull(characters.deletedAt),
+      ),
+    );
   if (!hero) throw new ApiError(404, 'not_found', 'No such character.');
   return hero;
 }
@@ -167,7 +179,13 @@ export async function ratedDuelsOn(executor: Executor, accountId: string, day: s
     .where(
       and(eq(duels.challengerAccountId, accountId), eq(duels.day, day), eq(duels.kind, 'rated')),
     );
-  return row?.n ?? 0;
+  // Ticket D.4: an admin's daily reset on a test account forgives that day's duels so far.
+  const [reset] = await executor
+    .select({ day: accounts.duelResetDay, n: accounts.duelResetCount })
+    .from(accounts)
+    .where(eq(accounts.id, accountId));
+  const forgiven = reset?.day === day ? reset.n : 0;
+  return Math.max(0, (row?.n ?? 0) - forgiven);
 }
 
 /** Accounts among `ids` with an active sanction of any kind at `now`. */
@@ -252,6 +270,9 @@ export async function drawOpponents(
         sql`${duelDefences.level} >= ${RATED_DUEL_MIN_LEVEL}`,
         sql`not exists (select 1 from sanctions s where s.subject_id = ${duelDefences.accountId}
           and s.lifted_at is null and s.expires_at > ${authNow.toISOString()}::timestamptz)`,
+        // Ticket D.4: test accounts are never offered to players, and see only each other.
+        sql`(select ta.is_test from accounts ta where ta.id = ${duelDefences.accountId})
+          = (select tb.is_test from accounts tb where tb.id = ${accountId})`,
       ),
     )
     .orderBy(sql`random()`)

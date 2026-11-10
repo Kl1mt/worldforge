@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { and, eq, ne } from 'drizzle-orm';
+import { and, eq, isNull, ne } from 'drizzle-orm';
 import {
   AREA_IDS,
   areaUnlockBlockers,
@@ -96,7 +96,13 @@ async function ownedCharacter(
   const [c] = await tx
     .select()
     .from(characters)
-    .where(and(eq(characters.id, characterId), eq(characters.accountId, accountId)))
+    .where(
+      and(
+        eq(characters.id, characterId),
+        eq(characters.accountId, accountId),
+        isNull(characters.deletedAt),
+      ),
+    )
     .limit(1);
   if (!c) throw notFound();
   return c;
@@ -145,7 +151,11 @@ export async function registerActivities(
         .from(characters)
         .leftJoin(activities, eq(activities.characterId, characters.id))
         .where(
-          and(eq(characters.id, request.params.characterId), eq(characters.accountId, accountId)),
+          and(
+            eq(characters.id, request.params.characterId),
+            eq(characters.accountId, accountId),
+            isNull(characters.deletedAt),
+          ),
         )
         .limit(1);
       if (!row) throw notFound();

@@ -1,7 +1,7 @@
 import { itemBindingColumns } from '../inventory/columns.js';
 import { refreshAchievements } from '../achievements/award.js';
 import type { FastifyInstance } from 'fastify';
-import { and, asc, eq, like } from 'drizzle-orm';
+import { and, asc, eq, isNull, like } from 'drizzle-orm';
 import {
   AREA_IDS,
   areaStock,
@@ -182,7 +182,13 @@ export async function registerMerchant(
       const [character] = await app.db
         .select()
         .from(characters)
-        .where(and(eq(characters.id, characterId), eq(characters.accountId, accountId)));
+        .where(
+          and(
+            eq(characters.id, characterId),
+            eq(characters.accountId, accountId),
+            isNull(characters.deletedAt),
+          ),
+        );
       if (!character) throw characterNotFound();
       const now = activity.now();
       const day = merchantDay(now);

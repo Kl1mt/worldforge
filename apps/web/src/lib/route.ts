@@ -106,6 +106,9 @@ export function profileHref(handle?: string): string {
 export const ADMIN_SECTIONS = [
   'invites',
   'players',
+  // Ticket D.4: the account inspector (`#/admin/inspect/<handle>`) and the world flags/scheduler.
+  'inspect',
+  'world',
   'telemetry',
   'seasons',
   'trading',

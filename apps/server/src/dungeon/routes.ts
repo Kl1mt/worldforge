@@ -223,7 +223,13 @@ async function lockOwnedCharacter(
   const [c] = await tx
     .select()
     .from(characters)
-    .where(and(eq(characters.id, characterId), eq(characters.accountId, accountId)))
+    .where(
+      and(
+        eq(characters.id, characterId),
+        eq(characters.accountId, accountId),
+        isNull(characters.deletedAt),
+      ),
+    )
     .for('no key update');
   if (!c) throw notFound();
   return c;
@@ -376,7 +382,13 @@ export async function registerDungeons(
     const [character] = await app.db
       .select()
       .from(characters)
-      .where(and(eq(characters.id, characterId), eq(characters.accountId, accountId)))
+      .where(
+        and(
+          eq(characters.id, characterId),
+          eq(characters.accountId, accountId),
+          isNull(characters.deletedAt),
+        ),
+      )
       .limit(1);
     if (!character) throw notFound();
     const now = options.now();

@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { createHash } from 'node:crypto';
-import { and, eq, sql, type SQL } from 'drizzle-orm';
+import { and, eq, isNull, type SQL, sql } from 'drizzle-orm';
 import {
   BOARD_SCOPES,
   CLASS_IDS,
@@ -21,6 +21,7 @@ import { profileRelationsFor } from '../social/profiles.js';
 import { hiddenTargetKeys } from '../social/sanctions.js';
 import { characterNameKey, profileFieldKey } from '../social/targets.js';
 import { refreshAccountHeroes, refreshHeroScores, type SnapshotDeps } from './snapshot.js';
+import { notTestOrDeleted } from '../admin/eligibility.js';
 
 /** The snapshot dependencies of a running app (world flags and formula versions, both cached). */
 export function snapshotDeps(app: FastifyInstance): SnapshotDeps {
@@ -175,7 +176,8 @@ function decodeCursor(cursor: string | undefined): number {
 /** An account with an active sanction of any kind is left off every board (read time only). */
 const notSanctioned = (now: Date) =>
   sql`not exists (select 1 from sanctions s
-    where s.subject_id = e.account_id and s.lifted_at is null and s.expires_at > ${now.toISOString()}::timestamptz)`;
+    where s.subject_id = e.account_id and s.lifted_at is null and s.expires_at > ${now.toISOString()}::timestamptz)
+    and ${notTestOrDeleted}`;
 
 export interface BoardQuery {
   metric: ScoreMetric;
@@ -465,7 +467,7 @@ export async function registerLeaderboards(
           where ${leaderboardEntries.characterId} = ${characters.id})`,
         })
         .from(characters)
-        .where(and(eq(characters.accountId, accountId)));
+        .where(and(eq(characters.accountId, accountId), isNull(characters.deletedAt)));
       for (const h of own) {
         if (h.n < SCORE_METRICS.length) await refreshHeroScores(deps, h.id, options.now());
       }

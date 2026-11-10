@@ -1,6 +1,6 @@
 import { refreshAchievements } from '../achievements/award.js';
 import type { FastifyInstance } from 'fastify';
-import { and, asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import {
   DEFAULT_FORGE_ACTION_CONFIG,
   affixTierRange,
@@ -536,7 +536,13 @@ export async function registerForgeWork(
       const [character] = await db
         .select()
         .from(characters)
-        .where(and(eq(characters.id, characterId), eq(characters.accountId, accountId)));
+        .where(
+          and(
+            eq(characters.id, characterId),
+            eq(characters.accountId, accountId),
+            isNull(characters.deletedAt),
+          ),
+        );
       if (!character) throw characterNotFound();
       const [row] = await db
         .select()

@@ -1,7 +1,10 @@
 import { and, gte, lte, sql, type SQL } from 'drizzle-orm';
 import { RARITY_IDS } from '@worldforge/game-core';
 import { queryRows } from '../db/query.js';
-import { telemetryDaily } from '../db/schema.js';
+import { telemetryDaily, telemetryDailyTest } from '../db/schema.js';
+
+/** Either rollup table (ticket D.4: the two have the same columns). */
+type RollupTable = typeof telemetryDaily;
 import type { Executor } from '../db/types.js';
 import type { TelemetryMetric } from './record.js';
 
@@ -72,6 +75,44 @@ export function parseDay(value: string, name: string): string {
 export async function loadRollups(
   db: Executor,
   window: TelemetryWindow,
+  /**
+   * Ticket D.4: `players` (the balance report: test accounts left out) or `all` (the
+   * reconciliation: both tables, so admin tools on test accounts still balance).
+   */
+  cohort: 'players' | 'all' = 'players',
+): Promise<{ rows: RollupRow[]; firstDay: string | null; lastDay: string | null; days: number }> {
+  if (cohort === 'all') {
+    const [a, b] = [
+      await loadRollupsFrom(db, telemetryDaily, window),
+      await loadRollupsFrom(db, telemetryDailyTest as unknown as RollupTable, window),
+    ];
+    const merged = new Map<string, RollupRow>();
+    for (const r of [...a.rows, ...b.rows]) {
+      const key = [r.metric, ...r.dims].join('\u0000');
+      const m = merged.get(key);
+      if (m) {
+        m.events += r.events;
+        m.amount += r.amount;
+      } else merged.set(key, { ...r, dims: [...r.dims] as RollupRow['dims'] });
+    }
+    const days = [a.firstDay, a.lastDay, b.firstDay, b.lastDay].filter(
+      (d): d is string => d !== null,
+    );
+    return {
+      rows: [...merged.values()],
+      firstDay: days.length ? days.reduce((x, y) => (x < y ? x : y)) : null,
+      lastDay: days.length ? days.reduce((x, y) => (x > y ? x : y)) : null,
+      days: Math.max(a.days, b.days),
+    };
+  }
+  return loadRollupsFrom(db, telemetryDaily, window);
+}
+
+async function loadRollupsFrom(
+  db: Executor,
+  /** Either table: the two have the same columns. */
+  telemetryDaily: RollupTable,
+  window: TelemetryWindow,
 ): Promise<{ rows: RollupRow[]; firstDay: string | null; lastDay: string | null; days: number }> {
   const where = and(
     window.from ? gte(telemetryDaily.day, window.from) : undefined,
@@ -136,7 +177,8 @@ export async function loadSnapshot(db: Executor): Promise<TelemetryReport['snaps
     db,
     sql`select i.character_id, c.class_id, i.base_id, i.effect_id, i.set_id, i.variant, i.affixes
         from item_instances i join characters c on c.id = i.character_id
-        where i.equipped_slot is not null`,
+          join accounts a on a.id = c.account_id
+        where i.equipped_slot is not null and c.deleted_at is null and not a.is_test`,
   );
   const usage = new Map<string, UsageRow>();
   const bump = (classId: string, kind: UsageRow['kind'], id: string) => {
@@ -239,7 +281,7 @@ const num = (path: SQL) => sql`coalesce(sum((${path})::bigint), 0)`;
  * after racing settles, claims, sells and forge actions.
  */
 export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]> {
-  const { rows } = await loadRollups(db, { from: null, to: null });
+  const { rows } = await loadRollups(db, { from: null, to: null }, 'all');
   const audit = (event: string, select: SQL, extra?: SQL) =>
     auditScalar(
       db,
@@ -677,6 +719,63 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
     ]),
   ];
   const out: ReconcileCheck[] = [];
+  // Ticket D.4: admin tools are their own sources (grants, refunds, removals, XP, items).
+  const adminGold = (mode: string) =>
+    audit('admin.gold', num(sql`data->>'amount'`), sql`data->>'mode' = ${mode}`);
+  const adminMaterials = (mode: string) =>
+    auditScalar(
+      db,
+      sql`select coalesce(sum(m.value::bigint), 0) as n
+          from audit_log a, jsonb_each_text(coalesce(a.data->'materials', '{}'::jsonb)) m
+          where a.event = 'admin.materials' and a.data->>'mode' = ${mode}`,
+    );
+  checks.push(
+    [
+      'admin: gold granted',
+      adminGold('grant'),
+      sumRollups(rows, 'gold.in', src('admin_grant'), 'amount'),
+    ],
+    [
+      'admin: gold refunded',
+      adminGold('refund'),
+      sumRollups(rows, 'gold.in', src('admin_refund'), 'amount'),
+    ],
+    [
+      'admin: gold removed',
+      adminGold('remove'),
+      sumRollups(rows, 'gold.out', src('admin_remove'), 'amount'),
+    ],
+    [
+      'admin: materials granted',
+      adminMaterials('grant'),
+      sumRollups(rows, 'material.in', src('admin_grant'), 'amount'),
+    ],
+    [
+      'admin: materials refunded',
+      adminMaterials('refund'),
+      sumRollups(rows, 'material.in', src('admin_refund'), 'amount'),
+    ],
+    [
+      'admin: materials removed',
+      adminMaterials('remove'),
+      sumRollups(rows, 'material.out', src('admin_remove'), 'amount'),
+    ],
+    [
+      'admin: XP granted',
+      audit('admin.xp', num(sql`data->>'xp'`)),
+      sumRollups(rows, 'xp.in', src('admin'), 'amount'),
+    ],
+    [
+      'admin: items granted',
+      audit('admin.item.grant', sql`count(*)`),
+      sumRollups(rows, 'admin.item', src('grant'), 'amount'),
+    ],
+    [
+      'admin: items removed',
+      audit('admin.item.remove', sql`count(*)`),
+      sumRollups(rows, 'admin.item', src('remove'), 'amount'),
+    ],
+  );
   for (const [check, auditValue, rollup] of checks) {
     const a = await auditValue;
     out.push({ check, audit: a, rollup, ok: a === rollup });
@@ -687,7 +786,9 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
     auditScalar(
       db,
       sql`select coalesce(sum(case when event = 'shelf.deposit' then 1 else -1 end
-                 * (data->>'amount')::bigint), 0) as n
+                 * (data->>'amount')::bigint), 0)
+            - case when ${kind} = 'items' then (select count(*) from audit_log
+                where event = 'admin.item.remove' and data->>'location' = 'shelf') else 0 end as n
           from audit_log where event in ('shelf.deposit', 'shelf.withdraw')
           and data->>'kind' = ${kind}`,
     );

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { and, asc, count, eq } from 'drizzle-orm';
+import { and, asc, count, eq, isNull } from 'drizzle-orm';
 import {
   BANNER_IDS,
   CLASS_IDS,
@@ -121,7 +121,7 @@ export async function registerCharacters(app: FastifyInstance): Promise<void> {
       const rows = await app.db
         .select()
         .from(characters)
-        .where(eq(characters.accountId, account.id))
+        .where(and(eq(characters.accountId, account.id), isNull(characters.deletedAt)))
         .orderBy(asc(characters.createdAt), asc(characters.id));
       return {
         characters: rows.map(characterView),
@@ -163,7 +163,7 @@ export async function registerCharacters(app: FastifyInstance): Promise<void> {
           const [used] = await tx
             .select({ n: count() })
             .from(characters)
-            .where(eq(characters.accountId, accountId));
+            .where(and(eq(characters.accountId, accountId), isNull(characters.deletedAt)));
           if (!locked || (used?.n ?? 0) >= locked.slots) {
             throw new ApiError(422, 'no_free_slot', 'Every character slot is taken.', {
               slots: { used: used?.n ?? 0, total: locked?.slots ?? 0 },
@@ -225,7 +225,11 @@ export async function registerCharacters(app: FastifyInstance): Promise<void> {
         .select()
         .from(characters)
         .where(
-          and(eq(characters.id, request.params.characterId), eq(characters.accountId, accountId)),
+          and(
+            eq(characters.id, request.params.characterId),
+            eq(characters.accountId, accountId),
+            isNull(characters.deletedAt),
+          ),
         )
         .limit(1);
       if (!character) throw new ApiError(404, 'not_found', 'No such character.');
