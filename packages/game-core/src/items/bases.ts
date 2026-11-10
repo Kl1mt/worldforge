@@ -855,8 +855,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
   },
   // Ticket 6.1: tier 4, the Cinderwastes (from item level 29). Appended after every earlier base
   // so tier-wide tables and stored seeds keep their order. Each beats its tier-3 counterpart at the
-  // same item level by about a tenth; the icons are A.11's follow-up (the web shows the tier-3
-  // counterpart's art until they land, `apps/web/src/content/assets.ts`).
+  // same item level by about a tenth; their icons are art ticket A.15's.
   {
     id: 'cinderforged-blade',
     name: 'Cinderforged Blade',

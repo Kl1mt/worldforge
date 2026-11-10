@@ -24,7 +24,7 @@ The first area of the endgame region beyond the Ashen Pass (GDD §15 Phase 6; RO
 
 **Unlock.** Level 28 and the Ashen Warden slain (`UnlockRule.ashenWardenDefeated`, blocker `{ kind: 'ashenWardenDefeated' }`, "Defeat the Ashen Warden"). The Warden can only be fought once the Pass is open, so its world flag guards the Verge too. **Seam for 6.7:** the region's community project adds a flag id to `WORLD_FLAG_IDS` and `worldFlag` to the Verge's rule; every server path already passes the world flags, and `world.test.ts` asserts today that the flags change nothing for it.
 
-**Art (A.11).** Backdrop `area.cinderwastes`; foes `enemy.cinder-revenant`, `enemy.slag-hound`, `enemy.ember-wisp`, `enemy.ash-colossus` (the names 6.1 was built on). The ten tier-4 item icons (`item.<base id>`) are an art follow-up: until they exist the web shows their tier-3 counterparts with an ember tint (`ART_STAND_INS` in `apps/web/src/content/assets.ts`); registered art always wins.
+**Art (A.11).** Backdrop `area.cinderwastes`; foes `enemy.cinder-revenant`, `enemy.slag-hound`, `enemy.ember-wisp`, `enemy.ash-colossus` (the names 6.1 was built on). **Art (A.15).** The ten tier-4 item icons (`item.<base id>`, see `docs/ASSET_GUIDELINES.md` "Tier-4 item icons"). Until they existed the web showed their tier-3 counterparts with an ember tint; that stand-in (`ART_STAND_INS` in `apps/web/src/content/assets.ts`) remains only as a fallback for a name whose art is missing, and registered art always wins.
 
 | Enemy | Asset | Type | Health | Damage | Notes |
 |---|---|---|---|---|---|

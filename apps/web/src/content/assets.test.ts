@@ -30,6 +30,8 @@ interface ManifestEntry {
   facing?: string;
   frames?: number;
   window?: { x: number; y: number; width: number; height: number };
+  kind?: string;
+  slot?: string;
 }
 
 const manifest = JSON.parse(
@@ -56,8 +58,8 @@ describe('asset registry', () => {
   });
 });
 
-describe('Cinderwastes stand-ins (ticket 6.1)', () => {
-  it('resolves every Cinderwastes name: A.11’s art, and tinted stand-ins for the tier-4 icons', () => {
+describe('Cinderwastes art (tickets 6.1, A.11, A.15)', () => {
+  it('resolves every Cinderwastes name to its own art, untinted', () => {
     const names = [
       'area.cinderwastes',
       'enemy.cinder-revenant',
@@ -65,21 +67,47 @@ describe('Cinderwastes stand-ins (ticket 6.1)', () => {
       'enemy.ember-wisp',
       'enemy.slag-hound',
     ];
-    for (const id of names) {
-      const sprite = findSprite(id);
-      expect(sprite, id).not.toBeNull();
-      // A.11 drew them: the real art, untinted.
-      expect(Object.hasOwn(ASSETS, id), id).toBe(true);
-      expect(sprite!.tint, id).toBeUndefined();
-    }
-    // Every content name of the Verge resolves (the area, its foes and its tier-4 icons).
     const verge = getArea('ashfallVerge');
-    expect(findSprite(verge.assetId)).not.toBeNull();
-    for (const e of verge.enemies)
-      expect(findSprite(getEnemy(e.enemyId).assetId), e.enemyId).not.toBeNull();
-    for (const b of ITEM_BASES.filter((x) => x.tier === 4))
-      expect(findSprite(b.icon), b.id).not.toBeNull();
-    // Stand-ins (the tier-4 icons) point at registered art only, and only for art still missing.
+    names.push(verge.assetId, ...verge.enemies.map((e) => getEnemy(e.enemyId).assetId));
+    for (const id of names) {
+      expect(Object.hasOwn(ASSETS, id), id).toBe(true);
+      expect(findSprite(id)!.tint, id).toBeUndefined();
+    }
+  });
+
+  it('gives every tier-4 base its own 32×32 icon file (A.15), not a tinted tier-3 one', () => {
+    const tier4 = ITEM_BASES.filter((b) => b.tier === 4);
+    expect(tier4).toHaveLength(10);
+    const files = new Set<string>();
+    const lowerTierFiles = new Set(
+      ITEM_BASES.filter((b) => b.tier < 4).map((b) => findSprite(b.icon)?.path),
+    );
+    for (const base of tier4) {
+      expect(base.icon, base.id).toBe(`item.${base.id}`);
+      const sprite = findSprite(base.icon);
+      expect(sprite, base.id).toMatchObject({
+        path: `/assets/items/${base.id}.png`,
+        width: 32,
+        height: 32,
+      });
+      expect(sprite!.tint, base.id).toBeUndefined();
+      expect(lowerTierFiles.has(sprite!.path), base.id).toBe(false);
+      files.add(sprite!.path);
+
+      const entry = manifest.assets.find((m) => m.id === base.icon);
+      expect(entry, base.id).toMatchObject({ kind: 'item', slot: base.slot });
+      const file = new URL(`../../public${sprite!.path}`, import.meta.url);
+      expect(existsSync(file), base.id).toBe(true);
+      const buf = readFileSync(file);
+      expect({ width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) }, base.id).toEqual({
+        width: 32,
+        height: 32,
+      });
+    }
+    expect(files.size).toBe(tier4.length);
+  });
+
+  it('keeps the ember-tinted stand-in only as a fallback for art still missing', () => {
     for (const [id, target] of Object.entries(ART_STAND_INS)) {
       expect(Object.hasOwn(ASSETS, target), `${id} → ${target}`).toBe(true);
       expect(Object.hasOwn(ASSETS, id), `${id} is drawn now: remove its stand-in`).toBe(false);

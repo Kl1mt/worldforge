@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art item icons, one item per icon, forge-blackened cinderwastes gear: greatsword of forge-blackened iron with glowing ember cracks along the blade; sceptre of black iron with a caged smouldering ember heart at its head; recurve bow of charred bone and slag-crusted limbs; tall obsidian tower shield with an ember-veined crack; closed helm of scorched black iron shaped like a revenant skull face with ember eye slits; heavy ash-grey plate cuirass with slag crust and ember seams; slag-iron plated gauntlets with molten knuckle seams; black plate greaves with ember inlays; reliquary pendant on a chain holding a glowing ember; obsidian ring with a small flickering wisp flame stone, forge-blackened metal, obsidian, slag, dim orange ember accents, muted desaturated palette, transparent background",
+  "style_image": "apps/web/public/assets/items/knights-plate.png",
+  "job_id": "45d13a22-43d1-466a-9c37-aac9cbc2eca8",
+  "created_at": "2026-11-10T00:23:04.924113+00:00",
+  "seed": 766506457,
+  "generations": 10.0,
+  "count": 64,
+  "width": 32,
+  "height": 32
+}
