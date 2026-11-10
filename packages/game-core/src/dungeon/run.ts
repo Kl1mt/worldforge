@@ -28,6 +28,7 @@ import {
   isDungeonId,
   isDungeonTier,
   type BossEnrage,
+  type BossMechanics,
   type DungeonDefinition,
   type DungeonId,
   type DungeonTier,
@@ -67,7 +68,10 @@ export type DungeonEvent =
       skill: boolean;
       enemyHealth: number;
     }
-  | { t: number; type: 'enemyAttack'; damage: number; health: number }
+  /** Ticket 6.2: `heavy` marks a boss's heavy blow (`BossMechanics.heavyBlow`); absent otherwise. */
+  | { t: number; type: 'enemyAttack'; damage: number; health: number; heavy?: true }
+  /** Ticket 6.2: the boss's shell broke (`BossMechanics.shell`). */
+  | { t: number; type: 'shellBroken' }
   /** Thorns (ticket 3.2): the enemy took `damage` from its own blow. */
   | { t: number; type: 'thorns'; damage: number; enemyHealth: number }
   /** Life on kill (ticket 3.2): the hero healed `amount` after a kill. */
@@ -188,6 +192,8 @@ function validate(input: DungeonRunInput): void {
  * Resolves one fight attack by attack (same timeline rules as `resolveFightDetailed`: the hero
  * attacks at `j · playerInterval`, the enemy at its own rhythm, the hero first on ties, nothing
  * after `maxFightMs`). With `enrage`, enemy hits from `enrage.atMs` on are stronger and faster.
+ * Ticket 6.2: with `mechanics`, the boss's shell and heavy blows apply (no extra draws; without
+ * them every fight is exactly as before).
  */
 export function resolveDungeonFight(
   setup: EncounterSetup,
@@ -196,6 +202,7 @@ export function resolveDungeonFight(
   startMs: number,
   log: DungeonEvent[],
   enrage?: ResolvedEnrage,
+  mechanics?: BossMechanics,
 ): { kind: 'kill' | 'death' | 'timeout'; offsetMs: number; health: number } {
   let enemyHealth = setup.enemyHealth;
   let hp = health;
@@ -206,6 +213,20 @@ export function resolveDungeonFight(
   const enragedInterval = enrage
     ? Math.max(1, Math.round(setup.enemyIntervalMs / enrage.attackSpeedMultiplier))
     : setup.enemyIntervalMs;
+  const shell = mechanics?.shell;
+  let shellUp = shell !== undefined;
+  const shellFloor = shell ? setup.enemyHealth * shell.untilHealthShare : 0;
+  const heavyBlow = mechanics?.heavyBlow;
+  let blows = 0;
+  /** What a blow of `damage` takes off the boss (its shell softens it while it holds). */
+  const dealt = (damage: number): number =>
+    shellUp ? Math.max(1, Math.round(damage * shell!.damageTakenMultiplier)) : damage;
+  const breakShell = (t: number) => {
+    if (shellUp && enemyHealth > 0 && enemyHealth <= shellFloor) {
+      shellUp = false;
+      log.push({ t, type: 'shellBroken' });
+    }
+  };
   for (;;) {
     const p = attack * setup.playerIntervalMs;
     const e = nextEnemy;
@@ -218,25 +239,37 @@ export function resolveDungeonFight(
       const hit = attackHit(setup, attack, prevCrit, hp, enemyHealth);
       const crit = rng.chance(hit.critChance);
       prevCrit = crit && !hit.surged;
-      const damage = crit ? hit.crit : hit.normal;
+      const damage = dealt(crit ? hit.crit : hit.normal);
       enemyHealth = Math.max(0, enemyHealth - damage);
       log.push({ t: startMs + p, type: 'attack', damage, crit, skill: hit.skill, enemyHealth });
       if (enemyHealth <= 0) return { kind: 'kill', offsetMs: p, health: hp };
+      breakShell(startMs + p);
       attack++;
     } else if (e <= setup.maxFightMs) {
       const strong = enrage !== undefined && e >= enrage.atMs;
-      const raw = strong
-        ? Math.max(1, Math.round(setup.enemyHit * enrage.damageMultiplier))
-        : setup.enemyHit;
+      blows++;
+      const heavy = heavyBlow !== undefined && blows % heavyBlow.every === 0;
+      const multiplier =
+        (strong ? enrage.damageMultiplier : 1) * (heavy ? heavyBlow.damageMultiplier : 1);
+      const raw =
+        multiplier === 1 ? setup.enemyHit : Math.max(1, Math.round(setup.enemyHit * multiplier));
       const damage = Math.min(hp, raw);
       hp -= damage;
-      log.push({ t: startMs + e, type: 'enemyAttack', damage, health: hp });
+      log.push({
+        t: startMs + e,
+        type: 'enemyAttack',
+        damage,
+        health: hp,
+        ...(heavy ? { heavy: true as const } : {}),
+      });
       if (hp <= 0) return { kind: 'death', offsetMs: e, health: 0 };
       const thorns = thornsDamage(setup, strong ? enrage.damageMultiplier : 1);
       if (thorns > 0) {
-        enemyHealth = Math.max(0, enemyHealth - thorns);
-        log.push({ t: startMs + e, type: 'thorns', damage: thorns, enemyHealth });
+        const taken = dealt(thorns);
+        enemyHealth = Math.max(0, enemyHealth - taken);
+        log.push({ t: startMs + e, type: 'thorns', damage: taken, enemyHealth });
         if (enemyHealth <= 0) return { kind: 'kill', offsetMs: e, health: hp };
+        breakShell(startMs + e);
       }
       nextEnemy = e + (strong ? enragedInterval : setup.enemyIntervalMs);
     } else {
@@ -316,6 +349,7 @@ export function simulateDungeonRun(
     room: number | null,
     fightMomentum: number,
     enrage?: ResolvedEnrage,
+    mechanics?: BossMechanics,
   ): boolean => {
     const startMs = now;
     events.push({
@@ -327,7 +361,7 @@ export function simulateDungeonRun(
       health,
       maxHealth: stats.health,
     });
-    const outcome = resolveDungeonFight(setup, health, rng, startMs, events, enrage);
+    const outcome = resolveDungeonFight(setup, health, rng, startMs, events, enrage, mechanics);
     now = startMs + outcome.offsetMs;
     health = outcome.health;
     const won = outcome.kind === 'kill';
@@ -445,6 +479,7 @@ export function simulateDungeonRun(
       null,
       context?.momentum ?? 0,
       enrage,
+      tier.bossMechanics,
     );
     if (bossDefeated) {
       questEvents.push({ type: 'bossDefeated', bossId: dungeon.bossId });
@@ -650,6 +685,8 @@ export function dungeonRunProgress(
         break;
       case 'enrage':
         enraged = true;
+        break;
+      case 'shellBroken':
         break;
       case 'levelUp':
         health = e.health;

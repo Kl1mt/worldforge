@@ -85,7 +85,7 @@ describe('determinism', () => {
   // ambient state). If one moves, a formula changed: bump its `FORMULA_VERSIONS` entry and update
   // the pin and docs/LEADERBOARDS.md in the same change (5.2 recomputes stored values on a bump).
   it('pins the values of reference heroes (bump FORMULA_VERSIONS when one moves)', () => {
-    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 2, power: 2, pveProgress: 2 });
+    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 2, power: 2, pveProgress: 3 });
     const pinned = CLASS_IDS.map((classId) => {
       // Ticket 6.1: the version-1 pins, computed at version 1 (unchanged by 6.1).
       const s = computeScores(hero({ classId, equipment: kit(classId, 19, 'rare', 3) }), {
@@ -525,7 +525,7 @@ describe('PvE Progress', () => {
       world: { ...NO_WORLD_FLAGS, ashenPassCleared: true },
       guildBossStage: 5,
     });
-    // Version 2 (6.1): the Warden opens the Ashfall Verge at 28 (milestone 11 of 13).
+    // Version 2 (6.1): the Warden opens the Ashfall Verge at 28 (milestone 11 of 13; also in 3).
     expect(top.sortKey).toEqual([11, 11, 5]);
     const v1 = (i: Parameters<typeof progress>[0]) =>
       pveProgressScore(
@@ -549,8 +549,42 @@ describe('PvE Progress', () => {
       });
     expect(verge(30).sortKey).toEqual([11, 11, 5]);
     expect(verge(31).sortKey).toEqual([12, 12, 5]);
-    expect(verge(34).sortKey).toEqual([13, 13, 5]);
-    expect(verge(34).lines.every((l) => l.counted)).toBe(true);
+    // Version 3 (6.2): level 34 also opens the Cinder Depths (milestone 14 of 17).
+    expect(verge(34).sortKey).toEqual([14, 14, 5]);
+    const v2 = (level: number) =>
+      pveProgressScore(
+        {
+          level,
+          progress: { gravewardenDefeated: true, cryptTierCleared: 3, ashenWardenDefeated: true },
+          world: { ...NO_WORLD_FLAGS, ashenPassCleared: true },
+          guildBossStage: 5,
+        },
+        2,
+      );
+    expect(v2(34).sortKey).toEqual([13, 13, 5]);
+    expect(v2(34).lines.every((l) => l.id === 'guildBoss' || l.counted)).toBe(true);
+    expect(verge(37).sortKey).toEqual([15, 15, 5]);
+    // The Forge Tyrant (milestone 16) counts at any level; the Depths' top at 40.
+    const depths = (level: number, tyrant: boolean) =>
+      progress({
+        level,
+        progress: {
+          gravewardenDefeated: true,
+          cryptTierCleared: 3,
+          ashenWardenDefeated: true,
+          ...(tyrant ? { forgeTyrantDefeated: true } : {}),
+        },
+        world: { ...NO_WORLD_FLAGS, ashenPassCleared: true },
+        guildBossStage: 5,
+      });
+    expect(depths(38, true).sortKey).toEqual([16, 16, 5]);
+    expect(depths(40, false).sortKey).toEqual([16, 17, 5]);
+    expect(depths(40, true).sortKey).toEqual([17, 17, 5]);
+    expect(depths(40, true).lines.every((l) => l.counted)).toBe(true);
+    // Every version-2 hero scores the same under version 3 or more (never less).
+    for (const level of [1, 24, 28, 31, 34, 37, 40]) {
+      expect(depths(level, false).value).toBeGreaterThanOrEqual(v2(level).value);
+    }
     // Level 34 without the Warden: none of the Verge's milestones.
     expect(
       progress({

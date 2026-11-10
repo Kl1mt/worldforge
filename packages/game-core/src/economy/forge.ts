@@ -122,7 +122,8 @@ export function craftItem(params: CraftParams): GeneratedItem | null {
   const rarities = Object.entries(recipe.rarities) as [RarityId, number][];
   const rarityId = rng.weighted(rarities, ([, w]) => w)[0];
   const lowest = Math.min(...bases.map((b) => b.minItemLevel));
-  const itemLevel = Math.min(DEFAULT_LOOT_CONFIG.maxItemLevel, Math.max(params.level, lowest));
+  const cap = Math.min(DEFAULT_LOOT_CONFIG.maxItemLevel, recipe.maxItemLevel ?? Infinity);
+  const itemLevel = Math.min(cap, Math.max(params.level, lowest));
   const eligible: ItemBaseDefinition[] = bases.filter((b) => b.minItemLevel <= itemLevel);
   const base = rng.pick(eligible);
   return generateItem({

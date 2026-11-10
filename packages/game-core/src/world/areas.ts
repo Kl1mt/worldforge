@@ -23,6 +23,8 @@ export const AREA_IDS = [
   'ashenPass',
   // Ticket 6.1: the Cinderwastes beyond the Pass, first area.
   'ashfallVerge',
+  // Ticket 6.2: the Cinderwastes' second area.
+  'cinderDepths',
 ] as const;
 
 export type AreaId = (typeof AREA_IDS)[number];
@@ -181,6 +183,29 @@ export const AREAS: readonly AreaDefinition[] = [
     ],
     materials: ['ironOre', 'soulShard'],
     lootTableId: 'ashfallVerge',
+  },
+  {
+    // Ticket 6.2: the Cinderwastes' second area, the slag pits under the Verge where the Forge
+    // Tyrant's furnace burns. Its gate is the Verge's top milestone: the Verge open (the Ashen
+    // Warden slain) and level 34. Seam for ticket 6.7: its community project adds `worldFlag` here
+    // (and a flag id in `WORLD_FLAG_IDS`); every server path already passes the world flags.
+    id: 'cinderDepths',
+    name: 'The Cinder Depths',
+    region: 'The Cinderwastes',
+    description:
+      'Below the Verge the ash turns to slag and the slag to fire. Something down there still works the forge.',
+    assetId: 'area.cinder-depths',
+    minLevel: 34,
+    maxLevel: 40,
+    unlock: { level: 34, ashenWardenDefeated: true },
+    enemies: [
+      { enemyId: 'forgeRevenant', weight: 30 },
+      { enemyId: 'slagMastiff', weight: 30 },
+      { enemyId: 'ashflameWisp', weight: 25 },
+      { enemyId: 'slagColossus', weight: 15 },
+    ],
+    materials: ['ironOre', 'soulShard'],
+    lootTableId: 'cinderDepths',
   },
 ];
 

@@ -81,6 +81,15 @@ const CONTRACT = {
       ['cinderRevenant', 'slagHound', 'emberWisp', 'ashColossus'],
       ['ironOre', 'soulShard'],
     ],
+    // Ticket 6.2: the Cinderwastes' second area (variants of the Verge's foes).
+    [
+      'cinderDepths',
+      34,
+      40,
+      34,
+      ['forgeRevenant', 'slagMastiff', 'ashflameWisp', 'slagColossus'],
+      ['ironOre', 'soulShard'],
+    ],
   ],
   dungeon: [
     'namelessCrypt',
@@ -93,6 +102,8 @@ const CONTRACT = {
   ],
   /** Ticket 4.8: the Ashen Pass's boss, fought alone (no chambers) in the Warden's Watch. */
   watch: ['ashenWatch', 26, 28, 26, 'ashenWarden'],
+  /** Ticket 6.2: the Cinderwastes' region boss, fought alone in the Tyrant's Forge. */
+  forge: ['tyrantsForge', 36, 40, 36, 'forgeTyrant', 'tyrantsEmber'],
   professions: {
     timber: 'woodcutting',
     ashwort: 'herbalism',
@@ -129,14 +140,19 @@ describe('content contract', () => {
     expect(getArea('ashfallVerge').unlock.ashenWardenDefeated).toBe(true);
     expect(getArea('ashfallVerge').region).toBe('The Cinderwastes');
     expect(getArea('ashfallVerge').assetId).toBe('area.cinderwastes');
-    for (const a of AREAS.filter((x) => x.id !== 'ashfallVerge')) {
+    // Ticket 6.2: the Depths behind the Verge's top (level 34 and the Warden), A.11's backdrop.
+    expect(getArea('cinderDepths').unlock.ashenWardenDefeated).toBe(true);
+    expect(getArea('cinderDepths').region).toBe('The Cinderwastes');
+    expect(getArea('cinderDepths').assetId).toBe('area.cinder-depths');
+    expect(getArea('cinderDepths').unlock.level).toBe(getArea('ashfallVerge').maxLevel);
+    for (const a of AREAS.filter((x) => x.id !== 'ashfallVerge' && x.id !== 'cinderDepths')) {
       expect(a.unlock.ashenWardenDefeated, a.id).toBeUndefined();
     }
   });
 
   it('defines the Nameless Crypt with its roster, boss and boss drop', () => {
     const [id, min, max, unlock, enemies, boss, drop] = CONTRACT.dungeon;
-    expect(DUNGEONS.map((d) => d.id)).toEqual([id, CONTRACT.watch[0]]);
+    expect(DUNGEONS.map((d) => d.id)).toEqual([id, CONTRACT.watch[0], CONTRACT.forge[0]]);
     const d = getDungeon(id);
     const t1 = getDungeonTier(id, 1);
     expect([t1.minLevel, t1.maxLevel, t1.unlock.level]).toEqual([min, max, unlock]);
@@ -188,11 +204,18 @@ describe('content contract', () => {
       ...CONTRACT.dungeon[4],
       CONTRACT.dungeon[5],
       CONTRACT.watch[4],
+      CONTRACT.forge[4],
     ];
     expect([...ENEMY_IDS].sort()).toEqual([...rostered].sort());
     expect(ENEMIES.map((e) => e.id)).toEqual([...ENEMY_IDS]);
     expect([...MATERIAL_IDS].sort()).toEqual(
-      [...new Set([...CONTRACT.areas.flatMap((a) => a[5]), CONTRACT.dungeon[6]])].sort(),
+      [
+        ...new Set([
+          ...CONTRACT.areas.flatMap((a) => a[5]),
+          CONTRACT.dungeon[6],
+          CONTRACT.forge[5],
+        ]),
+      ].sort(),
     );
     expect(MATERIALS.map((m) => m.id)).toEqual([...MATERIAL_IDS]);
   });
@@ -285,7 +308,11 @@ describe('areas and level ranges', () => {
     }
     // Graumark's areas overlap the next by one step. Ticket 4.8: the Ashen Pass starts two levels
     // above the Abbey's top instead; crypt tier III (21–24) bridges the gap.
-    const graumark = AREAS.filter((a) => a.id !== 'ashenPass' && a.id !== 'ashfallVerge');
+    const graumark = AREAS.filter(
+      (a) => a.id !== 'ashenPass' && a.id !== 'ashfallVerge' && a.id !== 'cinderDepths',
+    );
+    // Ticket 6.2: the Depths start at the Verge's top.
+    expect(getArea('cinderDepths').minLevel).toBe(getArea('ashfallVerge').maxLevel);
     // Ticket 6.1: the Cinderwastes start at the Pass's top (and the Ashen Warden's level, 28).
     expect(getArea('ashfallVerge').minLevel).toBe(getArea('ashenPass').maxLevel);
     for (let i = 1; i < graumark.length; i++) {
@@ -333,7 +360,8 @@ describe('materials', () => {
       null,
     ]);
     expect(getMaterial('gravewardenSeal').source).toBe('bossDrop');
-    expect(DUNGEONS.flatMap((d) => d.bossDrops)).toEqual(['gravewardenSeal']);
+    expect(DUNGEONS.flatMap((d) => d.bossDrops)).toEqual(['gravewardenSeal', 'tyrantsEmber']);
+    expect(getMaterial('tyrantsEmber').source).toBe('bossDrop');
     expect(getMaterial('abbeySilver').rarity).toBe('rare');
     for (const m of MATERIALS) {
       if (m.profession) expect(isProfessionId(m.profession)).toBe(true);
@@ -383,7 +411,9 @@ describe('loot tables', () => {
       const t = getLootTable(p.lootTableId);
       // Ticket 6.1: the Verge drops from item level 29 (the tier-4 bases' first level, one above
       // the Pass's), not 27: its whole range is above every earlier source.
-      const min = p.id === 'ashfallVerge' ? p.minLevel + v : Math.max(1, p.minLevel - v);
+      // Ticket 6.2: the Depths likewise from 35, one above the Verge's top.
+      const above = p.id === 'ashfallVerge' || p.id === 'cinderDepths';
+      const min = above ? p.minLevel + v : Math.max(1, p.minLevel - v);
       expect(t.itemLevel, p.id).toEqual({ min, max: p.maxLevel + v });
       for (let level = t.itemLevel!.min; level <= t.itemLevel!.max; level++) {
         expect(eligibleBases(t, level).length, `${p.id} @${level}`).toBeGreaterThan(0);
@@ -398,7 +428,14 @@ describe('loot tables', () => {
       return c.reduce((s, x) => s + x.base.tier * x.weight, 0) / total;
     };
     const means = AREAS.map((a) => meanTier(a.lootTableId, a.maxLevel));
-    for (let i = 1; i < means.length; i++) expect(means[i]).toBeGreaterThan(means[i - 1]!);
+    // Ticket 6.2: the Depths stay on tier 4 (the Verge's), one band of item levels higher.
+    for (let i = 1; i < means.length; i++) {
+      if (AREAS[i]!.id === 'cinderDepths') expect(means[i]).toBe(means[i - 1]);
+      else expect(means[i]).toBeGreaterThan(means[i - 1]!);
+    }
+    expect(getLootTable('cinderDepths').itemLevel!.min).toBe(
+      getLootTable('ashfallVerge').itemLevel!.max,
+    );
     expect(meanTier('abandonedFields', 7)).toBe(1);
     // Every base can drop somewhere (Mythic bases through the Mythic roll, ticket 3.2; set pieces
     // through the set roll, ticket 3.3).
@@ -540,8 +577,8 @@ describe('unlock rules', () => {
         );
       }
     }
-    // The Warden opens nothing else.
-    for (const id of AREA_IDS.filter((x) => x !== 'ashfallVerge')) {
+    // The Warden opens nothing else (but the Depths, at 34: ticket 6.2).
+    for (const id of AREA_IDS.filter((x) => x !== 'ashfallVerge' && x !== 'cinderDepths')) {
       for (const level of [1, 24, 28]) {
         expect(areaUnlockBlockers(id, { level, world: open }, warden), id).toEqual(
           areaUnlockBlockers(id, { level, world: open }, BOSS_DOWN),
@@ -560,7 +597,7 @@ describe('unlock rules', () => {
 
   it('only ever needs the level for the first four areas, and rejects bad levels', () => {
     for (const id of AREA_IDS) {
-      if (id === 'sunkenAbbey' || id === 'ashenPass' || id === 'ashfallVerge') continue;
+      if (['sunkenAbbey', 'ashenPass', 'ashfallVerge', 'cinderDepths'].includes(id)) continue;
       const level = getArea(id).unlock.level;
       expect(isAreaUnlocked(id, { level }, NO_PROGRESS)).toBe(true);
       expect(isAreaUnlocked(id, { level }, BOSS_DOWN)).toBe(true);
@@ -599,13 +636,15 @@ describe('farming every area', () => {
   const mid = (id: AreaId) => Math.round((getArea(id).minLevel + getArea(id).maxLevel) / 2);
 
   it('a mid-level character of every class farms each area without timeouts', () => {
-    for (const area of AREAS) {
+    // Ticket 6.2: a common kit cannot kill the Depths' slag colossus (it is tuned for Verge
+    // Legendaries and builds: balance.test.ts "the Cinder Depths"), so the Depths are left out here.
+    for (const area of AREAS.filter((a) => a.id !== 'cinderDepths')) {
       const level = mid(area.id);
       for (const classId of CLASS_IDS) {
         // Ticket 4.8: the Ashen Pass is top-end content; a bare hero is not meant to farm it (it
         // falls again and again, balance.test.ts), so only the kit is checked there.
         const kits = [[], commonKit(classId, area.lootTableId, level)];
-        const topEnd = area.id === 'ashenPass' || area.id === 'ashfallVerge';
+        const topEnd = ['ashenPass', 'ashfallVerge', 'cinderDepths'].includes(area.id);
         for (const equipment of topEnd ? kits.slice(1) : kits) {
           const r = settleFarming({
             character: { classId, level, xp: 0 },

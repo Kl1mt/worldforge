@@ -326,7 +326,8 @@ export function runView(run: DungeonRun, now: Date): DungeonRunView {
 /** The deepest tier of a dungeon the character has cleared (ticket 4.8: per dungeon). */
 function tierClearedIn(dungeonId: DungeonId, progress: WorldProgress): number {
   if (dungeonId === 'namelessCrypt') return cryptTierCleared(progress);
-  return progress.ashenWardenDefeated === true ? 1 : 0;
+  // Ticket 6.2: a boss-only dungeon has one tier, cleared once its boss fell (its progress flag).
+  return progress[getDungeon(dungeonId).bossProgress] === true ? 1 : 0;
 }
 
 /** Start of the last run that granted boss loot in this dungeon, if still within the cooldown. */
@@ -697,13 +698,11 @@ export async function registerDungeons(
 
           const gold = r.goldLooted + r.goldSalvaged + filter.gold;
           // Ticket 4.8: each dungeon keeps its own boss progress (the crypt's gates the Abbey and
-          // the deeper tiers; the Watch's gates nothing yet).
+          // the deeper tiers; the Watch's the Cinderwastes). Ticket 6.2: the flag is data
+          // (`bossProgress`; the Tyrant's Forge sets `forgeTyrantDefeated`).
           const crypt = run.dungeonId === 'namelessCrypt';
-          const firstBossKill =
-            r.bossDefeated &&
-            !(crypt
-              ? character.progress.gravewardenDefeated
-              : character.progress.ashenWardenDefeated);
+          const flag = getDungeon(run.dungeonId).bossProgress;
+          const firstBossKill = r.bossDefeated && character.progress[flag] !== true;
           // Ticket 3.6: a boss kill clears the run's tier (the next tier's gate).
           const clearedBefore = tierClearedIn(run.dungeonId, character.progress);
           const firstTierClear = r.bossDefeated && run.tier > clearedBefore;
@@ -713,7 +712,7 @@ export async function registerDungeons(
                 gravewardenDefeated: true,
                 cryptTierCleared: Math.max(clearedBefore, run.tier),
               }
-            : { ...character.progress, ashenWardenDefeated: true };
+            : { ...character.progress, [flag]: true };
           const [written] = await tx
             .update(characters)
             .set({

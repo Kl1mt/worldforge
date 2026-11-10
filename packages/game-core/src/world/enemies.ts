@@ -37,6 +37,14 @@ export const ENEMY_IDS = [
   'slagHound',
   'emberWisp',
   'ashColossus',
+  // The Cinder Depths, the Cinderwastes' second area (ticket 6.2): stronger variants of the
+  // Verge's foes, drawn with their sprites.
+  'forgeRevenant',
+  'slagMastiff',
+  'ashflameWisp',
+  'slagColossus',
+  // The Tyrant's Forge (ticket 6.2): the Cinderwastes' region boss.
+  'forgeTyrant',
 ] as const;
 
 export type EnemyId = (typeof ENEMY_IDS)[number];
@@ -410,6 +418,88 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     armor: { base: 30, perLevel: 5 },
     resistance: { base: 14, perLevel: 2.4 },
     xp: { base: 50, perLevel: 11.55 },
+  },
+  // — The Cinder Depths (ticket 6.2), the Cinderwastes' second area (levels 34–40, docs/WORLD.md):
+  // the Verge's foes tempered in the forge below. Their asset ids are their own; the web draws
+  // them as A.11's Verge sprites with the Depths' ember treatment (no new art). Each leans
+  // harder on its own defence than its Verge kin. Tuned against good
+  // Verge gear: a level-34 hero in it farms here, and the Depths' own drops are worth chasing.
+  // The revenant: forge-tempered plate, the heaviest armour of any regular foe.
+  {
+    id: 'forgeRevenant',
+    name: 'Forge-tempered Revenant',
+    assetId: 'enemy.forge-revenant',
+    damageType: 'physical',
+    undead: true,
+    rank: 'normal',
+    attackSpeed: 0.9,
+    health: { base: 120, perLevel: 78 },
+    damage: { base: 13.6, perLevel: 3.9 },
+    armor: { base: 26, perLevel: 4.6 },
+    resistance: { base: 12, perLevel: 2.2 },
+    xp: { base: 46, perLevel: 11.2 },
+  },
+  // The mastiff: a slag hound grown huge, the fastest bites in the game.
+  {
+    id: 'slagMastiff',
+    name: 'Slag Mastiff',
+    assetId: 'enemy.slag-mastiff',
+    damageType: 'physical',
+    undead: false,
+    rank: 'normal',
+    attackSpeed: 1.7,
+    health: { base: 90, perLevel: 61 },
+    damage: { base: 8.0, perLevel: 2.4 },
+    armor: { base: 14, perLevel: 2.6 },
+    resistance: { base: 10, perLevel: 2 },
+    xp: { base: 42, perLevel: 10.2 },
+  },
+  // The ashflame wisp: magic fire, warded far beyond the Verge's wisps.
+  {
+    id: 'ashflameWisp',
+    name: 'Ashflame Wisp',
+    assetId: 'enemy.ashflame-wisp',
+    damageType: 'magic',
+    undead: false,
+    rank: 'normal',
+    attackSpeed: 1.3,
+    health: { base: 70, perLevel: 50 },
+    damage: { base: 9.6, perLevel: 2.86 },
+    armor: { base: 6, perLevel: 1.2 },
+    resistance: { base: 28, perLevel: 4.4 },
+    xp: { base: 41, perLevel: 9.9 },
+  },
+  // The slag colossus: slow, the most health of any regular foe, crushing blows.
+  {
+    id: 'slagColossus',
+    name: 'Slag Colossus',
+    assetId: 'enemy.slag-colossus',
+    damageType: 'physical',
+    undead: false,
+    rank: 'normal',
+    attackSpeed: 0.45,
+    health: { base: 240, perLevel: 118 },
+    damage: { base: 23.5, perLevel: 6.6 },
+    armor: { base: 30, perLevel: 5 },
+    resistance: { base: 14, perLevel: 2.4 },
+    xp: { base: 62, perLevel: 14.3 },
+  },
+  // — The Forge Tyrant (ticket 6.2), the Cinderwastes' region boss in the Tyrant's Forge
+  // (docs/DUNGEONS.md). Physical blows (the Warden's were magic), a slag shell and a hammer
+  // (`BossMechanics` on its tier), on the existing engine.
+  {
+    id: 'forgeTyrant',
+    name: 'The Forge Tyrant',
+    assetId: 'enemy.forge-tyrant',
+    damageType: 'physical',
+    undead: false,
+    rank: 'boss',
+    attackSpeed: 0.5,
+    health: { base: 1500, perLevel: 400 },
+    damage: { base: 10, perLevel: 2.2 },
+    armor: { base: 30, perLevel: 4.5 },
+    resistance: { base: 20, perLevel: 3 },
+    xp: { base: 900, perLevel: 150 },
   },
 ];
 

@@ -337,7 +337,13 @@ describe('balance (ticket B.1)', () => {
         for (const [id, n] of Object.entries(s.materialsPerHour) as [MaterialId, number][])
           best[id] = Math.max(best[id] ?? 0, n);
       }
-      for (const r of FORGE_RECIPES) {
+      // Ticket 6.2: a recipe that asks for a boss material is paced by its hoard instead ("the
+      // Forge Tyrant" below).
+      const farmed = FORGE_RECIPES.filter(
+        (r) => !r.materials.some((m) => getMaterial(m.materialId).source === 'bossDrop'),
+      );
+      expect(farmed.length).toBe(FORGE_RECIPES.length - 1);
+      for (const r of farmed) {
         const goldHours =
           r.gold / geared('warrior', Math.max(r.level, 3), farmingAreaFor(r.level)).goldPerHour;
         const materialHours = r.materials.map((m) => m.quantity / (best[m.materialId] ?? 0));
@@ -670,7 +676,8 @@ describe('balance (ticket B.1)', () => {
 
     it('drops the highest item levels, tier-4 bases and tier-5 affixes (never at the Pass)', () => {
       const table = getLootTable(verge.lootTableId);
-      for (const a of AREAS.filter((x) => x.id !== verge.id)) {
+      // Ticket 6.2: the Cinder Depths drop above it (its own block below).
+      for (const a of AREAS.filter((x) => x.id !== verge.id && x.id !== 'cinderDepths')) {
         expect(table.itemLevel!.min, a.id).toBeGreaterThan(
           getLootTable(a.lootTableId).itemLevel!.max - 1,
         );
@@ -732,6 +739,85 @@ describe('balance (ticket B.1)', () => {
       expect(price('common')).toBeGreaterThanOrEqual(3);
       expect(price('common')).toBeLessThanOrEqual(20);
       expect(price('uncommon')).toBeLessThanOrEqual(35);
+    });
+  });
+
+  describe('the Cinder Depths (ticket 6.2)', () => {
+    const depths = getArea('cinderDepths');
+    const plus = (items: GeneratedItem[], upgradeLevel: number) =>
+      items.map((i) => ({ ...i, upgradeLevel }));
+    /** Good Verge gear: the Verge's plain Legendaries +10 at item level 33 (tier 4). */
+    const memo = new Map<string, FarmStats>();
+    const at = (c: ClassId, level: number, areaId: AreaId = 'cinderDepths', il = 33, up = 10) => {
+      const key = `${c}:${level}:${areaId}:${il}:${up}`;
+      let s = memo.get(key);
+      if (!s) memo.set(key, (s = farm(c, level, areaId, plus(kit(c, il, 'legendary'), up))));
+      return s;
+    };
+    const levels = [depths.minLevel, depths.minLevel + 3, depths.maxLevel];
+    it('good Verge gear farms it at every level: no deaths, idle-paced kills', () => {
+      for (const level of levels) {
+        for (const c of CLASS_IDS) {
+          const s = at(c, level);
+          const label = `${c} L${level}`;
+          expect(s.deathsPerHour, label).toBeLessThanOrEqual(2);
+          expect(s.damageShare, label).toBeLessThan(0.21);
+          expect(s.killsPerMin, label).toBeGreaterThan(6);
+          expect(s.killsPerMin, label).toBeLessThan(13);
+          expect(s.materialsPerHour.ironOre ?? 0, label).toBeLessThanOrEqual(100);
+          expect(s.materialsPerHour.soulShard ?? 0, label).toBeLessThanOrEqual(45);
+        }
+      }
+    });
+
+    it('pays more XP and gold an hour than the Verge’s top with the same gear', () => {
+      for (const c of CLASS_IDS) {
+        const verge = at(c, 34, 'ashfallVerge');
+        const entry = at(c, depths.minLevel);
+        expect(entry.xpPerHour, c).toBeGreaterThan(verge.xpPerHour);
+        expect(entry.goldPerHour, c).toBeGreaterThan(verge.goldPerHour);
+        expect(entry.goldPerHour, c).toBeLessThan(5_500);
+      }
+    });
+
+    it('is a step up from the Verge, and the Verge’s rares fall here', () => {
+      for (const c of CLASS_IDS) {
+        const verge = at(c, 34, 'ashfallVerge');
+        const entry = at(c, depths.minLevel);
+        expect(entry.damageShare, c).toBeGreaterThan(verge.damageShare * 1.15);
+        const pace = entry.killsPerMin / verge.killsPerMin;
+        expect(pace, c).toBeGreaterThan(0.75);
+        expect(pace, c).toBeLessThan(0.95);
+        const rares = farm(c, depths.minLevel, depths.id, plus(kit(c, 33, 'rare'), 5));
+        expect(rares.deathsPerHour, c).toBeGreaterThan(20);
+      }
+    });
+
+    it('its own drops (item level 39) are worth chasing, without a new power tier', () => {
+      for (const c of CLASS_IDS) {
+        const own = at(c, 40, 'cinderDepths', 39, 5).killsPerMin;
+        const verge = at(c, 40, 'cinderDepths', 33, 5).killsPerMin;
+        expect(own / verge, c).toBeGreaterThan(1.03);
+        expect(own / verge, c).toBeLessThan(1.4);
+      }
+      const table = getLootTable(depths.lootTableId);
+      expect(table.itemLevel).toEqual({ min: 35, max: 41 });
+      for (const e of table.entries) expect(getItemBase(e.baseId).tier, e.baseId).toBe(4);
+    });
+
+    it('older drops keep their salvage and Forge value', () => {
+      // The Pass's and the Verge's drops salvage to the ore the Depths yield, and their Forge
+      // paths price in materials the Depths drop (no new gathering material).
+      for (const c of CLASS_IDS) {
+        for (const item of [...kit(c, 27, 'legendary'), ...kit(c, 33, 'legendary')]) {
+          const y = salvageYield(item);
+          expect(y.gold, item.baseId).toBeGreaterThan(0);
+          expect(y.materials.ironOre ?? 0, item.baseId).toBeGreaterThan(0);
+          const path = upgradePathCost(item, 0, 10);
+          for (const m of Object.keys(path.worst.materials))
+            expect(depths.materials as readonly string[], `${item.baseId} ${m}`).toContain(m);
+        }
+      }
     });
   });
 
@@ -1060,6 +1146,135 @@ describe('balance (ticket B.1)', () => {
           const farming = farm(c, 27, 'ashenPass', gear).xpPerHour;
           expect(xpPerHour / farming, c).toBeGreaterThan(0.8);
           expect(xpPerHour / farming, c).toBeLessThan(2.2);
+        }
+      });
+    });
+
+    describe('the Forge Tyrant (ticket 6.2)', () => {
+      const forge = getDungeonTier('tyrantsForge', 1);
+      const entry = forge.unlock.level;
+      /** Good Verge gear: the Verge's drops at item level 33 (tier 4). */
+      const VERGE_IL = 33;
+      const tyrantRuns = (c: ClassId, level: number, gear: GeneratedItem[], n = 24) =>
+        Array.from({ length: n }, (_, i) =>
+          simulateDungeonRun({
+            dungeonId: 'tyrantsForge',
+            character: { classId: c, level, xp: 0 },
+            equipment: gear,
+            seed: `tyrant-balance:${i}`,
+            bossLootEligible: true,
+            inventoryCount: 0,
+          }),
+        );
+      const at = (gear: (c: ClassId) => GeneratedItem[], level = entry, n = 24) =>
+        rates((c) => winRate(tyrantRuns(c, level, gear(c), n)));
+
+      it('good Verge gear beats him at 36–38, not trivially; lesser gear does not', () => {
+        for (const c of CLASS_IDS)
+          expect(winRate(tyrantRuns(c, forge.bossLevel, [], 8)), c).toBe(0);
+        // The gear that farms the Verge (rares and epics +5) never beats him.
+        expect(at((c) => upgraded(kit(c, VERGE_IL, 'rare'), 5), 38).mean).toBe(0);
+        expect(at((c) => upgraded(kit(c, VERGE_IL, 'epic'), 5), 38).mean).toBe(0);
+        // Epics +10: a rare win at most.
+        const epic10 = at((c) => upgraded(kit(c, VERGE_IL, 'epic'), 10), 38);
+        expect(epic10.mean).toBeLessThanOrEqual(0.15);
+        // Verge Legendaries: a chance at +0, likely at +5, near-certain (not certain) at +10.
+        for (const level of [36, 38]) {
+          const legendary = at((c) => legendaryKit(c, VERGE_IL), level);
+          expect(legendary.mean, `L${level}`).toBeGreaterThan(epic10.mean);
+          expect(legendary.mean, `L${level}`).toBeGreaterThanOrEqual(0.2);
+          expect(legendary.mean, `L${level}`).toBeLessThanOrEqual(0.6);
+          const legendary5 = at((c) => upgraded(legendaryKit(c, VERGE_IL), 5), level);
+          expect(legendary5.mean, `L${level}`).toBeGreaterThan(legendary.mean);
+          expect(legendary5.mean, `L${level}`).toBeGreaterThanOrEqual(0.55);
+          expect(legendary5.mean, `L${level}`).toBeLessThanOrEqual(0.9);
+          const legendary10 = at((c) => upgraded(legendaryKit(c, VERGE_IL), 10), level);
+          expect(legendary10.mean, `L${level}`).toBeGreaterThanOrEqual(0.8);
+          // Every class can win in it (the mage, cloth against his physical blows, least).
+          for (const c of CLASS_IDS)
+            expect(legendary10.per[c], `${c} L${level}`).toBeGreaterThanOrEqual(0.5);
+          // The plain Legendaries +10 that farm the Verge (no effects): mostly, not always.
+          const plain10 = at((c) => upgraded(kit(c, VERGE_IL, 'legendary'), 10), level);
+          expect(plain10.mean, `L${level}`).toBeGreaterThanOrEqual(0.6);
+          expect(plain10.mean, `L${level}`).toBeLessThan(0.95);
+        }
+        // Harder than the Ashen Warden for the same kit at each boss's entry.
+        const warden = getDungeonTier('ashenWatch', 1);
+        expect(
+          rates((c) =>
+            winRate(
+              Array.from({ length: 24 }, (_, i) =>
+                simulateDungeonRun({
+                  dungeonId: 'ashenWatch',
+                  character: { classId: c, level: warden.unlock.level, xp: 0 },
+                  equipment: legendaryKit(c, warden.unlock.level - 1),
+                  seed: `tyrant-balance:${i}`,
+                  bossLootEligible: true,
+                  inventoryCount: 0,
+                }),
+              ),
+            ),
+          ).mean,
+        ).toBeGreaterThan(at((c) => legendaryKit(c, VERGE_IL), entry).mean);
+        // Every best-in-slot build in the Depths' own drops is reliable at his level.
+        const builds = bestInSlot('warrior', 1)
+          .slice(1)
+          .map(([label]) => label);
+        for (const [i, label] of builds.entries()) {
+          const r = rates((c) =>
+            winRate(
+              tyrantRuns(c, forge.bossLevel, bestInSlot(c, forge.bossLevel - 1)[i + 1]![1], 16),
+            ),
+          );
+          expect(r.mean, label).toBeGreaterThanOrEqual(0.95);
+          for (const c of CLASS_IDS) expect(r.per[c], `${c} ${label}`).toBeGreaterThanOrEqual(0.85);
+        }
+      });
+
+      it('his shell and hammer fight in every run, and nothing kills him in a few blows', () => {
+        for (const c of CLASS_IDS) {
+          for (const [label, gear] of bestInSlot(c, forge.bossLevel + 1)) {
+            for (const r of tyrantRuns(c, forge.bossLevel, gear, 8)) {
+              const boss = r.encounters.at(-1)!;
+              expect(r.encounters.length, label).toBe(1);
+              expect(boss.endMs - boss.startMs, `${c} ${label}`).toBeGreaterThan(
+                forge.bossEnrage.atMs.min * 0.4,
+              );
+              // A kill breaks the shell first; every third blow was a heavy one.
+              const shell = r.events.findIndex((e) => e.type === 'shellBroken');
+              const kill = r.events.findIndex((e) => e.type === 'kill');
+              if (r.bossDefeated) {
+                expect(shell, `${c} ${label}`).toBeGreaterThan(-1);
+                expect(shell, `${c} ${label}`).toBeLessThan(kill);
+              }
+              const blows = r.events.filter((e) => e.type === 'enemyAttack');
+              for (const [k, b] of blows.entries())
+                expect(b.type === 'enemyAttack' && b.heavy === true, `${c} blow ${k}`).toBe(
+                  (k + 1) % 3 === 0,
+                );
+            }
+          }
+        }
+      });
+
+      it('a run pays about the XP of farming the Depths, and his hoard and ember drop', () => {
+        for (const c of CLASS_IDS) {
+          const gear = upgraded(legendaryKit(c, VERGE_IL), 10);
+          const rs = tyrantRuns(c, 38, gear, 16);
+          const xpPerHour =
+            rs.reduce((s, r) => s + r.xpGained / (r.durationMs / HOUR), 0) / rs.length;
+          const farming = farm(c, 38, 'cinderDepths', gear).xpPerHour;
+          expect(xpPerHour / farming, c).toBeGreaterThan(0.8);
+          expect(xpPerHour / farming, c).toBeLessThan(2.5);
+          for (const r of rs.filter((x) => x.bossDefeated)) {
+            expect(r.items.length + r.salvaged.length + r.overCapacity.length).toBe(2);
+            expect(r.materials).toEqual({ tyrantsEmber: 1 });
+            for (const item of r.items) {
+              // Tier-4 bases (set pieces and Mythics keep their fixed tier-3 bases).
+              if (!item.setId && !item.mythicId) expect(getItemBase(item.baseId).tier).toBe(4);
+              expect(item.itemLevel).toBeGreaterThanOrEqual(39);
+            }
+          }
         }
       });
     });
