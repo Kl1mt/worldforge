@@ -141,6 +141,9 @@ The B.2 build search, run with every piece Void and with every piece Prismatic (
 
 Tuning (the same searches): × 1.2 on every combat affix made the best Prismatic farm 3–5 % faster than the best Void; × 1.1 with critical chance still in made it 2–10 % faster at the Warden (warrior 0.900); × 1.1 without critical chance is the table above. Prismatic is a chase for a build that wants its item's affixes, not a new tier.
 
+## Item Awakening (evaluated in ticket 6.5, not built)
+`docs/AWAKENING.md`. The recommended option would scale an awakened item's own effect (and, piece by piece, its set's bonuses) like Void's strength, × 1.1. The game-core prototype is switched off; `itemEffectInstances` and `setBonusInstances` read an awakening that no stored item carries, so every number above is unchanged.
+
 ## Combat rules
 - **One pricing function.** `attackHit(setup, attack, prevCrit, heroHealth, enemyHealth)` prices every hero attack in both simulations. Without effects the setup carries no `effects` field and it returns the old `auto`/`skill` profiles unchanged.
 - **Aggregate stays exact.** `killDistribution(setup, health)` is the dynamic program over damage dealt, extended with a previous-crit flag (Mana Surge) and with deterministic thorns damage at each enemy hit (a thorns kill is an event at that hit). The hero's health at each attack is known in closed form, because enemy hits are fixed until the hero dies. The distribution cache key adds the start health only when a health-dependent effect (fortitude, rage) is active.

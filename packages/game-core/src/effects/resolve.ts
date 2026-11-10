@@ -1,4 +1,5 @@
 import type { ClassId } from '../classes.js';
+import { awakenedEffectStrength, type ItemAwakening } from '../items/awakening-state.js';
 import { canClassUseItem, type ItemBaseDefinition } from '../items/bases.js';
 import type { ItemVariantId } from '../items/model.js';
 import { activeVariant } from '../items/variants.js';
@@ -208,6 +209,8 @@ export interface EffectCarrier {
   effectRoll?: number | null;
   rarityId?: RarityId;
   variant?: ItemVariantId | null;
+  /** Ticket 6.5 prototype (off; no stored item carries it): an `effect` awakening's factor. */
+  awakening?: ItemAwakening | null;
 }
 
 /**
@@ -221,11 +224,15 @@ export function itemEffectInstances(item: EffectCarrier): EffectInstance[] {
     item.rarityId !== undefined
       ? activeVariant({ rarityId: item.rarityId, variant: item.variant ?? null })
       : undefined;
+  // Ticket 6.5 prototype (off): an awakening multiplies the variant's strength. Without one the
+  // factor is 1 and the instance is exactly the pre-6.5 one.
+  const awakened = item.awakening ? awakenedEffectStrength(item) : 1;
+  const strength = (variant ? variant.effectStrength : 1) * awakened;
   return [
     {
       effectId: item.effectId,
       roll: item.effectRoll ?? 1,
-      ...(variant && variant.effectStrength !== 1 ? { strength: variant.effectStrength } : {}),
+      ...(strength !== 1 ? { strength } : {}),
     },
   ];
 }

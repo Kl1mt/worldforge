@@ -1,4 +1,5 @@
 import type { EquipmentStatContribution } from '../combat/characterStats.js';
+import type { ItemAwakening } from '../items/awakening-state.js';
 import { DEFAULT_LOOT_CONFIG, type LootConfig } from '../loot/config.js';
 import type { GeneratedItem, UpgradeLevelField } from '../loot/generate.js';
 import {
@@ -25,6 +26,11 @@ export type EquippedItem = Pick<GeneratedItem, 'baseId' | 'rarityId' | 'itemLeve
     mythicId?: string | null;
     /** Ticket 3.3: the set of a set piece (`set_id`). Counted by `setBonusInstances`. */
     setId?: string | null;
+    /**
+     * Ticket 6.5 prototype, switched off: no column, row or snapshot holds it, so it is always
+     * absent outside the evaluation (`items/awakening.ts`, docs/AWAKENING.md).
+     */
+    awakening?: ItemAwakening | null;
   };
 
 /** What one item adds to the character: core stats for combat plus secondary modifiers. */

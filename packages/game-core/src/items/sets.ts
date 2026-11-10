@@ -1,5 +1,6 @@
 import type { ClassId } from '../classes.js';
 import type { EffectInstance } from '../effects/types.js';
+import { awakenedEffectStrength, type ItemAwakening } from './awakening-state.js';
 import { canClassUseItem, getItemBase } from './bases.js';
 
 /**
@@ -108,6 +109,8 @@ export function setPiecePool(itemLevel: number, classId?: ClassId): string[] {
 export interface SetCarrier {
   baseId: string;
   setId?: string | null;
+  /** Ticket 6.5 prototype (off; no stored item carries it): see `setBonusInstances`. */
+  awakening?: ItemAwakening | null;
 }
 
 /** A set as worn: distinct pieces equipped and the bonuses they activate. */
@@ -150,5 +153,31 @@ export function wornSets(items: readonly SetCarrier[]): WornSet[] {
  * `equipmentModifiers(…, { extraEffects })`. Empty without two pieces of one set.
  */
 export function setBonusInstances(items: readonly SetCarrier[]): EffectInstance[] {
-  return wornSets(items).flatMap((w) => w.active.map((b) => ({ effectId: b.effectId, roll: 1 })));
+  return wornSets(items).flatMap((w) => {
+    const strengths = awakenedPieceStrengths(items, w);
+    return w.active.map((b) => {
+      // Ticket 6.5 prototype (off): a bonus of n pieces is awakened when n distinct worn pieces
+      // are; without an awakened piece the instance is exactly the pre-6.5 one.
+      const strength = strengths[b.pieces - 1] ?? 1;
+      return strength > 1
+        ? { effectId: b.effectId, roll: 1, strength }
+        : { effectId: b.effectId, roll: 1 };
+    });
+  });
+}
+
+/**
+ * Ticket 6.5 prototype: the effect awakening of each distinct worn piece of a set (the strongest
+ * copy of a piece), strongest first. Empty when no piece is awakened, the case of every item today.
+ */
+function awakenedPieceStrengths(items: readonly SetCarrier[], worn: WornSet): number[] {
+  const byPiece = new Map<string, number>();
+  for (const item of items) {
+    if (!item.awakening || item.setId !== worn.set.id || !worn.pieces.includes(item.baseId)) {
+      continue;
+    }
+    const s = awakenedEffectStrength(item);
+    if (s > (byPiece.get(item.baseId) ?? 1)) byPiece.set(item.baseId, s);
+  }
+  return [...byPiece.values()].sort((a, b) => b - a);
 }
