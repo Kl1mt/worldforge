@@ -892,6 +892,15 @@ GDD §3.1, §3.2. Owner request: heroes and foes move in the fight scene so it d
 - Tests for the scheduling (injected clock), reduced motion and no network; evidence (GIF or frame strips, desktop and mobile; a contact sheet) on the `screenshots` branch and under `art/`.
 - Done: `apps/web/src/scene/` (pure scheduler, one-timer driver, scoped `scene-anim.css`); static with reduced motion and under automation (`navigator.webdriver`; override `worldforge.sceneMotion`). Pilot: an 8-frame attack loop per class (`character.<class>-attack`, 5 jobs, no generated idle: the frames shimmered), played by `PixelSprite`. `docs/DESIGN_SYSTEM.md` "Motion", `docs/ASSET_GUIDELINES.md` "Hero attack frames"; version 0.6.0. No server change, no migration.
 
+### A.15 Tier-4 item icons — `done (PR #110)`
+GDD §3.1. Follow-up from 6.1: its ten tier-4 bases show their tier-3 counterparts' icons with an ember tint. Owner request: real icons.
+- Ten 32×32 icons, one per tier-4 base, in the item style (outline, palette discipline, angle, readable at ×1), with a Cinderwastes flavour (slag, obsidian, ember inlays, forge-blackened metal); a clear step up from tier 3 that doesn't clash with the rarity frames or Void.
+- Budget: at most 2 PixelLab 32 px jobs plus one regeneration. Clean the picks (palette, alpha 0/255, consistent lighting).
+- Switch the bases via the manifest and `assets.ts`; keep the ember tint only as a fallback for missing art. A test that every tier-4 base resolves to its own icon file.
+- **Acceptance:** a contact sheet under `art/` (×1 and ×2 next to tier 3, inside every rarity frame and Void); a pack and tooltip screenshot on the `screenshots` branch.
+- Patch notes: the next 0.6.x version.
+- Done: `item.<base id>` for all ten (`cinderforged-blade` … `wispfire-band`). One job (`icons-tier4-01`, style image `knights-plate.png`, 10 generations) covered every base; no second job or regeneration. Picks cleaned with `tools/art/tier4_icons.py` (edits next to the raw files). `ART_STAND_INS` is empty and stays as the fallback. Contact sheet `art/preview-tier4-icons.png` (`node tools/art/preview_tier4_icons.mjs`, the game's own frame CSS); screenshots `tools/screenshots/tier4-icons.mjs`. Version 0.6.2. `docs/ASSET_GUIDELINES.md` "Tier-4 item icons".
+
 ### 6.2 Endgame region II & region boss, levels 34–40 (vertical) — `todo`
 Needs 6.1.
 - The second area (34–40) and a region boss dungeon in the Watch's style: a hoard that is always bound (T.1) and a boss material that has a sink, e.g. tier-5 upgrades or Awakening if 6.5 ships.
