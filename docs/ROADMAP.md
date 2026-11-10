@@ -957,7 +957,7 @@ GDD §7.5. Read `docs/EFFECTS.md` (variants), `docs/LOOT.md`, `docs/TRADING.md` 
   - invariance of non-Prismatic numbers;
   - trading-switch behaviour.
 
-### A.12 Prismatic & Void-plus visual treatment — `done (PR #TBD)`
+### A.12 Prismatic & Void-plus visual treatment — `done (PR #119)`
 The Prismatic shimmer treatment for item icons (the 3.5 Void pipeline: palette and overlay, not new sprites), plus tooltip and rarity-frame accents. Budget: one 32 px job at most; prefer a code/palette treatment. **Acceptance:** a contact sheet.
 - Done: a code and palette treatment, no generations. `ItemFrame` picks it from `variant.id === 'prismatic'` (`components/itemVariant.ts`), like Void: the art keeps its colour under a stepped opal tint, a slow glint sweeps across it in whole art pixels, an opal hairline runs inside the rarity ring, ✧ in the corner; both overlays are 32-pixel art (`/assets/overlays/`, `tools/art/prismatic_overlays.py`) clipped to the icon's alpha in its own grid cell (no layout change, tested; equal boxes measured in the browser). Still under reduced motion and automation (`navigator.webdriver`, A.14's override). Tooltip and return-summary accents keyed on `data-variant`. Void unchanged: it still reads drained and outlined next to Prismatic and the tier-4 icons. Admin gallery "Variants" table (one icon per rarity and a set piece, plain/Void/Prismatic; frozen until Play). Contact sheet `art/preview-prismatic.png`; screenshots `tools/screenshots/prismatic.mjs`. No patch notes (6.4's Prismatic entry covers it). `docs/DESIGN_SYSTEM.md` "Prismatic", `docs/ASSET_GUIDELINES.md` "Variants".
 
