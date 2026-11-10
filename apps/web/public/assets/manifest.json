@@ -1214,6 +1214,126 @@
       "slot": "ring"
     },
     {
+      "id": "item.cinderforged-blade",
+      "path": "/assets/items/cinderforged-blade.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, forge-blackened cinderwastes gear: greatsword of forge-blackened iron with glowing ember cracks along the blade; sceptre of black iron with a caged smouldering ember heart at its head; recurve bow of charred bone and slag-crusted limbs; tall obsidian tower shield with an ember-veined crack; closed helm of scorched black iron shaped like a revenant skull face with ember eye slits; heavy ash-grey plate cuirass with slag crust and ember seams; slag-iron plated gauntlets with molten knuckle seams; black plate greaves with ember inlays; reliquary pendant on a chain holding a glowing ember; obsidian ring with a small flickering wisp flame stone, forge-blackened metal, obsidian, slag, dim orange ember accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier4-01/edits/03-clean.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.emberheart-scepter",
+      "path": "/assets/items/emberheart-scepter.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, forge-blackened cinderwastes gear: greatsword of forge-blackened iron with glowing ember cracks along the blade; sceptre of black iron with a caged smouldering ember heart at its head; recurve bow of charred bone and slag-crusted limbs; tall obsidian tower shield with an ember-veined crack; closed helm of scorched black iron shaped like a revenant skull face with ember eye slits; heavy ash-grey plate cuirass with slag crust and ember seams; slag-iron plated gauntlets with molten knuckle seams; black plate greaves with ember inlays; reliquary pendant on a chain holding a glowing ember; obsidian ring with a small flickering wisp flame stone, forge-blackened metal, obsidian, slag, dim orange ember accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier4-01/edits/10-clean.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.slagbone-bow",
+      "path": "/assets/items/slagbone-bow.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, forge-blackened cinderwastes gear: greatsword of forge-blackened iron with glowing ember cracks along the blade; sceptre of black iron with a caged smouldering ember heart at its head; recurve bow of charred bone and slag-crusted limbs; tall obsidian tower shield with an ember-veined crack; closed helm of scorched black iron shaped like a revenant skull face with ember eye slits; heavy ash-grey plate cuirass with slag crust and ember seams; slag-iron plated gauntlets with molten knuckle seams; black plate greaves with ember inlays; reliquary pendant on a chain holding a glowing ember; obsidian ring with a small flickering wisp flame stone, forge-blackened metal, obsidian, slag, dim orange ember accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier4-01/edits/18-clean.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.obsidian-bulwark",
+      "path": "/assets/items/obsidian-bulwark.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, forge-blackened cinderwastes gear: greatsword of forge-blackened iron with glowing ember cracks along the blade; sceptre of black iron with a caged smouldering ember heart at its head; recurve bow of charred bone and slag-crusted limbs; tall obsidian tower shield with an ember-veined crack; closed helm of scorched black iron shaped like a revenant skull face with ember eye slits; heavy ash-grey plate cuirass with slag crust and ember seams; slag-iron plated gauntlets with molten knuckle seams; black plate greaves with ember inlays; reliquary pendant on a chain holding a glowing ember; obsidian ring with a small flickering wisp flame stone, forge-blackened metal, obsidian, slag, dim orange ember accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier4-01/edits/21-clean.png",
+      "slot": "offhand"
+    },
+    {
+      "id": "item.revenant-visage",
+      "path": "/assets/items/revenant-visage.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, forge-blackened cinderwastes gear: greatsword of forge-blackened iron with glowing ember cracks along the blade; sceptre of black iron with a caged smouldering ember heart at its head; recurve bow of charred bone and slag-crusted limbs; tall obsidian tower shield with an ember-veined crack; closed helm of scorched black iron shaped like a revenant skull face with ember eye slits; heavy ash-grey plate cuirass with slag crust and ember seams; slag-iron plated gauntlets with molten knuckle seams; black plate greaves with ember inlays; reliquary pendant on a chain holding a glowing ember; obsidian ring with a small flickering wisp flame stone, forge-blackened metal, obsidian, slag, dim orange ember accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier4-01/edits/24-clean.png",
+      "slot": "head"
+    },
+    {
+      "id": "item.ashplate-hauberk",
+      "path": "/assets/items/ashplate-hauberk.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, forge-blackened cinderwastes gear: greatsword of forge-blackened iron with glowing ember cracks along the blade; sceptre of black iron with a caged smouldering ember heart at its head; recurve bow of charred bone and slag-crusted limbs; tall obsidian tower shield with an ember-veined crack; closed helm of scorched black iron shaped like a revenant skull face with ember eye slits; heavy ash-grey plate cuirass with slag crust and ember seams; slag-iron plated gauntlets with molten knuckle seams; black plate greaves with ember inlays; reliquary pendant on a chain holding a glowing ember; obsidian ring with a small flickering wisp flame stone, forge-blackened metal, obsidian, slag, dim orange ember accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier4-01/edits/35-clean.png",
+      "slot": "chest"
+    },
+    {
+      "id": "item.slagiron-gauntlets",
+      "path": "/assets/items/slagiron-gauntlets.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, forge-blackened cinderwastes gear: greatsword of forge-blackened iron with glowing ember cracks along the blade; sceptre of black iron with a caged smouldering ember heart at its head; recurve bow of charred bone and slag-crusted limbs; tall obsidian tower shield with an ember-veined crack; closed helm of scorched black iron shaped like a revenant skull face with ember eye slits; heavy ash-grey plate cuirass with slag crust and ember seams; slag-iron plated gauntlets with molten knuckle seams; black plate greaves with ember inlays; reliquary pendant on a chain holding a glowing ember; obsidian ring with a small flickering wisp flame stone, forge-blackened metal, obsidian, slag, dim orange ember accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier4-01/edits/41-clean.png",
+      "slot": "hands"
+    },
+    {
+      "id": "item.cinderstride-greaves",
+      "path": "/assets/items/cinderstride-greaves.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, forge-blackened cinderwastes gear: greatsword of forge-blackened iron with glowing ember cracks along the blade; sceptre of black iron with a caged smouldering ember heart at its head; recurve bow of charred bone and slag-crusted limbs; tall obsidian tower shield with an ember-veined crack; closed helm of scorched black iron shaped like a revenant skull face with ember eye slits; heavy ash-grey plate cuirass with slag crust and ember seams; slag-iron plated gauntlets with molten knuckle seams; black plate greaves with ember inlays; reliquary pendant on a chain holding a glowing ember; obsidian ring with a small flickering wisp flame stone, forge-blackened metal, obsidian, slag, dim orange ember accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier4-01/edits/44-clean.png",
+      "slot": "feet"
+    },
+    {
+      "id": "item.ember-reliquary",
+      "path": "/assets/items/ember-reliquary.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, forge-blackened cinderwastes gear: greatsword of forge-blackened iron with glowing ember cracks along the blade; sceptre of black iron with a caged smouldering ember heart at its head; recurve bow of charred bone and slag-crusted limbs; tall obsidian tower shield with an ember-veined crack; closed helm of scorched black iron shaped like a revenant skull face with ember eye slits; heavy ash-grey plate cuirass with slag crust and ember seams; slag-iron plated gauntlets with molten knuckle seams; black plate greaves with ember inlays; reliquary pendant on a chain holding a glowing ember; obsidian ring with a small flickering wisp flame stone, forge-blackened metal, obsidian, slag, dim orange ember accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier4-01/edits/48-clean.png",
+      "slot": "neck"
+    },
+    {
+      "id": "item.wispfire-band",
+      "path": "/assets/items/wispfire-band.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, forge-blackened cinderwastes gear: greatsword of forge-blackened iron with glowing ember cracks along the blade; sceptre of black iron with a caged smouldering ember heart at its head; recurve bow of charred bone and slag-crusted limbs; tall obsidian tower shield with an ember-veined crack; closed helm of scorched black iron shaped like a revenant skull face with ember eye slits; heavy ash-grey plate cuirass with slag crust and ember seams; slag-iron plated gauntlets with molten knuckle seams; black plate greaves with ember inlays; reliquary pendant on a chain holding a glowing ember; obsidian ring with a small flickering wisp flame stone, forge-blackened metal, obsidian, slag, dim orange ember accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier4-01/edits/53-clean.png",
+      "slot": "ring"
+    },
+    {
       "id": "material.timber",
       "path": "/assets/materials/timber.png",
       "kind": "material",

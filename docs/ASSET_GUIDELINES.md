@@ -21,6 +21,7 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | `art/preview-prestige.png` | The season frames around a sample crest (×1, ×2) and the warrior portrait (×4), the title badges (×2, ×1, 24 and 16 px), and the arena backdrop next to the Ashen Pass and the Sunken Abbey (A.10). Same image as `docs/screenshots/phase-5/a10-contact-sheet.png`; rebuild with `python3 tools/art/preview_prestige.py`. |
 | `art/preview-hero-frames.png` | The four hero attack loops (A.14): raw PixelLab frames above the cleaned sheet, per class, at ×2. Rebuild with `python3 tools/art/hero_frames.py`. |
 | `art/preview-cinderwastes.png` | The Cinderwastes enemies at ×1 and ×2 next to the cinder hound and ember golem, the Forge Tyrant next to the Ashen Warden, both backdrops next to the Ashen Pass, and the enemies over the Cinderwastes (A.11). Rebuild with `python3 tools/art/preview_cinderwastes.py`. |
+| `art/preview-tier4-icons.png` | The ten tier-4 item icons (A.15) at ×1 and ×2 next to their tier-3 counterparts, then inside every rarity frame and the Void treatment (the game's own frame CSS). Rebuild with `node tools/art/preview_tier4_icons.mjs`. |
 | `tools/art/pixellab_gen.py` | Generate/collect/contact-sheet helper. |
 | `tools/art/pixellab_animate.py` | Frame-animation helper (`animate-with-text-v3`, async). |
 | `art/preview-enemy-frames.png` | The enemy attack loops (A.14b): per job the raw grid frames, then each picked enemy's cleaned sheet at ×2. Rebuild with `python3 tools/art/enemy_frames.py build`. |
@@ -197,6 +198,15 @@ The world map came out with opaque white pixels along its burnt edge (about 1,15
 - Seven jobs (85 generations: two backdrops, three enemy jobs, one boss, one regeneration): `area-cinderwastes-01` (style image `areas/ashen-pass.png`) came out as a near copy of the Pass, so `area-cinderwastes-02` regenerated it with the new `area-cinder-depths-01` as style image. `enemies-cinderwastes-01` (style `fallen-knight.png`) returned only revenants, so the wisp got its own job, `enemies-cinderwastes-03` (style `ash-wraith.png`). `enemies-cinderwastes-02` (colossus and hound, style `ember-golem.png`); `boss-forge-tyrant-01` (style `ashen-warden.png`). Picks: backdrops `area-cinderwastes-02/00`, `area-cinder-depths-01/00`; revenant `01/09`, colossus `02/04`, hound `02/12`, wisp `03/10`, boss `02`. All are alpha-keyed with no partial alpha.
 - One edit, saved next to the raw file: `enemies-cinderwastes-03/edits/10-dimmed.png` dims the wisp's flame (warm pixels ×0.85 saturation, ×0.78 value) so it sits with the Ashen Pass embers instead of outshining them. Alpha and the grey smoke are untouched.
 - Preview: `art/preview-cinderwastes.png`. A web test checks that every name resolves to a manifest entry and a file of its Ashen Pass peer's size, and that no enemy needs mirroring.
+
+## Tier-4 item icons (ticket A.15)
+
+- The ten tier-4 bases of the Cinderwastes (ticket 6.1) have their own 32×32 icons, id `item.<base id>`: `cinderforged-blade`, `emberheart-scepter`, `slagbone-bow`, `obsidian-bulwark`, `revenant-visage`, `ashplate-hauberk`, `slagiron-gauntlets`, `cinderstride-greaves`, `ember-reliquary`, `wispfire-band`.
+- The look is the tier-3 gear made in the Cinderwastes: forge-blackened iron, obsidian and slag, with thin ember-orange inlays, cracks and seams. Orange stays an accent (2–21 % of an icon's pixels, mostly cracks and one stone or flame), as in the region's enemies, so a Legendary frame still reads as the rarity. The step up from tier 3 comes from the darker metal and the ember work, not from size: the silhouettes keep tier 3's angle and footprint (45° weapons, upright armour).
+- One job, no regeneration (10 generations): `icons-tier4-01` (style image `knights-plate.png`, all ten bases in one prompt). Picks: blade `03`, scepter `10`, bow `18`, bulwark `21`, visage `24`, hauberk `35`, gauntlets `41`, greaves `44`, reliquary `48`, band `53`. Variant `26` (a darker visage) was the first pick but read as a blob at ×1.
+- Cleanup (`tools/art/tier4_icons.py`, saved as `icons-tier4-01/edits/NN-clean.png`): alpha 0/255 with RGB 0 under transparent pixels, and ember highlights above 0.86 value compressed towards it, so the ten share one lighting (the raw flames peaked between 0.85 and 0.99). Greys, outline and hue are untouched.
+- 6.1's ember-tinted stand-ins (`ART_STAND_INS`) are gone; the mechanism stays as the fallback for a Cinderwastes name whose art is missing. A web test checks that every tier-4 base resolves to its own 32×32 file, untinted, with a manifest entry of its slot.
+- Preview: `art/preview-tier4-icons.png`.
 
 ## Achievement & guild heraldry icons (ticket A.8)
 

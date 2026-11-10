@@ -23,11 +23,11 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.6.2';
+export const GAME_VERSION = '0.6.3';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
   {
-    version: '0.6.2',
+    version: '0.6.3',
     date: '2026-11-10',
     title: 'Claws and pitchforks',
     new: [
@@ -40,6 +40,15 @@ export const PATCH_NOTES: readonly PatchNote[] = [
       'Battle animations no longer fall out of step after a few foes: every blow, flinch, fall and return now plays every time.',
     ],
     tickets: ['A.14b'],
+  },
+  {
+    version: '0.6.2',
+    date: '2026-11-10',
+    title: 'Forged in cinder',
+    changed: [
+      'The Cinderwastes’ gear has its own look: forge-blackened iron, obsidian and slag with ember inlays, instead of reddened copies of older gear.',
+    ],
+    tickets: ['A.15'],
   },
   {
     version: '0.6.1',

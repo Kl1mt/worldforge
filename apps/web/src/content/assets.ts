@@ -10,7 +10,7 @@ export interface SpriteAsset {
   height: number;
   /** Source orientation; the scene mirrors `right`-facing enemies so they face the hero. */
   facing?: 'front' | 'left' | 'right';
-  /** Ticket 6.1: drawn tinted (a stand-in for art still to be made, `ART_STAND_INS`). */
+  /** Drawn tinted: a stand-in for art still to be made (`ART_STAND_INS`, ticket 6.1). */
   tint?: 'cinder';
   /**
    * Ticket A.14: a frame sheet. The file is one row of `frames` frames, each `width` × `height`
@@ -213,6 +213,17 @@ export const ASSETS = {
   'item.bloodmoon-treads': item('bloodmoon-treads'),
   'item.bloodmoon-fang': item('bloodmoon-fang'),
   'item.bloodmoon-loop': item('bloodmoon-loop'),
+  // Tier 4, the Cinderwastes (A.15): one icon per tier-4 base (game-core `ITEM_BASES[].icon`).
+  'item.cinderforged-blade': item('cinderforged-blade'),
+  'item.emberheart-scepter': item('emberheart-scepter'),
+  'item.slagbone-bow': item('slagbone-bow'),
+  'item.obsidian-bulwark': item('obsidian-bulwark'),
+  'item.revenant-visage': item('revenant-visage'),
+  'item.ashplate-hauberk': item('ashplate-hauberk'),
+  'item.slagiron-gauntlets': item('slagiron-gauntlets'),
+  'item.cinderstride-greaves': item('cinderstride-greaves'),
+  'item.ember-reliquary': item('ember-reliquary'),
+  'item.wispfire-band': item('wispfire-band'),
   'material.timber': material('timber'),
   'material.ashwort': material('ashwort'),
   'material.raw-hide': material('raw-hide'),
@@ -309,22 +320,12 @@ export function asset(id: AssetId): SpriteAsset {
 }
 
 /**
- * Ticket 6.1: content art still to be drawn, shown as the closest existing sprite with an ember
- * tint: the ten tier-4 item icons (an art follow-up; A.11 drew the Cinderwastes' backdrop and
- * foes). Registered art always wins; remove an entry once its art lands.
+ * Content art still to be drawn, shown as the closest existing sprite with an ember tint. Ticket
+ * 6.1 used it for the ten tier-4 item icons until A.15 drew them; it is empty now and stays as the
+ * fallback for a Cinderwastes name whose art is missing. Registered art always wins; remove an
+ * entry once its art lands.
  */
-export const ART_STAND_INS: Readonly<Record<string, AssetId>> = {
-  'item.cinderforged-blade': 'item.knights-greatsword',
-  'item.emberheart-scepter': 'item.drowned-crozier',
-  'item.slagbone-bow': 'item.horn-recurve',
-  'item.obsidian-bulwark': 'item.tower-shield',
-  'item.revenant-visage': 'item.great-helm',
-  'item.ashplate-hauberk': 'item.knights-plate',
-  'item.slagiron-gauntlets': 'item.plated-gauntlets',
-  'item.cinderstride-greaves': 'item.plate-sabatons',
-  'item.ember-reliquary': 'item.abbey-pendant',
-  'item.wispfire-band': 'item.abbey-signet',
-};
+export const ART_STAND_INS: Readonly<Record<string, AssetId>> = {};
 
 /**
  * A registered sprite by a content asset id; else its tinted stand-in (`ART_STAND_INS`); else
