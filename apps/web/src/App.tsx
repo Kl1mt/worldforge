@@ -10,6 +10,7 @@ import {
   isLegalRoute,
   isTokenRoute,
   registerHref,
+  routeHiddenFor,
   routeHref,
   type Standing,
 } from './lib/route';
@@ -67,9 +68,12 @@ function Routes() {
   }
   // Ticket 4.1: the moderator queue does not exist for players (like an unknown address).
   const staff = auth.state.kind === 'authenticated' && isStaff(auth.state.account.role);
-  // Ticket D.3: the admin panel likewise, for everyone but admins.
+  // Ticket D.3: the admin panel likewise, for everyone but admins (`routeHiddenFor`, A.14c).
   const admin = auth.state.kind === 'authenticated' && auth.state.account.role === 'admin';
-  const hidden = (route === 'moderation' && !staff) || (route === 'admin' && !admin);
+  const hidden = routeHiddenFor(
+    route,
+    auth.state.kind === 'authenticated' ? auth.state.account.role : null,
+  );
   const redirect = standing
     ? (guardRoute(route, standing) ?? (hidden && standing === 'playing' ? DEFAULT_ROUTE : null))
     : null;

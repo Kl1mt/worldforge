@@ -127,14 +127,20 @@ export function applyBeat(beat: SceneBeat, actors: SceneActors) {
 }
 
 /** True for beats that change who is standing (always applied, even late). */
-const isState = (beat: SceneBeat) => beat.kind === 'foeFall' || beat.kind === 'foeRise';
-
 /** Strips every class the driver may have set (on stop, so a resting scene is clean). */
 export function resetActors(actors: SceneActors) {
   for (const actor of [actors.hero, ...actors.foes]) {
     if (!actor) continue;
     for (const layer of Object.keys(LAYER_CLASSES) as LayerName[]) clear(actor[layer], layer);
   }
+}
+
+/** A.14c: one foe's current life, as the player saw it. */
+interface FoeLife {
+  /** Faded out (its fall played) and not yet back. */
+  down: boolean;
+  /** A blow landed visibly since it last rose. */
+  hit: boolean;
 }
 
 export interface SceneDriver {
@@ -168,12 +174,40 @@ export function startSceneDriver(options: {
     handle = clock.setTimer(tick, Math.max(0, next - elapsed()));
   };
 
+  /**
+   * A.14c: what each foe showed in its current life. The owner's rule: **a foe never fades out
+   * unless it took at least one visible hit in this life.** A hitch could drop a blow as late
+   * (it is due 200 ms before the fall) while the fall itself was on time, so a foe faded with no
+   * blow before it. Now such a fall is dropped, and with it the rise that would follow (the foe
+   * simply stays standing); and a rise only plays on a foe that is actually down.
+   */
+  const lives: FoeLife[] = [];
+  const lifeOf = (foe: number) => (lives[foe] ??= { down: false, hit: false });
+
   /** Applies what is due; one-shot beats later than LATE_BEAT_MS (or all, when `skip`) drop. */
   const flush = (skip: boolean) => {
     const now = elapsed();
     const current = actors();
     for (const { at, beat } of loop.advance(now)) {
-      if (isState(beat) || (!skip && now - at <= LATE_BEAT_MS)) applyBeat(beat, current);
+      const onTime = !skip && now - at <= LATE_BEAT_MS;
+      if (beat.kind === 'foeFall') {
+        const life = lifeOf(beat.foe);
+        if (life.down || !life.hit) continue; // no visible blow in this life: no fade
+        life.down = true;
+        applyBeat(beat, current);
+      } else if (beat.kind === 'foeRise') {
+        const life = lifeOf(beat.foe);
+        if (!life.down) continue; // its fall was dropped: the foe never left
+        life.down = false;
+        life.hit = false;
+        applyBeat(beat, current);
+      } else if (onTime) {
+        if (beat.kind === 'foeHit') {
+          // Only a blow that can be seen counts (a foe without its element shows nothing).
+          if (current.foes[beat.foe]?.hit) lifeOf(beat.foe).hit = true;
+        }
+        applyBeat(beat, current);
+      }
     }
   };
 
@@ -212,6 +246,7 @@ export function startSceneDriver(options: {
     stop() {
       running = false;
       cancel();
+      lives.length = 0;
       resetActors(actors());
     },
   };
