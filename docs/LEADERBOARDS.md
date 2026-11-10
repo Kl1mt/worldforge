@@ -255,3 +255,8 @@ Power is the only non-trivial score: 20 trials × 2 runs × at most 4 fights (�
 - `apps/server/src/seasons/seasons.pg.test.ts` (5.3, real PostgreSQL): award runs racing (some crashing mid-way): each award once, one default display per account, one audit row; a restart mid-award then three resumes racing; a score change racing the archive: the archive equals the season board in every order, and nothing is written after it.
 - Journey: `playSeasonStep` (`e2e/journey.ts`; `season-journey.test.ts`): the owner schedules a season in the admin panel, the hero rises on its board, the season ends, the hero is honoured once and shows its title and frame to another player; scores unchanged.
 - `apps/server/src/scores/scores.test.ts`: the route equals `computeScores` on the stored input, a forged item row counts 0, the guild boss stage rule, 404 for another account's hero, 401 without a session.
+
+## Item Awakening (ticket 6.5b)
+- **Gear Score** is unchanged and needs no version: it reads item level, rarity, upgrades and the variant, never the awakening.
+- **Character Power** counts awakening only through combat (its trials fight with the items): +0.1 % for a whole awakened kit at level 38. No new version: no stored input carried an awakening before 6.5b, so every stored value recomputes to itself (the journey's boards check). **PvE Progress** is unchanged.
+- **Arena matchmaking** ranks on **bracket Power 2** (Power 1 × the awakening factor), which equals version 1 for every kit without an awakening, so the switch needs no season boundary: no stored defence changes value (docs/PVP.md "6.5b").

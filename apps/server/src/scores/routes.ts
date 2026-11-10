@@ -60,6 +60,7 @@ export async function scoringInput(
       affixes: itemInstances.affixes,
       upgradeLevel: itemInstances.upgradeLevel,
       variant: itemInstances.variant,
+      awakening: itemInstances.awakening,
       effectId: itemInstances.effectId,
       effectRoll: itemInstances.effectRoll,
       mythicId: itemInstances.mythicId,

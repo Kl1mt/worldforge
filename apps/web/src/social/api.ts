@@ -58,6 +58,8 @@ export interface ShowcaseItem {
   effectRoll: number | null;
   setId: string | null;
   mythicId: string | null;
+  /** Ticket 6.5b: present only on an awakened item. */
+  awakening?: { option: 'effect'; effectStrength: number };
 }
 
 export interface Profile {

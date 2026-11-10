@@ -5,6 +5,10 @@ import {
   DEFAULT_FORGE_ACTION_CONFIG,
   affixTierRange,
   attemptUpgrade,
+  awakeningCost,
+  awakeningRefusal,
+  shippedAwakening,
+  type AwakeningRefusal,
   createRng,
   forgeCostBlockers,
   improveAffix,
@@ -42,6 +46,7 @@ import {
   assertItemNotHeld,
 } from '../inventory/routes.js';
 import { changeMaterialsTx, loadMaterialBundle } from '../materials/store.js';
+import { heldValueOf } from '../shelf/held.js';
 import { idempotentTransaction } from '../idempotency/index.js';
 import {
   changeGold,
@@ -121,6 +126,17 @@ export interface ForgeItemView {
     options: RerollOptionView[][];
   } | null;
   improve: ImproveView[];
+  /**
+   * Ticket 6.5b: awakening (docs/AWAKENING.md). `refusal` says why the item can't (null when it
+   * can); `cost` and `blockers` are the price and what is missing (held value excluded). Null on
+   * an item already awakened.
+   */
+  awaken: {
+    refusal: AwakeningRefusal | null;
+    cost: ForgeCostView;
+    blockers: ForgeBlocker[];
+    effectStrength: number;
+  } | null;
 }
 
 export interface ForgeItemResponse {
@@ -141,7 +157,9 @@ export type ForgeOutcome =
       upgradeLevel: number;
       upgradePity: number;
     }
-  | { action: 'reroll' | 'improve'; affixIndex: number; before: RolledAffix; after: RolledAffix };
+  | { action: 'reroll' | 'improve'; affixIndex: number; before: RolledAffix; after: RolledAffix }
+  /** Ticket 6.5b: what the awakening strengthens (the item's own effect, or its set's bonuses). */
+  | { action: 'awaken'; awakened: 'effect' | 'set'; effectStrength: number };
 
 export interface ForgeActionResponse {
   character: CharacterView;
@@ -160,6 +178,34 @@ const costView = (c: ForgeCost): ForgeCostView => ({
   materials: materialList(c.materials),
 });
 
+/** Ticket 6.5b: an awakening's price as a Forge cost (gold and the three materials). */
+export function awakenForgeCost(row: Pick<ItemInstance, 'itemLevel'>): ForgeCost {
+  const c = awakeningCost(row);
+  return {
+    gold: c.gold,
+    materials: {
+      tyrantsEmber: c.tyrantsEmber,
+      gravewardenSeal: c.gravewardenSeal,
+      soulShard: c.soulShard,
+    },
+  };
+}
+
+/** Ticket 6.5b: the row as the awakening rules read it. */
+const asAwakenable = (row: ItemInstance) => ({
+  baseId: row.baseId,
+  rarityId: row.rarityId,
+  itemLevel: row.itemLevel,
+  affixes: row.affixes,
+  upgradeLevel: row.upgradeLevel,
+  effectId: row.effectId,
+  effectRoll: row.effectRoll,
+  mythicId: row.mythicId,
+  setId: row.setId,
+  variant: row.variant ?? null,
+  awakening: row.awakening ?? null,
+});
+
 const asForgeItem = (row: ItemInstance): ForgeItem => ({
   baseId: row.baseId,
   rarityId: row.rarityId,
@@ -175,10 +221,13 @@ export function forgeItemView(
   classId: ClassId,
   gold: number,
   held: Held,
+  /** Ticket 6.5b: gold and materials received in a trade and still on hold (not spendable). */
+  onHold: { gold: number; materials: Held } = { gold: 0, materials: {} },
 ): ForgeItemView {
   const item = asForgeItem(row);
   const up = quoteUpgrade(item);
   const reroll = quoteReroll(item);
+  const awakenCost = awakenForgeCost(row);
   return {
     itemId: row.id,
     upgradeLevel: row.upgradeLevel,
@@ -250,8 +299,42 @@ export function forgeItemView(
         blockers: [],
       };
     }),
+    awaken: row.awakening
+      ? null
+      : {
+          refusal: awakeningRefusal(asAwakenable(row)),
+          cost: costView(awakenCost),
+          blockers: forgeCostBlockers(
+            awakenCost,
+            Math.max(0, gold - onHold.gold),
+            spendableOf(held, onHold.materials),
+          ),
+          effectStrength: shippedAwakening().effectStrength,
+        },
   };
 }
+
+/** Ticket 6.5b: holdings less what is on hold after a trade. */
+function spendableOf(held: Held, onHold: Held): Held {
+  const out: Held = { ...held };
+  for (const [id, n] of Object.entries(onHold) as [MaterialId, number][]) {
+    out[id] = Math.max(0, (out[id] ?? 0) - n);
+  }
+  return out;
+}
+
+/** Ticket 6.5b: why an item can't be awakened, in plain words. */
+const AWAKEN_REFUSALS: Record<AwakeningRefusal, [number, string, string]> = {
+  rarity: [422, 'not_awakenable', 'Only Legendary, Mythic and set items can be awakened.'],
+  upgrade_level: [422, 'not_awakenable', 'Only items at +10 can be awakened.'],
+  item_level: [422, 'not_awakenable', 'Only items of item level 23 or higher can be awakened.'],
+  already_awakened: [422, 'already_awakened', 'This item is already awakened.'],
+  nothing_to_awaken: [422, 'not_awakenable', 'This item has no effect or set bonus to awaken.'],
+  unknown_base: [422, 'item_unforgeable', 'The smith does not know this item any more.'],
+  affix_missing: [422, 'not_awakenable', 'This item can’t be awakened.'],
+  affix_not_allowed: [422, 'not_awakenable', 'This item can’t be awakened.'],
+  affix_present: [422, 'not_awakenable', 'This item can’t be awakened.'],
+};
 
 const REFUSALS: Record<ForgeRefusal, [number, string, string]> = {
   unknown_base: [422, 'item_unforgeable', 'The smith does not know this item any more.'],
@@ -274,6 +357,11 @@ function cannotPay(blockers: ForgeBlocker[]): ApiError {
 }
 
 const itemNotFound = () => new ApiError(404, 'not_found', 'No such item.');
+
+function awakenRefused(reason: AwakeningRefusal, itemId: string): ApiError {
+  const [status, code, message] = AWAKEN_REFUSALS[reason];
+  return new ApiError(status, code, message, { itemId, reason });
+}
 
 /** Locks the item row (after the character lock). `404` for another character's or no item. */
 async function lockItem(
@@ -359,6 +447,7 @@ const forgeItemSchema = {
     'upgrade',
     'reroll',
     'improve',
+    'awaken',
   ],
   properties: {
     itemId: { type: 'string' },
@@ -463,6 +552,16 @@ const forgeItemSchema = {
         },
       },
     },
+    awaken: {
+      type: ['object', 'null'],
+      required: ['refusal', 'cost', 'blockers', 'effectStrength'],
+      properties: {
+        refusal: { type: ['string', 'null'] },
+        cost: costSchema,
+        blockers: blockersSchema,
+        effectStrength: { type: 'number' },
+      },
+    },
   },
 } as const;
 
@@ -498,6 +597,8 @@ const forgeActionResponseSchema = {
         affixIndex: { type: 'integer' },
         before: affixSchema,
         after: affixSchema,
+        awakened: { type: 'string' },
+        effectStrength: { type: 'number' },
       },
     },
     paid: costSchema,
@@ -506,11 +607,16 @@ const forgeActionResponseSchema = {
   },
 } as const;
 
-type Action = 'upgrade' | 'reroll' | 'improve';
+type Action = 'upgrade' | 'reroll' | 'improve' | 'awaken';
 
 interface Applied {
   /** The columns to write besides the counter. */
-  patch: Partial<Pick<ItemInstance, 'upgradeLevel' | 'upgradePity' | 'rerollCount' | 'affixes'>>;
+  patch: Partial<
+    Pick<
+      ItemInstance,
+      'upgradeLevel' | 'upgradePity' | 'rerollCount' | 'affixes' | 'awakening' | 'awakenedAt'
+    >
+  >;
   outcome: ForgeOutcome;
   /** Extra audit data (the roll, the affixes). */
   audit: Record<string, unknown>;
@@ -551,12 +657,13 @@ export async function registerForgeWork(
       if (!row) throw itemNotFound();
       assertItemInReach(row);
       const held = await loadMaterialBundle(db, characterId);
+      const onHold = await heldValueOf(db, characterId, activity.now());
       return {
         characterId,
         gold: character.gold,
         materials: materialList(held),
         item: itemView(row, switches),
-        forge: forgeItemView(row, character.classId, character.gold, held),
+        forge: forgeItemView(row, character.classId, character.gold, held, onHold),
       };
     },
   );
@@ -606,7 +713,17 @@ export async function registerForgeWork(
             assertItemNotHeld(row, now);
             const { cost, apply } = run(row, locked, body);
             const held = await loadMaterialBundle(tx, characterId);
-            const blockers = forgeCostBlockers(cost, locked.gold, held);
+            // Ticket 6.5b: the awakening's check leaves out value on hold after a trade, so it
+            // names what is missing before anything is paid (the spend itself refuses it anyway).
+            const onHold =
+              name === 'awaken'
+                ? await heldValueOf(tx, characterId, now)
+                : { gold: 0, materials: {} };
+            const blockers = forgeCostBlockers(
+              cost,
+              Math.max(0, locked.gold - onHold.gold),
+              spendableOf(held, onHold.materials),
+            );
             if (blockers.length > 0) throw cannotPay(blockers);
 
             // Pay first: the result is revealed only after paying, and both commit together.
@@ -646,6 +763,8 @@ export async function registerForgeWork(
             if (name === 'upgrade') {
               await refreshAchievements(tx, character, ['maxUpgradeLevel'], now);
             }
+            // Ticket 6.5b: the item's awakening is the hero's achievement-free endgame mark; no
+            // achievement reads it (yet).
             recordTelemetry(tx, now, [
               { metric: 'forge', dims: [name, ...applied.telemetry] },
               ...goldOut(`forge_${name}`, row.rarityId, cost.gold),
@@ -657,10 +776,17 @@ export async function registerForgeWork(
               .where(eq(itemInstances.characterId, characterId))
               .orderBy(asc(itemInstances.createdAt), asc(itemInstances.id));
             const heldAfter = await loadMaterialBundle(tx, characterId);
+            const onHoldAfter = await heldValueOf(tx, characterId, now);
             return {
               character: characterView(character),
               item: itemView(updated, switches),
-              forge: forgeItemView(updated, character.classId, character.gold, heldAfter),
+              forge: forgeItemView(
+                updated,
+                character.classId,
+                character.gold,
+                heldAfter,
+                onHoldAfter,
+              ),
               outcome: applied.outcome,
               paid: costView(cost),
               inventory: inventoryView(character, items, switches),
@@ -764,4 +890,31 @@ export async function registerForgeWork(
       };
     },
   );
+
+  // Ticket 6.5b: Item Awakening (docs/AWAKENING.md). No random draw: the refusals and the price
+  // are checked under the item lock before paying, and the write is guarded by the forge counter
+  // like every Forge action (a retry with the same key replays the stored response; a second key
+  // finds the item awakened). Binds the item (any Forge work does), so it never trades.
+  action<{ itemId: string }>('awaken', 'awaken', upgradeBodySchema, (row) => {
+    const refusal = awakeningRefusal(asAwakenable(row));
+    if (refusal) throw awakenRefused(refusal, row.id);
+    const awakening = shippedAwakening();
+    const awakened = row.setId ? 'set' : 'effect';
+    return {
+      cost: awakenForgeCost(row),
+      apply: () => ({
+        patch: { awakening, awakenedAt: activity.now() },
+        outcome: { action: 'awaken', awakened, effectStrength: awakening.effectStrength },
+        audit: {
+          awakening,
+          awakened,
+          effectId: row.effectId ?? null,
+          setId: row.setId ?? null,
+          variant: row.variant ?? null,
+          upgradeLevel: row.upgradeLevel,
+        },
+        telemetry: [row.rarityId, awakened],
+      }),
+    };
+  });
 }

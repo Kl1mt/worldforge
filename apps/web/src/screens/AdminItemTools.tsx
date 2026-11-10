@@ -33,7 +33,7 @@ const RARITY_NAME = new Map(RARITIES.map((r) => [r.id, r.name]));
 const rarityName = (id: RarityId) => RARITY_NAME.get(id) ?? id;
 
 function itemLine(view: ItemView): string {
-  return `${view.variant ? `${view.variant.name} ` : ''}${view.name}${view.upgradeLevel > 0 ? ` +${view.upgradeLevel}` : ''} (${rarityName(view.rarity)}, item level ${view.itemLevel})`;
+  return `${view.awakened ? 'Awakened ' : ''}${view.variant ? `${view.variant.name} ` : ''}${view.name}${view.upgradeLevel > 0 ? ` +${view.upgradeLevel}` : ''} (${rarityName(view.rarity)}, item level ${view.itemLevel})`;
 }
 
 /** A hero's items, or the account shelf's, grouped by where they sit. */
@@ -192,6 +192,7 @@ export function previewView(p: PreviewItem): ItemView {
     mythicId: p.mythicId ?? null,
     upgradeLevel: p.upgradeLevel,
     variant: p.variant ?? null,
+    ...(p.awakening ? { awakening: p.awakening } : {}),
   });
 }
 
@@ -221,6 +222,7 @@ export function GrantItemTool({
   const [itemLevel, setItemLevel] = useState(String(Math.min(hero.level, MAX_ITEM_LEVEL)));
   const [variant, setVariant] = useState<'void' | 'prismatic' | ''>('');
   const [upgrade, setUpgrade] = useState('0');
+  const [awakened, setAwakened] = useState(false);
   const [preview, setPreview] = useState<Preview>({ kind: 'none' });
   const blocked = cheat === 'blocked';
 
@@ -231,7 +233,14 @@ export function GrantItemTool({
   const base = findItemBase(baseId);
   const spec: GrantSpec | null =
     levelOk && upOk && base
-      ? { baseId, rarityId, itemLevel: level, variant: variant || null, upgradeLevel: up }
+      ? {
+          baseId,
+          rarityId,
+          itemLevel: level,
+          variant: variant || null,
+          upgradeLevel: up,
+          ...(awakened ? { awakened: true } : {}),
+        }
       : null;
   const stale = (s: GrantSpec) => JSON.stringify(s) !== JSON.stringify(spec);
 
@@ -375,6 +384,15 @@ export function GrantItemTool({
             aria-invalid={!upOk}
           />
         </SmallField>
+        <label className="adt-tool__check" htmlFor={`${ids}-awakened`}>
+          <input
+            id={`${ids}-awakened`}
+            type="checkbox"
+            checked={awakened}
+            onChange={(e) => change(setAwakened)(e.target.checked)}
+          />{' '}
+          Awakened ☼ <span className="adt-dim">(+10, item level 23+, with an effect or set)</span>
+        </label>
         <div className="adt-tool__row">
           <button
             type="button"

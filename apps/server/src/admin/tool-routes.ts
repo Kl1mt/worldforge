@@ -19,6 +19,9 @@ import {
   duelDay,
   findItemBase,
   generateItem,
+  awakenItem,
+  shippedAwakening,
+  type AwakeningRefusal,
   hasDungeonTier,
   isAreaUnlocked,
   isDungeonUnlocked,
@@ -133,7 +136,12 @@ const heroNotFound = () => new ApiError(404, 'not_found', 'No such hero.');
 
 function itemSummary(
   i: Pick<ItemInstance, 'id' | 'baseId' | 'rarityId' | 'itemLevel' | 'seed'> &
-    Partial<Pick<ItemInstance, 'variant' | 'upgradeLevel' | 'setId' | 'mythicId' | 'effectId'>>,
+    Partial<
+      Pick<
+        ItemInstance,
+        'variant' | 'upgradeLevel' | 'setId' | 'mythicId' | 'effectId' | 'awakening'
+      >
+    >,
 ) {
   return {
     itemId: i.id,
@@ -146,6 +154,7 @@ function itemSummary(
     setId: i.setId ?? null,
     mythicId: i.mythicId ?? null,
     effectId: i.effectId ?? null,
+    awakened: Boolean(i.awakening),
   };
 }
 
@@ -157,6 +166,8 @@ export interface GrantItemSpec {
   variant: ItemVariantId | null;
   upgradeLevel: number;
   seed: number;
+  /** Ticket 6.5b: grant it awakened (only an item the Forge could awaken: +10, eligible). */
+  awakened?: boolean;
 }
 
 /**
@@ -194,6 +205,16 @@ export function generateAdminItem(
   });
   if (!item) throw new ApiError(422, 'invalid_item', 'This item can’t be generated.');
   if (spec.variant) item.variant = spec.variant;
+  if (spec.awakened) {
+    // Ticket 6.5b: the Forge's own eligibility rule, so a test item is one a player could own.
+    const r = awakenItem({ ...item, upgradeLevel: spec.upgradeLevel });
+    if (!r.ok) {
+      throw new ApiError(422, 'invalid_item', AWAKEN_GRANT_REFUSALS[r.reason], {
+        fields: { awakened: AWAKEN_GRANT_REFUSALS[r.reason] },
+      });
+    }
+    item.awakening = shippedAwakening();
+  }
   const problems = validateItem(item);
   if (problems.length > 0) {
     throw new ApiError(422, 'invalid_item', 'This combination isn’t a valid item.', { problems });
@@ -201,12 +222,26 @@ export function generateAdminItem(
   return { ...item, upgradeLevel: spec.upgradeLevel };
 }
 
+/** Ticket 6.5b: why an admin grant can't be awakened (the Forge's rule). */
+const AWAKEN_GRANT_REFUSALS: Record<AwakeningRefusal, string> = {
+  rarity: 'Only Legendary, Mythic and set items can be awakened.',
+  upgrade_level: 'Only items at +10 can be awakened.',
+  item_level: 'Only items of item level 23 or higher can be awakened.',
+  already_awakened: 'Already awakened.',
+  nothing_to_awaken: 'This item has no effect or set bonus to awaken.',
+  unknown_base: 'Unknown item base.',
+  affix_missing: 'This item can’t be awakened.',
+  affix_not_allowed: 'This item can’t be awakened.',
+  affix_present: 'This item can’t be awakened.',
+};
+
 const grantSpecSchema = {
   baseId: { type: 'string', minLength: 1, maxLength: 64 },
   rarityId: { type: 'string', enum: [...RARITY_IDS] },
   itemLevel: { type: 'integer', minimum: 1, maximum: DEFAULT_LOOT_CONFIG.maxItemLevel },
   variant: { type: ['string', 'null'], enum: [...ITEM_VARIANT_IDS, null] },
   upgradeLevel: { type: 'integer', minimum: 0, maximum: 10 },
+  awakened: { type: 'boolean' },
 };
 
 export async function registerAdminTools(admin: FastifyInstance, options: ToolOptions) {
@@ -420,6 +455,7 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
             ...itemEffectColumns(generated),
             upgradeLevel: generated.upgradeLevel,
             ...binding,
+            ...(generated.awakening ? { awakening: generated.awakening, awakenedAt: now } : {}),
             source: 'admin',
             createdAt: now,
           })

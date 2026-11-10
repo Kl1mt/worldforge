@@ -23,6 +23,8 @@ import {
   type PvpFighterInput,
   type Rating,
   DEFAULT_MATCHMAKING,
+  BRACKET_POWER_VERSION,
+  awakenItem,
 } from '../index.js';
 import { gear, sampleBuild, winShare, type GearTier } from './pvp-fixtures.js';
 
@@ -60,9 +62,25 @@ function drawTier(r: () => number, level: number): GearTier | 'build' {
 
 const popMemo = new Map<string, ArenaHero[]>();
 
+/** Ticket 6.5b: how a population is drawn beyond its bracket and size. */
+export interface ArenaPopulationOptions {
+  /**
+   * Every hero in a +10 Void Legendary kit awakens every piece that may (the endgame players the
+   * owner expects to awaken). The same heroes, gear and levels as without it.
+   */
+  awakened?: boolean;
+  /** The bracket Power version matchmaking ranks by (default `BRACKET_POWER_VERSION`). */
+  powerVersion?: 1 | 2;
+}
+
 /** `size` heroes of a bracket (one account each), with their Power. Memoised per bracket. */
-export function arenaPopulation(bracket: PvpBracket, size: number): ArenaHero[] {
-  const key = `${bracket.id}:${size}`;
+export function arenaPopulation(
+  bracket: PvpBracket,
+  size: number,
+  options: ArenaPopulationOptions = {},
+): ArenaHero[] {
+  const version = options.powerVersion ?? BRACKET_POWER_VERSION;
+  const key = `${bracket.id}:${size}:${options.awakened ? 'awakened' : 'plain'}:${version}`;
   const cached = popMemo.get(key);
   if (cached) return cached;
   const rng = createRng(`arena-pop:${bracket.id}`);
@@ -72,9 +90,16 @@ export function arenaPopulation(bracket: PvpBracket, size: number): ArenaHero[] 
     const classId = CLASS_IDS[i % CLASS_IDS.length]!;
     const level = rng.int(bracket.min, top);
     const tier = drawTier(() => rng.next(), level);
-    const equipment =
+    const dressed =
       tier === 'build' ? sampleBuild(classId, level - 1, i) : gear(classId, level, tier, i);
-    const power = bracketPower({ classId, level, equipment }, bracket);
+    const equipment =
+      options.awakened && tier === 'legendary+10void'
+        ? dressed.map((item) => {
+            const r = awakenItem(item);
+            return r.ok ? r.item : item;
+          })
+        : dressed;
+    const power = bracketPower({ classId, level, equipment }, bracket, version);
     heroes.push({
       index: i,
       defenceId: `d${String(i).padStart(4, '0')}`,
@@ -145,6 +170,8 @@ export function measureFairness(
   seeds: number,
   config: MatchmakingConfig = DEFAULT_MATCHMAKING,
   size = 5,
+  /** Ticket 6.5b: count only the offered pairs this accepts (e.g. one side awakened). */
+  only?: (seeker: ArenaHero, opponent: ArenaHero) => boolean,
 ): FairnessReport {
   const fav: number[] = [];
   let predicts = 0;
@@ -173,6 +200,7 @@ export function measureFairness(
     listed += picks.length;
     if (picks.length === 0) empty++;
     for (const d of picks) {
+      if (only && !only(seeker, d)) continue;
       if (tierGap(seeker, d) >= 3) extreme++;
       const p = winShare(
         seeker.fighter,

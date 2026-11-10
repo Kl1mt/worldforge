@@ -25,7 +25,7 @@ import {
   type AwakenableItem,
 } from './awakening.js';
 
-/** Ticket 6.5: the Item Awakening prototype's rules (switched off; docs/AWAKENING.md). */
+/** Tickets 6.5 and 6.5b: the Item Awakening rules (docs/AWAKENING.md). */
 
 const legendary = (overrides: Partial<AwakenableItem> = {}): AwakenableItem => {
   const base = bestBase('warrior', 'weapon', 37);
@@ -59,23 +59,31 @@ const freeAffix = (item: AwakenableItem) =>
 const B = evaluationSettings({ option: 'effect', effectStrength: 1.25 });
 const A = evaluationSettings({ option: 'affixSlot', affixValueShare: 1 });
 
-describe('the switch (ticket 6.5)', () => {
-  it('is off by default and refuses every item while off', () => {
-    expect(DEFAULT_AWAKENING_SETTINGS.enabled).toBe(false);
+describe('the shipped rule (ticket 6.5b)', () => {
+  it("is option (b) at × 1.1 with the owner's price, and on (no switch)", () => {
+    expect(DEFAULT_AWAKENING_SETTINGS).toMatchObject({
+      option: 'effect',
+      rarities: ['legendary', 'mythic'],
+      upgradeLevel: 10,
+      minItemLevel: 23,
+      effectStrength: 1.1,
+      cost: { tyrantsEmber: 3, gravewardenSeal: 2, goldAtItemLevel20: 15_000, soulShard: 30 },
+    });
     const item = legendary();
     const r = awakenItem(item);
-    expect(r).toEqual({ ok: false, reason: 'disabled' });
-    expect(awakeningRefusal(item)).toBe('disabled');
-    expect(
-      awakenItem(item, DEFAULT_AWAKENING_SETTINGS, {
-        affixId: 'health',
-        roll: 1,
-        classId: 'warrior',
-      }),
-    ).toEqual({ ok: false, reason: 'disabled' });
+    expect(r.ok).toBe(true);
+    if (r.ok) expect(r.item.awakening).toEqual({ option: 'effect', effectStrength: 1.1 });
+    expect(awakeningRefusal(item)).toBeNull();
+    // About 25,000 gold at the Tyrant's item level (docs/AWAKENING.md "Costs and sinks").
+    expect(awakeningCost({ itemLevel: 37 })).toEqual({
+      gold: 25_200,
+      tyrantsEmber: 3,
+      gravewardenSeal: 2,
+      soulShard: 30,
+    });
   });
 
-  it('is frozen, so nothing can switch it on in place', () => {
+  it('is frozen, so nothing can change it in place', () => {
     expect(Object.isFrozen(DEFAULT_AWAKENING_SETTINGS)).toBe(true);
     expect(Object.isFrozen(DEFAULT_AWAKENING_SETTINGS.cost)).toBe(true);
   });

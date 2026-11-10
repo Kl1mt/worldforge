@@ -4,6 +4,7 @@ import { findItemBase, type ItemBaseDefinition } from '../items/bases.js';
 import { findMythic, mythicForBase } from '../items/mythics.js';
 import { findSet, setForBase } from '../items/sets.js';
 import { findItemVariant } from '../items/variants.js';
+import { awakeningErrors } from '../items/awakening.js';
 import { findEffect } from '../effects/registry.js';
 import { EFFECT_ROLL_STEPS, legendaryEffectPossibleOn } from '../effects/resolve.js';
 import { DEFAULT_LOOT_CONFIG, type LootConfig } from './config.js';
@@ -83,6 +84,8 @@ export function validateItem(
     }
   }
   errors.push(...variantErrors(item));
+  // Ticket 6.5b: an awakening must be the shipped one, on an eligible item.
+  errors.push(...awakeningErrors(item));
   errors.push(...setErrors(item, base));
   if (item.setId !== undefined) return errors;
   errors.push(...effectErrors(item, base));

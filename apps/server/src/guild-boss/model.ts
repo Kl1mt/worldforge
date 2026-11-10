@@ -68,6 +68,7 @@ export async function heroSnapshot(tx: Executor, hero: Character): Promise<Guild
       setId: itemInstances.setId,
       upgradeLevel: itemInstances.upgradeLevel,
       variant: itemInstances.variant,
+      awakening: itemInstances.awakening,
     })
     .from(itemInstances)
     .where(and(eq(itemInstances.characterId, hero.id), isNotNull(itemInstances.equippedSlot)));

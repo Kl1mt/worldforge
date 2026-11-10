@@ -1,3 +1,4 @@
+export * from './awakening.js';
 export * from './affixes.js';
 export * from './bases.js';
 export * from './model.js';

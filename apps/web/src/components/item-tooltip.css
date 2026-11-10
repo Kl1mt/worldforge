@@ -128,6 +128,24 @@
     1;
 }
 
+/* Awakened (ticket 6.5b): the note's word in ember, and a smouldering line under the header (hard
+   stops: coal with ember pixels, no blur). On a Prismatic item the opal rule gives way to it. */
+.tooltip__unique--awakened .caps {
+  color: var(--ember-core);
+  text-shadow: 0 0 2px var(--ember-glow);
+}
+
+.tooltip[data-awakened='true'] .tooltip__head {
+  border-image: repeating-linear-gradient(
+      to right,
+      var(--ember-coal) 0 6px,
+      var(--ember-glow) 0 8px,
+      var(--ember-coal) 0 12px,
+      var(--ember-core) 0 13px
+    )
+    1;
+}
+
 /* Legendary effect / Mythic signature (ticket 3.2): a rarity rule and the effect in plain words. */
 .tooltip__effect {
   margin-top: var(--space-3);

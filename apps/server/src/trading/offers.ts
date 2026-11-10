@@ -223,6 +223,7 @@ export function itemFacts(i: ItemInstance): TradeItemFacts {
     inWarehouse: i.inWarehouse,
     onShelf: i.onShelf,
     holdUntil: i.holdUntil ?? null,
+    awakening: i.awakening ?? null,
   };
 }
 

@@ -2,7 +2,14 @@ import type { CSSProperties } from 'react';
 import { findSprite } from '../content/assets';
 import type { ItemView } from '../game/items';
 import { PixelSprite } from './PixelSprite';
-import { shimmerClass, VARIANT_MARK, variantTreatment, type ShimmerMode } from './itemVariant';
+import {
+  AWAKENED_MARK,
+  emberClass,
+  shimmerClass,
+  VARIANT_MARK,
+  variantTreatment,
+  type ShimmerMode,
+} from './itemVariant';
 import './item-frame.css';
 
 interface ItemFrameProps {
@@ -16,6 +23,8 @@ interface ItemFrameProps {
         variant?: ItemView['variant'];
         /** Ticket 3.7: a padlock in the upper right corner. */
         locked?: boolean;
+        /** Ticket 6.5b: the ember treatment and the ☼ sigil. */
+        awakened?: ItemView['awakened'];
       })
     | undefined;
   /** Icon scale (icons are 32 px native). */
@@ -30,7 +39,10 @@ interface ItemFrameProps {
   isNew?: boolean;
   /** Ticket 3.7: shown but not selectable (e.g. a locked item in a sell picker). */
   disabled?: boolean;
-  /** Ticket A.12: whether the Prismatic sweep may move (`itemVariant.ts`); `auto` in the game. */
+  /**
+   * Ticket A.12: whether the Prismatic sweep (and, 6.5b, the awakened ember glow) may move
+   * (`itemVariant.ts`); `auto` in the game.
+   */
   shimmer?: ShimmerMode;
 }
 
@@ -65,13 +77,16 @@ export function ItemFrame({
     item?.variant ? `item-frame--${item.variant.id}` : '',
     treatment === 'prismatic' ? shimmerClass(shimmer) : '',
     item?.locked ? 'item-frame--locked' : '',
+    // Ticket 6.5b: awakened, on top of the rarity and any variant (it never replaces them).
+    item?.awakened ? 'item-frame--awakened' : '',
+    item?.awakened ? emberClass(shimmer) : '',
   ]
     .filter(Boolean)
     .join(' ');
   const upgrade = item?.upgradeLevel ?? 0;
   const variant = item?.variant ? `${item.variant.name} ` : '';
   const label = item
-    ? `${context ? `${context}: ` : ''}${item.name}${upgrade > 0 ? ` +${upgrade}` : ''}, ${variant}${item.rarity}${item.locked ? ', locked' : ''}${isNew ? ', new' : ''}`
+    ? `${context ? `${context}: ` : ''}${item.name}${upgrade > 0 ? ` +${upgrade}` : ''}, ${item.awakened ? 'awakened ' : ''}${variant}${item.rarity}${item.locked ? ', locked' : ''}${isNew ? ', new' : ''}`
     : `${context ?? 'Empty slot'}${emptyLabel && !context ? `: ${emptyLabel}` : ''}, empty`;
 
   const tag =
@@ -127,10 +142,21 @@ export function ItemFrame({
         ))}
       </>
     ) : null;
+  // Ticket 6.5b: the awakened mark, an ember sigil ☼ (a shape, distinct from ◇ and ✧), and the
+  // smouldering line along the socket's base under the art.
+  const ember = item?.awakened ? (
+    <>
+      <span className="item-frame__ember" aria-hidden="true" />
+      <span className="item-frame__awakened" aria-hidden="true">
+        {AWAKENED_MARK}
+      </span>
+    </>
+  ) : null;
   // Ticket 3.7: a small iron padlock (shape, not colour) in the upper right corner.
   const lockMark = item?.locked ? <span className="item-frame__lock" aria-hidden="true" /> : null;
   const inner = (
     <>
+      {ember}
       {art}
       {prism}
       {tag}

@@ -1,4 +1,6 @@
 import {
+  awakenedEffectStrength,
+  type EquippedItem,
   itemBindingSource,
   type ItemBindingReason,
   BOSS_LOOT_TABLES,
@@ -118,6 +120,11 @@ export interface ItemView {
   variant: VariantView | null;
   /** Ticket 3.7: locked items can't be sold, salvaged or discarded. */
   locked: boolean;
+  /**
+   * Ticket 6.5b: the item is awakened (its effect, or its set's bonuses, × `effectStrength`);
+   * null otherwise. Its effect text in `effect` already reads the awakened numbers.
+   */
+  awakened: AwakenedView | null;
   /** Ticket T.1: the item's binding in plain words; null where the server sent none (offers). */
   binding: BindingView | null;
   /**
@@ -127,6 +134,21 @@ export interface ItemView {
   heldUntil?: string;
   /** Ticket 3.7: the fields the loot filter reads (game-core `lootFilterHandles`), for previews. */
   filterKey: LootFilterItem;
+  /**
+   * Ticket 6.5b: the item as game-core's rules read it (the stored columns), for quotes the
+   * client shows before the server decides (the awaken panel's before/after).
+   */
+  rules: EquippedItem & { variant: ItemDto['variant'] };
+}
+
+/** Ticket 6.5b: an awakened item as the frame and tooltip show it. */
+export interface AwakenedView {
+  /** "+10 %": what the awakening adds to the item's own effect, or to its set's bonuses. */
+  bonus: number;
+  /** What it strengthens: the item's own effect, or its set's bonuses (piece by piece). */
+  kind: 'effect' | 'set';
+  /** When it was awakened (ISO), when the server sent it. */
+  at: string | null;
 }
 
 /** An item's binding as the tooltip shows it (ticket T.1, docs/TRADING.md). */
@@ -166,6 +188,7 @@ export function bindingView(
     worn: 'Bound when first worn.',
     forged: 'Bound by work at the forge.',
     traded: 'Bound after changing hands once.',
+    awakened: 'Awakened items are bound for good and can never be traded.',
     rarity: 'Common, uncommon and rare items are always bound.',
     source:
       source === 'hoard'
@@ -275,6 +298,8 @@ export type ItemDisplaySource = Pick<
       | 'bindingReason'
       | 'tradeable'
       | 'holdUntil'
+      | 'awakening'
+      | 'awakenedAt'
     >
   >;
 
@@ -317,10 +342,12 @@ export function toItemView(dto: ItemDisplaySource): ItemView {
     equippedSlot: dto.equippedSlot,
     createdAt: dto.createdAt,
     uniqueSource: uniqueSourceOf(dto.baseId),
+    // Ticket 6.5b: the effect as combat reads it, × the variant and × the awakening.
     effect: effectView(
       dto.effectId,
       dto.effectRoll,
-      activeVariant({ rarityId: dto.rarityId, variant: dto.variant ?? null })?.effectStrength,
+      (activeVariant({ rarityId: dto.rarityId, variant: dto.variant ?? null })?.effectStrength ??
+        1) * awakenedEffectStrength({ awakening: dto.awakening ?? null }),
     ),
     setId: setIdOf(dto.baseId, dto.setId),
     variant: variantView(
@@ -329,10 +356,24 @@ export function toItemView(dto: ItemDisplaySource): ItemView {
       Boolean(dto.effectId && findEffect(dto.effectId)),
     ),
     locked: dto.locked ?? false,
+    awakened: awakenedView(dto),
     binding: bindingView(dto),
     ...(dto.holdUntil && Date.parse(dto.holdUntil) > Date.now()
       ? { heldUntil: dto.holdUntil }
       : {}),
+    rules: {
+      baseId: dto.baseId,
+      rarityId: dto.rarityId,
+      itemLevel: dto.itemLevel,
+      affixes: dto.affixes,
+      upgradeLevel: dto.upgradeLevel ?? 0,
+      effectId: dto.effectId ?? null,
+      effectRoll: dto.effectRoll ?? null,
+      mythicId: dto.mythicId ?? null,
+      setId: dto.setId ?? null,
+      variant: dto.variant ?? null,
+      awakening: dto.awakening ?? null,
+    },
     filterKey: {
       rarityId: dto.rarityId,
       affixes: dto.affixes,
@@ -341,6 +382,19 @@ export function toItemView(dto: ItemDisplaySource): ItemView {
       ...(dto.mythicId ? { mythicId: dto.mythicId } : {}),
       ...(dto.variant ? { variant: dto.variant } : {}),
     },
+  };
+}
+
+/** Ticket 6.5b: the awakening of a server item, as the frame and tooltip show it. */
+export function awakenedView(
+  dto: Pick<ItemDisplaySource, 'awakening' | 'awakenedAt' | 'setId'>,
+): AwakenedView | null {
+  const strength = awakenedEffectStrength({ awakening: dto.awakening ?? null });
+  if (strength <= 1) return null;
+  return {
+    bonus: Math.round((strength - 1) * 1000) / 1000,
+    kind: dto.setId ? 'set' : 'effect',
+    at: dto.awakenedAt ?? null,
   };
 }
 
