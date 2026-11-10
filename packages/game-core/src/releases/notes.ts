@@ -23,9 +23,19 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.6.8';
+export const GAME_VERSION = '0.6.9';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.6.9',
+    date: '2026-11-12',
+    title: 'The void stirs',
+    changed: [
+      'Void items now stir in your pack, gear and every other place they show: their pale outline slowly breathes and now and then flickers, and faint motes drift inward through the dark around them. It is only a look and changes nothing about the item.',
+      'Prismatic items keep their slow shimmer. If your device asks for reduced motion, both stay still, as before.',
+    ],
+    tickets: ['A.12b'],
+  },
   {
     version: '0.6.8',
     date: '2026-11-12',

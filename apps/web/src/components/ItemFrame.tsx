@@ -63,7 +63,8 @@ export function ItemFrame({
     onSelect ? 'item-frame--interactive' : '',
     item && isNew ? 'item-frame--new' : '',
     item?.variant ? `item-frame--${item.variant.id}` : '',
-    treatment === 'prismatic' ? shimmerClass(shimmer) : '',
+    // A.12 / A.12b: both variants move (Prismatic's sweep, Void's breath and motes).
+    treatment ? shimmerClass(shimmer) : '',
     item?.locked ? 'item-frame--locked' : '',
   ]
     .filter(Boolean)
@@ -127,10 +128,35 @@ export function ItemFrame({
         ))}
       </>
     ) : null;
+  // Ticket A.12b: Void's moving layers, behind the icon in its grid cell (no layout change): motes
+  // pulled through the rift toward the centre, and a voidlight edge that breathes. Shown only while
+  // motion is on; still, the icon's own static edge is drawn as before (item-frame.css).
+  const voidBox = sprite
+    ? {
+        width: sprite.width * Math.max(1, Math.floor(scale)),
+        height: sprite.height * Math.max(1, Math.floor(scale)),
+      }
+    : undefined;
+  const voidLayers =
+    treatment === 'void' && sprite ? (
+      <>
+        <span className="item-frame__void-motes" aria-hidden="true" style={voidBox} />
+        <span className="item-frame__void-edge" aria-hidden="true" style={voidBox}>
+          <span
+            className="item-frame__void-edge-fill"
+            style={{
+              maskImage: `url("${sprite.path}")`,
+              WebkitMaskImage: `url("${sprite.path}")`,
+            }}
+          />
+        </span>
+      </>
+    ) : null;
   // Ticket 3.7: a small iron padlock (shape, not colour) in the upper right corner.
   const lockMark = item?.locked ? <span className="item-frame__lock" aria-hidden="true" /> : null;
   const inner = (
     <>
+      {voidLayers}
       {art}
       {prism}
       {tag}
