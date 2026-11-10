@@ -1,0 +1,14 @@
+{
+  "endpoint": "animate-with-text-v3",
+  "action": "six separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left. All six attack at the same time, each staying inside its own cell: the flaming skull wisp darts forward to the left with its flame trail flaring, the stone colossus slams its huge fist forward to the left, the pale many-armed crawler lashes its long arms forward to the left, the drowned thrall swings its rusted anchor forward to the left, the bog horror heaves its mossy mass forward to the left, the fallen knight swings his greatsword down to the left. Then each returns to its starting pose. Bodies stay in place, same size, same colours.",
+  "first_frame": "art/source/pixellab/anim-enemies-03/_first.png",
+  "frame_count": 9,
+  "job_id": "75ea7100-1c19-4be7-b25c-b912e18b3ee1",
+  "created_at": "2026-11-10T00:37:08.427811+00:00",
+  "seed": 0,
+  "loop": true,
+  "usage": {
+    "type": "generations",
+    "generations": 6.0
+  }
+}

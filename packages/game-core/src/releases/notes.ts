@@ -23,9 +23,24 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.6.1';
+export const GAME_VERSION = '0.6.2';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.6.2',
+    date: '2026-11-10',
+    title: 'Claws and pitchforks',
+    new: [
+      'Most foes now strike with their own attack: farmhands jab their pitchforks, wolves lunge, crows peck, skeletons and knights swing their blades, and the creatures of the Ashen Pass and the Ashfall Verge lash out in their own way.',
+    ],
+    changed: [
+      'The hunter’s shot is easier to follow: the bow comes up, the string draws back and the arrow flies.',
+    ],
+    fixed: [
+      'Battle animations no longer fall out of step after a few foes: every blow, flinch, fall and return now plays every time.',
+    ],
+    tickets: ['A.14b'],
+  },
   {
     version: '0.6.1',
     date: '2026-11-09',

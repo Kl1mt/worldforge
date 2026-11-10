@@ -26,6 +26,8 @@ export interface ScenePlan {
   cadenceMs: number;
   /** From the swing to the blow landing (the lunge's furthest point). */
   impactMs: number;
+  /** A.14b: per foe, from its lunge (or its frames) to its blow landing on the hero. */
+  foeImpactMs: readonly number[];
   /** A fallen foe stays down this long before a new one fades in. */
   respawnMs: number;
   /** Number of foes in the line (0 = an empty room: the hero only breathes). */
@@ -54,6 +56,8 @@ export function planFor(input: {
   foes: number;
   /** The hero swings with a frame sheet: the blow lands at the slash, later than a lunge's. */
   framed?: boolean;
+  /** A.14b: which foes strike with a frame sheet (their blow lands later too). */
+  framedFoes?: readonly boolean[];
 }): ScenePlan {
   const speed = input.attackSpeed;
   const raw =
@@ -62,6 +66,9 @@ export function planFor(input: {
   return {
     cadenceMs,
     impactMs: input.framed ? FRAMED_IMPACT_MS : LUNGE_IMPACT_MS,
+    foeImpactMs: Array.from({ length: Math.max(0, Math.floor(input.foes)) }, (_, i) =>
+      input.framedFoes?.[i] ? FRAMED_IMPACT_MS : LUNGE_IMPACT_MS,
+    ),
     respawnMs: Math.max(1_600, cadenceMs * 1.25),
     foes: Math.max(0, Math.floor(input.foes)),
   };
@@ -190,7 +197,8 @@ export class SceneLoop {
       const attacker = attackers[Math.floor(this.random() * attackers.length)]!;
       const strikeAt = at + Math.round(this.plan.cadenceMs * 0.5);
       this.push(strikeAt, { kind: 'foeStrike', foe: attacker });
-      this.push(strikeAt + this.plan.impactMs, { kind: 'heroHit' });
+      const landsAfter = this.plan.foeImpactMs[attacker] ?? LUNGE_IMPACT_MS;
+      this.push(strikeAt + landsAfter, { kind: 'heroHit' });
     }
   }
 }

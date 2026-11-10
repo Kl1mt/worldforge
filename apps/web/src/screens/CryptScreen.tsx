@@ -13,7 +13,7 @@ import {
   type UnlockBlocker,
 } from '@worldforge/game-core';
 import { useActiveCharacter, useCharacters } from '../characters/CharactersProvider';
-import { classAttackSheet, classPortrait } from '../content/assets';
+import { classAttackSheet, classPortrait, enemyAttackSheet } from '../content/assets';
 import { DUNGEON_WORDS } from '../content/dungeons';
 import { findAsset } from '../content/world';
 import { ItemFrame } from '../components/ItemFrame';
@@ -150,6 +150,8 @@ function CryptScene({
   const shownId: EnemyId | null = progress ? (foe?.enemyId ?? null) : dungeon.bossId;
   const shown = shownId ? getEnemy(shownId) : null;
   const sprite = shown ? findAsset(shown.assetId) : null;
+  // A.14b: attack frames when this foe has them (the crypt's bosses don't: code animation).
+  const foeSheet = shown && sprite ? enemyAttackSheet(shown.assetId) : null;
   const isBoss = shown?.rank === 'boss';
   // The 128 px warden at the hero's pixel scale: it towers over the 64 px hero, as it should.
   const foeScale = spriteScale;
@@ -164,6 +166,7 @@ function CryptScene({
     foes: 1,
     attackSpeed: inventory.kind === 'ready' ? inventory.value.stats.attackSpeed : null,
     framed: sheet !== null,
+    framedFoes: [foeSheet !== null],
   });
 
   return (
@@ -208,13 +211,14 @@ function CryptScene({
           </div>
           {shown ? (
             <div className={`crypt-foe${isBoss ? ' crypt-foe--boss' : ''}`}>
-              <SceneActor role="foe" actorRef={foeRef(0)}>
+              <SceneActor role="foe" framed={foeSheet !== null} actorRef={foeRef(0)}>
                 {sprite ? (
                   <PixelSprite
-                    sprite={sprite}
+                    sprite={foeSheet ?? sprite}
+                    fallback={sprite}
                     scale={foeScale}
                     alt={shown.name}
-                    mirror={sprite.facing === 'right'}
+                    mirror={(foeSheet ?? sprite).facing === 'right'}
                   />
                 ) : (
                   <span className="foe-missing">{shown.name}</span>

@@ -69,7 +69,16 @@ export function PixelSprite({
         className={['pixel-sheet', mirror ? 'pixel--mirror' : '', className]
           .filter(Boolean)
           .join(' ')}
-        style={{ width, height, ['--frames' as string]: frames, ...style }}
+        style={{
+          width,
+          height,
+          ['--frames' as string]: frames,
+          // A.14b: the frame's strike room sits outside the still's footprint (see `lead`).
+          ...(sprite.lead
+            ? { [mirror ? 'marginRight' : 'marginLeft']: -Math.floor(sprite.lead) * s }
+            : {}),
+          ...style,
+        }}
       >
         <img
           src={sprite.path}

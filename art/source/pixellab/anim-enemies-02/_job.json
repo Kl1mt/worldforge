@@ -1,0 +1,14 @@
+{
+  "endpoint": "animate-with-text-v3",
+  "action": "six separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left. All six attack at the same time, each staying inside its own cell: the hooded ash wraith reaches its clawed hand forward to the left, the ember-cracked hound snaps its jaws and lunges its head to the left, the cultist swings the smoking censer forward to the left, the ember golem punches its stone fist forward to the left, the armoured revenant swings its sword up and down to the left, the molten slag hound bites forward to the left. Then each returns to its starting pose. Bodies stay in place, same size, same colours.",
+  "first_frame": "art/source/pixellab/anim-enemies-02/_first.png",
+  "frame_count": 9,
+  "job_id": "cad43c7e-cc40-4e30-95dd-04564587fa35",
+  "created_at": "2026-11-10T00:36:19.333530+00:00",
+  "seed": 0,
+  "loop": true,
+  "usage": {
+    "type": "generations",
+    "generations": 6.0
+  }
+}

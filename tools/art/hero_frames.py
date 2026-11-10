@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 JOBS = {
     "warrior": "anim-warrior-02",
     "mage": "anim-mage-01",
-    "hunter": "anim-hunter-01",
+    "hunter": "anim-hunter-02",
     "warlock": "anim-warlock-01",
 }
 FRAMES = 8
