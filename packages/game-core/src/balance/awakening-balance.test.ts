@@ -34,6 +34,9 @@ import { legendaryKit, upgraded } from './kits.js';
 const TYRANT: BossJob = { dungeonId: 'tyrantsForge', tier: 1, level: 38, itemLevel: 37, runs: 12 };
 const B = evaluationSettings({ option: 'effect' });
 const A = evaluationSettings({ option: 'affixSlot' });
+// Build searches and boss/farming simulations: well over vitest's 5 s default on a loaded CI
+// runner (the first test also runs the whole search), like the other balance suites' SLOW.
+const SLOW = { timeout: 120_000 };
 type Option = 'none' | 'a' | 'b';
 type Variant = 'void' | 'prismatic';
 
@@ -93,7 +96,7 @@ describe('Item Awakening below +10 (ticket 6.5b)', () => {
   });
 });
 
-describe('the evaluation (ticket 6.5, B.2 build search at the Forge Tyrant)', () => {
+describe('the evaluation (ticket 6.5, B.2 build search at the Forge Tyrant)', SLOW, () => {
   // Searched once, on first use (inside a test, not while the file is collected).
   let cache: ReturnType<typeof search> | undefined;
   const rowsOf = () => (cache ??= search());
@@ -186,7 +189,7 @@ describe('the evaluation (ticket 6.5, B.2 build search at the Forge Tyrant)', ()
   });
 });
 
-describe('farming and the cost (ticket 6.5)', () => {
+describe('farming and the cost (ticket 6.5)', SLOW, () => {
   const DEPTHS = { ...PASS_FARM_JOB, areaId: 'cinderDepths' as const, level: 37, itemLevel: 36 };
 
   it.each(CLASS_IDS)('%s: an awakened kit farms the Depths at most a few percent faster', (c) => {
