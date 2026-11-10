@@ -1,4 +1,4 @@
-# Balance measurements (tickets B.2, 4.8, B.3, 5.4, 5.6, B.4, T.7, 6.1, 6.2)
+# Balance measurements (tickets B.2, 4.8, B.3, 5.4, 5.6, B.4, T.7, 6.1, 6.2, 6.5)
 
 Dev scripts behind the before/after tables in `docs/COMBAT.md`, `docs/DUNGEONS.md`, `docs/EFFECTS.md`, `docs/PVP.md` and `docs/LEADERBOARDS.md`. Not run in CI (the guards are `packages/game-core/src/balance/*.test.ts`). Run from the repo root:
 
@@ -22,6 +22,8 @@ pnpm --filter @worldforge/server exec tsx ../../tools/balance/export-arena-fixtu
 # Ticket T.7: trading and the shelf (four 7-day runs side by side, ~15 min), then the balance check
 pnpm --filter @worldforge/server telemetry:simulate -- --dir .telemetry-sample/t7-base --days 7   # also: …/t7-alts --alts, …/t7-on --trading on, …/t7-all --trading all (under the git-ignored .telemetry-sample/)
 pnpm --filter @worldforge/server exec tsx --conditions=source ../../tools/balance/trading.ts base=../../.telemetry-sample/t7-base alts=../../.telemetry-sample/t7-alts on=../../.telemetry-sample/t7-on all=../../.telemetry-sample/t7-all
+# Ticket 6.5: Item Awakening (docs/AWAKENING.md), game-core only; STRENGTH=1.25 SHARE=1 for the untuned options
+pnpm --filter @worldforge/server exec tsx ../../tools/balance/awakening.ts builds   # or: items, older, power, pvp, time, realistic, all
 ```
 
 To compare with another revision, run them in a worktree of it (`git worktree add`).

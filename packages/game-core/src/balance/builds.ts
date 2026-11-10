@@ -66,7 +66,8 @@ const SKILL_AFFIX: Record<ClassId, string> = {
  */
 export const AFFIX_PACKAGES = ['crit', 'speed', 'power', 'guard'] as const;
 export type AffixPackage = (typeof AFFIX_PACKAGES)[number];
-function affixOrder(c: ClassId, p: AffixPackage): string[] {
+/** The affix order of a package (ticket 6.5: exported for the awakening evaluation). */
+export function affixOrder(c: ClassId, p: AffixPackage): string[] {
   const d = DAMAGE_AFFIX[c];
   const s = SKILL_AFFIX[c];
   switch (p) {
@@ -377,7 +378,7 @@ export interface Scored {
 export function searchBuilds(
   c: ClassId,
   itemLevel: number,
-  score: (items: EquippedItem[]) => number,
+  score: (items: EquippedItem[], build: Build) => number,
   chassisList: Chassis[],
   perPackage = false,
 ): Scored[] {
@@ -392,7 +393,7 @@ export function searchBuilds(
           ? effects.slice()
           : ch.fixed.map((f) => f ?? { kind: 'legendary', effectId: null });
       const make = (): Build => ({ classId: c, chassis: ch.name, picks: picks.slice(), pkg });
-      let best = score(buildItems(make(), itemLevel));
+      let best = score(buildItems(make(), itemLevel), make());
       if (!effects || perPackage) {
         for (let i = 0; i < slots.length; i++) {
           if (ch.fixed[i]) continue;
@@ -401,7 +402,7 @@ export function searchBuilds(
             if (used.has(effectId)) continue;
             const before = picks[i]!;
             picks[i] = { kind: 'legendary', effectId };
-            const s = score(buildItems(make(), itemLevel));
+            const s = score(buildItems(make(), itemLevel), make());
             if (s > best) best = s;
             else picks[i] = before;
           }

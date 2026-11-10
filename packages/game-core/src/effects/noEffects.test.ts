@@ -19,7 +19,10 @@ import {
   type LootTableDefinition,
   type LootFilterRules,
   type EquippedItem,
+  characterPower,
 } from '../index.js';
+import { awakenItem, evaluationSettings } from '../items/awakening.js';
+import { buildItems, buildSlots, chassis, effectPool, type Build } from '../balance/builds.js';
 
 /**
  * Ticket 3.2 regression: without an effect equipped every number comes out exactly as before the
@@ -173,6 +176,27 @@ const strayVoid = (items: GeneratedItem[]) =>
 const strayPrismatic = (items: GeneratedItem[]) =>
   items.map((item) => ({ ...item, variant: 'prismatic' as const }));
 
+/** Ticket 6.5: an explicit `awakening: null` on every item (the field a 6.5b column would fill). */
+const noAwakening = (items: GeneratedItem[]) => items.map((item) => ({ ...item, awakening: null }));
+
+/** Ticket 6.5: every item offered to the prototype with the switch off (the default): refused. */
+const refusedAwakening = (items: GeneratedItem[]) =>
+  items.map((item) => {
+    const r = awakenItem(item);
+    expect(r).toEqual({ ok: false, reason: 'disabled' });
+    return item;
+  });
+
+/** Ticket 6.5: neutral awakenings a reader must ignore (strength 1, an empty affix-slot mark). */
+const strayAwakening = (items: GeneratedItem[]) =>
+  items.map((item, i) => ({
+    ...item,
+    awakening:
+      i % 2 === 0
+        ? { option: 'effect' as const, effectStrength: 1 }
+        : { option: 'affixSlot' as const, affixIndex: item.affixes.length },
+  }));
+
 /**
  * The pinned hashes for a kit dressing and a loot filter (ticket 3.7: the filter only decides what
  * happens to drops, and with no rules nothing changes at all).
@@ -278,6 +302,9 @@ describe.each([
   ['no variant (ticket 3.5)', noVariant],
   ['a Void flag on items that cannot be Void (ticket 3.5)', strayVoid],
   ['a Prismatic flag on items that cannot be Prismatic (ticket 6.4)', strayPrismatic],
+  ['no awakening (ticket 6.5)', noAwakening],
+  ['awakenings refused by the switch (ticket 6.5)', refusedAwakening],
+  ['neutral awakenings (ticket 6.5)', strayAwakening],
 ])('%s', (_, dress) => {
   it('farming, detailed simulation and the crypt give exactly the pre-3.2 results', () => {
     expect(pinnedHashes(dress)).toEqual(BEFORE_EFFECTS);
@@ -382,5 +409,82 @@ describe('the late-game loot tables (ticket B.2)', () => {
     const moved = Object.keys(BEFORE_EFFECTS).filter((k) => now[k] !== BEFORE_EFFECTS[k]);
     expect(moved.length).toBeGreaterThan(0);
     for (const k of moved) expect(k).toMatch(/sunkenAbbey|crypt/);
+  });
+});
+
+/**
+ * Ticket 6.5: Item Awakening is switched off. The pinned kits above hold no Legendary, so this
+ * also checks a late-game kit the prototype would accept (+10 Void Legendaries with effects and
+ * four Drowned Vigil pieces at item level 37): offered to it with the default settings, every
+ * piece is refused and the Depths settlement, a Forge Tyrant run and Character Power are exactly
+ * those of the untouched kit; with the switch on (the evaluation only) each option changes them.
+ */
+describe('Item Awakening switched off (ticket 6.5)', () => {
+  const c: ClassId = 'warrior';
+  const slots = buildSlots(c);
+  const vigil = chassis(c, [['drowned-vigil', 4]]);
+  const build: Build = {
+    classId: c,
+    chassis: vigil.name,
+    picks: vigil.fixed.map(
+      (f, i) => f ?? { kind: 'legendary', effectId: effectPool(c, slots[i]!, 37)[i % 2] ?? null },
+    ),
+    pkg: 'crit',
+    upgradeLevel: 10,
+    void: true,
+  };
+  const kit = buildItems(build, 37);
+  const results = (equipment: EquippedItem[]) => ({
+    settle: hash(
+      settleFarming({
+        character: { classId: c, level: 38, xp: 0 },
+        equipment,
+        areaId: 'cinderDepths',
+        seed: 'awakening-off',
+        firstCycle: 0,
+        durationMs: 3_600_000,
+        inventoryCount: 0,
+      }),
+    ),
+    tyrant: cryptHash(
+      simulateDungeonRun({
+        dungeonId: 'tyrantsForge',
+        character: { classId: c, level: 38, xp: 0 },
+        equipment,
+        seed: 'awakening-off',
+        bossLootEligible: true,
+        inventoryCount: 0,
+      }),
+    ),
+    power: characterPower({ classId: c, level: 38, equipment }).power,
+  });
+  const before = results(kit);
+
+  it('refuses every piece, and the kit fights exactly as before', () => {
+    const offered = kit.map((item) => {
+      const r = awakenItem(item);
+      expect(r.ok).toBe(false);
+      return r.ok ? r.item : item;
+    });
+    expect(results(offered)).toEqual(before);
+    expect(results(kit.map((i) => ({ ...i, awakening: null })))).toEqual(before);
+  });
+
+  it('the check can fail: with the switch on, either option changes the results', () => {
+    const on = (option: 'effect' | 'affixSlot') =>
+      kit.map((item) => {
+        const r = awakenItem(item, evaluationSettings({ option, affixValueShare: 0.5 }), {
+          affixId: 'health',
+          roll: 0.5,
+          classId: c,
+        });
+        return r.ok ? r.item : item;
+      });
+    const effect = results(on('effect'));
+    const slot = results(on('affixSlot'));
+    expect(effect.settle).not.toBe(before.settle);
+    expect(effect.tyrant).not.toBe(before.tyrant);
+    expect(slot.settle).not.toBe(before.settle);
+    expect(slot.settle).not.toBe(effect.settle);
   });
 });
