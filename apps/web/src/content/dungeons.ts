@@ -34,6 +34,16 @@ export interface DungeonWords {
   /** The boss's hoard on cooldown; `{when}` is the time it returns. */
   hoardBack: string;
   leaving: string;
+  /** Ticket 6.2: the boss in running text at the start of a sentence ("The warden"). */
+  bossShort: string;
+  /** Ticket 6.2: the way to the boss in a boss-only run ("the stair"). */
+  approach: string;
+  /** Ticket 6.2: the reckoning's line when the boss fell with his hoard. */
+  hoardWon: string;
+  /** Ticket 6.2: the reckoning's line when a boss-only run is lost. */
+  bossStands: string;
+  /** Ticket 6.2: the boss's own mechanics, a door fact (absent: none beyond the enrage). */
+  mechanics?: string;
   /** Log lines. */
   bossEnter: string;
   enrage: string;
@@ -73,6 +83,10 @@ export const DUNGEON_WORDS: Readonly<Record<DungeonId, DungeonWords>> = {
     hoardBack: 'The warden’s hoard returns {when}, at every depth. You can still fight it.',
     leaving:
       'Your hero leaves the fields while in the crypt. A fall keeps what you took on the way down.',
+    bossShort: 'The warden',
+    approach: 'the stair',
+    hoardWon: 'Its seal is yours, and its hoard with it.',
+    bossStands: 'The warden stands.',
     bossEnter: 'The Gravewarden’s chamber. The door grinds shut behind you.',
     enrage: 'The Gravewarden enrages! Its blows fall faster and harder.',
     won: 'The Gravewarden is no more. The crypt falls silent.',
@@ -102,6 +116,10 @@ export const DUNGEON_WORDS: Readonly<Record<DungeonId, DungeonWords>> = {
     hoard: 'The warden’s hoard: two items from his armoury and his purse, once per 20 hours.',
     hoardBack: 'The warden’s hoard returns {when}. You can still fight him.',
     leaving: 'Your hero leaves the fields while on the watch. A fall costs nothing but the climb.',
+    bossShort: 'The warden',
+    approach: 'the stair',
+    hoardWon: 'His hoard is yours.',
+    bossStands: 'The warden stands. A fall costs nothing but the climb.',
     bossEnter: 'The top of the watchtower. The Ashen Warden turns from his fire.',
     enrage: 'The Ashen Warden’s blade catches fire! His blows fall faster and harder.',
     won: 'The Ashen Warden falls. The fire on the tower goes out.',
@@ -135,6 +153,12 @@ export const DUNGEON_WORDS: Readonly<Record<DungeonId, DungeonWords>> = {
     hoardBack: 'The Tyrant’s hoard returns {when}. You can still fight him.',
     leaving:
       'Your hero leaves the fields while in the forge. A fall costs nothing but the descent.',
+    bossShort: 'The Tyrant',
+    approach: 'the descent',
+    hoardWon: 'His ember is yours, and his hoard with it.',
+    bossStands: 'The Tyrant stands. A fall costs nothing but the descent.',
+    mechanics:
+      'His slag armour softens your blows until a third of his strength is gone, and every third swing of his hammer lands four times as hard.',
     bossEnter: 'The furnace floor. The Forge Tyrant sets down his tongs and lifts his hammer.',
     enrage: 'The furnace roars white! The Tyrant’s blows fall faster and harder.',
     shellBroken: 'His slag armour cracks and falls away. Your blows bite now.',

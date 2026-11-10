@@ -183,14 +183,12 @@ describe('formula versions between seasons (ticket 6.1)', () => {
           plannedAt: '2026-11-09T12:00:00Z',
         },
       ];
-      await fresh.db
-        .insert(gameSettings)
-        .values({
-          key: FORMULA_SCHEDULE_KEY,
-          value: { switches: v61 },
-          version: 1,
-          updatedAt: at(),
-        });
+      await fresh.db.insert(gameSettings).values({
+        key: FORMULA_SCHEDULE_KEY,
+        value: { switches: v61 },
+        version: 1,
+        updatedAt: at(),
+      });
       await fresh.db.insert(worldFlags).values({ flagId: 'ashenPassCleared', setAt: at() });
       await app2.ready();
       const who = await insertAccount(fresh.db, { now: at() });

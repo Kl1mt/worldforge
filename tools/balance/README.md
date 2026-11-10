@@ -1,4 +1,4 @@
-# Balance measurements (tickets B.2, 4.8, B.3, 5.4, 5.6, B.4, T.7)
+# Balance measurements (tickets B.2, 4.8, B.3, 5.4, 5.6, B.4, T.7, 6.1, 6.2)
 
 Dev scripts behind the before/after tables in `docs/COMBAT.md`, `docs/DUNGEONS.md`, `docs/EFFECTS.md`, `docs/PVP.md` and `docs/LEADERBOARDS.md`. Not run in CI (the guards are `packages/game-core/src/balance/*.test.ts`). Run from the repo root:
 
@@ -9,6 +9,7 @@ pnpm --filter @worldforge/server exec tsx ../../tools/balance/crypt-farmed.ts   
 pnpm --filter @worldforge/server exec tsx ../../tools/balance/ashen-pass.ts farm   # or: builds, warden, tier3 (ticket 4.8)
 pnpm --filter @worldforge/server exec tsx ../../tools/balance/top-end.ts pass   # or: tier3, overlevel (ticket B.3)
 pnpm --filter @worldforge/server exec tsx ../../tools/balance/cinderwastes.ts farm   # or: xp (ticket 6.1; KIT=legendary for the plain kit)
+pnpm --filter @worldforge/server exec tsx ../../tools/balance/cinder-depths.ts farm   # or: boss, xp (ticket 6.2; SEEDS, RUNS, LEVELS=36,38,40, KITS="legendary +10,best +5")
 pnpm --filter @worldforge/server exec tsx ../../tools/balance/guild-boss.ts   # weekly guild-boss totals (ticket B.3)
 pnpm --filter @worldforge/server exec tsx --conditions=source ../../tools/balance/sim-state.ts ../../.telemetry-sample   # end state of a telemetry:simulate run (ticket B.3)
 pnpm --filter @worldforge/server exec tsx ../../tools/balance/pvp.ts report   # or: tune (ticket 5.4: PvP bands, class damage factors)
