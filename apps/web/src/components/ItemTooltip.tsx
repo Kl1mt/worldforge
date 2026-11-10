@@ -1,3 +1,4 @@
+import { VARIANT_MARK } from './itemVariant';
 import type { ReactNode } from 'react';
 import { RARITIES, UPGRADE_IMPLICIT_BONUS } from '@worldforge/game-core';
 import {
@@ -88,6 +89,7 @@ export function ItemTooltip({
   return (
     <article
       className={`tooltip rarity-${item.rarity}`}
+      data-variant={item.variant?.id}
       id={id}
       aria-label={`${item.name} details`}
     >
@@ -138,9 +140,12 @@ export function ItemTooltip({
           ) : null}
           {item.variant?.id === 'prismatic' ? (
             <p className="tooltip__unique tooltip__unique--prismatic">
-              <span className="caps">◇ {item.variant.name}</span> Light split through it: its combat
-              properties count +{Math.round(item.variant.affixBonus * 100)} %, as shown below (not
-              critical chance or find bonuses). Base values
+              <span className="caps">
+                {VARIANT_MARK.prismatic} {item.variant.name}
+              </span>{' '}
+              Light split through it: its combat properties count +
+              {Math.round(item.variant.affixBonus * 100)} %, as shown below (not critical chance or
+              find bonuses). Base values
               {item.effect
                 ? ` and ${item.effect.kind === 'mythic' ? 'signature' : 'effect'}`
                 : ''}{' '}

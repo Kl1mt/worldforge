@@ -18,6 +18,7 @@ import {
   type GalleryHero,
 } from './gallery';
 import '../screens/area.css';
+import { VariantPreview } from './VariantPreview';
 import './animation-gallery.css';
 
 /** One sprite frame at 12 fps: what "Step" advances a paused animation by. */
@@ -140,6 +141,11 @@ export function AnimationGallery() {
         armed={armed}
         motionFull={motion === 'full'}
         rate={speed}
+      />
+
+      <VariantPreview
+        scale={scale}
+        shimmer={!armed ? 'still' : motion === 'full' ? 'auto' : 'forced'}
       />
 
       {shown.heroes.length === 0 && shown.groups.length === 0 ? (

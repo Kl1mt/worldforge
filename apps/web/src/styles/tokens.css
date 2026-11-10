@@ -51,6 +51,12 @@
   /* Ticket 3.5: the Void variant. A cold voidlight (not a rarity colour) and the rift it sits in. */
   --void-light: #b9c3e0;
   --void-rift: #07060d;
+  /* Ticket A.12: Prismatic's muted opal (the overlays' palette, tools/art/prismatic_overlays.py). */
+  --prism-rose: #d9a0b4;
+  --prism-amber: #e3c98a;
+  --prism-mint: #9fd2b4;
+  --prism-sky: #93b9de;
+  --prism-lilac: #b7a0dc;
 
   /* ── Semantic aliases ──────────────────────────────────────────────── */
   --bg-page: var(--ink-950);

@@ -103,7 +103,11 @@ export function ReturnSummaryDialog({ heroName }: { heroName: string }) {
             </h3>
             <ul>
               {chase.map((item) => (
-                <li key={item.id} className={`rarity-${item.rarity}`}>
+                <li
+                  key={item.id}
+                  className={`rarity-${item.rarity}`}
+                  data-variant={item.variant?.id}
+                >
                   <ItemFrame item={item} scale={2} context="Found" />
                   <span className="return__chase-text">
                     <span className="return__chase-name">

@@ -22,6 +22,7 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | `art/preview-hero-frames.png` | The four hero attack loops (A.14): raw PixelLab frames above the cleaned sheet, per class, at ×2. Rebuild with `python3 tools/art/hero_frames.py`. |
 | `art/preview-cinderwastes.png` | The Cinderwastes enemies at ×1 and ×2 next to the cinder hound and ember golem, the Forge Tyrant next to the Ashen Warden, both backdrops next to the Ashen Pass, and the enemies over the Cinderwastes (A.11). Rebuild with `python3 tools/art/preview_cinderwastes.py`. |
 | `art/preview-tier4-icons.png` | The ten tier-4 item icons (A.15) at ×1 and ×2 next to their tier-3 counterparts, then inside every rarity frame and the Void treatment (the game's own frame CSS). Rebuild with `node tools/art/preview_tier4_icons.mjs`. |
+| `art/preview-prismatic.png` | The Prismatic treatment (A.12): icons of tiers 1–4, Mythics and set pieces in the Legendary, Mythic and set frames, each plain, Void and Prismatic, at ×2 and ×1 (the game's own frame CSS, the sweep at rest). Rebuild with `node tools/art/preview_prismatic.mjs` (`--gif <dir>` also films the shimmer). |
 | `tools/art/pixellab_gen.py` | Generate/collect/contact-sheet helper. |
 | `tools/art/pixellab_animate.py` | Frame-animation helper (`animate-with-text-v3`, async). |
 | `art/preview-enemy-frames.png` | The enemy attack loops (A.14b): per job the raw grid frames, then each picked enemy's cleaned sheet at ×2. Rebuild with `python3 tools/art/enemy_frames.py build`. |
@@ -78,7 +79,10 @@ Variants reuse the base art (GDD §7.5). There are no separate variant sprites. 
 3. An overlay above it: animated void motes or a crack texture, clipped to the icon's alpha (CSS `mask-image` with the icon itself, or a canvas `source-atop` composite).
 4. An outer glow or rim in the variant colour, drawn outside the 32×32 sprite so the silhouette stays readable.
 
-Overlays are authored once at native icon size (32×32, a tileable strip for animation) and live in `apps/web/public/assets/overlays/` when they are added. Any variant must stay recognisable as its base item at ×1.
+Overlays are authored once at native icon size (32×32, a tileable strip for animation) and live in `apps/web/public/assets/overlays/`. Any variant must stay recognisable as its base item at ×1.
+
+- **Void (3.5)** uses no overlay: a drain filter and a one-art-pixel voidlight edge.
+- **Prismatic (A.12)** uses two overlays drawn in code (`python3 tools/art/prismatic_overlays.py`, no generations): `prismatic-tint.png` (32×32, opal bands 4 px wide along the diagonal, period 32 on both axes so it tiles) and `prismatic-sheen.png` (96×32, one 3-pixel glint, outside the 32-pixel window at offset 0 so a frozen sheen shows nothing). Alpha 0/255, palette = the `--prism-*` tokens. The UI scales them by the icon's integer scale and clips them to the icon's alpha (`docs/DESIGN_SYSTEM.md` "Prismatic").
 
 ## Prompt conventions (PixelLab `generate-image-v2`)
 
