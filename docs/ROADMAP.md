@@ -892,7 +892,7 @@ GDD §3.1, §3.2. Owner request: heroes and foes move in the fight scene so it d
 - Tests for the scheduling (injected clock), reduced motion and no network; evidence (GIF or frame strips, desktop and mobile; a contact sheet) on the `screenshots` branch and under `art/`.
 - Done: `apps/web/src/scene/` (pure scheduler, one-timer driver, scoped `scene-anim.css`); static with reduced motion and under automation (`navigator.webdriver`; override `worldforge.sceneMotion`). Pilot: an 8-frame attack loop per class (`character.<class>-attack`, 5 jobs, no generated idle: the frames shimmered), played by `PixelSprite`. `docs/DESIGN_SYSTEM.md` "Motion", `docs/ASSET_GUIDELINES.md` "Hero attack frames"; version 0.6.0. No server change, no migration.
 
-### A.15 Tier-4 item icons — `done (PR #TBD)`
+### A.15 Tier-4 item icons — `done (PR #110)`
 GDD §3.1. Follow-up from 6.1: its ten tier-4 bases show their tier-3 counterparts' icons with an ember tint. Owner request: real icons.
 - Ten 32×32 icons, one per tier-4 base, in the item style (outline, palette discipline, angle, readable at ×1), with a Cinderwastes flavour (slag, obsidian, ember inlays, forge-blackened metal); a clear step up from tier 3 that doesn't clash with the rarity frames or Void.
 - Budget: at most 2 PixelLab 32 px jobs plus one regeneration. Clean the picks (palette, alpha 0/255, consistent lighting).
