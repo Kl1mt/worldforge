@@ -18,7 +18,7 @@ import {
   type PrestigeSettings,
 } from '../social/seasons';
 import type { ApiFailure } from '../lib/api';
-import { boardHref } from '../lib/route';
+import { boardHref, routeHref } from '../lib/route';
 
 /**
  * Ticket 5.3: the owner's season honours on their profile. Every award earned (season, roll,
@@ -224,9 +224,13 @@ export function HonoursPanel({ onSaved }: { onSaved: () => void }) {
                   <li key={u.id}>
                     <span className="display">{u.name}</span>
                     <span className="herald__hint">
-                      {u.shownToday
-                        ? 'A title: choose it above.'
-                        : 'Unlocked, shown once the collection book opens.'}
+                      {u.kind === 'title' ? (
+                        'A title: choose it above.'
+                      ) : (
+                        <>
+                          Worn from your <a href={routeHref('collection')}>collection book</a>.
+                        </>
+                      )}
                     </span>
                   </li>
                 ))}

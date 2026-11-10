@@ -17,6 +17,8 @@ export interface ArenaHero {
   name: string | null;
   classId: ClassId;
   level: number;
+  /** Ticket 6.8: the hero's appearance (palette id), shown with the name; null = own colours. */
+  palette?: string | null;
 }
 
 export interface ArenaDefence {

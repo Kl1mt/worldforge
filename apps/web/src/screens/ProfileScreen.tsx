@@ -1,3 +1,4 @@
+import { CrestRim, HeroLook } from '../cosmetics/Cosmetics';
 import { useEffect, useId, useState, type FormEvent } from 'react';
 import {
   GUILD_ROLE_LABELS,
@@ -15,7 +16,7 @@ import { useAuth } from '../auth/AuthProvider';
 import { HeroPortrait } from '../characters/HeroPortrait';
 import { ItemFrame } from '../components/ItemFrame';
 import { ItemTooltip } from '../components/ItemTooltip';
-import { classPortrait, findSprite } from '../content/assets';
+import { findSprite } from '../content/assets';
 import { slotName, toItemView, type ItemView } from '../game/items';
 import type { ApiFailure } from '../lib/api';
 import { guildHref, profileHandleFromHash, profileHref } from '../lib/route';
@@ -94,6 +95,9 @@ export function ProfileScreen() {
     <section className="herald" aria-labelledby="herald-title">
       <header className="herald__head">
         {profile?.prestige.frame ? <HonourPlate profile={profile} /> : null}
+        {profile && !profile.prestige.frame && profile.prestige.crest ? (
+          <CrestPlate profile={profile} />
+        ) : null}
         <div className="herald__who">
           <p className="caps">{profile?.self ? 'Your profile' : 'Profile'}</p>
           <h1 id="herald-title" className="display">
@@ -273,6 +277,8 @@ function Heroes({
                 banner={h.appearance.banner}
                 scale={1}
                 alt={`${getClass(h.classId).name} portrait`}
+                palette={h.palette ?? null}
+                bannerStyle={profile.prestige.banner ?? null}
               />
               <div className="herald__hero-text">
                 <p className={`herald__hero-name display${h.name ? '' : ' is-withheld'}`}>
@@ -614,20 +620,26 @@ function SettingsPanel({ onSaved }: { onSaved: () => void }) {
  * Ticket 5.3: the owner's chosen season frame (A.10's art at ×4) around their first hero's class
  * portrait (128 px in the 144 px window); the hero's name stays out of it (it may be hidden).
  */
+/**
+ * Ticket 6.8: without a season frame, the owner's crest style around their first hero (in its
+ * appearance), at ×4 like the frame.
+ */
+function CrestPlate({ profile }: { profile: Profile }) {
+  const hero = profile.characters[0];
+  return (
+    <CrestRim id={profile.prestige.crest} scale={4}>
+      {hero ? <HeroLook classId={hero.classId} palette={hero.palette} scale={1} alt="" /> : null}
+    </CrestRim>
+  );
+}
+
 function HonourPlate({ profile }: { profile: Profile }) {
   const hero = profile.characters[0];
-  const portrait = hero ? classPortrait(hero.classId) : null;
   return (
     <FramedPlate frame={profile.prestige.frame} scale={4}>
-      {portrait ? (
-        <img
-          className="pixel"
-          src={portrait.path}
-          alt=""
-          width={portrait.width}
-          height={portrait.height}
-          draggable={false}
-        />
+      {hero ? (
+        // Ticket 6.8: in the hero's appearance.
+        <HeroLook classId={hero.classId} palette={hero.palette} scale={1} alt="" />
       ) : null}
     </FramedPlate>
   );

@@ -43,6 +43,8 @@ export interface ProfileHero {
   classId: ClassId;
   level: number;
   appearance: { banner: BannerId };
+  /** Ticket 6.8: the hero's appearance (palette id); null = own colours. */
+  palette?: string | null;
 }
 
 /** An equipped item as other players see it: no ids, seeds or dates. */

@@ -7,9 +7,7 @@ import { cosmeticsApi, type Collection } from './api';
  * scenes read the hero's palette from it). The book's equips replace it with the server's answer.
  */
 export type CollectionLoad =
-  | { kind: 'loading' }
-  | { kind: 'ready'; value: Collection }
-  | { kind: 'error'; error: ApiFailure };
+  { kind: 'loading' } | { kind: 'ready'; value: Collection } | { kind: 'error'; error: ApiFailure };
 
 let state: CollectionLoad = { kind: 'loading' };
 let inFlight: Promise<void> | null = null;
@@ -34,7 +32,8 @@ export function loadCollection(): Promise<void> {
   inFlight = cosmeticsApi
     .collection()
     .then(
-      (res) => set(res.ok ? { kind: 'ready', value: res.value } : { kind: 'error', error: res.error }),
+      (res) =>
+        set(res.ok ? { kind: 'ready', value: res.value } : { kind: 'error', error: res.error }),
       () => undefined,
     )
     .finally(() => {

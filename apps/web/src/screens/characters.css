@@ -592,3 +592,12 @@
     padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
   }
 }
+
+/* Ticket 6.8: a banner style's device sewn high on the banner (32 px art at ×2). */
+.hero-portrait__device {
+  position: absolute;
+  top: 6%;
+  left: 50%;
+  transform: translateX(-50%);
+  opacity: 0.9;
+}

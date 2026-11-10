@@ -40,7 +40,7 @@ export interface TierLine {
   name: string;
   kind: string;
   state: TierState;
-  /** Where the reward shows: "Choose it on your profile" or "Shown once the collection book opens". */
+  /** Where the reward is worn: Season honours (titles) or the collection book (6.8). */
   where: string;
 }
 
@@ -60,9 +60,11 @@ export function trackLines(event: EventView, track: HeroEvent['track']): TierLin
     name: t.cosmetic.name,
     kind: KIND_WORD[t.cosmetic.kind] ?? 'Keepsake',
     state: granted.has(t.tier) ? 'granted' : tallies >= t.tallies ? 'reached' : 'open',
-    where: t.cosmetic.shownToday
-      ? 'Choose it on your profile, under Season honours.'
-      : 'Unlocked now, shown once the collection book opens.',
+    // Ticket 6.8: every keepsake is worn from the collection book; titles also from honours.
+    where:
+      t.cosmetic.kind === 'title'
+        ? 'Choose it on your profile, under Season honours, or in the collection book.'
+        : 'Show it from your collection book.',
   }));
 }
 

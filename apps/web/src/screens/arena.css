@@ -723,3 +723,8 @@ a.arena__name {
     padding: var(--space-4);
   }
 }
+
+/* Ticket 6.8: the duelling hero in its appearance (the class portrait at ×1). */
+.arena-side__look {
+  justify-self: center;
+}

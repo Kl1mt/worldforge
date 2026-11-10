@@ -3,7 +3,14 @@ import { findCosmetic, type ClassId } from '@worldforge/game-core';
 import { useActiveCharacter } from '../characters/CharactersProvider';
 import { BannerStyle, CrestRim, HeroLook, titleColourClass } from '../cosmetics/Cosmetics';
 import { cosmeticsApi, type Collection, type CollectionEntry } from '../cosmetics/api';
-import { accountSlot, counts, filterEntries, isWorn, type KindFilter, type OwnFilter } from '../cosmetics/book';
+import {
+  accountSlot,
+  counts,
+  filterEntries,
+  isWorn,
+  type KindFilter,
+  type OwnFilter,
+} from '../cosmetics/book';
 import { loadCollection, setCollection, useCollection } from '../cosmetics/store';
 import { BOOK_KINDS, KIND_LABELS, equipFailure, howToEarn, sourceLabel } from '../cosmetics/text';
 import { seasonsApi } from '../social/seasons';
@@ -62,8 +69,7 @@ export function CollectionScreen() {
 
   const book = load.value;
   const shown = filterEntries(book.entries, kind, own);
-  const entry =
-    book.entries.find((e) => e.id === selected) ?? shown[0] ?? book.entries[0] ?? null;
+  const entry = book.entries.find((e) => e.id === selected) ?? shown[0] ?? book.entries[0] ?? null;
   const hero = book.heroes.find((h) => h.id === heroId) ?? book.heroes[0] ?? null;
   const total = counts(book.entries);
 
@@ -81,7 +87,12 @@ export function CollectionScreen() {
       if (e.kind === 'appearance') {
         if (!hero) return;
         const res = await cosmeticsApi.wear(hero.id, remove ? null : e.id);
-        done(res, remove ? `${hero.name} wears their own colours again.` : `${hero.name} now wears ${e.name}.`);
+        done(
+          res,
+          remove
+            ? `${hero.name} wears their own colours again.`
+            : `${hero.name} now wears ${e.name}.`,
+        );
       } else if (e.kind === 'title') {
         // Titles share Season honours' one title slot (5.3 / 6.6).
         const settings = await seasonsApi.prestige();
@@ -94,7 +105,10 @@ export function CollectionScreen() {
         });
         if (!saved.ok) return setMessage({ ok: false, text: equipFailure(saved.error.code) });
         await loadCollection();
-        setMessage({ ok: true, text: remove ? 'Your title is put away.' : `You now bear “${e.name}”.` });
+        setMessage({
+          ok: true,
+          text: remove ? 'Your title is put away.' : `You now bear “${e.name}”.`,
+        });
       } else {
         const slot = accountSlot(e.kind)!;
         const res = await cosmeticsApi.equip({ [slot]: remove ? null : e.id });
@@ -165,18 +179,18 @@ export function CollectionScreen() {
                     onClick={() => setSelected(e.id)}
                   >
                     <span className="book-card__swatch" aria-hidden="true">
-                      <Swatch entry={e} classId={hero?.classId ?? active.classId} banner={hero?.banner ?? 'ash'} />
+                      <Swatch
+                        entry={e}
+                        classId={hero?.classId ?? active.classId}
+                        banner={hero?.banner ?? 'ash'}
+                      />
                     </span>
                     <span className="book-card__name display">{e.name}</span>
                     <span className="book-card__meta caps">
                       {KIND_LABELS[e.kind].one} · {sourceLabel(e.source)}
                     </span>
                     <span className="book-card__state">
-                      {isWorn(e, book, hero?.id ?? null)
-                        ? 'Worn'
-                        : e.owned
-                          ? 'Earned'
-                          : 'Locked'}
+                      {isWorn(e, book, hero?.id ?? null) ? 'Worn' : e.owned ? 'Earned' : 'Locked'}
                     </span>
                   </button>
                 </li>
@@ -240,7 +254,10 @@ export function CollectionScreen() {
               <p className="book__locked">Locked. Keepsakes are earned in play, never bought.</p>
             )}
             {message ? (
-              <p className={message.ok ? 'herald__saved' : 'gate__alert'} role={message.ok ? 'status' : 'alert'}>
+              <p
+                className={message.ok ? 'herald__saved' : 'gate__alert'}
+                role={message.ok ? 'status' : 'alert'}
+              >
                 {message.text}
               </p>
             ) : null}
@@ -279,7 +296,15 @@ function BookHead({ id, owned, total }: { id: string; owned?: number; total?: nu
 }
 
 /** A small preview of an entry for its card. */
-function Swatch({ entry, classId, banner }: { entry: CollectionEntry; classId: ClassId; banner: string }) {
+function Swatch({
+  entry,
+  classId,
+  banner,
+}: {
+  entry: CollectionEntry;
+  classId: ClassId;
+  banner: string;
+}) {
   switch (entry.kind) {
     case 'appearance':
       return <HeroLook classId={classId} palette={entry.id} scale={1} alt="" />;
@@ -295,7 +320,15 @@ function Swatch({ entry, classId, banner }: { entry: CollectionEntry; classId: C
 }
 
 /** The mirror: the selected entry on the hero, as others will see it. */
-function Preview({ entry, book, heroId }: { entry: CollectionEntry; book: Collection; heroId: string | null }) {
+function Preview({
+  entry,
+  book,
+  heroId,
+}: {
+  entry: CollectionEntry;
+  book: Collection;
+  heroId: string | null;
+}) {
   const hero = book.heroes.find((h) => h.id === heroId) ?? book.heroes[0];
   if (!hero) return <p className="book__state">Create a hero to try keepsakes on.</p>;
   const palette = entry.kind === 'appearance' ? entry.id : hero.palette;
@@ -319,7 +352,9 @@ function Preview({ entry, book, heroId }: { entry: CollectionEntry; book: Collec
       <figcaption className="book-preview__caption">
         <span className="display">{hero.name}</span>
         {title ? (
-          <ShownTitle shown={{ title: null, frame: null, cosmeticTitle: title, titleColour: colour }} />
+          <ShownTitle
+            shown={{ title: null, frame: null, cosmeticTitle: title, titleColour: colour }}
+          />
         ) : (
           <span className={`honour honour--cosmetic ${titleColourClass(colour)}`}>
             <span className="honour__lozenge" aria-hidden="true" />
