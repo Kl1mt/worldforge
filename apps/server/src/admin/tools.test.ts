@@ -942,7 +942,8 @@ describe('admin tools (D.4)', () => {
       expect(world.json().flags.find((f: { id: string }) => f.id === 'ashenPassCleared').set).toBe(
         true,
       );
-      expect(world.json().scheduler.jobs).toHaveLength(5);
+      // Ticket 6.6 added the event jobs.
+      expect(world.json().scheduler.jobs).toHaveLength(6);
       // Ticket 6.3: this week's and next week's boss modifier.
       const mods = world.json().bossModifiers;
       expect(mods.current.modifier.id).toBe(bossModifierOfWeek(clockMs).id);

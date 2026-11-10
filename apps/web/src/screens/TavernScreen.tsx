@@ -1,4 +1,5 @@
 import { BossModifierNotice } from '../components/BossModifierNotice';
+import { EventNotice } from '../events/EventNotice';
 import { bossModifierApi, type BossModifierWeek } from '../game/bossModifier';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
@@ -293,6 +294,8 @@ export function TavernScreen() {
       </header>
 
       <BossWeekNotice />
+
+      <EventNotice />
 
       {lastReward ? (
         <div className="tavern__paid" role="status">

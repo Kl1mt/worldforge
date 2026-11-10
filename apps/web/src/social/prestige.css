@@ -21,6 +21,15 @@
   --honour-metal: var(--iron-500);
   --honour-deep: var(--iron-700);
 }
+/* Ticket 6.6: an event's title, in bone with a wine-dark lozenge. */
+.honour--cosmetic {
+  --honour-metal: #d9cfb6;
+  --honour-deep: #4a1f14;
+}
+.honour--cosmetic .honour__lozenge {
+  background: #4a1f14;
+  border-color: #d9cfb6;
+}
 
 /* The title: lozenge (or badge art), the title's words, the season in small caps. */
 .honour {

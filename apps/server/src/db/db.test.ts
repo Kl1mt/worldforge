@@ -82,11 +82,15 @@ describe('migrations', () => {
       'community_contributions',
       'community_project_progress',
       'community_projects',
+      'cosmetic_unlocks',
       'data_backfills',
       'duel_defences',
       'duel_offers',
       'duels',
       'dungeon_runs',
+      'event_participants',
+      'event_track_grants',
+      'event_tracks',
       'friendships',
       'game_settings',
       'guild_applications',
@@ -118,6 +122,7 @@ describe('migrations', () => {
       'trade_holds',
       'trade_offer_lines',
       'trade_offers',
+      'world_events',
       'world_flags',
     ]);
   });

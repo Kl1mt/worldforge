@@ -69,6 +69,7 @@ import {
 } from '../activity/settle.js';
 import { changeMaterialsTx, grantGatheringTx } from '../materials/store.js';
 import { recordQuestEventsTx } from '../quests/store.js';
+import { recordEventProgressTx } from '../events/progress.js';
 import { idempotentTransaction } from '../idempotency/index.js';
 import {
   bossModifierView,
@@ -752,6 +753,15 @@ export async function registerDungeons(
           // taken before the run started count it (ticket 2.8): the run was fought then, so
           // accepting the step after the run has ended but before claiming does not complete it.
           await recordQuestEventsTx(tx, characterId, r.questEvents, { acceptedBy: run.startedAt });
+          // Ticket 6.6: the event under way at the claim (the window rule), for heroes who joined
+          // it before the run started.
+          await recordEventProgressTx(
+            tx,
+            { id: characterId, accountId },
+            { questEvents: r.questEvents },
+            now,
+            { joinedBy: run.startedAt },
+          );
 
           const gold = r.goldLooted + r.goldSalvaged + filter.gold;
           // Ticket 4.8: each dungeon keeps its own boss progress (the crypt's gates the Abbey and

@@ -580,6 +580,8 @@ export interface PrestigeBadge {
 export interface PrestigeShown {
   title: PrestigeBadge | null;
   frame: PrestigeBadge | null;
+  /** Ticket 6.6: a cosmetic title (e.g. an event's) shown instead of a season title. */
+  cosmeticTitle: string | null;
 }
 
 export async function prestigeFor(
@@ -597,10 +599,11 @@ export async function prestigeFor(
     frame_season: number | null;
     frame_metric: PrestigeMetric | null;
     frame_tier: PrestigeTier | null;
+    cosmetic_title: string | null;
   }>(
     db,
     sql`select d.account_id, d.title_season, d.title_metric, t.tier as title_tier,
-        d.frame_season, d.frame_metric, f.tier as frame_tier
+        d.frame_season, d.frame_metric, f.tier as frame_tier, d.cosmetic_title
       from prestige_displays d
         left join season_awards t on t.account_id = d.account_id
           and t.season = d.title_season and t.metric = d.title_metric
@@ -618,12 +621,13 @@ export async function prestigeFor(
         r.frame_season !== null && r.frame_metric && r.frame_tier
           ? { season: Number(r.frame_season), metric: r.frame_metric, tier: r.frame_tier }
           : null,
+      cosmeticTitle: r.cosmetic_title ?? null,
     });
   }
   return out;
 }
 
-export const NO_PRESTIGE_SHOWN: PrestigeShown = { title: null, frame: null };
+export const NO_PRESTIGE_SHOWN: PrestigeShown = { title: null, frame: null, cosmeticTitle: null };
 
 export const prestigeBadgeSchema = {
   anyOf: [
@@ -643,5 +647,9 @@ export const prestigeBadgeSchema = {
 export const prestigeShownSchema = {
   type: 'object',
   required: ['title', 'frame'],
-  properties: { title: prestigeBadgeSchema, frame: prestigeBadgeSchema },
+  properties: {
+    title: prestigeBadgeSchema,
+    frame: prestigeBadgeSchema,
+    cosmeticTitle: { type: ['string', 'null'] },
+  },
 } as const;

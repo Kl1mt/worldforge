@@ -10,6 +10,7 @@ import { useGame } from '../game/GameProvider';
 import { PHONE_QUERY, pixelScale } from '../lib/pixel';
 import { routeHref, type GameRoute } from '../lib/route';
 import { Meter } from '../components/Meter';
+import { EventBanner } from '../events/EventBanner';
 import { projectProgress, useProjectBoard, type BoardState } from '../community/api';
 import { useOnboarding } from '../onboarding/OnboardingProvider';
 import './hub.css';
@@ -182,6 +183,8 @@ export function HubScreen() {
         <h1 className="display hub__title">Graumark</h1>
         <HeroWhereabouts />
       </header>
+
+      <EventBanner />
 
       <div className="hub__frame" ref={ref}>
         <div

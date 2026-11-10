@@ -249,3 +249,6 @@ Under D.3's `/api/admin` scope: the not-found `404` for everyone but admins (bef
 | `POST /admin/world/flags/:flagId` | world | `{ set, confirm, reason }` |
 
 Lock order of every write: the shelf lock and the target account row (`for no key update`) when needed, the admin's row (`for share`), the hero (`lockOwnedCharacter`, settling first), its items. Deletion also runs T.5's and T.7's seams (docs/TRADING.md "Hero deletion").
+
+## Events (ticket 6.6)
+`GET /api/events`, `GET /api/characters/:id/event`, `POST /api/characters/:id/event/join` (repeat-safe by state: `201` once, then `200`; it settles the hero first), `GET /api/account/cosmetics`; admin `GET|POST /api/admin/events`, `POST /api/admin/events/:n/end`, `POST /api/admin/events/:n/cancel` (D.3's `404` for non-admins). Plan refusals: `409 event_plan_refused` with `details.problem`. `POST /api/account/prestige` takes an optional `cosmeticTitle`. Details in `docs/EVENTS.md`.

@@ -788,6 +788,30 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
       sumRollups(rows, 'admin.item', src('remove'), 'amount'),
     ],
   );
+  // Ticket 6.6: events (joins, quests done and their tallies, the modifier's bonus, track tiers).
+  checks.push(
+    ['events: heroes joined', audit('event.join', sql`count(*)`), sumRollups(rows, 'event.join')],
+    [
+      'events: quests done',
+      audit('event.progress', sql`coalesce(sum(jsonb_array_length(data->'completed')), 0)`),
+      sumRollups(rows, 'event.quest'),
+    ],
+    [
+      'events: tallies',
+      audit('event.progress', num(sql`data->>'tallies'`)),
+      sumRollups(rows, 'event.quest', () => true, 'amount'),
+    ],
+    [
+      'events: bonus materials',
+      bundle('event.progress', sql`a.data->'bonus'`),
+      sumRollups(rows, 'material.in', src('event'), 'amount'),
+    ],
+    [
+      'events: reward tiers granted',
+      audit('event.reward', sql`count(*)`),
+      sumRollups(rows, 'event.reward'),
+    ],
+  );
   for (const [check, auditValue, rollup] of checks) {
     const a = await auditValue;
     out.push({ check, audit: a, rollup, ok: a === rollup });
@@ -805,6 +829,18 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
           and data->>'kind' = ${kind}`,
     );
   const holdings: [string, Promise<number>, Promise<number>][] = [
+    // Ticket 6.6: the reward-track ledger holds exactly the audited grants, and the tracks hold
+    // exactly the audited tallies.
+    [
+      'events: track grants held = rewards audited',
+      audit('event.reward', sql`count(*)`),
+      auditScalar(db, sql`select count(*) as n from event_track_grants`),
+    ],
+    [
+      'events: tallies held = tallies audited',
+      audit('event.progress', num(sql`data->>'tallies'`)),
+      auditScalar(db, sql`select coalesce(sum(tallies), 0) as n from event_tracks`),
+    ],
     [
       'shelf: items held = deposits − withdrawals',
       shelfNet('items'),
@@ -1174,6 +1210,68 @@ export function telemetrySections(report: TelemetryReport): TelemetrySection[] {
           );
           const dmg = sumRollups(modGuild, 'boss_modifier.guild_boss', (d) => d[0] === m, 'amount');
           return [m, n, fell, dmg, n > 0 ? Math.round(dmg / n) : 0];
+        }),
+      });
+    }
+  }
+
+  // Ticket 6.6: events: joins, quests done, tallies, bonus materials and reward tiers per event.
+  const evRows = rows.filter((r) => r.metric.startsWith('event.'));
+  if (evRows.length > 0) {
+    const s = section('Events');
+    const ids = [...new Set(evRows.map((r) => r.dims[0]))].sort();
+    s.tables.push({
+      headers: [
+        'event',
+        'heroes joined',
+        'quests done',
+        'tallies',
+        'tiers granted',
+        'bonus materials',
+      ],
+      rows: ids.map((id) => [
+        id,
+        sumRollups(evRows, 'event.join', (d) => d[0] === id),
+        sumRollups(evRows, 'event.quest', (d) => d[0] === id),
+        sumRollups(evRows, 'event.quest', (d) => d[0] === id, 'amount'),
+        sumRollups(evRows, 'event.reward', (d) => d[0] === id),
+        sumRollups(rows, 'material.in', (d) => d[0] === 'event' && d[2] === id, 'amount'),
+      ]),
+    });
+    const quests = [
+      ...new Set(
+        evRows.filter((r) => r.metric === 'event.quest').map((r) => `${r.dims[0]}|${r.dims[1]}`),
+      ),
+    ].sort();
+    if (quests.length > 0) {
+      s.tables.push({
+        headers: ['event · quest', 'done'],
+        rows: quests.map((k) => {
+          const [e, q] = k.split('|') as [string, string];
+          return [
+            `${e} · ${q}`,
+            sumRollups(evRows, 'event.quest', (d) => d[0] === e && d[1] === q),
+          ];
+        }),
+      });
+    }
+    const tiers = [
+      ...new Set(
+        evRows
+          .filter((r) => r.metric === 'event.reward')
+          .map((r) => `${r.dims[0]}|${r.dims[1]}|${r.dims[2]}`),
+      ),
+    ].sort();
+    if (tiers.length > 0) {
+      s.tables.push({
+        headers: ['event · tier', 'cosmetic', 'granted'],
+        rows: tiers.map((k) => {
+          const [e, t, c] = k.split('|') as [string, string, string];
+          return [
+            `${e} · ${t}`,
+            c,
+            sumRollups(evRows, 'event.reward', (d) => d[0] === e && d[1] === t),
+          ];
         }),
       });
     }

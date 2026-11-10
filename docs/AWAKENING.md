@@ -1,6 +1,6 @@
 # Item Awakening: evaluation (ticket 6.5) and build (ticket 6.5b)
 
-GDD §8.2 ("a rare long-term project, not to make every item mandatory to awaken"), §15 Phase 6 exit ("endgame systems add meaningful choices without making older content or most item drops irrelevant"). **Status: built (ticket 6.5b, version 0.6.8).** The owner said yes to option (b) at × 1.1 on 2026-11-10, with one change to the recommendation: **awakening counts in duels and in matchmaking**. See "As built (ticket 6.5b)" at the end. Sections 1–10 are the 6.5 evaluation as it was written; where it says "duels ignore awakening", the owner overruled it.
+GDD §8.2 ("a rare long-term project, not to make every item mandatory to awaken"), §15 Phase 6 exit ("endgame systems add meaningful choices without making older content or most item drops irrelevant"). **Status: built (ticket 6.5b, version 0.6.9).** The owner said yes to option (b) at × 1.1 on 2026-11-10, with one change to the recommendation: **awakening counts in duels and in matchmaking**. See "As built (ticket 6.5b)" at the end. Sections 1–10 are the 6.5 evaluation as it was written; where it says "duels ignore awakening", the owner overruled it.
 
 ## The short version
 
@@ -207,7 +207,7 @@ A +10 kit of Verge Legendaries with random effects and affixes (item level 33, `
 - **Forge interactions:** rerolls and improvements stay allowed (they never touch the effect); upgrades stop at +10 as before; the awakening survives every Forge action. Void and Prismatic are untouched.
 
 ### Server
-- **Migration `0039_item_awakening`** (additive): `item_instances.awakening` (jsonb, null) and `awakened_at` (timestamptz), check: both null or both set.
+- **Migration `0040_item_awakening`** (additive): `item_instances.awakening` (jsonb, null) and `awakened_at` (timestamptz), check: both null or both set.
 - **`POST /api/characters/:id/forge/awaken`** `{ itemId }`, `Idempotency-Key`, the Forge's lock order (key → hero, settling first → item). Refused before paying: another hero's item `404`; Warehouse `item_in_warehouse`, shelf `item_on_shelf`, escrow `item_in_offer`, held after a trade `409 item_held`; the rule's refusals `422 not_awakenable` / `already_awakened` with a plain message; the price with what is missing (`insufficient_materials` / `insufficient_gold`, **gold and materials on hold after a trade excluded**, `heldValueOf`). Pays, writes the awakening and the time, advances the forge counter (no draw; the counter guards the write and marks the item "touched" for a reversal), binds to the account, audits `forge.awaken` (gold, materials, the awakening, effect/set, variant, upgrade) and records telemetry (`forge` `awaken`, `gold.out` / `material.out` source `forge_awaken`). `reconcileWithAudit` checks count, gold and materials.
 - The Forge item view has `awaken: { refusal, cost, blockers, effectStrength } | null`; item views (pack, profile showcase) carry `awakening` and `awakenedAt` when set; every combat read (farming, crypt and Tyrant snapshots, guild boss, scores, arena) carries the column.
 - **Admin (D.4):** the grant tool's `awakened: true` (test accounts) creates an item the Forge could awaken, refused in the Forge's words otherwise.

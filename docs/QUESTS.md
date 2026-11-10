@@ -32,6 +32,9 @@ First-pass numbers; tune in B.1.
 ## The week's boss notice (ticket 6.3)
 Above the notice board the Tavern keeper announces **this week's boss modifier** (every boss but the crypt's tier I) (`docs/DUNGEONS.md` "Weekly boss modifiers"): its name, what it does in plain words, the hoard's focus and until when it holds (the next Monday 00:00 UTC, shown as a local date). It reads `GET /api/world/boss-modifier` (the game clock's week, public: the rotation is announced, not secret), with loading and error (Try again) states. No quest or contract depends on it.
 
+## Event quests (ticket 6.6)
+While an event runs (`docs/EVENTS.md`), the Tavern shows its notice under the boss notice: the story, the world modifier, the event's tasks and the account's reward track. A hero **joins** the event there (which settles it first); its tasks then advance from the same server-side quest events as quests (settlements, dungeon claims), in `recordEventProgressTx` right after `recordQuestEventsTx`, under the character lock. They need no acceptance or turn-in: a finished task pays its tallies at once. Tasks pay **tallies only** (no XP, gold or items); tallies fill the account's cosmetic reward track. **At the end** (the window rule: a request at or after the end counts nothing) unfinished tasks expire by the clock; nothing is deleted or taken back, and the bonus materials, tallies and keepsakes earned stay. The next run of an event starts fresh. Ordinary quests and contracts are unchanged and never see the event's bonus materials.
+
 ## Progress comes from events, never from the client
 `QuestEvent` (game-core `quests/events.ts`):
 
