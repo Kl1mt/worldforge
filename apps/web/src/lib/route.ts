@@ -1,3 +1,5 @@
+import { isStaff, type AccountRole } from '@worldforge/game-core';
+
 /** Game screens; they need a logged-in account with an active character. */
 export const GAME_ROUTES = [
   'hub',
@@ -111,8 +113,20 @@ export const ADMIN_SECTIONS = [
   'trades',
   'status',
   'roles',
+  // Ticket A.14c: every sprite's animations and a scene preview (assets only).
+  'animations',
 ] as const;
 export type AdminSection = (typeof ADMIN_SECTIONS)[number];
+
+/**
+ * Tickets 4.1 / D.3 (A.14c made it testable): routes that behave like an unknown address for this
+ * viewer. The moderator queue exists for staff only, the admin panel (every section, the A.14c
+ * animation gallery included) for admins only. `role` is null when nobody is logged in.
+ */
+export function routeHiddenFor(route: Route, role: AccountRole | null): boolean {
+  const staff = role !== null && isStaff(role);
+  return (route === 'moderation' && !staff) || (route === 'admin' && role !== 'admin');
+}
 
 /** `#/admin/players/<handle>` → `{ section: 'players', arg: '<handle>' }`; default: invites. */
 export function adminLocation(hash: string): { section: AdminSection; arg: string | null } {

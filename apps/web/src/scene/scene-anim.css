@@ -229,13 +229,14 @@
 }
 
 /* Belt and braces: base.css already stops all animation for reduced motion, and the scene never
-   gets `.scene-anim` then. */
+   gets `.scene-anim` then. The one exception is the admin animation gallery once the admin pressed
+   Play (`.scene-anim--forced`, ticket A.14c). */
 @media (prefers-reduced-motion: reduce) {
-  .scene-anim .scene-anim__actor,
-  .scene-anim .scene-anim__fade,
-  .scene-anim .scene-anim__act,
-  .scene-anim .scene-anim__hit,
-  .scene-anim .pixel-sheet__strip {
+  .scene-anim:not(.scene-anim--forced) .scene-anim__actor,
+  .scene-anim:not(.scene-anim--forced) .scene-anim__fade,
+  .scene-anim:not(.scene-anim--forced) .scene-anim__act,
+  .scene-anim:not(.scene-anim--forced) .scene-anim__hit,
+  .scene-anim:not(.scene-anim--forced) .pixel-sheet__strip {
     animation: none !important;
   }
 }

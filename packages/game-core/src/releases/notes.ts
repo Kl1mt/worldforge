@@ -23,9 +23,18 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.6.3';
+export const GAME_VERSION = '0.6.4';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.6.4',
+    date: '2026-11-10',
+    title: 'No foe falls unstruck',
+    fixed: [
+      'A foe no longer fades away in battle without being struck first: every defeat now follows a visible blow.',
+    ],
+    tickets: ['A.14c'],
+  },
   {
     version: '0.6.3',
     date: '2026-11-10',

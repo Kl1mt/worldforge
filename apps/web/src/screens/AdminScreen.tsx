@@ -28,6 +28,7 @@ import { daysLeft, seasonSpan, type SeasonView } from '../social/seasons';
 import { DEFAULT_SEASON_WEEKS, seasonName } from '@worldforge/game-core';
 import { TradingSettingsFolio } from './TradingSettingsFolio';
 import { TradeDesk } from './TradeDesk';
+import { AnimationGallery } from '../admin/AnimationGallery';
 import './gate.css';
 import './admin.css';
 
@@ -40,6 +41,7 @@ const SECTION_LABELS: Record<AdminSection, { label: string; hint: string }> = {
   trades: { label: 'Trades', hint: 'History & patterns' },
   status: { label: 'Server', hint: 'Health & version' },
   roles: { label: 'Roles', hint: 'Wardens & admins' },
+  animations: { label: 'Animations', hint: 'Every sprite in motion' },
 };
 
 const REASON_LABEL = Object.fromEntries(REPORT_REASONS.map((r) => [r.id, r.label])) as Record<
@@ -177,6 +179,7 @@ export function AdminScreen() {
         {loc.section === 'trades' ? <TradeDesk /> : null}
         {loc.section === 'status' ? <StatusFolio /> : null}
         {loc.section === 'roles' ? <RolesFolio /> : null}
+        {loc.section === 'animations' ? <AnimationGallery /> : null}
       </div>
     </section>
   );
