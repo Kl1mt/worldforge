@@ -7,7 +7,7 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | Path | Contents |
 |---|---|
 | `art/source/pixellab/<batch>/` | Raw generator output, unedited: `NN.png`, `_contact-sheet.png`, `_job.json` (prompt, size, seed, job id). Never served. |
-| `apps/web/public/assets/{items,enemies,characters,areas,hub,map,materials,achievements,guild-emblems,frames,badges}/` | Curated picks at **native resolution**, kebab-case names (`iron-helm.png`). |
+| `apps/web/public/assets/{items,enemies,characters,areas,hub,map,materials,achievements,guild-emblems,frames,badges,banners,crests}/` | Curated picks at **native resolution**, kebab-case names (`iron-helm.png`). |
 | `apps/web/public/assets/manifest.json` | One entry per curated asset (see below). |
 | `art/preview-phase-0.png` | Combined preview of all curated Phase 0 assets. |
 | `art/preview-class-portraits.png` | The four class portraits side by side at ×3. |
@@ -23,6 +23,7 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | `art/preview-cinderwastes.png` | The Cinderwastes enemies at ×1 and ×2 next to the cinder hound and ember golem, the Forge Tyrant next to the Ashen Warden, both backdrops next to the Ashen Pass, and the enemies over the Cinderwastes (A.11). Rebuild with `python3 tools/art/preview_cinderwastes.py`. |
 | `art/preview-tier4-icons.png` | The ten tier-4 item icons (A.15) at ×1 and ×2 next to their tier-3 counterparts, then inside every rarity frame and the Void treatment (the game's own frame CSS). Rebuild with `node tools/art/preview_tier4_icons.mjs`. |
 | `art/preview-prismatic.png` | The Prismatic treatment (A.12): icons of tiers 1–4, Mythics and set pieces in the Legendary, Mythic and set frames, each plain, Void and Prismatic, at ×2 and ×1 (the game's own frame CSS, the sweep at rest). Rebuild with `node tools/art/preview_prismatic.mjs` (`--gif <dir>` also films Void's motion next to Prismatic's shimmer, A.12b). |
+| `art/preview-cosmetics.png` | The cosmetic art (A.13): each class in all five appearance looks at ×2 (still and attack frame 4), the six banner styles at ×4 and ×1, the four crest styles around two sample crests at ×1 and ×2, and the Forgeward deed next to the A.8 anvil. Rebuild with `python3 tools/art/preview_cosmetics.py`. |
 | `tools/art/pixellab_gen.py` | Generate/collect/contact-sheet helper. |
 | `tools/art/pixellab_animate.py` | Frame-animation helper (`animate-with-text-v3`, async). |
 | `art/preview-enemy-frames.png` | The enemy attack loops (A.14b): per job the raw grid frames, then each picked enemy's cleaned sheet at ×2. Rebuild with `python3 tools/art/enemy_frames.py build`. |
@@ -36,6 +37,8 @@ Curated files are byte-for-byte copies of a raw variant. Do not hand-edit them i
 | Item icon | 32×32 | Transparent background, object centred, roughly 45° for weapons. |
 | Achievement icon, guild emblem | 32×32 | Same pixel scale as item icons. Emblems are a single charge, upright and centred. |
 | Season frame | 64×64 | Transparent outside and inside the bands. Fixed layout (not 9-slice): content fills the 36×36 window at (14, 14) and the frame is drawn on top. |
+| Banner style | 32×32 | Same pixel scale as the A.8 heraldry: a dark cloth banner on an iron crossbar with one charge. |
+| Crest style | 48×56 | Shield-shaped frame; the window (4, 4, 40×48) is the `md` guild crest's box. |
 | Title badge | 32×32 | Same pixel scale as item icons: a brass-rimmed dark disc with one emblem. |
 | Enemy | 64×64 | Transparent background, full body, feet on the bottom rows. |
 | Character | 128×128 | Transparent background, full body. |
@@ -138,12 +141,12 @@ It uses only the async flow: it POSTs, then polls `GET /background-jobs/{id}` ev
 ```
 
 - `id` is `<kind>.<kebab-name>` and stays stable once referenced by content data.
-- `kind` is one of `item | material | enemy | character | area | hub | map | achievement | guild-emblem | frame | badge`.
+- `kind` is one of `item | material | enemy | character | area | hub | map | achievement | guild-emblem | frame | badge | banner | crest`.
 - `frames` (frame sheets only): the number of frames in the row; `size` is one frame's size, so the PNG is `frames × width` wide.
 - `lead` (frame sheets only, A.14b): pixels of strike room in each frame before the sprite, on its facing side; the frame is the still's width plus `lead`, and the UI pulls the sheet back by `lead × scale`.
 - The optional fields are `slot` (items, using the GDD §7.1 slot family: `weapon`, `offhand`, `head`, `chest`, `hands`, `feet`, `neck`, `ring`) and `facing` (sprites).
 - `hotspots` (`hub` only): clickable buildings as `{ id, label, x, y, width, height }` rectangles in native image pixels (origin top-left). Building ids: `forge`, `merchant`, `tavern`, `guildHall`, `warehouse`, `summoningShrine`, `worldMap` (the signpost and map table). Rectangles do not overlap. Whether a building is locked is game state, not art data.
-- `window` (`frame` only): `{ x, y, width, height }`, the content box in native frame pixels (see the A.10 section).
+- `window` (`frame` and `crest` only): `{ x, y, width, height }`, the content box in native frame pixels (see the A.10 section).
 - `markers` (`map` only): `{ id, x, y }` centre points in native image pixels, one per `AreaId` (including the dungeon `namelessCrypt`) plus `hub` for the town of Graumark.
 
 When the UI scales a hub or map by an integer ×N, multiply hotspot and marker coordinates by the same N.
@@ -257,3 +260,17 @@ The world map came out with opaque white pixels along its burnt edge (about 1,15
 - **Picks:** 01 all six; 02 the pyre cultist and ember golem; 03 the ash colossus, grave crawler, drowned thrall and bog horror; 04 the ash wraith, cinder revenant and fallen knight. **No frames:** the cinder hound, slag hound and ember wisp (still blobs after the regeneration; `REJECTED` in the script), the abbey wraith (no slot left in the budget), the crypt's ghoul and acolyte, and every boss. They keep the code animation.
 - Some loops are subtle (the bandit, the scarecrow, the bog horror): they move, but less than the others.
 - Preview: `art/preview-enemy-frames.png`. A web test checks that every common enemy has a left-facing 8-frame sheet of the right PNG size, or is one of the recorded misses.
+
+## Cosmetic art: appearance palettes, banner and crest styles (ticket A.13)
+
+Art for the collection book (ticket 6.8), registered but not drawn on any screen by this ticket. The ids are the cosmetic ids 6.8 stores; keep them stable.
+
+- **Hero appearance palettes** `appearance.ashen`, `appearance.ember`, `appearance.grave-moss`, `appearance.midnight` (plus `appearance.default`, no change) for all four classes. They are **code, not files**: `apps/web/src/content/palettes.ts` holds, per look and class, the exact source → target colour swaps (`HERO_PALETTE_SWAPS`) and the colours every look keeps (`HERO_KEPT_COLOURS`: the near-black outline, the mage's and hunter's skin, the warlock's bone mask and skull). One list per class covers the portrait, the code idle and the 8-frame attack sheet, because A.14 snapped the frames to the portrait's colours. No generations.
+  - **Design** (`tools/art/hero_palettes.py`, writes the data block; run `pnpm format` after): each colour gets a role (cloth = the class's signature hue, metal = the near-neutrals, leather = the other browns, accent = the crystal, blade edge, fletching or witchlight). A look maps a role to a hue and saturation that shift along the ramp (cooler or redder shadows, warmer highlights) and **keeps each colour's luma** (times a factor), so outlines, shading and value contrast survive. Ashen = soot cloth and cold grey steel; ember = blackened iron (luma ×0.72) with ember-red cloth and orange glints; grave-moss = green-bronze metal and lichen cloth; midnight = blue-black cloth (luma ×0.72) with metal pressed dark below the midtone and lifted to silver above it.
+  - **Runtime, not baked.** `recolourPixels(pixels, swaps)` is a pure lookup over RGBA data; `recolouredSpriteUrl(sprite, classId, appearanceId)` runs it once per (sheet, look) on a canvas and caches an object URL (the plain path for the default). A sheet is at most 1024×128, so that is a one-off of about a millisecond, against ~0.5 MB of near-duplicate PNGs per class and a re-bake whenever a sprite or palette changes. Draw the result exactly like the sprite (same size, frames, integer scale); fall back to the plain art if the promise rejects.
+  - A web test decodes every portrait and attack sheet and checks that every palette maps every colour except the kept ones, with no stale entries.
+- **Banner styles**, 32×32 at `/assets/banners/<name>.png`, helper `bannerStyleAsset(id)` (`BANNER_STYLE_IDS`): `banner.harvest-sheaf` (a bone-white wheat sheaf), `banner.forgeward` (an anvil under a beacon flame, chains on the crossbar), `banner.crypt-seal` (the Gravewarden's skull seal), `banner.season-laurel` (a laurel around a star), `banner.warden-flame` (an ashen flame), `banner.ember-standard` (crossed hammers over an ember). All from one job, `banners-cosmetic-01` (style image `guild-emblems/anvil.png`): picks `00`, `09`, `10`, `19`, `12`, `13`, unedited, alpha 0/255.
+- **Crest styles**, 48×56 frames at `/assets/crests/crest-<name>.png`, helper `crestStyleAsset(id)` (`CREST_STYLE_IDS`, `CREST_STYLE_WINDOW`): `crest.iron` (riveted iron, corner plates), `crest.gilt` (grave-gold with crimson studs), `crest.bone` (jointed bone with a skull boss), `crest.ember` (blackened iron with ember cracks). **Drawn in code** (`tools/art/crest_styles.py`), because a 32 px generation cannot hold a frame for the 40 px CSS crest at its own pixel scale. The band follows the crest's exact shield outline: fill the window `{ x: 4, y: 4, width: 40, height: 48 }` with the `md` crest and draw the frame on top at the same integer scale (×1 around `md`, ×2 around `lg`); the band covers the crest's brass rim and 2 px of its edge. Palettes are sampled from the season frames, the guild emblems and the Cinderwastes art.
+- **The Forgeward deed** `achievement.forgeward-builder` (ticket 6.7): an anvil under a beacon brazier on its post, `icons-forgeward-01/28.png` (style image `achievements/forge-plus-10.png`), unedited.
+- **Budget:** two 32 px jobs, no regeneration, 20 generations (1,339 → 1,319). The second job was spent on the deed icon, which the first (banners) did not produce; its hammer and laurel banners were unused, because the first job's matched the set better.
+- Preview: `art/preview-cosmetics.png`.
