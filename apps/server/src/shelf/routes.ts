@@ -354,6 +354,8 @@ const itemSnapshot = (i: ItemInstance) => ({
   upgradeLevel: i.upgradeLevel,
   locked: i.locked,
   binding: i.binding ?? null,
+  /** Ticket 6.5b: awakened items move between the account's heroes like any bound item. */
+  awakened: i.awakening !== null,
   /** The hero the item came from (deposit: the depositor; withdrawal: who had placed it). */
   fromCharacterId: i.characterId,
 });

@@ -11,6 +11,7 @@ import {
   type ClassId,
   type EquipmentSlotId,
   type GuildRole,
+  type ItemAwakening,
   type ProfileRelation,
   type ProfileVisibility,
   type Relation,
@@ -153,6 +154,8 @@ export interface ShowcaseItemView {
   effectRoll: number | null;
   setId: string | null;
   mythicId: string | null;
+  /** Ticket 6.5b: present only on an awakened item (the mark others see). */
+  awakening?: ItemAwakening;
 }
 
 export interface ProfileCharacterView {
@@ -193,6 +196,7 @@ function showcaseItem(i: ItemInstance): ShowcaseItemView {
     effectRoll: i.effectRoll ?? null,
     setId: i.setId ?? null,
     mythicId: i.mythicId ?? null,
+    ...(i.awakening ? { awakening: i.awakening } : {}),
   };
 }
 
@@ -345,6 +349,11 @@ const showcaseItemSchema = {
     effectRoll: { type: ['number', 'null'] },
     setId: { type: ['string', 'null'] },
     mythicId: { type: ['string', 'null'] },
+    awakening: {
+      type: 'object',
+      required: ['option', 'effectStrength'],
+      properties: { option: { type: 'string' }, effectStrength: { type: 'number' } },
+    },
   },
 } as const;
 

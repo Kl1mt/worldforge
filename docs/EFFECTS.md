@@ -141,8 +141,8 @@ The B.2 build search, run with every piece Void and with every piece Prismatic (
 
 Tuning (the same searches): × 1.2 on every combat affix made the best Prismatic farm 3–5 % faster than the best Void; × 1.1 with critical chance still in made it 2–10 % faster at the Warden (warrior 0.900); × 1.1 without critical chance is the table above. Prismatic is a chase for a build that wants its item's affixes, not a new tier.
 
-## Item Awakening (evaluated in ticket 6.5, not built)
-`docs/AWAKENING.md`. The recommended option would scale an awakened item's own effect (and, piece by piece, its set's bonuses) like Void's strength, × 1.1. The game-core prototype is switched off; `itemEffectInstances` and `setBonusInstances` read an awakening that no stored item carries, so every number above is unchanged.
+## Item Awakening (evaluated in ticket 6.5, built in 6.5b)
+`docs/AWAKENING.md`. An awakened item's own effect (a Legendary effect or a Mythic signature) counts × 1.1, like Void's strength: magnitudes only, never thresholds, stack counts or decay, still under `DEFAULT_EFFECT_CAPS`, and an effect id still counts once. It multiplies with the variant (Void × 1.1 × 1.1 = × 1.21; Prismatic leaves the effect as on a plain item, so × 1.1). A set piece has no effect of its own: a set bonus of n pieces counts × 1.1 once n distinct worn pieces of the set are awakened (two copies of one piece count once). `itemEffectInstances` and `setBonusInstances` read the stored `item_instances.awakening` (validated by `validateItem`); an item without one reads exactly as before (the no-effects hashes and every balance suite are unchanged). Duels read it through `normaliseFighter` like any effect (`effectKeep`).
 
 ## Combat rules
 - **One pricing function.** `attackHit(setup, attack, prevCrit, heroHealth, enemyHealth)` prices every hero attack in both simulations. Without effects the setup carries no `effects` field and it returns the old `auto`/`skill` profiles unchanged.

@@ -281,6 +281,13 @@
       "when": 1794343065439,
       "tag": "0039_world_events",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "7",
+      "when": 1794345466402,
+      "tag": "0040_item_awakening",
+      "breakpoints": true
     }
   ]
 }

@@ -57,6 +57,10 @@
   --prism-mint: #9fd2b4;
   --prism-sky: #93b9de;
   --prism-lilac: #b7a0dc;
+  /* Ticket 6.5b: the awakened ember (a banked coal, not the Legendary orange): core, glow, coal. */
+  --ember-core: #ffd98a;
+  --ember-glow: #f0642a;
+  --ember-coal: #4a160c;
 
   /* ── Semantic aliases ──────────────────────────────────────────────── */
   --bg-page: var(--ink-950);

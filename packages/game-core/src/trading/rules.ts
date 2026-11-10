@@ -78,6 +78,8 @@ export const TRADE_CHECKS = [
   'material_not_tradeable',
   'item_unprovenanced',
   'item_bound',
+  // Ticket 6.5b: an awakened item is never tradeable, whatever the switches (docs/AWAKENING.md).
+  'item_awakened',
   'item_category_off',
   'item_locked',
   'item_stored',
@@ -110,6 +112,8 @@ export const OFFER_CHECKS = [
   'material_not_tradeable',
   'item_unprovenanced',
   'item_bound',
+  // Ticket 6.5b: an awakened item is never tradeable, whatever the switches (docs/AWAKENING.md).
+  'item_awakened',
   'item_category_off',
   'item_locked',
   'item_stored',
@@ -321,6 +325,8 @@ function sideRefusals(
     const itemId = item.id;
     if (item.unprovenanced) at('item_unprovenanced', { itemId, flag: true });
     const b = itemBinding(item, categoryOnly);
+    // Ticket 6.5b: awakened is named on its own, so no future switch or binding rule can open it.
+    if (item.awakening) at('item_awakened', { itemId });
     if (b.binding === 'account') at('item_bound', { itemId });
     else if (!b.tradeable) {
       at('item_category_off', {
@@ -415,6 +421,7 @@ export const TRADE_CHECK_TEXT: Readonly<Record<TradeCheckId, string>> = {
   item_unprovenanced:
     'This item can’t be traded: its origin isn’t on record. The wardens will look into it.',
   item_bound: 'This item is bound to its account.',
+  item_awakened: 'Awakened items can never be traded.',
   item_category_off: 'Items of this kind can’t be traded right now.',
   item_locked: 'Unlock this item before offering it.',
   item_stored: 'Take this item out of the Warehouse first.',

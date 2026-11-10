@@ -48,3 +48,23 @@ export function shimmerClass(
     ? 'item-frame--shimmer'
     : '';
 }
+
+/**
+ * Ticket 6.5b: the awakened mark, an ember sigil. A shape of its own next to Void's ◇ and
+ * Prismatic's ✧ (an awakened Void item shows both).
+ */
+export const AWAKENED_MARK = '☼';
+
+/**
+ * Ticket 6.5b: whether an awakened item's ember glow may pulse, by the same rule as the Prismatic
+ * sweep (`shimmerClass`): still under automation, the A.14 override and (in CSS) reduced motion;
+ * `forced` in the admin gallery after Play.
+ */
+export function emberClass(
+  mode: ShimmerMode,
+  flags: { automated: boolean; override: string | null } = browserMotionFlags(),
+): string {
+  if (mode === 'forced') return 'item-frame--ember-forced';
+  if (mode === 'still') return '';
+  return sceneMotionMode({ reducedMotion: false, ...flags }) === 'full' ? 'item-frame--ember' : '';
+}

@@ -1,4 +1,5 @@
 import type { RolledAffix } from '../loot/generate.js';
+import type { ItemAwakening } from '../items/awakening-state.js';
 import type { ItemVariantId } from '../items/model.js';
 import { activeVariant } from '../items/variants.js';
 import type { RarityId } from '../rarity.js';
@@ -145,6 +146,8 @@ export interface ItemBindingInput {
   rerollCount?: number;
   forgeCounter?: number;
   affixes?: readonly RolledAffix[];
+  /** Ticket 6.5b: an awakened item is account-bound for good (docs/AWAKENING.md). */
+  awakening?: ItemAwakening | null;
 }
 
 /** Why an item is bound (or why it isn't yet). */
@@ -155,6 +158,8 @@ export type ItemBindingReason =
   | 'worn'
   | 'forged'
   | 'traded'
+  /** Ticket 6.5b: awakened (never tradeable, whatever the switches). */
+  | 'awakened'
   /** Stored as bound with nothing else to show why (kept: binding never goes back). */
   | 'bound';
 
@@ -213,6 +218,7 @@ export function itemBindingState(item: ItemBindingInput): {
   binding: ItemBinding;
   reason: ItemBindingReason;
 } {
+  if (item.awakening) return { binding: 'account', reason: 'awakened' };
   if ((item.tradedCount ?? 0) > 0) return { binding: 'account', reason: 'traded' };
   if (SOURCE_BINDING[itemBindingSource(item.source)] === 'account') {
     return { binding: 'account', reason: 'source' };

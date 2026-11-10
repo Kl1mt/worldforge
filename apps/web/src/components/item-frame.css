@@ -164,6 +164,14 @@
   -webkit-mask-repeat: no-repeat;
 }
 
+/* An awakened Void item (6.5b): its moving layers stay above the ember glow, like the art (the
+   icon still covers them: it comes later in the frame). */
+.item-frame--awakened > .item-frame__void-motes,
+.item-frame--awakened > .item-frame__void-edge {
+  position: relative;
+  z-index: 1;
+}
+
 @keyframes item-void-breath {
   0%,
   100% {
@@ -323,6 +331,11 @@
   .item-frame--shimmer .item-frame__prism--sheen {
     animation: item-prism-sweep 9.6s steps(96) infinite;
   }
+
+  /* Ticket 6.5b: the awakened ember glow (keyframes below). */
+  .item-frame--ember .item-frame__ember {
+    animation: item-ember-breathe 4.8s steps(4) infinite;
+  }
 }
 
 /* The admin gallery after Play (A.14c's rule): moves here even under reduced motion. */
@@ -429,4 +442,85 @@
 .item-frame--interactive:disabled {
   cursor: not-allowed;
   opacity: 0.55;
+}
+
+/* Ticket 6.5b: Awakened. A banked fire under the art, on top of the rarity and any variant: a
+   coal-dark line along the socket's base with ember pixels in it (one art pixel high, whole art
+   pixels apart), a low ember glow rising from it behind the art, and the sigil ☼ in the lower left
+   corner (next to a variant's ◇ or ✧). The glow breathes in four steps over 4.8 s; still under
+   reduced motion and under automation (`item-frame--ember` is not set), forced in the admin
+   gallery after Play. */
+.item-frame--awakened {
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--rarity) 70%, var(--ink-900)),
+    inset 0 0 0 2px var(--ink-950),
+    inset 0 -3px 0 0 color-mix(in srgb, var(--ember-glow) 35%, var(--ink-950));
+}
+
+.item-frame--awakened {
+  isolation: isolate;
+}
+
+/* The art (and Prismatic's layers, in their order) above the glow. */
+.item-frame--awakened > .pixel,
+.item-frame--awakened > .item-frame__prism {
+  position: relative;
+  z-index: 1;
+}
+
+.item-frame__ember {
+  position: absolute;
+  inset: 2px;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+        90deg,
+        var(--ember-core) 0 var(--px, 1px),
+        var(--ember-coal) 0 calc(4 * var(--px, 1px)),
+        var(--ember-glow) 0 calc(5 * var(--px, 1px)),
+        var(--ember-coal) 0 calc(7 * var(--px, 1px))
+      )
+      bottom / 100% var(--px, 1px) no-repeat,
+    radial-gradient(
+      ellipse 60% 45% at 50% 100%,
+      color-mix(in srgb, var(--ember-glow) 32%, transparent),
+      transparent 100%
+    );
+  opacity: 0.9;
+}
+
+.item-frame__awakened {
+  position: absolute;
+  z-index: 2;
+  left: 3px;
+  bottom: 1px;
+  color: var(--ember-core);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 12px;
+  pointer-events: none;
+  text-shadow: 0 0 2px var(--ember-glow);
+}
+
+/* With a variant's mark in the corner, the sigil sits beside it. */
+.item-frame--void .item-frame__awakened,
+.item-frame--prismatic .item-frame__awakened {
+  left: 14px;
+}
+
+@keyframes item-ember-breathe {
+  0% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0.6;
+  }
+}
+
+.item-frame--ember-forced .item-frame__ember {
+  animation: item-ember-breathe 4.8s steps(4) infinite;
 }

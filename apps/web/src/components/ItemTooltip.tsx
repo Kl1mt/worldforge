@@ -1,4 +1,4 @@
-import { VARIANT_MARK } from './itemVariant';
+import { AWAKENED_MARK, VARIANT_MARK } from './itemVariant';
 import type { ReactNode } from 'react';
 import { RARITIES, UPGRADE_IMPLICIT_BONUS } from '@worldforge/game-core';
 import {
@@ -90,6 +90,7 @@ export function ItemTooltip({
     <article
       className={`tooltip rarity-${item.rarity}`}
       data-variant={item.variant?.id}
+      data-awakened={item.awakened ? 'true' : undefined}
       id={id}
       aria-label={`${item.name} details`}
     >
@@ -150,6 +151,15 @@ export function ItemTooltip({
                 ? ` and ${item.effect.kind === 'mythic' ? 'signature' : 'effect'}`
                 : ''}{' '}
               as usual{set ? '. Still counts as the same set piece.' : '.'}
+            </p>
+          ) : null}
+          {item.awakened ? (
+            <p className="tooltip__unique tooltip__unique--awakened">
+              <span className="caps">{AWAKENED_MARK} Awakened</span>{' '}
+              {item.awakened.kind === 'set'
+                ? `Counts toward its set’s awakening: a bonus of n pieces grows +${Math.round(item.awakened.bonus * 100)} % once n worn pieces of the set are awakened.`
+                : `Its ${item.effect?.kind === 'mythic' ? 'signature' : 'effect'} counts +${Math.round(item.awakened.bonus * 100)} %, as shown below.`}{' '}
+              Permanent.
             </p>
           ) : null}
           {note ? <p className="tooltip__note">{note}</p> : null}

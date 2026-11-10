@@ -406,3 +406,78 @@ if (mode === 'realistic' || mode === 'all') {
     console.log(`${c}: ${row.join(' | ')}`);
   }
 }
+
+// Ticket 6.5b: what awakening is worth to matchmaking (owner decision: awakening counts in duels,
+// so bracket Power must see it). Per rated bracket from 20: (1) the population's own yardstick, the
+// slope of a duel's log-odds over the log bracket-Power gap, fitted on random pairs of the arena
+// population within 20 % of each other; (2) per class, the duel share of a whole awakened +10 Void
+// kit or build against itself plain (12 kits and 12 builds, 96 duels each) and how many duel-read
+// awakened effects it carries. The Power gap that gives the same odds, per effect, is
+// `AWAKENING_MATCH_WEIGHT`. Not in `all` (about 5 s).
+if (mode === 'match') {
+  const F = await import('../../packages/game-core/src/balance/pvp-fixtures.ts');
+  const { RATED_BRACKETS, arenaPopulation } =
+    await import('../../packages/game-core/src/balance/arena-fixtures.ts');
+  const logit = (p: number) => Math.log(p / (1 - p));
+  console.log(`## matchmaking yardstick (strength ${STRENGTH})`);
+  for (const b of RATED_BRACKETS.filter((x) => x.min >= 20)) {
+    const pop = arenaPopulation(b, 120);
+    const xs: number[] = [];
+    const ys: number[] = [];
+    const rng = G.createRng(`awakening-match:${b.id}`);
+    for (let t = 0; t < 1500; t++) {
+      const a = pop[rng.int(0, pop.length - 1)]!;
+      const d = pop[rng.int(0, pop.length - 1)]!;
+      const lr = Math.log(a.power / d.power);
+      if (a === d || Math.abs(lr) > 0.2) continue;
+      const w = F.winShare(a.fighter, d.fighter, 32, `awakening-fit:${b.id}:${t}`).share;
+      xs.push(lr);
+      ys.push(logit(Math.min(0.97, Math.max(0.03, w))));
+    }
+    const mean = (v: number[]) => v.reduce((s, x) => s + x, 0) / v.length;
+    const mx = mean(xs);
+    const my = mean(ys);
+    let sxy = 0;
+    let sxx = 0;
+    for (let i = 0; i < xs.length; i++) {
+      sxy += (xs[i]! - mx) * (ys[i]! - my);
+      sxx += (xs[i]! - mx) ** 2;
+    }
+    const beta = sxy / sxx;
+    console.log(`${b.label}: ${xs.length} pairs, log-odds slope ${beta.toFixed(1)} per log Power`);
+    const L = b.min === 20 ? 27 : 38;
+    let tot = 0;
+    let totN = 0;
+    for (const c of CLASSES) {
+      let wa = 0;
+      let n = 0;
+      for (let k = 0; k < 24; k++) {
+        const plain =
+          k < 12
+            ? F.gear(c, L, 'legendary+10void', k)
+            : F.sampleBuild(c, L - 1, k).map((i) => ({
+                ...i,
+                upgradeLevel: 10,
+                variant: 'void' as const,
+              }));
+        const awake = plain.map(awakenB);
+        wa += F.winShare(
+          F.fighter(c, L, awake),
+          F.fighter(c, L, plain),
+          96,
+          `awakening-mm:${c}:${k}`,
+        ).share;
+        n += G.awakenedEffectCount(awake, c);
+      }
+      wa /= 24;
+      n /= 24;
+      const eq = logit(wa) / beta;
+      tot += eq;
+      totN += n;
+      console.log(
+        `  ${c}: awakened vs plain ${(wa * 100).toFixed(1)} %, ${n.toFixed(1)} duel-read awakened effects → ${pct(eq)} of Power (${((eq / Math.max(1, n)) * 100).toFixed(3)} % each)`,
+      );
+    }
+    console.log(`  all classes: ${((tot / totN) * 100).toFixed(3)} % per effect`);
+  }
+}

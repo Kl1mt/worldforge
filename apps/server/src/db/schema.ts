@@ -33,6 +33,7 @@ import type {
   DuelSideResult,
   DuelSnapshot,
   ItemVariantId,
+  ItemAwakening,
   DungeonId,
   DungeonTier,
   BossModifierId,
@@ -429,6 +430,14 @@ export const itemInstances = pgTable(
     escrowOfferId: uuid('escrow_offer_id').references((): AnyPgColumn => tradeOffers.id, {
       onDelete: 'restrict',
     }),
+    /**
+     * Ticket 6.5b: game-core `ItemAwakening` (`{ option: 'effect', effectStrength: 1.1 }`), written
+     * once by the Forge's awaken action (or the admin grant on a test account), never cleared. Null
+     * on every other item. `validateItem` checks it on read like any column.
+     */
+    awakening: jsonb('awakening').$type<ItemAwakening>(),
+    /** Ticket 6.5b: when the item was awakened; set exactly while `awakening` is. */
+    awakenedAt: timestamp('awakened_at', { withTimezone: true }),
     ...timestamps,
   },
   (t) => [
@@ -469,6 +478,10 @@ export const itemInstances = pgTable(
     check(
       'item_instances_escrow_check',
       sql`${t.escrowOfferId} is null or (${t.equippedSlot} is null and not ${t.inWarehouse} and not ${t.onShelf})`,
+    ),
+    check(
+      'item_instances_awakening_check',
+      sql`(${t.awakening} is null) = (${t.awakenedAt} is null)`,
     ),
     check(
       'item_instances_shelf_check',
@@ -801,6 +814,8 @@ export interface DungeonRunSnapshot {
     upgradeLevel?: number;
     /** Ticket 3.5; absent in snapshots taken before it (those runs replay without Void). */
     variant?: ItemVariantId | null;
+    /** Ticket 6.5b; absent in snapshots taken before it (no item was awakened then). */
+    awakening?: ItemAwakening | null;
   }[];
 }
 

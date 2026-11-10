@@ -179,11 +179,14 @@ const strayPrismatic = (items: GeneratedItem[]) =>
 /** Ticket 6.5: an explicit `awakening: null` on every item (the field a 6.5b column would fill). */
 const noAwakening = (items: GeneratedItem[]) => items.map((item) => ({ ...item, awakening: null }));
 
-/** Ticket 6.5: every item offered to the prototype with the switch off (the default): refused. */
+/**
+ * Ticket 6.5b: every item of these kits offered to the shipped rule is refused (none is a +10
+ * Legendary or Mythic at item level 23+), so the kit is unchanged.
+ */
 const refusedAwakening = (items: GeneratedItem[]) =>
   items.map((item) => {
     const r = awakenItem(item);
-    expect(r).toEqual({ ok: false, reason: 'disabled' });
+    expect(r.ok).toBe(false);
     return item;
   });
 
@@ -303,7 +306,7 @@ describe.each([
   ['a Void flag on items that cannot be Void (ticket 3.5)', strayVoid],
   ['a Prismatic flag on items that cannot be Prismatic (ticket 6.4)', strayPrismatic],
   ['no awakening (ticket 6.5)', noAwakening],
-  ['awakenings refused by the switch (ticket 6.5)', refusedAwakening],
+  ['awakenings refused by the rule (ticket 6.5b)', refusedAwakening],
   ['neutral awakenings (ticket 6.5)', strayAwakening],
 ])('%s', (_, dress) => {
   it('farming, detailed simulation and the crypt give exactly the pre-3.2 results', () => {
@@ -419,7 +422,7 @@ describe('the late-game loot tables (ticket B.2)', () => {
  * piece is refused and the Depths settlement, a Forge Tyrant run and Character Power are exactly
  * those of the untouched kit; with the switch on (the evaluation only) each option changes them.
  */
-describe('Item Awakening switched off (ticket 6.5)', () => {
+describe('Item Awakening invariance (tickets 6.5, 6.5b)', () => {
   const c: ClassId = 'warrior';
   const slots = buildSlots(c);
   const vigil = chassis(c, [['drowned-vigil', 4]]);
@@ -460,17 +463,19 @@ describe('Item Awakening switched off (ticket 6.5)', () => {
   });
   const before = results(kit);
 
-  it('refuses every piece, and the kit fights exactly as before', () => {
-    const offered = kit.map((item) => {
-      const r = awakenItem(item);
-      expect(r.ok).toBe(false);
-      return r.ok ? r.item : item;
-    });
-    expect(results(offered)).toEqual(before);
+  it('a kit without awakenings (absent or null) fights exactly as before', () => {
     expect(results(kit.map((i) => ({ ...i, awakening: null })))).toEqual(before);
+    // Below +10 nothing awakens, so nothing changes.
+    const at9 = kit.map((i) => ({ ...i, upgradeLevel: 9 }));
+    const offered = at9.map((item) => {
+      const r = awakenItem(item);
+      expect(r).toEqual({ ok: false, reason: 'upgrade_level' });
+      return item;
+    });
+    expect(results(offered)).toEqual(results(at9));
   });
 
-  it('the check can fail: with the switch on, either option changes the results', () => {
+  it('the check can fail: the shipped rule (and option (a)) change the results', () => {
     const on = (option: 'effect' | 'affixSlot') =>
       kit.map((item) => {
         const r = awakenItem(item, evaluationSettings({ option, affixValueShare: 0.5 }), {

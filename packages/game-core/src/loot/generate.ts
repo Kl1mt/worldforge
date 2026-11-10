@@ -7,6 +7,7 @@ import { findItemBase, getItemBase, type ItemBaseDefinition } from '../items/bas
 import { mythicForBase, mythicPool, type MythicItemDefinition } from '../items/mythics.js';
 import { setForBase, setPiecePool, type SetDefinition } from '../items/sets.js';
 import { upgradeImplicitBonus, type ItemVariantId } from '../items/model.js';
+import type { ItemAwakening } from '../items/awakening-state.js';
 import { activeVariant } from '../items/variants.js';
 import { EFFECT_ROLL_STEPS, legendaryEffectPool } from '../effects/resolve.js';
 import type { EffectDefinition } from '../effects/types.js';
@@ -57,6 +58,11 @@ export interface GeneratedItem {
    * `prismaticChance` (Prismatic, ticket 6.4). Absent otherwise.
    */
   variant?: ItemVariantId;
+  /**
+   * Ticket 6.5b: the item's awakening (`items/awakening.ts`). Never rolled: only the Forge's
+   * awaken action (and the admin grant on test accounts) writes it. Absent otherwise.
+   */
+  awakening?: ItemAwakening;
 }
 
 export interface LootDrop {
