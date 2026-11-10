@@ -23,9 +23,18 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.6.10';
+export const GAME_VERSION = '0.6.11';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.6.11',
+    date: '2026-11-12',
+    title: 'Awakened items stay safe',
+    changed: [
+      'Awakening an item now also locks it, so it can’t be sold, salvaged or thrown away by mistake. You can unlock it in the Pack whenever you like. Items awakened before this change have been locked too.',
+    ],
+    tickets: ['6.5c'],
+  },
   {
     version: '0.6.10',
     date: '2026-11-12',

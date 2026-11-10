@@ -222,3 +222,6 @@ A +10 kit of Verge Legendaries with random effects and affixes (item level 33, `
 
 ### Tests and tools
 `items/awakening-rule.test.ts`, `balance/awakening-pvp.test.ts` (duels, bracket Power, the bands with an awakened population), `forge/awaken.test.ts`, `forge/awaken.pg.test.ts` (awaken vs a shelf deposit, vs a trade offer, double submit; looped 20×), `e2e/awakening-journey.test.ts`, the admin grant, the web's `components/awakened.test.tsx`. Tools: `tools/balance/awakening.ts match`, `tools/balance/arena.ts` with `AWAKENED=1 POWER=1|2`, screenshots `tools/screenshots/awakening.mjs`.
+
+## 6.5c: awakening locks the item (owner decision, 2026-11-10)
+The owner's answer to 6.5b's question 2: an awakening **locks its item** (the 3.7 item lock), in the awaken transaction, audited as `item.lock` with `via: 'awaken'` (no row when it was already locked; manual locks stay unaudited). A locked item can't be sold, salvaged or discarded (`409 item_locked`); the loot filter only ever sees new drops, so it never reaches one. The player can unlock it in the Pack like any lock; the awakening stays. Items awakened under 0.6.9 are locked once by the `awaken-lock:6.5c` data step in the server after start-up (idempotent; `docs/DEPLOY.md` "Data backfills"). The Banked Fire's confirm says: "The item will be locked; unlock it in the Pack if you ever want to sell it."
