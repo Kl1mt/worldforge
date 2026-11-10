@@ -1697,17 +1697,16 @@ export async function playAshenPassStep(
   // with game-core's board (the same pool at every level from 24 once the pass is open), plays
   // Tavern visits until two days after it (room for the contracts already held to be finished),
   // and never assumes today's draw.
-  const today = (await hero.board()).day;
   const open = worldFlagsFrom(['warehouseRestored', 'ashenPassCleared']);
-  const passDay = Array.from({ length: 60 }, (_, i) =>
-    contractDay(new Date(Date.parse(`${today}T00:00:00Z`) + i * 24 * HOUR)),
-  ).find((day) =>
-    dailyContracts(hero.characterId, day, state.level, { gravewardenDefeated: true }, open).some(
-      (o) => passContracts.has(o.template.id),
-    ),
-  );
-  expect(passDay).toBeDefined();
-  const lastDay = contractDay(new Date(Date.parse(`${passDay}T00:00:00Z`) + 2 * 24 * HOUR));
+  /** The first day from `from` on whose board this hero draws a Pass contract. */
+  const nextPassDay = (from: string) =>
+    Array.from({ length: 60 }, (_, i) =>
+      contractDay(new Date(Date.parse(`${from}T00:00:00Z`) + i * 24 * HOUR)),
+    ).find((day) =>
+      dailyContracts(hero.characterId, day, state.level, { gravewardenDefeated: true }, open).some(
+        (o) => passContracts.has(o.template.id),
+      ),
+    );
   // Farms where a held contract can be done, the pass first (`farmBestArea` stops at the Abbey).
   const farmHeldContracts = async () => {
     const held = (await hero.board()).quests.filter((q) => q.kind === 'contract');
@@ -1728,13 +1727,21 @@ export async function playAshenPassStep(
     expect([200, 201]).toContain(res.statusCode);
   };
   const passTurnedIn = () => state.turnedIn.filter((q) => passContracts.has(q.questId));
-  while (passTurnedIn().length === 0 && (await hero.board()).day <= lastDay) {
-    await hero.visitTavern();
-    if (passTurnedIn().length > 0) break;
-    await farmHeldContracts();
-    await hero.settle();
-    await hero.equipBetterDrops();
-    await hero.sellJunk(await hero.inventory());
+  // Capacity (CLAUDE.md): a hero holds at most three contracts, and the three it holds on a Pass
+  // day may take longer than the window to finish, so the Pass offer can't be taken that day.
+  // Then the next Pass day gets its own window (bounded), instead of assuming the first fits.
+  for (let window = 0; window < 4 && passTurnedIn().length === 0; window++) {
+    const passDay = nextPassDay((await hero.board()).day);
+    expect(passDay).toBeDefined();
+    const lastDay = contractDay(new Date(Date.parse(`${passDay}T00:00:00Z`) + 2 * 24 * HOUR));
+    while (passTurnedIn().length === 0 && (await hero.board()).day <= lastDay) {
+      await hero.visitTavern();
+      if (passTurnedIn().length > 0) break;
+      await farmHeldContracts();
+      await hero.settle();
+      await hero.equipBetterDrops();
+      await hero.sellJunk(await hero.inventory());
+    }
   }
   expect(passTurnedIn().length).toBeGreaterThanOrEqual(1);
   const passContract = passTurnedIn()[0]!.questId;
