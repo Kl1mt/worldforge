@@ -413,7 +413,9 @@ describe('item model v2 (ticket 3.1)', () => {
     await expect(set({ upgradePity: -1 })).rejects.toThrow();
     await expect(set({ forgeCounter: -1 })).rejects.toThrow();
     await expect(set({ rerollCount: -1 })).rejects.toThrow();
-    await expect(set({ variant: 'prismatic' as 'void' })).rejects.toThrow();
+    await expect(set({ variant: 'glimmer' as 'void' })).rejects.toThrow();
+    // Ticket 6.4: Prismatic is a stored variant now (migration 0038).
+    await expect(set({ variant: 'prismatic' })).resolves.toBeDefined();
     await expect(set({ effectRoll: 1.5 })).rejects.toThrow();
   });
 });

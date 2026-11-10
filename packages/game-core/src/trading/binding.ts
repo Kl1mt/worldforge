@@ -87,7 +87,14 @@ export const RARITY_BINDING: Readonly<Record<RarityId, ItemBinding>> = {
 };
 
 /** The trading categories, each with its own switch ("Tradeable: …"). */
-export const TRADE_CATEGORIES = ['epic', 'legendary', 'set', 'mythic', 'void'] as const;
+export const TRADE_CATEGORIES = [
+  'epic',
+  'legendary',
+  'set',
+  'mythic',
+  'void',
+  'prismatic',
+] as const;
 export type TradeCategory = (typeof TRADE_CATEGORIES)[number];
 
 /**
@@ -107,7 +114,7 @@ export interface TradingSwitches {
 /**
  * The defaults of the "Admin switches" table (ticket T.2, `DEFAULT_TRADING_SETTINGS`): the master
  * switch and "Trade: items" off, so nothing is tradeable; Epic, Legendary and set pieces on (they
- * only matter once the master is on), Mythic and Void off.
+ * only matter once the master is on), Mythic, Void and Prismatic (ticket 6.4) off.
  */
 export const DEFAULT_TRADING_SWITCHES: Readonly<TradingSwitches> = Object.freeze({
   trading: false,
@@ -118,6 +125,7 @@ export const DEFAULT_TRADING_SWITCHES: Readonly<TradingSwitches> = Object.freeze
     set: true,
     mythic: false,
     void: false,
+    prismatic: false,
   }),
 });
 
@@ -169,7 +177,10 @@ export function itemTradeCategories(item: {
   if (item.rarityId === 'epic') out.push('epic');
   else if (item.rarityId === 'legendary') out.push(item.setId ? 'set' : 'legendary');
   else if (item.rarityId === 'mythic') out.push('mythic');
-  if (activeVariant(item)?.id === 'void') out.push('void');
+  // A variant is a category of its own on top of the rarity (Void 3.5, Prismatic 6.4).
+  const variant = activeVariant(item)?.id;
+  if (variant === 'void') out.push('void');
+  else if (variant === 'prismatic') out.push('prismatic');
   return out;
 }
 

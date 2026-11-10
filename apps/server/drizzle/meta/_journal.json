@@ -267,6 +267,13 @@
       "when": 1794326499386,
       "tag": "0037_boss_modifiers",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1794334639490,
+      "tag": "0038_prismatic_variant",
+      "breakpoints": true
     }
   ]
 }

@@ -64,6 +64,7 @@ All trading settings live in the **D.3 admin panel**, in a new "Trading settings
 | Tradeable: set pieces | Fresh set pieces | On | Same. |
 | Tradeable: Mythic | Fresh Mythic items | **Off** | Same. |
 | Tradeable: Void | Fresh Void items (a Void set piece or Mythic needs this switch and its own) | **Off** | Same. |
+| Tradeable: Prismatic (ticket 6.4) | Fresh Prismatic items (a Prismatic set piece or Mythic needs this switch and its own) | **Off** | Same. |
 | Weekly limits (numbers) | Every cap in "Per-account limits" | The values there | Lowering a limit never voids an offer: an offer that would now go over the limit can't be accepted (the player is told why) and expires as usual. |
 | Shelf: items | Moving items to and from the account shelf | Off | No new deposits; anything on the shelf can still be taken out to any hero. |
 | Shelf: materials | Moving materials to and from the shelf | Off | Same. |
@@ -93,6 +94,7 @@ The category switches matter only once "Trading" and "Trade: items" are on. That
 | Set piece | Bind on equip | Tradeable: set pieces (on) | Helps finish a set; B.2 shows sets compete with but don't beat Legendary builds. |
 | Mythic | Bind on equip | Tradeable: Mythic (**off**) | Six named chase items. Owner decision 3b: tradeable, but off at first, with its own weekly cap of one. |
 | Void (on a Legendary, set piece or Mythic) | Bind on equip | Tradeable: Void (**off**) plus the item's own category | The long chase (~10 % of late-game Legendaries and Mythics). Same treatment as Mythic. |
+| Prismatic (on a Legendary, set piece or Mythic; ticket 6.4) | Bind on equip | Tradeable: Prismatic (**off**) plus the item's own category | Rarer than Void (~4.5 % of Ashen-tier Legendaries and Mythics, never with Void). Same treatment as Void; its switch is separate, so Void opening never opens Prismatic. |
 
 ### By source
 
@@ -192,7 +194,7 @@ Exact under races (like the friend caps), counted per account per **UTC week** (
 | Items per side of one offer | 6 | 12 |
 | Completed trades per day | 5 | 20 |
 | Legendary and set pieces per week | 3 | 10 |
-| **Mythic or Void items per week** | **1** (and it also counts toward the 3 above) | 3 |
+| **Mythic, Void or Prismatic items per week** | **1** (and it also counts toward the 3 above) | 3 |
 | Epic items per week | 10 | 30 |
 | **Gold per offer** | **5,000** | 25,000 |
 | **Gold per week** | **10,000** | 50,000 |
@@ -201,7 +203,7 @@ Exact under races (like the friend caps), counted per account per **UTC week** (
 | **Abbey silver per week** | **10** | 50 |
 | Trade rate-limit class | 20 trade writes a minute, on top of 3.9's limits (built in T.4) | — |
 
-A Void Mythic counts once toward the Mythic/Void cap.
+A Void Mythic counts once toward the Mythic/Void cap. Ticket 6.4: Prismatic items count toward it like Void (the setting keeps its key `mythicVoidPerWeek`, so stored settings need no migration; its label now reads "Mythic, Void or Prismatic items per week"), and a Prismatic Mythic counts once.
 
 **Why these numbers** (`docs/ECONOMY.md`, B.2's realistic player, `docs/COMMUNITY.md`):
 - **Gold:** a realistic Sunken Abbey hero earns ~1,650 gold an hour and has ~15 credited hours a day, so about 25k a day and 170k a week; Ashen Pass kits earn more. 10,000 a week is about **6 hours of Abbey income, ~6 % of a week's**. That is a real help for a friend (a few +5 upgrades, a warehouse step) and well below one item's +5 → +10 track (25k), so gold can't buy a finished build. It's also more than three times the guild boss's whole weekly purse (3,050), so it stays "help a friend", not a second income.
@@ -323,7 +325,7 @@ Before it: per-account login throttling and email verification (done in ticket 5
 
 ### T.2 as built
 
-- **game-core** `trading/settings.ts`: the typed `TradingSettings` (`trading`; `trade`, `shelf` per kind `items`/`materials`/`gold`; `tradeable` per category; `limits`, the twelve numbers of "Per-account limits"), `DEFAULT_TRADING_SETTINGS` (exactly the "Admin switches" table: master, Trade and Shelf off; Tradeable Epic, Legendary and set on; Mythic and Void off; the limits' defaults), `TRADING_LIMITS` (default and **hard maximum** of each number, minimum 0), the panel's plain words (`TRADING_SWITCHES`: label, what it controls, what switching it off does; `TRADING_LAUNCH_ORDER`), `validateTradingSettings` (an admin's save: anything off-schema or out of `[0, max]` is **refused**, naming the field), `normaliseTradingSettings` (a stored value: missing or malformed fields take their default, numbers are **clamped** to `[0, max]`; never throws), `diffTradingSettings`, `switchedOff`, and `tradingSwitchesOf` (the switches T.1's `itemBinding` reads). `DEFAULT_TRADING_SWITCHES` now equals `tradingSwitchesOf(DEFAULT_TRADING_SETTINGS)`.
+- **game-core** `trading/settings.ts`: the typed `TradingSettings` (`trading`; `trade`, `shelf` per kind `items`/`materials`/`gold`; `tradeable` per category; `limits`, the twelve numbers of "Per-account limits"), `DEFAULT_TRADING_SETTINGS` (exactly the "Admin switches" table: master, Trade and Shelf off; Tradeable Epic, Legendary and set on; Mythic, Void and, since ticket 6.4, Prismatic off; the limits' defaults), `TRADING_LIMITS` (default and **hard maximum** of each number, minimum 0), the panel's plain words (`TRADING_SWITCHES`: label, what it controls, what switching it off does; `TRADING_LAUNCH_ORDER`), `validateTradingSettings` (an admin's save: anything off-schema or out of `[0, max]` is **refused**, naming the field), `normaliseTradingSettings` (a stored value: missing or malformed fields take their default, numbers are **clamped** to `[0, max]`; never throws), `diffTradingSettings`, `switchedOff`, and `tradingSwitchesOf` (the switches T.1's `itemBinding` reads). `DEFAULT_TRADING_SWITCHES` now equals `tradingSwitchesOf(DEFAULT_TRADING_SETTINGS)`.
 - **Storage:** `game_settings (key, value jsonb, version, updated_by, updated_at)`, migration `0031_game_settings` (additive, no rows: a missing row is the defaults, so no backfill). Key `trading` holds the whole object.
 - **Cache:** `app.gameSettings` (`GameSettingsCache`, a copy of 4.6's world-state cache): served from memory for 60 s, invalidated by the instance that saved (so there the change is immediate), a load racing an invalidation doesn't store the old copy, the clock is injectable. Decisions inside a value transaction (T.4/T.5) read the table with `loadTradingSettings(tx)`.
 - **API** (`docs/API_CONVENTIONS.md`): `GET /api/mod/settings/trading` for staff (moderators read-only, `canEdit: false`; players and anonymous the not-found `404`), with the change history; `PUT /api/admin/settings/trading` for admins only, with `Idempotency-Key` and `expectedVersion`. The edit locks the row, refuses a stale version with `409 settings_conflict` (a first save racing another first save loses on the primary key), writes nothing when nothing changed, and writes a `settings.update` audit row (`{ key, version, changes: [{ path, old, new }] }` on the admin's account: who, when, old, new). Roles stay CLI-only.
@@ -332,6 +334,7 @@ Before it: per-account login throttling and email verification (done in ticket 5
 - **Panel:** the admin panel's "Trading" tab (`#/admin/trading`): the state now in force in one line, every switch as a lever with what it controls and "When switched off", the limits with their maximum and default, unsaved changes listed before **Save changes** (a number over its maximum can't be saved), the conflict message with a reload, the suggested launch order, and the change history (50 a page). Moderators see the same board read-only at the bottom of the moderator queue. Screenshots `docs/screenshots/phase-5/admin-trading-*` (`tools/screenshots/admin-trading.mjs`).
 - **Tests:** game-core `trading/settings.test.ts` (defaults, maxima, refusal, clamping, the switch combinations behind `tradeable`); server `settings/settings.test.ts` (permission matrix, audit and history, concurrent saves, idempotency, the cache with an injected clock, the seam, `tradeable` through the API, invariance: opening everything changes only `tradeable`), real PG `settings/settings.pg.test.ts` (four admins saving from one version, three rounds: exactly one wins, audit = versions); the exit run checks the defaults were never saved.
 
+- **Ticket 6.4: "Tradeable: Prismatic".** A sixth category (`TRADE_CATEGORIES`), default **off**, with its own switch in `TRADING_SWITCHES` and the admin Trading tab (built from `TRADE_CATEGORIES`, so it shows there with its words). No migration: `normaliseTradingSettings` gives a stored row without the key its default, so a live game reads it as off. T.1's `itemTradeCategories` adds `prismatic` next to the rarity's category (a Prismatic set piece needs set + Prismatic); T.4's category refusal (`item_category_off`) and T.5's voiding (`switchesVoiding`, "trading of Prismatic items is paused") cover it; the weekly cap counts it with Mythic/Void. Tested in game-core (`binding.test.ts`, `settings.test.ts`) and on the server (`trading/offers.test.ts`: refused while off, offered when on, voided when switched off again, the Void offer untouched, the cap).
 ### T.3 as built
 
 - **game-core** `trading/shelf.ts`: `planShelfDeposit` and `planShelfWithdraw` (pure, all or nothing, refusals in a fixed order: nothing to move, a paused kind, the items, room, gold and materials), `DEFAULT_SHELF_CONFIG` (20 item places; per-request sanity bounds), `HeldValue` / `NO_HELD_VALUE`, `isHeldItem` (T.1's `hold_until` after the transaction's clock). A withdrawal plan has no switch input at all.

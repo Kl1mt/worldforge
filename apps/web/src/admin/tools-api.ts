@@ -87,7 +87,8 @@ export interface GrantSpec {
   baseId: string;
   rarityId: RarityId;
   itemLevel: number;
-  variant: 'void' | null;
+  /** Void or (ticket 6.4) Prismatic. */
+  variant: 'void' | 'prismatic' | null;
   upgradeLevel: number;
 }
 
@@ -102,7 +103,7 @@ export interface PreviewItem {
   effectRoll?: number;
   setId?: string;
   mythicId?: string;
-  variant?: 'void';
+  variant?: 'void' | 'prismatic';
   upgradeLevel: number;
 }
 

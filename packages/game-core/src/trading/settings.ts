@@ -8,7 +8,7 @@ import { TRADE_CATEGORIES, type TradeCategory, type TradingSwitches } from './bi
  *
  * - **Defaults** are the "Admin switches" table: the master switch, every "Trade: …" and every
  *   "Shelf: …" switch start off; "Tradeable: Epic / Legendary / set pieces" start on (they only
- *   matter once the master and "Trade: items" are on), Mythic and Void start off. The limits are
+ *   matter once the master and "Trade: items" are on), Mythic, Void and Prismatic start off. The limits are
  *   the "Per-account limits" defaults. So nothing is tradeable until the owner opens trading.
  * - **Hard maxima** live here, in code: an admin can't store a number above its maximum, so a typo
  *   can't open the floodgates. **Writes are refused** (`validateTradingSettings` names the field);
@@ -107,14 +107,15 @@ export const TRADING_LIMITS: Readonly<Record<TradingLimitId, Readonly<TradingLim
     unit: 'items',
     default: 3,
     max: 10,
-    explains: 'Given and received are counted separately. Mythic and Void items count here too.',
+    explains:
+      'Given and received are counted separately. Mythic, Void and Prismatic items count here too.',
   },
   mythicVoidPerWeek: {
-    label: 'Mythic or Void items per week',
+    label: 'Mythic, Void or Prismatic items per week',
     unit: 'items',
     default: 1,
     max: 3,
-    explains: 'Given and received separately. A Void Mythic counts once.',
+    explains: 'Given and received separately. A Void or Prismatic Mythic counts once.',
   },
   epicPerWeek: {
     label: 'Epic items per week',
@@ -163,7 +164,14 @@ export const TRADING_LIMITS: Readonly<Record<TradingLimitId, Readonly<TradingLim
 export const DEFAULT_TRADING_SETTINGS: Readonly<TradingSettings> = deepFreeze({
   trading: false,
   trade: { items: false, materials: false, gold: false },
-  tradeable: { epic: true, legendary: true, set: true, mythic: false, void: false },
+  tradeable: {
+    epic: true,
+    legendary: true,
+    set: true,
+    mythic: false,
+    void: false,
+    prismatic: false,
+  },
   shelf: { items: false, materials: false, gold: false },
   limits: Object.fromEntries(
     TRADING_LIMIT_IDS.map((id) => [id, TRADING_LIMITS[id].default]),
@@ -238,6 +246,12 @@ export const TRADING_SWITCHES: Readonly<Record<TradingSwitchPath, Readonly<Tradi
     controls: 'Fresh Void items. A Void set piece or Mythic needs this switch and its own.',
     whenOff: `Open offers with a Void item ${VOIDED} The items stay tradeable for later.`,
   },
+  'tradeable.prismatic': {
+    label: 'Tradeable: Prismatic',
+    controls:
+      'Fresh Prismatic items. A Prismatic set piece or Mythic needs this switch and its own.',
+    whenOff: `Open offers with a Prismatic item ${VOIDED} The items stay tradeable for later.`,
+  },
   'shelf.items': {
     label: 'Shelf: items',
     controls: 'Moving items between your own heroes through the account shelf.',
@@ -263,7 +277,7 @@ export const TRADING_LIMITS_WHEN_LOWERED =
 export const TRADING_LAUNCH_ORDER: readonly string[] = [
   'Turn on Trading with Trade: items (Epic, Legendary and set pieces are already on) and Shelf: items.',
   'After a few weeks of clean telemetry, add Trade: materials and Shelf: materials.',
-  'Add gold, Mythic and Void last, one at a time.',
+  'Add gold, Mythic, Void and Prismatic last, one at a time.',
 ];
 
 export function readSwitch(s: Readonly<TradingSettings>, path: TradingSwitchPath): boolean {

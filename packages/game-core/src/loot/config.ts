@@ -100,6 +100,12 @@ export interface LootTableDefinition {
    * clamped to `LootConfig.maxVoidChance`. Only late-game sources set it. Default 0.
    */
   voidChance?: number;
+  /**
+   * Ticket 6.4: the chance (0…1) that a Legendary or Mythic here (set pieces included) that did
+   * not become Void is Prismatic, clamped to `LootConfig.maxPrismaticChance`. Only Ashen-tier and
+   * newer sources set it. Default 0.
+   */
+  prismaticChance?: number;
   /** Ticket 3.6: the table's loot focus (dungeon tiers and their bosses). */
   focus?: LootFocus;
   /**
@@ -120,6 +126,8 @@ export interface LootConfig {
    * strictly capped, also once a progression hook raises it).
    */
   maxVoidChance: number;
+  /** Ticket 6.4: the hard cap on any table's `prismaticChance` (rarer than Void's). */
+  maxPrismaticChance: number;
 }
 
 /**
@@ -176,6 +184,7 @@ export const DEFAULT_LOOT_CONFIG: LootConfig = {
   itemLevelVariance: 1,
   maxItemLevel: 60,
   maxVoidChance: 0.15,
+  maxPrismaticChance: 0.075,
 };
 
 /**

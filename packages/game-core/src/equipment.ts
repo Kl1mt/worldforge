@@ -13,6 +13,7 @@ import {
   findItemBase,
   itemFitsSlot,
 } from './items/bases.js';
+import { activeVariant, variantAffixValue } from './items/variants.js';
 import { DEFAULT_LOOT_CONFIG, type LootConfig } from './loot/config.js';
 import { getImplicitStats, type GeneratedItem, type UpgradeLevelField } from './loot/generate.js';
 import {
@@ -41,10 +42,13 @@ export function itemStatContribution(
   for (const { stat, value } of getImplicitStats(item, config)) {
     out[stat] = (out[stat] ?? 0) + value;
   }
+  // Ticket 6.4: a Prismatic item's combat affixes count × its `affixBonus` (stored values unchanged).
+  const variant = activeVariant(item);
   for (const rolled of item.affixes) {
     const affix = findAffix(rolled.affixId);
     if (!affix || !isCoreStatId(affix.stat) || !Number.isFinite(rolled.value)) continue;
-    out[affix.stat] = (out[affix.stat] ?? 0) + rolled.value;
+    const value = variantAffixValue(variant, affix.stat, rolled.value, affix.step);
+    out[affix.stat] = (out[affix.stat] ?? 0) + value;
   }
   return out;
 }
@@ -60,12 +64,25 @@ export function emptySecondaryModifiers(): SecondaryModifiers {
 /**
  * Secondary modifiers of one item (gold find, item find, XP gain, resource yield, boss damage,
  * skill damage), summed from its affixes. Uncapped; `equipmentModifiers` applies the caps.
+ * Ticket 6.4: with the item's rarity and variant given, a Prismatic item's boss and skill damage
+ * count × its `affixBonus` (find affixes never do).
  */
-export function itemSecondaryModifiers(item: Pick<GeneratedItem, 'affixes'>): SecondaryModifiers {
+export function itemSecondaryModifiers(
+  item: Pick<GeneratedItem, 'affixes'> &
+    Partial<Pick<GeneratedItem, 'rarityId'>> &
+    UpgradeLevelField,
+): SecondaryModifiers {
   const out = emptySecondaryModifiers();
+  const variant =
+    item.rarityId !== undefined
+      ? activeVariant({ rarityId: item.rarityId, variant: item.variant ?? null })
+      : undefined;
   for (const rolled of item.affixes) {
-    const stat = findAffix(rolled.affixId)?.stat;
-    if (isSecondaryStatId(stat) && Number.isFinite(rolled.value)) out[stat] += rolled.value;
+    const affix = findAffix(rolled.affixId);
+    const stat = affix?.stat;
+    if (isSecondaryStatId(stat) && Number.isFinite(rolled.value)) {
+      out[stat] += variantAffixValue(variant, stat, rolled.value, affix!.step);
+    }
   }
   return out;
 }

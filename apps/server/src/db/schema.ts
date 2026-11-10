@@ -364,7 +364,7 @@ export const itemInstances = pgTable(
     forgeCounter: integer('forge_counter').notNull().default(0),
     /** Affix rerolls done on this item; the reroll cost rises with it (ticket 3.4). */
     rerollCount: integer('reroll_count').notNull().default(0),
-    /** Null or a game-core `ItemVariantId` (ticket 3.5; only `void` in Phase 3). */
+    /** Null or a game-core `ItemVariantId` (ticket 3.5 `void`, ticket 6.4 `prismatic`). */
     variant: text('variant').$type<ItemVariantId>(),
     /** Legendary effect / Mythic signature id in the effect registry (ticket 3.2). */
     effectId: text('effect_id'),
@@ -445,7 +445,11 @@ export const itemInstances = pgTable(
       'item_instances_forge_counters_check',
       sql`${t.upgradePity} >= 0 and ${t.forgeCounter} >= 0 and ${t.rerollCount} >= 0`,
     ),
-    check('item_instances_variant_check', sql`${t.variant} is null or ${t.variant} in ('void')`),
+    // Ticket 6.4: Prismatic added (one variant per item: the column holds one value).
+    check(
+      'item_instances_variant_check',
+      sql`${t.variant} is null or ${t.variant} in ('void', 'prismatic')`,
+    ),
     check(
       'item_instances_effect_roll_check',
       sql`${t.effectRoll} is null or (${t.effectRoll} >= 0 and ${t.effectRoll} <= 1)`,
@@ -484,7 +488,7 @@ export interface ActivitySummaryItem {
   mythicId?: string;
   /** The set of a set piece (ticket 3.3); absent on others. */
   setId?: string;
-  /** Ticket 3.5: the variant of a Void item; absent on others. */
+  /** Ticket 3.5: the variant of a Void (or, 6.4, Prismatic) item; absent on others. */
   variant?: ItemVariantId;
 }
 

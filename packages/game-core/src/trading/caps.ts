@@ -116,10 +116,10 @@ export function capUsageOfSide(side: TradeSideFacts): Partial<Record<TradeCapMet
     const cats = itemTradeCategories(item);
     if (cats.includes('epic')) add('epic', 1);
     // Mythic and Void count toward Legendary/set too ("it also counts toward the 3 above"); a
-    // Void Mythic counts once toward Mythic/Void.
+    // Void Mythic counts once toward Mythic/Void. Ticket 6.4: Prismatic counts like Void.
     if (cats.some((c) => c === 'legendary' || c === 'set' || c === 'mythic'))
       add('legendarySet', 1);
-    if (cats.some((c) => c === 'mythic' || c === 'void')) add('mythicVoid', 1);
+    if (cats.some((c) => c === 'mythic' || c === 'void' || c === 'prismatic')) add('mythicVoid', 1);
   }
   add('gold', side.gold);
   for (const [id, q] of Object.entries(side.materials) as [MaterialId, number][]) {
@@ -220,8 +220,8 @@ export function tradeCapText(r: TradeCapRefusal, who: 'you' | 'them'): string {
   const words: Record<TradeCapMetric, string> = {
     trades: `You’ve completed ${r.used} of ${r.max} trades today.`,
     epic: `You can ${dir} ${r.max} Epic items a week.`,
-    legendarySet: `You can ${dir} ${r.max} Legendary or set items a week (Mythic and Void count too).`,
-    mythicVoid: `You can ${dir} ${r.max} Mythic or Void items a week.`,
+    legendarySet: `You can ${dir} ${r.max} Legendary or set items a week (Mythic, Void and Prismatic count too).`,
+    mythicVoid: `You can ${dir} ${r.max} Mythic, Void or Prismatic items a week.`,
     gold: `You can ${dir} ${r.max.toLocaleString('en-GB')} gold a week.`,
     commonMaterials: `You can ${dir} ${r.max} common materials a week.`,
     soulShards: `You can ${dir} ${r.max} soul shards a week.`,

@@ -44,6 +44,7 @@ export const CATEGORY_TEXT: Record<LootFilterCategory, { name: string; hint: str
   mythic: { name: 'Mythic', hint: 'Named Mythic items' },
   set: { name: 'Set pieces', hint: 'Pieces of the item sets' },
   void: { name: 'Void', hint: 'Void Legendaries, Mythics and set pieces' },
+  prismatic: { name: 'Prismatic', hint: 'Prismatic Legendaries, Mythics and set pieces' },
 };
 
 /** One plain sentence of what the rules do, for the filter panel's summary line. */

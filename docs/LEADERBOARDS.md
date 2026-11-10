@@ -41,20 +41,22 @@ How good your equipped items are, item by item, and nothing else. It does not as
 
 For each item you wear:
 
-> **item level × 10 × rarity × upgrades × Void**
+> **item level × 10 × rarity × upgrades × variant**
 
 | Part | Value |
 |---|---|
 | Rarity | Common × 1 · Uncommon × 1.15 · Rare × 1.3 · Epic × 1.5 · Legendary × 1.75 (set pieces are Legendary) · Mythic × 2 |
 | Upgrades | + 4 % per upgrade level (+10 is × 1.4) |
-| Void | × 1.1 |
+| Void or Prismatic (ticket 6.4) | × 1.1 |
 | Two-handed weapons | A mage's staff, a hunter's bow and a warlock's staff take both hands (these classes have no off-hand), so they count twice. A warrior's sword and shield count once each. Every class can reach the same total. |
 
 Each item is rounded to a whole number and the items are added up. Example: a +5 Legendary at item level 20 is 20 × 10 × 1.75 × 1.2 = 420.
 
 **Between equal scores, magic quality** (since ticket B.4): each magic property of a counted item scores 0–100 by how high it rolled among its possible values (100 is the best roll of its best tier), counted twice on a two-handed weapon; the hero whose properties rolled better is ahead. It never changes the score itself. Heroes who reach the best kit there is have the same Gear Score; rerolling and improving at the Forge now still moves them.
 
-A better item (higher item level, rarer, more upgrades, or Void) never lowers your Gear Score. An item that fails the server's item check (it could not have dropped as it is) counts 0 and says so in the breakdown.
+A better item (higher item level, rarer, more upgrades, or Void or Prismatic) never lowers your Gear Score. An item that fails the server's item check (it could not have dropped as it is) counts 0 and says so in the breakdown.
+
+**Prismatic (ticket 6.4)** counts like Void, × 1.1, in **version 2**, with no new version: before 6.4 no item could be stored as Prismatic (the `variant` column's check allowed only Void, and `validateItem` rejected anything else), so no stored input's value changes, and the 5.2 sweep finds every stored row unchanged. Character Power needs no version either: it fights with the item's stats, which for every item that could exist before 6.4 are what they were. The breakdown line names the variant (`… · Legendary · +5 · Prismatic`).
 
 ### Character Power
 How strong your hero is as equipped, from an actual fight, so your build counts and not only your numbers: crits, speed, set bonuses, Legendary effects and Mythic signatures all fight.

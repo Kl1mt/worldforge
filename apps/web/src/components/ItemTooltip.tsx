@@ -126,7 +126,7 @@ export function ItemTooltip({
               <span className="caps">Set piece</span> Found in {SET_SOURCES}.
             </p>
           ) : null}
-          {item.variant ? (
+          {item.variant?.id === 'void' ? (
             <p className="tooltip__unique tooltip__unique--void">
               <span className="caps">◇ {item.variant.name}</span> Touched by the void: base values +
               {Math.round(item.variant.implicitBonus * 100)} %
@@ -134,6 +134,17 @@ export function ItemTooltip({
                 ? `, ${item.effect?.kind === 'mythic' ? 'signature' : 'effect'} +${Math.round(item.variant.effectBonus * 100)} %`
                 : ''}
               {set ? '. Still counts as the same set piece.' : '.'}
+            </p>
+          ) : null}
+          {item.variant?.id === 'prismatic' ? (
+            <p className="tooltip__unique tooltip__unique--prismatic">
+              <span className="caps">◇ {item.variant.name}</span> Light split through it: its combat
+              properties count +{Math.round(item.variant.affixBonus * 100)} %, as shown below (not
+              critical chance or find bonuses). Base values
+              {item.effect
+                ? ` and ${item.effect.kind === 'mythic' ? 'signature' : 'effect'}`
+                : ''}{' '}
+              as usual{set ? '. Still counts as the same set piece.' : '.'}
             </p>
           ) : null}
           {note ? <p className="tooltip__note">{note}</p> : null}

@@ -169,6 +169,9 @@ const noVariant = (items: GeneratedItem[]) => items.map((item) => ({ ...item, va
 /** Ticket 3.5: a Void flag on items that cannot be Void (epic and rare kits) does nothing. */
 const strayVoid = (items: GeneratedItem[]) =>
   items.map((item) => ({ ...item, variant: 'void' as const }));
+/** Ticket 6.4: likewise a Prismatic flag (Legendary and Mythic only, like Void). */
+const strayPrismatic = (items: GeneratedItem[]) =>
+  items.map((item) => ({ ...item, variant: 'prismatic' as const }));
 
 /**
  * The pinned hashes for a kit dressing and a loot filter (ticket 3.7: the filter only decides what
@@ -274,6 +277,7 @@ describe.each([
   ['+0 items with forge state (ticket 3.4)', forgedAtPlusZero],
   ['no variant (ticket 3.5)', noVariant],
   ['a Void flag on items that cannot be Void (ticket 3.5)', strayVoid],
+  ['a Prismatic flag on items that cannot be Prismatic (ticket 6.4)', strayPrismatic],
 ])('%s', (_, dress) => {
   it('farming, detailed simulation and the crypt give exactly the pre-3.2 results', () => {
     expect(pinnedHashes(dress)).toEqual(BEFORE_EFFECTS);
@@ -332,6 +336,24 @@ it('the Void check can fail: the same kit as Void Legendaries changes the settle
       }),
     );
   expect(run('void')).not.toBe(run(null));
+});
+
+it('the Prismatic check can fail: the same kit as Prismatic Legendaries changes the settlement (ticket 6.4)', () => {
+  const run = (variant: 'prismatic' | 'void' | null) =>
+    hash(
+      settleFarming({
+        character: { classId: 'warrior', level: 19, xp: 0 },
+        equipment: plainKit('warrior', 18, 'legendary').map((i) => ({ ...i, variant })),
+        areaId: 'sunkenAbbey',
+        seed: 'fp:warrior',
+        firstCycle: 0,
+        durationMs: 3_600_000,
+        inventoryCount: 0,
+      }),
+    );
+  expect(run('prismatic')).not.toBe(run(null));
+  // A different shape from Void's, not the same numbers.
+  expect(run('prismatic')).not.toBe(run('void'));
 });
 
 it('the crypt check can fail: tier I’s enrage window changes the runs (ticket 3.6)', () => {

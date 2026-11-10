@@ -80,10 +80,13 @@ export const GEAR_TIERS = [
 ] as const;
 export type GearTier = (typeof GEAR_TIERS)[number];
 
+/** Ticket 6.4: the Prismatic kit, next to the ladder (not a step of it: a sidegrade of +10 Void). */
+export type PrismaticGearTier = 'legendary+10prismatic';
+
 export function gear(
   classId: ClassId,
   level: number,
-  tier: GearTier,
+  tier: GearTier | PrismaticGearTier,
   sample: number,
 ): EquippedItem[] {
   const il = Math.max(1, level - 1);
@@ -102,6 +105,12 @@ export function gear(
         ...i,
         upgradeLevel: 10,
         variant: 'void' as const,
+      }));
+    case 'legendary+10prismatic':
+      return kit(classId, il, 'legendary', sample).map((i) => ({
+        ...i,
+        upgradeLevel: 10,
+        variant: 'prismatic' as const,
       }));
   }
 }

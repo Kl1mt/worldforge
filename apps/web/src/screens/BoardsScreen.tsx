@@ -57,7 +57,7 @@ const measured = (version: {
   level:
     'Your level. Between heroes of the same level, whoever has earned more experience toward the next is ahead.',
   gearScore:
-    'How good your equipped items are, item by item: item level, rarity, upgrades and Void. Nothing else counts.',
+    'How good your equipped items are, item by item: item level, rarity, upgrades and Void or Prismatic. Nothing else counts.',
   power: `How your hero fares in the Proving Grounds, ${powerConfig(version.power).rungs.length} fixed trials fought as equipped: builds, crits, sets and Legendary effects all fight. Classes differ; filter by class to compare like with like.`,
   pveProgress: `How many of the ${pveMilestones(version.pveProgress).length} milestones your hero has reached; then how far the furthest one is, then the highest guild boss stage your hero helped break.`,
 });

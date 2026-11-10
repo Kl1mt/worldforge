@@ -11,7 +11,7 @@ import { FORMULA_VERSIONS, type Score, type ScoreLine } from './types.js';
  * Gear Score (ticket 5.1, docs/LEADERBOARDS.md): the quality of what the hero wears, and nothing
  * else (GDD §10.2: not the build's strength; that is Character Power). Per equipped item:
  *
- *   points = itemLevel × 10 × rarity weight × (1 + upgrade × 4 %) × (Void ? 1.1 : 1) × hands
+ *   points = itemLevel × 10 × rarity weight × (1 + upgrade × 4 %) × (Void or Prismatic ? 1.1 : 1) × hands
  *
  * rounded per item and summed. `hands` is 2 for the weapon of a class that cannot use an
  * off-hand (its weapon takes both hands), else 1, so every class can reach the same total. An
@@ -29,7 +29,11 @@ export const GEAR_SCORE_WEIGHTS: Readonly<GearScoreWeights> = {
   perItemLevel: 10,
   rarity: { common: 1, uncommon: 1.15, rare: 1.3, epic: 1.5, legendary: 1.75, mythic: 2 },
   perUpgradeLevel: 0.04,
-  variant: { void: 1.1 },
+  /**
+   * Ticket 6.4: Prismatic counts like Void. No new version: before 6.4 no item could be stored as
+   * Prismatic (the `variant` check allowed only Void), so no stored input's value changes.
+   */
+  variant: { void: 1.1, prismatic: 1.1 },
 };
 
 /**
@@ -38,7 +42,7 @@ export const GEAR_SCORE_WEIGHTS: Readonly<GearScoreWeights> = {
  * (`100 × (tier − 1 + position within the tier's range) ÷ number of tiers`, so the best roll of
  * the top tier is 100 and every affix has the same scale), counted twice on a two-handed weapon
  * like the item. The total does not change the score's value: it orders heroes whose items are
- * equally good by item level, rarity, upgrades and Void (on a realistic season, about one in ten
+ * equally good by item level, rarity, upgrades and variant (on a realistic season, about one in ten
  * heroes reaches the ceiling of the best kit by the fourth week and all of them tied; the
  * Forge's rerolls and improvements now move them, docs/LEADERBOARDS.md "Balance pass").
  */
@@ -120,7 +124,8 @@ export function gearScore(classId: ClassId, equipment: readonly ScoredItem[]): S
     const s = gearItemPoints(c.equipped, slotHands(classId, c.slot));
     const parts = [`Item level ${s.itemLevel}`, rarityName(c.equipped.rarityId)];
     if (c.equipped.upgradeLevel) parts.push(`+${c.equipped.upgradeLevel}`);
-    if (s.variantFactor !== 1) parts.push('Void');
+    const variant = activeVariant(c.equipped);
+    if (variant) parts.push(variant.name);
     if (s.hands === 2) parts.push('both hands');
     const magic = c.equipped.affixes.reduce((sum, a) => sum + affixQuality(a), 0) * s.hands;
     if (c.equipped.affixes.length > 0) parts.push(`magic quality ${magic}`);
@@ -136,7 +141,7 @@ export function gearScore(classId: ClassId, equipment: readonly ScoredItem[]): S
     value: total,
     // Version 2 (B.4): equal scores are ordered by the kit's magic quality.
     sortKey: [total, quality],
-    summary: `The quality of your equipped items: item level, rarity, upgrades and Void. Not how well they work together; that is Character Power. Between equal scores, the better-rolled magic properties rank higher (magic quality ${quality}).`,
+    summary: `The quality of your equipped items: item level, rarity, upgrades and Void or Prismatic. Not how well they work together; that is Character Power. Between equal scores, the better-rolled magic properties rank higher (magic quality ${quality}).`,
     lines,
   };
 }

@@ -45,8 +45,8 @@ const noVoid = (table: LootTableDefinition): LootTableDefinition => ({ ...table,
 const withoutVariant = ({ variant: _, ...item }: GeneratedItem): GeneratedItem => item;
 
 describe('Void content (ticket 3.5)', () => {
-  it('has exactly one variant, Void, on Legendary and Mythic only (Prismatic deferred)', () => {
-    expect(ITEM_VARIANTS.map((v) => v.id)).toEqual(['void']);
+  it('has Void (and, since 6.4, Prismatic), on Legendary and Mythic only', () => {
+    expect(ITEM_VARIANTS.map((v) => v.id)).toEqual(['void', 'prismatic']);
     const v = ITEM_VARIANTS[0]!;
     expect([...v.rarities].sort()).toEqual(['legendary', 'mythic']);
     // A small bonus (GDD §7.5): a few upgrade levels' worth of base stats, +10 % effect magnitudes.
@@ -196,8 +196,8 @@ describe('Void rules (ticket 3.5)', () => {
     expect(validateItem({ ...execute, variant: 'void' })).toEqual([]);
     const epic = generateItem({ seed: 7, itemLevel: 20, baseId: 'iron-ring', rarityId: 'epic' })!;
     expect(validateItem({ ...epic, variant: 'void' })).toEqual(['variant void on a epic item']);
-    expect(validateItem({ ...execute, variant: 'prismatic' as unknown as 'void' })).toEqual([
-      'unknown variant prismatic',
+    expect(validateItem({ ...execute, variant: 'glimmer' as unknown as 'void' })).toEqual([
+      'unknown variant glimmer',
     ]);
   });
 

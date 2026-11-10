@@ -1,6 +1,10 @@
 import type { FastifyInstance } from 'fastify';
 import { eq } from 'drizzle-orm';
-import { DEFAULT_TRADING_SETTINGS, validateTradingSettings } from '@worldforge/game-core';
+import {
+  DEFAULT_TRADING_SETTINGS,
+  TRADE_CATEGORIES,
+  validateTradingSettings,
+} from '@worldforge/game-core';
 import { accounts } from '../db/schema.js';
 import { writeAudit } from '../db/audit.js';
 import type { Transaction } from '../db/types.js';
@@ -37,7 +41,8 @@ const settingsSchema = {
   properties: {
     trading: { type: 'boolean' },
     trade: switchGroup(['items', 'materials', 'gold']),
-    tradeable: switchGroup(['epic', 'legendary', 'set', 'mythic', 'void']),
+    // Ticket 6.4: from game-core, so a new category (Prismatic) is never stripped from the answer.
+    tradeable: switchGroup(TRADE_CATEGORIES),
     shelf: switchGroup(['items', 'materials', 'gold']),
     limits: { type: 'object', additionalProperties: { type: 'integer' } },
   },

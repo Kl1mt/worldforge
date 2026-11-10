@@ -54,6 +54,8 @@ export function ItemFrame({
     onSelect ? 'item-frame--interactive' : '',
     item && isNew ? 'item-frame--new' : '',
     item?.variant ? `item-frame--${item.variant.id}` : '',
+    // Ticket 6.4: the agreed placeholder hook; A.12 owns its visual treatment.
+    item?.variant?.id === 'prismatic' ? 'variant-prismatic' : '',
     item?.locked ? 'item-frame--locked' : '',
   ]
     .filter(Boolean)

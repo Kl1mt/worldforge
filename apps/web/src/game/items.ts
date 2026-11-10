@@ -24,6 +24,7 @@ import {
   getImplicitStats,
   activeVariant,
   type ItemVariantDefinition,
+  variantAffixValue,
   type LootFilterItem,
   type ClassId,
   type CoreStatId,
@@ -179,7 +180,7 @@ export function bindingView(
   return { kind: 'bound', label: 'Account-bound', detail: detail[dto.bindingReason ?? 'bound'] };
 }
 
-/** A variant as the frame and tooltip show it (ticket 3.5). */
+/** A variant as the frame and tooltip show it (ticket 3.5; Prismatic 6.4). */
 export interface VariantView {
   id: ItemVariantDefinition['id'];
   name: string;
@@ -187,6 +188,8 @@ export interface VariantView {
   implicitBonus: number;
   /** "+10 %" on the item's own effect magnitudes; 0 when the item has no effect. */
   effectBonus: number;
+  /** Ticket 6.4: "+10 %" on the item's combat affixes (Prismatic); 0 for Void. */
+  affixBonus: number;
 }
 
 function variantView(
@@ -201,6 +204,7 @@ function variantView(
     name: v.name,
     implicitBonus: v.implicitBonus,
     effectBonus: hasEffect ? Math.round((v.effectStrength - 1) * 1000) / 1000 : 0,
+    affixBonus: Math.round((v.affixBonus - 1) * 1000) / 1000,
   };
 }
 
@@ -282,10 +286,17 @@ function setIdOf(baseId: string, setId: string | null | undefined): string | nul
 export function toItemView(dto: ItemDisplaySource): ItemView {
   const base = findItemBase(dto.baseId);
   const affixes: StatLine[] = [];
+  // Ticket 6.4: a Prismatic item's combat affixes are shown as the game reads them (× 1.1), so the
+  // lines and the "if equipped" comparison match the character's stats. The Forge reads the
+  // stored values from the item itself (`dto.affixes`).
+  const variant = activeVariant({ rarityId: dto.rarityId, variant: dto.variant ?? null });
   for (const rolled of dto.affixes) {
     const def = findAffix(rolled.affixId);
     if (!def) continue;
-    const line: StatLine = { stat: def.stat, value: rolled.value };
+    const line: StatLine = {
+      stat: def.stat,
+      value: variantAffixValue(variant, def.stat, rolled.value, def.step),
+    };
     if (def.classes) line.label = affixName(def.label);
     if (rolled.improvements) line.improvements = rolled.improvements;
     if (rolled.rerolled) line.rerolled = true;

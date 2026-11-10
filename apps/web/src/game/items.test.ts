@@ -81,7 +81,13 @@ describe('Void display (ticket 3.5)', () => {
       }),
     );
     expect(plain.variant).toBeNull();
-    expect(v.variant).toEqual({ id: 'void', name: 'Void', implicitBonus: 0.1, effectBonus: 0.1 });
+    expect(v.variant).toEqual({
+      id: 'void',
+      name: 'Void',
+      implicitBonus: 0.1,
+      effectBonus: 0.1,
+      affixBonus: 0,
+    });
     expect(v.effect?.text).toBe('Deal 11 % more damage to bosses.');
     for (const [i, line] of v.base.entries()) {
       expect(line.value).toBeGreaterThanOrEqual(plain.base[i]!.value);
@@ -90,6 +96,42 @@ describe('Void display (ticket 3.5)', () => {
     const epic = toItemView(dto({ baseId: 'iron-ring', rarityId: 'epic', variant: 'void' }));
     expect(epic.variant).toBeNull();
     expect(epic.base).toEqual(toItemView(dto({ baseId: 'iron-ring', rarityId: 'epic' })).base);
+  });
+
+  it('names Prismatic with its affix bonus, leaves base values and the effect alone (ticket 6.4)', () => {
+    const base = {
+      baseId: 'iron-ring',
+      rarityId: 'legendary' as const,
+      effectId: 'tyrants-bane',
+      effectRoll: 0,
+    };
+    const plain = toItemView(dto(base));
+    const p = toItemView(dto({ ...base, variant: 'prismatic' }));
+    expect(p.variant).toEqual({
+      id: 'prismatic',
+      name: 'Prismatic',
+      implicitBonus: 0,
+      effectBonus: 0,
+      affixBonus: 0.1,
+    });
+    expect(p.base).toEqual(plain.base);
+    expect(p.effect?.text).toBe(plain.effect?.text);
+    // Affix lines (and so the comparison) read as the game reads them: combat affixes × 1.1.
+    const withAffixes = {
+      ...base,
+      affixes: [
+        { affixId: 'physical-damage', tier: 1, value: 6 },
+        { affixId: 'crit-chance', tier: 1, value: 0.02 },
+        { affixId: 'gold-find', tier: 1, value: 0.05 },
+      ],
+    };
+    const lines = toItemView(dto({ ...withAffixes, variant: 'prismatic' })).affixes;
+    expect(lines.map((l) => l.value)).toEqual([7, 0.02, 0.05]);
+    expect(toItemView(dto(withAffixes)).affixes.map((l) => l.value)).toEqual([6, 0.02, 0.05]);
+    // A stray Prismatic flag on an epic does nothing.
+    expect(
+      toItemView(dto({ baseId: 'iron-ring', rarityId: 'epic', variant: 'prismatic' })).variant,
+    ).toBeNull();
   });
 
   it('a Void set piece has no effect bonus and is still the same piece', () => {

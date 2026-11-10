@@ -1,4 +1,4 @@
-# Unique effects: Legendaries, Mythics (ticket 3.2), set bonuses (ticket 3.3), Void (ticket 3.5)
+# Unique effects: Legendaries, Mythics (ticket 3.2), set bonuses (ticket 3.3), Void (ticket 3.5), Prismatic (ticket 6.4)
 
 One data-driven effect system in `packages/game-core/src/effects/`. Legendary effects and Mythic signatures (3.2), set bonuses (3.3) and the rare Void modification of a Legendary (3.5) all go through it. Both combat simulations read the same combined numbers, so the detailed/aggregate equivalence and split-invariance hold with effects.
 
@@ -86,7 +86,7 @@ Sets move the cliff more than single effects: a full Vigil or Choir turns the le
 **Known limits.** The Ashen Choir is a crit and boss set: on low-crit kits its 2- and 4-piece bonuses barely register while farming (with a crit kit it is a top boss set; `docs/COMBAT.md` "Build diversity"). Ticket B.2 took this up: stacked copies of one effect no longer count (the old perfect hunter build stacked Unbroken), and the late-game build search shows several builds per class within 7 % of the best at the tier III Gravewarden, sets among them. Two limits stay and are recorded in `balance.test.ts`: on the tier I boss with a common kit the hunter's six-Legendary build is still × 1.46 faster than its best set build (B.2's deep-boss search does not have it among the hunter's top builds), and on a bonus-only common kit at level 15 the warlock's Vigil leads farming, safety and the boss.
 
 ## Void variants (`items/variants.ts`, ticket 3.5)
-GDD §7.5. A variant is layered on an item's rarity and identity; it is not a rarity tier. **Only Void** exists in Phase 3 (Prismatic is deferred) and an item has at most one variant (no stacking; the `variant` column holds one value).
+GDD §7.5. A variant is layered on an item's rarity and identity; it is not a rarity tier. Void (3.5) and, since ticket 6.4, **Prismatic** (below); an item has at most one variant (no stacking; the `variant` column holds one value).
 
 - **Where:** only on Legendary and Mythic items, set pieces included (they are Legendary-rarity). Data: `ITEM_VARIANTS` (`rarities`, `implicitBonus`, `effectStrength`). `activeVariant(item)` is the one rule every reader uses: a Void flag on any other rarity (never generated; `validateItem` rejects it) does nothing.
 - **Bonus (small):** + **10 %** implicit (base) stats, added to the upgrade bonus (`getImplicitStats`: a +10 Void item has +60 % base values), and **× 1.1** on the magnitudes of the item's own effect (a Legendary effect or a Mythic signature), passed as `EffectInstance.strength` by `itemEffectInstances`. The registry's rule holds: strength never scales thresholds, stack counts or decay, and combined effects stay under `DEFAULT_EFFECT_CAPS`. Affixes are untouched. Without an active variant the instance carries no `strength` field, so every number is the pre-3.5 one.
@@ -106,6 +106,40 @@ Abbey 19 and 22, every class, against the same kit without Void: deaths ≤ 2/h,
 | Legendaries at +10 | × 1.035 · 1.067 | × 1.046 · 1.005 | × 1.000 · 1.005 | × 1.008 · 1.005 |
 
 Void is a chase for completionists, not a new power tier: a few percent, mostly safety (base armor and health) and slightly stronger effects.
+
+## Prismatic variants (`items/variants.ts`, ticket 6.4)
+GDD §7.5. The second variant, after Void and **never stacked with it** (owner decision): one variant per item, so a Void-Prismatic item cannot exist (the column holds one value, and the Prismatic roll is only made when the Void roll failed). Rarer than Void, on Legendary, Mythic and set items only (`rarities: legendary, mythic`; set pieces are Legendary-rarity), from Ashen-tier content on. A **different stat shape, not more power**: the best Prismatic build is a sidegrade to the best Void build.
+
+- **Shape:** Void puts its bonus into the item's **base values** (+10 %) and its **effect** (× 1.1). Prismatic leaves both exactly as on the plain item (`implicitBonus` 0, `effectStrength` 1) and raises the item's **combat affixes** × **1.1** (`affixBonus`, `PRISMATIC_AFFIX_BONUS`) when stats are read (`itemStatContribution`, `itemSecondaryModifiers` via `variantAffixValue`; flat stats round to whole points per affix, fractions to 4 decimals). Combat affixes are `AFFIX_BONUS_STATS`: health, physical and magic damage, attack speed, critical damage, armor, resistance, boss damage and skill damage. **Critical chance is left out** (it multiplies with critical damage and the crit-scaling effects Mana Surge, Emberbrand and Starfall: with it, the best Prismatic crit builds beat the best Void builds at the Warden by up to 10 %). **Find affixes** (gold, item, XP, resource find) are never raised, so the economy is unchanged. Stored affix values never change: `validateItem`, the Forge's tier caps, Gear Score's magic quality and the loot filter read the rolled numbers.
+- **The choice it creates:** a Prismatic item is as good as its affixes. A crit- or speed-light, base-heavy piece (a chest's armor and health, a weapon's damage) or one with a strong effect is better Void; a piece with three or four combat affixes the build wants is better Prismatic, and the Forge's rerolls and improvements on it count 10 % more. Which variant leads changes by class and job (table below).
+- **Why not a seed-fixed "facet" (another stat or element per item)?** The ticket's example. Every stored snapshot (farm state, crypt runs, duels, the guild boss, board inputs) holds an item's base, rarity, affixes and variant but not its seed, so a facet would have needed a new column and a field in every snapshot; amplifying what the item already rolled needs neither and makes the item's own affixes the choice.
+- **Drops** (`PRISMATIC_CHANCE`, `HEROIC_PRISMATIC_CHANCE`, `PRISMATIC_TABLE_IDS` in `loot/tables.ts`; `prismaticChance` on a table, clamped to `DEFAULT_LOOT_CONFIG.maxPrismaticChance` = **7.5 %**): one more draw after a failed Void roll, made only for a Legendary or Mythic (set piece included) rolled from a table with a Prismatic chance; everything else about every item, and every Void roll, rolls as before (tested item by item per source). **5 %** of the non-Void rolls (4.5 % of all such rolls, against Void's 10 %) in the Ashen Pass and the Ashen Warden's hoard, the Ashfall Verge, the Cinder Depths and the Forge Tyrant's hoard; **7.5 %** (6.4 %, against 15 %) in the Heroic crypt's chambers and hoard. Nowhere older (the Abbey, crypt tiers I–III, the earlier areas). Requested bases (Forge crafts, quest rewards, the merchant) are never Prismatic, like Void.
+- **Expected rates** (`tools/balance/prismatic.ts rates`: a warrior in its top Pass build +10 at each source's item level; 3,000 farming hours per area, 20,000 runs per dungeon, boss loot eligible):
+
+| Source | Legendary/Mythic/set | Void | Prismatic |
+|---|---|---|---|
+| Ashen Pass at 28 (per hour) | 0.50 | 0.043 (~1 per 23 h) | 0.023 (~1 per 43 h) |
+| Ashfall Verge at 33 (per hour) | 0.43 | 0.051 (~1 per 20 h) | 0.015 (~1 per 67 h) |
+| Cinder Depths at 39 (per hour) | 0.39 | 0.031 (~1 per 32 h) | 0.020 (~1 per 51 h) |
+| Warden's Watch at 28 (per run) | 0.28 | 0.029 (~1 per 35) | 0.012 (~1 per 85) |
+| Tyrant's Forge at 38 (per run) | 0.27 | 0.029 (~1 per 34) | 0.013 (~1 per 79) |
+| Heroic crypt at 34 (per run) | 0.66 | 0.098 (~1 per 10) | 0.044 (~1 per 23) |
+| Crypt tier III at 23 (per run) | 0.20 | 0.021 | 0 |
+
+  Expected Prismatic ÷ Void is 0.45 everywhere (0.43 Heroic); the farming rows are a few dozen finds each, so they scatter around it. Boss hoards come at most once per 20 h per character.
+- **Sets, effects, upgrades, the Forge:** a Prismatic set piece is the same piece (`wornSets` never reads the variant; the set bonus is unchanged). The item's Legendary effect or Mythic signature is unchanged (no `strength`). Upgrades raise base values as on any item (+50 % at +10) and never touch affixes, so a +10 Prismatic item has the upgrade's base values and affixes × 1.1. Forge work never adds, removes or swaps a variant; a reroll's new affix and an improvement's higher value are read × 1.1 like the others (tested in game-core and `forge/work.test.ts`). Sell and salvage prices ignore it, like Void.
+- **No Prismatic items:** every number is identical. `noEffects.test.ts` runs the pinned pre-3.2 hashes with a stray `variant: 'prismatic'` on the epic and rare kits; a second test shows the check can fail (the same Legendary kit as Prismatic changes the settlement, and differently from Void). The balance suites, the curve pins and every earlier no-effects hash are unchanged.
+
+### Prismatic balance (asserted in `balance/prismatic-balance.test.ts`)
+The B.2 build search, run with every piece Void and with every piece Prismatic (each variant gets the effects and affix package that suit it), for farming the Ashen Pass at 26 (`PASS_FARM_JOB`) and the Ashen Warden at 28 (`WARDEN_JOB`), at +0 and +10: the best Prismatic build stays within **5 %** of the best Void build (asserted), and a full Prismatic kit over the same plain kit is × 0.99–1.1 kills with no more deaths. Measured, Prismatic ÷ Void (kills per minute; boss time, below 1 = Prismatic faster), with the Verge at 32 (item level 31) from the dev tool:
+
+| Job | Warrior | Mage | Hunter | Warlock |
+|---|---|---|---|---|
+| Pass farming +0 · +10 | 1.006 · 1.006 | 1.009 · 1.007 | 1.003 · 0.997 | 0.997 · 0.998 |
+| Verge farming +0 · +10 | 1.008 · 1.019 | 1.009 · 1.008 | 1.005 · 1.000 | 1.003 · 0.999 |
+| Ashen Warden +0 · +10 (time) | 0.975 · 0.993 | 1.041 · 0.988 | 0.979 · 0.974 | 0.987 · 0.985 |
+
+Tuning (the same searches): × 1.2 on every combat affix made the best Prismatic farm 3–5 % faster than the best Void; × 1.1 with critical chance still in made it 2–10 % faster at the Warden (warrior 0.900); × 1.1 without critical chance is the table above. Prismatic is a chase for a build that wants its item's affixes, not a new tier.
 
 ## Combat rules
 - **One pricing function.** `attackHit(setup, attack, prevCrit, heroHealth, enemyHealth)` prices every hero attack in both simulations. Without effects the setup carries no `effects` field and it returns the old `auto`/`skill` profiles unchanged.

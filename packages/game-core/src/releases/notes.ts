@@ -23,9 +23,21 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.6.6';
+export const GAME_VERSION = '0.6.7';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.6.7',
+    date: '2026-11-11',
+    title: 'Prismatic',
+    new: [
+      'Prismatic items: a rare new kind of Legendary, Mythic or set piece, rarer than Void and never both at once. Light splits through them: their battle properties count a tenth more (not critical chance, and not gold, item, experience or resource find), while their base values and effect stay as they are. Void strengthens an item’s base and its effect instead, so which of the two suits a hero depends on the item’s properties and the build.',
+      'Prismatic items are found only from the Ashen Pass onwards: the Pass and the Warden’s Watch, the Ashfall Verge, the Cinder Depths and the Tyrant’s Forge, and most often in the Heroic crypt.',
+      'Gear Score counts a Prismatic item like a Void one. Forge work never adds or removes it, and a Prismatic set piece still counts as the same piece.',
+      'The loot filter keeps Prismatic drops unless you tick the new Prismatic box.',
+    ],
+    tickets: ['6.4'],
+  },
   {
     version: '0.6.6',
     date: '2026-11-11',

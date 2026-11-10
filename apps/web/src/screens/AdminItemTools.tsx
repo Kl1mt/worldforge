@@ -219,7 +219,7 @@ export function GrantItemTool({
   const [baseId, setBaseId] = useState(BASE_GROUPS[0]?.bases[0]?.id ?? '');
   const [rarityId, setRarityId] = useState<RarityId>('rare');
   const [itemLevel, setItemLevel] = useState(String(Math.min(hero.level, MAX_ITEM_LEVEL)));
-  const [variant, setVariant] = useState<'void' | ''>('');
+  const [variant, setVariant] = useState<'void' | 'prismatic' | ''>('');
   const [upgrade, setUpgrade] = useState('0');
   const [preview, setPreview] = useState<Preview>({ kind: 'none' });
   const blocked = cheat === 'blocked';
@@ -352,16 +352,17 @@ export function GrantItemTool({
         <SmallField
           label="Variant"
           htmlFor={`${ids}-variant`}
-          hint="Void applies to Legendary and Mythic"
+          hint="Void and Prismatic apply to Legendary and Mythic"
         >
           <select
             id={`${ids}-variant`}
             className="field__input"
             value={variant}
-            onChange={(e) => change(setVariant)(e.target.value as 'void' | '')}
+            onChange={(e) => change(setVariant)(e.target.value as 'void' | 'prismatic' | '')}
           >
             <option value="">None</option>
             <option value="void">Void</option>
+            <option value="prismatic">Prismatic</option>
           </select>
         </SmallField>
         <SmallField label="Upgrade" htmlFor={`${ids}-up`} invalid={!upOk} hint="0–10">

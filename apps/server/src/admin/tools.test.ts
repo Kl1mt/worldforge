@@ -11,7 +11,12 @@ import { join, relative } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { and, desc, eq, sql } from 'drizzle-orm';
-import { bossModifierOfWeek, validateItem, type GeneratedItem } from '@worldforge/game-core';
+import {
+  MYTHIC_ITEMS,
+  bossModifierOfWeek,
+  validateItem,
+  type GeneratedItem,
+} from '@worldforge/game-core';
 import { buildApp } from '../app.js';
 import {
   accounts,
@@ -483,6 +488,54 @@ describe('admin tools (D.4)', () => {
       expect(res.json().item.tradeable).toBe(false);
       const prov = await lastAudit(t.acc.id, 'item.provenance');
       expect(prov!.data).toEqual({ from: 'admin', itemIds: [row!.id] });
+    });
+
+    it('grants a Prismatic Mythic on a test account, refuses it on an Epic and on a normal account (ticket 6.4)', async () => {
+      const t = await target({ test: true, level: 30 });
+      const mythicBase = MYTHIC_ITEMS[0]!.baseId;
+      const spec = { baseId: mythicBase, rarityId: 'mythic', itemLevel: 30, upgradeLevel: 0 };
+      const pre = await admin('POST', `${t.heroUrl}/items/preview`, {
+        ...spec,
+        variant: 'prismatic',
+      });
+      expect(pre.statusCode, pre.body).toBe(200);
+      const { seed, item } = pre.json() as { seed: number; item: GeneratedItem };
+      expect(item.variant).toBe('prismatic');
+      expect(validateItem(item)).toEqual([]);
+      const res = await admin('POST', `${t.heroUrl}/items/grant`, {
+        ...spec,
+        variant: 'prismatic',
+        seed,
+        reason: 'prismatic testing',
+      });
+      expect(res.statusCode, res.body).toBe(200);
+      const [row] = await db()
+        .select()
+        .from(itemInstances)
+        .where(eq(itemInstances.characterId, t.hero.id));
+      expect(row).toMatchObject({ variant: 'prismatic', source: 'admin', binding: 'account' });
+      // The item view carries the variant (A.12 draws from it).
+      expect(res.json().item.variant).toBe('prismatic');
+
+      const epic = await admin('POST', `${t.heroUrl}/items/preview`, {
+        baseId: 'longsword',
+        rarityId: 'epic',
+        itemLevel: 20,
+        variant: 'prismatic',
+        upgradeLevel: 0,
+      });
+      expect(epic.statusCode).toBe(422);
+      expect(epic.json().error.details.problems).toContain('variant prismatic on a epic item');
+
+      const normal = await target({ level: 30 });
+      const refused = await admin('POST', `${normal.heroUrl}/items/grant`, {
+        ...spec,
+        variant: 'prismatic',
+        seed,
+        reason: 'not here',
+      });
+      expect(refused.statusCode).toBe(403);
+      expect(refused.json().error.code).toBe('test_account_required');
     });
 
     it('refuses an invalid combination with game-core’s reasons', async () => {
