@@ -142,7 +142,7 @@ export function buildApp({
       await registerCharacters(api);
       await registerActivities(api, activityOptions);
       await registerInventory(api, activityOptions);
-      await registerWorld(api);
+      await registerWorld(api, activityOptions.now);
       await registerMaterials(api);
       await registerDungeons(api, activityOptions);
       await registerMerchant(api, activityOptions);

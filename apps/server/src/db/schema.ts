@@ -35,6 +35,7 @@ import type {
   ItemVariantId,
   DungeonId,
   DungeonTier,
+  BossModifierId,
   EquipmentSlotId,
   GuildRole,
   GuideState,
@@ -821,6 +822,11 @@ export const dungeonRuns = pgTable(
     tier: smallint('tier').$type<DungeonTier>().notNull().default(1),
     /** Random secret of this run. Never sent to clients. */
     seedSecret: text('seed_secret').notNull(),
+    /**
+     * Ticket 6.3: game-core `BossModifierId` of the week the run started in (its window rule:
+     * stored once at the start, never recomputed); null = none (runs from before 6.3).
+     */
+    bossModifier: text('boss_modifier').$type<BossModifierId>(),
     snapshot: jsonb('snapshot').$type<DungeonRunSnapshot>().notNull(),
     /** Boss loot was off cooldown at the start (decided then, so the run is fixed). */
     bossLootEligible: boolean('boss_loot_eligible').notNull(),
@@ -842,7 +848,7 @@ export const dungeonRuns = pgTable(
       .where(sql`${t.claimedAt} is null`),
     index('dungeon_runs_character_id_started_at_idx').on(t.characterId, t.startedAt),
     check('dungeon_runs_ends_at_check', sql`${t.endsAt} >= ${t.startedAt}`),
-    check('dungeon_runs_tier_check', sql`${t.tier} between 1 and 3`),
+    check('dungeon_runs_tier_check', sql`${t.tier} between 1 and 4`),
   ],
 );
 
@@ -1336,6 +1342,11 @@ export const guildBossAttempts = pgTable(
     characterId: uuid('character_id').references(() => characters.id, { onDelete: 'set null' }),
     /** game-core `GuildBossId`. */
     bossId: text('boss_id').notNull(),
+    /**
+     * Ticket 6.3: the boss modifier of the attempt's week (`week`), stored with it so a replay
+     * fights the same; null = none (attempts from before 6.3).
+     */
+    bossModifier: text('boss_modifier').$type<BossModifierId>(),
     snapshot: jsonb('snapshot').$type<GuildBossSnapshot>().notNull(),
     /** Damage dealt, and what it added to the guild's total (capped per attempt). */
     damage: integer('damage').notNull(),

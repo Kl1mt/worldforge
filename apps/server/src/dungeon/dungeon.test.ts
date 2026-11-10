@@ -10,6 +10,7 @@ import {
   characters,
   dungeonRuns,
   itemInstances,
+  telemetryDaily,
 } from '../db/schema.js';
 import type { DatabaseHandle } from '../db/types.js';
 import { createTestDatabase } from '../test/db.js';
@@ -19,7 +20,13 @@ import { replayRun, type DungeonClaimResponse, type DungeonStateResponse } from 
 import type { DungeonRunView } from './routes.js';
 import type { WorldStateResponse } from '../world/routes.js';
 import type { QuestBoardResponse } from '../quests/store.js';
-import { STORY_QUEST_IDS, type RarityId } from '@worldforge/game-core';
+import {
+  STORY_QUEST_IDS,
+  bossModifierOfWeek,
+  guildBossWeek,
+  simulateDungeonRun,
+  type RarityId,
+} from '@worldforge/game-core';
 import { characterQuests } from '../db/schema.js';
 import { uuidv7 } from '../db/uuid.js';
 
@@ -550,8 +557,20 @@ describe('the Nameless Crypt (ticket 2.5)', () => {
         await call(p, 'GET', `/api/characters/${id}/dungeon`)
       ).json<DungeonStateResponse>();
       const crypt = state.dungeons[0]!;
-      expect(crypt.tiers.map((t) => t.tier)).toEqual([1, 2, 3]);
+      expect(crypt.tiers.map((t) => t.tier)).toEqual([1, 2, 3, 4]);
       expect(crypt.tierCleared).toBe(0);
+      // Ticket 6.3: Heroic, gated on level 32 and tier III cleared.
+      expect(crypt.tiers[3]).toMatchObject({
+        name: 'Heroic',
+        heroic: true,
+        unlocked: false,
+        blockers: [
+          { kind: 'level', required: 32 },
+          { kind: 'cryptTier', tier: 3 },
+        ],
+        lootFocus: { id: 'crypt-iv', name: 'Heroic spoils' },
+      });
+      expect(crypt.tiers.slice(0, 3).every((t) => !t.heroic)).toBe(true);
       expect(crypt.tiers[0]).toMatchObject({ unlocked: true, blockers: [], minLevel: 12 });
       expect(crypt.tiers[1]).toMatchObject({
         unlocked: false,
@@ -571,7 +590,7 @@ describe('the Nameless Crypt (ticket 2.5)', () => {
           details: { tier: 2, blockers: [{ kind: 'cryptTier', tier: 1 }] },
         },
       });
-      for (const bad of [0, 4, 9, 'two', 1.5]) {
+      for (const bad of [0, 5, 9, 'two', 1.5]) {
         expect((await enterTier(p, id, bad)).statusCode, String(bad)).toBe(400);
       }
       // A pre-3.6 Gravewarden kill counts as tier I cleared.
@@ -688,6 +707,149 @@ describe('the Nameless Crypt (ticket 2.5)', () => {
         progress: rows.character.progress,
       });
       expect(pick(await owned(a.id))).toEqual(pick(await owned(b.id)));
+    });
+  });
+
+  describe('Heroic and the weekly boss modifier (ticket 6.3)', () => {
+    const stored = async (characterId: string) =>
+      (
+        await database.db
+          .select()
+          .from(dungeonRuns)
+          .where(and(eq(dungeonRuns.characterId, characterId), isNull(dungeonRuns.claimedAt)))
+      )[0]!;
+
+    it('Heroic opens at level 32 with tier III cleared; a clear sets it and stores the modifier', async () => {
+      const { p, id } = await hero('warrior', 31, true, 'legendary');
+      await setProgress(id, { gravewardenDefeated: true, cryptTierCleared: 3 });
+      const low = await enterTier(p, id, 4);
+      expect(low.statusCode).toBe(409);
+      expect(low.json().error.details.blockers).toEqual([{ kind: 'level', required: 32 }]);
+      await makeCryptReady(database.db, id, 'warrior', 36, { gear: false });
+      const started = await enterTier(p, id, 4);
+      expect(started.statusCode).toBe(201);
+      const view = started.json<{ run: DungeonRunView }>().run;
+      const week = bossModifierOfWeek(nowMs).id;
+      expect(view).toMatchObject({ tier: 4, bossModifier: { id: week } });
+      // A winning seed, found with game-core's own rules (the outcome is decided by the seed).
+      const row = await stored(id);
+      let seed = '';
+      for (let i = 0; i < 400 && !seed; i++)
+        if (replayRun({ ...row, seedSecret: `heroic-win:${i}` }).outcome === 'cleared')
+          seed = `heroic-win:${i}`;
+      expect(seed).not.toBe('');
+      nowMs = (await pinSeed(id, seed)).getTime();
+      const res = await claim(p, id);
+      expect(res.statusCode).toBe(200);
+      const { result } = res.json<DungeonClaimResponse>();
+      expect(result).toMatchObject({ tier: 4, bossModifier: week, firstTierClear: true });
+      expect((await owned(id)).character.progress.cryptTierCleared).toBe(4);
+      const audits = await database.db.select().from(auditLog).where(eq(auditLog.characterId, id));
+      expect(audits.find((a) => a.event === 'dungeon.start')!.data).toMatchObject({
+        tier: 4,
+        bossModifier: week,
+      });
+      expect(audits.find((a) => a.event === 'dungeon.claim')!.data).toMatchObject({
+        tier: 4,
+        bossModifier: week,
+      });
+      const rows = await database.db
+        .select()
+        .from(telemetryDaily)
+        .where(eq(telemetryDaily.metric, 'boss_modifier.run'));
+      expect(
+        rows.some((r) => r.dim1 === week && r.dim2 === 'namelessCrypt:4' && r.dim3 === 'won'),
+      ).toBe(true);
+    });
+
+    it('a run keeps the modifier of the week it started in, across Monday 00:00 (window rule)', async () => {
+      const edge = guildBossWeek(nowMs).endMs;
+      const old = bossModifierOfWeek(edge - 1).id;
+      const fresh = bossModifierOfWeek(edge).id;
+      expect(fresh).not.toBe(old);
+      // Started at Sunday 23:59:59.999: the old week's modifier, whenever it is claimed.
+      nowMs = edge - 1;
+      // Tier II: crypt tier I takes no modifier (owner decision, below).
+      const { p, id } = await hero('hunter', 21, true, 'legendary');
+      await setProgress(id, { gravewardenDefeated: true, cryptTierCleared: 1 });
+      expect((await enterTier(p, id, 2)).statusCode).toBe(201);
+      const row = await stored(id);
+      expect(row.bossModifier).toBe(old);
+      nowMs = row.endsAt.getTime() + SEC;
+      expect(nowMs).toBeGreaterThan(edge);
+      const state = (
+        await call(p, 'GET', `/api/characters/${id}/dungeon`)
+      ).json<DungeonStateResponse>();
+      expect(state.bossModifier.modifier.id).toBe(fresh);
+      expect(state.dungeons.every((d) => d.bossModifier.id === fresh)).toBe(true);
+      expect(state.run!.bossModifier!.id).toBe(old);
+      const r = (await claim(p, id)).json<DungeonClaimResponse>().result;
+      expect(r.bossModifier).toBe(old);
+      const replay = replayRun(row);
+      expect([r.outcome, r.durationMs, r.kills]).toEqual([
+        replay.outcome,
+        replay.durationMs,
+        replay.kills,
+      ]);
+      // Started at the next Monday 00:00:00.000 exactly: that week's modifier.
+      const b = await hero('hunter', 21, true, 'legendary');
+      await setProgress(b.id, { gravewardenDefeated: true, cryptTierCleared: 1 });
+      const next = guildBossWeek(nowMs).endMs;
+      nowMs = next;
+      expect((await enterTier(b.p, b.id, 2)).statusCode).toBe(201);
+      expect((await stored(b.id)).bossModifier).toBe(bossModifierOfWeek(next).id);
+      expect(guildBossWeek(next).startMs).toBe(next);
+    });
+
+    it('crypt tier I never takes the modifier: the door says so, the run stores none', async () => {
+      const { p, id } = await hero('warrior', 16);
+      const state = (
+        await call(p, 'GET', `/api/characters/${id}/dungeon`)
+      ).json<DungeonStateResponse>();
+      const crypt = state.dungeons.find((d) => d.id === 'namelessCrypt')!;
+      expect(crypt.tiers.map((t) => t.takesModifier)).toEqual([false, true, true, true]);
+      for (const d of state.dungeons.filter((x) => x.id !== 'namelessCrypt'))
+        expect(d.tiers.every((t) => t.takesModifier)).toBe(true);
+      const started = await enter(p, id);
+      expect(started.statusCode).toBe(201);
+      expect(started.json<{ run: DungeonRunView }>().run.bossModifier).toBeNull();
+      const row = await stored(id);
+      expect(row.bossModifier).toBeNull();
+      nowMs = row.endsAt.getTime();
+      const r = (await claim(p, id)).json<DungeonClaimResponse>().result;
+      expect('bossModifier' in r).toBe(false);
+    });
+
+    it('a run from before 6.3 (no modifier) replays and claims exactly as it was', async () => {
+      const { p, id } = await hero('warrior', 16);
+      expect((await enter(p, id)).statusCode).toBe(201);
+      const row = await stored(id);
+      await database.db
+        .update(dungeonRuns)
+        .set({ bossModifier: null })
+        .where(eq(dungeonRuns.id, row.id));
+      const old = { ...row, bossModifier: null };
+      const plain = simulateDungeonRun({
+        dungeonId: 'namelessCrypt',
+        tier: 1,
+        character: {
+          classId: row.snapshot.classId,
+          level: row.snapshot.level,
+          xp: row.snapshot.xp,
+        },
+        equipment: row.snapshot.equipment,
+        seed: row.seedSecret,
+        bossLootEligible: row.bossLootEligible,
+        inventoryCount: 0,
+      });
+      expect(replayRun(old)).toEqual(plain);
+      const endsAt = await pinSeed(id, row.seedSecret);
+      nowMs = endsAt.getTime();
+      const view = (await settle(p, id)).json<{ run: DungeonRunView }>().run;
+      expect(view.bossModifier).toBeNull();
+      const r = (await claim(p, id)).json<DungeonClaimResponse>().result;
+      expect('bossModifier' in r).toBe(false);
+      expect([r.outcome, r.durationMs]).toEqual([plain.outcome, plain.durationMs]);
     });
   });
 

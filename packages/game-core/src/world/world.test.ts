@@ -159,8 +159,8 @@ describe('content contract', () => {
     expect(d.enemies.map((e) => e.enemyId)).toEqual(enemies);
     expect(d.bossId).toBe(boss);
     expect(d.bossDrops).toEqual([drop]);
-    // Ticket 3.6: tiers I–III, each deeper one higher and gated by the one before.
-    expect(d.tiers.map((t) => t.tier)).toEqual([1, 2, 3]);
+    // Ticket 3.6: tiers I–III, each deeper one higher and gated by the one before; 6.3 Heroic.
+    expect(d.tiers.map((t) => t.tier)).toEqual([1, 2, 3, 4]);
     for (const [i, t] of d.tiers.entries()) {
       expect(t.bossLevel, t.name).toBeGreaterThanOrEqual(t.minLevel);
       expect(t.bossLevel, t.name).toBeLessThanOrEqual(t.maxLevel);

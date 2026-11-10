@@ -61,3 +61,47 @@ describe('crypt client', () => {
     expect(describeDungeonFailure({ code: 'weird' })).toMatch(/wrong/);
   });
 });
+
+describe('the weekly boss modifier in the crypt log (ticket 6.3)', () => {
+  const spawn = {
+    t: 0,
+    type: 'spawn' as const,
+    enemyId: 'gravewarden' as const,
+    enemyLevel: 36,
+    enemyHealth: 1000,
+    health: 500,
+    maxHealth: 500,
+  };
+
+  it('logs the first burn only, and the ward and the frenzy once each', () => {
+    const lines = cryptLog(
+      [
+        spawn,
+        { t: 4_000, type: 'burn', damage: 30, health: 470 },
+        { t: 8_000, type: 'burn', damage: 30, health: 440 },
+        { t: 9_000, type: 'wardRaised' },
+        { t: 12_000, type: 'burn', damage: 30, health: 410 },
+        { t: 14_000, type: 'wardBroken' },
+        { t: 15_000, type: 'frenzy' },
+      ],
+      4,
+      'warrior',
+    );
+    const texts = lines.map((l) => l.text);
+    expect(texts.filter((t) => t.startsWith('Burning'))).toEqual([
+      'Burning: the flames catch you for 30, and keep burning.',
+    ]);
+    expect(texts).toContain('A ward rises around the Gravewarden: your blows soften.');
+    expect(texts).toContain('The ward breaks. Your blows bite again.');
+    expect(texts).toContain('The Gravewarden is frenzied and strikes faster!');
+  });
+
+  it('the Heroic Gravewarden’s heavy blow tolls the grave-bell', () => {
+    const lines = cryptLog(
+      [spawn, { t: 6_000, type: 'enemyAttack', damage: 300, health: 200, heavy: true }],
+      4,
+      'warrior',
+    );
+    expect(lines.at(-1)!.text).toBe('The grave-bell tolls: a crushing blow for 300.');
+  });
+});

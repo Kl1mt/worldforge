@@ -11,7 +11,7 @@ import { join, relative } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { and, desc, eq, sql } from 'drizzle-orm';
-import { validateItem, type GeneratedItem } from '@worldforge/game-core';
+import { bossModifierOfWeek, validateItem, type GeneratedItem } from '@worldforge/game-core';
 import { buildApp } from '../app.js';
 import {
   accounts,
@@ -747,6 +747,29 @@ describe('admin tools (D.4)', () => {
       expect((await heroRow(normal.hero.id)).progress).not.toHaveProperty('forgeTyrantDefeated');
     });
 
+    it('sets "Heroic cleared" (ticket 6.3): crypt tier IV, counted by PvE Progress 4', async () => {
+      const t = await target({ test: true, level: 34 });
+      const res = await admin('POST', `${t.heroUrl}/progress`, {
+        gravewardenDefeated: true,
+        cryptTierCleared: 4,
+        ashenWardenDefeated: true,
+        reason: 'test the Heroic crypt',
+      });
+      expect(res.statusCode).toBe(200);
+      expect(res.json().after).toMatchObject({ cryptTierCleared: 4 });
+      const crypt = (await call(t.acc, 'GET', `/api/characters/${t.hero.id}/dungeon`)).json()
+        .dungeons[0] as { tierCleared: number; tiers: { tier: number; unlocked: boolean }[] };
+      expect(crypt.tierCleared).toBe(4);
+      expect(crypt.tiers[3]).toMatchObject({ tier: 4, unlocked: true });
+      const tooDeep = await admin('POST', `${t.heroUrl}/progress`, {
+        gravewardenDefeated: true,
+        cryptTierCleared: 5,
+        ashenWardenDefeated: true,
+        reason: 'no such tier',
+      });
+      expect(tooDeep.statusCode).toBe(400);
+    });
+
     it('fast-forwards through the normal settlement (rewards from game-core, time moved only)', async () => {
       const t = await target({ test: true, level: 5 });
       expect(
@@ -823,6 +846,11 @@ describe('admin tools (D.4)', () => {
         true,
       );
       expect(world.json().scheduler.jobs).toHaveLength(5);
+      // Ticket 6.3: this week's and next week's boss modifier.
+      const mods = world.json().bossModifiers;
+      expect(mods.current.modifier.id).toBe(bossModifierOfWeek(clockMs).id);
+      expect(mods.next.week.startsAt).toBe(mods.current.week.endsAt);
+      expect(mods.next.modifier.id).not.toBe(mods.current.modifier.id);
       const off = await admin('POST', '/api/admin/world/flags/ashenPassCleared', {
         set: false,
         confirm: 'ashenPassCleared',

@@ -27,6 +27,14 @@ export const LEGENDARY_WEIGHT = 1.5;
 export const VOID_CHANCE = 0.1;
 
 /**
+ * Ticket 6.3: the Heroic crypt's top-rarity odds. Legendary rolls weigh × 2.5 (the late-game
+ * sources × 1.5) and a Legendary or Mythic is Void 15 % of the time (the cap,
+ * `DEFAULT_LOOT_CONFIG.maxVoidChance`). Item levels and affix tiers stay inside today's bands.
+ */
+export const HEROIC_LEGENDARY_WEIGHT = 2.5;
+export const HEROIC_VOID_CHANCE = 0.15;
+
+/**
  * Ticket 3.6: the loot focus of each Nameless Crypt tier. A tier's chambers and its Gravewarden
  * share it, so the player knows what a tier is for (docs/DUNGEONS.md, "Targeted loot").
  */
@@ -56,7 +64,17 @@ export const CRYPT_LOOT_FOCI = {
     effects: ['tyrants-bane', 'headsmans-due'],
     effectWeight: 4,
   },
-} as const satisfies Record<1 | 2 | 3, LootFocus>;
+  /**
+   * Tier IV, Heroic (ticket 6.3): no slot, set or effect is favoured; its tables raise the odds of
+   * the top rarities instead (`HEROIC_LEGENDARY_WEIGHT`, `HEROIC_VOID_CHANCE`, its boss weights).
+   */
+  4: {
+    id: 'crypt-iv',
+    name: 'Heroic spoils',
+    description:
+      'Legendaries, Mythics, set pieces and Void items drop far more often than in Tier III, at the item levels of the Cinderwastes.',
+  },
+} as const satisfies Record<1 | 2 | 3 | 4, LootFocus>;
 
 /** Ticket 4.8: the loot focus of the Ashen Warden's hoard (docs/DUNGEONS.md, "The Warden's Watch"). */
 export const ASHEN_WARDEN_FOCUS = {
@@ -160,6 +178,20 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
     entries: tierEntries({ 3: 1 }),
     focus: CRYPT_LOOT_FOCI[3],
   },
+  // Ticket 6.3: the Heroic chambers. Item levels 31–37 (foes 32–36 ± 1, inside the Verge's 29–35 and the Depths'
+  // 35–41), tier-3 and tier-4 bases, the Heroic top-rarity odds and Mythics.
+  {
+    id: 'namelessCryptIV',
+    affixTierBias: 1,
+    mythics: true,
+    setShare: SET_SHARE,
+    legendaryWeight: HEROIC_LEGENDARY_WEIGHT,
+    voidChance: HEROIC_VOID_CHANCE,
+    itemDropChance: 0.18,
+    itemLevel: { min: 31, max: 37 },
+    entries: tierEntries({ 3: 1, 4: 2 }),
+    focus: CRYPT_LOOT_FOCI[4],
+  },
   // Ticket 4.8: the Ashen Pass (levels 24–28). Tier-3 bases only, at item levels above every other
   // source (23–29: tier-4 affixes unlock at 25), with the crypt II chambers' affix bias. Legendary,
   // set, Mythic and Void odds are the Abbey's: the Pass pays in item level, affix depth and gold
@@ -254,6 +286,20 @@ export const BOSS_LOOT_TABLES: readonly LootTableDefinition[] = [
     itemLevel: { min: 23, max: 25 },
     entries: [...tierEntries({ 3: 1 }), ...BOSS_EXCLUSIVE],
     focus: CRYPT_LOOT_FOCI[3],
+  },
+  // Ticket 6.3: the Heroic Gravewarden's hoard: item levels 34–36, tier-3 and tier-4 bases and his
+  // exclusives, the best affix bias, the Heroic odds.
+  {
+    id: 'gravewardenIV',
+    affixTierBias: 1.4,
+    mythics: true,
+    setShare: SET_SHARE,
+    legendaryWeight: HEROIC_LEGENDARY_WEIGHT,
+    voidChance: HEROIC_VOID_CHANCE,
+    itemDropChance: 1,
+    itemLevel: { min: 34, max: 36 },
+    entries: [...tierEntries({ 3: 1, 4: 2 }), ...BOSS_EXCLUSIVE],
+    focus: CRYPT_LOOT_FOCI[4],
   },
   // Ticket 4.8: the Ashen Warden's hoard (the Warden's Watch). Tier-3 bases at the top item levels
   // (27–29), the best affix bias, and its armoury as the loot focus: weapons and off-hands.

@@ -1,3 +1,4 @@
+import type { BossModifierInfo } from '../game/bossModifier';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { GuildStanding, MaterialId } from '@worldforge/game-core';
 import { apiRequest, type ApiFailure, type ApiResult } from '../lib/api';
@@ -47,6 +48,8 @@ export interface GuildBossState {
     attemptDamageCap: number;
     stages: GuildBossStage[];
   };
+  /** Ticket 6.3: this week's boss modifier (an attempt made now fights it). */
+  bossModifier: BossModifierInfo;
   attemptsPerWeek: number;
   me: {
     attemptsUsed: number;
@@ -81,6 +84,8 @@ export interface GuildBossAttempt {
   week: string;
   attemptNo: number;
   bossLevel: number;
+  /** Ticket 6.3: the modifier of the attempt's week (null before 6.3). */
+  bossModifier: BossModifierInfo | null;
   heroName: string;
   classId: string;
   level: number;

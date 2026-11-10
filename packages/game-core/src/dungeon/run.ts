@@ -37,6 +37,12 @@ import {
   type ResolvedEnrage,
 } from '../world/dungeons.js';
 import { getEnemy, type EnemyDefinition, type EnemyId } from '../world/enemies.js';
+import {
+  applyBossModifier,
+  getBossModifier,
+  isBossModifierId,
+  type BossModifierId,
+} from './modifiers.js';
 import type { MaterialId } from '../world/materials.js';
 
 /**
@@ -72,6 +78,13 @@ export type DungeonEvent =
   | { t: number; type: 'enemyAttack'; damage: number; health: number; heavy?: true }
   /** Ticket 6.2: the boss's shell broke (`BossMechanics.shell`). */
   | { t: number; type: 'shellBroken' }
+  /** Ticket 6.3 ("Burning"): the hero burned for `damage` (`BossMechanics.burn`). */
+  | { t: number; type: 'burn'; damage: number; health: number }
+  /** Ticket 6.3 ("Warded"): the boss's ward rose / broke (`BossMechanics.ward`). */
+  | { t: number; type: 'wardRaised' }
+  | { t: number; type: 'wardBroken' }
+  /** Ticket 6.3 ("Frenzied"): the boss's frenzy began (`BossMechanics.frenzy`). */
+  | { t: number; type: 'frenzy' }
   /** Thorns (ticket 3.2): the enemy took `damage` from its own blow. */
   | { t: number; type: 'thorns'; damage: number; enemyHealth: number }
   /** Life on kill (ticket 3.2): the hero healed `amount` after a kill. */
@@ -118,6 +131,11 @@ export interface DungeonRunInput {
    * decides what happens to the drops; null or absent = no filter, exactly as before.
    */
   lootFilter?: LootFilterRules | null;
+  /**
+   * Ticket 6.3: the weekly boss modifier of the week the run started in (stored with the run).
+   * Null or absent = none: the run is exactly what it was before 6.3.
+   */
+  bossModifier?: BossModifierId | null;
 }
 
 export interface DungeonRunOptions {
@@ -129,6 +147,11 @@ export interface DungeonRunOptions {
 export interface DungeonRunResult {
   dungeonId: DungeonId;
   tier: DungeonTier;
+  /**
+   * Ticket 6.3: the boss modifier the run was fought with; absent without one, so a run without a
+   * modifier is exactly the pre-6.3 result.
+   */
+  bossModifier?: BossModifierId;
   /** When the boss enrages in this run (ms into the boss fight; ticket 3.6 draws it per run). */
   enrageAtMs: number;
   outcome: DungeonRunOutcome;
@@ -186,6 +209,12 @@ function validate(input: DungeonRunInput): void {
     throw new RangeError(`Invalid inventoryCount: ${input.inventoryCount}`);
   if (typeof input.seed !== 'string' || input.seed.length === 0)
     throw new RangeError('A dungeon run needs a server seed.');
+  if (
+    input.bossModifier !== undefined &&
+    input.bossModifier !== null &&
+    !isBossModifierId(input.bossModifier)
+  )
+    throw new RangeError(`Unknown boss modifier: ${String(input.bossModifier)}`);
 }
 
 /**
@@ -193,7 +222,9 @@ function validate(input: DungeonRunInput): void {
  * attacks at `j · playerInterval`, the enemy at its own rhythm, the hero first on ties, nothing
  * after `maxFightMs`). With `enrage`, enemy hits from `enrage.atMs` on are stronger and faster.
  * Ticket 6.2: with `mechanics`, the boss's shell and heavy blows apply (no extra draws; without
- * them every fight is exactly as before).
+ * them every fight is exactly as before). Ticket 6.3: the weekly modifiers' burn, ward and frenzy
+ * too; `phaseClockMs` (a boss that cannot fall: the guild boss) reads the ward's and frenzy's
+ * health share from the clock instead (1 at the start, 0 at `phaseClockMs`).
  */
 export function resolveDungeonFight(
   setup: EncounterSetup,
@@ -203,6 +234,7 @@ export function resolveDungeonFight(
   log: DungeonEvent[],
   enrage?: ResolvedEnrage,
   mechanics?: BossMechanics,
+  phaseClockMs?: number,
 ): { kind: 'kill' | 'death' | 'timeout'; offsetMs: number; health: number } {
   let enemyHealth = setup.enemyHealth;
   let hp = health;
@@ -218,9 +250,42 @@ export function resolveDungeonFight(
   const shellFloor = shell ? setup.enemyHealth * shell.untilHealthShare : 0;
   const heavyBlow = mechanics?.heavyBlow;
   let blows = 0;
-  /** What a blow of `damage` takes off the boss (its shell softens it while it holds). */
-  const dealt = (damage: number): number =>
-    shellUp ? Math.max(1, Math.round(damage * shell!.damageTakenMultiplier)) : damage;
+  // Ticket 6.3: the weekly modifiers (absent: Infinity and no phase, so nothing changes).
+  const burn = mechanics?.burn;
+  let nextBurn = burn ? burn.everyMs : Infinity;
+  const burnDamage = burn ? Math.max(1, Math.round(setup.enemyHit * burn.damageShare)) : 0;
+  const ward = mechanics?.ward;
+  let wardState: 'before' | 'up' | 'done' = 'before';
+  const frenzy = mechanics?.frenzy;
+  let frenzied = false;
+  const phased = ward !== undefined || frenzy !== undefined;
+  /** The boss's health share for the ward and frenzy (by the clock for a boss that can't fall). */
+  const share = (offset: number): number =>
+    phaseClockMs && phaseClockMs > 0
+      ? Math.max(0, 1 - offset / phaseClockMs)
+      : enemyHealth / setup.enemyHealth;
+  const phases = (offset: number) => {
+    if (ward && wardState !== 'done') {
+      const s = share(offset);
+      if (s <= ward.toHealthShare) {
+        if (wardState === 'up') log.push({ t: startMs + offset, type: 'wardBroken' });
+        wardState = 'done';
+      } else if (wardState === 'before' && s <= ward.fromHealthShare) {
+        wardState = 'up';
+        log.push({ t: startMs + offset, type: 'wardRaised' });
+      }
+    }
+    if (frenzy && !frenzied && share(offset) <= frenzy.belowHealthShare) {
+      frenzied = true;
+      log.push({ t: startMs + offset, type: 'frenzy' });
+    }
+  };
+  /** What a blow of `damage` takes off the boss (its shell, or its ward, softens it). */
+  const dealt = (damage: number): number => {
+    let m = shellUp ? shell!.damageTakenMultiplier : 1;
+    if (wardState === 'up') m *= ward!.damageTakenMultiplier;
+    return m === 1 ? damage : Math.max(1, Math.round(damage * m));
+  };
   const breakShell = (t: number) => {
     if (shellUp && enemyHealth > 0 && enemyHealth <= shellFloor) {
       shellUp = false;
@@ -230,12 +295,14 @@ export function resolveDungeonFight(
   for (;;) {
     const p = attack * setup.playerIntervalMs;
     const e = nextEnemy;
-    const next = Math.min(p, e);
+    const b = nextBurn;
+    const next = Math.min(p, e, b);
     if (enrage && !enraged && next >= enrage.atMs && enrage.atMs <= setup.maxFightMs) {
       enraged = true;
       log.push({ t: startMs + enrage.atMs, type: 'enrage' });
     }
-    if (p <= setup.maxFightMs && p <= e) {
+    if (phased && next <= setup.maxFightMs) phases(next);
+    if (p <= setup.maxFightMs && p <= e && p <= b) {
       const hit = attackHit(setup, attack, prevCrit, hp, enemyHealth);
       const crit = rng.chance(hit.critChance);
       prevCrit = crit && !hit.surged;
@@ -244,8 +311,9 @@ export function resolveDungeonFight(
       log.push({ t: startMs + p, type: 'attack', damage, crit, skill: hit.skill, enemyHealth });
       if (enemyHealth <= 0) return { kind: 'kill', offsetMs: p, health: hp };
       breakShell(startMs + p);
+      if (phased) phases(p);
       attack++;
-    } else if (e <= setup.maxFightMs) {
+    } else if (e <= setup.maxFightMs && e <= b) {
       const strong = enrage !== undefined && e >= enrage.atMs;
       blows++;
       const heavy = heavyBlow !== undefined && blows % heavyBlow.every === 0;
@@ -270,8 +338,19 @@ export function resolveDungeonFight(
         log.push({ t: startMs + e, type: 'thorns', damage: taken, enemyHealth });
         if (enemyHealth <= 0) return { kind: 'kill', offsetMs: e, health: hp };
         breakShell(startMs + e);
+        if (phased) phases(e);
       }
-      nextEnemy = e + (strong ? enragedInterval : setup.enemyIntervalMs);
+      const interval = strong ? enragedInterval : setup.enemyIntervalMs;
+      nextEnemy =
+        e +
+        (frenzied ? Math.max(1, Math.round(interval / frenzy!.attackSpeedMultiplier)) : interval);
+    } else if (b <= setup.maxFightMs) {
+      // Ticket 6.3: a burn tick (its own timeline; never enraged, never mitigated again).
+      const damage = Math.min(hp, burnDamage);
+      hp -= damage;
+      log.push({ t: startMs + b, type: 'burn', damage, health: hp });
+      if (hp <= 0) return { kind: 'death', offsetMs: b, health: 0 };
+      nextBurn = b + burn!.everyMs;
     } else {
       return { kind: 'timeout', offsetMs: setup.maxFightMs, health: hp };
     }
@@ -420,16 +499,28 @@ export function simulateDungeonRun(
       const rng = createRng(`${input.seed}:room:${r}:${k}`);
       const characterLevel = level;
       const context = effectContext(k > 0 ? combat.searchMs : dungeon.travelMs);
-      const setup = rollEncounter(
-        rng,
-        roomArea,
-        classId,
-        characterLevel,
-        stats,
-        combat,
-        encounterModifiers,
-        context,
-      );
+      const setup = tier.roomScale
+        ? rollScaledEncounter(
+            rng,
+            roomArea,
+            tier.roomScale,
+            classId,
+            characterLevel,
+            stats,
+            combat,
+            encounterModifiers,
+            context,
+          )
+        : rollEncounter(
+            rng,
+            roomArea,
+            classId,
+            characterLevel,
+            stats,
+            combat,
+            encounterModifiers,
+            context,
+          );
       if (!fight(setup, rng, r, context?.momentum ?? 0)) {
         alive = false;
         break;
@@ -453,24 +544,41 @@ export function simulateDungeonRun(
 
   let bossDefeated = false;
   let bossLoot = false;
+  // Ticket 6.3: the week's modifier reshapes the boss (none: the tier's data as it is).
+  // A tier that takes no modifier (crypt tier I, owner decision) ignores one, so it always fights
+  // exactly as before 6.3.
+  const bossModifier = tier.bossModifiers === false ? null : (input.bossModifier ?? null);
+  const boss = applyBossModifier(
+    { scale: tier.bossScale, enrage: tier.bossEnrage, mechanics: tier.bossMechanics },
+    bossModifier,
+  );
   // Ticket 3.6: the enrage moment has its own stream, so it never shifts another draw.
-  const enrage = resolveEnrage(tier.bossEnrage, createRng(`${input.seed}:boss-enrage`));
+  const enrage = resolveEnrage(boss.enrage, createRng(`${input.seed}:boss-enrage`));
   if (alive) {
     events.push({ t: now, type: 'enter', room: null });
     now += dungeon.travelMs;
     regen(dungeon.travelMs);
     const context = effectContext(dungeon.travelMs);
+    const built = buildEncounter(
+      scaleEnemy(getEnemy(dungeon.bossId), boss.scale),
+      tier.bossLevel,
+      classId,
+      level,
+      stats,
+      combat,
+      encounterModifiers,
+      context,
+    );
     const setup: EncounterSetup = {
-      ...buildEncounter(
-        scaleEnemy(getEnemy(dungeon.bossId), tier.bossScale),
-        tier.bossLevel,
-        classId,
-        level,
-        stats,
-        combat,
-        encounterModifiers,
-        context,
-      ),
+      ...built,
+      ...(boss.attackSpeedMultiplier !== 1
+        ? {
+            enemyIntervalMs: Math.max(
+              1,
+              Math.round(built.enemyIntervalMs / boss.attackSpeedMultiplier),
+            ),
+          }
+        : {}),
       maxFightMs: tier.bossMaxFightMs,
     };
     bossDefeated = fight(
@@ -479,7 +587,7 @@ export function simulateDungeonRun(
       null,
       context?.momentum ?? 0,
       enrage,
-      tier.bossMechanics,
+      boss.mechanics,
     );
     if (bossDefeated) {
       questEvents.push({ type: 'bossDefeated', bossId: dungeon.bossId });
@@ -491,6 +599,7 @@ export function simulateDungeonRun(
           modifiers.goldFind,
           lootConfig,
           classId,
+          bossModifier,
         );
         goldLooted += loot.gold;
         drops.push(...loot.items);
@@ -510,6 +619,7 @@ export function simulateDungeonRun(
   return {
     dungeonId: dungeon.id,
     tier: tier.tier,
+    ...(bossModifier ? { bossModifier } : {}),
     enrageAtMs: enrage.atMs,
     outcome,
     durationMs: now,
@@ -552,6 +662,37 @@ export function resolveEnrage(enrage: BossEnrage, rng: Rng): ResolvedEnrage {
   };
 }
 
+/**
+ * Ticket 6.3: `rollEncounter` with the drawn foe's stats scaled (the Heroic chambers). The same
+ * draws in the same order (the enemy, then the level offset), so the room's stream is unchanged.
+ */
+function rollScaledEncounter(
+  rng: Rng,
+  area: { enemies: DungeonDefinition['enemies']; minLevel: number; maxLevel: number },
+  scale: EnemyScale,
+  classId: ClassId,
+  characterLevel: number,
+  stats: StatBlock,
+  config: CombatConfig,
+  modifiers?: Parameters<typeof rollEncounter>[6],
+  effects?: Parameters<typeof rollEncounter>[7],
+): EncounterSetup {
+  const entry = rng.weighted(area.enemies, (e) => e.weight);
+  const spread = config.enemyLevelSpread;
+  const offset = rng.int(-spread, spread);
+  const enemyLevel = Math.min(area.maxLevel, Math.max(area.minLevel, characterLevel + offset));
+  return buildEncounter(
+    scaleEnemy(getEnemy(entry.enemyId), scale),
+    enemyLevel,
+    classId,
+    characterLevel,
+    stats,
+    config,
+    modifiers,
+    effects,
+  );
+}
+
 /** Ticket 3.6: an enemy with its health and damage scaled (a deeper tier's boss). */
 export function scaleEnemy(enemy: EnemyDefinition, scale?: EnemyScale): EnemyDefinition {
   const resistance = scale?.resistance ?? 1;
@@ -584,9 +725,14 @@ function rollBossLoot(
   goldFind: number,
   config: LootConfig,
   classId: ClassId,
+  modifierId: BossModifierId | null,
 ): { gold: number; items: GeneratedItem[] } {
   const { bossLoot } = dungeon;
-  const table = getLootTable(bossLoot.lootTableId);
+  const base = getLootTable(bossLoot.lootTableId);
+  // Ticket 6.3: the week's modifier adds its small focus to the hoard (none: the table as it is).
+  const table = modifierId
+    ? { ...base, modifierFocus: getBossModifier(modifierId).lootFocus }
+    : base;
   const bossConfig: LootConfig = {
     ...config,
     rarities: Object.fromEntries(
@@ -686,7 +832,13 @@ export function dungeonRunProgress(
       case 'enrage':
         enraged = true;
         break;
+      case 'burn':
+        health = e.health;
+        break;
       case 'shellBroken':
+      case 'wardRaised':
+      case 'wardBroken':
+      case 'frenzy':
         break;
       case 'levelUp':
         health = e.health;

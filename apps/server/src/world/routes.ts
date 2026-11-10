@@ -12,6 +12,7 @@ import {
 } from '@worldforge/game-core';
 import { activities, characters } from '../db/schema.js';
 import { ApiError } from '../errors.js';
+import { bossModifierWeekView, type BossModifierWeekView } from './boss-modifier.js';
 
 export interface WorldPlaceView<Id extends string> {
   id: Id;
@@ -37,8 +38,25 @@ const idParamsSchema = {
   properties: { characterId: { type: 'string', format: 'uuid' } },
 } as const;
 
+/** Ticket 6.3: this week's boss modifier (the Tavern's notice), at the game clock. */
+export interface BossModifierResponse extends BossModifierWeekView {
+  now: string;
+}
+
 /** World state of a character (ticket 2.2): which places are open and why the others are not. */
-export async function registerWorld(app: FastifyInstance): Promise<void> {
+export async function registerWorld(
+  app: FastifyInstance,
+  now: () => Date = () => new Date(),
+): Promise<void> {
+  app.get(
+    '/world/boss-modifier',
+    { preHandler: app.requireAccount },
+    async (): Promise<BossModifierResponse> => {
+      const at = now();
+      return { now: at.toISOString(), ...bossModifierWeekView(at.getTime()) };
+    },
+  );
+
   app.get<{ Params: { characterId: string } }>(
     '/characters/:characterId/world',
     { preHandler: app.requireAccount, schema: { params: idParamsSchema } },

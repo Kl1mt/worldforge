@@ -8,6 +8,7 @@ import {
   guildBossOfWeek,
   guildBossStageOf,
   guildBossWeek,
+  bossModifierOfWeek,
   isGuildBossId,
   simulateGuildBossAttempt,
   type DungeonEvent,
@@ -29,6 +30,7 @@ import {
 } from '../db/schema.js';
 import type { Executor } from '../db/types.js';
 import { writeAudit } from '../db/audit.js';
+import { bossModifierView, type BossModifierView } from '../world/boss-modifier.js';
 import { uuidv7 } from '../db/uuid.js';
 import { ApiError } from '../errors.js';
 import type { ActivityOptions } from '../activity/settle.js';
@@ -136,6 +138,8 @@ export interface GuildBossStateResponse {
   now: string;
   week: { key: string; startsAt: string; endsAt: string };
   boss: GuildBossInfoView;
+  /** Ticket 6.3: this week's boss modifier (an attempt made now fights it). */
+  bossModifier: BossModifierView;
   attemptsPerWeek: number;
   me: {
     attemptsUsed: number;
@@ -156,6 +160,8 @@ export interface GuildBossAttemptView {
   attemptNo: number;
   bossId: string;
   bossLevel: number;
+  /** Ticket 6.3: the modifier of the attempt's week (null before 6.3). */
+  bossModifier: BossModifierView | null;
   heroName: string;
   classId: string;
   level: number;
@@ -349,6 +355,7 @@ export async function guildBossState(
       endsAt: new Date(week.endMs).toISOString(),
     },
     boss: bossInfo(boss),
+    bossModifier: bossModifierView(bossModifierOfWeek(week).id),
     attemptsPerWeek: GUILD_BOSS_ATTEMPTS_PER_WEEK,
     me: {
       attemptsUsed: used,
@@ -432,11 +439,15 @@ export async function registerGuildBoss(
           const attemptNo = used + 1;
           const snapshot = await heroSnapshot(tx, hero);
           const secret = await guildBossSecret(tx, me, now);
+          // Ticket 6.3: the modifier of the week this attempt's clock read (stored with it; an
+          // attempt in flight at Monday 00:00 fights the week it counts in).
+          const bossModifier = bossModifierOfWeek(week).id;
           const fight = simulateGuildBossAttempt({
             bossId: boss.id,
             character: { classId: snapshot.classId, level: snapshot.level },
             equipment: snapshot.equipment,
             seed: attemptSeed(secret, week, attemptNo),
+            bossModifier,
           });
           const id = uuidv7();
           await tx.insert(guildBossAttempts).values({
@@ -447,6 +458,7 @@ export async function registerGuildBoss(
             guildId: guild.id,
             characterId: hero.id,
             bossId: boss.id,
+            bossModifier,
             snapshot,
             damage: fight.damage,
             counted: fight.counted,
@@ -526,6 +538,7 @@ export async function registerGuildBoss(
               week: week.key,
               attemptNo,
               bossId: boss.id,
+              bossModifier,
               level: snapshot.level,
               damage: fight.damage,
               counted: fight.counted,
@@ -573,6 +586,11 @@ export async function registerGuildBoss(
           }
           recordTelemetry(tx, now, [
             { metric: 'guild_boss.attempt', dims: [boss.id, fight.end], amount: fight.counted },
+            {
+              metric: 'boss_modifier.guild_boss',
+              dims: [bossModifier, boss.id, fight.end],
+              amount: fight.counted,
+            },
             ...newStages.map((stage) => ({
               metric: 'guild_boss.stage' as const,
               dims: [boss.id, String(stage)],
@@ -585,6 +603,7 @@ export async function registerGuildBoss(
               attemptNo,
               bossId: boss.id,
               bossLevel: fight.bossLevel,
+              bossModifier: bossModifierView(bossModifier),
               heroName: hero.name,
               classId: hero.classId,
               level: snapshot.level,

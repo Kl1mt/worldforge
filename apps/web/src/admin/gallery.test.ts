@@ -136,3 +136,19 @@ describe('animation gallery access (A.14c)', () => {
     }
   });
 });
+
+describe('the Heroic treatment in the gallery (ticket 6.3)', () => {
+  it('shows the Heroic crypt as the crypt’s own art, every sprite tinted', () => {
+    const { groups } = galleryCatalogue();
+    const heroic = groups.find((g) => g.id === 'dungeon:namelessCrypt:4')!;
+    const plain = groups.find((g) => g.id === 'dungeon:namelessCrypt')!;
+    expect(heroic.title).toBe('The Nameless Crypt · Heroic');
+    expect(heroic.enemies.map((e) => e.assetId)).toEqual(plain.enemies.map((e) => e.assetId));
+    for (const e of heroic.enemies) {
+      expect(e.still?.tint, e.key).toBe('heroic');
+      if (e.sheet) expect(e.sheet.tint, e.key).toBe('heroic');
+    }
+    expect(heroic.backdrops[0]!.sprite?.tint).toBe('heroic');
+    expect(plain.enemies.every((e) => e.still?.tint === undefined)).toBe(true);
+  });
+});

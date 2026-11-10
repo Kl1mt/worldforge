@@ -184,6 +184,26 @@ function WorldBody({ world }: { world: WorldView }) {
           </div>
         </dl>
 
+        <h3 className="rule-heading">Boss modifiers</h3>
+        <dl className="adt-facts adt-facts--two">
+          {(
+            [
+              ['This week', world.bossModifiers.current],
+              ['Next week', world.bossModifiers.next],
+            ] as const
+          ).map(([label, w]) => (
+            <div key={label}>
+              <dt className="caps">
+                {label} · from {formatWhen(w.week.startsAt)}
+              </dt>
+              <dd>
+                <strong>{w.modifier.name}</strong>: {w.modifier.effect}{' '}
+                <span className="adt-dim">Hoard focus: {w.modifier.lootFocus.name}.</span>
+              </dd>
+            </div>
+          ))}
+        </dl>
+
         <h3 className="rule-heading">Deleted heroes</h3>
         <p>
           {nf(world.deletedHeroes.total)} deleted in all;{' '}

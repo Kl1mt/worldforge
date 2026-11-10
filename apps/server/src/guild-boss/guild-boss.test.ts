@@ -13,6 +13,8 @@ import {
   getGuildBoss,
   guildBossWeek,
   simulateGuildBossAttempt,
+  bossModifierOfWeek,
+  guildBossWeekFromKey,
   sumStageRewards,
   type ClassId,
 } from '@worldforge/game-core';
@@ -191,6 +193,8 @@ describe('guild boss', () => {
         character: { classId: 'warrior', level: 20 },
         equipment: [],
         seed: attemptSeed(stream!.seedSecret, guildBossWeek(nowMs), attemptNo),
+        // Ticket 6.3: the week's modifier, as the server stores it with the attempt.
+        bossModifier: bossModifierOfWeek(nowMs).id,
       });
     expect(body.attempt.events).toEqual(predicted(1).events);
     expect(second.events).toEqual(predicted(2).events);
@@ -545,6 +549,59 @@ describe('guild boss', () => {
       expect(old!.total).toBe(crossing.total);
     });
 
+    it('attempts across a modifier change fight the modifier of their own week (ticket 6.3)', async () => {
+      const { leader, heroOf } = await guildOf();
+      const monday = Date.parse('2026-11-09T00:00:00Z');
+      const old = bossModifierOfWeek(monday - 1).id;
+      const fresh = bossModifierOfWeek(monday).id;
+      expect(fresh).not.toBe(old);
+      nowMs = monday - 1; // Sunday 23:59:59.999
+      expect((await state(leader)).bossModifier.id).toBe(old);
+      const before = await fought(leader, heroOf(leader));
+      expect(before.bossModifier!.id).toBe(old);
+      nowMs = monday;
+      expect((await state(leader)).bossModifier.id).toBe(fresh);
+      const after = await fought(leader, heroOf(leader));
+      expect(after.bossModifier!.id).toBe(fresh);
+      // Stored per attempt, and each replays exactly from its stream, snapshot and modifier.
+      const rows = await db()
+        .select()
+        .from(guildBossAttempts)
+        .where(eq(guildBossAttempts.accountId, leader.id))
+        .orderBy(guildBossAttempts.createdAt);
+      expect(rows.map((r) => [r.week, r.attemptNo, r.bossModifier])).toEqual([
+        [WEEK, 1, old],
+        ['2026-11-09', 1, fresh],
+      ]);
+      const [stream] = await db()
+        .select()
+        .from(guildBossStreams)
+        .where(eq(guildBossStreams.accountId, leader.id));
+      for (const [r, view] of [
+        [rows[0]!, before],
+        [rows[1]!, after],
+      ] as const) {
+        const replay = simulateGuildBossAttempt({
+          bossId: r.bossId,
+          character: { classId: r.snapshot.classId, level: r.snapshot.level },
+          equipment: r.snapshot.equipment,
+          seed: attemptSeed(stream!.seedSecret, guildBossWeekFromKey(r.week), r.attemptNo),
+          bossModifier: r.bossModifier,
+        });
+        expect(view.events).toEqual(replay.events);
+        expect([r.damage, r.counted, r.end]).toEqual([replay.damage, replay.counted, replay.end]);
+      }
+      // A row from before 6.3 (no modifier) replays as the fight it was.
+      const plain = simulateGuildBossAttempt({
+        bossId: rows[0]!.bossId,
+        character: { classId: rows[0]!.snapshot.classId, level: rows[0]!.snapshot.level },
+        equipment: rows[0]!.snapshot.equipment,
+        seed: attemptSeed(stream!.seedSecret, guildBossWeekFromKey(WEEK), 1),
+        bossModifier: null,
+      });
+      expect('bossModifier' in plain).toBe(false);
+    });
+
     it("last week's earned rewards stay claimable", async () => {
       const { guild, leader, heroOf } = await guildOf();
       await nearStage(guild, 1);
@@ -587,6 +644,7 @@ describe('guild boss', () => {
           character: { classId: 'warrior', level: 20 },
           equipment: [],
           seed: `${secret}:2026-11-02:${n}`,
+          bossModifier: bossModifierOfWeek(guildBossWeekFromKey('2026-11-02')).id,
         }).damage,
     );
     expect(a).toEqual(expected);

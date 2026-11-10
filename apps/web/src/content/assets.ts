@@ -12,9 +12,10 @@ export interface SpriteAsset {
   facing?: 'front' | 'left' | 'right';
   /**
    * Drawn tinted: `cinder`, a stand-in for art still to be made (`ART_STAND_INS`, ticket 6.1);
-   * `ember`, a forge-tempered variant of existing art (`ART_VARIANTS`, ticket 6.2).
+   * `ember`, a forge-tempered variant of existing art (`ART_VARIANTS`, ticket 6.2); `heroic`, the
+   * Heroic crypt's treatment of its own art (`heroicSprite`, ticket 6.3).
    */
-  tint?: 'cinder' | 'ember';
+  tint?: 'cinder' | 'ember' | 'heroic';
   /**
    * Ticket A.14: a frame sheet. The file is one row of `frames` frames, each `width` × `height`
    * (so the PNG is `frames × width` wide); `PixelSprite` shows one frame at a time.
@@ -360,6 +361,14 @@ export function findSprite(id: string): SpriteAsset | null {
   if (Object.hasOwn(ART_VARIANTS, id)) return VARIANT_SPRITES.get(id)!;
   const standIn = Object.hasOwn(ART_STAND_INS, id) ? ART_STAND_INS[id] : undefined;
   return standIn ? { ...ASSETS[standIn], tint: 'cinder' } : null;
+}
+
+/**
+ * Ticket 6.3: the Heroic crypt draws the crypt's own art (backdrop, chamber foes, the
+ * Gravewarden, their attack frames) with the Heroic treatment: a grave-cold tint, no new art.
+ */
+export function heroicSprite(sprite: SpriteAsset): SpriteAsset {
+  return { ...sprite, tint: 'heroic' };
 }
 
 /**

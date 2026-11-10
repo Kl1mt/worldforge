@@ -15,6 +15,7 @@ import {
   validateItem,
   type GeneratedItem,
   type LootConfig,
+  type LootFocus,
   type LootTableDefinition,
 } from '../index.js';
 
@@ -67,10 +68,11 @@ describe('crypt loot foci (ticket 3.6)', () => {
         sets?: readonly string[];
         effects?: readonly string[];
         slots?: readonly string[];
-      } = focus;
+      } = focus as LootFocus;
       for (const s of f.sets ?? []) expect(ITEM_SETS.map((x) => x.id)).toContain(s);
       for (const e of f.effects ?? []) expect(findEffect(e)?.kind, e).toBe('legendary');
-      // A focus favours something.
+      // A focus favours something (ticket 6.3: the Heroic focus is its tables' top-rarity odds).
+      if (focus.id === 'crypt-iv') continue;
       expect(
         (f.sets?.length ?? 0) + (f.effects?.length ?? 0) + (f.slots?.length ?? 0),
       ).toBeGreaterThan(0);

@@ -31,7 +31,9 @@ import {
   type ProfessionId,
   type RarityId,
   type WorldProgress,
+  guildBossWeek,
 } from '@worldforge/game-core';
+import { bossModifierWeekView } from '../world/boss-modifier.js';
 import { randomInt } from 'node:crypto';
 import {
   accounts,
@@ -1331,6 +1333,11 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
         pendingArchive,
       },
       deletedHeroes: { total: deleted?.n ?? 0, ...(await purgeDueHint(app.db, app.authNow())) },
+      // Ticket 6.3: this week's boss modifier and next week's (public rotation, game clock).
+      bossModifiers: {
+        current: bossModifierWeekView(t),
+        next: bossModifierWeekView(guildBossWeek(t).endMs),
+      },
     };
   });
 

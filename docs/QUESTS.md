@@ -29,6 +29,9 @@ First-pass numbers; tune in B.1.
 
 *What changes in the offers.* The Pass is the last area in `AREAS`, so for every hero who cannot reach it (flag closed, under level 24, or the Gravewarden not slain) the pool, the weights and the seed are exactly as before: their offers do not change, on any day (game-core and server tests check it across heroes, days and levels). Only a hero who can reach the Pass draws from a larger pool (4 Pass templates, weight 11 each, the newest area), so their whole day's draw changes once, on the day the flag is set or they reach level 24, as it already does after a level-up; a slot taken that day stays taken. Such a hero sees ≈ 1.1 Pass contracts a day (at least one on ≈ 77 % of days). Rewards depend on the level and the template's scale, not the area, so XP and gold per contract and the three contracts a day are unchanged: the gold and XP income does not move, only where the work is done. Pass contracts carry no item reward (only the Abbey's do).
 
+## The week's boss notice (ticket 6.3)
+Above the notice board the Tavern keeper announces **this week's boss modifier** (every boss but the crypt's tier I) (`docs/DUNGEONS.md` "Weekly boss modifiers"): its name, what it does in plain words, the hoard's focus and until when it holds (the next Monday 00:00 UTC, shown as a local date). It reads `GET /api/world/boss-modifier` (the game clock's week, public: the rotation is announced, not secret), with loading and error (Try again) states. No quest or contract depends on it.
+
 ## Progress comes from events, never from the client
 `QuestEvent` (game-core `quests/events.ts`):
 

@@ -60,7 +60,7 @@ describe('Void content (ticket 3.5)', () => {
     const withVoid = LOOT_TABLES.filter((t) => effectiveVoidChance(t) > 0).map((t) => t.id);
     // Ticket 3.6 adds the deeper crypt tiers' chambers and Gravewarden.
     // Ticket 4.8 adds the Ashen Pass and the Ashen Warden's hoard; 6.1 the Ashfall Verge; 6.2 the
-    // Cinder Depths and the Forge Tyrant's hoard.
+    // Cinder Depths and the Forge Tyrant's hoard; 6.3 the Heroic crypt's chambers and hoard.
     expect(withVoid.sort()).toEqual([
       'ashenPass',
       'ashenWarden',
@@ -70,9 +70,11 @@ describe('Void content (ticket 3.5)', () => {
       'gravewarden',
       'gravewardenII',
       'gravewardenIII',
+      'gravewardenIV',
       'namelessCrypt',
       'namelessCryptII',
       'namelessCryptIII',
+      'namelessCryptIV',
       'sunkenAbbey',
     ]);
     for (const t of LOOT_TABLES) {

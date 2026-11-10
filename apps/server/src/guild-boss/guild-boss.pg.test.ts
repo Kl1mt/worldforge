@@ -18,6 +18,7 @@ import {
   guildBossWeek,
   guildBossWeekFromKey,
   simulateGuildBossAttempt,
+  bossModifierOfWeek,
 } from '@worldforge/game-core';
 import { buildApp } from '../app.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
@@ -198,7 +199,10 @@ describe.skipIf(!url)('real PostgreSQL: the guild boss races safely', () => {
         character: { classId: a.snapshot.classId, level: a.snapshot.level },
         equipment: a.snapshot.equipment,
         seed: attemptSeed(secrets.get(a.accountId!)!, guildBossWeekFromKey(a.week), a.attemptNo),
+        // Ticket 6.3: the stored modifier, which is always the attempt's own week's.
+        bossModifier: a.bossModifier,
       });
+      expect(a.bossModifier).toBe(bossModifierOfWeek(guildBossWeekFromKey(a.week)).id);
       expect([a.damage, a.counted, a.end]).toEqual([r.damage, r.counted, r.end]);
     }
     return { attempts, byAccountWeek };

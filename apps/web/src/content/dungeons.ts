@@ -89,6 +89,8 @@ export const DUNGEON_WORDS: Readonly<Record<DungeonId, DungeonWords>> = {
     bossStands: 'The warden stands.',
     bossEnter: 'The Gravewarden’s chamber. The door grinds shut behind you.',
     enrage: 'The Gravewarden enrages! Its blows fall faster and harder.',
+    // Ticket 6.3: only the Heroic Gravewarden strikes heavy blows.
+    heavyBlow: 'The grave-bell tolls: a crushing blow for {damage}.',
     won: 'The Gravewarden is no more. The crypt falls silent.',
     lost: 'The crypt keeps its warden. You crawl back to the light.',
     otherHero: 'Another of your heroes is in the crypt. Switch to them to finish that run.',
