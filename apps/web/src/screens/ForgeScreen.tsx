@@ -21,7 +21,7 @@ import { AwakenPanel } from './economy/AwakenPanel';
 import { Gold, NoticeLine, ShopHeader, type Notice } from './economy/ShopHeader';
 import './economy/shop.css';
 
-const TIER_NAME = ['', 'Tier I', 'Tier II', 'Tier III'];
+const TIER_NAME = ['', 'Tier I', 'Tier II', 'Tier III', 'Tier IV'];
 
 function addStacks(into: Map<MaterialId, number>, stacks: readonly MaterialStackDto[]) {
   for (const s of stacks) into.set(s.materialId, (into.get(s.materialId) ?? 0) + s.quantity);
@@ -203,6 +203,11 @@ export function ForgeScreen() {
                   <span className="recipe__gold">
                     <Gold amount={r.gold} />
                   </span>
+                  {r.townUpgrade ? (
+                    <span className="recipe__town">
+                      {r.townUpgrade.name}: was <Gold amount={r.townUpgrade.baseGold} />
+                    </span>
+                  ) : null}
                 </li>
               </ul>
               {locked ? (

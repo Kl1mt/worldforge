@@ -23,6 +23,8 @@ import { writeAudit } from '../db/audit.js';
 import { ApiError } from '../errors.js';
 import { awardAchievements } from '../achievements/award.js';
 import { recordTelemetry } from '../telemetry/record.js';
+import { lockWorldFlags, recordEraChange } from './era.js';
+import { loadWorldState } from './world-state.js';
 
 /**
  * Community project state (ticket 4.6, docs/COMMUNITY.md). Definitions are game-core data; the
@@ -193,6 +195,8 @@ export interface AdvanceOutcome {
   projectCompleted: boolean;
   /** Accounts newly awarded the project's achievement. */
   awarded: number;
+  /** Ticket 6.7: the world era this completion moved, if it did. */
+  era?: { from: string; to: string } | null;
 }
 
 /**
@@ -206,12 +210,20 @@ export async function advanceProject(
   def: CommunityProjectDefinition,
   row: ProjectRow,
   now: Date,
-  { force = false, by }: { force?: boolean; by?: 'admin' } = {},
+  {
+    force = false,
+    by,
+    limit = Infinity,
+  }: {
+    force?: boolean;
+    by?: 'admin';
+    /** Ticket 6.7: at most this many stages. */ limit?: number;
+  } = {},
 ): Promise<AdvanceOutcome> {
   const out: AdvanceOutcome = { stagesCompleted: [], projectCompleted: false, awarded: 0 };
   if (row.completedAt !== null) return out;
   let index = row.stageIndex;
-  while (index < def.stages.length) {
+  while (index < def.stages.length && out.stagesCompleted.length < limit) {
     const stage = def.stages[index]!;
     if (!force && !isStageComplete(stage, await stageTotals(tx, def.id, stage.id))) break;
     index += 1;
@@ -230,10 +242,17 @@ export async function advanceProject(
     .where(eq(communityProjects.projectId, def.id));
   if (!done) return out;
   out.projectCompleted = true;
+  // Ticket 6.7: the flags before and after, read under the world lock, for the era change.
+  await lockWorldFlags(tx);
+  const before = (await loadWorldState(tx)).flags;
   await tx
     .insert(worldFlags)
     .values({ flagId: def.grantsFlag, projectId: def.id, setAt: now })
     .onConflictDoNothing();
+  out.era = await recordEraChange(tx, before, { ...before, [def.grantsFlag]: true }, now, {
+    projectId: def.id,
+    ...(by ? { by } : {}),
+  });
   const contributors = await tx
     .selectDistinct({ accountId: communityContributions.accountId })
     .from(communityContributions)

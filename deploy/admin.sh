@@ -11,6 +11,7 @@
 #   deploy/admin.sh invite revoke <invite id|code>
 #   deploy/admin.sh project status            (community projects, ticket 4.6)
 #   deploy/admin.sh project complete <projectId>   (finishes it for everyone; cannot be undone)
+#   (`project stage <projectId>`, ticket 6.7, is for test setups and refused here: NODE_ENV=production)
 #   deploy/admin.sh leaderboards check         (recompute every board row, ticket 5.2)
 #   deploy/admin.sh leaderboards refresh       (rewrite every hero's rows from current state)
 #   deploy/admin.sh seasons status             (current, next and past seasons, ticket 5.3)

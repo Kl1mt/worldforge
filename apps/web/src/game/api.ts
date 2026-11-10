@@ -276,6 +276,8 @@ export interface RecipeDto {
   materials: MaterialStackDto[];
   slots: ItemSlotKind[];
   blockers: CraftBlocker[];
+  /** Ticket 6.7: a town upgrade lowered `gold` from `baseGold`. */
+  townUpgrade?: { id: string; name: string; baseGold: number };
 }
 
 export interface ForgeState {

@@ -48,6 +48,7 @@ The audit log is stamped by the database clock, the rollups by the game clock, s
 | `material.out` | `trade` (ticket T.5, matched by `material.in trade`), `trade_reverse` (ticket T.6, matched by `material.in trade_reverse`), `forge_craft`, `forge_upgrade`, `forge_reroll`, `forge_improve`, `forge_awaken` (ticket 6.5b: Embers, Seals, shards), `community_project` (ticket 4.6) | material id | | / quantity |
 | `community.contribute` | project id | stage id | | contributions (ticket 4.6) |
 | `community.stage` | project id | stage id | | stages completed (ticket 4.6) |
+| `world.era` | era before | era after | | world era changes (ticket 6.7): one per `world.era_change` audit row, written by a completing project or an admin flag toggle that moved the era |
 | `warehouse.move` | `deposit` or `withdraw` | | | moves that changed something / items moved (ticket 4.7) |
 | `warehouse.upgrade` | `level1`…`level6` (the level bought) | | | upgrades (ticket 4.7) |
 | `shelf.move` | `deposit` or `withdraw` | `items`, `materials` or `gold` | | moves (one per kind per request) / items, material units or gold moved (ticket T.3, the account shelf). Shelf gold is not `gold.in`/`gold.out`: it stays with the account |
@@ -121,6 +122,9 @@ The admin panel's Telemetry tab (`#/admin/telemetry`) shows this report in the b
 - Hot rows: at very high concurrency, every settlement in an area waits briefly for the same counter row at commit. If that shows up, shard the rows (an extra `shard` key column from a hash of the transaction, summed in the report); the recorder is the only writer, so this is a local change.
 - Counts start with this ticket; earlier history is in the audit log only.
 - Rollups are append-only sums; a deleted character's counts stay (they hold no ids).
+
+## World progression (ticket 6.7)
+Contributions to the Forgeward Outpost are ordinary `community.contribute`, `gold.out community_project` and `material.out community_project` counts (the Tyrant's Ember among the materials). `reconcileWithAudit` now also checks **each project on its own** (`community: <projectId> contributions` and `… gold` against the `community.contribute` rows of that project) and **`world: era changes`** (`world.era_change` rows against `world.era`). Test accounts can't contribute (`403 test_account`), so none of their play reaches these counts.
 
 ## Admin tools and test accounts (ticket D.4)
 

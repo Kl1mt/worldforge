@@ -182,6 +182,7 @@ describe('world flags', () => {
     expect(worldFlagsFrom(['warehouseRestored', 'retiredFlag'])).toEqual({
       warehouseRestored: true,
       ashenPassCleared: false,
+      forgewardRaised: false,
     });
   });
 

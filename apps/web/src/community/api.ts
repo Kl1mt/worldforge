@@ -45,6 +45,8 @@ export interface ProjectBoard {
 export interface WorldView {
   flags: WorldFlags;
   completed: { projectId: string; completedOn: string }[];
+  /** Ticket 6.7: the world era (the web derives the same from `flags` with game-core). */
+  era?: { id: string; index: number; name: string; title: string; crier: string };
 }
 
 export interface ContributeResult {

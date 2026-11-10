@@ -197,6 +197,15 @@ export const ACHIEVEMENTS: readonly AchievementDefinition[] = [
     criterion: { kind: 'communityProject', projectId: 'clearAshenPass' },
     assetId: 'achievement.ashen-pass-breaker',
   },
+  // Ticket 6.7: the Forgeward Outpost (icon awaiting art: the wax-seal placeholder until then).
+  {
+    id: 'forgewardBuilder',
+    name: 'Keeper of the Forgeward',
+    description: 'Help rebuild the Forgeward Outpost.',
+    category: 'world',
+    criterion: { kind: 'communityProject', projectId: 'forgewardOutpost' },
+    assetId: 'achievement.forgeward-builder',
+  },
 ];
 
 export type AchievementId = string;

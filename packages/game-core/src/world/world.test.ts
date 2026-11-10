@@ -132,7 +132,8 @@ describe('content contract', () => {
       expect(a.unlock.gravewardenDefeated, a.id).toBeFalsy();
     }
     // Ticket 4.8: only the Ashen Pass waits for a world flag (the community's second project).
-    // Ticket 6.1: the Verge needs no flag yet (6.7 adds one); the Warden it needs guards the Pass's.
+    // Ticket 6.1: the Verge needs no flag (6.7 kept it so: no access is taken away); the Warden it
+    // needs guards the Pass's.
     expect(getArea('ashenPass').unlock.worldFlag).toBe('ashenPassCleared');
     for (const a of AREAS.filter((x) => x.id !== 'ashenPass')) {
       expect(a.unlock.worldFlag, a.id).toBeUndefined();
@@ -568,7 +569,7 @@ describe('unlock rules', () => {
       { kind: 'level', required: 28 },
       { kind: 'ashenWardenDefeated' },
     ]);
-    // No world flag yet (6.7's seam): the flags change nothing for it.
+    // No world flag (6.7 left the seam unused): the flags change nothing for it.
     const open = { ...NO_WORLD_FLAGS, ashenPassCleared: true, warehouseRestored: true };
     for (const progress of [NO_PROGRESS, BOSS_DOWN, warden]) {
       for (const level of [27, 28, 40]) {

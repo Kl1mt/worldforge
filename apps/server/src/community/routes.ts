@@ -11,8 +11,11 @@ import {
   type MaterialId,
   type ProjectResource,
   type ResourceAmounts,
+  eraCrierLine,
+  worldEra,
+  worldEraIndex,
 } from '@worldforge/game-core';
-import { accountAchievements } from '../db/schema.js';
+import { accountAchievements, accounts } from '../db/schema.js';
 import { writeAudit } from '../db/audit.js';
 import { ApiError } from '../errors.js';
 import type { ActivityOptions } from '../activity/settle.js';
@@ -39,8 +42,9 @@ import {
 /**
  * Community project routes (ticket 4.6, docs/COMMUNITY.md, docs/API_CONVENTIONS.md).
  *
- * - `GET /api/world`: the global world state (flags, completed projects) from the cache; every
- *   screen polls it for the world notice (120 s, `ETag`).
+ * - `GET /api/world`: the global world state (flags, completed projects, and since 6.7 the era
+ *   and the crier's call of the day) from the cache; every screen polls it for the world notice
+ *   (120 s, `ETag`).
  * - `GET /api/community/projects`: the project board with the viewer's own contribution and
  *   remaining cap (polled every 60 s while open, `ETag`).
  * - `POST /api/community/projects/:projectId/contribute`: a value operation (`Idempotency-Key`).
@@ -107,8 +111,17 @@ export async function registerCommunity(
 ): Promise<void> {
   app.get('/world', { preHandler: app.requireAccount }, async (request, reply) => {
     const state = await app.worldState.get();
+    // Ticket 6.7: the world era (derived from the flags; words only) and today's crier call.
+    const era = worldEra(state.flags);
     return sendTagged(request, reply, {
       flags: state.flags,
+      era: {
+        id: era.id,
+        index: worldEraIndex(era.id),
+        name: era.name,
+        title: era.title,
+        crier: eraCrierLine(era, contributionWindow(activity.now()).day),
+      },
       completed: state.completed.map((c) => ({
         projectId: c.projectId,
         completedOn: c.completedAt.toISOString().slice(0, 10),
@@ -201,6 +214,19 @@ export async function registerCommunity(
           const now = activity.now();
           // Lock order: hero (settles its activity first) → project → counter rows.
           const hero = await lockOwnedCharacter(tx, me.id, body.characterId, activity);
+          // Ticket 6.7: test accounts (D.4) never move the shared world. Read in the transaction:
+          // the flag is set by the CLI and may change at any time.
+          const [acct] = await tx
+            .select({ isTest: accounts.isTest })
+            .from(accounts)
+            .where(eq(accounts.id, me.id));
+          if (acct?.isTest) {
+            throw new ApiError(
+              403,
+              'test_account',
+              'Test accounts do not give to the town works: the projects change the world for every player.',
+            );
+          }
           const row = await lockProject(tx, def.id, now);
           if (row.completedAt !== null) {
             throw new ApiError(409, 'project_complete', 'This project is already finished.');

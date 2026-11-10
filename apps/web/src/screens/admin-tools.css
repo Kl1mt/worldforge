@@ -778,6 +778,8 @@
 .adt-world__cols {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  /* Ticket 6.7: the scheduler fills the second column from the top, beside flags and works. */
+  grid-auto-flow: row dense;
   gap: var(--space-5);
   align-items: start;
 }
@@ -790,7 +792,20 @@
 
 .adt-world__side {
   display: grid;
+  grid-row: span 2;
   gap: var(--space-3);
+}
+
+/* Ticket 6.7: the era line and the town works, under the flags. */
+.adt-world__works {
+  display: grid;
+  grid-column: 1;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.adt-era {
+  color: var(--brass-400);
 }
 
 .adt-flags {

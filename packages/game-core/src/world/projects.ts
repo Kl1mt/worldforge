@@ -21,7 +21,7 @@ import { MATERIAL_IDS, type MaterialId } from './materials.js';
  */
 
 /** Global world flags, set only by completed community projects. Never rename or reuse an id. */
-export const WORLD_FLAG_IDS = ['warehouseRestored', 'ashenPassCleared'] as const;
+export const WORLD_FLAG_IDS = ['warehouseRestored', 'ashenPassCleared', 'forgewardRaised'] as const;
 export type WorldFlagId = (typeof WORLD_FLAG_IDS)[number];
 
 /** Which world flags are set. Read from the server's world state (one source of truth). */
@@ -60,6 +60,14 @@ export const WORLD_FLAGS: readonly WorldFlagDefinition[] = [
     id: 'ashenPassCleared',
     opens: 'The Ashen Pass',
     lockedText: 'The town must clear the Ashen Pass first.',
+  },
+  {
+    // Ticket 6.7: the Forgeward Outpost. Today it opens the Forgeward bellows (a town upgrade,
+    // `world/town.ts`) and the Forgeward Age (`world/eras.ts`); later content may also read it.
+    // It gates nothing players can reach today (the Verge, the Depths and the Tyrant stay open).
+    id: 'forgewardRaised',
+    opens: 'The Forgeward Outpost',
+    lockedText: 'The town must rebuild the Forgeward Outpost first.',
   },
 ];
 
@@ -213,6 +221,50 @@ export const COMMUNITY_PROJECTS: readonly CommunityProjectDefinition[] = [
           { resource: 'gold', amount: 45_000 },
           { resource: 'abbeySilver', amount: 60 },
           { resource: 'gravewardenSeal', amount: 10 },
+        ],
+      },
+    ],
+  },
+  {
+    // Ticket 6.7 (docs/COMMUNITY.md "The Forgeward Outpost"): the Cinderwastes chain. A late-game
+    // sink sized for a town of about twenty (a week or two), finished in a day or two by a big
+    // one; the Tyrant's Ember only in the last stage, and few of them.
+    id: 'forgewardOutpost',
+    name: 'Rebuild the Forgeward Outpost',
+    description:
+      'Past the Ashen Pass the old forgeward fort stands burnt to its footings. Rebuild it as a waystation for the Cinderwastes, and the town’s smiths get a fire worth working at.',
+    requires: 'clearAshenPass',
+    grantsFlag: 'forgewardRaised',
+    rewardAchievementId: 'forgewardBuilder',
+    stages: [
+      {
+        id: 'slagRoad',
+        name: 'Clear the slag road',
+        description: 'Break the cooled slag off the old road and shore the cuttings with iron.',
+        needs: [
+          { resource: 'gold', amount: 60_000 },
+          { resource: 'ironOre', amount: 1_000 },
+          { resource: 'soulShard', amount: 400 },
+        ],
+      },
+      {
+        id: 'forgewardWalls',
+        name: 'Raise the forgeward walls',
+        description: 'Iron-banded walls on the old footings, the gate set with Abbey silver.',
+        needs: [
+          { resource: 'gold', amount: 100_000 },
+          { resource: 'ironOre', amount: 1_500 },
+          { resource: 'abbeySilver', amount: 80 },
+        ],
+      },
+      {
+        id: 'kindleBeacon',
+        name: 'Kindle the beacon',
+        description: 'Only the Tyrant’s own fire will light the beacon on the forgeward tower.',
+        needs: [
+          { resource: 'gold', amount: 140_000 },
+          { resource: 'soulShard', amount: 800 },
+          { resource: 'tyrantsEmber', amount: 10 },
         ],
       },
     ],

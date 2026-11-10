@@ -55,7 +55,7 @@ describe('community board helpers (ticket 4.6)', () => {
 
   it('announces a project finished in the last week once per device', () => {
     const view = {
-      flags: { warehouseRestored: true, ashenPassCleared: false },
+      flags: { warehouseRestored: true, ashenPassCleared: false, forgewardRaised: false },
       completed: [{ projectId: 'restoreWarehouse', completedOn: '2031-03-10' }],
     };
     const now = Date.parse('2031-03-12T09:00:00Z');
