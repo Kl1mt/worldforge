@@ -59,6 +59,7 @@ import {
 import type { DatabaseHandle } from '../db/types.js';
 import { setAccountRole } from '../social/roles.js';
 import { loadRollups, reconcileWithAudit, sumRollups } from '../telemetry/report.js';
+import { setTestAccount } from '../admin/test-accounts.js';
 import { completeProject } from '../community/project-cli.js';
 import type { WarehouseMoveResponse, WarehouseView } from '../warehouse/routes.js';
 import type { ShelfMoveResponse, ShelfView } from '../shelf/routes.js';
@@ -3857,4 +3858,111 @@ export async function playTradingHardeningStep(
   expect(check('trades: completed')).toMatchObject({ audit: 3, rollup: 3, ok: true });
   expect(check('trades: reversed')).toMatchObject({ audit: 1, rollup: 1, ok: true });
   return { b2, tradeableVisits, items: [itemA, itemB] };
+}
+
+/**
+ * Ticket D.4: the admin tools step. A test account's hero (marked by the CLI's function) is
+ * inspected, given an item (preview, then the same seed), gold and an hour of farming through the
+ * normal settlement, has the item removed again, is soft-deleted (hidden from its player) and
+ * restored. A normal player's hero refuses every cheat tool. Everything reconciles with the
+ * audit log, and no admin answer carries the player's email.
+ */
+export async function playAdminToolsStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  {
+    admin,
+    hero,
+    email,
+    bystander,
+  }: { admin: Player; hero: Journey; email: string; bystander: Journey },
+) {
+  const me = await playerOf(hero);
+  const handle = me.account.handle;
+  const heroUrl = `/api/admin/accounts/${handle}/heroes/${hero.characterId}`;
+  const post = (url: string, payload: object) =>
+    admin.api('POST', url, payload, { 'idempotency-key': randomUUID() });
+  const answers: string[] = [];
+  const keep = <T extends { body: string }>(r: T) => (answers.push(r.body), r);
+
+  // Not a test account yet: cheat tools refuse, support tools work.
+  const refused = keep(
+    await post(`${heroUrl}/gold`, { mode: 'grant', amount: 50, reason: 'journey' }),
+  );
+  expect(refused.statusCode).toBe(403);
+  await setTestAccount(database.db, handle, true);
+
+  const file = keep(await admin.api('GET', `/api/admin/accounts/${handle}`));
+  expect(file.statusCode, file.body).toBe(200);
+  expect(file.json()).toMatchObject({
+    account: { testAccount: true, heroes: [{ id: hero.characterId }] },
+  });
+
+  const spec = {
+    baseId: 'longsword',
+    rarityId: 'epic',
+    itemLevel: 10,
+    variant: null,
+    upgradeLevel: 2,
+  };
+  const preview = keep(await post(`${heroUrl}/items/preview`, spec));
+  expect(preview.statusCode, preview.body).toBe(200);
+  const granted = keep(
+    await post(`${heroUrl}/items/grant`, { ...spec, seed: preview.json().seed, reason: 'journey' }),
+  );
+  expect(granted.statusCode, granted.body).toBe(200);
+  const itemId = granted.json<{ item: { id: string; affixes: unknown } }>().item.id;
+  expect(granted.json().item.affixes).toEqual(preview.json().item.affixes);
+  expect(
+    (await hero.inventory()).inventory.some((i) => i.id === itemId),
+    'the granted item is in the pack',
+  ).toBe(true);
+
+  expect(
+    keep(await post(`${heroUrl}/gold`, { mode: 'grant', amount: 1000, reason: 'journey' }))
+      .statusCode,
+  ).toBe(200);
+  await hero.farmBestArea();
+  const ff = keep(await post(`${heroUrl}/fast-forward`, { minutes: 60, reason: 'journey' }));
+  expect(ff.statusCode, ff.body).toBe(200);
+  expect(ff.json().creditedMs).toBe(3_600_000);
+  await hero.settle();
+
+  const removed = keep(
+    await post(`/api/admin/accounts/${handle}/items/${itemId}/remove`, {
+      confirm: (await hero.api('GET', '/api/characters'))
+        .json<{ characters: { id: string; name: string }[] }>()
+        .characters.find((c) => c.id === hero.characterId)!.name,
+      reason: 'journey',
+    }),
+  );
+  expect(removed.statusCode, removed.body).toBe(200);
+
+  // Soft delete and restore (the player sees the hero vanish and come back).
+  const name = (await hero.api('GET', '/api/characters'))
+    .json<{ characters: { id: string; name: string }[] }>()
+    .characters.find((c) => c.id === hero.characterId)!.name;
+  expect(
+    keep(await post(`${heroUrl}/delete`, { confirm: name, reason: 'journey' })).statusCode,
+  ).toBe(200);
+  expect((await hero.api('GET', '/api/characters')).json().characters).toEqual([]);
+  expect((await hero.api('GET', `${hero.base}/inventory`)).statusCode).toBe(404);
+  expect(keep(await post(`${heroUrl}/restore`, { reason: 'journey' })).statusCode).toBe(200);
+  expect((await hero.api('GET', '/api/characters')).json().characters).toHaveLength(1);
+
+  // A normal player's hero refuses cheat tools.
+  const other = await playerOf(bystander);
+  const otherUrl = `/api/admin/accounts/${other.account.handle}/heroes/${bystander.characterId}`;
+  for (const [path, payload] of [
+    ['level', { level: 9, reason: 'journey' }],
+    ['xp', { xp: 99, reason: 'journey' }],
+    ['items/grant', { ...spec, seed: 1, reason: 'journey' }],
+  ] as const) {
+    const res = keep(await post(`${otherUrl}/${path}`, payload));
+    expect(res.statusCode, path).toBe(403);
+  }
+
+  expect((await reconcileWithAudit(database.db)).filter((c) => !c.ok)).toEqual([]);
+  for (const body of answers)
+    expect(body.includes(email), 'no email in an admin answer').toBe(false);
 }

@@ -14,6 +14,7 @@
  * - with `E2E_SEED_MODERATOR=<email>` (ticket 4.1) a moderator account with that email (password
  *   `ashes-and-iron-42`, display name "Warden Brann") is created at start, the way the owner would
  *   with `pnpm admin:role`, for the moderator-queue screenshots and browser runs.
+ * - with `E2E_SEED_TEST_ACCOUNT=<email>` (ticket D.4) a test account ("Probe Ansel").
  * - with `E2E_SEED_ADMIN=<email>` (ticket D.3) likewise an admin ("Castellan Ysolde"), for the admin
  *   panel screenshots; `WORLDFORGE_GIT_SHA` / `WORLDFORGE_BUILD_TIME` fill its server status.
  * - ticket 5.7: mail goes to an in-memory outbox and never leaves the process; with
@@ -31,6 +32,7 @@
  *
  *   pnpm --filter @worldforge/server e2e:serve
  */
+import { setTestAccount } from '../admin/test-accounts.js';
 import { buildApp } from '../app.js';
 import { loadConfig } from '../config.js';
 import { join } from 'node:path';
@@ -115,6 +117,22 @@ if (seedAdmin) {
   });
   if (res.statusCode !== 201) throw new Error(`seeding the admin failed: ${res.body}`);
   await setAccountRole(database.db, seedAdmin, 'admin');
+}
+
+// Ticket D.4: a test account (the CLI's flag), for the admin tools screenshots.
+const seedTest = process.env.E2E_SEED_TEST_ACCOUNT;
+if (seedTest) {
+  const res = await app.inject({
+    method: 'POST',
+    url: '/api/auth/register',
+    payload: { email: seedTest, displayName: 'Probe Ansel', password: 'ashes-and-iron-42' },
+  });
+  if (res.statusCode !== 201) throw new Error(`seeding the test account failed: ${res.body}`);
+  await setTestAccount(
+    database.db,
+    res.json<{ account: { handle: string } }>().account.handle,
+    true,
+  );
 }
 
 if (process.env.E2E_SEED_PHASE5 === '1') await seedPhase5(app, database.db, now);

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { and, eq, isNotNull, sql } from 'drizzle-orm';
+import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import {
   computeScores,
   type ScoredItem,
@@ -99,7 +99,11 @@ export async function registerScores(
         .select()
         .from(characters)
         .where(
-          and(eq(characters.id, request.params.characterId), eq(characters.accountId, accountId)),
+          and(
+            eq(characters.id, request.params.characterId),
+            eq(characters.accountId, accountId),
+            isNull(characters.deletedAt),
+          ),
         )
         .limit(1);
       if (!hero) throw new ApiError(404, 'not_found', 'No such character.');

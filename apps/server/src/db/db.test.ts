@@ -113,6 +113,7 @@ describe('migrations', () => {
       'seasons',
       'sessions',
       'telemetry_daily',
+      'telemetry_daily_test',
       'trade_counters',
       'trade_holds',
       'trade_offer_lines',

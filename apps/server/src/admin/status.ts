@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { count, gte, sql } from 'drizzle-orm';
+import { count, gte, isNull, sql } from 'drizzle-orm';
 import { accountPresence, accounts, characters } from '../db/schema.js';
 import { MIGRATIONS_FOLDER } from '../db/migrate.js';
 import { queryRows } from '../db/query.js';
@@ -35,7 +35,7 @@ export async function statusCounts(db: Database, now: Date) {
   const since = (ms: number) => new Date(now.getTime() - ms);
   const [[a], [c], [d1], [d7]] = await Promise.all([
     db.select({ n: count() }).from(accounts),
-    db.select({ n: count() }).from(characters),
+    db.select({ n: count() }).from(characters).where(isNull(characters.deletedAt)),
     db
       .select({ n: count() })
       .from(accountPresence)

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { and, asc, eq, inArray, isNull, or, lte, sql } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull, lte, or, sql } from 'drizzle-orm';
 import {
   DEFAULT_SHELF_CONFIG,
   MATERIAL_IDS,
@@ -388,7 +388,13 @@ export async function registerShelf(
         const [character] = await tx
           .select()
           .from(characters)
-          .where(and(eq(characters.id, characterId), eq(characters.accountId, accountId)));
+          .where(
+            and(
+              eq(characters.id, characterId),
+              eq(characters.accountId, accountId),
+              isNull(characters.deletedAt),
+            ),
+          );
         if (!character) throw characterNotFound();
         const heroItems = await tx
           .select()

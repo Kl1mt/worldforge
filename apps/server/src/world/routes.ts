@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { and, eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import {
   AREA_IDS,
   DUNGEON_IDS,
@@ -55,7 +55,11 @@ export async function registerWorld(app: FastifyInstance): Promise<void> {
         .from(characters)
         .leftJoin(activities, eq(activities.characterId, characters.id))
         .where(
-          and(eq(characters.id, request.params.characterId), eq(characters.accountId, accountId)),
+          and(
+            eq(characters.id, request.params.characterId),
+            eq(characters.accountId, accountId),
+            isNull(characters.deletedAt),
+          ),
         )
         .limit(1);
       if (!row) throw new ApiError(404, 'not_found', 'No such character.');

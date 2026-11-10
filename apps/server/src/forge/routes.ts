@@ -1,7 +1,7 @@
 import { refreshAchievements } from '../achievements/award.js';
 import { randomInt } from 'node:crypto';
 import type { FastifyInstance } from 'fastify';
-import { and, asc, eq } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import {
   FORGE_RECIPES,
   ITEM_SLOT_KINDS,
@@ -223,7 +223,13 @@ export async function registerForge(
       const [character] = await app.db
         .select()
         .from(characters)
-        .where(and(eq(characters.id, characterId), eq(characters.accountId, accountId)));
+        .where(
+          and(
+            eq(characters.id, characterId),
+            eq(characters.accountId, accountId),
+            isNull(characters.deletedAt),
+          ),
+        );
       if (!character) throw characterNotFound();
       const held = await loadMaterialBundle(app.db, characterId);
       const items = await app.db

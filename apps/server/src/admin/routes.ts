@@ -3,7 +3,7 @@ import { and, desc, eq, inArray, lt, or } from 'drizzle-orm';
 import { HANDLE_RE } from '@worldforge/game-core';
 import { accounts, inviteCodes, type InviteCode } from '../db/schema.js';
 import { writeAudit } from '../db/audit.js';
-import type { Executor, Transaction } from '../db/types.js';
+import type { Executor } from '../db/types.js';
 import { ApiError, notFoundBody } from '../errors.js';
 import {
   INVITE_NOTE_MAX,
@@ -19,6 +19,10 @@ import { databaseStatus, migrationStatus, statusCounts, type BuildInfo } from '.
 import { projectProgressSummary } from '../community/model.js';
 import { registerSeasonAdmin } from '../seasons/routes.js';
 import { registerSettingsAdmin } from '../settings/routes.js';
+import type { ActivityOptions } from '../activity/settle.js';
+import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
+import { lockAdmin } from './tools.js';
+import { registerAdminTools } from './tool-routes.js';
 
 /**
  * The admin panel's API (ticket D.3, docs/API_CONVENTIONS.md "Admin"), all under `/api/admin`.
@@ -42,22 +46,14 @@ export interface AdminOptions {
   reconcileLimit?: { max: number; windowMs: number };
   /** Ticket 5.3: the game clock for the season controls (default: the auth clock). */
   gameNow?: () => Date;
+  /** Ticket D.4: the farming settings (the tools settle and lock heroes like gameplay does). */
+  activity?: ActivityOptions;
 }
 
 export const DEFAULT_RECONCILE_LIMIT = { max: 3, windowMs: 5 * 60_000 };
 const INVITE_PAGE_DEFAULT = 50;
 const INVITE_PAGE_MAX = 200;
 const MAX_INVITE_TTL_HOURS = 24 * 365;
-
-/** Re-reads the actor under a share lock: a role revoked by the CLI stops the next action. */
-async function lockAdmin(tx: Transaction, accountId: string): Promise<void> {
-  const [actor] = await tx
-    .select({ role: accounts.role })
-    .from(accounts)
-    .where(eq(accounts.id, accountId))
-    .for('share');
-  if (actor?.role !== 'admin') throw new ApiError(404, 'not_found', 'Not found.');
-}
 
 const refSchema = {
   type: ['object', 'null'],
@@ -745,6 +741,15 @@ export async function registerAdmin(app: FastifyInstance, options: AdminOptions 
 
       // ---- Trading settings (ticket T.2): edit; the read is `GET /api/mod/settings/trading` ----
       await registerSettingsAdmin(admin, { now: () => app.authNow(), lockAdmin });
+
+      // ---- Ticket D.4: the admin tools (inspector, items, currencies, heroes, progress, sessions,
+      // world, view as player). Roles stay read-only.
+      await registerAdminTools(admin, {
+        activity: options.activity ?? {
+          ...DEFAULT_ACTIVITY_OPTIONS,
+          now: options.gameNow ?? (() => app.authNow()),
+        },
+      });
 
       // ---- Roles: read-only (granting stays CLI-only) ----------------------------------------
       admin.get(

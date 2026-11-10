@@ -1,0 +1,899 @@
+/* Ticket D.4: the inspector and world folios of the strongroom (screens/admin.css). The account
+   file is the iron plate with a sunken fact strip and stamped badges; heroes hang as ledger tabs;
+   tools are sunken slips with a coloured left edge (moss = support, brass = testing); every write
+   goes through the writ, a native modal plate (crimson for destructive actions). */
+
+.adt-dim {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.adt-none {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.adt-warn {
+  color: var(--crimson-400);
+}
+
+.adt-ok {
+  color: var(--moss-400);
+}
+
+.adt-rarity,
+.adt-item__name {
+  color: var(--rarity, var(--text));
+}
+
+.adt-link {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--brass-300);
+  font: inherit;
+  font-size: var(--text-sm);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.adt-file :is(button, .btn):disabled,
+.adt-writ .btn:disabled {
+  cursor: not-allowed;
+}
+
+/* ---- The account file ------------------------------------------------------------------------ */
+.adt-file {
+  display: grid;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-6);
+}
+
+.adt-file__head {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3) var(--space-4);
+  align-items: start;
+}
+
+.adt-file__who .caps {
+  color: var(--brass-500);
+}
+
+.adt-file__who h2 {
+  margin-top: var(--space-1);
+  font-size: var(--text-2xl);
+  color: var(--bone-100);
+}
+
+.adt-file__head .adt-facts,
+.adt-file__act {
+  grid-column: 1 / -1;
+}
+
+.adt-file__act {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* A stamp, not a pill: square, double-ruled, caps. */
+.adt-stamps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  justify-content: end;
+}
+
+.adt-stamp {
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--iron-500);
+  outline: 1px solid var(--iron-700);
+  outline-offset: 2px;
+  color: var(--text-muted);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+}
+
+.adt-stamp--test {
+  border-color: var(--brass-400);
+  outline-color: var(--brass-700);
+  color: var(--brass-300);
+  transform: rotate(-2deg);
+}
+
+.adt-stamp--own {
+  border-color: var(--crimson-400);
+  outline-color: var(--crimson-700);
+  color: var(--crimson-400);
+}
+
+.adt-facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px;
+  margin: 0;
+  border: var(--border-hair);
+  background: var(--iron-700);
+}
+
+.adt-facts--hero {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.adt-facts--two {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.adt-facts > div {
+  display: grid;
+  gap: var(--space-1);
+  align-content: start;
+  padding: var(--space-2) var(--space-3);
+  background: var(--bg-sunken);
+}
+
+.adt-facts dt {
+  color: var(--text-dim);
+}
+
+.adt-facts dd {
+  margin: 0;
+  color: var(--bone-100);
+  font-size: var(--text-sm);
+}
+
+.adt-notice {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--brass-500);
+  background: linear-gradient(to right, rgb(120 92 40 / 0.18), transparent 70%);
+  font-size: var(--text-sm);
+}
+
+.adt-notice--own {
+  border-left-color: var(--crimson-400);
+  background: rgb(63 23 31 / 0.45);
+}
+
+.adt-notice--blocked {
+  border-left-color: var(--iron-500);
+  background: var(--bg-sunken);
+}
+
+.adt-notice code,
+.adt-dim code,
+.adt-world code {
+  font-size: var(--text-xs);
+  color: var(--bone-200);
+}
+
+.adt-flash {
+  padding: var(--space-2) var(--space-4);
+  border-left: 3px solid var(--moss-500);
+  background: rgb(52 72 40 / 0.35);
+  color: var(--bone-100);
+  font-size: var(--text-sm);
+}
+
+/* Hero tabs: bookmark ribbons hanging from an iron rule, like the strongroom's own tabs. */
+.adt-tabs {
+  display: flex;
+  gap: var(--space-1);
+  overflow-x: auto;
+  border-bottom: 2px solid var(--iron-600);
+}
+
+.adt-tab {
+  display: grid;
+  gap: 2px;
+  min-width: 132px;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--iron-700);
+  border-bottom: 0;
+  background: var(--bg-sunken);
+  color: var(--text-muted);
+  text-align: left;
+  cursor: pointer;
+}
+
+.adt-tab:hover {
+  color: var(--text);
+}
+
+.adt-tab[aria-pressed='true'] {
+  border-top: 2px solid var(--brass-400);
+  background: var(--ink-800);
+  color: var(--bone-100);
+}
+
+.adt-tab__name {
+  font-family: var(--font-display);
+  font-size: var(--text-md);
+}
+
+.adt-tab__hint {
+  font-size: var(--text-xs);
+  color: var(--text-dim);
+}
+
+/* ---- One hero -------------------------------------------------------------------------------- */
+.adt-hero {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.adt-hero__head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: end;
+  justify-content: space-between;
+}
+
+.adt-hero__name {
+  font-size: var(--text-xl);
+  color: var(--bone-100);
+}
+
+.adt-hero__act {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.btn.adt-btn--grave {
+  color: var(--bone-100);
+  background: linear-gradient(to bottom, var(--crimson-700), var(--crimson-800));
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.08),
+    inset 0 0 0 1px var(--crimson-500);
+}
+
+.btn.adt-btn--grave:hover {
+  background: linear-gradient(to bottom, var(--crimson-500), var(--crimson-700));
+}
+
+/* Items by location. */
+.adt-itemgroups {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.adt-itemgroup__title {
+  margin-bottom: var(--space-2);
+  color: var(--brass-500);
+}
+
+.adt-items {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--border-hair);
+}
+
+.adt-item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-hair);
+}
+
+.adt-item__name {
+  font-weight: 700;
+}
+
+.adt-item__more summary {
+  width: max-content;
+  color: var(--brass-300);
+  font-size: var(--text-xs);
+  cursor: pointer;
+}
+
+.adt-item__more[open] .tooltip {
+  max-width: 360px;
+  margin-top: var(--space-2);
+}
+
+.adt-item__act {
+  display: grid;
+  justify-items: end;
+  gap: var(--space-1);
+  max-width: 220px;
+}
+
+.adt-item__blocked {
+  color: var(--crimson-400);
+  font-size: var(--text-xs);
+  text-align: right;
+}
+
+/* The tool bench: sunken slips, never cards. */
+.adt-bench {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.adt-tool {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--moss-500);
+  background: var(--bg-sunken);
+  box-shadow: inset 0 0 0 1px var(--iron-700);
+}
+
+.adt-tool--testing {
+  border-left-color: var(--brass-500);
+}
+
+.adt-tool--wide,
+.adt-grant {
+  grid-column: 1 / -1;
+}
+
+.adt-tool__kind {
+  color: var(--moss-400);
+}
+
+.adt-tool--testing .adt-tool__kind {
+  color: var(--brass-400);
+}
+
+.adt-tool__title {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 400;
+  color: var(--bone-100);
+}
+
+.adt-tool__body {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.adt-tool__body:disabled {
+  opacity: 0.55;
+}
+
+.adt-tool__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.adt-tool__blocked {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+  font-style: italic;
+}
+
+.adt-field .field__input {
+  min-height: 36px;
+  font-size: var(--text-sm);
+}
+
+.adt-field select.field__input {
+  background: var(--bg-sunken);
+  /* Long option labels (item bases) must not widen the tool past a phone's width. */
+  width: 100%;
+  max-width: 100%;
+}
+
+.adt-field {
+  min-width: 0;
+}
+
+.adt-modes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.adt-matgrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-2);
+}
+
+.adt-check {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-height: 32px;
+  font-size: var(--text-sm);
+}
+
+.adt-check input {
+  accent-color: var(--brass-400);
+}
+
+.adt-grant {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  column-gap: var(--space-5);
+}
+
+.adt-grant > .caps,
+.adt-grant > .adt-tool__title,
+.adt-grant > .adt-tool__blocked {
+  grid-column: 1 / -1;
+}
+
+.adt-grant__form {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-content: start;
+}
+
+.adt-grant__form > :first-child,
+.adt-grant__form > .adt-tool__row {
+  grid-column: 1 / -1;
+}
+
+.adt-grant__preview {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+}
+
+.adt-grant__card {
+  display: flex;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.adt-grant__card .tooltip {
+  flex: 1;
+  max-width: 360px;
+}
+
+.adt-problems {
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+/* Plain ruled rows (quests, sanctions, offers, jobs). */
+.adt-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.adt-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-hair);
+  border-left: 3px solid transparent;
+  font-size: var(--text-sm);
+}
+
+.adt-row--active {
+  border-left-color: var(--crimson-400);
+}
+
+.adt-row__act {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Deleted heroes: slips with a crimson edge. */
+.adt-graves {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.adt-grave {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border-left: 3px solid var(--crimson-500);
+  background: var(--bg-sunken);
+  font-size: var(--text-sm);
+}
+
+.adt-grave__name {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: 400;
+  color: var(--bone-100);
+}
+
+/* Records at the foot of the file. */
+.adt-records {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-5);
+}
+
+.adt-records__wide {
+  grid-column: 1 / -1;
+}
+
+.adt-audit {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.adt-audit li {
+  display: grid;
+  grid-template-columns: 10rem 11rem 8rem minmax(0, 1fr);
+  gap: var(--space-3);
+  padding: var(--space-1) var(--space-2);
+  border-bottom: var(--border-hair);
+}
+
+.adt-audit__when,
+.adt-audit__hero {
+  color: var(--text-dim);
+}
+
+.adt-audit__event {
+  color: var(--brass-300);
+}
+
+.adt-audit__data {
+  overflow: hidden;
+  color: var(--bone-300);
+  font-size: var(--text-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ---- The writ: every action's confirmation --------------------------------------------------- */
+.adt-writ {
+  width: 100%;
+  max-width: min(640px, calc(100vw - 2 * var(--gutter)));
+  max-height: calc(100dvh - 2 * var(--space-4));
+  margin: auto;
+  padding: 0;
+  overflow-y: auto;
+  border: 0;
+  background: transparent;
+  color: var(--text);
+}
+
+.adt-writ::backdrop {
+  background: rgb(12 10 9 / 0.82);
+}
+
+.adt-writ__plate {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  background-color: var(--bg-surface);
+  background-image: var(--rivets), var(--texture-grain);
+  box-shadow: var(--frame-iron), var(--shadow-drop);
+}
+
+.adt-writ__head {
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--brass-600);
+}
+
+.adt-writ__head .caps {
+  color: var(--brass-400);
+}
+
+.adt-writ__head h2 {
+  margin-top: var(--space-1);
+  font-size: var(--text-2xl);
+  color: var(--bone-100);
+}
+
+.adt-writ--grave .adt-writ__head {
+  border-bottom-color: var(--crimson-500);
+}
+
+.adt-writ--grave .adt-writ__head .caps {
+  color: var(--crimson-400);
+}
+
+.adt-writ__warning {
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--crimson-500);
+  border-left-width: 4px;
+  background: rgb(63 23 31 / 0.6);
+  color: var(--bone-100);
+}
+
+.adt-writ__sub {
+  color: var(--text-dim);
+}
+
+.adt-changes {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.adt-changes li {
+  position: relative;
+  padding-left: var(--space-5);
+}
+
+.adt-changes li::before {
+  content: '◆';
+  position: absolute;
+  left: 0;
+  color: var(--brass-500);
+  font-size: var(--text-xs);
+  line-height: 1.9;
+}
+
+.adt-writ--grave .adt-changes li::before {
+  color: var(--crimson-400);
+}
+
+.adt-writ__detail .tooltip {
+  max-width: 360px;
+}
+
+.adt-reason {
+  min-height: 64px;
+  padding-block: var(--space-2);
+  resize: vertical;
+}
+
+.adt-writ__act {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: end;
+}
+
+.adt-writ__fine {
+  text-align: right;
+}
+
+/* ---- View as player -------------------------------------------------------------------------- */
+.adt-viewas {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+}
+
+.adt-viewas__band {
+  padding: var(--space-2) var(--space-4);
+  border: 1px dashed var(--brass-500);
+  background: rgb(120 92 40 / 0.14);
+  color: var(--bone-100);
+}
+
+.adt-viewas__band .caps {
+  margin-right: var(--space-2);
+  color: var(--brass-300);
+}
+
+.adt-viewas__head h2 {
+  font-size: var(--text-2xl);
+  color: var(--bone-100);
+}
+
+.adt-viewas__head h2:focus {
+  outline: none;
+}
+
+.adt-viewas__cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr);
+  gap: var(--space-6);
+}
+
+.adt-viewas__cols > section {
+  display: grid;
+  gap: var(--space-3);
+  align-content: start;
+}
+
+.adt-sockets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.adt-socket summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.adt-socket summary::-webkit-details-marker {
+  display: none;
+}
+
+.adt-socket[open] {
+  flex-basis: 100%;
+}
+
+.adt-socket[open] .tooltip {
+  max-width: 360px;
+  margin-top: var(--space-2);
+}
+
+.adt-sheet {
+  display: grid;
+  margin: 0;
+}
+
+.adt-sheet > div {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-1) 0;
+  border-bottom: 1px dotted var(--iron-600);
+  font-size: var(--text-sm);
+}
+
+.adt-sheet dd {
+  margin: 0;
+  color: var(--bone-100);
+}
+
+.adt-places {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--text-sm);
+}
+
+.adt-places .is-open span[aria-hidden] {
+  color: var(--brass-400);
+}
+
+.adt-places .is-shut {
+  color: var(--text-dim);
+}
+
+/* ---- World ----------------------------------------------------------------------------------- */
+.adt-world {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.adt-world__cols {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.adt-world__flags {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+}
+
+.adt-world__side {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.adt-flags {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.adt-flag {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3);
+  border-bottom: var(--border-hair);
+  border-left: 3px solid var(--iron-600);
+}
+
+.adt-flag--set {
+  border-left-color: var(--moss-500);
+}
+
+.adt-flag__name {
+  color: var(--bone-100);
+  font-weight: 700;
+}
+
+.adt-flag--set .adt-flag__name span[aria-hidden] {
+  color: var(--moss-400);
+}
+
+.adt-job--ok {
+  border-left-color: var(--moss-500);
+}
+
+.adt-job--bad {
+  border-left-color: var(--crimson-400);
+}
+
+.adt-job__detail {
+  display: block;
+  color: var(--text-dim);
+  font-size: var(--text-xs);
+}
+
+/* ---- Tablets and phones ---------------------------------------------------------------------- */
+@media (max-width: 1080px) {
+  .adt-records,
+  .adt-viewas__cols,
+  .adt-world__cols,
+  .adt-grant {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .adt-audit li {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .adt-audit__data {
+    grid-column: 1 / -1;
+    white-space: normal;
+  }
+}
+
+@media (max-width: 760px) {
+  .adt-file,
+  .adt-viewas {
+    padding: var(--space-4);
+  }
+
+  .adt-file__head {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .adt-stamps {
+    justify-content: start;
+  }
+
+  .adt-item {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+
+  .adt-item__act {
+    grid-column: 1 / -1;
+    justify-items: start;
+    max-width: none;
+  }
+
+  .adt-item__blocked {
+    text-align: left;
+  }
+
+  .adt-grant__form,
+  .adt-facts--two {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .adt-writ__plate {
+    padding: var(--space-4);
+  }
+
+  .adt-writ__act .btn {
+    flex: 1;
+    justify-content: center;
+  }
+}

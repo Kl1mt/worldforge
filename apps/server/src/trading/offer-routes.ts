@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
-import { asc, eq, inArray } from 'drizzle-orm';
+import { and, asc, eq, inArray, isNull } from 'drizzle-orm';
 import {
   MATERIAL_IDS,
   TRADING_LIMITS,
@@ -607,7 +607,7 @@ export async function registerTradeOffers(
       const heroes = await app.db
         .select()
         .from(characters)
-        .where(eq(characters.accountId, me))
+        .where(and(eq(characters.accountId, me), isNull(characters.deletedAt)))
         .orderBy(asc(characters.createdAt));
       const out: TradeHeroOption[] = [];
       for (const h of heroes) {
@@ -716,7 +716,7 @@ export async function registerTradeOffers(
         const rows = await app.db
           .select()
           .from(characters)
-          .where(eq(characters.accountId, them.id))
+          .where(and(eq(characters.accountId, them.id), isNull(characters.deletedAt)))
           .orderBy(asc(characters.createdAt));
         for (const h of rows) {
           heroes.push({

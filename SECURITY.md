@@ -48,6 +48,14 @@ How player accounts are protected (ticket 5.7; details in `docs/API_CONVENTIONS.
 - **Registration** logs the new player in at once and answers "address already taken" for a known address (owner decision, 2026-11-08: instant play over hiding taken addresses; registration is invite-only, so only invite holders could probe).
 - Mail is sent over the operator's SMTP provider; tokens travel in the part of the link after `#`, which browsers never send to a server.
 
+## Admin tools
+
+Ticket D.4 (`docs/DEPLOY.md` "Admin tools", `docs/SOCIAL.md` "Admin tools"). What a stolen admin session can and can't do:
+- It can't create admins or test accounts: roles and the test-account flag change only on the server (CLI). It can't see emails, password data or session tokens (a test checks every admin answer for them).
+- Testing tools that mint value (items, gold, materials, XP, levels, progress) work only on test accounts and the admin's own account. Test accounts can't trade and are off the boards, so minted value can't reach other players or the rankings; on the admin's own account it would show on the boards, and the panel says so.
+- Support tools change other players' accounts (removals, refunds, deletion, rename, logout); every one needs a reason, an `Idempotency-Key`, typed confirmation where destructive, and leaves an `admin.*` audit row with before and after. Deleting a hero is restorable for 14 days; only the CLI purges.
+- Admin writes follow the gameplay lock order (shelf, account row, the admin's row, the hero, its items), so they can't race a trade, a shelf move or farming into a bad state (real-Postgres race tests).
+
 ## Supported versions
 
 Only the current `main` branch, which is what the live site runs, receives security fixes.

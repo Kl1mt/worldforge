@@ -514,6 +514,13 @@ character 1─* merchant_purchases
 season 1─* season_entries, season_standings *─1 character; season 1─* season_awards *─1 account 1─0..1 prestige_displays
 ```
 
+### accounts.is_test, duel_reset_*; characters.deleted_*; telemetry_daily_test — implemented (D.4)
+Migration `0036_admin_tools` (additive, no backfill).
+- `accounts.is_test` (default false): a test account, set only by the CLI (`deploy/admin.sh test-account`). Read at read time by the boards, the season archive and the arena ladder (`admin/eligibility.ts`), matchmaking, trading's standing and the telemetry flush.
+- `accounts.duel_reset_day`, `duel_reset_count`: an admin's daily reset on a test account; rated duels counted so far on that duel day are forgiven by `ratedDuelsOn`.
+- `characters.deleted_at`, `deleted_by` (admin, `set null`), `delete_reason` (check: set together with `deleted_at`), `deletion` (jsonb `HeroDeletionState`: the withdrawn defence row, whether it was the active or showcase hero, the area it farmed, counts of voided offers, rehomed shelf items and removed board rows), partial index `characters_deleted_at_idx`. A soft-deleted hero keeps its name reserved and doesn't count toward the account's slots.
+- `telemetry_daily_test`: the same shape and key as `telemetry_daily`, for test accounts (docs/TELEMETRY.md).
+
 ## Open questions
 - ~~Single `item_location` table vs. separate `equipment` / `inventory_entry`~~ Decided: a nullable `equipped_slot` column on `item_instances`.
 - ~~Whether partial offline settlement happens on every login or on an explicit claim~~ Decided (1.6): rewards are granted at every settlement (client or scheduled); the client's settle call collects the summary.
