@@ -892,7 +892,7 @@ GDD §3.1, §3.2. Owner request: heroes and foes move in the fight scene so it d
 - Tests for the scheduling (injected clock), reduced motion and no network; evidence (GIF or frame strips, desktop and mobile; a contact sheet) on the `screenshots` branch and under `art/`.
 - Done: `apps/web/src/scene/` (pure scheduler, one-timer driver, scoped `scene-anim.css`); static with reduced motion and under automation (`navigator.webdriver`; override `worldforge.sceneMotion`). Pilot: an 8-frame attack loop per class (`character.<class>-attack`, 5 jobs, no generated idle: the frames shimmered), played by `PixelSprite`. `docs/DESIGN_SYSTEM.md` "Motion", `docs/ASSET_GUIDELINES.md` "Hero attack frames"; version 0.6.0. No server change, no migration.
 
-### A.14b Animation sync fix & enemy attack frames — `done (PR #TBD)`
+### A.14b Animation sync fix & enemy attack frames — `done (PR #111)`
 Owner feedback on A.14: "the breathing, knockback, fade animations do seem to be out of sync after like 2 enemies"; owner yes to enemy frames.
 - Fix the desync (reproduce through several kills and respawns, find the cause, layer the animations, test over many respawns with an injected clock, a longer GIF).
 - Attack frames for the common enemies (most-seen first: early areas, the Pass, the Verge), bosses keep the code animation; redo the hunter's shot. Budget: 4 jobs + 1 regeneration.
