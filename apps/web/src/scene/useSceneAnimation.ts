@@ -26,11 +26,15 @@ export function layersOf(root: ParentNode | null): ActorLayers | null {
   };
 }
 
-const browserClock = {
-  now: () => performance.now(),
-  setTimer: (fn: () => void, ms: number) => window.setTimeout(fn, ms),
-  clearTimer: (handle: unknown) => window.clearTimeout(handle as number),
-};
+/** The browser's clock, sped up or slowed by `rate` (A.14c: the gallery's 0.25× – 1×). */
+function browserClock(rate = 1) {
+  const r = rate > 0 ? rate : 1;
+  return {
+    now: () => performance.now() * r,
+    setTimer: (fn: () => void, ms: number) => window.setTimeout(fn, ms / r),
+    clearTimer: (handle: unknown) => window.clearTimeout(handle as number),
+  };
+}
 
 /**
  * Runs the scene's cosmetic fight loop while `active` (farming, or a crypt fight in progress) and
@@ -47,8 +51,11 @@ export function useSceneAnimation(options: {
   framedFoes?: readonly boolean[];
   /** The chronicle (newest first): kills, level-ups and deaths flavour the loop. */
   chronicle?: readonly { id: string; kind: string }[];
+  /** A.14c: the loop's speed (the admin gallery's slow motion); 1 everywhere else. */
+  rate?: number;
 }) {
   const { active, motion, foes, attackSpeed, framed, framedFoes, chronicle } = options;
+  const rate = options.rate ?? 1;
   // A stable key, so a new array with the same content doesn't restart the loop.
   const framedKey = (framedFoes ?? []).map((f) => (f ? '1' : '0')).join('');
   const hero = useRef<HTMLElement | null>(null);
@@ -89,7 +96,7 @@ export function useSceneAnimation(options: {
     );
     const d = startSceneDriver({
       loop,
-      clock: browserClock,
+      clock: browserClock(rate),
       actors: () => ({
         hero: layersOf(hero.current),
         foes: foeEls.current.slice(0, foes).map((el) => layersOf(el ?? null)),
@@ -104,7 +111,7 @@ export function useSceneAnimation(options: {
       d.stop();
       driver.current = null;
     };
-  }, [running, speed, foes, framed, framedKey]);
+  }, [running, speed, foes, framed, framedKey, rate]);
 
   const head = chronicle?.[0]?.id ?? null;
   useEffect(() => {

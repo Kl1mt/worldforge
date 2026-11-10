@@ -288,10 +288,12 @@ a {
   opacity: 0.7;
 }
 
+/* Reduced motion stops all animation, except inside the admin animation gallery after the admin
+   pressed Play there (`.scene-anim--forced`, ticket A.14c): nowhere a player goes. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  *:not(.scene-anim--forced, .scene-anim--forced *),
+  *:not(.scene-anim--forced, .scene-anim--forced *)::before,
+  *:not(.scene-anim--forced, .scene-anim--forced *)::after {
     animation: none !important;
     transition: none !important;
   }

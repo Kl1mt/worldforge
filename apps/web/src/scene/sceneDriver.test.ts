@@ -19,17 +19,26 @@ import { SceneLoop, planFor, seededRandom, type SceneBeat } from './sceneLoop';
 const LAYERS: LayerName[] = ['fade', 'act', 'hit'];
 
 /** A fake element: a real class set, nothing else. */
+/** Every class add on every fake element, in order (A.14c: the visible history of a run). */
+let history: { el: object; cls: string }[] = [];
+
+/** A fake element: a real class set, nothing else; its adds go to `history`. */
 function element(): ActorElement & { classes: Set<string> } {
   const classes = new Set<string>();
-  return {
+  const el = {
     classes,
     offsetWidth: 0,
     classList: {
-      add: (...c: string[]) => c.forEach((x) => classes.add(x)),
+      add: (...c: string[]) =>
+        c.forEach((x) => {
+          classes.add(x);
+          history.push({ el, cls: x });
+        }),
       remove: (...c: string[]) => c.forEach((x) => classes.delete(x)),
       contains: (c: string) => classes.has(c),
     },
   };
+  return el;
 }
 
 type FakeActor = { [K in LayerName]: ReturnType<typeof element> };
@@ -275,6 +284,7 @@ describe('scene sync over many respawns (A.14b)', () => {
     };
     startSceneDriver({ loop, clock: time.clock, actors: () => ({ hero, foes: line }) });
 
+    let seen = history.length;
     /** After a tick: the newest beat on each actor's layer must run its own animation. */
     const verify = () => {
       const newest = new Map<string, SceneBeat>();
@@ -284,9 +294,13 @@ describe('scene sync over many respawns (A.14b)', () => {
         newest.set(`${index}:${expected(beat, framed).layer}`, beat);
         if (beat.kind === 'foeRise') {
           lives.set(beat.foe, (lives.get(beat.foe) ?? 1) + 1);
-          // A fresh foe: only the rise is on it, nothing of the last life.
+          // A fresh foe (when the rise played: A.14c drops it with a dropped fall): only the rise
+          // is on it, nothing of the last life.
           const foe = line[beat.foe]!;
-          expect([...foe.act.classes, ...foe.hit.classes], `seed ${seed}`).toEqual([]);
+          const rose = history
+            .slice(seen)
+            .some((h) => h.el === foe.fade && h.cls === BEAT_CLASS.foeRise.cls);
+          if (rose) expect([...foe.act.classes, ...foe.hit.classes], `seed ${seed}`).toEqual([]);
         }
       }
       for (const [key, beat] of newest) {
@@ -311,6 +325,7 @@ describe('scene sync over many respawns (A.14b)', () => {
           for (const c of a[layer].classes) expect(own).toContain(c);
         }
       }
+      seen = history.length;
     };
 
     for (let t = 0; t < 120_000; t += 100) {
@@ -359,9 +374,25 @@ describe('scene sync over many respawns (A.14b)', () => {
       const now = LATE_BEAT_MS * 20;
       const refHero = actor();
       const refLine = Array.from({ length: 3 }, actor);
+      // The reference: on-time one-shot beats; a fall only after a visible hit in this life, a
+      // rise only after a fall that played (A.14c).
+      const hit = [false, false, false];
+      const down = [false, false, false];
       for (const { at, beat } of due) {
-        const state = beat.kind === 'foeFall' || beat.kind === 'foeRise';
-        if (state || now - at <= LATE_BEAT_MS) applyBeat(beat, { hero: refHero, foes: refLine });
+        const actors = { hero: refHero, foes: refLine };
+        if (beat.kind === 'foeFall') {
+          if (down[beat.foe] || !hit[beat.foe]) continue;
+          down[beat.foe] = true;
+          applyBeat(beat, actors);
+        } else if (beat.kind === 'foeRise') {
+          if (!down[beat.foe]) continue;
+          down[beat.foe] = false;
+          hit[beat.foe] = false;
+          applyBeat(beat, actors);
+        } else if (now - at <= LATE_BEAT_MS) {
+          if (beat.kind === 'foeHit') hit[beat.foe] = true;
+          applyBeat(beat, actors);
+        }
       }
       expect(due.length).toBeGreaterThan(3);
       expect(classesOf(hero)).toEqual(classesOf(refHero));
@@ -377,6 +408,92 @@ describe('scene sync over many respawns (A.14b)', () => {
     expect(hitRules).not.toContain('scene-anim-lunge-left');
     const classes = new Set(['scene-anim--hit']);
     expect(running('foe', false, 'hit', classes)).toBe('scene-anim-hit');
+  });
+});
+
+describe('no fade without a visible blow (A.14c)', () => {
+  /**
+   * The owner saw "an enemy just fades out, but there was no attack or took-damage animation
+   * before". A main-thread hitch fired the hit (due 200 ms before the fall) more than 250 ms late,
+   * so it was dropped while the fall still played. The rule now: a foe fades only after a blow
+   * showed in its current life, and rises only after a fade that played.
+   */
+  function run(seed: number, foes: number, hitchEvery: number) {
+    history = [];
+    const time = fakeClock();
+    const hero = actor();
+    const line = Array.from({ length: foes }, actor);
+    const loop = new SceneLoop(planFor({ attackSpeed: 1.2, foes }), seededRandom(seed));
+    const driver = startSceneDriver({
+      loop,
+      clock: time.clock,
+      actors: () => ({ hero, foes: line }),
+    });
+    const rnd = seededRandom(seed * 7919);
+    for (let t = 0; t < 90_000; t += 100) {
+      if (rnd() < hitchEvery)
+        time.stall(200 + Math.floor(rnd() * 700)); // a 200–900 ms hitch
+      else time.tick(100);
+      // A hidden tab now and then.
+      if (rnd() < 0.003) {
+        driver.pause();
+        time.tick(1_000 + Math.floor(rnd() * 8_000));
+        driver.resume();
+      }
+    }
+    // Walk each foe's visible history.
+    let falls = 0;
+    line.forEach((foe, i) => {
+      let hitThisLife = false;
+      let down = false;
+      for (const { el, cls } of history) {
+        if (el === foe.hit && cls === BEAT_CLASS.foeHit.cls) hitThisLife = true;
+        if (el !== foe.fade) continue;
+        if (cls === DOWN_CLASS) {
+          expect(hitThisLife, `seed ${seed}: foe ${i} faded with no blow in this life`).toBe(true);
+          expect(down, `seed ${seed}: foe ${i} faded twice`).toBe(false);
+          down = true;
+          falls++;
+        }
+        if (cls === BEAT_CLASS.foeRise.cls) {
+          expect(down, `seed ${seed}: foe ${i} rose without having faded`).toBe(true);
+          down = false;
+          hitThisLife = false;
+        }
+      }
+    });
+    return falls;
+  }
+
+  it('holds over many seeds and lives, with hitches and hidden tabs', () => {
+    let falls = 0;
+    for (let seed = 1; seed <= 60; seed++) falls += run(seed, 3, 0.04);
+    // Plenty of foes still fall: the rule drops only the fades that had no blow.
+    expect(falls).toBeGreaterThan(60 * 8);
+  }, 60_000);
+
+  it('holds for a single foe (the crypt) with heavy hitches', () => {
+    for (let seed = 1; seed <= 30; seed++) run(seed, 1, 0.15);
+  }, 60_000);
+
+  it('still fells foes on a smooth run (nothing dropped without a hitch)', () => {
+    for (let seed = 1; seed <= 20; seed++) {
+      history = [];
+      const time = fakeClock();
+      const line = Array.from({ length: 3 }, actor);
+      const loop = new SceneLoop(planFor({ attackSpeed: 1, foes: 3 }), seededRandom(seed));
+      const fallsDue: number[] = [];
+      const advance = loop.advance.bind(loop);
+      loop.advance = (now) => {
+        const out = advance(now);
+        for (const d of out) if (d.beat.kind === 'foeFall') fallsDue.push(d.at);
+        return out;
+      };
+      startSceneDriver({ loop, clock: time.clock, actors: () => ({ hero: actor(), foes: line }) });
+      time.tick(60_000);
+      const played = history.filter((h) => h.cls === DOWN_CLASS).length;
+      expect(played, `seed ${seed}`).toBe(fallsDue.length);
+    }
   });
 });
 
