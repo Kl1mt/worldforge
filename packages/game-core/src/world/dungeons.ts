@@ -133,6 +133,11 @@ export interface DungeonTierDefinition {
   roomScale?: EnemyScale;
   /** Ticket 6.3: the tier is a Heroic variant (drawn with the Heroic treatment). */
   heroic?: boolean;
+  /**
+   * Ticket 6.3 (owner decision): `false` = the weekly boss modifier never applies here, so the
+   * first boss a beginner meets stays the same every week. Absent = it applies.
+   */
+  bossModifiers?: false;
   /** Boss level: the tier's top level. */
   bossLevel: number;
   /** Multipliers on the boss's stats at `bossLevel` (absent = 1). */
@@ -207,6 +212,8 @@ export const DUNGEONS: readonly DungeonDefinition[] = [
         minLevel: 12,
         maxLevel: 16,
         unlock: { level: 12 },
+        // Ticket 6.3 (owner decision): the beginners' first boss is never modified.
+        bossModifiers: false,
         bossLevel: 16,
         bossMaxFightMs: 150_000,
         bossEnrage: {
@@ -478,4 +485,9 @@ export function dungeonUnlockBlockers(
   tier: DungeonTier = 1,
 ): UnlockBlocker[] {
   return unlockBlockers(getDungeonTier(dungeonId, tier).unlock, character, progress);
+}
+
+/** Ticket 6.3: whether the weekly boss modifier applies to this tier's boss (crypt tier I: no). */
+export function tierTakesBossModifier(id: DungeonId, tier: DungeonTier = 1): boolean {
+  return getDungeonTier(id, tier).bossModifiers !== false;
 }

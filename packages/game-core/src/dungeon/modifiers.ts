@@ -5,7 +5,8 @@ import type { BossEnrage, BossMechanics, EnemyScale } from '../world/dungeons.js
 
 /**
  * Weekly rotating boss modifiers (ticket 6.3, docs/DUNGEONS.md "Weekly boss modifiers"). Data:
- * each modifier changes how every boss fights (the crypt's Gravewarden in every tier, the Ashen
+ * each modifier changes how every boss fights (the crypt's Gravewarden from tier II on: tier I
+ * never takes one, owner decision; the Ashen
  * Warden, the Forge Tyrant and the guild boss) and gives the boss hoards a small loot focus. One
  * modifier holds per week (the guild boss's window: Monday 00:00 UTC to the next Monday, start
  * inclusive), picked from the week alone (`bossModifierOfWeek`), so it is public and announced.

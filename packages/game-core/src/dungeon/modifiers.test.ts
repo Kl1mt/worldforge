@@ -21,6 +21,7 @@ import {
   resolveDungeonFight,
   simulateDungeonRun,
   simulateGuildBossAttempt,
+  tierTakesBossModifier,
   WEEK_MS,
   type BossMechanics,
   type BossModifierId,
@@ -253,13 +254,27 @@ describe('runs with a modifier (ticket 6.3)', () => {
       const plain = simulateDungeonRun(runInput(d, t, level));
       expect(simulateDungeonRun(runInput(d, t, level, { bossModifier: null }))).toEqual(plain);
       expect('bossModifier' in plain).toBe(false);
-      expect(
-        simulateDungeonRun(runInput(d, t, level, { bossModifier: 'warded' })).bossModifier,
-      ).toBe('warded');
+      const warded = simulateDungeonRun(runInput(d, t, level, { bossModifier: 'warded' }));
+      // Crypt tier I takes no modifier (owner decision): it fights exactly as without one.
+      if (tierTakesBossModifier(d, t)) expect(warded.bossModifier).toBe('warded');
+      else expect(warded).toEqual(plain);
     }
     expect(() =>
       simulateDungeonRun(runInput('namelessCrypt', 1, 16, { bossModifier: 'calm' as never })),
     ).toThrow(RangeError);
+  });
+
+  it('crypt tier I never takes a modifier; every other boss does', () => {
+    expect(tierTakesBossModifier('namelessCrypt', 1)).toBe(false);
+    for (const [d, t] of BOSSES.filter(([d, t]) => !(d === 'namelessCrypt' && t === 1)))
+      expect(tierTakesBossModifier(d, t), `${d} ${t}`).toBe(true);
+    for (const m of BOSS_MODIFIER_IDS)
+      for (let i = 0; i < 20; i++) {
+        const input = runInput('namelessCrypt', 1, 16, { seed: `tier1:${i}` });
+        expect(simulateDungeonRun({ ...input, bossModifier: m })).toEqual(
+          simulateDungeonRun(input),
+        );
+      }
   });
 
   it('replays equal with the modifier, and every poll reveals the same run', () => {

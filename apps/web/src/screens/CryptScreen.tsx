@@ -691,6 +691,8 @@ function DungeonScreen({ dungeonId }: { dungeonId: DungeonId }) {
             showFocus={run.bossLootEligible}
             compact
           />
+        ) : tiers.find((t) => t.tier === run.tier)?.takesModifier === false ? (
+          <p className="crypt-door__line crypt-door__omen">No omen here: no twist this run.</p>
         ) : null}
         {progress.finished ? (
           <>
@@ -743,11 +745,18 @@ function DungeonScreen({ dungeonId }: { dungeonId: DungeonId }) {
         {tiers.length > 1 ? (
           <TierChoice tiers={tiers} selected={selectedTier} onSelect={setChosenTier} />
         ) : null}
-        <BossModifierNotice
-          modifier={state.value.bossModifier.modifier}
-          week={state.value.bossModifier.week}
-          heading="This week the boss is"
-        />
+        {selected && !selected.takesModifier ? (
+          <p className="crypt-door__line crypt-door__omen">
+            No omen here: this week’s twist ({state.value.bossModifier.modifier.name.toLowerCase()})
+            does not reach {selected.name}. Its warden fights as it always has.
+          </p>
+        ) : (
+          <BossModifierNotice
+            modifier={state.value.bossModifier.modifier}
+            week={state.value.bossModifier.week}
+            heading="This week the boss is"
+          />
+        )}
         <ul className="crypt-door__facts">
           <li>
             {dungeon.rooms.length > 0 ? (

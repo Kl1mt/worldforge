@@ -545,7 +545,9 @@ export function simulateDungeonRun(
   let bossDefeated = false;
   let bossLoot = false;
   // Ticket 6.3: the week's modifier reshapes the boss (none: the tier's data as it is).
-  const bossModifier = input.bossModifier ?? null;
+  // A tier that takes no modifier (crypt tier I, owner decision) ignores one, so it always fights
+  // exactly as before 6.3.
+  const bossModifier = tier.bossModifiers === false ? null : (input.bossModifier ?? null);
   const boss = applyBossModifier(
     { scale: tier.bossScale, enrage: tier.bossEnrage, mechanics: tier.bossMechanics },
     bossModifier,

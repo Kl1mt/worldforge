@@ -202,7 +202,7 @@ function ContractSlip({
 /** The Tavern (ticket 2.4): the notice board with the story chain and daily contracts. */
 /**
  * Ticket 6.3: the keeper's word on this week's boss modifier, nailed above the board (it holds at
- * every boss: the crypt, the Watch, the Forge and the guild boss).
+ * every boss but the crypt's first depth: the deeper crypt, the Watch, the Forge and the guild boss).
  */
 function BossWeekNotice() {
   const [state, setState] = useState<

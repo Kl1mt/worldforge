@@ -769,8 +769,10 @@ describe('the Nameless Crypt (ticket 2.5)', () => {
       expect(fresh).not.toBe(old);
       // Started at Sunday 23:59:59.999: the old week's modifier, whenever it is claimed.
       nowMs = edge - 1;
-      const { p, id } = await hero('hunter', 16);
-      expect((await enter(p, id)).statusCode).toBe(201);
+      // Tier II: crypt tier I takes no modifier (owner decision, below).
+      const { p, id } = await hero('hunter', 21, true, 'legendary');
+      await setProgress(id, { gravewardenDefeated: true, cryptTierCleared: 1 });
+      expect((await enterTier(p, id, 2)).statusCode).toBe(201);
       const row = await stored(id);
       expect(row.bossModifier).toBe(old);
       nowMs = row.endsAt.getTime() + SEC;
@@ -790,12 +792,32 @@ describe('the Nameless Crypt (ticket 2.5)', () => {
         replay.kills,
       ]);
       // Started at the next Monday 00:00:00.000 exactly: that week's modifier.
-      const b = await hero('hunter', 16);
+      const b = await hero('hunter', 21, true, 'legendary');
+      await setProgress(b.id, { gravewardenDefeated: true, cryptTierCleared: 1 });
       const next = guildBossWeek(nowMs).endMs;
       nowMs = next;
-      expect((await enter(b.p, b.id)).statusCode).toBe(201);
+      expect((await enterTier(b.p, b.id, 2)).statusCode).toBe(201);
       expect((await stored(b.id)).bossModifier).toBe(bossModifierOfWeek(next).id);
       expect(guildBossWeek(next).startMs).toBe(next);
+    });
+
+    it('crypt tier I never takes the modifier: the door says so, the run stores none', async () => {
+      const { p, id } = await hero('warrior', 16);
+      const state = (
+        await call(p, 'GET', `/api/characters/${id}/dungeon`)
+      ).json<DungeonStateResponse>();
+      const crypt = state.dungeons.find((d) => d.id === 'namelessCrypt')!;
+      expect(crypt.tiers.map((t) => t.takesModifier)).toEqual([false, true, true, true]);
+      for (const d of state.dungeons.filter((x) => x.id !== 'namelessCrypt'))
+        expect(d.tiers.every((t) => t.takesModifier)).toBe(true);
+      const started = await enter(p, id);
+      expect(started.statusCode).toBe(201);
+      expect(started.json<{ run: DungeonRunView }>().run.bossModifier).toBeNull();
+      const row = await stored(id);
+      expect(row.bossModifier).toBeNull();
+      nowMs = row.endsAt.getTime();
+      const r = (await claim(p, id)).json<DungeonClaimResponse>().result;
+      expect('bossModifier' in r).toBe(false);
     });
 
     it('a run from before 6.3 (no modifier) replays and claims exactly as it was', async () => {

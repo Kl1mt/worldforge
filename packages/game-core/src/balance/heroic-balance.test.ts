@@ -6,6 +6,7 @@ import {
   getLootTable,
   simulateDungeonRun,
   simulateGuildBossAttempt,
+  tierTakesBossModifier,
   validateItem,
   type BossModifierId,
   type ClassId,
@@ -137,6 +138,11 @@ describe('weekly boss modifiers on every boss (ticket 6.3)', () => {
       const none = rates((c) => winRate(runs(d, t, c, level, gear(c), null, 12)));
       for (const m of BOSS_MODIFIER_IDS) {
         const mod = rates((c) => winRate(runs(d, t, c, level, gear(c), m, 12)));
+        // Crypt tier I takes no modifier (owner decision): the beginners' boss never changes.
+        if (!tierTakesBossModifier(d, t)) {
+          expect(mod.mean, `${name} ${m}`).toBe(none.mean);
+          continue;
+        }
         expect(mod.mean, `${name} ${m}`).toBeLessThanOrEqual(none.mean + 0.05);
         expect(mod.mean, `${name} ${m}`).toBeGreaterThanOrEqual(none.mean - 0.3);
       }

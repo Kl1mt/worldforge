@@ -227,7 +227,7 @@ So Heroic sits where the Forge Tyrant sits for the same kit (34 / 70 / 91 % at +
 
 ## Weekly boss modifiers (ticket 6.3)
 
-Every week one **modifier** holds at every boss: the crypt's Gravewarden (tiers I–IV), the Ashen Warden, the Forge Tyrant and the guild boss. It changes how the boss fights and gives its hoard a small loot focus. Data in game-core `dungeon/modifiers.ts` (`BOSS_MODIFIERS`); the fight rules are optional `BossMechanics` and boss-data changes on the existing engine, and none draws a random number, so a seed's other streams (rooms, loot, the enrage moment) stay as they are.
+Every week one **modifier** holds at every boss but the first: the crypt's Gravewarden in tiers II–IV, the Ashen Warden, the Forge Tyrant and the guild boss. **Crypt tier I never takes one** (owner decision on this ticket: beginners meet a stable first boss; data `bossModifiers: false` on the tier, `tierTakesBossModifier`): its runs store `null` like runs from before 6.3 and replay identically, `simulateDungeonRun` ignores a modifier given for it, and its door and run panel say "No omen here" (`takesModifier: false` on the tier in `GET …/dungeon`). It changes how the boss fights and gives its hoard a small loot focus. Data in game-core `dungeon/modifiers.ts` (`BOSS_MODIFIERS`); the fight rules are optional `BossMechanics` and boss-data changes on the existing engine, and none draws a random number, so a seed's other streams (rooms, loot, the enrage moment) stay as they are.
 
 | Modifier | Effect (as players read it) | Mechanics | Hoard focus |
 |---|---|---|---|
@@ -247,8 +247,8 @@ Every week one **modifier** holds at every boss: the crypt's Gravewarden (tiers 
 
 | Boss · kit | none | Burning | Warded | Frenzied | Unyielding | Relentless |
 |---|---|---|---|---|---|---|
-| crypt I · 14, commons | 73 | 61 | 55 | 61 | 61 | 59 |
-| crypt I · 12, uncommons | 97 | 89 | 89 | 86 | 91 | 89 |
+| crypt I · 14, commons | 73 | 73 | 73 | 73 | 73 | 73 (tier I takes no modifier; before the owner's decision it measured 55–61) |
+| crypt I · 12, uncommons | 97 | 97 | 97 | 97 | 97 | 97 (was 86–91) |
 | crypt II · 18, rares | 58 | 48 | 45 | 47 | 48 | 50 |
 | crypt II · 18, rares +5 | 98 | 95 | 94 | 91 | 95 | 95 |
 | crypt III · 21, epics +8 | 42 | 22 | 19 | 22 | 23 | 28 |
@@ -260,7 +260,7 @@ Every week one **modifier** holds at every boss: the crypt's Gravewarden (tiers 
 | Forge Tyrant · 36, Legendaries +5 | 70 | 67 | 69 | 69 | 67 | 66 |
 | Forge Tyrant · 36, Legendaries +10 | 89 | 83 | 81 | 88 | 83 | 83 |
 
-A modifier makes a boss somewhat harder for a kit at the edge (up to about 20 points, most for the kits that only just win: epics +8 at tier III) and barely moves the best kits (0–8 points). Asserted (`heroic-balance.test.ts`, 12 seeds per class, one reference kit per boss): no modifier raises a boss's win rate by more than 5 points or lowers it by more than 30. The first tuning (Warded at half damage from 60 % to 35 %, Unyielding with a third more health, Relentless 10 s) cost up to 50 points and was toned down to these numbers. Guild boss damage per attempt (24 seeds, every class, level 14 commons · level 21 epics · level 28 Legendaries +10): Burning −3 to −4 %, Warded −5 to −8 %, Frenzied −1 to −5 %, **Unyielding +1 to +9 %** (its slower blows let a hero last longer; the extra health means nothing to a boss that can't fall), Relentless −1 to −8 % (asserted within ± 15 %).
+A modifier makes a boss somewhat harder for a kit at the edge (up to about 20 points, most for the kits that only just win: epics +8 at tier III) and barely moves the best kits (0–8 points). Asserted (`heroic-balance.test.ts`, 12 seeds per class, one reference kit per boss): tier I's win rate is the same under every modifier; elsewhere no modifier raises a boss's win rate by more than 5 points or lowers it by more than 30. The first tuning (Warded at half damage from 60 % to 35 %, Unyielding with a third more health, Relentless 10 s) cost up to 50 points and was toned down to these numbers. Guild boss damage per attempt (24 seeds, every class, level 14 commons · level 21 epics · level 28 Legendaries +10): Burning −3 to −4 %, Warded −5 to −8 %, Frenzied −1 to −5 %, **Unyielding +1 to +9 %** (its slower blows let a hero last longer; the extra health means nothing to a boss that can't fall), Relentless −1 to −8 % (asserted within ± 15 %).
 
 ## Targeted loot (ticket 3.6)
 Each tier declares a **loot focus** (`LootFocus` on its chamber and boss tables, `CRYPT_LOOT_FOCI`), shown at the crypt door, so the player can farm toward a build: a slot group (bases of those slots weigh × `slotWeight`), a set (a set-piece roll picks only that set's pieces) and/or an effect family (those Legendary effects weigh × `effectWeight`). A focus only reweights draws the generator makes anyway, so the same item seed rolls the same rarity, item level, set/Mythic outcome and Void flag with or without it (`loot/focus.test.ts`), and every drop stays deterministic per kill stream and split-invariant. Measured (warrior with a Legendary kit at each tier's level, boss loot eligible, 3,000 runs):

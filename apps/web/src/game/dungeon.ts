@@ -46,6 +46,8 @@ export interface DungeonTierEntry {
   lootFocus: { id: string; name: string; description: string } | null;
   /** Ticket 6.3: the Heroic tier (the Heroic treatment). */
   heroic: boolean;
+  /** Ticket 6.3: whether the weekly boss modifier applies here (crypt tier I: never). */
+  takesModifier: boolean;
 }
 
 export interface DungeonEntry {

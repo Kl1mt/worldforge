@@ -9,6 +9,7 @@ import {
   applyXp,
   bossModifierOfWeek,
   cryptTierCleared,
+  tierTakesBossModifier,
   dungeonRunProgress,
   dungeonUnlockBlockers,
   filteredTotals,
@@ -112,6 +113,8 @@ export interface DungeonTierView {
   lootFocus: LootFocusView | null;
   /** Ticket 6.3: the Heroic tier (drawn with the Heroic treatment). */
   heroic: boolean;
+  /** Ticket 6.3: whether the weekly boss modifier applies here (crypt tier I: never). */
+  takesModifier: boolean;
 }
 
 export interface DungeonEntryView {
@@ -454,6 +457,7 @@ export async function registerDungeons(
             ? { id: focus.id, name: focus.name, description: focus.description }
             : null,
           heroic: t.heroic === true,
+          takesModifier: t.bossModifiers !== false,
         };
       });
       const ready = await bossLootReadyAt(app.db, characterId, id, now);
@@ -587,7 +591,10 @@ export async function registerDungeons(
         const ready = await bossLootReadyAt(tx, characterId, dungeonId, now);
         // Ticket 6.3: the modifier of the week this transaction's clock reads (the window rule:
         // stored with the run, so a run that ends after Monday keeps its own week's modifier).
-        const bossModifier = bossModifierOfWeek(now.getTime()).id;
+        // Crypt tier I never takes one (owner decision): it stores null, like a run from before 6.3.
+        const bossModifier = tierTakesBossModifier(dungeonId, tier)
+          ? bossModifierOfWeek(now.getTime()).id
+          : null;
         const row = {
           id: uuidv7(),
           characterId,

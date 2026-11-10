@@ -435,3 +435,9 @@
 .crypt-tier--heroic .crypt-tier__name {
   color: var(--void-light);
 }
+
+/* Ticket 6.3: a depth the weekly modifier does not reach (crypt tier I). */
+.crypt-door__omen {
+  color: var(--text-dim);
+  font-style: italic;
+}

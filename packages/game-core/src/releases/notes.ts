@@ -32,7 +32,7 @@ export const PATCH_NOTES: readonly PatchNote[] = [
     title: 'The Heroic crypt',
     new: [
       'The Nameless Crypt has a Heroic depth for heroes of level 32 who have cleared Tier III: tougher chambers and a harder Gravewarden whose every fourth blow tolls like a bell. It holds no stronger gear than the Cinderwastes, but Legendaries, Mythics, set pieces and Void items turn up far more often.',
-      'Every week the bosses change their ways. One of five weekly twists holds at every boss, from the crypt to the Forge Tyrant and the guild boss: Burning, Warded, Frenzied, Unyielding or Relentless. Each one also makes a boss’s hoard favour certain items. The Tavern keeper announces the week’s twist, and every boss door and the guild boss show it.',
+      'Every week the bosses change their ways. One of five weekly twists holds at every boss past the crypt’s first depth, up to the Forge Tyrant and the guild boss: Burning, Warded, Frenzied, Unyielding or Relentless. The first depth of the crypt stays the same every week. Each one also makes a boss’s hoard favour certain items. The Tavern keeper announces the week’s twist, and every boss door and the guild boss show it.',
       'A boss fight always keeps the twist of the week it began in, even if it ends after the week turns on Monday.',
       'PvE Progress has a new milestone: the Heroic crypt cleared. It joins the board between seasons, never during one.',
     ],
