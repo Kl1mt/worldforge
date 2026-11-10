@@ -982,7 +982,7 @@ GDD §8.2. Read `docs/AWAKENING.md` (the owner's answers to its questions decide
 - Web: the Forge's awaken panel with a before/after quote (effect caps, "2 of 4 set pieces awakened"), the tooltip line and an awakened mark (a code treatment like A.12), and the loot filter protecting awakened items.
 - Tests: refusals, idempotency and races (awaken vs sell, vs trade), the no-effects hashes, `awakening-balance.test.ts` on the built rule, a journey step, screenshots. Patch notes for the next 0.6.x.
 
-### 6.6 Rotating events framework (vertical) — `done (PR #TBD)`
+### 6.6 Rotating events framework (vertical) — `done (PR #122)`
 GDD §12, §13. Read `docs/QUESTS.md`, the 5.3 season model (scheduling, the window rule, archive).
 - An event model scheduled in the admin panel and by CLI (start/end UTC, one at a time), with data-driven event definitions:
   - a world modifier (e.g. bonus material yield or a themed enemy variant);
