@@ -2,7 +2,8 @@
 //
 // Usage (from the repo root):
 //   node tools/art/preview_prismatic.mjs              writes art/preview-prismatic.png
-//   node tools/art/preview_prismatic.mjs --gif <dir>  also writes <dir>/prismatic-shimmer.gif
+//   node tools/art/preview_prismatic.mjs --gif <dir>  also writes <dir>/void-prismatic-motion.gif
+//                                                    (Void's breath and motes next to Prismatic's sweep, A.12b)
 //
 // The sheet shows icons of tiers 1–4, Mythics and set pieces inside the Legendary, Mythic and set
 // (Legendary-rarity) frames, each plain, Void and Prismatic, at ×2 and ×1. The frames use the
@@ -74,7 +75,7 @@ function frame(name, rarity, scale, variant = null, motion = false) {
   const src = icon(name);
   const classes = ['item-frame', `rarity-${rarity}`];
   if (variant) classes.push(`item-frame--${variant}`);
-  if (variant === 'prismatic' && motion) classes.push('item-frame--shimmer-forced');
+  if (variant && motion) classes.push('item-frame--shimmer-forced');
   const img = `<img class="pixel" src="${src}" width="${size}" height="${size}" alt="">`;
   const mask = `width:${size}px;height:${size}px;mask-image:url('${src}');-webkit-mask-image:url('${src}')`;
   const prism =
@@ -84,10 +85,17 @@ function frame(name, rarity, scale, variant = null, motion = false) {
           .map((l) => `<span class="item-frame__prism item-frame__prism--${l}" style="${mask}"></span>`)
           .join('')
       : '';
+  // A.12b: Void's moving layers (shown only with motion), behind the icon like `ItemFrame`.
+  const box = `width:${size}px;height:${size}px`;
+  const voidLayers =
+    variant === 'void'
+      ? `<span class="item-frame__void-motes" style="${box}"></span>` +
+        `<span class="item-frame__void-edge" style="${box}"><span class="item-frame__void-edge-fill" style="mask-image:url('${src}');-webkit-mask-image:url('${src}')"></span></span>`
+      : '';
   const mark = variant
     ? `<span class="item-frame__variant">${variant === 'void' ? '◇' : '✧'}</span>`
     : '';
-  return `<span class="${classes.join(' ')}" style="--px:${scale}px">${img}${prism}${mark}</span>`;
+  return `<span class="${classes.join(' ')}" style="--px:${scale}px">${voidLayers}${img}${prism}${mark}</span>`;
 }
 
 const cell = (inner) => `<td><div class="c">${inner}</div></td>`;
@@ -141,19 +149,21 @@ await tab.locator('body').screenshot({ path: OUT });
 console.log(`wrote ${OUT}`);
 
 if (GIF_DIR) {
-  // One row: plain, Void and Prismatic of a few icons at ×3, animations stepped by hand.
+  // Void and Prismatic side by side (A.12b) at ×3, plain on top, animations stepped by hand.
   const icons = ['cinderforged-blade', 'knights-plate', 'crown-of-the-hollow-king', 'vigil-helm', 'wispfire-band'];
   const row = (variant, rarity) =>
     `<tr><th>${variant ?? 'plain'}</th>${icons.map((n) => cell(frame(n, rarity, 3, variant, true))).join('')}</tr>`;
   const html = page(
-    `<table>${row(null, 'legendary')}${row('void', 'legendary')}${row('prismatic', 'legendary')}${row('prismatic', 'mythic')}</table>`,
+    `<table>${row(null, 'legendary')}${row('void', 'legendary')}${row('prismatic', 'legendary')}${row('void', 'mythic')}${row('prismatic', 'mythic')}</table>`,
     '.c { min-width: 112px; }',
   );
   await tab.setContent(html, { waitUntil: 'load' });
   mkdirSync(GIF_DIR, { recursive: true });
   const frames = mkdtempSync(join(GIF_DIR, 'prism-frames-'));
-  const STEP = 100; // ms: one art pixel of the sweep
-  const COUNT = 192; // two sweeps = one full palette drift, so the GIF loops seamlessly
+  // 90 ms frames over two Void breaths (14.4 s): every glitch beat (108 ms) lands on a frame,
+  // the motes (180 ms) and the sweep (100 ms) step as in the game.
+  const STEP = 90;
+  const COUNT = 160;
   for (let i = 0; i < COUNT; i++) {
     await tab.evaluate((t) => {
       for (const a of document.getAnimations()) {
@@ -163,7 +173,7 @@ if (GIF_DIR) {
     }, i * STEP + 1);
     await tab.locator('table').screenshot({ path: join(frames, `${String(i).padStart(3, '0')}.png`) });
   }
-  const gif = join(GIF_DIR, 'prismatic-shimmer.gif');
+  const gif = join(GIF_DIR, 'void-prismatic-motion.gif');
   execFileSync('python3', [
     '-c',
     `import sys, glob

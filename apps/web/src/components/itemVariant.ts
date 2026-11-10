@@ -5,7 +5,8 @@ import { browserMotionFlags, sceneMotionMode } from '../scene/motion';
  * variant's id only (`ItemView.variant.id`), so the rule lives in game-core (`activeVariant`) and
  * the web layer never decides whether an item is Void or Prismatic.
  *
- * - `void` (ticket 3.5): drained art with a voidlight edge, in a dark rift, a hollow diamond ◇.
+ * - `void` (ticket 3.5): drained art with a voidlight edge, in a dark rift, a hollow diamond ◇;
+ *   in motion (A.12b) the edge breathes and glitches, and motes are pulled inward through the rift.
  * - `prismatic`: the art keeps its colour under a stepped opal tint, a slow light sweep crosses it
  *   in whole art pixels, an opal hairline runs inside the rarity ring and an open star ✧ marks the
  *   lower left corner (docs/DESIGN_SYSTEM.md "Prismatic").
@@ -26,10 +27,11 @@ export const VARIANT_MARK: Readonly<Record<VariantTreatment, string>> = {
 };
 
 /**
- * Whether the Prismatic sweep may move.
+ * Whether a variant's motion may play: Prismatic's sweep (A.12), Void's breathing edge and
+ * inward motes (A.12b).
  * - `auto` (everywhere in the game): on unless this browser is driven by automation
  *   (`navigator.webdriver`, e2e and screenshot runs) or the A.14 override says `off`;
- *   `prefers-reduced-motion` is honoured in CSS (the treatment stays a still tint).
+ *   `prefers-reduced-motion` is honoured in CSS (the treatment stays still: Prismatic's tint, Void's 3.5 look).
  * - `forced`: the admin gallery after Play (moves even under reduced motion, there only).
  * - `still`: never moves.
  */

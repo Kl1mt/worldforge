@@ -52,18 +52,32 @@ describe('variant treatment (ticket A.12)', () => {
     expect(html).toContain('aria-label="Cinderforged Blade, Prismatic legendary"');
   });
 
-  it('draws Void as before, without any Prismatic layer', () => {
+  it('draws Void with its own moving layers behind the icon, never Prismatic’s', () => {
     const html = frame(variant('void'));
     expect(html).toContain('item-frame--void');
     expect(html).toContain('◇');
     expect(html).not.toContain('item-frame__prism');
-    expect(html).not.toContain('item-frame--shimmer');
+    // A.12b: the motes and the breathing edge come before the icon (drawn behind it).
+    const motes = html.indexOf('item-frame__void-motes');
+    const edge = html.indexOf('item-frame__void-edge"');
+    const icon = html.indexOf('<img');
+    expect(motes).toBeGreaterThan(-1);
+    expect(edge).toBeGreaterThan(motes);
+    expect(icon).toBeGreaterThan(edge);
+    const path = findSprite('item.cinderforged-blade')!.path;
+    expect(html).toContain(`mask-image:url(&quot;${path}&quot;)`);
+    for (const layer of ['item-frame__void-motes', 'item-frame__void-edge']) {
+      expect(html).toMatch(
+        new RegExp(`class="${layer}" aria-hidden="true" style="width:64px;height:64px"`),
+      );
+    }
   });
 
   it('draws a plain item without variant classes or layers', () => {
     const html = frame(null);
     expect(html).not.toMatch(/item-frame--(void|prismatic|shimmer)/);
     expect(html).not.toContain('item-frame__prism');
+    expect(html).not.toContain('item-frame__void');
     expect(html).not.toContain('item-frame__variant');
   });
 
@@ -109,11 +123,13 @@ describe('Prismatic motion (ticket A.12)', () => {
     );
   });
 
-  it('reads navigator.webdriver when the frame renders', () => {
-    vi.stubGlobal('navigator', { webdriver: true });
-    expect(frame(variant('prismatic'))).not.toContain('item-frame--shimmer');
-    vi.stubGlobal('navigator', { webdriver: false });
-    expect(frame(variant('prismatic'))).toContain('item-frame--shimmer');
+  it('reads navigator.webdriver when the frame renders, for both variants', () => {
+    for (const id of ['prismatic', 'void']) {
+      vi.stubGlobal('navigator', { webdriver: true });
+      expect(frame(variant(id))).not.toContain('item-frame--shimmer');
+      vi.stubGlobal('navigator', { webdriver: false });
+      expect(frame(variant(id))).toContain('item-frame--shimmer');
+    }
   });
 });
 
@@ -122,18 +138,22 @@ describe('Prismatic stylesheet (ticket A.12)', () => {
     /\/\*[\s\S]*?\*\//g,
     '',
   );
-  // Top-level rules and the reduced-motion block, as [selector, body] pairs.
-  const media = css.match(/@media \(prefers-reduced-motion: no-preference\) \{([\s\S]*?\})\s*\}/);
-  const outside = css.replace(media?.[0] ?? '', '');
+  // Top-level rules and the reduced-motion blocks (Void's and Prismatic's), as [selector, body].
+  const blocks = [
+    ...css.matchAll(/@media \(prefers-reduced-motion: no-preference\) \{([\s\S]*?\})\s*\}/g),
+  ];
+  const outside = blocks.reduce((rest, b) => rest.replace(b[0], ''), css);
   const rules = (src: string) =>
     [...src.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [m[1]!.trim(), m[2]!] as const);
   const prismRules = rules(outside).filter(([sel]) => /prism/.test(sel));
 
   it('animates the sweep only under no-preference, or when the gallery forces it', () => {
-    expect(media).not.toBeNull();
-    for (const [sel, body] of rules(media![1]!)) {
-      // Ticket 6.5b: the awakened ember glow follows the same rule.
-      if (/animation:/.test(body)) expect(sel).toMatch(/^\.item-frame--(shimmer|ember) /);
+    expect(blocks.length).toBeGreaterThanOrEqual(2);
+    for (const block of blocks) {
+      for (const [sel, body] of rules(block[1]!)) {
+        // Ticket 6.5b: the awakened ember glow follows the same rule.
+        if (/animation:/.test(body)) expect(sel).toMatch(/^\.item-frame--(shimmer|ember) /);
+      }
     }
     for (const [sel, body] of rules(outside)) {
       if (/animation:/.test(body)) expect(sel).toMatch(/^\.item-frame--(shimmer|ember)-forced /);
@@ -164,6 +184,65 @@ describe('Prismatic stylesheet (ticket A.12)', () => {
   });
 });
 
+describe('Void motion stylesheet (ticket A.12b)', () => {
+  const css = readFileSync(new URL('./item-frame.css', import.meta.url), 'utf8').replace(
+    /\/\*[\s\S]*?\*\//g,
+    '',
+  );
+  const blocks = [
+    ...css.matchAll(/@media \(prefers-reduced-motion: no-preference\) \{([\s\S]*?\})\s*\}/g),
+  ];
+  const outside = blocks.reduce((rest, b) => rest.replace(b[0], ''), css);
+  const rules = (src: string) =>
+    [...src.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map((m) => [m[1]!.trim(), m[2]!] as const);
+  const find = (src: string, sel: string) => rules(src).find(([s]) => s === sel)?.[1];
+
+  it('keeps the still Void exactly the 3.5 look: static edge on the icon, moving layers hidden', () => {
+    expect(find(outside, '.item-frame--void > img')).toMatch(
+      /saturate\(0\.4\) brightness\(0\.9\) drop-shadow/,
+    );
+    const hidden = rules(outside).find(([s]) =>
+      /^\.item-frame__void-motes,\s*\.item-frame__void-edge$/.test(s),
+    );
+    expect(hidden?.[1]).toMatch(/display: none;/);
+    // Only the motion gates show the layers or take the edge off the icon.
+    for (const [sel, body] of [...rules(outside), ...blocks.flatMap((b) => rules(b[1]!))]) {
+      if (/display: block;/.test(body)) {
+        for (const part of sel.split(',').map((p) => p.trim())) {
+          if (/__void-(motes|edge)$/.test(part)) expect(part).toMatch(/item-frame--shimmer/);
+        }
+      }
+      if (/void.*> \.pixel$/.test(sel) && !/drop-shadow/.test(body)) {
+        expect(sel).toMatch(/item-frame--shimmer/);
+      }
+    }
+  });
+
+  it('moves in whole art pixels: stepped timing, integer transforms, no blur', () => {
+    const anims = [...css.matchAll(/animation: (item-void-[a-z]+) ([\d.]+)s ([^;]+);/g)];
+    expect(anims.length).toBe(4);
+    for (const [, name, , timing] of anims) {
+      expect(timing).toMatch(
+        name === 'item-void-motes' ? /^steps\(16\) infinite$/ : /^step-end infinite$/,
+      );
+    }
+    const breath = css.slice(css.indexOf('@keyframes item-void-breath'));
+    const body = breath.slice(0, breath.indexOf('@keyframes item-void-motes'));
+    for (const m of body.matchAll(/transform: ([^;]+);/g)) {
+      expect(m[1]).toMatch(/^(none|translateX\(var\(--px, 1px\)\))$/);
+    }
+    for (const [sel, b] of rules(css).filter(([sel]) => /void/.test(sel))) {
+      expect(b, sel).not.toMatch(/blur\(/);
+    }
+    expect(find(outside, '.item-frame__void-motes')).toMatch(/image-rendering: pixelated;/);
+    // The layers share the icon's grid cell: no layout change.
+    const cell = rules(outside).find(
+      ([s]) => s.includes('.item-frame__void-motes') && s.includes('> .pixel'),
+    );
+    expect(cell?.[1]).toMatch(/grid-area: 1 \/ 1;/);
+  });
+});
+
 describe('gallery Variants section (ticket A.12)', () => {
   it('shows every rarity and a set piece, plain, Void and Prismatic', () => {
     const html = renderToStaticMarkup(<VariantPreview scale={2} shimmer="forced" />);
@@ -173,7 +252,8 @@ describe('gallery Variants section (ticket A.12)', () => {
     const n = VARIANT_PREVIEW_ICONS.length;
     expect(html.match(/item-frame--prismatic/g)).toHaveLength(2 * n);
     expect(html.match(/item-frame--void/g)).toHaveLength(2 * n);
-    expect(html.match(/item-frame--shimmer-forced/g)).toHaveLength(2 * n);
+    // Both variants move after Play (A.12b: Void too), in the plain and the awakened rows.
+    expect(html.match(/item-frame--shimmer-forced/g)).toHaveLength(4 * n);
     expect(html.match(/item-frame--awakened/g)).toHaveLength(3 * n);
     expect(html.match(/item-frame--ember-forced/g)).toHaveLength(3 * n);
     for (const r of ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']) {

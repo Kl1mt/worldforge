@@ -117,6 +117,140 @@
   pointer-events: none;
 }
 
+/* Ticket A.12b: Void in motion, cold and inward where Prismatic is warm and sweeping. While motion
+   is on (`item-frame--shimmer`, the same gate as Prismatic), the icon's static voidlight edge moves
+   to its own layer behind the icon, which breathes in four opacity steps (55–100 %, about the still edge's 70 % on average) over 7.2 s and, once a
+   cycle, glitches one art pixel sideways for a beat; voidlight motes (`void-motes.png`, a 16-frame
+   strip, `tools/art/void_overlays.py`) are pulled through the rift toward the centre, one art pixel
+   per 180 ms, hidden by the icon as they arrive. Both layers sit in the icon's grid cell behind it,
+   at its integer scale: no blur, no layout change. Still (reduced motion, automation) they are not
+   drawn and the frame is exactly the 3.5 look above. */
+.item-frame--void > .pixel,
+.item-frame__void-motes,
+.item-frame__void-edge {
+  grid-area: 1 / 1;
+}
+
+.item-frame__void-motes,
+.item-frame__void-edge {
+  display: none;
+  pointer-events: none;
+}
+
+.item-frame__void-motes {
+  background: url('/assets/overlays/void-motes.png') 0 0 / calc(512 * var(--px, 1px))
+    calc(32 * var(--px, 1px)) repeat-x;
+  image-rendering: pixelated;
+  opacity: 0.85;
+}
+
+/* A voidlight silhouette (masked) with a one-art-pixel hard edge around it (drop-shadows on the
+   unmasked wrapper); the opaque icon above covers the silhouette, leaving the edge. */
+.item-frame__void-edge {
+  filter: drop-shadow(var(--px, 1px) 0 0 var(--void-light))
+    drop-shadow(calc(var(--px, 1px) * -1) 0 0 var(--void-light))
+    drop-shadow(0 var(--px, 1px) 0 var(--void-light))
+    drop-shadow(0 calc(var(--px, 1px) * -1) 0 var(--void-light));
+}
+
+.item-frame__void-edge-fill {
+  display: block;
+  width: 100%;
+  height: 100%;
+  background: var(--void-light);
+  mask-size: 100% 100%;
+  mask-repeat: no-repeat;
+  -webkit-mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+}
+
+/* An awakened Void item (6.5b): its moving layers stay above the ember glow, like the art (the
+   icon still covers them: it comes later in the frame). */
+.item-frame--awakened > .item-frame__void-motes,
+.item-frame--awakened > .item-frame__void-edge {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes item-void-breath {
+  0%,
+  100% {
+    opacity: 0.55;
+    transform: none;
+  }
+  15% {
+    opacity: 0.7;
+  }
+  30% {
+    opacity: 0.85;
+  }
+  45% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.85;
+  }
+  75% {
+    opacity: 0.7;
+  }
+  88% {
+    opacity: 0.55;
+    transform: none;
+  }
+  /* The glitch: one art pixel sideways at full voidlight, for one beat. */
+  90% {
+    opacity: 1;
+    transform: translateX(var(--px, 1px));
+  }
+  91.5% {
+    opacity: 0.55;
+    transform: none;
+  }
+}
+
+@keyframes item-void-motes {
+  to {
+    background-position: calc(-512 * var(--px, 1px)) 0;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .item-frame--void.item-frame--shimmer > .pixel {
+    filter: saturate(0.4) brightness(0.9);
+  }
+
+  .item-frame--shimmer .item-frame__void-motes,
+  .item-frame--shimmer .item-frame__void-edge {
+    display: block;
+  }
+
+  .item-frame--shimmer .item-frame__void-edge {
+    animation: item-void-breath 7.2s step-end infinite;
+  }
+
+  .item-frame--shimmer .item-frame__void-motes {
+    animation: item-void-motes 2.88s steps(16) infinite;
+  }
+}
+
+/* The admin gallery after Play (A.14c's rule): moves here even under reduced motion. */
+.item-frame--void.item-frame--shimmer-forced > .pixel {
+  filter: saturate(0.4) brightness(0.9);
+}
+
+.item-frame--shimmer-forced .item-frame__void-motes,
+.item-frame--shimmer-forced .item-frame__void-edge {
+  display: block;
+}
+
+.item-frame--shimmer-forced .item-frame__void-edge {
+  animation: item-void-breath 7.2s step-end infinite;
+}
+
+.item-frame--shimmer-forced .item-frame__void-motes {
+  animation: item-void-motes 2.88s steps(16) infinite;
+}
+
 /* Ticket A.12: Prismatic, layered on the rarity like Void but its opposite. Void drains the art
    and cuts it out in voidlight; Prismatic keeps the art's colour and lays a stepped opal tint over
    it (muted rose, amber, mint, sky, lilac in 4-pixel diagonal bands), a slow light sweep crosses it
