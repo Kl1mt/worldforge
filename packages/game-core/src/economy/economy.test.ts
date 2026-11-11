@@ -251,4 +251,37 @@ describe('forge recipes', () => {
     ]);
     expect(craftBlockers(r, { level: 36, gold: 3_000 }, { ...held, tyrantsEmber: 1 })).toEqual([]);
   });
+
+  it('Crownforged Work (ticket 8.2): the Hollow Sovereign’s crown shard is its sink, one per item', () => {
+    const r = findForgeRecipe('crownforgedWork')!;
+    expect(r.tier).toBe(5);
+    expect(r.level).toBe(48);
+    expect(r.materials.find((m) => m.materialId === 'crownShard')?.quantity).toBe(1);
+    // It is the only use of the shard, and the shard is only a boss drop.
+    expect(
+      FORGE_RECIPES.filter((x) => x.materials.some((m) => m.materialId === 'crownShard')),
+    ).toEqual([r]);
+    // Never below Rare, never Legendary, never above the Deep's top item level.
+    expect(Object.keys(r.rarities).sort()).toEqual(['epic', 'rare']);
+    for (const level of [48, 50, 53, 55, 60]) {
+      for (let seed = 1; seed <= 30; seed++) {
+        const item = craftItem({ recipe: r, classId: 'hunter', level, slot: 'ring', seed })!;
+        expect(item.itemLevel).toBe(Math.min(level, 53));
+        expect(['rare', 'epic']).toContain(item.rarityId);
+        expect(getItemBase(item.baseId).tier).toBe(5);
+        expect(getItemBase(item.baseId).slot).toBe('ring');
+        expect(validateItem(item)).toEqual([]);
+      }
+    }
+    // The Tyrantforged Work keeps its own cap (no stored craft changes).
+    expect(findForgeRecipe('tyrantforgedWork')!.maxItemLevel).toBe(41);
+    const held = { ironOre: 80, soulShard: 16 };
+    expect(craftBlockers(r, { level: 48, gold: 4_500 }, held)).toEqual([
+      { kind: 'material', materialId: 'crownShard', required: 1, held: 0 },
+    ]);
+    expect(craftBlockers(r, { level: 47, gold: 4_500 }, { ...held, crownShard: 1 })).toEqual([
+      { kind: 'level', required: 48 },
+    ]);
+    expect(craftBlockers(r, { level: 48, gold: 4_500 }, { ...held, crownShard: 1 })).toEqual([]);
+  });
 });

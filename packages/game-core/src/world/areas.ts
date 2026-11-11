@@ -27,6 +27,8 @@ export const AREA_IDS = [
   'cinderDepths',
   // Ticket 8.1: Region III, the Hollow Reach, first area.
   'paleMarches',
+  // Ticket 8.2: the Hollow Reach's second area, behind the town's lanterns (a world flag).
+  'hollowDeep',
 ] as const;
 
 export type AreaId = (typeof AREA_IDS)[number];
@@ -232,6 +234,29 @@ export const AREAS: readonly AreaDefinition[] = [
     ],
     materials: ['ironOre', 'soulShard'],
     lootTableId: 'paleMarches',
+  },
+  {
+    // Ticket 8.2: the second area of the Hollow Reach (levels 46–52, docs/WORLD.md), below the
+    // Pale Marches. New content gated by the community from its release (nothing live is taken
+    // away): open to heroes of level 46 who slew the Forge Tyrant, once the town has lit the
+    // lanterns of the deep (`deepLanternsLit`, the "Light the Lanterns of the Deep" project).
+    id: 'hollowDeep',
+    name: 'The Hollow Deep',
+    region: 'The Hollow Reach',
+    description:
+      'Below the Marches the grey land falls away into a pit with no bottom anyone has seen. The hollow kin are older down here, and something at the bottom wears a crown.',
+    assetId: 'area.hollow-depths',
+    minLevel: 46,
+    maxLevel: 52,
+    unlock: { level: 46, forgeTyrantDefeated: true, worldFlag: 'deepLanternsLit' },
+    enemies: [
+      { enemyId: 'hollowSentinel', weight: 30 },
+      { enemyId: 'deepStalker', weight: 30 },
+      { enemyId: 'dirgeChoir', weight: 25 },
+      { enemyId: 'huskColossus', weight: 15 },
+    ],
+    materials: ['ironOre', 'soulShard'],
+    lootTableId: 'hollowDeep',
   },
 ];
 

@@ -15,7 +15,13 @@ import {
  * Dungeons (GDD §11.2). Data from ticket 2.1; rooms, the boss mechanic and boss loot are ticket 2.5
  * (rules in `src/dungeon/`).
  */
-export const DUNGEON_IDS = ['namelessCrypt', 'ashenWatch', 'tyrantsForge'] as const;
+export const DUNGEON_IDS = [
+  'namelessCrypt',
+  'ashenWatch',
+  'tyrantsForge',
+  // Ticket 8.2: the Hollow Reach's region boss.
+  'hollowThrone',
+] as const;
 
 export type DungeonId = (typeof DUNGEON_IDS)[number];
 
@@ -74,6 +80,13 @@ export interface BossMechanics {
    * blows come `attackSpeedMultiplier` × as often (a `frenzy` event; the share as for the ward).
    */
   frenzy?: { belowHealthShare: number; attackSpeedMultiplier: number };
+  /**
+   * Ticket 8.2 (the Hollow Sovereign): each of the boss's blows that lands heals it by
+   * `healShare` × the damage it dealt (after mitigation and the hero's health; never above its full
+   * health; a `siphon` event). A sustain check: a hero who chips slowly feeds him, and a sturdy
+   * hero with low damage feeds him most. Burns (a weekly modifier) are not blows and never heal.
+   */
+  siphon?: { healShare: number };
 }
 
 /** One run's enrage: the moment drawn from `BossEnrage.atMs`. */
@@ -191,7 +204,7 @@ export interface DungeonDefinition {
 
 /** The progress flags a dungeon boss kill sets (ticket 6.2). */
 export type BossProgressFlag =
-  'gravewardenDefeated' | 'ashenWardenDefeated' | 'forgeTyrantDefeated';
+  'gravewardenDefeated' | 'ashenWardenDefeated' | 'forgeTyrantDefeated' | 'hollowSovereignDefeated';
 
 export const DUNGEONS: readonly DungeonDefinition[] = [
   {
@@ -447,6 +460,62 @@ export const DUNGEONS: readonly DungeonDefinition[] = [
           gold: { min: 1_400, max: 2_000 },
         },
         lootTableId: 'cinderDepths',
+      },
+    ],
+  },
+  {
+    // Ticket 8.2: the Hollow Reach's region boss. A boss-only run like the Tyrant's Forge (the
+    // descent down the lantern road, then the Hollow Sovereign), with its rules (snapshot, seed
+    // streams, enrage window, claim, its own hoard cooldown, the weekly modifier) plus his own
+    // mechanics: a siphon and a crown-blow, neither drawing a number. Opens with the Hollow Deep's
+    // lanterns (the community's world flag) at level 48. His hoard is always bound (source
+    // `hoard:hollowThrone`) and carries a crown shard, the input of the Crownforged Work recipe.
+    id: 'hollowThrone',
+    name: 'The Hollow Throne',
+    region: 'The Hollow Reach',
+    description:
+      'At the bottom of the Hollow Deep a throne of grey stone faces the dark. The one who sits on it is as empty as his knights, and always hungry.',
+    assetId: 'area.hollow-depths',
+    enemies: [],
+    rooms: [],
+    travelMs: 30_000,
+    bossId: 'hollowSovereign',
+    bossProgress: 'hollowSovereignDefeated',
+    bossDrops: ['crownShard'],
+    bossLootCooldownHours: 20,
+    tiers: [
+      {
+        tier: 1,
+        name: 'The Throne',
+        minLevel: 48,
+        maxLevel: 52,
+        unlock: { level: 48, forgeTyrantDefeated: true, worldFlag: 'deepLanternsLit' },
+        bossLevel: 52,
+        bossScale: { health: 1, damage: 1, resistance: 0.7, armor: 1.15 },
+        bossMaxFightMs: 150_000,
+        bossEnrage: {
+          atMs: { min: 35_000, max: 65_000 },
+          damageMultiplier: 2,
+          attackSpeedMultiplier: 1.4,
+        },
+        bossMechanics: {
+          siphon: { healShare: 0.5 },
+          heavyBlow: { every: 4, damageMultiplier: 2.5 },
+        },
+        bossLoot: {
+          lootTableId: 'hollowSovereign',
+          items: 2,
+          rarityWeights: {
+            common: 0,
+            uncommon: 500,
+            rare: 3000,
+            epic: 3500,
+            legendary: 700,
+            mythic: 60,
+          },
+          gold: { min: 2_000, max: 2_800 },
+        },
+        lootTableId: 'hollowDeep',
       },
     ],
   },

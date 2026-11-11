@@ -75,6 +75,8 @@ describe('the cosmetic catalogue', () => {
       'banner.silvered-seal',
       'crest.abbey-silver',
       'crest.seal-wax',
+      // Ticket 8.2: the Hollow Sovereign's milestone (CSS only).
+      'title-colour.hollow-pale',
     ];
     expect(COSMETICS.map((c) => c.id).sort()).toEqual([...want].sort());
   });

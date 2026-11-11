@@ -26,9 +26,10 @@ export const FORMULA_VERSIONS: FormulaVersions = {
   /**
    * 2 (ticket 6.1): the Cinderwastes' three milestones added (13). 3 (ticket 6.2): the Cinder
    * Depths and the Forge Tyrant, four more (17). 4 (ticket 6.3): the Heroic crypt cleared (18).
-   * 5 (ticket 8.1): the Pale Marches' three milestones (21).
+   * 5 (ticket 8.1): the Pale Marches' three milestones (21). 6 (ticket 8.2): the Hollow Deep and
+   * the Hollow Sovereign, four more (25).
    */
-  pveProgress: 5,
+  pveProgress: 6,
 };
 
 /**
@@ -47,7 +48,7 @@ export const SUPPORTED_FORMULA_VERSIONS: Readonly<Record<ScoreMetric, readonly n
   level: [1],
   gearScore: [2],
   power: [1, 2, 3],
-  pveProgress: [1, 2, 3, 4, 5],
+  pveProgress: [1, 2, 3, 4, 5, 6],
 };
 
 /** One line of a score's breakdown: what counted, how much, and why (or why not). */

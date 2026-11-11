@@ -22,7 +22,13 @@ import { MATERIAL_IDS, type MaterialId } from './materials.js';
  */
 
 /** Global world flags, set only by completed community projects. Never rename or reuse an id. */
-export const WORLD_FLAG_IDS = ['warehouseRestored', 'ashenPassCleared', 'forgewardRaised'] as const;
+export const WORLD_FLAG_IDS = [
+  'warehouseRestored',
+  'ashenPassCleared',
+  'forgewardRaised',
+  // Ticket 8.2: the lanterns of the deep (the Hollow Deep and the Hollow Throne).
+  'deepLanternsLit',
+] as const;
 export type WorldFlagId = (typeof WORLD_FLAG_IDS)[number];
 
 /** Which world flags are set. Read from the server's world state (one source of truth). */
@@ -69,6 +75,14 @@ export const WORLD_FLAGS: readonly WorldFlagDefinition[] = [
     id: 'forgewardRaised',
     opens: 'The Forgeward Outpost',
     lockedText: 'The town must rebuild the Forgeward Outpost first.',
+  },
+  {
+    // Ticket 8.2: the first flag that gates content from its release (new content only, so no
+    // live access is taken away): the Hollow Deep and the Hollow Throne. Also the Lantern Vigil
+    // (`world/eras.ts`) and the lantern smithy (`economy/town.ts`).
+    id: 'deepLanternsLit',
+    opens: 'The Hollow Deep',
+    lockedText: 'The town must light the lanterns of the deep first.',
   },
 ];
 
@@ -270,6 +284,59 @@ export const COMMUNITY_PROJECTS: readonly CommunityProjectDefinition[] = [
         needs: [
           { resource: 'gold', amount: 140_000 },
           { resource: 'soulShard', amount: 800 },
+          { resource: 'tyrantsEmber', amount: 10 },
+        ],
+      },
+    ],
+  },
+  {
+    // Ticket 8.2 (docs/COMMUNITY.md "The lanterns of the deep"): the Hollow Reach chain, the first
+    // project that gates content from its release: the Hollow Deep and the Hollow Throne open only
+    // when it completes (new content, so nothing live is taken away). Sized for the Hollow Reach's
+    // heroes, who farm the Pale Marches: gold, ore and shards (the Marches' gathering), Abbey
+    // silver from stock, and the Tyrant's Ember once more (a second use for his hoard). Every
+    // stage starts at a tenth a day (B.5b's ten givers on a first day), growing by the default
+    // rule (30 %, 50 %, 60 %).
+    id: 'deepLanterns',
+    name: 'Light the Lanterns of the Deep',
+    description:
+      'Below the Pale Marches the land falls into the Hollow Deep, and no light reaches the bottom. Hang a lantern road into the dark, and the town can follow its heroes down.',
+    requires: 'forgewardOutpost',
+    grantsFlag: 'deepLanternsLit',
+    rewardAchievementId: 'deepLanternBearer',
+    stages: [
+      {
+        id: 'lanternPosts',
+        name: 'Sink the lantern posts',
+        description: 'Iron posts driven into the grey rim of the deep, a day’s march apart.',
+        capShare: 0.1,
+        needs: [
+          { resource: 'gold', amount: 90_000 },
+          { resource: 'ironOre', amount: 1_200 },
+          { resource: 'soulShard', amount: 500 },
+        ],
+      },
+      {
+        id: 'lanternChains',
+        name: 'Hang the chains',
+        description:
+          'Iron chains from post to post, down the walls of the deep, hooks set in silver.',
+        capShare: 0.1,
+        needs: [
+          { resource: 'gold', amount: 130_000 },
+          { resource: 'ironOre', amount: 1_800 },
+          { resource: 'abbeySilver', amount: 90 },
+        ],
+      },
+      {
+        id: 'kindleLanterns',
+        name: 'Kindle the lanterns',
+        description:
+          'Common fire dies in the deep. Only the Tyrant’s coals burn there; carry them down.',
+        capShare: 0.1,
+        needs: [
+          { resource: 'gold', amount: 180_000 },
+          { resource: 'soulShard', amount: 900 },
           { resource: 'tyrantsEmber', amount: 10 },
         ],
       },

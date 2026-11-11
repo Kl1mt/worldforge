@@ -14,7 +14,14 @@ import type { WorldFlagId, WorldFlags } from './projects.js';
  * Never rename or reuse an era id (telemetry and audit rows keep it); append new eras at the end.
  */
 
-export const WORLD_ERA_IDS = ['longDusk', 'ashenSiege', 'rekindling', 'forgewardAge'] as const;
+export const WORLD_ERA_IDS = [
+  'longDusk',
+  'ashenSiege',
+  'rekindling',
+  'forgewardAge',
+  // Ticket 8.2: after the lanterns of the deep.
+  'lanternVigil',
+] as const;
 export type WorldEraId = (typeof WORLD_ERA_IDS)[number];
 
 export interface WorldEraDefinition {
@@ -91,6 +98,24 @@ export const WORLD_ERAS: readonly WorldEraDefinition[] = [
     crier: [
       'Hear ye: the forgeward beacon is lit! The Forge works the Tyrant’s fire for less.',
       'Hear ye: the Forgeward Outpost keeps watch over the Cinderwastes. Ride safe!',
+      'Hear ye: past the Tyrant’s furnace the Hollow Deep waits in the dark. The town works want lantern-iron!',
+    ],
+  },
+  {
+    // Ticket 8.2: the lanterns of the deep are lit; the Hollow Deep and its throne are open.
+    id: 'lanternVigil',
+    name: 'The Lantern Vigil',
+    title: 'Era of the Lantern Vigil',
+    beganBy: 'deepLanternsLit',
+    tagline:
+      'A road of lanterns hangs down into the Hollow Deep, and Graumark keeps watch over it.',
+    banner: 'Pale lantern-cloth banners hang from every eave, a candle behind each.',
+    tavern:
+      'Smoke, spilt ale and a board full of nails. Lantern-keepers come up from the deep grey with dust and stories; a lamp burns in every window, and the keeper pays out when the work is done.',
+    crier: [
+      'Hear ye: the lanterns of the deep are lit! The road down into the Hollow Deep is open.',
+      'Hear ye: a throne stands at the bottom of the deep. Who will take the Sovereign’s crown?',
+      'Hear ye: the lantern smithy works crown-iron for less. Bring your shards!',
     ],
   },
 ];

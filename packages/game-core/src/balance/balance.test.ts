@@ -342,7 +342,8 @@ describe('balance (ticket B.1)', () => {
       const farmed = FORGE_RECIPES.filter(
         (r) => !r.materials.some((m) => getMaterial(m.materialId).source === 'bossDrop'),
       );
-      expect(farmed.length).toBe(FORGE_RECIPES.length - 1);
+      // Ticket 8.2: and the Crownforged Work (the Hollow Sovereign's crown shard).
+      expect(farmed.length).toBe(FORGE_RECIPES.length - 2);
       for (const r of farmed) {
         const goldHours =
           r.gold / geared('warrior', Math.max(r.level, 3), farmingAreaFor(r.level)).goldPerHour;
@@ -677,7 +678,8 @@ describe('balance (ticket B.1)', () => {
     it('drops the highest item levels, tier-4 bases and tier-5 affixes (never at the Pass)', () => {
       const table = getLootTable(verge.lootTableId);
       // Ticket 6.2: the Cinder Depths drop above it (its own block below); 8.1: the Pale Marches.
-      const above = [verge.id, 'cinderDepths', 'paleMarches'];
+      // 8.2: the Hollow Deep.
+      const above = [verge.id, 'cinderDepths', 'paleMarches', 'hollowDeep'];
       for (const a of AREAS.filter((x) => !above.includes(x.id))) {
         expect(table.itemLevel!.min, a.id).toBeGreaterThan(
           getLootTable(a.lootTableId).itemLevel!.max - 1,

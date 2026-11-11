@@ -78,6 +78,11 @@ export type DungeonEvent =
   | { t: number; type: 'enemyAttack'; damage: number; health: number; heavy?: true }
   /** Ticket 6.2: the boss's shell broke (`BossMechanics.shell`). */
   | { t: number; type: 'shellBroken' }
+  /**
+   * Ticket 8.2: the boss drank `amount` of its blow's damage back as health (`BossMechanics.siphon`;
+   * after the `enemyAttack` it follows). `enemyHealth` is its health after.
+   */
+  | { t: number; type: 'siphon'; amount: number; enemyHealth: number }
   /** Ticket 6.3 ("Burning"): the hero burned for `damage` (`BossMechanics.burn`). */
   | { t: number; type: 'burn'; damage: number; health: number }
   /** Ticket 6.3 ("Warded"): the boss's ward rose / broke (`BossMechanics.ward`). */
@@ -224,7 +229,8 @@ function validate(input: DungeonRunInput): void {
  * Ticket 6.2: with `mechanics`, the boss's shell and heavy blows apply (no extra draws; without
  * them every fight is exactly as before). Ticket 6.3: the weekly modifiers' burn, ward and frenzy
  * too; `phaseClockMs` (a boss that cannot fall: the guild boss) reads the ward's and frenzy's
- * health share from the clock instead (1 at the start, 0 at `phaseClockMs`).
+ * health share from the clock instead (1 at the start, 0 at `phaseClockMs`). Ticket 8.2: the
+ * siphon heals the boss by a share of each blow's damage (never above its full health).
  */
 export function resolveDungeonFight(
   setup: EncounterSetup,
@@ -250,6 +256,8 @@ export function resolveDungeonFight(
   const shellFloor = shell ? setup.enemyHealth * shell.untilHealthShare : 0;
   const heavyBlow = mechanics?.heavyBlow;
   let blows = 0;
+  // Ticket 8.2: the boss's siphon (absent: no heal, nothing changes).
+  const siphon = mechanics?.siphon;
   // Ticket 6.3: the weekly modifiers (absent: Infinity and no phase, so nothing changes).
   const burn = mechanics?.burn;
   let nextBurn = burn ? burn.everyMs : Infinity;
@@ -331,6 +339,14 @@ export function resolveDungeonFight(
         ...(heavy ? { heavy: true as const } : {}),
       });
       if (hp <= 0) return { kind: 'death', offsetMs: e, health: 0 };
+      if (siphon && damage > 0 && enemyHealth < setup.enemyHealth) {
+        const amount = Math.min(
+          setup.enemyHealth - enemyHealth,
+          Math.max(1, Math.round(damage * siphon.healShare)),
+        );
+        enemyHealth += amount;
+        log.push({ t: startMs + e, type: 'siphon', amount, enemyHealth });
+      }
       const thorns = thornsDamage(setup, strong ? enrage.damageMultiplier : 1);
       if (thorns > 0) {
         const taken = dealt(thorns);
@@ -828,6 +844,7 @@ export function dungeonRunProgress(
         break;
       case 'attack':
       case 'thorns':
+      case 'siphon':
         if (foe) foe = { ...foe, health: e.enemyHealth };
         break;
       case 'enemyAttack':

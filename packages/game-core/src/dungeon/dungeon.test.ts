@@ -261,6 +261,97 @@ describe('boss mechanics (ticket 6.2)', () => {
   });
 });
 
+describe('the Hollow Sovereign’s siphon (ticket 8.2)', () => {
+  const tier = getDungeonTier('hollowThrone', 1);
+  const stats = deriveCharacterStats('mage', 50, []);
+  const setup = {
+    ...buildEncounter(
+      getEnemy('hollowSovereign'),
+      tier.bossLevel,
+      'mage',
+      50,
+      stats,
+      DEFAULT_COMBAT_CONFIG,
+    ),
+    maxFightMs: tier.bossMaxFightMs,
+  };
+  const fight = (mechanics?: Parameters<typeof resolveDungeonFight>[6], hp = 1_000_000) => {
+    const log: DungeonEvent[] = [];
+    const rng = createRng('siphon');
+    const out = resolveDungeonFight(setup, hp, rng, 0, log, undefined, mechanics);
+    return { out, log, next: rng.next() };
+  };
+
+  it('is only the Sovereign’s; every earlier boss has none', () => {
+    expect(tier.bossMechanics!.siphon).toEqual({ healShare: 0.5 });
+    for (const d of ['namelessCrypt', 'ashenWatch', 'tyrantsForge'] as const)
+      for (const t of getDungeon(d).tiers)
+        expect(t.bossMechanics?.siphon, `${d} ${t.tier}`).toBeUndefined();
+    expect(fight().log.some((e) => e.type === 'siphon')).toBe(false);
+  });
+
+  it('heals him by a share of each landed blow, never above his full health', () => {
+    const { log } = fight({ siphon: { healShare: 0.5 } });
+    let last: DungeonEvent | undefined;
+    let healed = 0;
+    for (const e of log) {
+      if (e.type === 'siphon') {
+        expect(last?.type).toBe('enemyAttack');
+        const blow = last as Extract<DungeonEvent, { type: 'enemyAttack' }>;
+        expect(e.amount).toBeLessThanOrEqual(Math.max(1, Math.round(blow.damage * 0.5)));
+        expect(e.amount).toBeGreaterThan(0);
+        expect(e.enemyHealth).toBeLessThanOrEqual(setup.enemyHealth);
+        healed++;
+      }
+      last = e;
+    }
+    expect(healed).toBeGreaterThan(0);
+    // His first blow lands before any wound only if he strikes first; never a heal at full health.
+    for (const [i, e] of log.entries()) {
+      if (e.type !== 'siphon') continue;
+      const before = log
+        .slice(0, i)
+        .reverse()
+        .find((x) => 'enemyHealth' in x) as { enemyHealth: number } | undefined;
+      expect(before && before.enemyHealth < setup.enemyHealth).toBe(true);
+    }
+  });
+
+  it('draws no extra random number: the hero’s blows and the stream after the fight are the same', () => {
+    const plain = fight();
+    const fed = fight({ siphon: { healShare: 0.5 } });
+    // The same draws in the same order: the shared prefix of the hero's blows (crit or not) agrees,
+    // and a fight of the same length leaves the stream where it was.
+    const crits = (l: DungeonEvent[]) =>
+      l.filter((e) => e.type === 'attack').map((e) => (e as { crit: boolean }).crit);
+    const a = crits(plain.log);
+    const b = crits(fed.log);
+    const n = Math.min(a.length, b.length);
+    expect(b.slice(0, n)).toEqual(a.slice(0, n));
+    expect(fed.log.filter((e) => e.type === 'attack').length).toBeGreaterThanOrEqual(a.length);
+    // Same mechanics, same fight: a replay is identical.
+    expect(fight({ siphon: { healShare: 0.5 } })).toEqual(fed);
+  });
+
+  it('a full run against him is deterministic and replays to the same log', () => {
+    const run = (seed: string) =>
+      simulateDungeonRun({
+        dungeonId: 'hollowThrone',
+        character: { classId: 'warrior', level: 50, xp: 0 },
+        equipment: upgraded(legendaryKit('warrior', 47), 10),
+        seed,
+        bossLootEligible: true,
+        inventoryCount: 0,
+      });
+    expect(run('sov-replay')).toEqual(run('sov-replay'));
+    const r = run('sov-replay');
+    expect(r.events.some((e) => e.type === 'siphon')).toBe(true);
+    expect(r.events.some((e) => e.type === 'enemyAttack' && e.heavy === true)).toBe(true);
+    if (r.bossDefeated) expect(r.materials).toEqual({ crownShard: 1 });
+    expect(dungeonRunProgress(r, r.durationMs).stage).toBe('done');
+  });
+});
+
 describe('the Gravewarden enrage', () => {
   it('hits harder and faster from the enrage time on', () => {
     const tier = getDungeonTier('namelessCrypt', 1);

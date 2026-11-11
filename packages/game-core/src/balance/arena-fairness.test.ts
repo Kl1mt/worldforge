@@ -91,4 +91,26 @@ describe('matchmaking fairness bands', () => {
       },
     );
   }
+
+  // Ticket 8.2: the Hollow Deep takes 30+ up to 52 (tier-5 gear at item levels to 51 here; the
+  // Deep's own drops reach 53). Bracket Power 3 and matchmaking 4 unchanged, the bands not
+  // loosened (≤ 9 % / ≤ 5 %): measured in docs/PVP.md "8.2".
+  for (const awakened of [false, true]) {
+    it(
+      `30+ with heroes up to level 52${awakened ? ', top kits awakened' : ''}: inside the band`,
+      SLOW,
+      () => {
+        const bracket = RATED_BRACKETS.find((b) => b.id === '30-plus')!;
+        const pop = arenaPopulation(bracket, SIZE, { maxLevel: 52, awakened });
+        const mm = measureFairness(bracket, pop, 'matchmaking', SEEDS);
+        expect(mm.meanFavourite).toBeLessThanOrEqual(0.72);
+        expect(mm.over90).toBeLessThanOrEqual(0.09);
+        expect(mm.over95).toBeLessThanOrEqual(0.05);
+        expect(mm.extremePairs).toBeLessThanOrEqual(0.03);
+        expect(mm.emptyLists).toBe(0);
+        expect(mm.meanListSize).toBeGreaterThanOrEqual(4.9);
+        expect(mm.widened).toBeLessThanOrEqual(0.25);
+      },
+    );
+  }
 });

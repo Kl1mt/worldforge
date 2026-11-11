@@ -69,7 +69,8 @@ describe('community project data', () => {
     for (const p of COMMUNITY_PROJECTS) {
       // Ticket B.5b: the Forgeward Outpost's stages start at a tenth; every other stage keeps the
       // default fifth.
-      const forgeward = p.id === 'forgewardOutpost';
+      // Ticket 8.2: the lanterns of the deep likewise (B.5b's ten givers on a first day).
+      const forgeward = p.id === 'forgewardOutpost' || p.id === 'deepLanterns';
       for (const s of p.stages) {
         expect(s.capShare, `${p.id}/${s.id}`).toBe(forgeward ? 0.1 : undefined);
         const givers = Math.max(
@@ -193,6 +194,7 @@ describe('world flags', () => {
       warehouseRestored: true,
       ashenPassCleared: false,
       forgewardRaised: false,
+      deepLanternsLit: false,
     });
   });
 

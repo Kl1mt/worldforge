@@ -22,7 +22,7 @@ const season = (number: number, from: number, to: number) => ({
 describe('formula versions between seasons (ticket 6.1)', () => {
   it('knows the baseline and the newest versions', () => {
     expect(FORMULA_BASELINE).toEqual({ level: 1, gearScore: 2, power: 1, pveProgress: 1 });
-    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 2, power: 3, pveProgress: 5 });
+    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 2, power: 3, pveProgress: 6 });
     expect(formulaVersionsAt([], [], t0)).toEqual(FORMULA_BASELINE);
   });
 
@@ -31,7 +31,7 @@ describe('formula versions between seasons (ticket 6.1)', () => {
     const plan = planFormulaSwitches([], seasons, t0);
     expect(plan.map((s) => [s.metric, s.from, s.to, s.afterSeason])).toEqual([
       ['power', 1, 3, null],
-      ['pveProgress', 1, 5, null],
+      ['pveProgress', 1, 6, null],
     ]);
     expect(formulaVersionsAt(plan, seasons, t0)).toEqual(FORMULA_VERSIONS);
     // Planning again adds nothing.
@@ -121,7 +121,8 @@ describe('formula versions between seasons (ticket 6.1)', () => {
     const v6 = { ...FORMULA_VERSIONS, power: 2, pveProgress: 4 };
     const stored = planFormulaSwitches([], seasons.slice(0, 1), at(-100), v6);
     expect(formulaVersionsAt(stored, seasons, t0)).toEqual(v6);
-    const added = planFormulaSwitches(stored, seasons, t0);
+    const v81 = { ...FORMULA_VERSIONS, pveProgress: 5 };
+    const added = planFormulaSwitches(stored, seasons, t0, v81);
     expect(added.map((s) => [s.metric, s.from, s.to, s.afterSeason])).toEqual([
       ['power', 2, 3, 3],
       ['pveProgress', 4, 5, 3],
@@ -129,8 +130,37 @@ describe('formula versions between seasons (ticket 6.1)', () => {
     const plan = [...stored, ...added];
     // The season under way keeps the old versions to its last moment, the next one starts new.
     expect(formulaVersionsAt(plan, seasons, at(51))).toEqual(v6);
+    expect(formulaVersionsAt(plan, seasons, at(52))).toEqual(v81);
+    expect(planFormulaSwitches(plan, seasons, at(10), v81)).toEqual([]);
+  });
+
+  it('chains 8.2’s PvE Progress 6 after 8.1’s pending switch; each between seasons', () => {
+    const seasons = [
+      season(1, -120, -60),
+      season(2, -60, -4),
+      season(3, -4, 52),
+      season(4, 53, 109),
+    ];
+    const v6 = { ...FORMULA_VERSIONS, power: 2, pveProgress: 4 };
+    const v81 = { ...FORMULA_VERSIONS, pveProgress: 5 };
+    const stored = planFormulaSwitches([], seasons.slice(0, 1), at(-100), v6);
+    // 8.1's switches wait for season 3 …
+    const s81 = [...stored, ...planFormulaSwitches(stored, seasons, t0, v81)];
+    // … and 8.2 ships in that same season: version 6 follows version 5 at the same end.
+    const added = planFormulaSwitches(s81, seasons, at(10));
+    expect(added.map((s) => [s.metric, s.from, s.to, s.afterSeason])).toEqual([
+      ['pveProgress', 5, 6, 3],
+    ]);
+    const plan = [...s81, ...added];
+    expect(formulaVersionsAt(plan, seasons, at(51))).toEqual(v6);
     expect(formulaVersionsAt(plan, seasons, at(52))).toEqual(FORMULA_VERSIONS);
-    expect(planFormulaSwitches(plan, seasons, at(10))).toEqual([]);
+    // 8.1 already in force (season 3 over), 8.2 shipped in season 4: it waits for season 4's end.
+    const late = planFormulaSwitches(s81, seasons, at(60));
+    expect(late.map((s) => [s.from, s.to, s.afterSeason])).toEqual([[5, 6, 4]]);
+    expect(formulaVersionsAt([...s81, ...late], seasons, at(60))).toEqual(v81);
+    expect(formulaVersionsAt([...s81, ...late], seasons, at(109))).toEqual(FORMULA_VERSIONS);
+    // Planning again adds nothing.
+    expect(planFormulaSwitches(plan, seasons, at(20))).toEqual([]);
   });
 
   it('computes every supported version and refuses others', () => {
@@ -153,6 +183,7 @@ describe('formula versions between seasons (ticket 6.1)', () => {
     expect(() => computeScore('power', input, 4)).toThrow(RangeError);
     expect(computeScore('pveProgress', { ...input, level: 34 }, 4).value).toBe(11);
     expect(computeScore('pveProgress', { ...input, level: 34 }, 5).value).toBe(11);
-    expect(() => computeScore('pveProgress', input, 6)).toThrow(RangeError);
+    expect(computeScore('pveProgress', { ...input, level: 34 }, 6).value).toBe(11);
+    expect(() => computeScore('pveProgress', input, 7)).toThrow(RangeError);
   });
 });
