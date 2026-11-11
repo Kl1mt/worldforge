@@ -29,6 +29,7 @@ import {
 } from '@worldforge/game-core';
 import { characterQuests } from '../db/schema.js';
 import { uuidv7 } from '../db/uuid.js';
+import { NAME_SAFE_LETTERS } from '../test/names.js';
 
 const SEC = 1000;
 const HOUR = 3600 * SEC;
@@ -71,8 +72,8 @@ const tag = () => {
   let n = seq;
   let s = '';
   do {
-    s = String.fromCharCode(97 + (n % 26)) + s;
-    n = Math.floor(n / 26);
+    s = NAME_SAFE_LETTERS[n % NAME_SAFE_LETTERS.length]! + s;
+    n = Math.floor(n / NAME_SAFE_LETTERS.length);
   } while (n > 0);
   return s;
 };

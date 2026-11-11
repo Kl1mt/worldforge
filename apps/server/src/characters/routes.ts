@@ -14,6 +14,7 @@ import { accounts, characters, type Character } from '../db/schema.js';
 import { constraintOf, sqlStateOf, withTransaction } from '../db/transaction.js';
 import { writeAudit } from '../db/audit.js';
 import { uuidv7 } from '../db/uuid.js';
+import { checkNewName } from '../names/checks.js';
 import { ApiError } from '../errors.js';
 
 /** The public character shape (docs/API_CONVENTIONS.md). */
@@ -170,6 +171,8 @@ export async function registerCharacters(app: FastifyInstance): Promise<void> {
             });
           }
 
+          // Ticket 6.9: no look-alike of another hero's name or a reserved one.
+          const nameSkeleton = await checkNewName(tx, 'heroName', name.name, { field: 'name' });
           const createdAt = new Date();
           const [created] = await tx
             .insert(characters)
@@ -177,6 +180,7 @@ export async function registerCharacters(app: FastifyInstance): Promise<void> {
               id: uuidv7(),
               accountId,
               name: name.name,
+              nameSkeleton,
               classId,
               appearance: { banner },
               ...STARTING_CHARACTER,

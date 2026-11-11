@@ -7,6 +7,7 @@ import { accounts, auditLog, characters } from '../db/schema.js';
 import type { DatabaseHandle } from '../db/types.js';
 import { createTestDatabase } from '../test/db.js';
 import type { CharacterView } from './routes.js';
+import { NAME_SAFE_LETTERS } from '../test/names.js';
 
 let database: DatabaseHandle;
 let app: FastifyInstance;
@@ -51,8 +52,8 @@ function freshName(): string {
   let n = nameSeq;
   let suffix = '';
   do {
-    suffix = String.fromCharCode(97 + (n % 26)) + suffix;
-    n = Math.floor(n / 26);
+    suffix = NAME_SAFE_LETTERS[n % NAME_SAFE_LETTERS.length]! + suffix;
+    n = Math.floor(n / NAME_SAFE_LETTERS.length);
   } while (n > 0);
   return `Edric${suffix}`;
 }

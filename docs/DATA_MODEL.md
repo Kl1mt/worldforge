@@ -31,7 +31,7 @@ Status: **partly implemented.** Tables marked *implemented* exist in `apps/serve
 | --------------- | ----------- | ------------------------------------------------------------ |
 | id              | uuid PK     | UUIDv7                                                       |
 | email           | text        | stored trimmed as entered; unique on `lower(email)`          |
-| display_name    | text        | unique on `lower(display_name)`                              |
+| display_name    | text        | unique on `lower(display_name)`; ticket 6.9: `display_name_skeleton` (game-core `nameSkeleton`, indexed, null until the backfill) — a new or changed name may not share it with another account |
 | password_hash   | text        | argon2id PHC string (`$argon2id$v=19$m=19456,t=2,p=1$…`), written by 1.2 |
 | character_slots | smallint    | default 2 (GDD §5.3), `CHECK (>= 0)`; per account, so slots can be granted later |
 | active_character_id | uuid FK? | → `characters.id` `ON DELETE SET NULL`; the last selected character (ticket 1.3). Only ever set to one of the account's own characters (checked by the server) |
@@ -91,7 +91,7 @@ Written only by `pnpm admin:invite` (create, revoke) and by registration in `REG
 | -------------- | ----------- | ------------------------------------------------ |
 | id             | uuid PK     | UUIDv7                                           |
 | account_id     | uuid FK     | → `accounts.id` `ON DELETE CASCADE`, indexed. Count ≤ `accounts.character_slots`, enforced by the server under a `SELECT … FOR UPDATE` lock on the account row |
-| name           | text        | trimmed as entered; unique on `lower(name)` across all accounts. Rules in game-core `validateCharacterName` (3–16 ASCII letters, one `'` or `-` between parts, a few reserved names) |
+| name           | text        | trimmed as entered; unique on `lower(name)` across all accounts. Rules in game-core `validateCharacterName` (3–16 ASCII letters, one `'` or `-` between parts, a few reserved names); ticket 6.9: `name_skeleton` (indexed), new names may not share it with another hero |
 | class_id       | text        | game-core `ClassId`, validated by the server, immutable after creation. No DB `CHECK`, so adding a class needs no migration |
 | appearance     | jsonb       | game-core `CharacterAppearance`: `{ banner }` (`ash`/`ember`/`moss`/`dusk`) |
 | level          | integer     | default 1, `CHECK (>= 1)`                        |
@@ -390,7 +390,7 @@ A separate table so the frequent upsert never waits on the account row's locks. 
 | --- | --- | --- |
 | id | uuid PK | uuidv7 |
 | handle | text | opaque public reference (12 random characters, like account handles), unique |
-| name | text | text module `guildName`; unique on `lower(name)` among guilds with `disbanded_at is null` |
+| name | text | text module `guildName`; unique on `lower(name)` among guilds with `disbanded_at is null`; ticket 6.9: `name_skeleton` (indexed), new names may not share it with another existing guild |
 | tag | text | text module `guildTag` (A–Z, 0–9, 2–5); unique among existing guilds |
 | emblem | text | game-core `GuildEmblemId` |
 | created_by | uuid? FK | → `accounts.id` `ON DELETE SET NULL` |
@@ -510,6 +510,14 @@ Migration `0041_cosmetic_collection` (additive: two new tables, nothing changed)
 - `cosmetic_displays`: PK `account_id` (→ `accounts` cascade), `banner`, `crest`, `title_colour` (each nullable = plain; composite FK `(account_id, <column>)` → `cosmetic_unlocks`: only the account's own unlocks), `updated_at`. No row = never chosen (plain).
 - `hero_appearances`: PK `character_id` (→ `characters` cascade), `account_id` (→ `accounts` cascade), `appearance` (composite FK `(account_id, appearance)` → `cosmetic_unlocks`), `updated_at`; index on `account_id`. No row = the class's own colours (`appearance.default` is never stored).
 - `data_backfills`: `cosmetics:<hash of every cosmetic's id and source>` (data: accounts, granted).
+
+### rate_limit_counters, login_throttle, cache_versions, reserved_names; name skeletons — implemented (6.9)
+Migration `0042_scale_readiness` (additive). docs/DEPLOY.md §17, docs/SOCIAL.md "Look-alike and reserved names".
+- `rate_limit_counters` (key text PK, `starts` bigint[], `hits` int[], `expires_at` bigint, `refused` bool): one row per limiter key `<class>|<windows>|<id>` (id: account id, `account:`/`reset:` mail keys, or a SHA-256 of the client address for the per-IP limits). Times in ms on the server's injected clock. Written by one atomic upsert per counted request; rows whose windows are over are deleted by the hourly pruning. **Unlogged** (switched by `db:migrate`).
+- `login_throttle` (key text PK = SHA-256 of the lower-cased address, `failures`, `last_failure_at`, `locked_until`, `in_flight`, `in_flight_until`): 5.7/5.8's per-address lock; updated under the row lock; idle rows pruned hourly. **Unlogged.**
+- `cache_versions` (name text PK: `world`, `settings`, `formulas`; `version` bigint, `updated_at`): bumped in the writing transaction together with `NOTIFY wf_cache`.
+- `reserved_names` (id uuid PK, `name`, `skeleton` unique, `note`, `created_by` → accounts set null, `created_at`): names the admins reserve on top of game-core's `RESERVED_NAME_DEFAULTS`.
+- `accounts.display_name_skeleton`, `characters.name_skeleton`, `guilds.name_skeleton` (text, nullable, indexed): written with every new or changed name; older rows filled by the start-up backfill `name-skeletons:v1`. Not unique (names taken before 6.9 may already look alike; they are grandfathered); new names are checked under an advisory lock instead.
 
 ## Relationships
 

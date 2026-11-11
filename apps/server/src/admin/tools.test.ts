@@ -1307,6 +1307,7 @@ describe('guard: soft-deleted heroes are hidden on every hero read', () => {
     'achievements/backfill.ts': 'data backfill over every row',
     'cosmetics/backfill.ts': 'data backfill over every row (6.8: as the achievements)',
     'leaderboards/snapshot.ts': 'checks deletedAt on the row it read',
+    'names/checks.ts': 'hero names stay unique across deleted heroes (6.9: look-alikes too)',
   };
   it('every other hero read filters `deletedAt`', () => {
     const root = join(__dirname, '..');

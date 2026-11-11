@@ -23,9 +23,19 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.6.15';
+export const GAME_VERSION = '0.6.16';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.6.16',
+    date: '2026-11-14',
+    title: 'Names that imitate',
+    changed: [
+      'Names that imitate others or staff can no longer be chosen: a new or changed player, hero or guild name may not look like one already taken (letters from other alphabets, accents, digits in place of letters, a capital I for a small l) or like the names of staff, the bosses and the town’s people.',
+      'Names chosen before this change are kept.',
+    ],
+    tickets: ['6.9'],
+  },
   {
     version: '0.6.15',
     date: '2026-11-13',

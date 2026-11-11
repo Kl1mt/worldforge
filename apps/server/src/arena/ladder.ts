@@ -378,7 +378,11 @@ export async function registerLadder(
   app: FastifyInstance,
   options: { now: () => Date; readLimit?: { max: number; windowMs: number } },
 ): Promise<void> {
-  const checkRead = createBoardReadLimiter(app, options.readLimit ?? DEFAULT_BOARD_READ_LIMIT);
+  const checkRead = createBoardReadLimiter(
+    app,
+    options.readLimit ?? DEFAULT_BOARD_READ_LIMIT,
+    'ladder',
+  );
   app.get<LadderRequest>(
     '/arena/ladder',
     {
@@ -401,7 +405,7 @@ export async function registerLadder(
     },
     async (request, reply) => {
       const accountId = request.auth!.account.id;
-      checkRead(accountId, reply);
+      await checkRead(accountId, reply);
       const gameNow = options.now();
       // Which season: the one asked for, else the one under way, else the latest begun.
       const begun = (await listSeasons(app.db)).filter(

@@ -94,6 +94,9 @@ services:
       TRUST_PROXY: '1'
       OFFLINE_CAP_SECONDS: ${OFFLINE_CAP_SECONDS:-10800}
       SETTLE_INTERVAL_SECONDS: ${SETTLE_INTERVAL_SECONDS:-300}
+      # Ticket 6.9 (DEPLOY.md "Running two API instances"): rate limits counted in PostgreSQL,
+      # shared by every API instance. `memory` counts in this process (one instance only).
+      SHARED_STATE: ${SHARED_STATE:-postgres}
       # Ticket D.2 (DEPLOY.md "Registration"): open | invite | closed. Open if unset.
       REGISTRATION_MODE: ${REGISTRATION_MODE:-open}
       # The owner's legal pages, mounted read-only from deploy/legal/ (DEPLOY.md "Legal pages");

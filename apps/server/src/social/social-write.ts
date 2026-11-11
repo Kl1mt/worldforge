@@ -6,12 +6,14 @@ import { withTransaction } from '../db/transaction.js';
 import type { Transaction, Executor } from '../db/types.js';
 import { ApiError } from '../errors.js';
 import { activeSanctions, sanctionError } from './sanctions.js';
+import { createMemoryLimitStore, type LimitStore } from '../shared/limit-store.js';
+import { createWindowLimiter, rateLimited } from '../shared/limiter.js';
 
 /**
  * The social-write rate-limit class (ticket 4.1, docs/SOCIAL.md "Social writes"): on top of
  * 3.9's per-account limits, every social write (report, rename; later profile edits, friend
  * requests, guild actions, chat messages) counts against one tighter budget per account, in
- * several fixed windows at once. In-process memory, one API instance (like 3.9's limits).
+ * several fixed windows at once. Shared across API instances since ticket 6.9.
  */
 export interface SocialWriteLimit {
   windows: { windowMs: number; max: number }[];
@@ -25,11 +27,10 @@ export const DEFAULT_SOCIAL_WRITE_LIMIT: SocialWriteLimit = {
   ],
 };
 
-const SWEEP_AT = 10_000;
-
 /**
  * A per-account limiter over several fixed windows. `limit` names the class in the `429` body
- * (`details.limit`): `social` (4.1) or `trade` (T.4, `createTradeWriteLimiter`).
+ * (`details.limit`): `social` (4.1) or `trade` (T.4, `createTradeWriteLimiter`). Ticket 6.9: the
+ * counts are in the shared limit store, and a write is counted in every window or (refused) none.
  */
 export function createSocialWriteLimiter(
   limit: SocialWriteLimit,
@@ -38,49 +39,21 @@ export function createSocialWriteLimiter(
     limit: 'social',
     message: 'Too many posts and reports.',
   },
+  store: LimitStore = createMemoryLimitStore(),
 ) {
-  const longest = Math.max(...limit.windows.map((w) => w.windowMs));
-  const counts = new Map<string, { startedAt: number; used: number }[]>();
+  const take = createWindowLimiter(store, label.limit, limit.windows, now);
 
   /** Counts one social write; throws `429 rate_limited` (`details.limit: 'social'`) when over. */
-  return function check(accountId: string, reply: FastifyReply): void {
-    const t = now().getTime();
-    let state = counts.get(accountId);
-    if (!state) {
-      if (counts.size >= SWEEP_AT) {
-        for (const [id, s] of counts)
-          if (s.every((w) => t - w.startedAt >= longest)) counts.delete(id);
-      }
-      state = limit.windows.map(() => ({ startedAt: t, used: 0 }));
-      counts.set(accountId, state);
-    }
-    let retryAfterMs = 0;
-    limit.windows.forEach((w, i) => {
-      const s = state[i]!;
-      if (t - s.startedAt >= w.windowMs || t < s.startedAt) {
-        s.startedAt = t;
-        s.used = 0;
-      }
-      if (s.used >= w.max) retryAfterMs = Math.max(retryAfterMs, s.startedAt + w.windowMs - t);
-    });
-    if (retryAfterMs > 0) {
-      const retryAfterSeconds = Math.max(1, Math.ceil(retryAfterMs / 1000));
-      void reply.header('retry-after', String(retryAfterSeconds));
-      throw new ApiError(
-        429,
-        'rate_limited',
-        `${label.message} Try again in ${retryAfterSeconds} s.`,
-        { retryAfterSeconds, limit: label.limit },
-      );
-    }
-    for (const s of state) s.used += 1;
+  return async function check(accountId: string, reply: FastifyReply): Promise<void> {
+    const out = await take(accountId);
+    if (out.retryAfterMs > 0) rateLimited(reply, out.retryAfterMs, label.limit, label.message);
   };
 }
 
 declare module 'fastify' {
   interface FastifyInstance {
     /** Counts one social write for the account (see `createSocialWriteLimiter`). */
-    socialWriteLimit: (accountId: string, reply: FastifyReply) => void;
+    socialWriteLimit: (accountId: string, reply: FastifyReply) => Promise<void>;
     /** The auth clock: sessions, sanctions and social limits use it. */
     authNow: () => Date;
   }
@@ -119,7 +92,7 @@ export async function socialWrite<T>(
   fn: (tx: Transaction, ctx: { account: Account; now: Date }) => Promise<T>,
 ): Promise<T> {
   const accountId = request.auth!.account.id;
-  app.socialWriteLimit(accountId, reply);
+  await app.socialWriteLimit(accountId, reply);
   const now = app.authNow();
   return withTransaction(app.db, async (tx) => {
     const account = await assertSocialWriteAllowed(tx, accountId, action, now);

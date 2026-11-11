@@ -58,6 +58,11 @@ export interface ServerConfig {
   build: { gitSha: string | null; buildTime: string | null };
   /** Ticket 5.7. */
   mail: MailConfig;
+  /**
+   * Ticket 6.9 (`SHARED_STATE`): where the rate limits count. `postgres` (default): in the
+   * database, shared by every API instance. `memory`: in this process (one instance only).
+   */
+  sharedState: 'postgres' | 'memory';
 }
 
 function intEnv(env: NodeJS.ProcessEnv, name: string, fallback: number, min: number, max: number) {
@@ -111,7 +116,17 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
       buildTime: buildEnv(env.WORLDFORGE_BUILD_TIME, /^\d{4}-\d{2}-\d{2}T[\d:.]+Z$/),
     },
     mail: mailEnv(env),
+    sharedState: sharedStateEnv(env),
   };
+}
+
+function sharedStateEnv(env: NodeJS.ProcessEnv): 'postgres' | 'memory' {
+  const raw = env.SHARED_STATE?.trim().toLowerCase();
+  if (raw === undefined || raw === '') return 'postgres';
+  if (raw !== 'postgres' && raw !== 'memory') {
+    throw new Error(`Invalid SHARED_STATE: ${env.SHARED_STATE} (expected postgres|memory)`);
+  }
+  return raw;
 }
 
 const DEV_PUBLIC_BASE_URL = 'http://localhost:5173';

@@ -121,7 +121,8 @@ describe('guilds (ticket 4.4)', () => {
   let names = 0;
   const fresh = () => {
     names += 1;
-    const n = names.toString(36).toUpperCase();
+    // Decimal digits only (6.9: base-36 "1", "I" and "L" look alike and are refused as names).
+    const n = String(names);
     return { name: `Ashen Wardens ${n}`, tag: `AW${n}`.slice(0, 5) };
   };
 

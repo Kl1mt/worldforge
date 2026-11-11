@@ -111,7 +111,7 @@ E2E_MAIL_DIR=/tmp/wf-mail node tools/e2e/phase5-exit.mjs
 
 ### Authentication (ticket 1.2)
 Owner decision (GDD v0.3): real registration and login from Phase 1, no development identity. Email + password, hashed with **argon2id** via `@node-rs/argon2` (prebuilt native binaries, no build step; Node 22 has no built-in argon2). Sessions are opaque random tokens in an `HttpOnly`, `Secure`, `SameSite=Lax` cookie scoped to `/api`, stored server-side as a SHA-256 hash so they can be revoked; no JWTs. Browsers accept `Secure` cookies on `http://localhost`, so local development uses the same flags (`SESSION_COOKIE_SECURE=0` exists only for plain-http hosts other than localhost). Code lives in `apps/server/src/auth/`; gameplay code depends only on `request.auth.account.id` from `app.requireAccount`, so adding OAuth later does not touch game logic.
-Rate limits (the per-IP login/register limits with `@fastify/rate-limit`, and the per-account game-route limits of ticket 3.9 in `apps/server/src/auth/account-rate-limit.ts`) use in-process memory, which is correct for the single API instance assumed below; a horizontally scaled deployment needs a shared store (Redis or Postgres).
+Rate limits (the per-IP login/register limits with `@fastify/rate-limit`, and the per-account game-route limits of ticket 3.9 in `apps/server/src/auth/account-rate-limit.ts`) are counted in PostgreSQL since ticket 6.9 (`SHARED_STATE`, docs/DEPLOY.md §17), so they hold across API instances; production still runs one.
 Not in scope yet (follow-ups): email verification, password reset, OAuth, "log out everywhere", sliding session renewal, pruning expired session rows, and argon2 parameter upgrades on login.
 
 ### Vite + React 19 web client

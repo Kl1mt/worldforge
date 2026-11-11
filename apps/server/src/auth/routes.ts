@@ -1,6 +1,6 @@
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import fastifyCookie from '@fastify/cookie';
-import fastifyRateLimit from '@fastify/rate-limit';
+import fastifyRateLimit, { type RateLimitPluginOptions } from '@fastify/rate-limit';
 import { eq, sql } from 'drizzle-orm';
 import {
   GUIDE_STEP_IDS,
@@ -47,6 +47,8 @@ import {
   type LoginThrottleLimit,
 } from './login-throttle.js';
 import { VERIFY_TOKEN_TTL_MS, issueToken } from './tokens.js';
+import { checkNewName } from '../names/checks.js';
+import { fastifyRateLimitStore } from '../shared/limiter.js';
 import { createMailOutbox, registerAccountSecurity } from './security-routes.js';
 import {
   EMAIL_MAX,
@@ -58,7 +60,7 @@ import {
 
 declare module 'fastify' {
   interface FastifyInstance {
-    /** Ticket 5.7's per-account login throttle (in memory); D.4's admin tools clear a lock. */
+    /** Ticket 5.7's per-account login throttle (shared store, 6.9); D.4's admin tools clear a lock. */
     loginThrottle: LoginThrottle;
   }
 }
@@ -283,10 +285,18 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
   const { now } = options;
 
   await app.register(fastifyCookie);
-  // Only routes that opt in via `config.rateLimit` are limited. The store is in-process memory,
-  // which is correct for the single API instance assumed in TECH_STACK.md.
+  // Only routes that opt in via `config.rateLimit` are limited. Ticket 6.9: with the shared store
+  // the per-IP counts are in PostgreSQL (one key per route and address), so they hold across API
+  // instances; `SHARED_STATE=memory` keeps the plugin's own in-process store.
   await app.register(fastifyRateLimit, {
     global: false,
+    ...(app.limitStore.kind === 'postgres'
+      ? {
+          store: fastifyRateLimitStore(app.limitStore, app.db) as unknown as NonNullable<
+            RateLimitPluginOptions['store']
+          >,
+        }
+      : {}),
     errorResponseBuilder: (_request, context) =>
       new ApiError(429, 'rate_limited', `Too many attempts. Try again in ${context.after}.`, {
         retryAfterSeconds: Math.ceil(context.ttl / 1000),
@@ -313,9 +323,9 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
     });
   };
 
-  const accountRateLimit = createAccountRateLimiter(options.accountRateLimit, now);
+  const accountRateLimit = createAccountRateLimiter(options.accountRateLimit, now, app.limitStore);
   // Ticket 5.7.
-  const throttle = createLoginThrottle(options.loginThrottle, now);
+  const throttle = createLoginThrottle(options.loginThrottle, now, app.limitStore);
   const links = mailLinks(options.publicBaseUrl);
   const outbox = createMailOutbox(app, options.mailer, now);
   const loginOutcome = (outcome: 'ok' | 'failed' | 'locked' | 'throttled') =>
@@ -326,8 +336,14 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
   // Ticket D.4: the admin panel's "clear login lock" (it computes the key from the stored email
   // server-side; the address never leaves the server).
   app.decorate('loginThrottle', throttle);
-  app.decorate('socialWriteLimit', createSocialWriteLimiter(options.socialWriteLimit, now));
-  app.decorate('tradeWriteLimit', createTradeWriteLimiter(options.tradeWriteLimit, now));
+  app.decorate(
+    'socialWriteLimit',
+    createSocialWriteLimiter(options.socialWriteLimit, now, undefined, app.limitStore),
+  );
+  app.decorate(
+    'tradeWriteLimit',
+    createTradeWriteLimiter(options.tradeWriteLimit, now, app.limitStore),
+  );
   const seen = createPresenceRecorder(
     app.db,
     (err) => app.log.warn({ err }, 'presence write failed'),
@@ -346,7 +362,7 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
     const [suspension] = await activeSanctions(app.db, resolved.account.id, at, ['suspend']);
     if (suspension) throw sanctionError(suspension);
     // Ticket 3.9: per-account limits, checked before any game work (or idempotency claim).
-    accountRateLimit(resolved.account.id, request.method, reply);
+    await accountRateLimit(resolved.account.id, request.method, reply);
     // Ticket 4.3: presence, coalesced (one write every few minutes per account at most).
     await seen(resolved.account.id, at);
     request.auth = resolved;
@@ -428,6 +444,10 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
       const issuedAt = now();
       try {
         const { account, session, verify } = await withTransaction(app.db, async (tx) => {
+          // Ticket 6.9: no look-alike of another player's name or a reserved one.
+          const displayNameSkeleton = await checkNewName(tx, 'displayName', value.displayName, {
+            field: 'displayName',
+          });
           let inviteId: string | null = null;
           if (mode === 'invite') {
             inviteId = await redeemInvite(tx, inviteCode, issuedAt);
@@ -439,6 +459,7 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
               id: uuidv7(),
               email: value.email,
               displayName: value.displayName,
+              displayNameSkeleton,
               handle: newHandle(),
               passwordHash,
               createdAt: issuedAt,
@@ -501,7 +522,7 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
       const key = throttleKey(email);
       // Ticket 5.8: the check is reserved before the password is read, so guesses sent together
       // get no more checks than the same guesses one after another.
-      const lockedMs = throttle.begin(key);
+      const lockedMs = await throttle.begin(key);
       if (lockedMs > 0) {
         await loginOutcome('throttled');
         throw loginThrottled(reply, lockedMs);
@@ -521,7 +542,7 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
           : await verifyAgainstDummy(password);
         if (!account || !ok) {
           // Same status, code and message for both cases; only the audit row tells them apart.
-          const lockMs = throttle.fail(key);
+          const lockMs = await throttle.fail(key);
           await withTransaction(app.db, async (tx) => {
             await writeAudit(tx, {
               event: 'auth.login_failed',
@@ -544,7 +565,7 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
           throw INVALID_CREDENTIALS();
         }
         // The right password: the address starts fresh, suspended or not.
-        throttle.clear(key);
+        await throttle.clear(key);
 
         // Ticket 4.1: a suspended account gets no session (told why only after the right password).
         const [suspension] = await activeSanctions(app.db, account.id, now(), ['suspend']);
@@ -576,7 +597,7 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
         setSessionCookie(reply, session.token, session.expiresAt);
         return { account: accountView(account) };
       } finally {
-        throttle.end(key);
+        await throttle.end(key);
       }
     },
   );
@@ -643,7 +664,7 @@ export async function registerAuth(app: FastifyInstance, options: AuthOptions): 
     throttle,
     links,
     outbox,
-    mailLimit: createKeyedLimiter(options.mailLimit, now),
+    mailLimit: createKeyedLimiter(options.mailLimit, now, app.limitStore),
     rateLimitConfig,
   });
 }

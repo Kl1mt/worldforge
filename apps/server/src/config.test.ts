@@ -18,6 +18,7 @@ describe('loadConfig', () => {
       legalDir: undefined,
       build: { gitSha: null, buildTime: null },
       mail: { transport: 'log', smtp: null, publicBaseUrl: 'http://localhost:5173' },
+      sharedState: 'postgres',
     });
   });
 
@@ -54,6 +55,7 @@ describe('loadConfig', () => {
       legalDir: '/srv/legal',
       build: { gitSha: '9fbd2cc', buildTime: '2026-11-06T12:00:00Z' },
       mail: { transport: 'log', smtp: null, publicBaseUrl: 'http://localhost:5173' },
+      sharedState: 'postgres',
     });
   });
 
@@ -155,5 +157,12 @@ describe('loadConfig', () => {
         loadConfig({ ...smtp, NODE_ENV: 'production', PUBLIC_BASE_URL: 'http://play.example.com' }),
       ).toThrow(/https/);
     });
+  });
+
+  it('ticket 6.9: SHARED_STATE picks the limit store (postgres by default)', () => {
+    expect(loadConfig({}).sharedState).toBe('postgres');
+    expect(loadConfig({ SHARED_STATE: 'memory' }).sharedState).toBe('memory');
+    expect(loadConfig({ SHARED_STATE: ' Postgres ' }).sharedState).toBe('postgres');
+    expect(() => loadConfig({ SHARED_STATE: 'redis' })).toThrow(/SHARED_STATE/);
   });
 });

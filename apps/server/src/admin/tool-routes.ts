@@ -1,3 +1,4 @@
+import { bumpCacheVersion } from '../shared/cache-sync.js';
 import type { FastifyInstance, FastifyReply, FastifyRequest } from 'fastify';
 import { and, asc, count, eq, isNull, like, sql } from 'drizzle-orm';
 import {
@@ -329,7 +330,7 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
         authNow: app.authNow(),
         adminId: request.auth!.account.id,
         // Computed from the stored address here; the address itself never leaves the server.
-        loginLockedForMs: app.loginThrottle.lockedFor(throttleKey(account.email)),
+        loginLockedForMs: await app.loginThrottle.lockedFor(throttleKey(account.email)),
       });
       await writeAudit(app.db, {
         event: 'admin.player.inspect',
@@ -1344,8 +1345,9 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
         const account = await targetAccount(tx, handle);
         await lockAdmin(tx, adminId);
         const key = throttleKey(account.email);
-        const lockedForMs = app.loginThrottle.lockedFor(key);
-        app.loginThrottle.clear(key);
+        // Ticket 6.9: read and cleared in this transaction (the shared store's row).
+        const lockedForMs = await app.loginThrottle.lockedFor(key, tx);
+        await app.loginThrottle.clear(key, tx);
         await adminAudit(tx, {
           event: 'admin.login_lock.clear',
           adminId,
@@ -1466,6 +1468,8 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
         } else if (!b.set && was) {
           await tx.delete(worldFlags).where(eq(worldFlags.flagId, flagId));
         }
+        // Ticket 6.9: every instance's world state reloads when this commits.
+        if (b.set !== was) await bumpCacheVersion(tx, 'world');
         // World-wide: the row sits on the admin's own account.
         await adminAudit(tx, {
           event: 'admin.world.flag',

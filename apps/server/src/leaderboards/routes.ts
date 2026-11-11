@@ -16,6 +16,7 @@ import {
 import { characters, leaderboardEntries } from '../db/schema.js';
 import type { Executor } from '../db/types.js';
 import { queryRows } from '../db/query.js';
+import { createWindowLimiter, rateLimited } from '../shared/limiter.js';
 import { ApiError } from '../errors.js';
 import { profileRelationsFor } from '../social/profiles.js';
 import { hiddenTargetKeys } from '../social/sanctions.js';
@@ -380,33 +381,14 @@ const boardSchema = {
 export function createBoardReadLimiter(
   app: FastifyInstance,
   limit: { max: number; windowMs: number },
-): (accountId: string, reply: FastifyReply) => void {
-  const windows = new Map<string, { startedAt: number; n: number }>();
-
-  return (accountId: string, reply: FastifyReply) => {
-    const t = app.authNow().getTime();
-    let w = windows.get(accountId);
-    if (!w || t - w.startedAt >= limit.windowMs || t < w.startedAt) {
-      if (!w && windows.size >= 10_000) {
-        for (const [id, x] of windows) if (t - x.startedAt >= limit.windowMs) windows.delete(id);
-      }
-      w = { startedAt: t, n: 0 };
-      windows.set(accountId, w);
-    }
-    if (w.n >= limit.max) {
-      const retryAfterSeconds = Math.max(1, Math.ceil((w.startedAt + limit.windowMs - t) / 1000));
-      void reply.header('retry-after', String(retryAfterSeconds));
-      throw new ApiError(
-        429,
-        'rate_limited',
-        `Too many board reads. Try again in ${retryAfterSeconds} s.`,
-        {
-          retryAfterSeconds,
-          limit: 'boards',
-        },
-      );
-    }
-    w.n += 1;
+  counter = 'boards',
+): (accountId: string, reply: FastifyReply) => Promise<void> {
+  // Ticket 6.9: counted in the shared limit store (one counter per caller: `boards`, `ladder`).
+  const take = createWindowLimiter(app.limitStore, counter, [limit], () => app.authNow());
+  return async (accountId: string, reply: FastifyReply) => {
+    const out = await take(accountId);
+    if (out.retryAfterMs > 0)
+      rateLimited(reply, out.retryAfterMs, 'boards', 'Too many board reads.');
   };
 }
 
@@ -457,7 +439,7 @@ export async function registerLeaderboards(
     },
     async (request, reply) => {
       const accountId = request.auth!.account.id;
-      checkRead(accountId, reply);
+      await checkRead(accountId, reply);
       const now = app.authNow();
       // The lazy backfill for the viewer: heroes without current rows get them now.
       const own = await app.db

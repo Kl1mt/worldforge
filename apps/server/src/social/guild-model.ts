@@ -1,6 +1,6 @@
 import { randomInt } from 'node:crypto';
 import { and, eq, inArray, isNull, sql } from 'drizzle-orm';
-import { HANDLE_RE, type GuildRole } from '@worldforge/game-core';
+import { HANDLE_RE, nameSkeleton, type GuildRole } from '@worldforge/game-core';
 import {
   guildApplications,
   guildInvites,
@@ -204,6 +204,7 @@ export async function forceRenameGuildTx(
     .update(guilds)
     .set({
       ...placeholder,
+      nameSkeleton: nameSkeleton(placeholder.name),
       renameRequired: true,
       renameReason: by.reason,
       // A second forced rename before the leader renamed keeps the first offending name.

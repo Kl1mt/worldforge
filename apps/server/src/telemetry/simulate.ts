@@ -47,6 +47,11 @@ import { makeCryptReady } from '../test/dungeon.js';
 import { scoringInput } from '../scores/routes.js';
 import { createSimTrading, simTradingSettings, type TradingMode } from './simulate-trading.js';
 
+/** Ticket 6.9: letters that never look alike or spell a short reserved word (test/names.ts). */
+const SIM_LETTERS = 'abdefghjnopqtuwxyz';
+const simLetters = (n: number) =>
+  `${SIM_LETTERS[n % SIM_LETTERS.length]}${SIM_LETTERS[Math.floor(n / SIM_LETTERS.length) % SIM_LETTERS.length]}`;
+
 const REPO_ROOT = fileURLToPath(new URL('../../../../', import.meta.url));
 const { values: args } = parseArgs({
   options: {
@@ -181,7 +186,7 @@ for (const classId of CLASS_IDS) {
       method: 'POST',
       url: '/api/characters',
       payload: {
-        name: `Sim${String.fromCharCode(97 + (n % 26))}${String.fromCharCode(97 + Math.floor(n / 26))}`,
+        name: `Sim${simLetters(n)}`,
         classId,
         appearance: { banner: 'ash' },
       },
@@ -220,7 +225,7 @@ if (alts) {
       method: 'POST',
       url: '/api/characters',
       payload: {
-        name: `Simalt${String.fromCharCode(97 + (n % 26))}${String.fromCharCode(97 + Math.floor(n / 26))}`,
+        name: `Simalt${simLetters(n)}`,
         classId,
         appearance: { banner: 'ash' },
       },

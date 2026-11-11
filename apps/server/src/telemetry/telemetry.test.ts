@@ -32,6 +32,7 @@ import {
   sumRollups,
   type RollupRow,
 } from './report.js';
+import { safeLetters } from '../test/names.js';
 
 const HOUR = 60 * 60 * 1000;
 let database: DatabaseHandle;
@@ -63,8 +64,8 @@ interface Player {
 }
 
 let seq = 0;
-const letters = (n: number) =>
-  String.fromCharCode(97 + (n % 26)) + String.fromCharCode(97 + Math.floor(n / 26));
+// Ticket 6.9: letters that never look alike (two generated names are never refused as look-alikes).
+const letters = (n: number) => safeLetters(n);
 const players: Player[] = [];
 
 async function newPlayer({ gold = 50_000, classId = 'warrior' } = {}): Promise<Player> {

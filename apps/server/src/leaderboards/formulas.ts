@@ -1,3 +1,4 @@
+import { bumpCacheVersion } from '../shared/cache-sync.js';
 import { eq, sql } from 'drizzle-orm';
 import {
   formulaVersionsAt,
@@ -71,6 +72,8 @@ export async function ensureFormulaSchedule(
         set: { value, version: (row?.version ?? 0) + 1, updatedAt: now },
       });
     await writeAudit(tx, { event: 'leaderboards.formula_schedule', data: { added } });
+    // Ticket 6.9: every instance's formula plan reloads when this commits.
+    await bumpCacheVersion(tx, 'formulas');
     return { schedule: next, added };
   });
 }

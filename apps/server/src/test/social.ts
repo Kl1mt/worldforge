@@ -4,6 +4,7 @@ import { SESSION_COOKIE, createSession } from '../auth/index.js';
 import { accounts } from '../db/schema.js';
 import type { Database } from '../db/types.js';
 import { uuidv7 } from '../db/uuid.js';
+import { NAME_SAFE_LETTERS } from './names.js';
 
 export interface TestAccount {
   id: string;
@@ -17,8 +18,8 @@ let seq = 0;
 const letters = (n: number) => {
   let s = '';
   do {
-    s = String.fromCharCode(97 + (n % 26)) + s;
-    n = Math.floor(n / 26);
+    s = NAME_SAFE_LETTERS[n % NAME_SAFE_LETTERS.length]! + s;
+    n = Math.floor(n / NAME_SAFE_LETTERS.length);
   } while (n > 0);
   return s;
 };

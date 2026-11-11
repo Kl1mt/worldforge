@@ -14,6 +14,7 @@ import {
 import { writeAudit } from '../db/audit.js';
 import { withTransaction } from '../db/transaction.js';
 import type { Database, Transaction } from '../db/types.js';
+import { checkNewName } from '../names/checks.js';
 import { ApiError } from '../errors.js';
 import { endActivityTx, type ActivityOptions } from '../activity/settle.js';
 import { lockOwnedCharacter } from '../inventory/routes.js';
@@ -319,9 +320,14 @@ export async function renameHero(
   if (taken && taken.id !== hero.id) {
     throw new ApiError(409, 'name_taken', 'Another hero already has this name.');
   }
+  // Ticket 6.9: the same look-alike and reserved-name rules as players get.
+  const nameSkeleton = await checkNewName(tx, 'heroName', checked.name, {
+    field: 'name',
+    selfId: hero.id,
+  });
   await tx
     .update(characters)
-    .set({ name: checked.name, updatedAt: authNow })
+    .set({ name: checked.name, nameSkeleton, updatedAt: authNow })
     .where(eq(characters.id, hero.id));
   await adminAudit(tx, {
     event: 'admin.hero.rename',

@@ -76,6 +76,12 @@ export const accounts = pgTable(
     /** Stored as entered (trimmed); uniqueness is case-insensitive via `lower(email)`. */
     email: text('email').notNull(),
     displayName: text('display_name').notNull(),
+    /**
+     * Ticket 6.9: game-core `nameSkeleton(display_name)`, written with every new or changed name and
+     * backfilled for older ones (`name-skeletons:v<n>`); null until then. A new name may not share
+     * it with another account's (docs/SOCIAL.md "Look-alike and reserved names").
+     */
+    displayNameSkeleton: text('display_name_skeleton'),
     /** argon2id/scrypt PHC string, written by ticket 1.2. Never the plain password. */
     passwordHash: text('password_hash').notNull(),
     characterSlots: smallint('character_slots').notNull().default(2),
@@ -152,6 +158,7 @@ export const accounts = pgTable(
   (t) => [
     uniqueIndex('accounts_email_lower_key').on(sql`lower(${t.email})`),
     uniqueIndex('accounts_display_name_lower_key').on(sql`lower(${t.displayName})`),
+    index('accounts_display_name_skeleton_idx').on(t.displayNameSkeleton),
     uniqueIndex('accounts_handle_key').on(t.handle),
     check('accounts_role_check', sql`${t.role} in ('player', 'moderator', 'admin')`),
     check(
@@ -260,6 +267,8 @@ export const characters = pgTable(
       .references(() => accounts.id, { onDelete: 'cascade' }),
     /** Stored trimmed as entered; unique case-insensitively across all accounts. */
     name: text('name').notNull(),
+    /** Ticket 6.9: game-core `nameSkeleton(name)` (see `accounts.display_name_skeleton`). */
+    nameSkeleton: text('name_skeleton'),
     /** game-core `ClassId`; validated by the server, immutable after creation. */
     classId: text('class_id').$type<ClassId>().notNull(),
     /** Cosmetic choices (game-core `CharacterAppearance`). */
@@ -320,6 +329,7 @@ export const characters = pgTable(
       .where(sql`${t.deletedAt} is not null`),
     check('characters_deleted_check', sql`(${t.deletedAt} is null) = (${t.deleteReason} is null)`),
     uniqueIndex('characters_name_lower_key').on(sql`lower(${t.name})`),
+    index('characters_name_skeleton_idx').on(t.nameSkeleton),
     check('characters_level_check', sql`${t.level} >= 1`),
     check('characters_experience_check', sql`${t.experience} >= 0`),
     check('characters_gold_check', sql`${t.gold} >= 0`),
@@ -1193,6 +1203,8 @@ export const guilds = pgTable(
       .notNull()
       .$defaultFn(() => newHandle()),
     name: text('name').notNull(),
+    /** Ticket 6.9: game-core `nameSkeleton(name)` (see `accounts.display_name_skeleton`). */
+    nameSkeleton: text('name_skeleton'),
     tag: text('tag').notNull(),
     /** game-core `GuildEmblemId`. */
     emblem: text('emblem').notNull(),
@@ -1211,6 +1223,7 @@ export const guilds = pgTable(
   },
   (t) => [
     uniqueIndex('guilds_handle_key').on(t.handle),
+    index('guilds_name_skeleton_idx').on(t.nameSkeleton),
     uniqueIndex('guilds_name_lower_key')
       .on(sql`lower(${t.name})`)
       .where(sql`${t.disbandedAt} is null`),
@@ -2372,3 +2385,68 @@ export const tradeHolds = pgTable(
 );
 
 export type TradeHold = typeof tradeHolds.$inferSelect;
+
+/**
+ * Ticket 6.9 (docs/DEPLOY.md "Running two API instances"): the shared fixed-window rate-limit
+ * counters, one row per limiter key (`<class>|<windows>|<account or address>`). `starts` and
+ * `hits` hold one entry per window of the class (ms since the epoch on the server's injected
+ * clock, and the count in it); `expires_at` is the latest window end, for pruning. Written by one
+ * `insert … on conflict … do update … returning` per request (`limits/postgres.ts`). The table is
+ * switched to `UNLOGGED` by `db:migrate` (no WAL; a database crash forgets the counts, like an API
+ * restart did before).
+ */
+export const rateLimitCounters = pgTable('rate_limit_counters', {
+  key: text('key').primaryKey(),
+  starts: bigint('starts', { mode: 'number' }).array().notNull(),
+  hits: integer('hits').array().notNull(),
+  expiresAt: bigint('expires_at', { mode: 'number' }).notNull(),
+  /** Whether the last request was refused (so `returning` can tell the caller). */
+  refused: boolean('refused').notNull().default(false),
+});
+
+/**
+ * Ticket 6.9: the per-address login lock (5.7, 5.8) shared by every API instance. Keyed by the
+ * SHA-256 of the lower-cased address (known or not), never the address. Times are ms on the auth
+ * clock. `in_flight` counts password checks under way, valid until `in_flight_until` (a lease, so
+ * an instance that dies mid-check frees its reservation). Unlogged like `rate_limit_counters`.
+ */
+export const loginThrottle = pgTable('login_throttle', {
+  key: text('key').primaryKey(),
+  failures: integer('failures').notNull().default(0),
+  lastFailureAt: bigint('last_failure_at', { mode: 'number' }).notNull(),
+  lockedUntil: bigint('locked_until', { mode: 'number' }).notNull().default(0),
+  inFlight: integer('in_flight').notNull().default(0),
+  inFlightUntil: bigint('in_flight_until', { mode: 'number' }).notNull().default(0),
+});
+
+/**
+ * Ticket 6.9: one version per shared cache (`world`, `settings`, `seasons`). A write that changes
+ * what a cache holds bumps its version and sends `NOTIFY wf_cache` in the same transaction; every
+ * API instance drops its copy on the notify, and a periodic version check catches a missed one.
+ */
+export const cacheVersions = pgTable('cache_versions', {
+  name: text('name').primaryKey(),
+  version: bigint('version', { mode: 'number' }).notNull().default(0),
+  updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+});
+
+/**
+ * Ticket 6.9: reserved names the admins add (the panel's Names tab, `admin:tools reserved-name`),
+ * on top of game-core's built-in `RESERVED_NAME_DEFAULTS`. New and changed display, hero and guild
+ * names that imitate one are refused; names taken before it was added are kept.
+ */
+export const reservedNames = pgTable(
+  'reserved_names',
+  {
+    id: uuid('id').primaryKey(),
+    name: text('name').notNull(),
+    /** game-core `nameSkeleton(name)`: one entry per look. */
+    skeleton: text('skeleton').notNull(),
+    note: text('note').notNull().default(''),
+    createdBy: uuid('created_by').references(() => accounts.id, { onDelete: 'set null' }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [uniqueIndex('reserved_names_skeleton_key').on(t.skeleton)],
+);
+
+export type ReservedName = typeof reservedNames.$inferSelect;

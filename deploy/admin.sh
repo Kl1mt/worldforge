@@ -28,12 +28,13 @@
 #   deploy/admin.sh trading patterns [--days 28] [--json]   (trade pattern report, ticket T.6)
 #   deploy/admin.sh test-account <handle> on|off   (mark a test account for the admin tools, D.4)
 #   deploy/admin.sh purge [--dry-run]          (delete heroes soft-deleted over 14 days ago, D.4)
+#   deploy/admin.sh reserved-name list|add <name> [--note <text>]|remove <name>   (reserved names, 6.9)
 set -euo pipefail
 # shellcheck source=SCRIPTDIR/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 
 if (($# == 0)) || [[ $1 == -h || $1 == --help ]]; then
-  sed -n '2,29p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
+  sed -n '2,31p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'
   exit 0
 fi
 require_setup
@@ -53,7 +54,7 @@ elif [[ $1 == seasons ]]; then
 elif [[ $1 == events ]]; then
   shift
   compose exec -T server node dist/events/event-cli.js "$@"
-elif [[ $1 == test-account || $1 == purge ]]; then
+elif [[ $1 == test-account || $1 == purge || $1 == reserved-name ]]; then
   compose exec -T server node dist/admin/admin-cli.js "$@"
 elif [[ $1 == trading ]]; then
   shift

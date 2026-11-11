@@ -844,3 +844,31 @@
 .seasonroll__status--closing {
   color: var(--bone-300);
 }
+
+/* Ticket 6.9: the Names folio (reserved names). */
+.names-group {
+  margin-block-end: var(--space-4);
+}
+.names-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+.names-list__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+.names-list__name {
+  font-weight: 600;
+}
+.names-remove {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-2);
+}

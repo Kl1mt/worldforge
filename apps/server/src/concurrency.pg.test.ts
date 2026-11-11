@@ -51,6 +51,7 @@ import { makeCryptReady } from './test/dungeon.js';
 import { isPackItem } from './inventory/location.js';
 import { recordQuestEventsTx } from './quests/store.js';
 import { loadRollups, reconcileWithAudit, sumRollups } from './telemetry/report.js';
+import { NAME_SAFE_LETTERS } from './test/names.js';
 
 const url = process.env.DATABASE_URL;
 if (!url && process.env.REQUIRE_PG_TESTS === '1') {
@@ -98,8 +99,8 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
     let n = seq;
     let s = '';
     do {
-      s = String.fromCharCode(97 + (n % 26)) + s;
-      n = Math.floor(n / 26);
+      s = NAME_SAFE_LETTERS[n % NAME_SAFE_LETTERS.length]! + s;
+      n = Math.floor(n / NAME_SAFE_LETTERS.length);
     } while (n > 0);
     return s;
   };

@@ -217,7 +217,7 @@ export async function registerAccountSecurity(
     links: MailLinks;
     outbox: MailOutbox;
     /** Per key (account id, or the address for resets): returns seconds to wait, or 0. */
-    mailLimit: (key: string) => number;
+    mailLimit: (key: string) => Promise<number>;
     rateLimitConfig: (limit: RateLimit) => object;
   },
 ): Promise<void> {
@@ -253,7 +253,7 @@ export async function registerAccountSecurity(
     if (account.emailVerifiedAt !== null) {
       throw new ApiError(409, 'already_verified', 'This email address is already verified.');
     }
-    const wait = mailLimit(`account:${account.id}`);
+    const wait = await mailLimit(`account:${account.id}`);
     if (wait > 0) throw mailLimited(reply, wait);
     const at = now();
     const issued = await withTransaction(app.db, async (tx) => {
@@ -290,7 +290,7 @@ export async function registerAccountSecurity(
       const at = now();
       // At most `mailLimit.max` reset letters per address and window: nobody can flood a mailbox.
       // Counted for unknown addresses too, so the cap behaves the same for every address.
-      const capped = mailLimit(`reset:${throttleKey(email)}`) > 0;
+      const capped = (await mailLimit(`reset:${throttleKey(email)}`)) > 0;
       const issued = await withTransaction(app.db, async (tx) => {
         const token =
           account && !capped ? await issueToken(tx, account, 'reset_password', at) : null;
@@ -360,7 +360,7 @@ export async function registerAccountSecurity(
         return used;
       });
       if (result.status !== 'ok') throw tokenError(result.status);
-      throttle.clear(throttleKey(result.account.email));
+      await throttle.clear(throttleKey(result.account.email));
       outbox.deliver(passwordChangedMail(result.account.email, links.forgot(), at));
       return { reset: true };
     },
@@ -437,17 +437,17 @@ export async function registerAccountSecurity(
       // The current password, under the same per-account throttle as login.
       const key = throttleKey(current.email);
       // Ticket 5.8: reserved before the check, as at login (parallel guesses get no extra tries).
-      const lockedMs = throttle.begin(key);
+      const lockedMs = await throttle.begin(key);
       if (lockedMs > 0) throw loginThrottled(reply, lockedMs);
       let passwordOk: boolean;
       try {
         passwordOk = await verifyPassword(current.passwordHash, request.body.password);
-        if (!passwordOk) throttle.fail(key);
+        if (!passwordOk) await throttle.fail(key);
       } finally {
-        throttle.end(key);
+        await throttle.end(key);
       }
       if (!passwordOk) {
-        const lockMs = throttle.lockedFor(key);
+        const lockMs = await throttle.lockedFor(key);
         await withTransaction(app.db, async (tx) => {
           await writeAudit(tx, {
             event: 'account.email_change_refused',
@@ -465,7 +465,7 @@ export async function registerAccountSecurity(
       // Ticket 5.8: three changes an hour with mail off too, so the change can't test addresses
       // (`409 email_taken`) faster than registration does.
       {
-        const wait = mailLimit(`account:${current.id}`);
+        const wait = await mailLimit(`account:${current.id}`);
         if (wait > 0) throw mailLimited(reply, wait);
       }
       const at = now();
