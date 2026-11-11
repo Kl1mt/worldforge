@@ -244,6 +244,40 @@ Every limiter in the server, checked against realistic play (the web client's ti
 
 Not limited beyond the account class (reviewed, acceptable): saving a defence, every arena read, seasons and prestige reads, scores, the account security panel, log out other devices, the shelf, trading reads, and the staff routes (which answer `404` first). Not limited at all: `POST /api/auth/logout` and `GET /api/config` (one lookup each, no state). The limiter maps are swept of stale keys once they hold 10,000; past that each new key walks the map (a few milliseconds at worst; the per-IP limits bound how fast keys arrive): accepted for one instance. Ticket 6.9: with the shared store (production) the rows of windows that are over are deleted by the hourly pruning job; the memory store keeps the sweep.
 
+## Rate limits: the Phase 6 review — ticket 6.10
+
+The same check after Phase 6 and 6.9's shared store: every limiter class, what the Phase 6 screens send (the web client's timers and clicks), the abuse each class stops, and what a counted request costs now that every count is a row in PostgreSQL. **No value changed and no class added:** Phase 6 added no limiter, its writes fall in the classes below, and the busiest Phase 6 screen stays far under every limit. The exploit review is `docs/PHASE6_EXPLOIT_REVIEW.md`.
+
+**What Phase 6 sends** (one tab; `GET` unless it says so):
+
+| Screen | Requests | Class |
+| --- | --- | --- |
+| Tavern | the boss-modifier notice (`/api/world/boss-modifier`) and the event notice (`…/event`) once on open; *Join* a `POST` per hero, once | account |
+| Town and map | the event banner (`/api/events`) once per visit; the town works board every 60 s and the world view every 120 s (`ETag`, as since 2.7 and 6.7) | account |
+| Collection book | the collection once per session (shared by the book, the scenes and the mirror), again after a change; *Wear* a `POST` per click (`Idempotency-Key`) | account (actions) |
+| Forge, the Banked Fire | an item's quote when it is picked; *Awaken* a `POST` per item, once for good; Tyrantforged Work a `POST` per craft | account (actions) |
+| Heroic and the Tyrant's Forge | the door on open; while a run is under way `POST …/dungeon/settle` every 2 s (30 a minute, 3.6's crypt timer) next to the game's settle every 8 s; one claim per run | account (actions) |
+| Guild Hall | the siege plate every 120 s, attempts (three a week) | account; attempts are social writes |
+| Admin panel (events, names, tools, world) | on open and per click; the telemetry reconcile on request | account (after the `404` gate); reconcile |
+
+The busiest Phase 6 screen is a Heroic run in progress: about 38 requests and 37 actions a minute (crypt settle 30, game settle 7.5, world and badge 1), **12 % of the action limit**; three tabs of it 37 %. Everything else in Phase 6 is a read on opening a screen or a click.
+
+| Class | Value | Phase 6 use | Abuse it stops | Cost of a counted request (shared store) | Verdict |
+| --- | --- | --- | --- | --- | --- |
+| Account (3.9) | 900 requests, 300 actions a minute per account | every route above; a Heroic run's settle polls are the largest share (each replays the run in game-core, ≈ 1.2 ms of CPU at tier IV, 0.4 ms at the Tyrant) | scripted clients; at the cap, 300 replays a minute (≈ 6 ms of CPU a second) per account | one upsert on `rate_limit_counters` (≈ 1.1 ms round trip one after another, ≤ 0.27 ms extra under load: 6.9's `scale.pg.test.ts`) | keep |
+| Social writes (4.1) | 12 a minute, 240 an hour | guild boss attempts (three a week) and every Phase 4–5 write; Phase 6 added none | chat floods, report and duel spam | + one upsert (two keys: the minute and the hour windows in one row) | keep |
+| Trade (T.4) | 20 a minute | unchanged (trading is switched off in production) | offer spam, cap probing | + one upsert | keep |
+| Board reads (5.2) | 60 a minute, boards and ladder counted apart | unchanged (6.1's PvE board is a board read) | scraping every page and filter | + one upsert | keep |
+| Admin reconcile (D.3) | 3 per 5 minutes per admin | on request | a heavy audit scan in a loop from a stolen admin session | + one upsert | keep |
+| Login per IP | 10 a minute | unchanged | spraying addresses | one upsert (the address hashed) | keep |
+| Login per address (5.7, 5.8) | 5 free failures, then 30 s doubling to 15 min | unchanged | guessing one password | a few small transactions under the address's row lock (reserve, record, release) | keep |
+| Registration per IP | 5 an hour | unchanged | account farms (invite-only anyway) | one upsert | keep |
+| Forgot password per IP | 5 per 15 minutes | unchanged | mailbox floods | one upsert | keep |
+| Tokens per IP | 20 per 15 minutes | unchanged | token guessing (hopeless) | one upsert | keep |
+| Mail per key | 3 an hour | unchanged | mailbox floods, address probing | + one upsert | keep |
+
+**Not limited beyond the account class (reviewed, acceptable):** Item Awakening (once per item, a price of days of boss hoards), Tyrantforged Work (an Ember each), dungeon starts and claims (one open run per account), the event join (repeat-safe, one settle), the Forgeward contribution (the daily cap per account and need is the real bound), the cosmetic equips (no text, notify no one: unlike the prestige title they are not social writes; each writes one display row and one audit row, so a loop is bounded by the 300 actions a minute like any action), the collection and event reads, and every admin route (after the not-found `404`; a stolen admin session is limited by the account class, and its writes are audited). The reserved-name check reads the admins' list on every name write (a handful of rows). **Cost at scale:** at the realistic 22–38 requests a minute of an active player, the shared store adds one small unlogged write per request, well under 1 % of the database's work (DEPLOY.md §17); rows of finished windows are deleted by the hourly pruning job.
+
 ## Race tests
 
 `apps/server/src/social/social.pg.test.ts` (real PostgreSQL, part of `test:pg`, three rounds each in varied orders, asserting only what holds in every order): concurrent duplicate reports on one target; a mute racing the target's social writes; a suspension racing the target's requests; several moderators acting on one report; a role revoke racing the moderator's actions; no deadlock or retry.
