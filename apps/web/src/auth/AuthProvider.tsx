@@ -1,3 +1,4 @@
+import { resetCollection } from '../cosmetics/store';
 import {
   createContext,
   useCallback,
@@ -99,6 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     const res = await authApi.logout();
     if (!res.ok) return res.error;
+    resetCollection(); // Ticket 6.8: the next account loads its own collection.
     setState({ kind: 'anonymous' });
     return null;
   }, []);

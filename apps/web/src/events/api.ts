@@ -6,7 +6,7 @@ export interface EventCosmetic {
   kind: string;
   name: string;
   description: string;
-  /** Titles can be shown today (the honours picker); the rest wait for the collection book. */
+  /** Since 6.8 every catalogued cosmetic can be shown (the collection book). */
   shownToday: boolean;
 }
 

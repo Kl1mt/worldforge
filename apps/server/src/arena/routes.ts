@@ -429,13 +429,11 @@ export async function duelView(
     return {
       player: own ? null : people.player(accountId),
       blocked: !own && people.blocked(accountId),
-      hero: own
-        ? { name: snap.heroName, classId: snap.classId, level: snap.level }
-        : people.hero(accountId, characterId, {
-            name: snap.heroName,
-            classId: snap.classId,
-            level: snap.level,
-          }),
+      hero: people.hero(accountId, characterId, {
+        name: snap.heroName,
+        classId: snap.classId,
+        level: snap.level,
+      }),
       maxHealth: r.maxHealth,
       health: r.health,
       attacks: r.attacks,
@@ -886,7 +884,15 @@ export async function registerArena(
             result: resultFor(d.outcome, you),
             bracketId: d.bracketId,
             foughtAt: d.foughtAt.toISOString(),
-            yourHero: { name: mine.heroName, classId: mine.classId, level: mine.level },
+            yourHero: people.hero(
+              me,
+              you === 'challenger' ? d.challengerCharacterId : d.defenderCharacterId,
+              {
+                name: mine.heroName,
+                classId: mine.classId,
+                level: mine.level,
+              },
+            ),
             opponent: {
               player: people.player(theirAccount),
               blocked: people.blocked(theirAccount),

@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import type { CSSProperties } from 'react';
 import type { SpriteAsset } from '../content/assets';
+import type { PaletteSwap } from '../content/appearance';
+import { usePaletteSwap } from './paletteSwap';
 
 interface PixelSpriteProps {
   sprite: SpriteAsset;
@@ -13,6 +15,11 @@ interface PixelSpriteProps {
   style?: CSSProperties;
   /** Drawn instead if `sprite` fails to load (A.14: a frame sheet falls back to the portrait). */
   fallback?: SpriteAsset;
+  /**
+   * Ticket 6.8: a hero appearance's colour swap, applied in code (`paletteSwap.ts`). Until the
+   * swapped image is ready, or without a canvas, the sprite shows its own colours.
+   */
+  palette?: PaletteSwap | null;
 }
 
 /**
@@ -30,8 +37,11 @@ export function PixelSprite({
   className,
   style,
   fallback,
+  palette,
 }: PixelSpriteProps) {
   const [failed, setFailed] = useState(false);
+  const swapped = usePaletteSwap(sprite.path, palette);
+  const src = swapped ?? sprite.path;
   const s = Math.max(1, Math.floor(scale));
   const width = sprite.width * s;
   const height = sprite.height * s;
@@ -42,6 +52,7 @@ export function PixelSprite({
         sprite={fallback}
         scale={scale}
         alt={alt}
+        {...(palette ? { palette } : {})}
         {...(mirror ? { mirror } : {})}
         {...(className ? { className } : {})}
         {...(style ? { style } : {})}
@@ -81,7 +92,7 @@ export function PixelSprite({
         }}
       >
         <img
-          src={sprite.path}
+          src={src}
           width={width * frames}
           height={height}
           alt={alt}
@@ -96,13 +107,14 @@ export function PixelSprite({
 
   return (
     <img
-      src={sprite.path}
+      src={src}
       width={width}
       height={height}
       alt={alt}
       draggable={false}
       decoding="async"
       onError={() => setFailed(true)}
+      {...(palette ? { 'data-palette': swapped ? 'applied' : 'pending' } : {})}
       className={[
         'pixel',
         mirror ? 'pixel--mirror' : '',

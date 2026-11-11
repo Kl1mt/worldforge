@@ -592,3 +592,11 @@
     padding-bottom: calc(var(--space-3) + env(safe-area-inset-bottom));
   }
 }
+
+/* Ticket 6.8: a banner style's device on the banner's top corner, in front (32 px art at ×1). */
+.hero-portrait__device {
+  position: absolute;
+  top: 4px;
+  right: 13%;
+  z-index: 1;
+}

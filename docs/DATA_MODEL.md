@@ -352,7 +352,7 @@ Primary key `(account_id, achievement_id)`: every award is at-most-once (inserte
 ### data_backfills — implemented (4.2)
 | Column | Type | Notes |
 | --- | --- | --- |
-| id | text PK | the backfill and its input, e.g. `achievements:<hash of the achievement ids>` |
+| id | text PK | the backfill and its input, e.g. `achievements:<hash of the achievement ids>`, `cosmetics:<hash of the catalogue>` (6.8) |
 | completed_at | timestamptz | |
 | data | jsonb | counts (accounts, awarded) |
 
@@ -503,6 +503,13 @@ Migration `0039_world_events` (additive). `docs/EVENTS.md`.
 - `event_track_grants`: PK `(event, account_id, tier)`, `cosmetic_id`, `granted_at`: the reward ledger, exactly once.
 - `cosmetic_unlocks`: PK `(account_id, cosmetic_id)`, `source` (`event:<n>:tier:<t>`), `granted_at`. Minimal and additive; 6.8's collection book extends it.
 - `prestige_displays.cosmetic_title` (nullable): a title of kind `title` the account unlocked (composite FK `(account_id, cosmetic_title)` → `cosmetic_unlocks`); check: never together with `title_season`.
+
+### cosmetic_displays, hero_appearances; cosmetic_unlocks sources — implemented (6.8)
+Migration `0041_cosmetic_collection` (additive: two new tables, nothing changed). `docs/COSMETICS.md`.
+- `cosmetic_unlocks.source` gains `achievement:<id>`, `milestone:<character id>`, `season:<n>` and the same with a `backfill:` prefix (text, no schema change). Still exactly once per `(account_id, cosmetic_id)`.
+- `cosmetic_displays`: PK `account_id` (→ `accounts` cascade), `banner`, `crest`, `title_colour` (each nullable = plain; composite FK `(account_id, <column>)` → `cosmetic_unlocks`: only the account's own unlocks), `updated_at`. No row = never chosen (plain).
+- `hero_appearances`: PK `character_id` (→ `characters` cascade), `account_id` (→ `accounts` cascade), `appearance` (composite FK `(account_id, appearance)` → `cosmetic_unlocks`), `updated_at`; index on `account_id`. No row = the class's own colours (`appearance.default` is never stored).
+- `data_backfills`: `cosmetics:<hash of every cosmetic's id and source>` (data: accounts, granted).
 
 ## Relationships
 

@@ -1,3 +1,4 @@
+import { HeroLook } from '../cosmetics/Cosmetics';
 import { useEffect, useRef, useState } from 'react';
 import { getClass, type ClassId } from '@worldforge/game-core';
 import { useActiveCharacter } from '../characters/CharactersProvider';
@@ -566,6 +567,14 @@ function SideCard({ side, duel, label }: { side: DuelSideView; duel: DuelView; l
     side.maxHealth > 0 ? Math.max(0, Math.round((100 * side.health) / side.maxHealth)) : 0;
   return (
     <div className="arena-side">
+      {/* Ticket 6.8: the hero in its appearance (own colours where the name is withheld). */}
+      <HeroLook
+        classId={side.hero.classId}
+        palette={side.hero.palette ?? null}
+        scale={1}
+        alt=""
+        className="arena-side__look"
+      />
       <p className="caps arena-side__label">{label}</p>
       <p className="display arena-side__hero">{side.hero.name ?? className(side.hero.classId)}</p>
       <p className="arena-side__meta">

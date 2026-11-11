@@ -1305,6 +1305,7 @@ describe('guard: soft-deleted heroes are hidden on every hero read', () => {
     'shelf/routes.ts': 'names of every hero that placed a shelf item',
     'inventory/binding-backfill.ts': 'data backfill over every row',
     'achievements/backfill.ts': 'data backfill over every row',
+    'cosmetics/backfill.ts': 'data backfill over every row (6.8: as the achievements)',
     'leaderboards/snapshot.ts': 'checks deletedAt on the row it read',
   };
   it('every other hero read filters `deletedAt`', () => {

@@ -348,7 +348,7 @@ Contribution systems should avoid allowing a tiny number of high-power players t
 ### 13.1 Cosmetic Content
 Cosmetics are separate from character power. Potential content includes full character skins, weapon skins, companions, pets, and visual effects. The initial art pipeline uses complete character images rather than dynamically assembled sprite layers.
 
-**Phase 6 (ticket 6.6):** cosmetics earned in play (event titles, banner styles, title colours) are stored per account (`cosmetic_unlocks`), never bought, without stats; titles can be shown now, the rest once the collection book (6.8) opens.
+**Phase 6 (ticket 6.6):** cosmetics earned in play (event titles, banner styles, title colours) are stored per account (`cosmetic_unlocks`), never bought, without stats; titles can be shown now, the rest once the collection book (6.8) opens. **Ticket 6.8:** the collection book holds hero appearances (palette swaps of every class), banner styles, crest styles, title colours and titles, each earned from one source (events, deeds, season honours, milestones such as level 40, the Forge Tyrant, the Heroic crypt, or helping rebuild the Forgeward Outpost); account-bound, not tradeable, never bought, no stats (`docs/COSMETICS.md`).
 
 ### 13.2 Cosmetic Reward Shrine
 A cosmetic-only draw system is a possible later feature. A daily free draw was proposed, with a non-expiring claim opportunity so missing a day does not destroy the reward. Additional attempts could be earned through gameplay. No gameplay power should be attached to cosmetic draws.

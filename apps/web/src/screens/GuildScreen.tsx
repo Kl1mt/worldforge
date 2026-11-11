@@ -1,3 +1,4 @@
+import { CrestMark } from '../cosmetics/Cosmetics';
 import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
   GUILD_EMBLEMS,
@@ -125,6 +126,7 @@ function Who({
   return (
     <span className="fellow__who">
       {prestige?.frame ? <FrameMark frame={prestige.frame} /> : null}
+      <CrestMark id={prestige?.crest} />
       {link && person.displayName ? (
         <a className={cls} href={profileHref(person.handle)}>
           {name}

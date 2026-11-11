@@ -30,6 +30,7 @@ import {
 import { queryRows } from '../db/query.js';
 import { withTransaction } from '../db/transaction.js';
 import type { Database, Executor, Transaction } from '../db/types.js';
+import { grantSeasonTx } from '../cosmetics/grant.js';
 import { writeAudit } from '../db/audit.js';
 import { ApiError } from '../errors.js';
 import { notTestOrDeleted } from '../admin/eligibility.js';
@@ -519,6 +520,21 @@ export async function awardSeason(
         .values(defaults.slice(i, i + batch))
         .onConflictDoNothing();
     }
+    // Ticket 6.8: the season's cosmetics (docs/COSMETICS.md), exactly once per account, in the
+    // transaction that marks the season awarded (a crash before it runs them again, harmlessly).
+    const all = await tx
+      .select({ accountId: seasonAwardsTable.accountId, tier: seasonAwardsTable.tier })
+      .from(seasonAwardsTable)
+      .where(eq(seasonAwardsTable.season, number));
+    const tiersByAccount = new Map<string, PrestigeTier[]>();
+    for (const a of all) {
+      const list = tiersByAccount.get(a.accountId) ?? [];
+      list.push(a.tier);
+      tiersByAccount.set(a.accountId, list);
+    }
+    for (const [accountId, tiers] of tiersByAccount) {
+      await grantSeasonTx(tx, accountId, number, tiers, now);
+    }
     await tx.update(seasons).set({ awardedAt: now }).where(eq(seasons.number, number));
     const [counted] = await queryRows<{ n: number }>(
       tx,
@@ -582,6 +598,10 @@ export interface PrestigeShown {
   frame: PrestigeBadge | null;
   /** Ticket 6.6: a cosmetic title (e.g. an event's) shown instead of a season title. */
   cosmeticTitle: string | null;
+  /** Ticket 6.8: the account's banner style, crest style and title colour (null = plain). */
+  banner: string | null;
+  crest: string | null;
+  titleColour: string | null;
 }
 
 export async function prestigeFor(
@@ -611,8 +631,35 @@ export async function prestigeFor(
           and f.season = d.frame_season and f.metric = d.frame_metric
       where d.account_id = any(${`{${ids.join(',')}}`}::uuid[])`,
   );
+  // Ticket 6.8: the cosmetics each account shows (docs/COSMETICS.md), with or without honours.
+  const looks = await queryRows<{
+    account_id: string;
+    banner: string | null;
+    crest: string | null;
+    title_colour: string | null;
+  }>(
+    db,
+    sql`select account_id, banner, crest, title_colour from cosmetic_displays
+      where account_id = any(${`{${ids.join(',')}}`}::uuid[])`,
+  );
+  const lookOf = new Map(looks.map((l) => [l.account_id, l]));
+  for (const id of ids) {
+    const l = lookOf.get(id);
+    if (l && (l.banner || l.crest || l.title_colour)) {
+      out.set(id, {
+        ...NO_PRESTIGE_SHOWN,
+        banner: l.banner,
+        crest: l.crest,
+        titleColour: l.title_colour,
+      });
+    }
+  }
   for (const r of rows) {
+    const l = lookOf.get(r.account_id);
     out.set(r.account_id, {
+      banner: l?.banner ?? null,
+      crest: l?.crest ?? null,
+      titleColour: l?.title_colour ?? null,
       title:
         r.title_season !== null && r.title_metric && r.title_tier
           ? { season: Number(r.title_season), metric: r.title_metric, tier: r.title_tier }
@@ -627,7 +674,14 @@ export async function prestigeFor(
   return out;
 }
 
-export const NO_PRESTIGE_SHOWN: PrestigeShown = { title: null, frame: null, cosmeticTitle: null };
+export const NO_PRESTIGE_SHOWN: PrestigeShown = {
+  title: null,
+  frame: null,
+  cosmeticTitle: null,
+  banner: null,
+  crest: null,
+  titleColour: null,
+};
 
 export const prestigeBadgeSchema = {
   anyOf: [
@@ -651,5 +705,8 @@ export const prestigeShownSchema = {
     title: prestigeBadgeSchema,
     frame: prestigeBadgeSchema,
     cosmeticTitle: { type: ['string', 'null'] },
+    banner: { type: ['string', 'null'] },
+    crest: { type: ['string', 'null'] },
+    titleColour: { type: ['string', 'null'] },
   },
 } as const;

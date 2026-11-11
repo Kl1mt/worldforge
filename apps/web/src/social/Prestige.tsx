@@ -8,6 +8,7 @@ import {
 } from '@worldforge/game-core';
 import { SEASON_FRAME_WINDOW, prestigeSprite } from '../content/assets';
 import type { PrestigeBadge, PrestigeShown } from './seasons';
+import { titleColourClass } from '../cosmetics/Cosmetics';
 import './prestige.css';
 
 /**
@@ -31,10 +32,13 @@ function useArt(name: string) {
 export function TitleBadge({
   badge,
   compact = false,
+  colour = null,
 }: {
   badge: PrestigeBadge | null;
   /** Rows (boards, rosters): a 24 px badge and the season as a short mark. */
   compact?: boolean;
+  /** Ticket 6.8: the account's title colour (`title-colour.<name>`), or null. */
+  colour?: string | null;
 }) {
   const art = useArt(badge ? SEASON_TITLES[badge.metric].badgeAsset : '');
   if (!badge) return null;
@@ -42,7 +46,7 @@ export function TitleBadge({
   const season = seasonName(badge.season);
   return (
     <span
-      className={`honour honour--${badge.tier}${compact ? ' honour--compact' : ''}`}
+      className={`honour honour--${badge.tier}${compact ? ' honour--compact' : ''} ${titleColourClass(colour)}`.trimEnd()}
       title={`${title}, ${season}`}
     >
       {art.sprite ? (
@@ -68,12 +72,20 @@ export function TitleBadge({
  * Ticket 6.6: a cosmetic title (an event's, e.g. "Reaper of the Harvest"): the same plate as a
  * season title, in bone with a wine-dark lozenge, and where it came from instead of the season.
  */
-export function CosmeticTitle({ id, compact = false }: { id: string; compact?: boolean }) {
+export function CosmeticTitle({
+  id,
+  compact = false,
+  colour = null,
+}: {
+  id: string;
+  compact?: boolean;
+  colour?: string | null;
+}) {
   const c = findCosmetic(id);
   if (!c || c.kind !== 'title') return null;
   return (
     <span
-      className={`honour honour--cosmetic${compact ? ' honour--compact' : ''}`}
+      className={`honour honour--cosmetic${compact ? ' honour--compact' : ''} ${titleColourClass(colour)}`.trimEnd()}
       title={`${c.name}: ${c.description}`}
     >
       <span className="honour__lozenge" aria-hidden="true" />
@@ -91,8 +103,12 @@ export function ShownTitle({
   shown: PrestigeShown | null | undefined;
   compact?: boolean;
 }) {
-  if (shown?.cosmeticTitle) return <CosmeticTitle id={shown.cosmeticTitle} compact={compact} />;
-  return <TitleBadge badge={shown?.title ?? null} compact={compact} />;
+  // Ticket 6.8: the account's title colour applies to whichever title is shown.
+  const colour = shown?.titleColour ?? null;
+  if (shown?.cosmeticTitle) {
+    return <CosmeticTitle id={shown.cosmeticTitle} compact={compact} colour={colour} />;
+  }
+  return <TitleBadge badge={shown?.title ?? null} compact={compact} colour={colour} />;
 }
 
 /**

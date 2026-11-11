@@ -18,6 +18,7 @@ import {
   itemInstances,
 } from '../db/schema.js';
 import { writeAudit } from '../db/audit.js';
+import { grantForAchievementsTx, grantMilestonesTx } from '../cosmetics/grant.js';
 import type { Executor } from '../db/types.js';
 
 /**
@@ -199,6 +200,17 @@ export async function awardAchievements(
       data: { achievementId, source: ctx.source },
     });
   }
+  // Ticket 6.8: the cosmetics that come with these achievements, in the same transaction.
+  await grantForAchievementsTx(
+    executor,
+    {
+      accountId: ctx.accountId,
+      characterId: ctx.characterId,
+      now: ctx.now,
+      backfill: ctx.source === 'backfill',
+    },
+    awarded,
+  );
   return awarded;
 }
 
@@ -213,9 +225,12 @@ export async function refreshAchievements(
   now: Date,
 ): Promise<string[]> {
   const facts = await characterFacts(executor, character, keys);
-  return awardAchievements(
+  const awarded = await awardAchievements(
     executor,
     { accountId: character.accountId, characterId: character.id, now, source: 'live' },
     facts,
   );
+  // Ticket 6.8: milestone cosmetics (level 40, a boss slain, the Heroic crypt) from the hero's row.
+  await grantMilestonesTx(executor, character, now);
+  return awarded;
 }

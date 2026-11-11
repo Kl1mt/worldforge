@@ -7,7 +7,7 @@ import type { MaterialId } from '../world/materials.js';
  * instances of a definition (one at a time, start and end in UTC); these rules decide what the
  * definition does while an instance runs. **Events never grant power**: the modifier adds a modest,
  * documented amount of one material and nothing else; quests pay tallies toward the track; the
- * track pays cosmetics (`cosmetics.ts`). No XP, gold, items or drop odds change.
+ * track pays cosmetics (`cosmetics/catalogue.ts`). No XP, gold, items or drop odds change.
  */
 
 /**
