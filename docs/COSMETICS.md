@@ -44,6 +44,7 @@ Each entry: `id` (`<kind>.<name>`, stored in `cosmetic_unlocks`, never renamed o
 - **milestones:** `refreshAchievements` (settlements that changed the level or brought drops, dungeon claims, quest turn-ins, forge, merchant, equip) checks the hero's level and progress flags. Source `milestone:<character id>`.
 - **season honours:** `awardSeason`'s last transaction (with `awarded_at`) grants each account's season cosmetics by its best tier this season. Source `season:<n>`.
 - **events:** 6.6's `grantTiersTx` (`event:<n>:tier:<t>`, audited `event.reward`).
+- **admin progress tools (D.4b):** set progress, set level, grant XP and grant an item call `refreshAchievements` in their transaction, so deeds and milestones arrive at once with their normal sources; the tool's `admin.*` audit row lists them under `earned`. Clearing a flag or lowering a level takes nothing back.
 Test accounts unlock like anyone (nothing is ranked); D.4's rules apply to everything they touch (counts, telemetry). Nothing a grant does touches a gameplay row.
 
 ## Backfill

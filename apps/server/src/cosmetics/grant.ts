@@ -18,7 +18,8 @@ import type { Executor } from '../db/types.js';
  * live grant and the backfill, two backfills), and only the insert that created the row writes the
  * `cosmetic.grant` audit row. The callers are the transactions of the source events:
  * - achievements: `awardAchievements` (every live award and the achievement backfill);
- * - milestones: `refreshAchievements` (settlements that change the level, dungeon claims);
+ * - milestones: `refreshAchievements` (settlements that change the level, dungeon claims, the
+ *   D.4b admin progress tools);
  * - season honours: `awardSeason`'s last transaction;
  * - events: 6.6's `grantTiersTx` (its own ledger; audited as `event.reward`).
  * Grants never touch a gameplay row.

@@ -163,6 +163,8 @@ export async function awardAchievements(
   executor: Executor,
   ctx: AwardContext,
   facts: AchievementFacts,
+  /** Optional sink for the cosmetic ids this call granted (D.4b: the admin audit names them). */
+  cosmetics?: string[],
 ): Promise<string[]> {
   const earned = achievementsEarned(facts);
   if (earned.length === 0) return [];
@@ -201,7 +203,7 @@ export async function awardAchievements(
     });
   }
   // Ticket 6.8: the cosmetics that come with these achievements, in the same transaction.
-  await grantForAchievementsTx(
+  const granted = await grantForAchievementsTx(
     executor,
     {
       accountId: ctx.accountId,
@@ -211,6 +213,7 @@ export async function awardAchievements(
     },
     awarded,
   );
+  cosmetics?.push(...granted);
   return awarded;
 }
 
@@ -223,14 +226,19 @@ export async function refreshAchievements(
   character: FactCharacter,
   keys: readonly FactKey[],
   now: Date,
+  /** Optional sink for the cosmetic ids granted (deeds and milestones), as `awardAchievements`. */
+  cosmetics?: string[],
 ): Promise<string[]> {
   const facts = await characterFacts(executor, character, keys);
   const awarded = await awardAchievements(
     executor,
     { accountId: character.accountId, characterId: character.id, now, source: 'live' },
     facts,
+    cosmetics,
   );
   // Ticket 6.8: milestone cosmetics (level 40, a boss slain, the Heroic crypt) from the hero's row.
-  await grantMilestonesTx(executor, character, now);
+  // Evaluated first: `cosmetics?.push(...)` would skip its argument (and the grant) without a sink.
+  const milestones = await grantMilestonesTx(executor, character, now);
+  cosmetics?.push(...milestones);
   return awarded;
 }
