@@ -613,7 +613,73 @@ export async function playTradeModerationStep(
  * Asserts that everything the character holds (gold, items, materials) is accounted for by the
  * audit log: every grant and every spend has exactly one entry.
  */
-export async function expectHoldingsMatchAudit(database: DatabaseHandle, characterId: string) {
+/**
+ * What a run gave a hero outside the API (6.10: heroes seeded at a level and in a kit, like the
+ * Phase 6 journeys): the holdings at seeding minus the audit replay then. The replay below adds it,
+ * so a seeded hero's holdings still equal its audit log from the seeding on.
+ */
+export interface HoldingsBaseline {
+  gold: number;
+  items: number;
+  materials: Partial<Record<MaterialId, number>>;
+}
+
+/** Measures `HoldingsBaseline` for a hero right after a seeding write (adds to `prior`). */
+export async function holdingsBaseline(
+  database: DatabaseHandle,
+  characterId: string,
+  prior?: HoldingsBaseline,
+): Promise<HoldingsBaseline> {
+  const replay = await replayHoldings(database, characterId, prior);
+  const actual = await actualHoldings(database, characterId);
+  const materials: Partial<Record<MaterialId, number>> = { ...prior?.materials };
+  for (const id of MATERIAL_IDS) {
+    const d = (actual.materials[id] ?? 0) - (replay.materials[id] ?? 0);
+    if (d !== 0) materials[id] = (materials[id] ?? 0) + d;
+  }
+  return {
+    gold: (prior?.gold ?? 0) + actual.gold - replay.gold,
+    items: (prior?.items ?? 0) + actual.items - replay.items,
+    materials,
+  };
+}
+
+async function actualHoldings(database: DatabaseHandle, characterId: string) {
+  const [row] = await database.db.select().from(characters).where(eq(characters.id, characterId));
+  const owned = await database.db
+    .select({ id: itemInstances.id })
+    .from(itemInstances)
+    .where(and(eq(itemInstances.characterId, characterId), eq(itemInstances.onShelf, false)));
+  const held = await database.db
+    .select()
+    .from(characterMaterials)
+    .where(eq(characterMaterials.characterId, characterId));
+  const materials: Partial<Record<MaterialId, number>> = {};
+  for (const h of held) materials[h.materialId as MaterialId] = h.quantity;
+  return { row: row!, gold: row!.gold, items: owned.length, materials };
+}
+
+export async function expectHoldingsMatchAudit(
+  database: DatabaseHandle,
+  characterId: string,
+  baseline?: HoldingsBaseline,
+) {
+  const { gold, items, materials, events } = await replayHoldings(database, characterId, baseline);
+  const actual = await actualHoldings(database, characterId);
+  expect(actual.gold).toBe(gold);
+  expect(actual.items).toBe(items);
+  for (const id of MATERIAL_IDS) {
+    expect(actual.materials[id] ?? 0, id).toBe(materials[id] ?? 0);
+  }
+  return { row: actual.row, events };
+}
+
+/** The hero's holdings as its audit log (plus a seeding baseline) says they should be. */
+async function replayHoldings(
+  database: DatabaseHandle,
+  characterId: string,
+  baseline?: HoldingsBaseline,
+) {
   // Ticket T.5: a `trade.accept` row sits on the receiving hero but moves the sender's too.
   const audit = await database.db
     .select()
@@ -628,9 +694,9 @@ export async function expectHoldingsMatchAudit(database: DatabaseHandle, charact
         ),
       ),
     );
-  let gold = 0;
-  let items = 0;
-  const materials: Partial<Record<MaterialId, number>> = {};
+  let gold = baseline?.gold ?? 0;
+  let items = baseline?.items ?? 0;
+  const materials: Partial<Record<MaterialId, number>> = { ...baseline?.materials };
   const addMaterials = (bundle: unknown, sign = 1) => {
     for (const [id, n] of Object.entries((bundle ?? {}) as Record<string, number>)) {
       materials[id as MaterialId] = (materials[id as MaterialId] ?? 0) + sign * n;
@@ -664,10 +730,12 @@ export async function expectHoldingsMatchAudit(database: DatabaseHandle, charact
         items += 1;
         addMaterials(d.materials, -1);
         break;
-      // Ticket 3.4 (checked since 3.9): upgrades, rerolls and improvements spend gold and materials.
+      // Ticket 3.4 (checked since 3.9): upgrades, rerolls and improvements spend gold and materials;
+      // ticket 6.5b (checked since 6.10): so does an awakening (gold, Embers, Seals and shards).
       case 'forge.upgrade':
       case 'forge.reroll':
       case 'forge.improve':
+      case 'forge.awaken':
         gold -= d.gold!;
         addMaterials(d.materials, -1);
         break;
@@ -712,6 +780,23 @@ export async function expectHoldingsMatchAudit(database: DatabaseHandle, charact
         else addMaterials(d.materials, sign);
         break;
       }
+      // Ticket 6.6 (checked since 6.10): the event's world modifier pays its bonus materials.
+      case 'event.progress':
+        addMaterials(d.bonus);
+        break;
+      // Ticket D.4 (checked since 6.10): admin grants, refunds and removals.
+      case 'admin.gold':
+        gold += (d.mode === 'remove' ? -1 : 1) * (d.amount as number);
+        break;
+      case 'admin.materials':
+        addMaterials(d.materials, d.mode === 'remove' ? -1 : 1);
+        break;
+      case 'admin.item.grant':
+        items += 1;
+        break;
+      case 'admin.item.remove':
+        if (d.location !== 'shelf') items -= 1;
+        break;
       // Ticket T.5: an offer takes the sender's gold and materials into escrow (its items stay
       // the hero's rows, in escrow); an offer ending without a trade gives them back.
       case 'trade.offer': {
@@ -768,21 +853,7 @@ export async function expectHoldingsMatchAudit(database: DatabaseHandle, charact
       }
     }
   }
-  const [row] = await database.db.select().from(characters).where(eq(characters.id, characterId));
-  expect(row!.gold).toBe(gold);
-  const owned = await database.db
-    .select({ id: itemInstances.id })
-    .from(itemInstances)
-    .where(and(eq(itemInstances.characterId, characterId), eq(itemInstances.onShelf, false)));
-  expect(owned).toHaveLength(items);
-  const held = await database.db
-    .select()
-    .from(characterMaterials)
-    .where(eq(characterMaterials.characterId, characterId));
-  for (const id of MATERIAL_IDS) {
-    expect(held.find((h) => h.materialId === id)?.quantity ?? 0, id).toBe(materials[id] ?? 0);
-  }
-  return { row: row!, events };
+  return { gold, items, materials, events };
 }
 
 /**
@@ -1935,7 +2006,10 @@ export async function playCinderDepthsStep(
   }>().board;
   expect(board.formulaVersion).toBe(versions.pveProgress);
   const mine = board.yours.find((e) => e.hero.level === state.level)!;
-  expect(mine.value).toBeGreaterThanOrEqual(versions.pveProgress >= 3 ? 15 : 13);
+  // Version 1 has ten milestones (all reached), 2 the Verge's three more, 3+ the Depths' four
+  // (6.10: a season under way keeps version 1 until it ends).
+  const least = versions.pveProgress >= 3 ? 15 : versions.pveProgress === 2 ? 13 : 10;
+  expect(mine.value).toBeGreaterThanOrEqual(least);
   const report = await checkLeaderboards(cliDeps(database.db), 200, now());
   expect(report.problems.filter((p) => p.kind === 'wrong')).toEqual([]);
   return { kills, runs, crafted, level: state.level, pveProgress: mine.value };

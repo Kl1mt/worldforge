@@ -23,6 +23,7 @@ import {
   cosmeticUnlocks,
   dataBackfills,
   heroAppearances,
+  sanctions,
   seasonStandings,
   seasons,
 } from '../db/schema.js';
@@ -439,6 +440,45 @@ describe('display privacy (5.2) and where it shows', () => {
     expect((await call(viewer, 'GET', `/api/players/${owner.handle}/profile`)).statusCode).toBe(
       404,
     );
+  });
+
+  // Ticket 6.10 (docs/PHASE6_EXPLOIT_REVIEW.md F3): the profile showed the palette of a hero whose
+  // name a moderator hid, while the arena (and COSMETICS.md "Privacy") hide both.
+  it('a hero whose name a moderator hid shows no palette on the profile either', async () => {
+    const owner = await insertAccount(db());
+    const viewer = await insertAccount(db());
+    const hero = await insertCharacter(db(), owner.id);
+    await withTransaction(db(), (tx) =>
+      grantCosmeticsTx(tx, { accountId: owner.id, now: NOW, source: 'test' }, ['appearance.ember']),
+    );
+    await post(owner, `/api/characters/${hero.id}/appearance`, { appearance: 'appearance.ember' });
+    const heroes = async (who: TestAccount) => {
+      const r = await call(who, 'GET', `/api/players/${owner.handle}/profile`);
+      expect(r.statusCode, r.body).toBe(200);
+      return r.json<{
+        profile: { characters: { name: string | null; palette: string | null }[] };
+      }>().profile.characters;
+    };
+    expect(await heroes(viewer)).toEqual([
+      expect.objectContaining({ name: hero.name, palette: 'appearance.ember' }),
+    ]);
+    await db()
+      .insert(sanctions)
+      .values({
+        id: randomUUID(),
+        subjectId: owner.id,
+        kind: 'hide',
+        targetKey: `characterName:${hero.id}`,
+        target: { kind: 'characterName', handle: owner.handle, name: hero.name },
+        reason: 'test',
+        createdAt: new Date(NOW.getTime() - DAY),
+        expiresAt: new Date(NOW.getTime() + DAY),
+      });
+    expect(await heroes(viewer)).toEqual([expect.objectContaining({ name: null, palette: null })]);
+    // The owner still sees their own hero as it is.
+    expect(await heroes(owner)).toEqual([
+      expect.objectContaining({ name: hero.name, palette: 'appearance.ember' }),
+    ]);
   });
 });
 

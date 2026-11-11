@@ -49,6 +49,7 @@ import type {
   GuildBossStateResponse,
 } from './routes.js';
 import { attemptSeed } from './model.js';
+import { setTestAccount } from '../admin/test-accounts.js';
 
 const boss = getGuildBoss('risenGravewarden');
 const DAY = 86_400_000;
@@ -648,6 +649,45 @@ describe('guild boss', () => {
         }).damage,
     );
     expect(a).toEqual(expected);
+  });
+
+  // Ticket 6.10 (docs/PHASE6_EXPLOIT_REVIEW.md F1): a test account's hero can be levelled and
+  // geared by the admin cheat tools, and the stages its blows break pay every member of the guild.
+  // So it fights only for a guild of test accounts: minted power never pays real players.
+  it('a test account fights only for a guild of test accounts (no stage pays real players)', async () => {
+    const { guild, leader, others, heroOf } = await guildOf(['member']);
+    const tester = others[0]!;
+    await setTestAccount(db(), tester.handle, true);
+    await nearStage(guild, 1);
+    const before = await db()
+      .select()
+      .from(guildBossWeeks)
+      .where(and(eq(guildBossWeeks.guildId, guild.id), eq(guildBossWeeks.week, WEEK)));
+
+    const refused = await attempt(tester, heroOf(tester));
+    expect(status(refused)).toBe('403 test_account');
+    // Nothing moved: no attempt, no total, no stage, no reward for the real leader.
+    expect(
+      await db().select().from(guildBossAttempts).where(eq(guildBossAttempts.accountId, tester.id)),
+    ).toEqual([]);
+    expect(
+      await db()
+        .select()
+        .from(guildBossWeeks)
+        .where(and(eq(guildBossWeeks.guildId, guild.id), eq(guildBossWeeks.week, WEEK))),
+    ).toEqual(before);
+    expect(
+      await db().select().from(guildBossRewards).where(eq(guildBossRewards.accountId, leader.id)),
+    ).toEqual([]);
+    // The real player still fights; the test account's view still loads.
+    expect((await state(tester)).guild).not.toBeNull();
+    await fought(leader, heroOf(leader));
+
+    // A guild of test accounts only: test away.
+    const t = await guildOf(['member']);
+    await setTestAccount(db(), t.leader.handle, true);
+    await setTestAccount(db(), t.others[0]!.handle, true);
+    await fought(t.others[0]!, t.heroOf(t.others[0]!));
   });
 
   it('reconciles: totals equal the attempts, telemetry equals the audit log', async () => {

@@ -28,6 +28,12 @@
  *   hunter with a saved defence) and a duel-ready stranger (Corvin Ashe `p5-corvin@graumark.test`,
  *   a level-15 warrior in Ilse's kit with a saved defence), password `ashes-and-iron-42`. Done
  *   directly in the database and through the server's own model functions, like the role seeds.
+ * - with `E2E_SEED_PHASE6=1` (ticket 6.10, `tools/e2e/phase6-exit.mjs`) the Phase 6 run's world
+ *   (`seed-phase6.ts`): the town's works done (the Forgeward Age), a Harvest of Bones under way,
+ *   a level-38 warrior in Legendary +10 kit with the price of an awakening, a Prismatic and a Void
+ *   piece and two keepsakes (Hralda Vey `p6-hralda@graumark.test`), a level-34 hunter the
+ *   Tyrant's door still bars (Tamsin Coldlamp `p6-tamsin@graumark.test`) and an admin (Ysolde
+ *   Marr `p6-ysolde@graumark.test`), password `ashes-and-iron-42`.
  * Auth, validation and rate limits are unchanged.
  *
  *   pnpm --filter @worldforge/server e2e:serve
@@ -42,6 +48,7 @@ import { setAccountRole } from '../social/roles.js';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createMemoryMailer } from '../mail/mailer.js';
 import { seedPhase5 } from './seed-phase5.js';
+import { seedPhase6 } from './seed-phase6.js';
 
 if (process.env.NODE_ENV === 'production') {
   console.error('src/e2e/serve.ts is a test server and does not run with NODE_ENV=production.');
@@ -136,6 +143,7 @@ if (seedTest) {
 }
 
 if (process.env.E2E_SEED_PHASE5 === '1') await seedPhase5(app, database.db, now);
+if (process.env.E2E_SEED_PHASE6 === '1') await seedPhase6(app, database.db, now);
 
 await app.listen({ host: config.host, port: config.port });
 app.log.warn(

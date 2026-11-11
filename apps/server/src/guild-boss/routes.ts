@@ -20,11 +20,13 @@ import {
   type MaterialId,
 } from '@worldforge/game-core';
 import {
+  accounts,
   characters,
   guildBossAttempts,
   guildBossRewards,
   guildBossStages,
   guildBossWeeks,
+  guildMembers,
   guilds,
   type Guild,
 } from '../db/schema.js';
@@ -419,7 +421,7 @@ export async function registerGuildBoss(
         { now: activity.now, status: 201 },
         async (tx) => {
           const now = activity.now();
-          await assertSocialWriteAllowed(tx, me, 'guildBossAttempt', app.authNow());
+          const self = await assertSocialWriteAllowed(tx, me, 'guildBossAttempt', app.authNow());
           await lockGuildBossAccount(tx, me);
           const hero = await lockOwnedCharacter(tx, me, characterId, activity);
           // Membership is read under the guild's lock (a kick or leave racing the attempt lands
@@ -434,6 +436,24 @@ export async function registerGuildBoss(
           const used = await attemptsUsed(tx, me, week.key);
           decide(standing, 'attempt', boss, { attemptsUsed: used, heroLevel: hero.level });
           const guild = mine!.guild;
+          // Ticket 6.10: a test account (D.4: the admin cheat tools may have levelled and geared
+          // its heroes) fights only for a guild of test accounts, since the stages its blows break
+          // pay every member. Read under the guild lock, so a real player joining races nothing.
+          if (self.isTest) {
+            const [real] = await tx
+              .select({ accountId: guildMembers.accountId })
+              .from(guildMembers)
+              .innerJoin(accounts, eq(accounts.id, guildMembers.accountId))
+              .where(and(eq(guildMembers.guildId, guild.id), eq(accounts.isTest, false)))
+              .limit(1);
+            if (real) {
+              throw new ApiError(
+                403,
+                'test_account',
+                'Test accounts fight the guild boss only in a guild of test accounts: its stages pay every member.',
+              );
+            }
+          }
 
           const foughtBefore = (await fightersOf(tx, guild.id, week.key)).has(me);
           const attemptNo = used + 1;
