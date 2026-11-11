@@ -12,6 +12,8 @@ export const MAIL_KINDS = [
   'reset_password',
   'password_changed',
   'email_changed',
+  // Ticket 8.6: the admin's "Send test letter" (Readiness tab); the address is never stored.
+  'test_letter',
 ] as const;
 export type MailKind = (typeof MAIL_KINDS)[number];
 

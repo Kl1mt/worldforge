@@ -1326,7 +1326,7 @@ Read `docs/SOCIAL.md` (guilds), `docs/GUILD_BOSS.md`, `docs/LEADERBOARDS.md` (se
 
 Mobile-friendly where it's cheap, but the full mobile pass stays in Phase 7.
 
-### 8.6 Going-live checklist & admin readiness dashboard — `todo`
+### 8.6 Going-live checklist & admin readiness dashboard — `done (PR #136)`
 A **readiness panel** in the admin panel showing what the live town still needs, each item with a status and a link to the doc:
 - **email (SMTP):** configured, with a test letter sent to an address the owner types (never stored);
 - **privacy policy:** a reminder listing the features that must be mentioned (leaderboards, emails, the provider);

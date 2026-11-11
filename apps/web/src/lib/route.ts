@@ -108,6 +108,8 @@ export function profileHref(handle?: string): string {
 
 /** Ticket D.3: the admin panel's sections, in tab order. */
 export const ADMIN_SECTIONS = [
+  // Ticket 8.6: the going-live readiness board (docs/GOING_LIVE.md).
+  'readiness',
   'invites',
   'players',
   // Ticket D.4: the account inspector (`#/admin/inspect/<handle>`) and the world flags/scheduler.

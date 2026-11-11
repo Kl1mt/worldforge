@@ -144,3 +144,21 @@ export function emailChangedMail(to: string, impressumLink: string): MailMessage
     after: [],
   });
 }
+
+/**
+ * Ticket 8.6: the admin's test letter (Readiness tab). It names nobody and carries no link, so it
+ * says nothing about the account that asked for it; the time lets the owner match it to the panel.
+ */
+export function testLetterMail(to: string, at: Date): MailMessage {
+  return compose({
+    kind: 'test_letter',
+    to,
+    subject: 'Worldforge test letter',
+    lines: [
+      'Hail, keeper.',
+      `This is a test letter from your Worldforge server, sent on ${at.toISOString().slice(0, 16).replace('T', ' at ')} UTC from the admin panel.`,
+      'If it reached your inbox (and not the spam folder), the server’s mail settings work. There is nothing more to do.',
+    ],
+    after: [],
+  });
+}

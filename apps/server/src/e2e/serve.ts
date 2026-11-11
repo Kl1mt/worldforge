@@ -87,7 +87,9 @@ const app = buildApp({
     mailer,
     publicBaseUrl: process.env.E2E_PUBLIC_BASE_URL ?? 'http://localhost:5173',
   },
-  admin: { build: config.build },
+  // Ticket 8.6: the Readiness tab reads LEGAL_DIR and BACKUP_STATUS_FILE like production.
+  legal: { dir: config.legalDir },
+  admin: { build: config.build, backupStatusFile: config.backupStatusFile },
   activity: {
     offlineCapMs: config.offlineCapSeconds * 1000,
     // The scheduler fires on real time; "due" is measured on the scaled clock.

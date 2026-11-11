@@ -6,7 +6,8 @@
 #   deploy/backup.sh --kind manual    a dump that is never pruned automatically
 #
 # Kinds: daily (default), manual, pre-deploy (deploy.sh, keeps 5), pre-restore (restore.sh,
-# keeps 5). Prints the new file's path on stdout.
+# keeps 5). Prints the new file's path on stdout. After a good dump it also writes
+# deploy/status/backup.json (the time and size only) for the admin panel's Readiness tab.
 set -euo pipefail
 # shellcheck source=SCRIPTDIR/lib.sh
 source "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
@@ -47,6 +48,18 @@ compose exec -T db sh -c 'exec pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --f
 compose exec -T db pg_restore --list <"$tmp" >/dev/null || die "the dump is not readable"
 mv "$tmp" "$file"
 log "done: $(du -h "$file" | cut -f1)"
+
+# Ticket 8.6: the admin panel's Readiness tab shows the last good backup. The status file holds a
+# time and a size only (no path, no name); the server reads it through a read-only mount.
+write_backup_status() {
+  local dir="$DEPLOY_DIR/status" bytes
+  bytes=$(wc -c <"$file" | tr -d ' ')
+  mkdir -p "$dir" && chmod 755 "$dir" &&
+    printf '{"finishedAt":"%s","bytes":%s}\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$bytes" >"$dir/backup.json.partial" &&
+    chmod 644 "$dir/backup.json.partial" &&
+    mv "$dir/backup.json.partial" "$dir/backup.json"
+}
+write_backup_status || warn "could not write the backup status file (deploy/status/backup.json)"
 
 # prune DIR KEEP: keeps the KEEP newest dumps (file names sort by time).
 prune() {

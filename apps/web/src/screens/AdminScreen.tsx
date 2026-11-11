@@ -32,11 +32,13 @@ import { AdminInspector } from './AdminInspector';
 import { AdminWorld } from './AdminWorld';
 import { AdminNames } from './AdminNames';
 import { EventsFolio } from './AdminEvents';
+import { AdminReadiness } from './AdminReadiness';
 import { AnimationGallery } from '../admin/AnimationGallery';
 import './gate.css';
 import './admin.css';
 
 const SECTION_LABELS: Record<AdminSection, { label: string; hint: string }> = {
+  readiness: { label: 'Readiness', hint: 'Before the gates open' },
   invites: { label: 'Invites', hint: 'Who may join' },
   players: { label: 'Players', hint: 'Look someone up' },
   inspect: { label: 'Inspector', hint: 'Support & testing' },
@@ -179,6 +181,7 @@ export function AdminScreen() {
       </nav>
 
       <div className="strong__folio">
+        {loc.section === 'readiness' ? <AdminReadiness /> : null}
         {loc.section === 'invites' ? <InvitesFolio /> : null}
         {loc.section === 'players' ? <PlayersFolio handle={loc.arg} /> : null}
         {loc.section === 'inspect' ? <AdminInspector handle={loc.arg} /> : null}
