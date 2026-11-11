@@ -28,6 +28,13 @@ export async function createPgliteDatabase(dataDir?: string): Promise<DatabaseHa
     db,
     ping: (timeoutMs) => pingDatabase(db, timeoutMs),
     close: () => client.close(),
+    // Ticket 6.9: PGlite's own LISTEN (one process; notifies arrive on commit like PostgreSQL's).
+    listen: async (channel, onNotify) => {
+      const stop = await client.listen(channel, onNotify);
+      return async () => {
+        if (!client.closed) await stop();
+      };
+    },
   };
 }
 

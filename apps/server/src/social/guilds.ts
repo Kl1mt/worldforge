@@ -30,6 +30,7 @@ import {
 import type { Executor, Transaction } from '../db/types.js';
 import { writeAudit } from '../db/audit.js';
 import { uuidv7 } from '../db/uuid.js';
+import { checkNewName } from '../names/checks.js';
 import { ApiError } from '../errors.js';
 import type { ActivityOptions } from '../activity/settle.js';
 import { characterSchema, characterView } from '../characters/routes.js';
@@ -843,7 +844,7 @@ export async function registerGuilds(
         emblem?: string;
       };
       const { name, tag } = guildText(body);
-      app.socialWriteLimit(me.id, reply);
+      await app.socialWriteLimit(me.id, reply);
       return idempotentTransaction(
         app,
         request,
@@ -857,6 +858,8 @@ export async function registerGuilds(
           await lockSocialAccounts(tx, [me.id]);
           decide((await membershipOf(tx, me.id))?.member.role ?? 'none', 'create');
           await claimGuildName(tx, name, tag);
+          // Ticket 6.9: no look-alike of another guild's name or a reserved one.
+          const nameSkeleton = await checkNewName(tx, 'guildName', name, { field: 'name' });
           if (hero.gold < GUILD_CREATE_COST) throw insufficientGold(GUILD_CREATE_COST, hero.gold);
           const character = await changeGold(tx, hero, -GUILD_CREATE_COST, now);
           const [guild] = await tx
@@ -864,6 +867,7 @@ export async function registerGuilds(
             .values({
               id: uuidv7(),
               name,
+              nameSkeleton,
               tag,
               emblem: body.emblem ?? DEFAULT_GUILD_EMBLEM,
               createdBy: me.id,
@@ -1427,9 +1431,15 @@ export async function registerGuilds(
             );
           }
           await claimGuildName(tx, name, tag, g.id);
+          // Ticket 6.9: nor a look-alike of the removed name, another guild's or a reserved one.
+          const nameSkeleton = await checkNewName(tx, 'guildName', name, {
+            field: 'name',
+            selfId: g.id,
+            previous: g.renamedFrom,
+          });
           await tx
             .update(guilds)
-            .set({ name, tag, renameRequired: false, renameReason: null })
+            .set({ name, nameSkeleton, tag, renameRequired: false, renameReason: null })
             .where(eq(guilds.id, g.id));
           await auditGuild(tx, 'guild.rename', me.id, {
             guildId: g.id,

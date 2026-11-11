@@ -31,6 +31,7 @@ import { queryRows } from '../db/query.js';
 import { withTransaction } from '../db/transaction.js';
 import type { Database, Executor, Transaction } from '../db/types.js';
 import { grantSeasonTx } from '../cosmetics/grant.js';
+import { bumpCacheVersion } from '../shared/cache-sync.js';
 import { writeAudit } from '../db/audit.js';
 import { ApiError } from '../errors.js';
 import { notTestOrDeleted } from '../admin/eligibility.js';
@@ -221,7 +222,10 @@ export interface PlanActor {
 async function underPlanLock<T>(db: Database, fn: (tx: Transaction) => Promise<T>): Promise<T> {
   return withTransaction(db, async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${lockKey(PLAN_LOCK)})`);
-    return fn(tx);
+    const out = await fn(tx);
+    // Ticket 6.9: every instance's season windows (the formula cache) reload on commit.
+    await bumpCacheVersion(tx, 'formulas');
+    return out;
   });
 }
 

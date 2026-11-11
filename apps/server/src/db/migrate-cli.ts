@@ -4,6 +4,7 @@ import { loadConfig, requireDatabaseUrl } from '../config.js';
 import { backfillAchievements } from '../achievements/backfill.js';
 import { backfillCosmetics } from '../cosmetics/backfill.js';
 import { createPostgresDatabase } from './client.js';
+import { makeLimiterTablesUnlogged } from '../shared/limit-store.js';
 import { MIGRATIONS_FOLDER, migrateDatabase } from './migrate.js';
 
 const config = loadConfig();
@@ -11,6 +12,10 @@ const database = createPostgresDatabase({ url: requireDatabaseUrl(config), poolM
 try {
   await migrateDatabase(database.db);
   console.log(`Migrations applied from ${MIGRATIONS_FOLDER}`);
+  // Ticket 6.9: the shared rate-limit tables write no WAL (docs/DEPLOY.md "Running two API
+  // instances").
+  const unlogged = await makeLimiterTablesUnlogged(database.db);
+  if (unlogged.length > 0) console.log(`Unlogged: ${unlogged.join(', ')}`);
   const backfill = await backfillAchievements(database.db);
   console.log(
     backfill.ran

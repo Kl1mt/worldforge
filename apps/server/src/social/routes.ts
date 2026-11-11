@@ -5,6 +5,7 @@ import { accounts, reports, sanctions, type Report } from '../db/schema.js';
 import { constraintOf, sqlStateOf } from '../db/transaction.js';
 import { writeAudit } from '../db/audit.js';
 import { uuidv7 } from '../db/uuid.js';
+import { checkNewName } from '../names/checks.js';
 import { ApiError } from '../errors.js';
 import { displayNameError, normalizeDisplayName } from '../auth/validation.js';
 import { activeSanctions, sanctionView, sanctionViewSchema } from './sanctions.js';
@@ -225,9 +226,15 @@ export async function registerSafety(app: FastifyInstance): Promise<void> {
               fields: { displayName: message },
             });
           }
+          // Ticket 6.9: no look-alike of the changed name, another player's or a reserved one.
+          const displayNameSkeleton = await checkNewName(tx, 'displayName', displayName, {
+            field: 'displayName',
+            selfId: account.id,
+            previous,
+          });
           await tx
             .update(accounts)
-            .set({ displayName, updatedAt: now })
+            .set({ displayName, displayNameSkeleton, updatedAt: now })
             .where(eq(accounts.id, account.id));
           await tx
             .update(sanctions)

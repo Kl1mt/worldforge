@@ -10,6 +10,7 @@ import {
   type AccountRole,
   type ModerationAction,
   type SanctionAction,
+  nameSkeleton,
 } from '@worldforge/game-core';
 import { accounts, guilds, reports, sanctions, type Account, type Sanction } from '../db/schema.js';
 import { withTransaction } from '../db/transaction.js';
@@ -128,7 +129,11 @@ export async function issueSanction(tx: Transaction, input: IssueInput): Promise
     data.placeholder = placeholder;
     await tx
       .update(accounts)
-      .set({ displayName: placeholder, updatedAt: now })
+      .set({
+        displayName: placeholder,
+        displayNameSkeleton: nameSkeleton(placeholder),
+        updatedAt: now,
+      })
       .where(eq(accounts.id, subject.id));
   }
   const [row] = await tx
@@ -662,7 +667,11 @@ export async function registerModeration(app: FastifyInstance): Promise<void> {
           if (previous && !taken && subject.displayName === s!.data.placeholder) {
             await tx
               .update(accounts)
-              .set({ displayName: previous, updatedAt: now })
+              .set({
+                displayName: previous,
+                displayNameSkeleton: nameSkeleton(previous),
+                updatedAt: now,
+              })
               .where(eq(accounts.id, subject.id));
             restoredName = previous;
           }

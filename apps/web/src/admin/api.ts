@@ -210,6 +210,21 @@ export const adminApi = {
     }),
   cancelEvent: (number: number) =>
     apiRequest<AdminEvents>(`/admin/events/${number}/cancel`, { method: 'POST' }),
+  /** Ticket 6.9: the reserved-names store (built in and added by admins). */
+  reservedNames: (signal?: AbortSignal) =>
+    get<{ names: ReservedNameRow[] }>('/admin/reserved-names', signal),
+  addReservedName: (input: { name: string; note: string; reason: string }, key: string) =>
+    apiRequest<{ names: ReservedNameRow[] }>('/admin/reserved-names', {
+      method: 'POST',
+      body: input,
+      headers: { 'Idempotency-Key': key },
+    }),
+  removeReservedName: (id: string, reason: string, key: string) =>
+    apiRequest<{ names: ReservedNameRow[] }>(`/admin/reserved-names/${encodeURIComponent(id)}`, {
+      method: 'DELETE',
+      body: { reason },
+      headers: { 'Idempotency-Key': key },
+    }),
   /** `endsAt` omitted: end the season now. */
   endSeason: (number: number, endsAt?: string) =>
     apiRequest<AdminSeasons>(`/admin/seasons/${number}/end`, {
@@ -217,6 +232,15 @@ export const adminApi = {
       body: endsAt ? { endsAt } : {},
     }),
 };
+
+/** Ticket 6.9: one reserved name; built-in ones (`id: null`) can't be removed. */
+export interface ReservedNameRow {
+  id: string | null;
+  name: string;
+  group: 'staff' | 'boss' | 'npc' | 'custom';
+  note: string;
+  createdAt: string | null;
+}
 
 /** Ticket T.2: `GET /api/mod/settings/trading`. */
 export interface TradingSettingsView {

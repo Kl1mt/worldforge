@@ -1,3 +1,4 @@
+import { bumpCacheVersion } from '../shared/cache-sync.js';
 import { and, desc, eq, inArray, lt, sql } from 'drizzle-orm';
 import {
   diffTradingSettings,
@@ -196,6 +197,8 @@ export async function updateTradingSettings(
   if (changes.length === 0) return { changed: false, changes, version: current };
   const version = current + 1;
   const value = after as unknown as Record<string, unknown>;
+  // Ticket 6.9: every instance's settings reload when this commits.
+  await bumpCacheVersion(tx, 'settings');
   if (row) {
     const updated = await tx
       .update(gameSettings)

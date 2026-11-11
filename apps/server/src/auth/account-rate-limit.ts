@@ -1,5 +1,7 @@
 import type { FastifyReply } from 'fastify';
 import { ApiError } from '../errors.js';
+import { createMemoryLimitStore, type LimitStore } from '../shared/limit-store.js';
+import { createWindowLimiter } from '../shared/limiter.js';
 
 /**
  * Per-account rate limits on the game routes (ticket 3.9, docs/API_CONVENTIONS.md "Rate limits").
@@ -10,8 +12,8 @@ import { ApiError } from '../errors.js';
  * on how often the client calls (Phase 1/2 invariance rules); these limits bound the database time
  * one account can cost, before trading and leaderboards arrive.
  *
- * In-process memory, like the login limits: correct for the single API instance assumed in
- * docs/TECH_STACK.md. A multi-instance deployment needs a shared store (Redis or Postgres).
+ * Since ticket 6.9 the counts are in the shared limit store (PostgreSQL in production), so they
+ * hold across API instances.
  */
 export interface AccountRateLimit {
   /** Requests per window, any method. */
@@ -33,45 +35,45 @@ export const DEFAULT_ACCOUNT_RATE_LIMIT: AccountRateLimit = {
   windowMs: 60_000,
 };
 
-interface Window {
-  startedAt: number;
-  requests: number;
-  actions: number;
-}
-
 const READ_METHODS = new Set(['GET', 'HEAD']);
-/** Stale windows are swept once the map holds this many accounts. */
-const SWEEP_AT = 10_000;
 
-export function createAccountRateLimiter(limit: AccountRateLimit, now: () => Date) {
-  const windows = new Map<string, Window>();
-
-  const sweep = (t: number) => {
-    for (const [id, w] of windows) if (t - w.startedAt >= limit.windowMs) windows.delete(id);
-  };
+/**
+ * Ticket 6.9: the counts live in the shared limit store (`shared/limit-store.ts`), so the limits
+ * hold across API instances: two windows of the same length per account, `requests` counting every
+ * request and `actions` only the actions; both start at the account's first request.
+ */
+export function createAccountRateLimiter(
+  limit: AccountRateLimit,
+  now: () => Date,
+  store: LimitStore = createMemoryLimitStore(),
+) {
+  const take = createWindowLimiter(
+    store,
+    'account',
+    [
+      { windowMs: limit.windowMs, max: limit.requests },
+      { windowMs: limit.windowMs, max: limit.actions },
+    ],
+    now,
+  );
 
   /** Counts one request; throws `429 rate_limited` (and sets `Retry-After`) over either limit. */
-  return function check(accountId: string, method: string, reply: FastifyReply): void {
-    const t = now().getTime();
-    let w = windows.get(accountId);
-    if (!w || t - w.startedAt >= limit.windowMs || t < w.startedAt) {
-      if (!w && windows.size >= SWEEP_AT) sweep(t);
-      w = { startedAt: t, requests: 0, actions: 0 };
-      windows.set(accountId, w);
-    }
+  return async function check(
+    accountId: string,
+    method: string,
+    reply: FastifyReply,
+  ): Promise<void> {
     const action = !READ_METHODS.has(method.toUpperCase());
     // A refused request is not counted, so a client that waits `Retry-After` gets through.
-    if (w.requests >= limit.requests || (action && w.actions >= limit.actions)) {
-      const retryAfterSeconds = Math.max(1, Math.ceil((w.startedAt + limit.windowMs - t) / 1000));
-      void reply.header('retry-after', String(retryAfterSeconds));
-      throw new ApiError(
-        429,
-        'rate_limited',
-        `Too many requests. Try again in ${retryAfterSeconds} s.`,
-        { retryAfterSeconds, limit: action && w.actions >= limit.actions ? 'actions' : 'requests' },
-      );
-    }
-    w.requests += 1;
-    if (action) w.actions += 1;
+    const out = await take(accountId, [1, action ? 1 : 0]);
+    if (out.retryAfterMs === 0) return;
+    const retryAfterSeconds = Math.max(1, Math.ceil(out.retryAfterMs / 1000));
+    void reply.header('retry-after', String(retryAfterSeconds));
+    throw new ApiError(
+      429,
+      'rate_limited',
+      `Too many requests. Try again in ${retryAfterSeconds} s.`,
+      { retryAfterSeconds, limit: out.full.includes(1) ? 'actions' : 'requests' },
+    );
   };
 }

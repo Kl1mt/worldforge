@@ -122,6 +122,8 @@ export const ADMIN_SECTIONS = [
   'trades',
   'status',
   'roles',
+  // Ticket 6.9: reserved names (staff, bosses, the town's people, and the admins' own).
+  'names',
   // Ticket A.14c: every sprite's animations and a scene preview (assets only).
   'animations',
 ] as const;

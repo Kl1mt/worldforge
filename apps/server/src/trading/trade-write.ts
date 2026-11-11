@@ -47,7 +47,7 @@ export async function tradeWrite<T>(
   options: TradeWriteOptions = {},
 ): Promise<T> {
   const accountId = request.auth!.account.id;
-  app.tradeWriteLimit(accountId, reply);
+  await app.tradeWriteLimit(accountId, reply);
   const now = app.authNow();
   const body = async (tx: Transaction): Promise<T> => {
     const [account] = await tx

@@ -19,6 +19,7 @@ import { DEFAULT_ACTIVITY_OPTIONS, settleDueActivities, type ActivityOptions } f
 import type { ActivityStateResponse, SettleResponse } from './routes.js';
 import type { WorldStateResponse } from '../world/routes.js';
 import type { MaterialsResponse } from '../materials/store.js';
+import { NAME_SAFE_LETTERS } from '../test/names.js';
 
 const MIN = 60_000;
 const HOUR = 60 * MIN;
@@ -83,8 +84,8 @@ function freshName(): string {
   let n = seq;
   let suffix = '';
   do {
-    suffix = String.fromCharCode(97 + (n % 26)) + suffix;
-    n = Math.floor(n / 26);
+    suffix = NAME_SAFE_LETTERS[n % NAME_SAFE_LETTERS.length]! + suffix;
+    n = Math.floor(n / NAME_SAFE_LETTERS.length);
   } while (n > 0);
   return `Tilda${suffix}`;
 }

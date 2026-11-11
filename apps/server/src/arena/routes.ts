@@ -656,7 +656,7 @@ export async function registerArena(
         defenceId: string;
         kind: DuelKind;
       };
-      app.socialWriteLimit(me, reply);
+      await app.socialWriteLimit(me, reply);
       return idempotentTransaction<{ duel: DuelView }>(
         app,
         request,

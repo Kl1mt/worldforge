@@ -337,8 +337,9 @@ const LEET: Record<string, string> = {
 
 /** Lowercase Latin letters only, with look-alikes and leetspeak folded; everything else is a
  * separator (space). Accents are removed ("fück" → "fuck"). */
-/** NFKD without marks, capital look-alikes folded, lower-cased, then the other look-alikes. */
-function foldScripts(text: string): string[] {
+/** NFKD without marks, capital look-alikes folded, lower-cased, then the other look-alikes.
+ * Ticket 6.9: also the first step of `nameSkeleton` (names.ts). */
+export function foldScripts(text: string): string[] {
   const capitals = [...text.normalize('NFKD').replace(/\p{M}/gu, '')]
     .map((c) => CAPITAL_LOOKALIKES[c] ?? c)
     .join('');

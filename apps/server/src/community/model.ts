@@ -1,3 +1,4 @@
+import { bumpCacheVersion } from '../shared/cache-sync.js';
 import { and, eq, inArray, isNotNull, sql } from 'drizzle-orm';
 import {
   COMMUNITY_PROJECTS,
@@ -249,6 +250,8 @@ export async function advanceProject(
     .insert(worldFlags)
     .values({ flagId: def.grantsFlag, projectId: def.id, setAt: now })
     .onConflictDoNothing();
+  // Ticket 6.9: every instance's world state reloads when this commits.
+  await bumpCacheVersion(tx, 'world');
   out.era = await recordEraChange(tx, before, { ...before, [def.grantsFlag]: true }, now, {
     projectId: def.id,
     ...(by ? { by } : {}),

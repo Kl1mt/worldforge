@@ -15,6 +15,7 @@ import { itemEffectColumns } from './columns.js';
 import { uuidv7 } from '../db/uuid.js';
 import { createTestDatabase } from '../test/db.js';
 import type { InventoryView } from './routes.js';
+import { NAME_SAFE_LETTERS } from '../test/names.js';
 
 let database: DatabaseHandle;
 let app: FastifyInstance;
@@ -41,8 +42,8 @@ let seq = 0;
 function letters(n: number): string {
   let s = '';
   do {
-    s = String.fromCharCode(97 + (n % 26)) + s;
-    n = Math.floor(n / 26);
+    s = NAME_SAFE_LETTERS[n % NAME_SAFE_LETTERS.length]! + s;
+    n = Math.floor(n / NAME_SAFE_LETTERS.length);
   } while (n > 0);
   return s;
 }

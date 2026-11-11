@@ -25,6 +25,7 @@ import { withTransaction } from '../db/transaction.js';
 import { uuidv7 } from '../db/uuid.js';
 import { createTestDatabase } from '../test/db.js';
 import { recordQuestEventsTx, type QuestBoardResponse, type QuestView } from './store.js';
+import { NAME_SAFE_LETTERS } from '../test/names.js';
 
 const MIN = 60 * 1000;
 const HOUR = 60 * MIN;
@@ -61,8 +62,8 @@ let seq = 0;
 function letters(n: number): string {
   let s = '';
   do {
-    s = String.fromCharCode(97 + (n % 26)) + s;
-    n = Math.floor(n / 26);
+    s = NAME_SAFE_LETTERS[n % NAME_SAFE_LETTERS.length]! + s;
+    n = Math.floor(n / NAME_SAFE_LETTERS.length);
   } while (n > 0);
   return s;
 }

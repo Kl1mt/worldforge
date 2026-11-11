@@ -4,6 +4,7 @@ import { HANDLE_RE } from '@worldforge/game-core';
 import { accounts, inviteCodes, type InviteCode } from '../db/schema.js';
 import { writeAudit } from '../db/audit.js';
 import type { Executor } from '../db/types.js';
+import { createWindowLimiter, rateLimited } from '../shared/limiter.js';
 import { ApiError, notFoundBody } from '../errors.js';
 import {
   INVITE_NOTE_MAX,
@@ -24,6 +25,7 @@ import type { ActivityOptions } from '../activity/settle.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
 import { lockAdmin } from './tools.js';
 import { registerAdminTools } from './tool-routes.js';
+import { registerReservedNamesAdmin } from './reserved-names.js';
 
 /**
  * The admin panel's API (ticket D.3, docs/API_CONVENTIONS.md "Admin"), all under `/api/admin`.
@@ -280,30 +282,15 @@ const telemetrySchema = {
 export async function registerAdmin(app: FastifyInstance, options: AdminOptions = {}) {
   const build: BuildInfo = options.build ?? { gitSha: null, buildTime: null };
   const reconcileLimit = options.reconcileLimit ?? DEFAULT_RECONCILE_LIMIT;
-  const reconcileWindows = new Map<string, { startedAt: number; n: number }>();
-
-  /** The stricter class for `?reconcile=1` (it scans the audit log), per admin, in memory. */
-  const checkReconcile = (accountId: string, reply: FastifyReply) => {
-    const t = app.authNow().getTime();
-    let w = reconcileWindows.get(accountId);
-    if (!w || t - w.startedAt >= reconcileLimit.windowMs || t < w.startedAt) {
-      w = { startedAt: t, n: 0 };
-      reconcileWindows.set(accountId, w);
+  /** The stricter class for `?reconcile=1` (it scans the audit log), per admin (shared store). */
+  const takeReconcile = createWindowLimiter(app.limitStore, 'reconcile', [reconcileLimit], () =>
+    app.authNow(),
+  );
+  const checkReconcile = async (accountId: string, reply: FastifyReply) => {
+    const out = await takeReconcile(accountId);
+    if (out.retryAfterMs > 0) {
+      rateLimited(reply, out.retryAfterMs, 'reconcile', 'The reconcile scans the whole audit log.');
     }
-    if (w.n >= reconcileLimit.max) {
-      const retryAfterSeconds = Math.max(
-        1,
-        Math.ceil((w.startedAt + reconcileLimit.windowMs - t) / 1000),
-      );
-      void reply.header('retry-after', String(retryAfterSeconds));
-      throw new ApiError(
-        429,
-        'rate_limited',
-        `The reconcile scans the whole audit log. Try again in ${retryAfterSeconds} s.`,
-        { retryAfterSeconds, limit: 'reconcile' },
-      );
-    }
-    w.n += 1;
   };
 
   const audit = (accountId: string, event: string, data: Record<string, unknown>) =>
@@ -508,7 +495,7 @@ export async function registerAdmin(app: FastifyInstance, options: AdminOptions 
           if (from && to && from > to) {
             throw new ApiError(400, 'validation_failed', '`from` must not be after `to`.');
           }
-          if (q.reconcile) checkReconcile(account.id, reply);
+          if (q.reconcile) await checkReconcile(account.id, reply);
           const report = await buildTelemetryReport(
             app.db,
             { from, to },
@@ -758,6 +745,9 @@ export async function registerAdmin(app: FastifyInstance, options: AdminOptions 
           now: options.gameNow ?? (() => app.authNow()),
         },
       });
+
+      // ---- Ticket 6.9: the reserved-names store (the Names tab) ------------------------------
+      await registerReservedNamesAdmin(admin);
 
       // ---- Roles: read-only (granting stays CLI-only) ----------------------------------------
       admin.get(

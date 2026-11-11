@@ -26,6 +26,7 @@ import { createTestDatabase } from '../test/db.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
 import { IDEMPOTENCY_REPLAYED_HEADER } from '../idempotency/index.js';
 import type { ForgeActionResponse, ForgeItemResponse } from './work.js';
+import { NAME_SAFE_LETTERS } from '../test/names.js';
 
 const HOUR = 60 * 60 * 1000;
 let database: DatabaseHandle;
@@ -56,8 +57,8 @@ let seq = 0;
 function letters(n: number): string {
   let s = '';
   do {
-    s = String.fromCharCode(97 + (n % 26)) + s;
-    n = Math.floor(n / 26);
+    s = NAME_SAFE_LETTERS[n % NAME_SAFE_LETTERS.length]! + s;
+    n = Math.floor(n / NAME_SAFE_LETTERS.length);
   } while (n > 0);
   return s;
 }

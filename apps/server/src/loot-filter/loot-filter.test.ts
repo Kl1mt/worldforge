@@ -28,6 +28,7 @@ import { makeCryptReady } from '../test/dungeon.js';
 import { DEFAULT_ACTIVITY_OPTIONS, type ActivityOptions } from '../activity/settle.js';
 import type { DungeonClaimResponse } from '../dungeon/routes.js';
 import type { LootFilterResponse } from './routes.js';
+import { NAME_SAFE_LETTERS } from '../test/names.js';
 
 /** Ticket 3.7: loot filter rules, the item lock, and the filter at settlement and crypt claim. */
 
@@ -71,8 +72,8 @@ const tag = () => {
   let n = seq;
   let s = '';
   do {
-    s = String.fromCharCode(97 + (n % 26)) + s;
-    n = Math.floor(n / 26);
+    s = NAME_SAFE_LETTERS[n % NAME_SAFE_LETTERS.length]! + s;
+    n = Math.floor(n / NAME_SAFE_LETTERS.length);
   } while (n > 0);
   return s;
 };

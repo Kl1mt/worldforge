@@ -7,15 +7,24 @@ import { openCliDatabase } from '../db/cli-database.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
 import { setTestAccount } from './test-accounts.js';
 import { purgeDeletedHeroes } from './heroes.js';
+import { reservedNameCommand } from './reserved-names-cli.js';
 
 const USAGE = `Usage:
   pnpm admin:tools test-account <handle> on|off   (mark or unmark a test account)
-  pnpm admin:tools purge [--dry-run]               (delete heroes soft-deleted over 14 days ago)`;
+  pnpm admin:tools purge [--dry-run]               (delete heroes soft-deleted over 14 days ago)
+  pnpm admin:tools reserved-name list              (built-in and added reserved names)
+  pnpm admin:tools reserved-name add <name> [--note <text>]
+  pnpm admin:tools reserved-name remove <name>     (only names added by an admin)`;
 
 const [command, ...rest] = process.argv.slice(2);
 const valid =
   (command === 'test-account' && rest.length === 2 && (rest[1] === 'on' || rest[1] === 'off')) ||
-  (command === 'purge' && (rest.length === 0 || (rest.length === 1 && rest[0] === '--dry-run')));
+  (command === 'purge' && (rest.length === 0 || (rest.length === 1 && rest[0] === '--dry-run'))) ||
+  // Ticket 6.9: the reserved-names store.
+  (command === 'reserved-name' &&
+    ((rest[0] === 'list' && rest.length === 1) ||
+      (rest[0] === 'add' && (rest.length === 2 || (rest.length === 4 && rest[2] === '--note'))) ||
+      (rest[0] === 'remove' && rest.length === 2)));
 if (!valid) {
   console.error(USAGE);
   process.exit(2);
@@ -31,7 +40,9 @@ try {
 }
 const { database } = cli;
 try {
-  if (command === 'test-account') {
+  if (command === 'reserved-name') {
+    await reservedNameCommand(database.db, rest);
+  } else if (command === 'test-account') {
     const change = await setTestAccount(database.db, rest[0]!, rest[1] === 'on');
     if (!change) {
       console.error(`No account with handle "${rest[0]}".`);

@@ -411,7 +411,7 @@ export async function registerGuildBoss(
     async (request, reply) => {
       const me = request.auth!.account.id;
       const { characterId } = request.body as { characterId: string };
-      app.socialWriteLimit(me, reply);
+      await app.socialWriteLimit(me, reply);
       return idempotentTransaction<GuildBossAttemptResponse>(
         app,
         request,
