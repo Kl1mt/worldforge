@@ -7,6 +7,7 @@ The balance passes (B-tickets) record their method, before/after tables and deci
 - B.3 (top end, social economy): `docs/ECONOMY.md`, `docs/COMMUNITY.md`, `docs/DUNGEONS.md`.
 - B.4 (competitive systems): `docs/LEADERBOARDS.md`, `docs/PVP.md` "Balance pass: competitive systems".
 - **B.5 (endgame, Phase 6): below.** Owner decisions on its questions: **B.5b** at the end of the section.
+- **Phase 6 exit criterion (ticket 6.10): at the end.** A record, not a pass: nothing changes.
 
 ## B.5: the endgame (Phase 6)
 
@@ -189,3 +190,97 @@ Guard: `endgame-balance.test.ts` (Pass set pieces in a Depths kit ≥ 95 % of it
 2. **Spare Gravewarden Seals** (item 8): a Seal sink will be added later, a cosmetic or a modest Forge recipe with no new power (`docs/ROADMAP.md` 6.11, a placeholder; not built).
 3. **Event length** (item 7): the Harvest of Bones stays; the next event should be a longer chase (`docs/EVENTS.md` "Guidance for future events").
 4. **The Forgeward first-day cap** (item 5): **`capShare: 0.1`** on all three Forgeward Outpost stages (ten givers to finish a stage on its first day; 10 → 30 → 50 → 60 % by B.3's growth). Every other stage keeps `COMMUNITY_PROJECT_CONFIG` (20 % → 60 %). Item 5's table re-run with the shipped data (`endgame.ts forgeward`, `balance/forgeward-balance.test.ts`): identical, 8 / 2 / 2 days at 20 / 100 / 500 players, the first stage's givers 6 → 10, its largest share 19 → 10 %. Small towns: 1 player 30 → 31 days, 3 and 10 players unchanged (20 and 10 days). While wiring it, `stageCapShare` gained a rounding step: 0.1 + 0.2 is 0.30000000000000004 in floating point and would have made a second-day cap one unit larger (4 embers instead of 3); the 20 % stages were exact and don't change.
+
+## Phase 6 exit criterion (ticket 6.10)
+
+GDD §15 Phase 6: "Endgame systems add meaningful choices without making older content or most item drops irrelevant." Concretely (ROADMAP Phase 6): a level-28 hero in good Ashen Pass gear can still farm and progress in the new region, Phase 1–5 drops keep a use, and no new system is required to stay competitive in PvE. This section records the numbers that say so. **It changes nothing**: no gameplay number, rule or content moved, so every value below is the same before and after. Everything is game-core from fixed seeds (`tools/balance/phase6-exit.ts`, which reuses B.2's build search and B.5's kits and seeds); the guard is `packages/game-core/src/balance/phase6-exit-criterion.test.ts` (21 tests, 10–20 s, deterministic).
+
+### 1. Older content stays relevant
+
+**A level-28 hero in good Pass gear farms the Ashfall Verge.** "Good Pass gear": the class's best Ashen Pass farming build (4.8's search) at +5, item level 27 (the Pass's top drops), no Void, no Prismatic, no awakening. 2 seeds × 1 h.
+
+| Class (build) | Pass 28: kills/min · XP/h · gold/h | Verge 28: kills/min · deaths/h · XP/h · gold/h | Verge ÷ Pass: kills · XP · gold | Verge 34: kills/min · deaths/h |
+|---|---|---|---|---|
+| Warrior (Bloodmoon 4, speed) | 21.0 · 230k · 3,198 | 16.1 · 0 · 270k · 3,490 | 0.77 · 1.18 · 1.09 | 15.7 · 0 |
+| Mage (Bloodmoon 4, speed) | 19.1 · 209k · 2,904 | 16.1 · 0 · 271k · 3,490 | 0.85 · 1.30 · 1.20 | 15.6 · 0 |
+| Hunter (Vigil 4, Ambush, speed) | 21.9 · 240k · 3,309 | 18.9 · 0 · 318k · 4,148 | 0.87 · 1.33 · 1.25 | 18.2 · 0 |
+| Warlock (Bloodmoon 4, speed) | 19.2 · 210k · 2,907 | 16.2 · 0 · 272k · 3,499 | 0.85 · 1.30 · 1.20 | 15.4 · 0 |
+
+A step up (kills × 0.77–0.87), never a wall (no deaths at 28 or at the Verge's top), and it pays: 18–33 % more XP and 9–25 % more gold an hour than staying in the Pass. Asserted: ≤ 1 death an hour at 28 and ≤ 2 at 34, > 14 kills a minute at 28 and > 13 at 34, kills × 0.7–0.95, XP > × 1.1, gold > × 1.05 (6.1's `builds.test.ts` asserts the same shape at +10 Void).
+
+**Pass set pieces in a Depths kit** (B.5 item 10, re-measured): the best build at +10 Void, set pieces from the Pass (item level 25), the rest from the Depths (39), farming the Depths at 40 (kills/min):
+
+| | warrior | mage | hunter | warlock |
+|---|---|---|---|---|
+| all Depths (39) | 15.3 | 15.7 | 18.1 | 15.7 |
+| Pass set pieces + Depths | 15.2 (× 0.987) | 15.2 (× 0.971) | 17.8 (× 0.983) | 15.3 (× 0.976) |
+| all Pass (25) | 12.8 (× 0.834) | 12.8 (× 0.818) | 15.4 (× 0.852) | 12.8 (× 0.821) |
+
+An older set piece costs 1–3 % and keeps its slot until a newer copy drops (the mixed kit beats the Tyrant at 38 in every run); a whole older kit trails by 15–18 %, so newer drops still pay. Asserted: mixed ≥ × 0.95, all-Pass ≤ × 0.9, the mixed kit 8/8 at the Tyrant.
+
+**Salvage.** Every older drop salvages into gold and materials the Forge still spends. A Legendary at item level 25: 44 gold and 3 soul shards, plus 4 timber (tier 1), 4 timber and 4 raw hide (tier 2) or 8 iron ore (tier 3, the Pass). Ore and shards are what the endgame's Forge asks for: the Tyrantforged Work (60 ore and 12 shards: the ore of 7.5 Pass Legendaries), every tier-4 upgrade, reroll and improvement, a Depths item's +10 path (B.5 item 10: 677 ore, 41 shards).
+
+**Materials and their live sinks** (a scan of the content data: Forge recipes, the Forge's upgrade/reroll/improve costs by item tier, awakening, community stages):
+
+| Material (phase) | Repeatable sinks | One-off sinks (community stages) | Spent by Phase 6 |
+|---|---|---|---|
+| Timber (2) | Fieldsmith's and Marchwarden's Work; the Forge on tier-1 and tier-2 items | the Warehouse | |
+| Ashwort (2) | Fieldsmith's and Knightly Work | the Ashen Pass | |
+| Raw hide (2) | Marchwarden's Work; the Forge on tier-2 items | the Warehouse | |
+| Iron ore (2) | Knightly Work, **Tyrantforged Work**; the Forge on tier-3 and **tier-4** items | the Warehouse, the Ashen Pass, **the Forgeward Outpost** | yes |
+| Soul shards (2) | Marchwarden's, Knightly and **Tyrantforged Work**; the Forge's essence on every item; **awakening** | the Ashen Pass, **the Forgeward Outpost** | yes |
+| Abbey silver (2) | **none** | the Ashen Pass, **the Forgeward Outpost** | one-off only |
+| Gravewarden Seal (2) | **awakening** | the Ashen Pass | yes |
+| Tyrant's Ember (6) | Tyrantforged Work, awakening | the Forgeward Outpost | (Phase 6's own) |
+
+Every older material but Abbey silver has a repeatable sink, and the endgame's own sinks spend three of them (ore, shards, Seals). **Abbey silver** is the exception: once a town has built the Forgeward Outpost (80 silver) it is only traded. A known gap, recorded for the owner (like B.5 item 8's spare Seals), not changed here. Asserted exactly, so a new sink (or a lost one) shows up in the guard.
+
+**Older sources still drop what the endgame uses.** The crypt's hoard drops a Gravewarden Seal at every tier, I–III included (an awakening input). Every set piece in the endgame's best builds (the Pass farming builds and the Tyrant builds below: the Drowned Vigil, the Ashen Choir, the Bloodmoon Hunt) drops from older tables (the Abbey, the crypt's tiers I–III, the Pass and their bosses), and the crypt's tiers II and III still focus the Vigil and the Choir. Every older area yields at least one material with a repeatable sink (the Abbey's ore; its silver, above, has none).
+
+### 2. Meaningful choices
+
+**Void against Prismatic** (B.2 search, every piece +10 of one variant; the Tyrant at 38 with item level 37, kill time over 12 seeds; the Depths at 40 with item level 39, kills a minute). Prismatic ÷ Void:
+
+| | warrior | mage | hunter | warlock |
+|---|---|---|---|---|
+| Tyrant 38, kill time (below 1: Prismatic faster) | 0.970 (10.43 vs 10.75 s) | 1.010 (8.61 vs 8.52 s) | 0.985 (9.12 vs 9.26 s) | 1.007 (10.58 vs 10.50 s) |
+| Depths 40, kills (above 1: Prismatic faster) | 0.999 | 1.011 | 1.007 | 0.998 |
+
+A sidegrade (within 3 % everywhere; asserted 0.95–1.05), and which one leads depends on the build and the job: Prismatic for the warrior's and hunter's Choir builds at the Tyrant, Void for the mage's and warlock's Vigil builds; in the Depths Prismatic for the mage and hunter, Void for the warrior and warlock. Asserted: each variant leads at least twice. (Duels: B.5 item 4, unchanged.)
+
+**Awakening** (the shipped option, an item's own effect × 1.1, on the better of each class's two Tyrant builds; the same build awakened, not re-searched):
+
+| | warrior (Prismatic) | mage (Void) | hunter (Prismatic) | warlock (Void) |
+|---|---|---|---|---|
+| Tyrant 38: full kit | 10.43 → 9.70 s (+7.5 %) | 8.52 → 8.27 s (+3.1 %) | 9.12 → 8.21 s (+11.0 %) | 10.50 → 9.94 s (+5.6 %) |
+| Tyrant 38: best single piece | +0.0 % | +0.8 % | +4.9 % | +1.2 % |
+| Heroic 36: full kit | +4.5 % | +5.5 % | +10.0 % | +6.1 % |
+| unawakened: Tyrant · Heroic win rate | 100 · 100 % | 100 · 100 % | 100 · 100 % | 100 · 100 % |
+
+One awakened piece is small (under 5 %), a whole awakened kit kills the late bosses 3–11 % faster (6.5 measured 4.8–9.5 % with the build re-searched for it), and it is not required: the same kit unawakened wins every run. Asserted: full kit +2 to +12 % at both bosses, every single piece < 5 % at the Tyrant, unawakened 12/12 at both. The hunter's +11 % at the top of the range is B.5's hunter burst build (an accepted risk, B.5b item 1).
+
+**The weekly modifiers** (B.5 item 6's seeds; 8 Legendary kits at +5, item level 33 (item level 25 without upgrades at the Warden), × 32 seeds per class; win-rate change in points, burning / warded / frenzied / unyielding / relentless):
+
+| Boss (no modifier) | warrior | mage | hunter | warlock | mean | hardest per class |
+|---|---|---|---|---|---|---|
+| Heroic 34 (90 / 82 / 79 / 93 %) | −1.6 / −6.3 / −7.0 / −4.7 / −7.0 | −3.5 / −10.2 / −10.5 / −10.9 / −14.5 | −3.1 / −8.2 / −8.2 / −11.3 / −12.9 | −1.6 / −3.9 / −5.5 / −3.9 / −7.8 | −2.4 / −7.1 / −7.8 / −7.7 / −10.5 | Frenzied = Relentless, Relentless, Relentless, Relentless |
+| Tyrant 36 (91 / 78 / 78 / 91 %) | −3.5 / −7.0 / −4.7 / −7.0 / −11.3 | −8.2 / −8.6 / −7.0 / −7.0 / −10.2 | −14.5 / −9.4 / −9.4 / −8.6 / −8.6 | −2.3 / −2.0 / −5.5 / −1.6 / −6.3 | −7.1 / −6.7 / −6.6 / −6.1 / −9.1 | Relentless, Relentless, **Burning**, Relentless |
+| Ashen Warden 26 (73 / 57 / 71 / 74 %; not asserted) | −3.5 / −7.4 / −7.0 / −8.2 / −9.8 | −9.0 / −12.1 / −11.3 / −11.3 / −16.4 | −3.9 / −4.3 / −3.5 / −3.5 / −6.6 | −11.7 / −12.1 / −12.9 / −12.5 / −18.8 | −7.0 / −9.0 / −8.7 / −8.9 / −12.9 | Relentless everywhere |
+
+Every modifier makes the week harder (−2 to −11 points on average at the endgame bosses), and classes feel them differently: Burning costs the warlock 2 points at the Tyrant and the hunter 14.5; Unyielding costs the warrior 5 at Heroic and the hunter 11. **Relentless is the hardest on average at every boss**, but by only 2.0–2.7 points over the next at the endgame bosses (3.9 at the Warden), not the 5–10 points by which Warded led before B.5; Burning is the mildest at Heroic. Asserted at Heroic 34 and the Tyrant 36: every mean below 0 and above −15 points, the hardest within 5 points of the next, some modifier's cost differs by 6+ points between classes (measured 7.4 and 12.2), and at least two different modifiers are some class's hardest. A watch item, not a change: if live data shows Relentless weeks skipped, it is the next modifier to soften (as Warded was in B.5).
+
+### 3. No new system is required in PvE
+
+Verge drops only (item level 33): no Prismatic, no awakening, no Tyrantforged Work, no Heroic loot, no Forgeward bellows. B.5's boss seeds (`b5-boss`), so the Tyrant 36 row equals B.5 item 2's +5 column.
+
+| Kit | warrior | mage | hunter | warlock |
+|---|---|---|---|---|
+| Plain Legendaries +5 (8 kits × 12 seeds): Tyrant 36 · 38 · Heroic 34 | 80 · 86 · 85 % | 71 · 76 · 72 % | 68 · 75 · 70 % | 91 · 92 · 91 % |
+| Best Pass build at +5 (no Void): Tyrant 38 · Heroic 34 | 100 · 100 % | 100 · 100 % | 100 · 100 % | 100 · 100 % |
+| Best Pass build at +10 Void: Tyrant 38 · Heroic 34 | 100 · 100 % | 100 · 100 % | 100 · 100 % | 100 · 100 % |
+
+Plain upgraded Verge Legendaries beat both late bosses seven to nine times in ten; a built kit of the same drops never loses. Asserted: plain Legendaries +5 ≥ 65 % at the Tyrant 38 and Heroic 34 for every class, the built kits 16/16 at both. Farming needs no new system either: the Verge (section 1) and the Depths (B.5 item 10, 6.2) are farmed in plain and Void kits.
+
+### Verdict and open points
+
+The criterion holds on every measure: older gear moves into the new region and earns more there, older drops keep a slot, a salvage value and a sink, the new systems are choices (a sidegrade, a modest late step, a weekly twist), and none is needed to beat the hardest PvE content. Open points for the owner, none blocking: **Abbey silver** has no repeatable sink once the Forgeward Outpost is built; **spare Gravewarden Seals** (B.5 item 8, sink planned in 6.11); **Relentless** is the hardest modifier on average by a small margin (watch); the hunter's full awakened kit at +11 % is its accepted burst build (B.5b).
