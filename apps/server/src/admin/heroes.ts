@@ -6,6 +6,7 @@ import {
   characters,
   duelDefences,
   duelOffers,
+  dungeonRuns,
   leaderboardEntries,
   type Account,
   type Character,
@@ -88,6 +89,22 @@ export async function softDeleteHero(
     );
   if (!peek) throw new ApiError(404, 'not_found', 'No such hero.');
   assertConfirmed(peek.name, input.confirm);
+  // Ticket 6.10: an unclaimed dungeon run is the account's one open run, and only its hero can
+  // claim it; deleted, the account could neither farm nor enter a dungeon. A run starts under the
+  // account row locked above, so none can appear before this commits.
+  const [run] = await tx
+    .select({ id: dungeonRuns.id, endsAt: dungeonRuns.endsAt })
+    .from(dungeonRuns)
+    .where(and(eq(dungeonRuns.characterId, peek.id), isNull(dungeonRuns.claimedAt)))
+    .limit(1);
+  if (run) {
+    throw new ApiError(
+      409,
+      'hero_in_dungeon',
+      'This hero has a dungeon run that is not claimed yet. Ask the player to claim it first.',
+      { runId: run.id, endsAt: run.endsAt.toISOString() },
+    );
+  }
 
   // T.5's seam first: offer rows before hero rows (its lock order).
   const offersVoided = await voidForDeletion(tx, peek.id, authNow, activity);

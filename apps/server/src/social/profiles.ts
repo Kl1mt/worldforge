@@ -226,13 +226,17 @@ export async function profileView(
         [profileFieldKey(owner.id, 'displayName'), ...heroes.map((h) => characterNameKey(h.id))],
         now,
       );
-  const heroView = (h: (typeof heroes)[number]): ProfileCharacterView => ({
-    name: hidden.has(characterNameKey(h.id)) ? null : h.name,
-    classId: h.classId,
-    level: h.level,
-    appearance: h.appearance,
-    palette: palettes.get(h.id) ?? null,
-  });
+  const heroView = (h: (typeof heroes)[number]): ProfileCharacterView => {
+    const nameHidden = hidden.has(characterNameKey(h.id));
+    return {
+      name: nameHidden ? null : h.name,
+      classId: h.classId,
+      level: h.level,
+      appearance: h.appearance,
+      // Ticket 6.10: the palette shows where the name does (docs/COSMETICS.md "Privacy").
+      palette: nameHidden ? null : (palettes.get(h.id) ?? null),
+    };
+  };
   const shown = await executor
     .select({ id: accountAchievements.achievementId, awardedAt: accountAchievements.awardedAt })
     .from(accountAchievements)
