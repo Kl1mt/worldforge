@@ -75,18 +75,31 @@ export function areaStock(
   const rng = createRng(hashSeed(`merchant:${characterId}:${day}:${areaId}`));
   const rarities = Object.entries(config.merchant.stockRarities) as [RarityId, number][];
   const offers: MerchantOffer[] = [];
+  // Class-usable entries with their bases' minimum item levels.
+  const usable = table.entries.flatMap((e) => {
+    const base = findItemBase(e.baseId);
+    return base && e.weight > 0 && canClassUseItem(base, classId)
+      ? [{ entry: e, minItemLevel: base.minItemLevel }]
+      : [];
+  });
+  const floorLevel = Math.min(...usable.map((u) => u.minItemLevel));
   for (let index = 0; index < config.merchant.offersPerArea; index++) {
-    const itemLevel = rng.int(area.minLevel, area.maxLevel);
+    let itemLevel = rng.int(area.minLevel, area.maxLevel);
     const rarityId = rng.weighted(rarities, ([, w]) => w)[0];
-    const candidates = table.entries.filter((e) => {
-      const base = findItemBase(e.baseId);
-      return (
-        base && e.weight > 0 && base.minItemLevel <= itemLevel && canClassUseItem(base, classId)
-      );
-    });
+    let candidates = usable.filter((u) => u.minItemLevel <= itemLevel).map((u) => u.entry);
     const seed = rng.int(0, 0xffffffff);
-    if (candidates.length === 0) continue;
-    const baseId = rng.weighted(candidates, (e) => e.weight).baseId;
+    let pick = rng;
+    if (candidates.length === 0) {
+      // Ticket F.7: an area whose lowest level sits below its table's first base (the Ashfall
+      // Verge: level 28, tier-4 bases from 29) used to drop the offer. Stock it at the lowest level
+      // a usable base allows, if that is still within the area. The base is drawn from a stream of
+      // its own, so every offer that existed before keeps exactly its item.
+      if (floorLevel > area.maxLevel) continue;
+      itemLevel = floorLevel;
+      candidates = usable.filter((u) => u.minItemLevel <= itemLevel).map((u) => u.entry);
+      pick = createRng(`merchant-floor:${characterId}:${day}:${areaId}:${index}`);
+    }
+    const baseId = pick.weighted(candidates, (e) => e.weight).baseId;
     const item = generateItem({ seed, itemLevel, baseId, rarityId, classId });
     if (!item) continue;
     offers.push({

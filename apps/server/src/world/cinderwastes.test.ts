@@ -7,11 +7,19 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { and, eq, isNotNull } from 'drizzle-orm';
-import { getArea, getItemBase, getLootTable, type WorldProgress } from '@worldforge/game-core';
+import { randomUUID } from 'node:crypto';
+import {
+  DEFAULT_ECONOMY_CONFIG,
+  getArea,
+  getItemBase,
+  getLootTable,
+  type WorldProgress,
+} from '@worldforge/game-core';
+import { SESSION_COOKIE } from '../auth/index.js';
 import { buildApp } from '../app.js';
 import { DEFAULT_ACTIVITY_OPTIONS, type ActivityOptions } from '../activity/settle.js';
 import type { ActivityStateResponse, SettleResponse } from '../activity/routes.js';
-import { accounts, itemInstances, worldFlags } from '../db/schema.js';
+import { accounts, characters, itemInstances, worldFlags } from '../db/schema.js';
 import type { DatabaseHandle } from '../db/types.js';
 import type { MerchantResponse } from '../merchant/routes.js';
 import { createTestDatabase } from '../test/db.js';
@@ -56,9 +64,9 @@ const WARDEN_SLAYER: WorldProgress = { ...PASS_VETERAN, ashenWardenDefeated: tru
 type Hero = { who: TestAccount; heroId: string };
 
 /** A hero at `level` in Legendaries +10 (the test kit, item level below the hero's). */
-async function hero(level: number, progress: WorldProgress): Promise<Hero> {
+async function hero(level: number, progress: WorldProgress, id?: string): Promise<Hero> {
   const who = await insertAccount(db(), { now: new Date(nowMs) });
-  const h = await insertCharacter(db(), who.id, { level, progress });
+  const h = await insertCharacter(db(), who.id, { ...(id ? { id } : {}), level, progress });
   await db().update(accounts).set({ activeCharacterId: h.id }).where(eq(accounts.id, who.id));
   await makeCryptReady(db(), h.id, 'warrior', level, { rarityId: 'legendary' });
   await db()
@@ -74,11 +82,14 @@ const verge = async (p: Hero) =>
     .areas.find((a) => a.id === 'ashfallVerge')!;
 const farm = (p: Hero) =>
   call(p.who, 'POST', `/api/characters/${p.heroId}/activity`, { areaId: 'ashfallVerge' });
-const merchantAreas = async (p: Hero) => {
+const merchant = async (p: Hero) => {
   const res = await call(p.who, 'GET', `/api/characters/${p.heroId}/merchant`);
   expect(res.statusCode).toBe(200);
-  return new Set(res.json<MerchantResponse>().offers.map((o) => o.areaId));
+  return res.json<MerchantResponse>();
 };
+const merchantAreas = async (p: Hero) => new Set((await merchant(p)).offers.map((o) => o.areaId));
+const vergeOffers = async (p: Hero) =>
+  (await merchant(p)).offers.filter((o) => o.areaId === 'ashfallVerge');
 
 describe('the Ashfall Verge (ticket 6.1)', () => {
   it('stays closed without the Ashen Warden or below level 28, on every path', async () => {
@@ -134,6 +145,44 @@ describe('the Ashfall Verge (ticket 6.1)', () => {
     const regular = stored.filter((r) => r.setId === null && !getItemBase(r.baseId).unique);
     expect(regular.length).toBeGreaterThan(0);
     for (const r of regular) expect(getItemBase(r.baseId).tier, r.baseId).toBe(4);
-    expect((await merchantAreas(p)).has('ashfallVerge')).toBe(true);
+    // Every hero gets the Verge's full stock, every day (F.7).
+    expect(await vergeOffers(p)).toHaveLength(DEFAULT_ECONOMY_CONFIG.merchant.offersPerArea);
+  });
+
+  it('stocks the Verge in full on a day that rolls item level 28 for both offers (F.7)', async () => {
+    // Found with game-core's merchant rules before F.7: on 2026-11-09 this warrior's two Verge
+    // offers both rolled item level 28, where the Verge has no base (its tier-4 bases start at 29),
+    // so the merchant showed no Verge offer at all (about 1 hero-day in 50; 1 in 4 lost one).
+    const p = await hero(28, WARDEN_SLAYER, '0190f000-0000-7000-8000-000000000015');
+    const m = await merchant(p);
+    expect(m.day).toBe('2026-11-09');
+    const offers = await vergeOffers(p);
+    expect(offers.map((o) => o.offerId)).toEqual([
+      '2026-11-09.ashfallVerge.0',
+      '2026-11-09.ashfallVerge.1',
+    ]);
+    for (const o of offers) {
+      expect(o.item.itemLevel).toBe(29);
+      expect(getItemBase(o.item.baseId).tier).toBe(4);
+    }
+    // The offer is real: the buy endpoint recomputes the same item.
+    await db().update(characters).set({ gold: 1_000_000 }).where(eq(characters.id, p.heroId));
+    const buy = await app.inject({
+      method: 'POST',
+      url: `/api/characters/${p.heroId}/merchant/buy`,
+      payload: { offerId: offers[0]!.offerId },
+      headers: { 'idempotency-key': randomUUID() },
+      cookies: { [SESSION_COOKIE]: p.who.token },
+    });
+    expect(buy.statusCode, buy.body).toBe(200);
+    const [bought] = await db()
+      .select()
+      .from(itemInstances)
+      .where(and(eq(itemInstances.characterId, p.heroId), eq(itemInstances.source, 'merchant')));
+    expect(bought).toMatchObject({
+      baseId: offers[0]!.item.baseId,
+      rarityId: offers[0]!.item.rarityId,
+      itemLevel: 29,
+    });
   });
 });
