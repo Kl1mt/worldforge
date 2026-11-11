@@ -90,6 +90,16 @@ const CONTRACT = {
       ['forgeRevenant', 'slagMastiff', 'ashflameWisp', 'slagColossus'],
       ['ironOre', 'soulShard'],
     ],
+    // Ticket 8.1: Region III, the Hollow Reach (fixed asset names from A.17: hollow-knight,
+    // reach-stalker, pale-choir, husk-titan).
+    [
+      'paleMarches',
+      40,
+      46,
+      40,
+      ['hollowKnight', 'reachStalker', 'paleChoir', 'huskTitan'],
+      ['ironOre', 'soulShard'],
+    ],
   ],
   dungeon: [
     'namelessCrypt',
@@ -148,6 +158,14 @@ describe('content contract', () => {
     expect(getArea('cinderDepths').unlock.level).toBe(getArea('ashfallVerge').maxLevel);
     for (const a of AREAS.filter((x) => x.id !== 'ashfallVerge' && x.id !== 'cinderDepths')) {
       expect(a.unlock.ashenWardenDefeated, a.id).toBeUndefined();
+    }
+    // Ticket 8.1: the Pale Marches behind the Forge Tyrant (level 40), A.17's backdrop.
+    expect(getArea('paleMarches').unlock.forgeTyrantDefeated).toBe(true);
+    expect(getArea('paleMarches').region).toBe('The Hollow Reach');
+    expect(getArea('paleMarches').assetId).toBe('area.hollow-reach');
+    expect(getArea('paleMarches').unlock.level).toBe(getArea('cinderDepths').maxLevel);
+    for (const a of AREAS.filter((x) => x.id !== 'paleMarches')) {
+      expect(a.unlock.forgeTyrantDefeated, a.id).toBeUndefined();
     }
   });
 
@@ -310,8 +328,14 @@ describe('areas and level ranges', () => {
     // Graumark's areas overlap the next by one step. Ticket 4.8: the Ashen Pass starts two levels
     // above the Abbey's top instead; crypt tier III (21–24) bridges the gap.
     const graumark = AREAS.filter(
-      (a) => a.id !== 'ashenPass' && a.id !== 'ashfallVerge' && a.id !== 'cinderDepths',
+      (a) =>
+        a.id !== 'ashenPass' &&
+        a.id !== 'ashfallVerge' &&
+        a.id !== 'cinderDepths' &&
+        a.id !== 'paleMarches',
     );
+    // Ticket 8.1: the Hollow Reach starts at the Depths' top (and the Forge Tyrant's level, 40).
+    expect(getArea('paleMarches').minLevel).toBe(getArea('cinderDepths').maxLevel);
     // Ticket 6.2: the Depths start at the Verge's top.
     expect(getArea('cinderDepths').minLevel).toBe(getArea('ashfallVerge').maxLevel);
     // Ticket 6.1: the Cinderwastes start at the Pass's top (and the Ashen Warden's level, 28).
@@ -413,7 +437,8 @@ describe('loot tables', () => {
       // Ticket 6.1: the Verge drops from item level 29 (the tier-4 bases' first level, one above
       // the Pass's), not 27: its whole range is above every earlier source.
       // Ticket 6.2: the Depths likewise from 35, one above the Verge's top.
-      const above = p.id === 'ashfallVerge' || p.id === 'cinderDepths';
+      // Ticket 8.1: the Pale Marches from 41, one above the Depths' top.
+      const above = ['ashfallVerge', 'cinderDepths', 'paleMarches'].includes(p.id);
       const min = above ? p.minLevel + v : Math.max(1, p.minLevel - v);
       expect(t.itemLevel, p.id).toEqual({ min, max: p.maxLevel + v });
       for (let level = t.itemLevel!.min; level <= t.itemLevel!.max; level++) {
@@ -436,6 +461,10 @@ describe('loot tables', () => {
     }
     expect(getLootTable('cinderDepths').itemLevel!.min).toBe(
       getLootTable('ashfallVerge').itemLevel!.max,
+    );
+    // Ticket 8.1: the Marches' tier 5 starts where the Depths' item levels end.
+    expect(getLootTable('paleMarches').itemLevel!.min).toBe(
+      getLootTable('cinderDepths').itemLevel!.max,
     );
     expect(meanTier('abandonedFields', 7)).toBe(1);
     // Every base can drop somewhere (Mythic bases through the Mythic roll, ticket 3.2; set pieces
@@ -588,6 +617,45 @@ describe('unlock rules', () => {
     }
   });
 
+  it('gates the Pale Marches by level 40 and the Forge Tyrant (ticket 8.1)', () => {
+    const tyrant = {
+      gravewardenDefeated: true,
+      ashenWardenDefeated: true,
+      forgeTyrantDefeated: true,
+    };
+    const warden = { gravewardenDefeated: true, ashenWardenDefeated: true };
+    expect(isAreaUnlocked('paleMarches', { level: 40 }, tyrant)).toBe(true);
+    expect(isAreaUnlocked('paleMarches', { level: 39 }, tyrant)).toBe(false);
+    expect(isAreaUnlocked('paleMarches', { level: 60 }, warden)).toBe(false);
+    expect(areaUnlockBlockers('paleMarches', { level: 20 }, NO_PROGRESS)).toEqual([
+      { kind: 'level', required: 40 },
+      { kind: 'forgeTyrantDefeated' },
+    ]);
+    // Live from its release: no world flag (8.2's community gate is for the region's later
+    // places), so every flag leaves it as it is.
+    const all = Object.fromEntries(Object.keys(NO_WORLD_FLAGS).map((k) => [k, true]));
+    for (const progress of [NO_PROGRESS, warden, tyrant]) {
+      for (const level of [39, 40, 46]) {
+        expect(
+          areaUnlockBlockers(
+            'paleMarches',
+            { level, world: all as typeof NO_WORLD_FLAGS },
+            progress,
+          ),
+        ).toEqual(areaUnlockBlockers('paleMarches', { level }, progress));
+      }
+    }
+    // The Tyrant opens nothing else: every other place reads the same with and without him.
+    for (const id of AREA_IDS.filter((x) => x !== 'paleMarches')) {
+      for (const level of [1, 28, 40, 60]) {
+        expect(
+          areaUnlockBlockers(id, { level, world: all as typeof NO_WORLD_FLAGS }, tyrant),
+          id,
+        ).toEqual(areaUnlockBlockers(id, { level, world: all as typeof NO_WORLD_FLAGS }, warden));
+      }
+    }
+  });
+
   it('gates the crypt by level', () => {
     expect(isDungeonUnlocked('namelessCrypt', { level: 11 }, NO_PROGRESS)).toBe(false);
     expect(isDungeonUnlocked('namelessCrypt', { level: 12 }, NO_PROGRESS)).toBe(true);
@@ -598,7 +666,8 @@ describe('unlock rules', () => {
 
   it('only ever needs the level for the first four areas, and rejects bad levels', () => {
     for (const id of AREA_IDS) {
-      if (['sunkenAbbey', 'ashenPass', 'ashfallVerge', 'cinderDepths'].includes(id)) continue;
+      if (['sunkenAbbey', 'ashenPass', 'ashfallVerge', 'cinderDepths', 'paleMarches'].includes(id))
+        continue;
       const level = getArea(id).unlock.level;
       expect(isAreaUnlocked(id, { level }, NO_PROGRESS)).toBe(true);
       expect(isAreaUnlocked(id, { level }, BOSS_DOWN)).toBe(true);
@@ -639,7 +708,8 @@ describe('farming every area', () => {
   it('a mid-level character of every class farms each area without timeouts', () => {
     // Ticket 6.2: a common kit cannot kill the Depths' slag colossus (it is tuned for Verge
     // Legendaries and builds: balance.test.ts "the Cinder Depths"), so the Depths are left out here.
-    for (const area of AREAS.filter((a) => a.id !== 'cinderDepths')) {
+    // Ticket 8.1: likewise the Pale Marches (tuned for today's best gear, balance.test.ts).
+    for (const area of AREAS.filter((a) => a.id !== 'cinderDepths' && a.id !== 'paleMarches')) {
       const level = mid(area.id);
       for (const classId of CLASS_IDS) {
         // Ticket 4.8: the Ashen Pass is top-end content; a bare hero is not meant to farm it (it

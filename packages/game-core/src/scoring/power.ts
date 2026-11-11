@@ -138,6 +138,19 @@ export const POWER_CONFIGS: Readonly<Record<number, Readonly<PowerConfig>>> = {
     });
     return { ...DEFAULT_POWER_CONFIG, rungs, seeds };
   })(),
+  // Ticket 8.1: trials at 42 and 46 (the Pale Marches' middle and top; 40 and 44 exist), so the
+  // Hollow Reach's gear shows: 24 trials, at most 4,800. Every other trial keeps version 2's seed,
+  // so version 3 = version 2 + the two new trials.
+  3: (() => {
+    const v2 = [...RUNGS_V1, 30, 34];
+    const rungs = [...v2, 42, 46].sort((a, b) => a - b);
+    const seeds = rungs.map((level) => {
+      const v1 = RUNGS_V1.indexOf(level);
+      if (v1 >= 0) return `power:v1:${v1}`;
+      return v2.includes(level) ? `power:v2:L${level}` : `power:v3:L${level}`;
+    });
+    return { ...DEFAULT_POWER_CONFIG, rungs, seeds };
+  })(),
 };
 
 /** The config of a Power version (throws for one that never existed). */

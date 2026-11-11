@@ -13,6 +13,7 @@ import {
 } from '@worldforge/game-core';
 import {
   ART_STAND_INS,
+  HOLLOW_STAND_INS,
   BANNER_STYLE_IDS,
   CREST_STYLE_IDS,
   CREST_STYLE_WINDOW,
@@ -146,6 +147,64 @@ describe('Cinderwastes art (tickets 6.1, A.11, A.15)', () => {
       expect(Object.hasOwn(ASSETS, target), `${id} → ${target}`).toBe(true);
       expect(Object.hasOwn(ASSETS, id), `${id} is drawn now: remove its stand-in`).toBe(false);
       expect(findSprite(id)!.tint, id).toBe('cinder');
+    }
+  });
+});
+
+describe('Hollow Reach art (ticket 8.1, A.17)', () => {
+  // The names 8.1 builds on and A.17 draws (its contact sheet; each lands under `ASSETS`).
+  const NAMES = [
+    'area.hollow-reach',
+    'enemy.hollow-knight',
+    'enemy.reach-stalker',
+    'enemy.pale-choir',
+    'enemy.husk-titan',
+  ];
+
+  it('uses exactly A.17’s names for the Pale Marches and its foes', () => {
+    const marches = getArea('paleMarches');
+    expect([marches.assetId, ...marches.enemies.map((e) => getEnemy(e.enemyId).assetId)]).toEqual(
+      NAMES,
+    );
+  });
+
+  it('resolves every name, drawn or not: its own art, else a pale stand-in with frames', () => {
+    for (const id of NAMES) {
+      const sprite = findSprite(id)!;
+      expect(sprite, id).not.toBeNull();
+      if (Object.hasOwn(ASSETS, id)) {
+        expect(sprite.tint, id).toBeUndefined();
+        expect(Object.hasOwn(HOLLOW_STAND_INS, id), `${id} is drawn now: remove its stand-in`).toBe(
+          false,
+        );
+        continue;
+      }
+      expect(sprite.tint, id).toBe('hollow');
+      expect(sprite.path, id).toBe(ASSETS[HOLLOW_STAND_INS[id]!].path);
+      if (id.startsWith('enemy.')) {
+        // The stand-in kin has attack frames, so the scene animates the foe until A.17's land.
+        expect(enemyAttackSheet(id), id).toMatchObject({ frames: 8, tint: 'hollow' });
+      }
+    }
+    for (const target of Object.values(HOLLOW_STAND_INS))
+      expect(Object.hasOwn(ASSETS, target), target).toBe(true);
+  });
+
+  it('gives every tier-5 base an icon: A.17’s own once drawn, else its tier-4 counterpart', () => {
+    const tier5 = ITEM_BASES.filter((b) => b.tier === 5);
+    expect(tier5).toHaveLength(10);
+    const tier4 = ITEM_BASES.filter((b) => b.tier === 4);
+    for (const base of tier5) {
+      expect(base.icon, base.id).toBe(`item.${base.id}`);
+      const sprite = findSprite(base.icon)!;
+      expect(sprite, base.id).toMatchObject({ width: 32, height: 32 });
+      if (Object.hasOwn(ASSETS, base.icon)) {
+        expect(sprite.tint, base.id).toBeUndefined();
+        continue;
+      }
+      expect(sprite.tint, base.id).toBe('hollow');
+      const counterpart = tier4.find((b) => findSprite(b.icon)?.path === sprite.path);
+      expect(counterpart?.slot, base.id).toBe(base.slot);
     }
   });
 });
@@ -401,5 +460,86 @@ describe('cosmetic art (A.13)', () => {
     const sprite = findSprite('achievement.forgeward-builder');
     expect(sprite).toMatchObject({ width: 32, height: 32 });
     expect(fileSize(sprite!)).toEqual({ width: 32, height: 32 });
+  });
+});
+
+describe('Hollow Reach art (A.17)', () => {
+  const pngSize = (path: string) => {
+    const bytes = readFileSync(new URL(`../../public${path}`, import.meta.url));
+    return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+  };
+
+  // The names tickets 8.1 (area, enemies, tier-5 bases) and 8.2 (deeper area, region boss) build
+  // on, each with the Cinderwastes peer whose size it shares: keep them.
+  const ART = {
+    'area.hollow-reach': 'area.cinderwastes',
+    'area.hollow-depths': 'area.cinder-depths',
+    'enemy.hollow-knight': 'enemy.cinder-revenant',
+    'enemy.reach-stalker': 'enemy.slag-hound',
+    'enemy.pale-choir': 'enemy.ember-wisp',
+    'enemy.husk-titan': 'enemy.ash-colossus',
+    'enemy.hollow-sovereign': 'enemy.forge-tyrant',
+  } as const;
+  const COMMON = ['hollow-knight', 'reach-stalker', 'pale-choir', 'husk-titan'];
+  // 8.1's tier-5 bases (`item.<base id>`) and their slots, the same family as tier 4.
+  const TIER5 = {
+    'hollowsteel-greatblade': 'weapon',
+    'pale-choir-stave': 'weapon',
+    'reachstalker-longbow': 'weapon',
+    'hollow-aegis': 'offhand',
+    'hollowknight-helm': 'head',
+    'titanhusk-cuirass': 'chest',
+    'palebone-gauntlets': 'hands',
+    'reachwalker-sabatons': 'feet',
+    'requiem-locket': 'neck',
+    'hollow-signet': 'ring',
+  } as const;
+
+  it('resolves every name to a manifest entry and a file the size of its Cinderwastes peer', () => {
+    for (const [id, peer] of Object.entries(ART)) {
+      const sprite = findSprite(id);
+      expect(sprite, id).not.toBeNull();
+      const entry = manifest.assets.find((m) => m.id === id);
+      expect(entry?.path, id).toBe(sprite?.path);
+      expect(existsSync(new URL(`../../public${entry?.path}`, import.meta.url)), id).toBe(true);
+      expect(pngSize(entry!.path), id).toEqual(entry?.size);
+      const peerSprite = findSprite(peer);
+      expect(entry?.size, id).toEqual({ width: peerSprite?.width, height: peerSprite?.height });
+    }
+  });
+
+  it('faces the hero without mirroring', () => {
+    for (const id of Object.keys(ART).filter((k) => k.startsWith('enemy.'))) {
+      expect(findSprite(id)?.facing, id).not.toBe('right');
+    }
+  });
+
+  it('gives each common foe a left-facing 8-frame sheet, and the boss none', () => {
+    for (const name of COMMON) {
+      const still = findSprite(`enemy.${name}`)!;
+      const sheet = enemyAttackSheet(`enemy.${name}`);
+      expect(sheet, name).toMatchObject({ frames: 8, facing: 'left', height: still.height });
+      expect(sheet!.width - (sheet!.lead ?? 0), name).toBe(still.width);
+      expect(pngSize(sheet!.path), name).toEqual({ width: sheet!.width * 8, height: still.height });
+    }
+    expect(enemyAttackSheet('enemy.hollow-sovereign')).toBeNull();
+  });
+
+  it('gives every tier-5 base its own 32×32 icon of its slot, untinted', () => {
+    const paths = new Set<string>();
+    for (const [name, slot] of Object.entries(TIER5)) {
+      const sprite = findSprite(`item.${name}`);
+      expect(sprite, name).toMatchObject({
+        path: `/assets/items/${name}.png`,
+        width: 32,
+        height: 32,
+      });
+      expect(sprite?.tint, name).toBeUndefined();
+      expect(pngSize(sprite!.path), name).toEqual({ width: 32, height: 32 });
+      const entry = manifest.assets.find((m) => m.id === `item.${name}`);
+      expect(entry, name).toMatchObject({ kind: 'item', slot });
+      paths.add(sprite!.path);
+    }
+    expect(paths.size).toBe(Object.keys(TIER5).length);
   });
 });

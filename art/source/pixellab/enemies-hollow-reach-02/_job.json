@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, full body, side view facing left, neutral pose, enemies of the Hollow Reach: a pale choir, a floating cluster of three small hooded singers fused together at the robes, each wearing a pale cracked porcelain mask with an open singing mouth, tattered grey robes trailing into mist below, no legs, faint cold blue light, magic; a husk titan, a huge hulking hunched giant of cracked pale dried husk and bone, hollow and empty inside, deep cracks showing darkness within, enormous heavy arms, the large type, muted desaturated palette, bone white, ash pale and cold grey, dark near-black outline, transparent background",
+  "style_image": "apps/web/public/assets/enemies/ash-colossus.png",
+  "job_id": "3ef047c3-a992-4e4f-a9cb-812a0269aadc",
+  "created_at": "2026-11-11T20:28:52.096940+00:00",
+  "seed": 817290446,
+  "generations": 10.0,
+  "count": 16,
+  "width": 64,
+  "height": 64
+}

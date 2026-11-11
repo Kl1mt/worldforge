@@ -98,5 +98,11 @@ export const DEFAULT_PROFESSION_CONFIG: ProfessionConfig = {
       yields: [{ materialId: 'ironOre', chance: 0.07 }],
       undeadDrops: [{ materialId: 'soulShard', chance: 0.03 }],
     },
+    // Ticket 8.1: the Pale Marches keep the Cinderwastes' materials (tier-5 upgrades ask for 4 ore a
+    // unit; soul shards from the hollow knights and the pale choir). No new gathering material.
+    paleMarches: {
+      yields: [{ materialId: 'ironOre', chance: 0.08 }],
+      undeadDrops: [{ materialId: 'soulShard', chance: 0.03 }],
+    },
   },
 };

@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art item icons, one item per icon, hollowed bone-pale gear of the Hollow Reach: long sword of pale bleached steel with a hollow fuller and a ribcage crossguard; sceptre of pale bone with a hollow cage at its head holding a wisp of cold mist; longbow of bleached bone and pale sinew; tall kite shield of pale bone plates with a hollow round hole at its centre; closed helm of pale bone-grey steel shaped like a hollow-eyed skull mask; pale bone-grey plate cuirass with a hollow ribbed chest; gauntlets of pale bone plates with long fingers; pale steel greaves with rib-like bone plates; pendant on a chain holding a hollow bone cage with a faint mist light; ring of pale bone with a small cold pale stone, bleached bone, pale grey steel, grey mist, faint cold blue-white accents, muted desaturated palette, transparent background",
+  "style_image": "apps/web/public/assets/items/cinderforged-blade.png",
+  "job_id": "beb22669-c78d-40f5-86e6-8977d699479b",
+  "created_at": "2026-11-11T20:33:53.175637+00:00",
+  "seed": 2144605666,
+  "generations": 10.0,
+  "count": 64,
+  "width": 32,
+  "height": 32
+}

@@ -56,11 +56,25 @@ BATCHES: dict[str, list[str]] = {
         "ash-wraith", "cinder-hound", "slag-hound",
         "ember-wisp", "cinder-revenant", "fallen-knight",
     ],
+    # A.17: the Hollow Reach's four common foes; the last two cells stay empty.
+    "anim-enemies-05": [
+        "hollow-knight", "reach-stalker", "pale-choir",
+        "husk-titan",
+    ],
 }
 
 # Frames that miss the bar even after the regeneration (fire bursts that flatten into crude blobs
 # once snapped to the sprite's palette): no sheet, these keep the code animation.
 REJECTED = {"cinder-hound", "slag-hound", "ember-wisp"}
+
+# A.17: batches whose frames get the burst clean-up (`clean_bursts`) before snapping. The
+# animator drew white impact bursts around the choir and the titan at the strike; they are
+# brighter than anything in the stills, so they are cut, and so are stray specks it left.
+CLEANED_BATCHES = {"anim-enemies-05"}
+BRIGHT_MARGIN = 8  # luma above the still's 99th-percentile pixel that counts as a burst
+BRIGHT_FLOOR = 140  # a bright pixel this far from every colour of the still is a burst too
+OFF_PALETTE = 40  # ... "this far": weighted RGB distance (as `snap`), square-rooted
+SPECK_MAX = 24  # opaque fragments this small, apart from the body, are dropped
 
 
 # Which batch each enemy's sheet comes from (later batches win: 04 replaces 02/03's failures).
@@ -124,6 +138,50 @@ def snap(frame: Image.Image, pal: list[tuple[int, int, int]]) -> Image.Image:
     return out
 
 
+def luma(p: tuple[int, ...]) -> float:
+    return 0.299 * p[0] + 0.587 * p[1] + 0.114 * p[2]
+
+
+def clean_bursts(cell: Image.Image, still: Image.Image) -> Image.Image:
+    """Cut burst pixels (brighter than the still, or bright and off its palette), then specks."""
+    lumas = sorted(luma(p) for p in still.get_flattened_data() if p[3] > 0)
+    ceiling = lumas[int(len(lumas) * 0.99)] + BRIGHT_MARGIN
+    pal = palette(still)
+
+    def off_palette(p: tuple[int, ...]) -> bool:
+        d = min(2 * (c[0] - p[0]) ** 2 + 4 * (c[1] - p[1]) ** 2 + 3 * (c[2] - p[2]) ** 2 for c in pal)
+        return d > 9 * OFF_PALETTE**2  # the weights sum to 9
+
+    out = cell.copy()
+    px = out.load()
+    w, h = out.size
+    for y in range(h):
+        for x in range(w):
+            q = px[x, y]
+            if q[3] >= 128 and (luma(q) > ceiling or (luma(q) > BRIGHT_FLOOR and off_palette(q))):
+                px[x, y] = (0, 0, 0, 0)
+    seen: set[tuple[int, int]] = set()
+    for y in range(h):
+        for x in range(w):
+            if (x, y) in seen or px[x, y][3] < 128:
+                continue
+            part, todo = [], [(x, y)]
+            seen.add((x, y))
+            while todo:
+                cx, cy = todo.pop()
+                part.append((cx, cy))
+                for dx in (-1, 0, 1):
+                    for dy in (-1, 0, 1):
+                        nx, ny = cx + dx, cy + dy
+                        if 0 <= nx < w and 0 <= ny < h and (nx, ny) not in seen and px[nx, ny][3] >= 128:
+                            seen.add((nx, ny))
+                            todo.append((nx, ny))
+            if len(part) <= SPECK_MAX:
+                for q in part:
+                    px[q] = (0, 0, 0, 0)
+    return out
+
+
 def build() -> None:
     rows = []
     picks = source_batches()
@@ -145,6 +203,8 @@ def build() -> None:
             sheet.paste(still, (LEAD, 0))
             for f in range(1, FRAMES):
                 cell = frames[f].crop((x - LEAD, y, x + SIZE, y + SIZE))
+                if batch in CLEANED_BATCHES:
+                    cell = clean_bursts(cell, still)
                 sheet.paste(snap(cell, pal), (f * FRAME_W, 0))
             sheet.save(ROOT / f"apps/web/public/assets/enemies/{name}-attack.png")
             rows.append((batch, i, name, sheet))

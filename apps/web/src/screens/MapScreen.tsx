@@ -93,6 +93,8 @@ function blockerText(b: UnlockBlocker): string {
   if (b.kind === 'cryptTier') return `Clear Tier ${'I'.repeat(b.tier)} of the crypt`;
   // Ticket 6.1: the Cinderwastes lie past the Warden's tower.
   if (b.kind === 'ashenWardenDefeated') return 'Defeat the Ashen Warden';
+  // Ticket 8.1: the Hollow Reach lies past the Forge Tyrant's furnace.
+  if (b.kind === 'forgeTyrantDefeated') return 'Defeat the Forge Tyrant';
   return 'Defeat the Gravewarden';
 }
 

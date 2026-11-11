@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, full body, side view facing left, neutral standing pose, enemies of the Hollow Reach: a hollow knight, a gaunt tall armoured revenant in pale bone-grey dented plate, a gaping empty hole through its chest where the heart was, a tattered grey cloak, a long thin sword held low; a reach stalker, a long-limbed pale gaunt hunter crouched low on four thin limbs, bone-white skin stretched over ribs, long clawed fingers, an eyeless narrow head, fast predator, weathered worn gear, muted desaturated palette, bone white and cold grey, dark near-black outline, transparent background",
+  "style_image": "apps/web/public/assets/enemies/cinder-revenant.png",
+  "job_id": "b1549991-1187-462f-9031-0bcc80ced478",
+  "created_at": "2026-11-11T20:28:52.074778+00:00",
+  "seed": 548037996,
+  "generations": 10.0,
+  "count": 16,
+  "width": 64,
+  "height": 64
+}

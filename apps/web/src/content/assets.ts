@@ -13,9 +13,10 @@ export interface SpriteAsset {
   /**
    * Drawn tinted: `cinder`, a stand-in for art still to be made (`ART_STAND_INS`, ticket 6.1);
    * `ember`, a forge-tempered variant of existing art (`ART_VARIANTS`, ticket 6.2); `heroic`, the
-   * Heroic crypt's treatment of its own art (`heroicSprite`, ticket 6.3).
+   * Heroic crypt's treatment of its own art (`heroicSprite`, ticket 6.3); `hollow`, a stand-in for
+   * Hollow Reach art still to be made (`HOLLOW_STAND_INS`, ticket 8.1).
    */
-  tint?: 'cinder' | 'ember' | 'heroic';
+  tint?: 'cinder' | 'ember' | 'heroic' | 'hollow';
   /**
    * Ticket A.14: a frame sheet. The file is one row of `frames` frames, each `width` × `height`
    * (so the PNG is `frames × width` wide); `PixelSprite` shows one frame at a time.
@@ -351,6 +352,30 @@ export const ASSETS = {
   'crest.gilt': crestStyle('gilt'),
   'crest.bone': crestStyle('bone'),
   'crest.ember': crestStyle('ember'),
+  // The Hollow Reach (A.17): art only. Ticket 8.1 adds the first area, its enemies and the tier-5
+  // bases with these ids; 8.2 the deeper area and the region boss (128×128).
+  'area.hollow-reach': { path: '/assets/areas/hollow-reach.png', width: 384, height: 216 },
+  'area.hollow-depths': { path: '/assets/areas/hollow-depths.png', width: 384, height: 216 },
+  'enemy.hollow-knight': enemy('hollow-knight', 'front'),
+  'enemy.reach-stalker': enemy('reach-stalker', 'left'),
+  'enemy.pale-choir': enemy('pale-choir', 'left'),
+  'enemy.husk-titan': enemy('husk-titan', 'front'),
+  'enemy.hollow-sovereign': enemy('hollow-sovereign', 'front', 128),
+  'enemy.hollow-knight-attack': enemyAttack('hollow-knight'),
+  'enemy.reach-stalker-attack': enemyAttack('reach-stalker'),
+  'enemy.pale-choir-attack': enemyAttack('pale-choir'),
+  'enemy.husk-titan-attack': enemyAttack('husk-titan'),
+  // Tier 5, the Hollow Reach (A.17): one icon per tier-5 base of ticket 8.1.
+  'item.hollowsteel-greatblade': item('hollowsteel-greatblade'),
+  'item.pale-choir-stave': item('pale-choir-stave'),
+  'item.reachstalker-longbow': item('reachstalker-longbow'),
+  'item.hollow-aegis': item('hollow-aegis'),
+  'item.hollowknight-helm': item('hollowknight-helm'),
+  'item.titanhusk-cuirass': item('titanhusk-cuirass'),
+  'item.palebone-gauntlets': item('palebone-gauntlets'),
+  'item.reachwalker-sabatons': item('reachwalker-sabatons'),
+  'item.requiem-locket': item('requiem-locket'),
+  'item.hollow-signet': item('hollow-signet'),
 } as const satisfies Record<string, SpriteAsset>;
 
 export type AssetId = keyof typeof ASSETS;
@@ -386,18 +411,36 @@ export const ART_VARIANTS: Readonly<Record<string, AssetId>> = {
   'material.tyrants-ember': 'material.soul-shard',
 };
 
+/**
+ * Ticket 8.1: the Hollow Reach's names (art ticket A.17, drawn in parallel), shown until their art
+ * lands as the closest existing sprite with a pale, hollow tint (`pixel--tint-hollow`). The foes
+ * stand in as kin with attack frames, so the scene animates them the same way. Registered art
+ * always wins, so each entry turns itself off once A.17 registers its name; remove it then.
+ * A.17 drew every name, so the map is empty; it stays as the fallback for Hollow Reach art still
+ * missing.
+ */
+export const HOLLOW_STAND_INS: Readonly<Record<string, AssetId>> = {};
+
 /** One sprite object per variant (callers may compare sprites by identity). */
 const VARIANT_SPRITES: ReadonlyMap<string, SpriteAsset> = new Map(
   Object.entries(ART_VARIANTS).map(([id, target]) => [id, { ...ASSETS[target], tint: 'ember' }]),
 );
+const HOLLOW_SPRITES: ReadonlyMap<string, SpriteAsset> = new Map(
+  Object.entries(HOLLOW_STAND_INS).map(([id, target]) => [
+    id,
+    { ...ASSETS[target], tint: 'hollow' },
+  ]),
+);
 
 /**
  * A registered sprite by a content asset id; else its ember variant (`ART_VARIANTS`, ticket 6.2);
- * else its tinted stand-in (`ART_STAND_INS`); else `null` when the art does not exist (yet).
+ * else its Hollow Reach stand-in (`HOLLOW_STAND_INS`, ticket 8.1); else its tinted stand-in
+ * (`ART_STAND_INS`); else `null` when the art does not exist (yet).
  */
 export function findSprite(id: string): SpriteAsset | null {
   if (Object.hasOwn(ASSETS, id)) return ASSETS[id as AssetId];
   if (Object.hasOwn(ART_VARIANTS, id)) return VARIANT_SPRITES.get(id)!;
+  if (Object.hasOwn(HOLLOW_STAND_INS, id)) return HOLLOW_SPRITES.get(id)!;
   const standIn = Object.hasOwn(ART_STAND_INS, id) ? ART_STAND_INS[id] : undefined;
   return standIn ? { ...ASSETS[standIn], tint: 'cinder' } : null;
 }

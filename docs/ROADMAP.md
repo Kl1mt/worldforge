@@ -864,7 +864,7 @@ GDD §15 Phase 6, §7.5 (variants), §8.2 (Item Awakening), §12 (community), §
 - **Content stays data-driven** (areas, enemies, loot tables, bosses, events, cosmetics). Balance numbers move only in their own ticket or a B-ticket, with before/after tables.
 - **Older content stays relevant.** New tiers extend the curves, they don't replace them. A ticket that adds power states how a hero in today's best gear fares, and the balance suites assert it.
 - **Boards move by versions, never resets** (5.2 sweep, 5.3 "formula changes between seasons"). New content adds Power trials and PvE Progress milestones as new formula versions, scheduled between seasons.
-- **Cosmetics and events never sell or grant power** (GDD §13.3). Event rewards are cosmetic or ordinary loot at ordinary odds.
+- **Cosmetics and events never grant power** (GDD §13.3). Event rewards are cosmetic or ordinary loot at ordinary odds.
 - **PvP stays separate.** New content may need new reference kits or class factors in the PvP normalisation layer (`PVP_RULES_VERSION` bump with measurements); PvE numbers never change for PvP's sake.
 - **Abuse first**, as in Phase 5. Phase 5's lessons apply: check-then-act across an `await`; check offered lists and ownership before relation-based refusals; test "the other side" of every view.
 
@@ -875,7 +875,7 @@ GDD §15 Phase 6, §7.5 (variants), §8.2 (Item Awakening), §12 (community), §
 - **Prismatic:** a second variant **after Void, never stacked with it** in this phase (GDD §7.5, the 3.5 decision). Rarer than Void, Legendary/Mythic/set only, a different stat shape rather than more power. Stacking (a Void-Prismatic item) stays out until a later decision.
 - **Item Awakening:** **evaluate first** (a design doc and a game-core prototype behind a switch, off). Ship only on the owner's yes.
 - **Events:** **admin-scheduled rotating events** (e.g. a "Harvest of Bones" week): a world modifier, an event quest line in the Tavern and a cosmetic reward track. Up to one event at a time, scheduled in the admin panel like seasons.
-- **Cosmetics:** a **collection book** with hero appearance variants (palette swaps of the class sprites), banner and crest styles, and title colours. Earned from events, deeds, seasons and milestones; never bought; no stats.
+- **Cosmetics:** a **collection book** with hero appearance variants (palette swaps of the class sprites), banner and crest styles, and title colours. Earned from events, deeds, seasons and milestones; no stats. (Owner decision 2026-11-11: a real-money cosmetic shop may come later, 8.8.)
 
 **Order** (one or two sessions at a time):
 1. 6.1 and A.11 (parallel)
@@ -1036,7 +1036,7 @@ GDD §12. Read `docs/COMMUNITY.md`, the world flags.
 GDD §13. Read `docs/LEADERBOARDS.md` (5.3 prestige display), `docs/SOCIAL.md` (profiles).
 - A collection book: hero appearance variants (class palette swaps), banner and crest styles, and title colours. Each entry has a source (event, deed, season, milestone).
 - Equip and preview; shown on profiles, boards, rosters and the duel screen.
-- Never purchasable, no stats. Cosmetics are account-bound and not tradeable.
+- No stats. Cosmetics are account-bound and not tradeable. (Owner decision 2026-11-11: a real-money cosmetic shop may come later, 8.8.)
 - Tests:
   - granted exactly once;
   - display privacy (5.2 rules);
@@ -1289,7 +1289,7 @@ GDD §15 Phase 7 exit, §16.3.
 7. B.6
 8. 8.7
 
-### 8.1 Region III, part 1: the Hollow Reach, levels 40–46 (vertical) — `todo`
+### 8.1 Region III, part 1: the Hollow Reach, levels 40–46 (vertical) — `done (PR #141)`
 Like 6.1. Read `docs/WORLD.md`, `docs/COMBAT.md`, `docs/LOOT.md`, `docs/LEADERBOARDS.md`, `docs/PVP.md`, 6.1/6.2 as built.
 - The first area at levels 40–46:
   - new enemies (art from A.17);
@@ -1299,9 +1299,11 @@ Like 6.1. Read `docs/WORLD.md`, `docs/COMBAT.md`, `docs/LOOT.md`, `docs/LEADERBO
 - PvP reference kits for the new top end, with the 30+ bands kept (B.5's duel-Power matchmaking).
 - A level-40 hero in today's best gear farms it profitably, and Phase 6 drops keep their uses.
 - Patch notes `0.8.0`.
+- Done: the Pale Marches (`paleMarches`, region the Hollow Reach, 40–46; unlock level 40 + the Forge Tyrant, `forgeTyrantDefeated`; no world flag: 8.2's gate is for later places). Foes `hollowKnight`/`reachStalker`/`paleChoir`/`huskTitan` on A.17's names (pale stand-ins until its art lands, `HOLLOW_STAND_INS`), each with one fight trait (`EnemyTraits`: armour pierce, crit evasion, skill guard, crit guard; build-time numbers, no draws). Ten tier-5 bases from item level 41, table 41–47 with gold × 3.9, affix tier 6 from 43 (never below 42). No value ≤ 40 moved (`curve-pins-8-1.test.ts`); soft cap ~53–54. Today's best gear (Depths/Heroic Legendaries +10, awakened or not, best Depths builds) farms it with no deaths at 40, XP × 1.07–1.14, gold × 1.12–1.22 the Depths'. Power 3 (+ trials 42, 46) and PvE Progress 5 (21 milestones), between seasons; no Gear Score version. PvP unchanged (rules 2, bracket Power 3, matchmaking 4); 30+ to 46 measures 3.7 / 1.2 %. No migration. Version 0.8.0. Details: `docs/WORLD.md`, `COMBAT.md` "The Hollow Reach", `LOOT.md`, `LEADERBOARDS.md`, `PVP.md`, `BALANCE.md`.
 
-### A.17 Hollow Reach art — `todo`
+### A.17 Hollow Reach art — `done (PR #140)`
 Like A.11. Two area backdrops, 4–6 enemies, a region boss, and 8-frame attack sheets for the common enemies (A.14b's pipeline). Tier-5 item icons like A.15. Budget: about 5–7 PixelLab jobs plus one regeneration, reporting the credit drop. **Acceptance:** contact sheets.
+- Done: `area.hollow-reach`, `area.hollow-depths` (384×216); `enemy.hollow-knight`, `enemy.reach-stalker`, `enemy.pale-choir`, `enemy.husk-titan` (64×64) with 8-frame attack sheets (`enemy.<name>-attack`, a burst clean-up before the snap); `enemy.hollow-sovereign` (128×128, code animation); ten tier-5 icons `item.<8.1 base id>`. Registered only, not drawn yet. 86 generations (eight jobs: seven + one regeneration for the choir), balance 1,319 → 1,233. The Hollow Reach backdrop is dimmed (an edit) to the other areas' value range. See `docs/ASSET_GUIDELINES.md` "The Hollow Reach"; contact sheets `art/preview-hollow-reach.png`, `art/preview-tier5-icons.png`.
 
 ### 8.2 Region III, part 2: levels 46–52, the region boss & a community gate (vertical) — `todo`
 Like 6.2 and 6.7.
@@ -1359,6 +1361,17 @@ Plus `docs/GOING_LIVE.md`, a step-by-step checklist for the owner. **No secrets 
 - The trading telemetry once trading is open (T.7's 10 % Legendary alarm, etc.).
 - Re-check every Phase 6 and 8 band with real players.
 - Before/after tables; data-only changes where possible.
+
+### 8.8 Cosmetic shop (real money) — design first, gated — `todo`
+Owner decision (2026-11-11): cosmetics may also be bought for real money later. GDD §13.3 still applies: never power, stats, drop odds or competitive advantage.
+- **Design first** (`docs/SHOP.md`), and owner decisions before building:
+  - which cosmetics are sold, and whether earned-only ones such as season honours and event keepsakes stay earn-only;
+  - prices and currency;
+  - the payment provider (e.g. Stripe, configured only on the VPS);
+  - refunds;
+  - VAT/consumer law (EU) and the legal pages;
+  - no randomized paid items without a legal review (GDD §13.3).
+- Then build: purchases as audited, idempotent grants into the collection book; receipts; admin refund and reversal tools; test-mode payments only in CI; no card data ever touches the server.
 
 ### 8.7 Phase 8 hardening & exit — `todo`
 Like 6.10:

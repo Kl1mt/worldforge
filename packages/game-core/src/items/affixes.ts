@@ -17,7 +17,8 @@ export interface AffixTier {
    * Ticket 6.1: the item's own level (without the rarity's `affixLevelBonus`) must reach this as
    * well. Tier 5 (item level 31) sets 30, so no source of item level 29 or below (everything before
    * the Cinderwastes) can ever roll it, whatever its rarity: their stored seeds and rolls stay as
-   * they were.
+   * they were. Ticket 8.1: tier 6 (item level 43) sets 42, above every source before the Hollow
+   * Reach (top item level 41).
    */
   minBaseItemLevel?: number;
 }
@@ -92,6 +93,8 @@ export const AFFIXES: readonly AffixDefinition[] = [
       { tier: 4, minItemLevel: 25, weight: 15, min: 15, max: 22 },
       // Ticket 6.1: the Cinderwastes (item level 31, never below item level 30).
       { tier: 5, minItemLevel: 31, minBaseItemLevel: 30, weight: 8, min: 23, max: 32 },
+      // Ticket 8.1: the Hollow Reach (item level 43, never below item level 42).
+      { tier: 6, minItemLevel: 43, minBaseItemLevel: 42, weight: 4, min: 33, max: 44 },
     ],
   },
   {
@@ -108,6 +111,8 @@ export const AFFIXES: readonly AffixDefinition[] = [
       { tier: 4, minItemLevel: 25, weight: 15, min: 15, max: 22 },
       // Ticket 6.1: the Cinderwastes (item level 31, never below item level 30).
       { tier: 5, minItemLevel: 31, minBaseItemLevel: 30, weight: 8, min: 23, max: 32 },
+      // Ticket 8.1: the Hollow Reach (item level 43, never below item level 42).
+      { tier: 6, minItemLevel: 43, minBaseItemLevel: 42, weight: 4, min: 33, max: 44 },
     ],
   },
   {
@@ -163,6 +168,8 @@ export const AFFIXES: readonly AffixDefinition[] = [
       { tier: 4, minItemLevel: 25, weight: 15, min: 51, max: 80 },
       // Ticket 6.1: the Cinderwastes (item level 31, never below item level 30).
       { tier: 5, minItemLevel: 31, minBaseItemLevel: 30, weight: 8, min: 81, max: 120 },
+      // Ticket 8.1: the Hollow Reach (item level 43, never below item level 42).
+      { tier: 6, minItemLevel: 43, minBaseItemLevel: 42, weight: 4, min: 121, max: 165 },
     ],
   },
   {
@@ -179,6 +186,8 @@ export const AFFIXES: readonly AffixDefinition[] = [
       { tier: 4, minItemLevel: 25, weight: 15, min: 21, max: 32 },
       // Ticket 6.1: the Cinderwastes (item level 31, never below item level 30).
       { tier: 5, minItemLevel: 31, minBaseItemLevel: 30, weight: 8, min: 33, max: 48 },
+      // Ticket 8.1: the Hollow Reach (item level 43, never below item level 42).
+      { tier: 6, minItemLevel: 43, minBaseItemLevel: 42, weight: 4, min: 49, max: 66 },
     ],
   },
   {
@@ -195,6 +204,8 @@ export const AFFIXES: readonly AffixDefinition[] = [
       { tier: 4, minItemLevel: 25, weight: 15, min: 16, max: 24 },
       // Ticket 6.1: the Cinderwastes (item level 31, never below item level 30).
       { tier: 5, minItemLevel: 31, minBaseItemLevel: 30, weight: 8, min: 25, max: 36 },
+      // Ticket 8.1: the Hollow Reach (item level 43, never below item level 42).
+      { tier: 6, minItemLevel: 43, minBaseItemLevel: 42, weight: 4, min: 37, max: 50 },
     ],
   },
   {

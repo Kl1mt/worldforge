@@ -25,6 +25,8 @@ export const AREA_IDS = [
   'ashfallVerge',
   // Ticket 6.2: the Cinderwastes' second area.
   'cinderDepths',
+  // Ticket 8.1: Region III, the Hollow Reach, first area.
+  'paleMarches',
 ] as const;
 
 export type AreaId = (typeof AREA_IDS)[number];
@@ -206,6 +208,30 @@ export const AREAS: readonly AreaDefinition[] = [
     ],
     materials: ['ironOre', 'soulShard'],
     lootTableId: 'cinderDepths',
+  },
+  {
+    // Ticket 8.1: the first area of Region III, the Hollow Reach (levels 40–46, docs/WORLD.md),
+    // past the Forge Tyrant's furnace. Open to heroes of level 40 who slew the Tyrant. Seam for
+    // ticket 8.2's community gate: a project may add a `worldFlag` to the rules of the region's
+    // *later* places; this area is live from its release, so it never gets one (no access is ever
+    // taken away; `world.test.ts` asserts every flag leaves it open).
+    id: 'paleMarches',
+    name: 'The Pale Marches',
+    region: 'The Hollow Reach',
+    description:
+      'Past the Tyrant’s furnace the fire goes out. The land beyond is grey and hollow, and the knights who guard it are empty plate.',
+    assetId: 'area.hollow-reach',
+    minLevel: 40,
+    maxLevel: 46,
+    unlock: { level: 40, forgeTyrantDefeated: true },
+    enemies: [
+      { enemyId: 'hollowKnight', weight: 30 },
+      { enemyId: 'reachStalker', weight: 30 },
+      { enemyId: 'paleChoir', weight: 25 },
+      { enemyId: 'huskTitan', weight: 15 },
+    ],
+    materials: ['ironOre', 'soulShard'],
+    lootTableId: 'paleMarches',
   },
 ];
 

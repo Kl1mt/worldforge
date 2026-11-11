@@ -3,8 +3,8 @@ import { PRESTIGE_TIER_IDS, type PrestigeTier } from '../scoring/prestige.js';
 /**
  * The cosmetic catalogue (ticket 6.6 started it, ticket 6.8's collection book completes it;
  * docs/COSMETICS.md). Every cosmetic has an id, a kind, a name, a description and the one place it
- * is earned. **Cosmetics are never bought with money and carry no stats** (GDD §13.3): a definition
- * has no price and no numbers (ticket 6.11's exchange prices, in materials earned in play, live in
+ * is earned. **Cosmetics carry no stats** (GDD §13.3): a definition
+ * has no price and no numbers (a later real-money shop, ROADMAP 8.8, would price looks outside it) (ticket 6.11's exchange prices, in materials earned in play, live in
  * `exchange.ts`), nothing in the combat, loot, farming, dungeon, economy, trading, scoring
  * or PvP rules reads this module (an import scan in `cosmetics.test.ts`), and the no-effects hashes
  * and 5.1 scores are unchanged by them. Account-bound: never traded, never mailed.
