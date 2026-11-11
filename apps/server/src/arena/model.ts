@@ -1,3 +1,4 @@
+import { heroPalettes } from '../cosmetics/display.js';
 import { and, asc, count, eq, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import {
   BRACKET_POWER_VERSION,
@@ -344,6 +345,8 @@ export interface ArenaHeroView {
   name: string | null;
   classId: ClassId;
   level: number;
+  /** Ticket 6.8: the hero's appearance (palette id), shown with the name; null = own colours. */
+  palette: string | null;
 }
 
 interface PersonFacts {
@@ -366,7 +369,7 @@ export async function arenaPeople(
   now: Date,
 ) {
   const ids = [...new Set(accountIds)];
-  const [rows, relations, raw, hidden] = await Promise.all([
+  const [rows, relations, raw, hidden, palettes] = await Promise.all([
     ids.length === 0
       ? Promise.resolve([])
       : executor
@@ -388,6 +391,7 @@ export async function arenaPeople(
       ],
       now,
     ),
+    heroPalettes(executor, characterIds),
   ]);
   const facts = new Map<string, PersonFacts>();
   for (const r of rows) {
@@ -431,7 +435,12 @@ export async function arenaPeople(
         (f !== undefined &&
           canViewProfile(f.visibility, f.relation) &&
           !(characterId && hidden.has(characterNameKey(characterId))));
-      return { name: visible ? hero.name : null, classId: hero.classId, level: hero.level };
+      return {
+        name: visible ? hero.name : null,
+        classId: hero.classId,
+        level: hero.level,
+        palette: visible && characterId ? (palettes.get(characterId) ?? null) : null,
+      };
     },
   };
 }

@@ -1,3 +1,5 @@
+import { appearancePalette } from '../content/appearance';
+import { useHeroPalette } from '../cosmetics/store';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getClass,
@@ -173,6 +175,8 @@ function CryptScene({
   const { inventory } = useGame();
   const motion = useSceneMotion();
   const sheet = classAttackSheet(hero.classId);
+  // Ticket 6.8: the hero's appearance (a palette swap of its frames, own colours if none).
+  const palette = appearancePalette(useHeroPalette(hero.id), hero.classId);
   const { heroRef, foeRef } = useSceneAnimation({
     active: fighting && foe !== null,
     motion,
@@ -216,6 +220,7 @@ function CryptScene({
                 <PixelSprite
                   sprite={sheet ?? classPortrait(hero.classId)}
                   fallback={classPortrait(hero.classId)}
+                  palette={palette}
                   scale={spriteScale}
                   alt={`${hero.name}, ${getClass(hero.classId).name.toLowerCase()}`}
                 />

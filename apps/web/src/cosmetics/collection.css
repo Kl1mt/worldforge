@@ -1,0 +1,165 @@
+/*
+ * Ticket 6.8: the collection book (`#/collection`). A ledger spread: the catalogue on the left
+ * page, the "mirror" (preview and equip) on the right. Scoped `book-`.
+ */
+.book {
+  display: grid;
+  gap: 1rem;
+  max-width: 72rem;
+  margin: 0 auto;
+}
+.book__head h1 {
+  margin: 0.15rem 0 0.35rem;
+}
+.book__lede {
+  margin: 0;
+  color: var(--text-muted);
+  max-width: 44rem;
+}
+.book__count {
+  color: var(--accent);
+}
+.book__state {
+  color: var(--text-dim);
+  padding: 1rem 0;
+}
+.book__filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 0.6rem;
+}
+.book__tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+}
+.book__spread {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1rem;
+}
+@media (min-width: 900px) {
+  .book__spread {
+    grid-template-columns: minmax(0, 1.5fr) minmax(18rem, 1fr);
+    align-items: start;
+  }
+}
+.book__page {
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+  padding: 0.75rem;
+}
+.book__grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(9.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+.book-card {
+  display: grid;
+  grid-template-rows: 56px auto auto auto;
+  gap: 0.2rem;
+  width: 100%;
+  min-height: 9rem;
+  padding: 0.5rem;
+  text-align: left;
+  color: var(--text);
+  background: var(--bg-surface);
+  border: 1px solid var(--line);
+  box-shadow: inset 0 0 0 1px var(--ink-900);
+  cursor: pointer;
+}
+.book-card:hover {
+  border-color: var(--line-strong);
+}
+.book-card--open {
+  border-color: var(--accent);
+  box-shadow:
+    inset 0 0 0 1px var(--ink-900),
+    0 0 0 1px var(--brass-600);
+}
+.book-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+.book-card__swatch {
+  display: grid;
+  place-items: center start;
+  height: 56px;
+  overflow: hidden;
+}
+.book-card--locked .book-card__swatch {
+  filter: grayscale(0.85) brightness(0.6);
+}
+.book-card__name {
+  font-size: 0.98rem;
+  line-height: 1.15;
+}
+.book-card__meta {
+  color: var(--text-dim);
+  font-size: 0.68rem;
+}
+.book-card__state {
+  font-size: 0.78rem;
+  color: var(--delta-up);
+}
+.book-card--locked .book-card__state {
+  color: var(--text-faint);
+}
+.book-swatch__words {
+  font-family: var(--font-display, serif);
+  font-size: 1.6rem;
+  color: var(--text-muted);
+}
+
+.book__mirror {
+  display: grid;
+  gap: 0.6rem;
+  padding: 1rem;
+  background: var(--bg-surface);
+  border: 1px solid var(--line-strong);
+  box-shadow: inset 0 0 0 1px var(--ink-900);
+}
+.book__mirror-name {
+  margin: 0;
+}
+.book__desc {
+  margin: 0;
+  color: var(--text-muted);
+  font-style: italic;
+}
+.book__earn,
+.book__locked,
+.book__worn {
+  margin: 0;
+  color: var(--text-dim);
+}
+.book__earn .caps {
+  color: var(--accent);
+  margin-right: 0.3rem;
+}
+
+.book-preview {
+  margin: 0;
+  display: grid;
+  gap: 0.5rem;
+  justify-items: center;
+  padding: 0.75rem;
+  background: var(--bg-sunken);
+  border: 1px solid var(--line);
+}
+.book-preview__stand {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.75rem;
+}
+.book-preview__caption {
+  display: grid;
+  justify-items: center;
+  gap: 0.3rem;
+}

@@ -1,3 +1,4 @@
+import { CollectionScreen } from './screens/CollectionScreen';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
 import { CharactersProvider, useCharacters } from './characters/CharactersProvider';
@@ -141,6 +142,7 @@ function Routes() {
             {route === 'notes' ? <NotesRoute /> : null}
             {route === 'arena' ? <ArenaScreen /> : null}
             {route === 'trading' ? <TradingScreen /> : null}
+            {route === 'collection' ? <CollectionScreen /> : null}
           </Shell>
         </OnboardingProvider>
       </QuestsProvider>

@@ -2,7 +2,8 @@
  * The Phase 6 event step of the journey (ticket 6.6, `journey.ts` `playEventStep`) on its own: the
  * owner schedules the Harvest of Bones in the admin panel, a fresh hero joins in the Tavern, farms
  * the Fields until its first task is done and the first reward tier is granted once; the owner ends
- * the event early and nothing earned is lost.
+ * the event early and nothing earned is lost. Ticket 6.8: the keepsake is then equipped from the
+ * collection book (`playCollectionStep`).
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
@@ -10,7 +11,7 @@ import { buildApp } from '../app.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
 import type { DatabaseHandle } from '../db/types.js';
 import { createTestDatabase } from '../test/db.js';
-import { playEventStep, startJourney } from './journey.js';
+import { playCollectionStep, playEventStep, startJourney } from './journey.js';
 
 let database: DatabaseHandle;
 let app: FastifyInstance;
@@ -46,5 +47,8 @@ describe('journey: a rotating event (Phase 6)', () => {
     const out = await playEventStep(app, database, hero, clock);
     expect(out.event).toBe(1);
     expect(out.tallies).toBeGreaterThanOrEqual(10);
+    // Ticket 6.8: the keepsake in the collection book, equipped.
+    const book = await playCollectionStep(hero);
+    expect(book.owned).toContain('banner.harvest-sheaf');
   }, 120_000);
 });

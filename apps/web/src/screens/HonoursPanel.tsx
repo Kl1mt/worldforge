@@ -18,7 +18,7 @@ import {
   type PrestigeSettings,
 } from '../social/seasons';
 import type { ApiFailure } from '../lib/api';
-import { boardHref } from '../lib/route';
+import { boardHref, routeHref } from '../lib/route';
 
 /**
  * Ticket 5.3: the owner's season honours on their profile. Every award earned (season, roll,
@@ -216,23 +216,30 @@ export function HonoursPanel({ onSaved }: { onSaved: () => void }) {
               </li>
             ))}
           </ul>
-          {unlocks.length > 0 ? (
+          {unlocks.some((u) => u.source.startsWith('event:')) ? (
             <div className="honours__keepsakes">
               <p className="caps">Event keepsakes</p>
               <ul className="honours__list">
-                {unlocks.map((u) => (
-                  <li key={u.id}>
-                    <span className="display">{u.name}</span>
-                    <span className="herald__hint">
-                      {u.shownToday
-                        ? 'A title: choose it above.'
-                        : 'Unlocked, shown once the collection book opens.'}
-                    </span>
-                  </li>
-                ))}
+                {unlocks
+                  .filter((u) => u.source.startsWith('event:'))
+                  .map((u) => (
+                    <li key={u.id}>
+                      <span className="display">{u.name}</span>
+                      <span className="herald__hint">
+                        {u.kind === 'title'
+                          ? 'A title: choose it above.'
+                          : 'Worn from your collection book.'}
+                      </span>
+                    </li>
+                  ))}
               </ul>
             </div>
           ) : null}
+          {/* Ticket 6.8: every keepsake (looks, banners, crests, colours) lives in the book. */}
+          <p className="herald__hint">
+            Looks, banners, crests and title colours are worn from your{' '}
+            <a href={routeHref('collection')}>collection book</a>.
+          </p>
           {message ? (
             <p
               className={message.ok ? 'herald__saved' : 'gate__alert'}

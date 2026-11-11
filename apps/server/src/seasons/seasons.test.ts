@@ -456,6 +456,10 @@ describe('season boards, archive integrity and awards', () => {
       frame: null,
       // Ticket 6.6: no event title shown.
       cosmeticTitle: null,
+      // Ticket 6.8: no banner, crest or title colour chosen.
+      banner: null,
+      crest: null,
+      titleColour: null,
     };
     expect(chose.json().shown).toEqual(want);
 
@@ -487,7 +491,14 @@ describe('season boards, archive integrity and awards', () => {
 
     // Showing none is a choice; a later award does not override it.
     const none = await call(owner, 'POST', '/api/account/prestige', { title: null, frame: null });
-    expect(none.json().shown).toEqual({ title: null, frame: null, cosmeticTitle: null });
+    expect(none.json().shown).toEqual({
+      title: null,
+      frame: null,
+      cosmeticTitle: null,
+      banner: null,
+      crest: null,
+      titleColour: null,
+    });
     const [row] = await w.db
       .select()
       .from(prestigeDisplays)
@@ -807,7 +818,11 @@ describe('cosmetic only (invariance)', () => {
         readFileSync(p, 'utf8'),
       ),
     );
-    expect(importers.map((p) => p.slice(root.length + 1)).sort()).toEqual(['scoring/index.ts']);
+    // Ticket 6.8: the cosmetic catalogue reads the tier names (season honours earn cosmetics).
+    expect(importers.map((p) => p.slice(root.length + 1)).sort()).toEqual([
+      'cosmetics/catalogue.ts',
+      'scoring/index.ts',
+    ]);
   });
 });
 

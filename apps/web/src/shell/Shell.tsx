@@ -203,6 +203,9 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
         <a className="statusbar__link" href={routeHref('profile')}>
           Profile
         </a>
+        <a className="statusbar__link" href={routeHref('collection')}>
+          Collection book
+        </a>
         <a className="statusbar__link" href={routeHref('trading')}>
           Trading
         </a>

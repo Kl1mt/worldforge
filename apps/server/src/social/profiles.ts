@@ -1,3 +1,4 @@
+import { heroPalettes } from '../cosmetics/display.js';
 import type { FastifyInstance } from 'fastify';
 import { and, asc, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
 import {
@@ -164,6 +165,8 @@ export interface ProfileCharacterView {
   classId: ClassId;
   level: number;
   appearance: CharacterAppearance;
+  /** Ticket 6.8: the hero's appearance (palette id); null = the class's own colours. */
+  palette: string | null;
 }
 
 export interface ProfileView {
@@ -212,6 +215,10 @@ export async function profileView(
     .from(characters)
     .where(and(eq(characters.accountId, owner.id), isNull(characters.deletedAt)))
     .orderBy(asc(characters.createdAt), asc(characters.id));
+  const palettes = await heroPalettes(
+    executor,
+    heroes.map((h) => h.id),
+  );
   const hidden = self
     ? new Set<string>()
     : await hiddenTargetKeys(
@@ -224,6 +231,7 @@ export async function profileView(
     classId: h.classId,
     level: h.level,
     appearance: h.appearance,
+    palette: palettes.get(h.id) ?? null,
   });
   const shown = await executor
     .select({ id: accountAchievements.achievementId, awardedAt: accountAchievements.awardedAt })
@@ -306,6 +314,7 @@ const heroSchema = {
       required: ['banner'],
       properties: { banner: { type: 'string' } },
     },
+    palette: { type: ['string', 'null'] },
   },
 } as const;
 

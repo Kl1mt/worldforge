@@ -1,3 +1,4 @@
+import { CrestMark } from '../cosmetics/Cosmetics';
 import { useEffect, useState } from 'react';
 import {
   BOARD_METRICS,
@@ -452,6 +453,7 @@ function Row({
       <span className="renown__who">
         <span className="renown__nameline">
           <FrameMark frame={e.player.prestige.frame} />
+          <CrestMark id={e.player.prestige.crest} />
           {e.player.profile ? (
             <a className="renown__name" href={profileHref(e.player.handle)}>
               {name}
@@ -818,6 +820,7 @@ function LadderRow({
       <span className="renown__who">
         <span className="renown__nameline">
           <FrameMark frame={e.player.prestige.frame} />
+          <CrestMark id={e.player.prestige.crest} />
           {e.player.profile ? (
             <a className="renown__name" href={profileHref(e.player.handle)}>
               {name}
