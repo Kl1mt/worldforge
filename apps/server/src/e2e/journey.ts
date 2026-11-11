@@ -3069,7 +3069,7 @@ export async function playEventStep(
     expect.objectContaining({ tier: 1, cosmeticId: 'banner.harvest-sheaf' }),
   );
   const cosmetics = (await hero.api('GET', '/api/account/cosmetics')).json<{
-    unlocks: { id: string; shownToday: boolean }[];
+    unlocks: { id: string; shownToday: boolean; source: string }[];
   }>().unlocks;
   // Ticket 6.8: shown in the collection book since it opened.
   expect(cosmetics).toContainEqual(
@@ -3093,9 +3093,13 @@ export async function playEventStep(
   expect((await runEventJobs(database.db, new Date(clock.now()))).closed).toEqual([number]);
   expect((await runEventJobs(database.db, new Date(clock.now()))).closed).toEqual([]);
   const again = (await hero.api('GET', '/api/account/cosmetics')).json<{
-    unlocks: { id: string }[];
+    unlocks: { id: string; source: string }[];
   }>().unlocks;
-  expect(again.map((u) => u.id)).toEqual(cosmetics.map((u) => u.id));
+  // The event's keepsakes are unchanged after its end. Ticket 6.8: the farming after it may earn
+  // other cosmetics (a deed such as a Legendary find), so only event-sourced ones are compared.
+  const fromEvent = (list: { id: string; source?: string }[]) =>
+    list.filter((u) => u.source?.startsWith('event:')).map((u) => u.id);
+  expect(fromEvent(again)).toEqual(fromEvent(cosmetics));
   const bad = (await reconcileWithAudit(database.db)).filter((c) => !c.ok);
   expect(bad).toEqual([]);
   return { event: number, tallies: mine.track!.tallies, bonus: mine.hero!.bonus };
