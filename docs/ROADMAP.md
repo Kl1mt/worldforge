@@ -1033,7 +1033,7 @@ GDD §13. Read `docs/LEADERBOARDS.md` (5.3 prestige display), `docs/SOCIAL.md` (
 Palette-swap sets for the four class sprites (code-driven where possible) and 6–10 banner and crest styles. Budget: one or two 32 px jobs; prefer palette work over new generations. **Acceptance:** a contact sheet.
 - Done: four appearance palettes (`appearance.ashen|ember|grave-moss|midnight`) for all classes as code data in `apps/web/src/content/palettes.ts`, applied at runtime on a canvas (no baked sheets, no generations). Six 32×32 banner styles (`bannerStyleAsset`), four 48×56 crest-style frames drawn in code on the crest outline (`crestStyleAsset`), and the `achievement.forgeward-builder` icon. Two 32 px jobs, 20 generations. Contact sheet `art/preview-cosmetics.png`. `docs/ASSET_GUIDELINES.md`.
 
-### B.5 Balance pass: endgame — `done (PR #PRNUM)`
+### B.5 Balance pass: endgame — `done (PR #130)`
 GDD §16.4. Needs 6.1–6.8.
 - The realistic player through levels 28–40:
   - XP and gold pacing;
