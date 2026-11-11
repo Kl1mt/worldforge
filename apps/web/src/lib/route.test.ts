@@ -121,6 +121,7 @@ describe('admin panel links (ticket D.3)', () => {
     expect(parseRoute('#/admin/players/abc')).toBe('admin');
     expect(adminLocation('#/admin')).toEqual({ section: 'invites', arg: null });
     expect(adminLocation('#/admin/status')).toEqual({ section: 'status', arg: null });
+    expect(adminLocation('#/admin/readiness')).toEqual({ section: 'readiness', arg: null });
     expect(adminLocation('#/admin/players/ABCDEFGHJKMN')).toEqual({
       section: 'players',
       arg: 'abcdefghjkmn',

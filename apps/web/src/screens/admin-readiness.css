@@ -1,0 +1,248 @@
+/* Ticket 8.6: the admin panel's Readiness tab (scoped `readyroll`). A muster roll before the gates
+   open: numbered ledger lines, each with a wax seal (brass when done, ember when it needs
+   attention, an empty ring when not set). Phones: one column, the seal beside the title. */
+
+.readyroll__tally {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1);
+  margin: var(--space-3) 0;
+  color: var(--text-muted);
+}
+
+.readyroll__tally-n {
+  font-family: var(--font-display);
+  font-size: var(--text-xl);
+  color: var(--text);
+}
+
+.readyroll__tally-n--done {
+  color: var(--brass-300);
+}
+
+.readyroll__tally-n--attention {
+  color: var(--ember-glow);
+}
+
+.readyroll__tally-n--not_set {
+  color: var(--text-dim);
+}
+
+.readyroll__stamp {
+  margin-left: auto;
+  font-size: var(--text-xs);
+  color: var(--text-faint);
+}
+
+.readyroll {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: 2px solid var(--brass-700);
+}
+
+.readyroll__entry {
+  display: grid;
+  grid-template-columns: 2.25rem 2.5rem minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-4) var(--space-2);
+  border-bottom: 1px solid var(--line);
+}
+
+.readyroll__num {
+  padding-top: 0.35rem;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--text-faint);
+}
+
+.readyroll__seal {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 50%;
+  font-weight: bold;
+  font-size: var(--text-md);
+}
+
+.readyroll__entry--done .readyroll__seal {
+  background: radial-gradient(circle at 35% 30%, var(--brass-300), var(--brass-600) 70%);
+  color: var(--ink-950);
+  box-shadow:
+    0 0 0 2px var(--brass-700),
+    0 2px 0 var(--outline-dark);
+}
+
+.readyroll__entry--attention .readyroll__seal {
+  background: radial-gradient(
+    circle at 35% 30%,
+    var(--ember-core),
+    var(--ember-glow) 55%,
+    var(--ember-coal)
+  );
+  color: var(--ember-coal);
+  box-shadow:
+    0 0 0 2px var(--ember-coal),
+    0 0 10px rgb(240 100 42 / 35%);
+}
+
+.readyroll__entry--not_set .readyroll__seal {
+  border: 2px dashed var(--line-strong);
+  color: var(--text-faint);
+}
+
+.readyroll__title {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  color: var(--text);
+}
+
+.readyroll__state {
+  font-family: var(--font-body);
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.readyroll__entry--done .readyroll__state {
+  color: var(--brass-400);
+}
+
+.readyroll__entry--attention .readyroll__state {
+  color: var(--ember-glow);
+}
+
+.readyroll__summary {
+  margin: var(--space-1) 0 var(--space-2);
+  color: var(--text-muted);
+  max-width: 62ch;
+}
+
+.readyroll__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(13rem, 1fr));
+  gap: var(--space-2) var(--space-4);
+  margin: 0 0 var(--space-2);
+}
+
+.readyroll__fact dt {
+  margin: 0;
+}
+
+.readyroll__fact dd {
+  margin: 0;
+  font-size: var(--text-sm);
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.readyroll__links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.readyroll__link {
+  color: var(--accent);
+}
+
+.readyroll__link--doc {
+  color: var(--text-dim);
+}
+
+/* ---- The side: the test letter and the privacy checklist ------------------------------------ */
+
+.readyroll-letter,
+.readyroll-privacy {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.readyroll-letter__title {
+  margin: 0;
+  font-size: var(--text-xl);
+}
+
+.readyroll-letter__result {
+  margin: 0;
+  font-size: var(--text-sm);
+}
+
+.readyroll-letter__result--sent {
+  color: var(--delta-up);
+}
+
+.readyroll-letter__result--failed {
+  color: var(--delta-down);
+}
+
+.readyroll-privacy {
+  padding: var(--space-4);
+}
+
+.readyroll-privacy__list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.readyroll-privacy__item {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-2);
+  align-items: start;
+  cursor: pointer;
+}
+
+.readyroll-privacy__item input {
+  margin-top: 0.25rem;
+  accent-color: var(--brass-500);
+}
+
+.readyroll-privacy__label {
+  display: block;
+  color: var(--text);
+}
+
+.readyroll-privacy__hint {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--text-dim);
+}
+
+.readyroll-privacy__ok {
+  margin: 0;
+  color: var(--delta-up);
+  font-size: var(--text-sm);
+}
+
+@media (width <= 720px) {
+  .readyroll__entry {
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+    gap: var(--space-2);
+  }
+
+  .readyroll__num {
+    display: none;
+  }
+
+  .readyroll__stamp {
+    margin-left: 0;
+    width: 100%;
+  }
+}

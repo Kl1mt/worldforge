@@ -67,6 +67,9 @@ jobs:
       - name: Backup and idempotent re-deploy
         run: |
           deploy/backup.sh --kind manual
+          # Ticket 8.6: the status file for the Readiness tab (a time and a size only).
+          grep -Eq '^\{"finishedAt":"[0-9T:-]+Z","bytes":[0-9]+\}$' deploy/status/backup.json
+          docker compose -f deploy/docker-compose.yml exec -T server cat /app/status/backup.json
           deploy/deploy.sh --no-pull --skip-backup
       - name: Logs
         if: failure()

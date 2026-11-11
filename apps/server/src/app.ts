@@ -235,6 +235,10 @@ export function buildApp({
       await registerAdmin(api, {
         gameNow: activityOptions.now,
         activity: activityOptions,
+        // Ticket 8.6: the Readiness tab reads these (never a secret value).
+        mailer: auth?.mailer ?? DEFAULT_AUTH_OPTIONS.mailer,
+        legalDir: legal?.dir,
+        sharedState: shared?.limits ?? 'memory',
         ...admin,
       });
       await registerScores(api, activityOptions.now);

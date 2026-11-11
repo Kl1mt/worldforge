@@ -63,6 +63,12 @@ export interface ServerConfig {
    * database, shared by every API instance. `memory`: in this process (one instance only).
    */
   sharedState: 'postgres' | 'memory';
+  /**
+   * Ticket 8.6 (`BACKUP_STATUS_FILE`): the small status file `deploy/backup.sh` writes after a
+   * good dump (a timestamp and a size, nothing else), for the admin panel's Readiness tab. Unset:
+   * the tab says backups are not reported.
+   */
+  backupStatusFile: string | undefined;
 }
 
 function intEnv(env: NodeJS.ProcessEnv, name: string, fallback: number, min: number, max: number) {
@@ -117,6 +123,7 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     },
     mail: mailEnv(env),
     sharedState: sharedStateEnv(env),
+    backupStatusFile: env.BACKUP_STATUS_FILE?.trim() || undefined,
   };
 }
 
