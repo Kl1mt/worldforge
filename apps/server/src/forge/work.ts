@@ -614,7 +614,13 @@ interface Applied {
   patch: Partial<
     Pick<
       ItemInstance,
-      'upgradeLevel' | 'upgradePity' | 'rerollCount' | 'affixes' | 'awakening' | 'awakenedAt'
+      | 'upgradeLevel'
+      | 'upgradePity'
+      | 'rerollCount'
+      | 'affixes'
+      | 'awakening'
+      | 'awakenedAt'
+      | 'locked'
     >
   >;
   outcome: ForgeOutcome;
@@ -759,6 +765,15 @@ export async function registerForgeWork(
                 ...applied.audit,
               },
             });
+            // Ticket 6.5c: the awakening's lock is on record (manual locks aren't audited).
+            if (name === 'awaken' && !row.locked) {
+              await writeAudit(tx, {
+                event: 'item.lock',
+                accountId,
+                characterId,
+                data: { itemId: row.id, locked: true, via: 'awaken' },
+              });
+            }
             // Ticket 4.2: an upgrade can earn the +N achievements.
             if (name === 'upgrade') {
               await refreshAchievements(tx, character, ['maxUpgradeLevel'], now);
@@ -903,7 +918,9 @@ export async function registerForgeWork(
     return {
       cost: awakenForgeCost(row),
       apply: () => ({
-        patch: { awakening, awakenedAt: activity.now() },
+        // Ticket 6.5c (owner decision): awakening locks the item, so a sell, salvage or discard
+        // can't throw the work away by accident. The player can unlock it like any lock.
+        patch: { awakening, awakenedAt: activity.now(), locked: true },
         outcome: { action: 'awaken', awakened, effectStrength: awakening.effectStrength },
         audit: {
           awakening,
