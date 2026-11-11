@@ -8,7 +8,7 @@ Code: game-core `packages/game-core/src/events/` (definitions, cosmetics, calend
 - A banner in the town and on the world map says when an event is on; the Tavern has its notice: the story, what changes while it lasts, the tasks and the reward track.
 - **Join in the Tavern** (per hero). Only what the hero does from then on counts; the modifier's bonus comes only to heroes who joined.
 - Tasks pay **tallies**; the tallies of all your heroes fill **one reward track** for your account. Each tier gives a keepsake once, for good.
-- Rewards are cosmetic: they change no number in the game. Titles can be shown now (your profile → Season honours, one title at a time); banner styles and title colours are kept and shown once the collection book opens (6.8).
+- Rewards are cosmetic: they change no number in the game. Titles are shown from your profile → Season honours (one title at a time) or the collection book; banner styles and title colours are worn from the collection book (6.8, `docs/COSMETICS.md`).
 - **At the end** unfinished tasks lapse. Everything earned while it ran (bonus materials, tallies, keepsakes) stays yours. If the same event comes back later, it starts fresh; a keepsake you already own is not given twice.
 
 ## The first event: Harvest of Bones (`harvestOfBones`)
@@ -29,8 +29,8 @@ Code: game-core `packages/game-core/src/events/` (definitions, cosmetics, calend
 
 | Tier | Tallies | Keepsake | Cosmetic id | Shown today |
 |---|---|---|---|---|
-| 1 | 10 | Sheaf-and-Bone banner | `banner.harvest-sheaf` | no (6.8) |
-| 2 | 25 | Bone-white title colour | `title-colour.bone-white` | no (6.8) |
+| 1 | 10 | Sheaf-and-Bone banner | `banner.harvest-sheaf` | yes (collection book, 6.8) |
+| 2 | 25 | Bone-white title colour | `title-colour.bone-white` | yes (collection book, 6.8) |
 | 3 | 50 | title "Reaper of the Harvest" | `title.reaper-of-the-harvest` | yes (Season honours) |
 
 A level-1 hero can reach tier 2 (the first three tasks: the bonus shards count for the Tithe); tier 3 needs a dungeon master (the crypt opens at 12) or a second hero.
@@ -57,7 +57,7 @@ As 5.3's seasons: **progress counts when the request that made it arrived inside
 `grantTiersTx` inserts one `event_track_grants` row per (event, account, tier) and the tier's `cosmetic_unlocks` row, each `on conflict do nothing`; it audits (`event.reward`) and counts only what it inserted. It runs **in the transaction that completes a task**, so a tier arrives with the tally that reached it; two heroes of one account finishing at once serialise on the account's track row and the primary key keeps each tier once (real-PG test). **The sweep:** after the close, `sweepEventRewards` checks every account's tallies against the track as it stands and grants any tier still missing (a backstop, e.g. a threshold lowered between releases), one transaction per account; `rewards_swept_at` is set only after the last batch, so a crash leaves it null and the next run finishes the same set (`event.sweep` audited once). Tested on PGlite and real Postgres: sweeps racing and crashing mid-way, then resumed.
 
 ## Cosmetics
-`cosmetic_unlocks` (account, cosmetic id, source `event:<n>:tier:<t>`, granted_at), the minimal, additive store 6.8's collection book extends. Catalogue: game-core `events/cosmetics.ts` (`COSMETICS`: id, kind `title`/`banner`/`titleColour`, name, description, source). `GET /api/account/cosmetics` lists an account's unlocks. **Titles** show today through 5.3's prestige display: `prestige_displays.cosmetic_title` (a composite foreign key to the account's own unlock; never together with a season title) and `POST /api/account/prestige { title: null, frame, cosmeticTitle }` (`422 one_title`, `422 award_not_earned`); `prestigeFor` returns `cosmeticTitle` for boards, profiles and rosters (`ShownTitle`). Everything else is listed as "unlocked, shown once the collection book opens".
+`cosmetic_unlocks` (account, cosmetic id, source `event:<n>:tier:<t>`, granted_at), the store 6.8's collection book extends (`docs/COSMETICS.md`: more sources, equip, display). Catalogue: game-core `cosmetics/catalogue.ts` since 6.8 (was `events/cosmetics.ts`; ids kept). `GET /api/account/cosmetics` lists an account's unlocks. **Titles** show today through 5.3's prestige display: `prestige_displays.cosmetic_title` (a composite foreign key to the account's own unlock; never together with a season title) and `POST /api/account/prestige { title: null, frame, cosmeticTitle }` (`422 one_title`, `422 award_not_earned`); `prestigeFor` returns `cosmeticTitle` for boards, profiles and rosters (`ShownTitle`). Since 6.8 every keepsake is shown (`shownToday` is true for every catalogued kind) and worn from the collection book.
 
 ## Test accounts and rankings
 There is no event leaderboard. The admin view's and the CLI's participation counts leave test accounts out (D.4); their telemetry goes to `telemetry_daily_test` as for every value path. Sanctions don't block joining (nothing is ranked).

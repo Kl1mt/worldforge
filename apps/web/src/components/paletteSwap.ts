@@ -1,39 +1,25 @@
 import { useEffect, useState } from 'react';
 import type { PaletteSwap } from '../content/appearance';
+import { recolourPixels } from '../content/palettes';
 
 /**
  * Ticket 6.8: a hero appearance is the class sprite (portrait or frame sheet) with some colours
  * swapped, drawn in code: the image is read into a canvas once, every opaque pixel whose colour
- * the palette names takes the new colour (alpha kept, whole pixels, no blending), and the result
- * is used as the image's source. Results are cached per image and palette. Where a canvas is
+ * the palette names takes the new colour (A.13's `recolourPixels`: alpha kept, whole pixels, no
+ * blending), and the result is used as the image's source. Results are cached per image and palette. Where a canvas is
  * unavailable (tests, a failed read) the sprite keeps its own colours.
  */
 
-const toHex = (r: number, g: number, b: number) =>
-  `#${((1 << 24) | (r << 16) | (g << 8) | b).toString(16).slice(1)}`;
-
-/** Swaps the colours of RGBA pixel data in place; returns how many pixels changed. */
-export function applySwap(data: Uint8ClampedArray, swap: PaletteSwap): number {
-  const parsed = new Map<string, [number, number, number]>();
-  for (const [from, to] of swap) {
-    const n = Number.parseInt(to.slice(1), 16);
-    parsed.set(from, [(n >> 16) & 255, (n >> 8) & 255, n & 255]);
-  }
-  let changed = 0;
-  for (let i = 0; i < data.length; i += 4) {
-    if (data[i + 3] === 0) continue;
-    const to = parsed.get(toHex(data[i]!, data[i + 1]!, data[i + 2]!));
-    if (!to) continue;
-    data[i] = to[0];
-    data[i + 1] = to[1];
-    data[i + 2] = to[2];
-    changed += 1;
-  }
-  return changed;
-}
-
+// Palettes are cached objects (`appearancePalette`), so an id per object keys the cache.
+const swapIds = new WeakMap<PaletteSwap, number>();
+let nextSwapId = 1;
 export function swapKey(path: string, swap: PaletteSwap): string {
-  return `${path}|${[...swap].map(([f, t]) => `${f}>${t}`).join(',')}`;
+  let id = swapIds.get(swap);
+  if (id === undefined) {
+    id = nextSwapId++;
+    swapIds.set(swap, id);
+  }
+  return `${path}|${id}`;
 }
 
 const cache = new Map<string, Promise<string | null>>();
@@ -50,9 +36,10 @@ function render(path: string, swap: PaletteSwap): Promise<string | null> {
         canvas.height = img.naturalHeight;
         const ctx = canvas.getContext('2d');
         if (!ctx || canvas.width === 0) return resolve(null);
+        ctx.imageSmoothingEnabled = false;
         ctx.drawImage(img, 0, 0);
         const pixels = ctx.getImageData(0, 0, canvas.width, canvas.height);
-        applySwap(pixels.data, swap);
+        pixels.data.set(recolourPixels(pixels.data, [...swap]));
         ctx.putImageData(pixels, 0, 0);
         resolve(canvas.toDataURL('image/png'));
       } catch {

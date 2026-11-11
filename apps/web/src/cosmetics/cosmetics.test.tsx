@@ -1,8 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
-import { COSMETICS, findCosmetic } from '@worldforge/game-core';
-import { appearancePalette, readPaletteData } from '../content/appearance';
-import { applySwap } from '../components/paletteSwap';
+import { CLASS_IDS, COSMETICS, findCosmetic } from '@worldforge/game-core';
+import { appearancePalette } from '../content/appearance';
 import { HeroPortrait } from '../characters/HeroPortrait';
 import { ShownTitle } from '../social/Prestige';
 import { BannerStyle, CrestMark, CrestRim, HeroLook, titleColourClass } from './Cosmetics';
@@ -12,71 +11,27 @@ import type { Collection, CollectionEntry } from './api';
 
 /** Ticket 6.8: the collection book on the web (docs/COSMETICS.md). */
 
-describe('palette data (A.13) and the swap', () => {
-  it('reads every shape the art ticket may use, and ignores the rest', () => {
-    const data = readPaletteData({
-      './palettes.ts': {
-        PALETTES: {
-          'appearance.ember': {
-            warrior: { '#112233': '#AA0000', bad: '#zzz' },
-            mage: [['#445566', '#00bb00']],
-            hunter: [{ from: '#778899', to: '#0000cc' }],
-          },
-          'appearance.midnight': { default: { '#010203': '#040506' } },
-          'not-a-palette': { warrior: { '#000000': '#ffffff' } },
-        },
-        version: 2,
-      },
-    });
-    expect([...data.keys()].sort()).toEqual(['appearance.ember', 'appearance.midnight']);
-    expect([...appearancePalette('appearance.ember', 'warrior', data)!]).toEqual([
-      ['#112233', '#aa0000'],
-    ]);
-    expect([...appearancePalette('appearance.ember', 'mage', data)!]).toEqual([
-      ['#445566', '#00bb00'],
-    ]);
-    expect([...appearancePalette('appearance.ember', 'hunter', data)!]).toEqual([
-      ['#778899', '#0000cc'],
-    ]);
-    // No entry for the class: own colours.
-    expect(appearancePalette('appearance.ember', 'warlock', data)).toBeNull();
-    // A palette for every class.
-    expect(appearancePalette('appearance.midnight', 'warlock', data)).not.toBeNull();
-  });
-
-  it('falls back to own colours: the default, an unknown id, no data at all', () => {
-    const empty = readPaletteData({});
+describe('palettes (A.13) on every class', () => {
+  it('every appearance has a swap for every class; the default and unknown ids have none', () => {
     for (const c of COSMETICS.filter((x) => x.kind === 'appearance')) {
-      expect(appearancePalette(c.id, 'warrior', empty)).toBeNull();
+      for (const classId of CLASS_IDS) {
+        const swap = appearancePalette(c.id, classId);
+        if (c.id === 'appearance.default') expect(swap).toBeNull();
+        else {
+          expect(swap?.size, `${c.id} ${classId}`).toBeGreaterThan(0);
+          for (const [from, to] of swap!) {
+            expect(from).toMatch(/^#[0-9a-f]{6}$/);
+            expect(to).toMatch(/^#[0-9a-f]{6}$/);
+          }
+        }
+      }
     }
-    expect(appearancePalette(null, 'mage', empty)).toBeNull();
-    expect(appearancePalette('appearance.default', 'mage')).toBeNull();
-  });
-
-  it('swaps exact colours of opaque pixels only, keeping alpha', () => {
-    const px = new Uint8ClampedArray([
-      0x11,
-      0x22,
-      0x33,
-      255, // swapped
-      0x11,
-      0x22,
-      0x33,
-      0, // transparent: kept
-      0x11,
-      0x22,
-      0x34,
-      255, // a near colour: kept
-      0x11,
-      0x22,
-      0x33,
-      128, // half alpha: swapped, alpha kept
-    ]);
-    const changed = applySwap(px, new Map([['#112233', '#aabbcc']]));
-    expect(changed).toBe(2);
-    expect([...px]).toEqual([
-      0xaa, 0xbb, 0xcc, 255, 0x11, 0x22, 0x33, 0, 0x11, 0x22, 0x34, 255, 0xaa, 0xbb, 0xcc, 128,
-    ]);
+    expect(appearancePalette('appearance.velvet', 'mage')).toBeNull();
+    expect(appearancePalette(null, 'mage')).toBeNull();
+    // Cached: the same object each time (the swap cache keys on it).
+    expect(appearancePalette('appearance.ember', 'mage')).toBe(
+      appearancePalette('appearance.ember', 'mage'),
+    );
   });
 
   it('a hero in an appearance without art is drawn exactly as in its own colours', () => {
@@ -98,18 +53,29 @@ describe('palette data (A.13) and the swap', () => {
   });
 });
 
-describe('fallbacks while the banner and crest art is missing', () => {
-  it('a plain banner, a plain crest rim, no row mark for a plain crest', () => {
-    const banner = renderToStaticMarkup(<BannerStyle id="banner.forgeward" scale={2} />);
-    expect(banner).toContain('cosm-banner--plain');
-    expect(banner).toContain('aria-label="Forgeward banner"');
-    expect(renderToStaticMarkup(<BannerStyle id={null} />)).toContain('aria-label="Plain banner"');
-    // A wrong kind is never drawn as a banner.
-    expect(renderToStaticMarkup(<BannerStyle id="crest.iron" />)).toContain('Plain banner');
+describe('banner and crest art (A.13), and the fallbacks without it', () => {
+  it('draws the art of every banner and crest style', () => {
+    for (const c of COSMETICS.filter((x) => x.kind === 'banner')) {
+      const html = renderToStaticMarkup(<BannerStyle id={c.id} scale={2} />);
+      expect(html, c.id).toContain(`/assets/banners/${c.id.slice('banner.'.length)}.png`);
+      expect(html).not.toContain('cosm-banner--plain');
+    }
+    for (const c of COSMETICS.filter((x) => x.kind === 'crest')) {
+      const html = renderToStaticMarkup(<CrestRim id={c.id}>x</CrestRim>);
+      expect(html, c.id).toContain(`/assets/crests/crest-${c.id.slice('crest.'.length)}.png`);
+      expect(html).toContain('width="96"'); // 48 px at ×2
+    }
+  });
 
-    const crest = renderToStaticMarkup(<CrestRim id="crest.gilt">x</CrestRim>);
-    expect(crest).toContain('cosm-crest--gilt');
-    expect(crest).toContain('cosm-crest--plain');
+  it('a plain banner, a plain crest rim, no row mark for no crest', () => {
+    expect(renderToStaticMarkup(<BannerStyle id={null} />)).toContain('aria-label="Plain banner"');
+    expect(renderToStaticMarkup(<BannerStyle id={null} />)).toContain('cosm-banner--plain');
+    // A wrong kind or an unknown id is never drawn as a banner or crest.
+    expect(renderToStaticMarkup(<BannerStyle id="crest.iron" />)).toContain('cosm-banner--plain');
+    expect(renderToStaticMarkup(<BannerStyle id="banner.velvet" />)).toContain('Plain banner');
+    const none = renderToStaticMarkup(<CrestRim id={null}>x</CrestRim>);
+    expect(none).toContain('cosm-crest--plain');
+    expect(none).not.toContain('<img');
     expect(renderToStaticMarkup(<CrestMark id={null} />)).toBe('');
     expect(renderToStaticMarkup(<CrestMark id="banner.forgeward" />)).toBe('');
     expect(renderToStaticMarkup(<CrestMark id="crest.bone" />)).toContain('Bone crest');

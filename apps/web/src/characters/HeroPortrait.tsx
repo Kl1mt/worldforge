@@ -7,7 +7,7 @@ import { appearancePalette, bannerStyleSprite } from '../content/appearance';
 /**
  * A character's class portrait in front of their banner; the banner colour is chosen at creation.
  * Ticket 6.8: the hero's appearance (a palette swap) and the account's banner style (a 32×32
- * device sewn on the banner at ×2) from the collection book; without art, own colours and a plain
+ * device on the banner's corner at ×1) from the collection book; without art, own colours and a plain
  * banner.
  */
 export function HeroPortrait({
@@ -34,19 +34,7 @@ export function HeroPortrait({
       className={`hero-portrait banner-${banner}`}
       {...(style ? { 'data-banner-style': style } : {})}
     >
-      <span className="hero-portrait__banner" aria-hidden="true">
-        {showDevice ? (
-          <img
-            className="hero-portrait__device pixel"
-            src={device.path}
-            alt=""
-            width={64}
-            height={64}
-            draggable={false}
-            onError={() => setFailed(device.path)}
-          />
-        ) : null}
-      </span>
+      <span className="hero-portrait__banner" aria-hidden="true" />
       <PixelSprite
         sprite={classPortrait(classId)}
         scale={scale}
@@ -54,6 +42,18 @@ export function HeroPortrait({
         className="hero-portrait__sprite"
         palette={appearancePalette(palette, classId)}
       />
+      {showDevice ? (
+        // The style's device, sewn on the banner's top corner in front of the hero (×1).
+        <img
+          className="hero-portrait__device pixel"
+          src={device.path}
+          alt=""
+          width={32}
+          height={32}
+          draggable={false}
+          onError={() => setFailed(device.path)}
+        />
+      ) : null}
     </div>
   );
 }

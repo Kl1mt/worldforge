@@ -27,6 +27,7 @@ import {
   seasons,
 } from '../db/schema.js';
 import { withTransaction } from '../db/transaction.js';
+import { queryRows } from '../db/query.js';
 import type { DatabaseHandle } from '../db/types.js';
 import { createTestDatabase } from '../test/db.js';
 import { insertCharacter, insertItem } from '../test/heroes.js';
@@ -250,11 +251,10 @@ describe('the backfill', () => {
         'backfill:achievement:forgewardBuilder',
       );
       // One audit row per grant, crash or not.
-      const [audits] = await odb
-        .execute<{ n: number }>(
-          sql`select count(*)::int as n from audit_log where event = 'cosmetic.grant'`,
-        )
-        .then((r) => r.rows);
+      const [audits] = await queryRows<{ n: number }>(
+        odb,
+        sql`select count(*)::int as n from audit_log where event = 'cosmetic.grant'`,
+      );
       expect(Number(audits!.n)).toBe(rows.length);
     } finally {
       await own.close();
@@ -446,7 +446,7 @@ describe('invariance: cosmetics carry no power', () => {
   it('equipping every cosmetic changes no score and no gameplay row', async () => {
     const a = await insertAccount(db());
     const hero = await insertCharacter(db(), a.id, { level: 30 });
-    await insertItem(db(), hero.id, { rarityId: 'epic', equippedSlot: 'mainHand' });
+    await insertItem(db(), hero.id, { rarityId: 'epic', equippedSlot: 'weapon' });
     const scores = async () => {
       const r = await call(a, 'GET', `/api/characters/${hero.id}/scores`);
       expect(r.statusCode, r.body).toBe(200);

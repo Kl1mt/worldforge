@@ -593,11 +593,10 @@
   }
 }
 
-/* Ticket 6.8: a banner style's device sewn high on the banner (32 px art at ×2). */
+/* Ticket 6.8: a banner style's device on the banner's top corner, in front (32 px art at ×1). */
 .hero-portrait__device {
   position: absolute;
-  top: 6%;
-  left: 50%;
-  transform: translateX(-50%);
-  opacity: 0.9;
+  top: 4px;
+  right: 13%;
+  z-index: 1;
 }

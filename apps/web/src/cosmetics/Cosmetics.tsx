@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { findCosmetic, type ClassId } from '@worldforge/game-core';
 import { PixelSprite } from '../components/PixelSprite';
-import { classPortrait, type SpriteAsset } from '../content/assets';
+import { CREST_STYLE_WINDOW, classPortrait, type SpriteAsset } from '../content/assets';
 import { appearancePalette, bannerStyleSprite, crestStyleSprite } from '../content/appearance';
 import './cosmetics.css';
 
@@ -97,7 +97,10 @@ export function BannerStyle({
   );
 }
 
-/** The crest style's frame around `children` (a portrait, a name plate). */
+/**
+ * The crest style's frame (48×56 at an integer scale) around `children` (a portrait), which fill
+ * the frame's window (A.13's `CREST_STYLE_WINDOW`). Without art: the same box with a plain rim.
+ */
 export function CrestRim({
   id,
   scale = 2,
@@ -108,26 +111,37 @@ export function CrestRim({
   children?: ReactNode;
 }) {
   const c = id ? findCosmetic(id) : undefined;
-  const art = useArt(c?.kind === 'crest' ? crestStyleSprite(c.id) : null);
-  const size = 32 * scale;
+  const sprite = c?.kind === 'crest' ? crestStyleSprite(c.id) : null;
+  const art = useArt(sprite);
+  const w = CREST_STYLE_WINDOW;
   return (
     <span
       className={`cosm-crest${c ? ` cosm-crest--${suffix(c.id)}` : ' cosm-crest--none'}${
         art.sprite ? '' : ' cosm-crest--plain'
       }`}
-      style={{ width: size, height: size }}
+      style={{ width: 48 * scale, height: 56 * scale }}
       role="img"
       aria-label={c?.kind === 'crest' ? c.name : 'Plain crest'}
       data-cosmetic={c?.id ?? 'plain'}
     >
-      <span className="cosm-crest__well">{children}</span>
+      <span
+        className="cosm-crest__well"
+        style={{
+          left: w.x * scale,
+          top: w.y * scale,
+          width: w.width * scale,
+          height: w.height * scale,
+        }}
+      >
+        {children}
+      </span>
       {art.sprite ? (
         <img
           className="cosm-crest__frame pixel"
           src={art.sprite.path}
           alt=""
-          width={size}
-          height={size}
+          width={art.sprite.width * scale}
+          height={art.sprite.height * scale}
           draggable={false}
           onError={art.onError}
         />
@@ -153,7 +167,7 @@ export function CrestMark({ id }: { id: string | null | undefined }) {
           className="cosm-crestmark__art"
           src={art.sprite.path}
           alt=""
-          width={16}
+          width={14}
           height={16}
           draggable={false}
           onError={art.onError}
