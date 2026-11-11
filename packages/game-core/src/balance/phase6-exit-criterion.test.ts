@@ -136,8 +136,10 @@ const PHASE6_TABLES = [
   'gravewardenIV',
   'forgeTyrant',
 ];
+/** Ticket 8.1: tables newer than Phase 6 (the Hollow Reach); neither Phase 6 nor older. */
+const PHASE8_TABLES = ['paleMarches'];
 const OLDER_TABLES = [...AREA_LOOT_TABLES, ...BOSS_LOOT_TABLES].filter(
-  (t) => !PHASE6_TABLES.includes(t.id),
+  (t) => !PHASE6_TABLES.includes(t.id) && !PHASE8_TABLES.includes(t.id),
 );
 
 /**
@@ -334,7 +336,9 @@ describe('Phase 6 exit 1: older content stays relevant (ticket 6.10)', () => {
       expect(sinksOf('gravewardenSeal').repeatable).toContain('awakening');
       // Every older area's gathered and dropped materials have a repeatable sink (Abbey silver
       // since 6.11's engraver): no older area yields a dead material.
-      for (const area of AREAS.filter((a) => !PHASE6_TABLES.includes(a.id))) {
+      for (const area of AREAS.filter(
+        (a) => !PHASE6_TABLES.includes(a.id) && !PHASE8_TABLES.includes(a.id),
+      )) {
         const used = area.materials.filter((m) => sinksOf(m).repeatable.length > 0);
         expect(used.length, area.id).toBeGreaterThan(0);
         for (const m of area.materials) expect(used, area.id).toContain(m);
@@ -511,4 +515,48 @@ describe('Phase 6 exit 3: no new system required (ticket 6.10)', () => {
     },
     60_000,
   );
+});
+
+describe('Phase 6 exit, extended: Phase 6 content stays relevant in the Hollow Reach (ticket 8.1)', () => {
+  // The Depths' best farming build (+10 Void, item level 39; this file's search), plain and with the
+  // shipped awakening on every piece, at level 40 in the Pale Marches against the Depths at 40.
+  // Measured: docs/BALANCE.md "Phase 6 exit criterion" (8.1).
+  it.each(CLASS_IDS)(
+    '%s: a level-40 hero in the best Depths build farms the Pale Marches profitably',
+    (c) => {
+      const build = bestAt(c, 'void', 'depths').build;
+      for (const awaken of [false, true]) {
+        const items = dress(buildItems(build, DEPTHS.itemLevel), 'void', awaken);
+        const depths = hour(c, 40, 'cinderDepths', items);
+        const entry = hour(c, 40, 'paleMarches', items);
+        const top = hour(c, 46, 'paleMarches', items);
+        const label = `${c} ${describeBuild(build)}${awaken ? ' awakened' : ''}: Depths ${JSON.stringify(depths)} · Marches 40 ${JSON.stringify(entry)} · 46 ${JSON.stringify(top)}`;
+        expect(entry.deaths, label).toBe(0);
+        expect(top.deaths, label).toBeLessThanOrEqual(1);
+        expect(entry.kpm, label).toBeGreaterThan(11);
+        // A step up (slower kills), not a wall; and it pays more an hour than the Depths.
+        expect(entry.kpm / depths.kpm, label).toBeGreaterThan(0.75);
+        expect(entry.kpm / depths.kpm, label).toBeLessThan(0.96);
+        expect(entry.xp / depths.xp, label).toBeGreaterThan(1.03);
+        expect(entry.gold / depths.gold, label).toBeGreaterThan(1.05);
+      }
+    },
+    60_000,
+  );
+
+  it('Phase 6 drops salvage into materials the Hollow Reach’s Forge spends; its sinks stay live', () => {
+    // A tier-4 Legendary (the Cinderwastes) salvages to ore and shards; tier-5 upgrades spend the
+    // same ore (4 a unit, tier 4's 3) and the essence, and the Marches drop both.
+    const t4 = ITEM_BASES.find((b) => b.tier === 4 && !b.unique)!;
+    const y = salvageYield({ baseId: t4.id, rarityId: 'legendary', itemLevel: 39 });
+    expect(y.materials).toEqual({ ironOre: 12, soulShard: 3 });
+    expect(sinksOf('ironOre').repeatable).toEqual(expect.arrayContaining(['forge:tier-4', 'forge:tier-5']));
+    expect(sinksOf('soulShard').repeatable).toContain('forge:essence');
+    const marches = AREAS.find((a) => a.id === 'paleMarches')!;
+    expect([...marches.materials].sort()).toEqual(['ironOre', 'soulShard']);
+    // The Tyrant's Ember keeps its sink (the Tyrantforged Work, tier 4) and no new material came.
+    expect(sinksOf('tyrantsEmber').repeatable).toContain('recipe:tyrantforgedWork');
+    expect(MATERIAL_IDS).not.toContain('hollowEssence');
+    expect(FORGE_RECIPES.map((r) => r.tier)).toEqual([1, 2, 3, 4]);
+  });
 });

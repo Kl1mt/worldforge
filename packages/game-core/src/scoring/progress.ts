@@ -81,20 +81,42 @@ const MILESTONES_V3: readonly ProgressMilestone[] = [
   },
 ];
 
+const MILESTONES_V4: readonly ProgressMilestone[] = [
+  ...MILESTONES_V3,
+  { id: 'crypt:4', kind: 'cryptTier', tier: 4, name: 'The Nameless Crypt, Heroic cleared' },
+];
+
 /**
  * Every version's milestones (ticket 6.1), so stored rows of any of them recompute. Version 2
  * adds the Ashfall Verge (13 milestones); version 3 (ticket 6.2) the Cinder Depths reached (level
  * 34 and the Warden), its middle (level 37), the Forge Tyrant defeated and its top (level 40): 17;
  * version 4 (ticket 6.3) the Heroic crypt cleared (tier IV, level 32 and tier III): 18. It comes
- * last: the hardest crypt clear, often the last milestone a hero takes.
+ * last: the hardest crypt clear, often the last milestone a hero takes. Version 5 (ticket 8.1) the
+ * Hollow Reach: the Pale Marches reached (level 40 and the Forge Tyrant), its middle (43) and its
+ * top (46): 21.
  */
 export const PVE_MILESTONES_BY_VERSION: Readonly<Record<number, readonly ProgressMilestone[]>> = {
   1: MILESTONES_V1,
   2: MILESTONES_V2,
   3: MILESTONES_V3,
-  4: [
-    ...MILESTONES_V3,
-    { id: 'crypt:4', kind: 'cryptTier', tier: 4, name: 'The Nameless Crypt, Heroic cleared' },
+  4: MILESTONES_V4,
+  5: [
+    ...MILESTONES_V4,
+    { id: 'area:paleMarches', kind: 'area', areaId: 'paleMarches' },
+    {
+      id: 'marches:43',
+      kind: 'areaLevel',
+      areaId: 'paleMarches',
+      level: 43,
+      name: 'The Pale Marches, level 43',
+    },
+    {
+      id: 'marches:46',
+      kind: 'areaLevel',
+      areaId: 'paleMarches',
+      level: 46,
+      name: 'The Pale Marches, level 46',
+    },
   ],
 };
 
@@ -132,6 +154,8 @@ function reached(m: ProgressMilestone, input: PveProgressInput): boolean {
       ? { cryptTierCleared: input.progress.cryptTierCleared }
       : {}),
     ...(input.progress.ashenWardenDefeated === true ? { ashenWardenDefeated: true } : {}),
+    // Ticket 8.1: the Pale Marches' unlock reads it; no older milestone's area does.
+    ...(input.progress.forgeTyrantDefeated === true ? { forgeTyrantDefeated: true } : {}),
   };
   switch (m.kind) {
     case 'area':

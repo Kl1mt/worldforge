@@ -45,6 +45,11 @@ export const ENEMY_IDS = [
   'slagColossus',
   // The Tyrant's Forge (ticket 6.2): the Cinderwastes' region boss.
   'forgeTyrant',
+  // The Pale Marches, the Hollow Reach's first area (ticket 8.1).
+  'hollowKnight',
+  'reachStalker',
+  'paleChoir',
+  'huskTitan',
 ] as const;
 
 export type EnemyId = (typeof ENEMY_IDS)[number];
@@ -55,6 +60,22 @@ export type EnemyRank = 'normal' | 'boss';
 export interface ScaledStat {
   base: number;
   perLevel: number;
+}
+
+/**
+ * Ticket 8.1: optional fight traits of a regular foe (the Hollow Reach). Each is a fixed number the
+ * encounter is built with (`buildEncounter`): no extra draw, no new timeline rule, the same in both
+ * simulations. Absent (every foe before 8.1) = the fight is exactly what it was.
+ */
+export interface EnemyTraits {
+  /** Share (0–1) of the hero's armour or resistance (by this foe's damage type) its blows ignore. */
+  defensePierce?: number;
+  /** Share (0–1) of the hero's critical bonus damage (`critDamage − 1`) lost against it. */
+  critGuard?: number;
+  /** Subtracted from the hero's crit chance against it (a fraction, the result at least 0). */
+  critEvasion?: number;
+  /** Share (0–1) of the class skill's extra multiplier (`multiplier − 1`) lost against it. */
+  skillGuard?: number;
 }
 
 export interface EnemyDefinition {
@@ -75,6 +96,8 @@ export interface EnemyDefinition {
   resistance: ScaledStat;
   /** Experience awarded on kill, before the level-difference factor. */
   xp: ScaledStat;
+  /** Ticket 8.1: fight traits (absent = none). */
+  traits?: EnemyTraits;
 }
 
 export const ENEMIES: readonly EnemyDefinition[] = [
@@ -500,6 +523,74 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     armor: { base: 30, perLevel: 4.5 },
     resistance: { base: 20, perLevel: 3 },
     xp: { base: 900, perLevel: 150 },
+  },
+  // — The Pale Marches (ticket 8.1), the first area of Region III, the Hollow Reach (levels 40–46,
+  // docs/WORLD.md). Tuned against today's best gear (the Depths' and the Tyrant's drops, Heroic
+  // Legendaries, awakened or not): about 1.3 × the Depths' health per level at a little more
+  // damage. Each foe adds one fight trait (`EnemyTraits`) that answers a different build.
+  // The hollow knight: empty plate that still fights; its blade finds the gaps in armour.
+  {
+    id: 'hollowKnight',
+    name: 'Hollow Knight',
+    assetId: 'enemy.hollow-knight',
+    damageType: 'physical',
+    undead: true,
+    rank: 'normal',
+    attackSpeed: 0.9,
+    health: { base: 130, perLevel: 84 },
+    damage: { base: 13.8, perLevel: 3.95 },
+    armor: { base: 30, perLevel: 5 },
+    resistance: { base: 14, perLevel: 2.4 },
+    xp: { base: 56, perLevel: 13.7 },
+    traits: { defensePierce: 0.25 },
+  },
+  // The stalker: fast and elusive, hard to land a telling blow on.
+  {
+    id: 'reachStalker',
+    name: 'Reach Stalker',
+    assetId: 'enemy.reach-stalker',
+    damageType: 'physical',
+    undead: false,
+    rank: 'normal',
+    attackSpeed: 1.6,
+    health: { base: 100, perLevel: 70 },
+    damage: { base: 8.6, perLevel: 2.55 },
+    armor: { base: 16, perLevel: 2.8 },
+    resistance: { base: 12, perLevel: 2.2 },
+    xp: { base: 51, perLevel: 12.4 },
+    traits: { critEvasion: 0.15 },
+  },
+  // The pale choir: a hymn of magic that dulls the hero's class skill; warded against spells.
+  {
+    id: 'paleChoir',
+    name: 'Pale Choir',
+    assetId: 'enemy.pale-choir',
+    damageType: 'magic',
+    undead: true,
+    rank: 'normal',
+    attackSpeed: 1.2,
+    health: { base: 80, perLevel: 57 },
+    damage: { base: 9.6, perLevel: 2.85 },
+    armor: { base: 8, perLevel: 1.4 },
+    resistance: { base: 28, perLevel: 4.4 },
+    xp: { base: 50, perLevel: 12.1 },
+    traits: { skillGuard: 0.4 },
+  },
+  // The husk titan: slow and vast, its dead hide turns critical blows.
+  {
+    id: 'huskTitan',
+    name: 'Husk Titan',
+    assetId: 'enemy.husk-titan',
+    damageType: 'physical',
+    undead: false,
+    rank: 'normal',
+    attackSpeed: 0.45,
+    health: { base: 250, perLevel: 124 },
+    damage: { base: 21, perLevel: 5.9 },
+    armor: { base: 32, perLevel: 5.2 },
+    resistance: { base: 16, perLevel: 2.6 },
+    xp: { base: 75, perLevel: 17.4 },
+    traits: { critGuard: 0.5 },
   },
 ];
 

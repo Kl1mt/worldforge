@@ -128,3 +128,74 @@ describe('encounters', () => {
     expect(attackIntervalMs(4)).toBe(250);
   });
 });
+
+describe('fight traits (ticket 8.1)', () => {
+  const stats = {
+    ...deriveCharacterStats('warrior', 43),
+    armor: 1200,
+    resistance: 600,
+    critChance: 0.3,
+    critDamage: 1.8,
+  };
+  const withTraits = (id: 'hollowKnight' | 'reachStalker' | 'paleChoir' | 'huskTitan') => {
+    const enemy = ENEMIES.find((e) => e.id === id)!;
+    const { traits: _traits, ...plain } = enemy;
+    return {
+      enemy,
+      traited: buildEncounter(enemy, 43, 'warrior', 43, stats, DEFAULT_COMBAT_CONFIG),
+      plain: buildEncounter(plain, 43, 'warrior', 43, stats, DEFAULT_COMBAT_CONFIG),
+    };
+  };
+
+  it('only the Pale Marches’ foes have traits, one each', () => {
+    const traited = ENEMIES.filter((e) => e.traits !== undefined).map((e) => e.id);
+    expect(traited).toEqual(getArea('paleMarches').enemies.map((e) => e.enemyId));
+    for (const e of ENEMIES.filter((x) => x.traits)) {
+      expect(Object.keys(e.traits!), e.id).toHaveLength(1);
+      for (const v of Object.values(e.traits!)) {
+        expect(v, e.id).toBeGreaterThan(0);
+        expect(v, e.id).toBeLessThan(1);
+      }
+    }
+  });
+
+  it('the hollow knight’s blade ignores part of the hero’s armour', () => {
+    const { enemy, traited, plain } = withTraits('hollowKnight');
+    const pierced = stats.armor * (1 - enemy.traits!.defensePierce!);
+    const raw = enemyStatsAtLevel(enemy, 43).damage;
+    expect(traited.enemyHit).toBe(
+      Math.max(1, Math.round(raw * (1 - mitigation(pierced, 43, DEFAULT_COMBAT_CONFIG)))),
+    );
+    expect(traited.enemyHit).toBeGreaterThan(plain.enemyHit);
+    expect(traited.auto).toEqual(plain.auto);
+    expect(traited.skill).toEqual(plain.skill);
+  });
+
+  it('the reach stalker lowers the hero’s crit chance, the husk titan its crit damage', () => {
+    const stalker = withTraits('reachStalker');
+    expect(stalker.traited.auto.critChance).toBeCloseTo(0.15);
+    expect(stalker.traited.auto.normal).toBe(stalker.plain.auto.normal);
+    expect(stalker.traited.auto.crit).toBe(stalker.plain.auto.crit);
+    expect(stalker.traited.enemyHit).toBe(stalker.plain.enemyHit);
+    const titan = withTraits('huskTitan');
+    // Half the bonus: × 1.4 instead of × 1.8.
+    expect(titan.traited.auto.crit / titan.traited.auto.normal).toBeCloseTo(1.4, 1);
+    expect(titan.traited.auto.critChance).toBe(titan.plain.auto.critChance);
+    expect(titan.traited.auto.crit).toBeLessThan(titan.plain.auto.crit);
+  });
+
+  it('the pale choir dulls the class skill, never below a basic attack', () => {
+    const { traited, plain } = withTraits('paleChoir');
+    expect(traited.auto).toEqual(plain.auto);
+    expect(traited.skill.normal).toBeLessThan(plain.skill.normal);
+    expect(traited.skill.normal).toBeGreaterThanOrEqual(traited.auto.normal);
+  });
+
+  it('a foe without traits builds exactly the encounter it did', () => {
+    for (const e of ENEMIES.filter((x) => !x.traits)) {
+      const a = buildEncounter(e, 30, 'mage', 30, stats, DEFAULT_COMBAT_CONFIG);
+      const b = buildEncounter({ ...e, traits: {} }, 30, 'mage', 30, stats, DEFAULT_COMBAT_CONFIG);
+      expect(b, e.id).toEqual(a);
+    }
+  });
+});

@@ -85,7 +85,7 @@ describe('determinism', () => {
   // ambient state). If one moves, a formula changed: bump its `FORMULA_VERSIONS` entry and update
   // the pin and docs/LEADERBOARDS.md in the same change (5.2 recomputes stored values on a bump).
   it('pins the values of reference heroes (bump FORMULA_VERSIONS when one moves)', () => {
-    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 2, power: 2, pveProgress: 4 });
+    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 2, power: 3, pveProgress: 5 });
     const pinned = CLASS_IDS.map((classId) => {
       // Ticket 6.1: the version-1 pins, computed at version 1 (unchanged by 6.1).
       const s = computeScores(hero({ classId, equipment: kit(classId, 19, 'rare', 3) }), {
@@ -484,12 +484,46 @@ describe('Character Power', () => {
         powerScore(c, 34, kit(c, 27, 'epic', 10)).value,
       );
     }
-    expect(() => powerScore('mage', 10, [], 3)).toThrow(RangeError);
+    expect(() => powerScore('mage', 10, [], 4)).toThrow(RangeError);
+  });
+
+  it('version 3 (8.1) is version 2 plus the trials at 42 and 46', () => {
+    for (const c of CLASS_IDS) {
+      for (const [level, il, rarity, up] of [
+        [12, 11, 'common', 0],
+        [34, 33, 'legendary', 10],
+        [40, 39, 'legendary', 10],
+        [46, 45, 'legendary', 5],
+      ] as const) {
+        const items = kit(c, il, rarity, up);
+        const v2 = powerScore(c, level, items, 2);
+        const v3 = powerScore(c, level, items, 3);
+        const added = v3.lines.filter((l) => l.id === 'trial:42' || l.id === 'trial:46');
+        expect(added, c).toHaveLength(2);
+        expect(v3.lines).toHaveLength(24);
+        for (const line of v2.lines) {
+          expect(v3.lines.find((l) => l.id === line.id)?.points, `${c} ${line.id}`).toBe(
+            line.points,
+          );
+        }
+        expect(
+          Math.abs(v3.value - v2.value - added.reduce((t, l) => t + l.points, 0)),
+        ).toBeLessThanOrEqual(2);
+        expect(v3.formulaVersion).toBe(3);
+      }
+    }
+    // The Hollow Reach's gear shows: tier-5 epics +10 score above the Depths' (item level 39).
+    for (const c of CLASS_IDS) {
+      expect(powerScore(c, 46, kit(c, 45, 'epic', 10)).value, c).toBeGreaterThan(
+        powerScore(c, 46, kit(c, 39, 'epic', 10)).value,
+      );
+    }
   });
 
   it('explains every trial', () => {
     const s = powerScore('hunter', 22, kit('hunter', 21, 'epic'));
-    expect(s.lines).toHaveLength(22);
+    expect(s.lines).toHaveLength(24);
+    expect(powerScore('hunter', 22, kit('hunter', 21, 'epic'), 2).lines).toHaveLength(22);
     expect(powerScore('hunter', 22, kit('hunter', 21, 'epic'), 1).lines).toHaveLength(20);
     expect(s.lines.reduce((t, l) => t + l.points, 0)).toBeGreaterThan(s.value - 20);
     expect(s.lines[0]!.detail).toMatch(/^Cleared in \d+ s$/);
@@ -507,13 +541,17 @@ describe('Character Power', () => {
 });
 
 describe('PvE Progress', () => {
-  const progress = (over: Partial<Parameters<typeof pveProgressScore>[0]> = {}) =>
-    pveProgressScore({
-      level: 1,
-      progress: { gravewardenDefeated: false },
-      guildBossStage: 0,
-      ...over,
-    });
+  // Ticket 8.1: version 4's numbers, as 6.3 left them (version 5's below).
+  const progress = (over: Partial<Parameters<typeof pveProgressScore>[0]> = {}, version = 4) =>
+    pveProgressScore(
+      {
+        level: 1,
+        progress: { gravewardenDefeated: false },
+        guildBossStage: 0,
+        ...over,
+      },
+      version,
+    );
 
   it('lists every area and every crypt tier, once, in the order heroes meet them', () => {
     const areas = PVE_MILESTONES.flatMap((m) => (m.kind === 'area' ? [m.areaId] : []));
@@ -656,6 +694,51 @@ describe('PvE Progress', () => {
         world: { ...NO_WORLD_FLAGS, ashenPassCleared: true },
       }).sortKey,
     ).toEqual([9, 9, 0]);
+  });
+
+  it('version 5 (8.1) adds the Pale Marches: reached, its middle and its top', () => {
+    const hero = (level: number, tyrant: boolean, tier = 4) => ({
+      level,
+      progress: {
+        gravewardenDefeated: true,
+        cryptTierCleared: tier,
+        ashenWardenDefeated: true,
+        ...(tyrant ? { forgeTyrantDefeated: true } : {}),
+      },
+      world: { ...NO_WORLD_FLAGS, ashenPassCleared: true },
+      guildBossStage: 5,
+    });
+    const v5 = (level: number, tyrant: boolean, tier = 4) => progress(hero(level, tyrant, tier), 5);
+    expect(PVE_MILESTONES).toHaveLength(21);
+    expect(PVE_MILESTONES.slice(-3).map((m) => m.id)).toEqual([
+      'area:paleMarches',
+      'marches:43',
+      'marches:46',
+    ]);
+    // The Tyrant and level 40 open the Marches (milestone 19); its middle at 43, its top at 46.
+    expect(v5(40, true).sortKey).toEqual([19, 19, 5]);
+    expect(v5(42, true).sortKey).toEqual([19, 19, 5]);
+    expect(v5(43, true).sortKey).toEqual([20, 20, 5]);
+    expect(v5(46, true).sortKey).toEqual([21, 21, 5]);
+    expect(v5(46, true).lines.every((l) => l.counted)).toBe(true);
+    // Without the Tyrant none of them, at any level.
+    expect(v5(60, false).sortKey).toEqual([17, 18, 5]);
+    // Every version-4 hero scores the same or more under version 5 (only milestones added), and a
+    // version-4 hero without the Tyrant scores exactly the same.
+    for (const level of [1, 24, 28, 34, 37, 40, 43, 46, 60]) {
+      for (const tyrant of [false, true]) {
+        for (const tier of [3, 4]) {
+          const before = progress(hero(level, tyrant, tier)).value;
+          expect(v5(level, tyrant, tier).value).toBeGreaterThanOrEqual(before);
+          if (!tyrant) expect(v5(level, tyrant, tier).value).toBe(before);
+        }
+      }
+    }
+    // The world flags (8.2's seam) leave the Marches as they are.
+    const all = Object.fromEntries(Object.keys(NO_WORLD_FLAGS).map((k) => [k, true]));
+    expect(progress({ ...hero(46, true), world: all as typeof NO_WORLD_FLAGS }, 5).sortKey).toEqual(
+      v5(46, true).sortKey,
+    );
   });
 
   it('never counts a guild boss stage that does not exist', () => {

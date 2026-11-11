@@ -283,16 +283,32 @@ export function buildEncounter(
     enemy.rank === 'boss' ? 1 + bonusOf(modifiers?.bossDamage) + (fx?.bossSlayer ?? 0) : 1;
   const dealt = playerRaw * (1 - mitigation(enemyDefense, characterLevel, config)) * bossBonus;
 
-  const playerDefense = enemy.damageType === 'physical' ? stats.armor : stats.resistance;
+  // Ticket 8.1: a foe's fight traits (`EnemyTraits`); absent, every number below is as before.
+  const traits = enemy.traits;
+  const pierce = traits?.defensePierce ?? 0;
+  const playerDefense =
+    (enemy.damageType === 'physical' ? stats.armor : stats.resistance) * (pierce > 0 ? 1 - pierce : 1);
   const taken = e.damage * (1 - mitigation(playerDefense, enemyLevel, config));
 
+  const critDamage =
+    traits?.critGuard !== undefined
+      ? 1 + Math.max(0, stats.critDamage - 1) * (1 - traits.critGuard)
+      : stats.critDamage;
+  const critChance =
+    traits?.critEvasion !== undefined
+      ? Math.max(0, stats.critChance - traits.critEvasion)
+      : stats.critChance;
   const profile = (multiplier: number, bonusCrit: number): HitProfile => ({
     normal: hitDamage(dealt * multiplier),
-    crit: hitDamage(dealt * multiplier * stats.critDamage),
-    critChance: Math.min(1, Math.max(0, stats.critChance + bonusCrit)),
+    crit: hitDamage(dealt * multiplier * critDamage),
+    critChance: Math.min(1, Math.max(0, critChance + bonusCrit)),
   });
 
-  const skillMultiplier = skillDef.damageMultiplier * (1 + bonusOf(modifiers?.skillDamage));
+  const fullSkill = skillDef.damageMultiplier * (1 + bonusOf(modifiers?.skillDamage));
+  const skillMultiplier =
+    traits?.skillGuard !== undefined
+      ? 1 + (fullSkill - 1) * (1 - traits.skillGuard)
+      : fullSkill;
   // Bloodrush (ticket 3.2): each stack adds attack speed for this fight.
   const momentum = fx && fx.bloodrush.perStack > 0 ? Math.max(0, context?.momentum ?? 0) : 0;
   const attackSpeed =
@@ -324,8 +340,8 @@ export function buildEncounter(
     setup.effects = {
       dealt,
       raw,
-      critDamage: stats.critDamage,
-      critChance: stats.critChance,
+      critDamage,
+      critChance,
       skillMultiplier,
       skillBonusCrit: skillDef.bonusCritChance,
       maxHealth: stats.health,

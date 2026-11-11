@@ -94,7 +94,7 @@ export const MATERIALS: readonly MaterialDefinition[] = [
     rarity: 'uncommon',
     source: 'gathering',
     profession: 'mining',
-    areas: ['blackwater', 'sunkenAbbey', 'ashenPass', 'ashfallVerge', 'cinderDepths'],
+    areas: ['blackwater', 'sunkenAbbey', 'ashenPass', 'ashfallVerge', 'cinderDepths', 'paleMarches'],
   },
   {
     id: 'soulShard',
@@ -104,7 +104,7 @@ export const MATERIALS: readonly MaterialDefinition[] = [
     rarity: 'uncommon',
     source: 'undeadDrop',
     profession: null,
-    areas: ['oldBurialGrounds', 'ashenPass', 'ashfallVerge', 'cinderDepths'],
+    areas: ['oldBurialGrounds', 'ashenPass', 'ashfallVerge', 'cinderDepths', 'paleMarches'],
   },
   {
     id: 'abbeySilver',

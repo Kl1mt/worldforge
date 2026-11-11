@@ -676,8 +676,9 @@ describe('balance (ticket B.1)', () => {
 
     it('drops the highest item levels, tier-4 bases and tier-5 affixes (never at the Pass)', () => {
       const table = getLootTable(verge.lootTableId);
-      // Ticket 6.2: the Cinder Depths drop above it (its own block below).
-      for (const a of AREAS.filter((x) => x.id !== verge.id && x.id !== 'cinderDepths')) {
+      // Ticket 6.2: the Cinder Depths drop above it (its own block below); 8.1: the Pale Marches.
+      const above = [verge.id, 'cinderDepths', 'paleMarches'];
+      for (const a of AREAS.filter((x) => !above.includes(x.id))) {
         expect(table.itemLevel!.min, a.id).toBeGreaterThan(
           getLootTable(a.lootTableId).itemLevel!.max - 1,
         );
