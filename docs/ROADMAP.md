@@ -1132,7 +1132,7 @@ Checked and holding: awakening (refusals and held value before paying; races aga
 - **Schedule 6.11, the Seal sink**, and decide whether Abbey silver gets a sink too.
 - Decide the accepted risks above if they should differ (cheat-minted value on an admin's own account, the test flag released on switch-off).
 
-### 6.11 Gravewarden Seal & Abbey silver sink (small) — `done (PR #TBD)`
+### 6.11 Gravewarden Seal & Abbey silver sink (small) — `done (PR #137)`
 Owner decision on B.5 (2026-11-11, `docs/BALANCE.md` "B.5", item 8): a dedicated player ends a full awakened kit with 15–17 spare Gravewarden Seals and nothing to spend them on. Placeholder; not built.
 - Suggested scope: a cosmetic (a collection-book entry, banner or crest style) or a modest Forge recipe priced in Seals. **No new power** (no stats, no better odds, nothing that counts in duels or boards).
 - Data-driven like the other sinks; audited and reconciled; test accounts as elsewhere.
