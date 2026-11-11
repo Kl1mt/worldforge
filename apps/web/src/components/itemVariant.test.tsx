@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import {
   VARIANT_PREVIEW_ICONS,
+  carriesVariant,
   VARIANT_PREVIEW_ROWS,
   VariantPreview,
 } from '../admin/VariantPreview';
@@ -244,18 +245,25 @@ describe('Void motion stylesheet (ticket A.12b)', () => {
 });
 
 describe('gallery Variants section (ticket A.12)', () => {
-  it('shows every rarity and a set piece, plain, Void and Prismatic', () => {
+  it('shows every rarity plain, and Void, Prismatic and awakened only where the game has them', () => {
     const html = renderToStaticMarkup(<VariantPreview scale={2} shimmer="forced" />);
-    const cells = VARIANT_PREVIEW_ICONS.length * VARIANT_PREVIEW_ROWS.length;
-    expect(html.match(/class="item-frame /g)).toHaveLength(cells);
-    // Ticket 6.5b: each variant row again awakened, and a plain awakened row.
     const n = VARIANT_PREVIEW_ICONS.length;
-    expect(html.match(/item-frame--prismatic/g)).toHaveLength(2 * n);
-    expect(html.match(/item-frame--void/g)).toHaveLength(2 * n);
+    // Only Legendary, Mythic and the (Legendary) set piece carry a variant or awaken.
+    const v = VARIANT_PREVIEW_ICONS.filter((c) => carriesVariant(c.rarity)).length;
+    expect(v).toBe(3);
+    expect(html.match(/class="item-frame /g)).toHaveLength(
+      n + v * (VARIANT_PREVIEW_ROWS.length - 1),
+    );
+    expect(html.match(/anim-gallery__na/g)).toHaveLength(
+      (n - v) * (VARIANT_PREVIEW_ROWS.length - 1),
+    );
+    // Ticket 6.5b: each variant row again awakened, and a plain awakened row.
+    expect(html.match(/item-frame--prismatic/g)).toHaveLength(2 * v);
+    expect(html.match(/item-frame--void/g)).toHaveLength(2 * v);
     // Both variants move after Play (A.12b: Void too), in the plain and the awakened rows.
-    expect(html.match(/item-frame--shimmer-forced/g)).toHaveLength(4 * n);
-    expect(html.match(/item-frame--awakened/g)).toHaveLength(3 * n);
-    expect(html.match(/item-frame--ember-forced/g)).toHaveLength(3 * n);
+    expect(html.match(/item-frame--shimmer-forced/g)).toHaveLength(4 * v);
+    expect(html.match(/item-frame--awakened/g)).toHaveLength(3 * v);
+    expect(html.match(/item-frame--ember-forced/g)).toHaveLength(3 * v);
     for (const r of ['common', 'uncommon', 'rare', 'epic', 'legendary', 'mythic']) {
       expect(html).toContain(`rarity-${r}`);
     }
