@@ -6,7 +6,7 @@ The balance passes (B-tickets) record their method, before/after tables and deci
 - B.2 (loot depth, economy): `docs/COMBAT.md`, `docs/ECONOMY.md` "Balance pass: loot depth & economy", `docs/DUNGEONS.md`.
 - B.3 (top end, social economy): `docs/ECONOMY.md`, `docs/COMMUNITY.md`, `docs/DUNGEONS.md`.
 - B.4 (competitive systems): `docs/LEADERBOARDS.md`, `docs/PVP.md` "Balance pass: competitive systems".
-- **B.5 (endgame, Phase 6): below.**
+- **B.5 (endgame, Phase 6): below.** Owner decisions on its questions: **B.5b** at the end of the section.
 
 ## B.5: the endgame (Phase 6)
 
@@ -179,6 +179,13 @@ Guard: `endgame-balance.test.ts` (Pass set pieces in a Depths kit ≥ 95 % of it
 ### Risks and open points
 
 - **Replays across the deploy:** a dungeon run is replayed from its seed and snapshot for every view and the claim. A Tyrant, Heroic or Warded-week run that is under way while B.5 deploys (a few minutes at most) replays under the new numbers: its claim and its last views agree with each other, but its `endsAt` came from the old ones. Earlier balance passes accepted the same window.
-- **The hunter's fast kills** (item 2) need an owner decision on the hunter's set bonus or effect slots.
-- **Spare Seals** (item 8) have no sink after a full awakened kit.
+- **The hunter's fast kills** (item 2): accepted risk (B.5b), watched in live data.
+- **Spare Seals** (item 8) have no sink after a full awakened kit: a sink is planned (B.5b, ROADMAP 6.11).
 - **The API simulator** doesn't play Phase 6 content, so B.5 models the endgame player in game-core; a Phase 6 season run of the realistic player (and a new `realistic-arena.json`) would let a later pass check these numbers against telemetry.
+
+## B.5b: the owner's decisions on B.5 (2026-11-11)
+
+1. **The hunter's burst build** (item 2): left as it is until real player data shows a problem. An **accepted risk**; no change.
+2. **Spare Gravewarden Seals** (item 8): a Seal sink will be added later, a cosmetic or a modest Forge recipe with no new power (`docs/ROADMAP.md` 6.11, a placeholder; not built).
+3. **Event length** (item 7): the Harvest of Bones stays; the next event should be a longer chase (`docs/EVENTS.md` "Guidance for future events").
+4. **The Forgeward first-day cap** (item 5): **`capShare: 0.1`** on all three Forgeward Outpost stages (ten givers to finish a stage on its first day; 10 → 30 → 50 → 60 % by B.3's growth). Every other stage keeps `COMMUNITY_PROJECT_CONFIG` (20 % → 60 %). Item 5's table re-run with the shipped data (`endgame.ts forgeward`, `balance/forgeward-balance.test.ts`): identical, 8 / 2 / 2 days at 20 / 100 / 500 players, the first stage's givers 6 → 10, its largest share 19 → 10 %. Small towns: 1 player 30 → 31 days, 3 and 10 players unchanged (20 and 10 days). While wiring it, `stageCapShare` gained a rounding step: 0.1 + 0.2 is 0.30000000000000004 in floating point and would have made a second-day cap one unit larger (4 embers instead of 3); the 20 % stages were exact and don't change.
