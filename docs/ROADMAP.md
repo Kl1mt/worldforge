@@ -1140,7 +1140,7 @@ Owner decision on B.5 (2026-11-11, `docs/BALANCE.md` "B.5", item 8): a dedicated
 - **Owner decision (2026-11-11, 6.10 question 1):** fold in **Abbey silver**, which has no repeatable sink once the Forgeward stands (`docs/BALANCE.md` "Phase 6 exit criterion"). Same rules: no new power.
 
 ## Phase 7 — Desktop release & mobile port
-**Status: planned** (tickets written 2026-11-11; each starts on the owner's go-ahead).
+**Status: deferred** (tickets written 2026-11-11; owner decision the same day: Phase 8 comes first, Phase 7 is revisited later).
 
 GDD §2, §15 Phase 7; `docs/TECH_STACK.md` (desktop: Tauri; mobile: responsive web first, then Capacitor). **Exit (GDD):** desktop and mobile clients use the same authoritative backend and provide a consistent progression experience.
 
@@ -1242,6 +1242,115 @@ GDD §15 Phase 7 exit, §16.3.
 - The mobile and desktop browser runs in CI.
 - A security review of the wrapper (navigation lock, capabilities, updater signing), the service worker and the PWA cache.
 - A Phase 7 retrospective in this file.
+
+## Phase 8 — Live game: new content, events & quality of life
+**Status: planned** (tickets written 2026-11-11 by the owner's request; Phase 7 is deferred until later). The GDD plans only to Phase 7, so this phase is the owner's extension. It grows the live game on the browser client.
+
+**Exit:** the live town has a new endgame region beyond level 40 that keeps Phase 6 content relevant, a self-running calendar of events, better everyday comfort, and a clear "going live" checklist the owner has worked through. Everything is reconciled, fair and free of pay-to-win, as in every earlier phase.
+
+**Ground rules for Phase 8** (all earlier rules still apply, including `CLAUDE.md` "Writing tests that don't flake", the patch-notes and the screenshots rules)
+- **Phase 8 releases are 0.8.x.** The first Phase 8 PR players can see bumps to `0.8.0`.
+- **Phase 6's rules carry over:**
+  - older content stays relevant;
+  - boards move by versions between seasons;
+  - events and cosmetics never grant power;
+  - PvP tuning never changes a PvE number;
+  - every number change has before/after tables.
+- **Live data first.** Once the town is live (8.6), balance work reads real telemetry and the owner's playtest notes before simulations.
+
+**Defaults the owner can override:**
+- **Region III,** working name **"The Hollow Reach"**: levels **40–52** in two areas plus a region boss, unlocked after the Forge Tyrant and through a community project. There is still no hard level cap; the XP soft cap moves from about 48 to about 55.
+- **Events:** a second, **longer** event (several weeks, a deeper reward track, per the B.5 decision), and an **automatic event calendar** the owner can pause or override.
+- **Guilds:** a guild **season ranking** (cosmetic honours only) and guild halls with cosmetic upgrades; no guild-vs-guild combat.
+- **Quality of life:** the owner's playtest notes first; otherwise inventory search and sorting, loot-filter presets, a notification inbox, and claiming several Tavern rewards at once.
+
+**Order** (one or two sessions at a time):
+1. 8.6 (the going-live checklist, so the town can open while content is built)
+2. 8.1 and A.17 (parallel)
+3. 8.2
+4. 8.3
+5. 8.4
+6. 8.5
+7. B.6
+8. 8.7
+
+### 8.1 Region III, part 1: the Hollow Reach, levels 40–46 (vertical) — `todo`
+Like 6.1. Read `docs/WORLD.md`, `docs/COMBAT.md`, `docs/LOOT.md`, `docs/LEADERBOARDS.md`, `docs/PVP.md`, 6.1/6.2 as built.
+- The first area at levels 40–46:
+  - new enemies (art from A.17);
+  - a tier-5 loot table, with item levels extending the curve and no change at or below 40 (pins);
+  - an unlock after the Forge Tyrant, with a world-flag seam for 8.2's community gate. Never take access away from live content.
+- New Power, PvE Progress and Gear Score versions as needed, switched between seasons.
+- PvP reference kits for the new top end, with the 30+ bands kept (B.5's duel-Power matchmaking).
+- A level-40 hero in today's best gear farms it profitably, and Phase 6 drops keep their uses.
+- Patch notes `0.8.0`.
+
+### A.17 Hollow Reach art — `todo`
+Like A.11. Two area backdrops, 4–6 enemies, a region boss, and 8-frame attack sheets for the common enemies (A.14b's pipeline). Tier-5 item icons like A.15. Budget: about 5–7 PixelLab jobs plus one regeneration, reporting the credit drop. **Acceptance:** contact sheets.
+
+### 8.2 Region III, part 2: levels 46–52, the region boss & a community gate (vertical) — `todo`
+Like 6.2 and 6.7.
+- The second area and the region boss dungeon:
+  - a bound hoard;
+  - a boss material with a real sink (e.g. a next awakening step or a Forge recipe; no runaway power);
+  - weekly modifiers apply (6.3).
+- A community project that opens the region's later parts from day one of its release. Unlike 6.7, it may gate this *new* content, because nothing live is taken away.
+- A new era.
+- PvE Progress milestones.
+- Heroic and other Phase 6 content stay relevant (the exit-criterion test extended).
+
+### 8.3 A longer event & the event calendar (vertical) — `todo`
+Read `docs/EVENTS.md` (incl. B.5b's "longer chase" guidance).
+- A second event definition: **several weeks**, a deeper reward track (5–7 tiers, new cosmetics reusing existing art plus small code treatments), and a world modifier different from Harvest of Bones.
+- An **automatic event calendar:** events rotate on a schedule the owner sets in the admin panel (gaps between events, order, pause, skip, override). It respects seasons and never overlaps.
+- Tests:
+  - calendar boundaries with an injected clock;
+  - no overlaps;
+  - pause and resume;
+  - rewards exactly once;
+  - invariance.
+
+### 8.4 Guild seasons & guild halls (vertical) — `todo`
+Read `docs/SOCIAL.md` (guilds), `docs/GUILD_BOSS.md`, `docs/LEADERBOARDS.md` (seasons, honours), `docs/COSMETICS.md`.
+- **A guild season ranking:** guild boss progress, community contributions and member PvE Progress, combined in a published, versioned formula. Archived with the 5.3 seasons, with cosmetic guild honours (crest frames and banners via 6.8).
+- **Guild halls:** a guild page with cosmetic upgrades bought from a shared guild treasury the members fund. Cosmetic only: no stats, no drop odds. Audited and reconciled, with B.3-style anti-monopoly caps.
+- Test accounts are excluded from rankings (D.4).
+
+### 8.5 Quality-of-life pass (vertical) — `todo`
+**The owner's playtest notes come first** (`docs/PLAYTEST_FEEDBACK.md`). Otherwise:
+- inventory search, sorting and filters;
+- loot-filter presets (save, load, share as a code);
+- a notification inbox for drops, trades, duels, events and seasons, with read and unread states;
+- claiming several Tavern rewards at once;
+- any friction found in the 6.10 browser runs.
+
+Mobile-friendly where it's cheap, but the full mobile pass stays in Phase 7.
+
+### 8.6 Going-live checklist & admin readiness dashboard — `todo`
+A **readiness panel** in the admin panel showing what the live town still needs, each item with a status and a link to the doc:
+- **email (SMTP):** configured, with a test letter sent to an address the owner types (never stored);
+- **privacy policy:** a reminder listing the features that must be mentioned (leaderboards, emails, the provider);
+- **Season 1:** scheduled or not;
+- **trading:** the launch-order step the town is at;
+- **the first event:** scheduled or not;
+- **reserved staff names:** added or not;
+- **backups:** the last backup time from `backup.sh`;
+- **CI and deploy:** status.
+
+Plus `docs/GOING_LIVE.md`, a step-by-step checklist for the owner. **No secrets are shown or stored,** and the panel only reads state. This ticket goes first, so the town can open while content is built.
+
+### B.6 Balance pass: live data — `todo`
+- The first pass driven by **real telemetry** from the live town, plus the owner's playtest notes.
+- The trading telemetry once trading is open (T.7's 10 % Legendary alarm, etc.).
+- Re-check every Phase 6 and 8 band with real players.
+- Before/after tables; data-only changes where possible.
+
+### 8.7 Phase 8 hardening & exit — `todo`
+Like 6.10:
+- an exit run over the new region, boss, events calendar, guild seasons and the QoL features, reconciled;
+- a browser run in CI;
+- an exploit review (`docs/PHASE8_EXPLOIT_REVIEW.md`) and a rate-limit review;
+- the Phase 8 retrospective.
 
 ## Deployment
 
