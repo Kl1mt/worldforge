@@ -20,6 +20,7 @@
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
+import { selectUsableDrop } from './usable-drop.mjs';
 import { AREAS, ITEM_BASES, RARITY_IDS } from '../../packages/game-core/dist/index.js';
 
 const require = createRequire(import.meta.url);
@@ -261,20 +262,12 @@ async function main() {
 
   // 3. Equip the first usable drop in the Pack (UI).
   log('Pack: equip a drop');
+  // The first drops can all be other classes' gear (ticket F.8): keep farming until one fits.
   await page.goto(`${baseUrl}/#/inventory`);
-  const sockets = page.locator('.stash__grid button.item-frame');
-  await sockets.first().waitFor();
-  const equip = page.getByRole('button', { name: 'Equip', exact: true });
-  for (let i = 0; i < (await sockets.count()); i++) {
-    await sockets.nth(i).click();
-    if (await equip.isEnabled()) {
-      await equip.click();
-      await page.locator('.pack__notice--ok').waitFor();
-      done.equipped = true;
-      break;
-    }
-  }
-  if (!done.equipped) throw new Error('no usable drop to equip');
+  await selectUsableDrop(page, { baseUrl, log });
+  await page.getByRole('button', { name: 'Equip', exact: true }).click();
+  await page.locator('.pack__notice--ok').waitFor();
+  done.equipped = true;
 
   // 4. The grind, with the first use of each town feature through the UI.
   const started = Date.now();

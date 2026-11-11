@@ -14,6 +14,7 @@
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
+import { selectUsableDrop } from './usable-drop.mjs';
 
 const require = createRequire(import.meta.url);
 let playwright;
@@ -101,22 +102,13 @@ async function run(browser, vp) {
   await page.waitForTimeout(500);
   await shoot(page, vp, 'area-farming');
 
-  // 5. Equip an item the class can use, after reading the comparison.
+  // 5. Equip an item the class can use, after reading the comparison. The first drops can all be
+  // other classes' gear (ticket F.8), so keep farming until a usable one is in the Pack.
   step(vp, 'equip');
   await page.goto(`${baseUrl}/#/inventory`);
-  const sockets = page.locator('.stash__grid button.item-frame');
-  await sockets.first().waitFor();
   const equipButton = page.getByRole('button', { name: 'Equip', exact: true });
-  let picked = null;
-  const count = await sockets.count();
-  for (let i = 0; i < count; i++) {
-    await sockets.nth(i).click();
-    if (await equipButton.isEnabled()) {
-      picked = await sockets.nth(i).getAttribute('aria-label');
-      break;
-    }
-  }
-  if (!picked) throw new Error(`no usable item among ${count} drops`);
+  const { picked, count } = await selectUsableDrop(page, { baseUrl, log: (t) => step(vp, t) });
+  step(vp, `picked ${picked} (of ${count} drops)`);
   await page.locator('.tooltip__compare').first().waitFor();
   await shoot(page, vp, 'inventory-compare');
   await equipButton.click();
