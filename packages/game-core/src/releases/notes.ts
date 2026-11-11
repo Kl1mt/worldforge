@@ -23,9 +23,20 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.6.13';
+export const GAME_VERSION = '0.6.14';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.6.14',
+    date: '2026-11-13',
+    title: 'An endgame balance pass',
+    changed: [
+      'Arena, level 30 and above: opponents are now matched by how strong they really are in a duel, so the strongest kits meet each other far more often and lopsided matches have become rare.',
+      'The Forge Tyrant’s slag now turns blades more than spells, and the Heroic Gravewarden resists magic a little less and steel a little more. Mages and warlocks stand a better chance against them; warriors and hunters still win most fights in good gear.',
+      'The Warded omen is gentler: while its ward stands your blows deal 25 % less damage instead of 30 %.',
+    ],
+    tickets: ['B.5'],
+  },
   {
     version: '0.6.13',
     date: '2026-11-13',

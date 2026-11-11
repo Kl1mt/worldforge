@@ -51,17 +51,21 @@ describe('matchmaking fairness bands', () => {
   // level 39). Before B.5 this population measured 13.8 % / 8.8 % at the season's start; with duel
   // Power 4.0 % / 0.7 %, and 3.8 % / 0.7 % with every +10 Void kit awakened (6.5b).
   for (const awakened of [false, true]) {
-    it(`30+ with heroes up to level 40${awakened ? ', top kits awakened' : ''}: inside the band`, SLOW, () => {
-      const bracket = RATED_BRACKETS.find((b) => b.id === '30-plus')!;
-      const pop = arenaPopulation(bracket, SIZE, { maxLevel: 40, awakened });
-      const mm = measureFairness(bracket, pop, 'matchmaking', SEEDS);
-      expect(mm.meanFavourite).toBeLessThanOrEqual(0.72);
-      expect(mm.over90).toBeLessThanOrEqual(0.08);
-      expect(mm.over95).toBeLessThanOrEqual(0.05);
-      expect(mm.extremePairs).toBeLessThanOrEqual(0.03);
-      expect(mm.emptyLists).toBe(0);
-      expect(mm.meanListSize).toBeGreaterThanOrEqual(4.9);
-      expect(mm.widened).toBeLessThanOrEqual(0.25);
-    });
+    it(
+      `30+ with heroes up to level 40${awakened ? ', top kits awakened' : ''}: inside the band`,
+      SLOW,
+      () => {
+        const bracket = RATED_BRACKETS.find((b) => b.id === '30-plus')!;
+        const pop = arenaPopulation(bracket, SIZE, { maxLevel: 40, awakened });
+        const mm = measureFairness(bracket, pop, 'matchmaking', SEEDS);
+        expect(mm.meanFavourite).toBeLessThanOrEqual(0.72);
+        expect(mm.over90).toBeLessThanOrEqual(0.08);
+        expect(mm.over95).toBeLessThanOrEqual(0.05);
+        expect(mm.extremePairs).toBeLessThanOrEqual(0.03);
+        expect(mm.emptyLists).toBe(0);
+        expect(mm.meanListSize).toBeGreaterThanOrEqual(4.9);
+        expect(mm.widened).toBeLessThanOrEqual(0.25);
+      },
+    );
   }
 });

@@ -180,7 +180,8 @@ describe('journey: awakening an item (Phase 6, ticket 6.5b)', () => {
     const report = await checkLeaderboards(cliDeps(db), 200, now());
     expect(report.problems.filter((p) => p.kind === 'wrong')).toEqual([]);
 
-    // The arena defence carries the awakening, and matchmaking's bracket Power 2 sees it.
+    // The arena defence carries the awakening, and matchmaking's bracket Power sees it (6.5b: 2;
+    // ticket B.5: 3, duel Power in 30+, which reads the awakening through the duel's own rules).
     const def = await keyed('/api/arena/defence', { characterId: hero.characterId });
     expect(def.statusCode, def.body).toBe(200);
     const [defence] = await db
@@ -192,7 +193,11 @@ describe('journey: awakening an item (Phase 6, ticket 6.5b)', () => {
     expect(defence!.powerVersion).toBe(BRACKET_POWER_VERSION);
     const bracket = findPvpBracket(defence!.bracketId)!;
     const fighter = duelFighter(defence!.snapshot);
-    expect(defence!.power).toBe(bracketPower(fighter, bracket, 2));
-    expect(defence!.power).toBeGreaterThanOrEqual(bracketPower(fighter, bracket, 1));
+    expect(defence!.power).toBe(bracketPower(fighter, bracket, 3));
+    const plain = {
+      ...fighter,
+      equipment: fighter.equipment.map((i) => ({ ...i, awakening: null })),
+    };
+    expect(defence!.power).toBeGreaterThanOrEqual(bracketPower(plain, bracket, 3));
   }, 180_000);
 });

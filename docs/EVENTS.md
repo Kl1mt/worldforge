@@ -79,6 +79,7 @@ There is no event leaderboard. The admin view's and the CLI's participation coun
 - Journey: `playEventStep` (`e2e/journey.ts`; `event-journey.test.ts`).
 
 ## Open points (owner)
+- **B.5** (`docs/BALANCE.md` "B.5", item 7): a hero who can beat a dungeon master finishes the Harvest's whole track in about an hour of play, a newcomer reaches tier 2 in about two hours. Cosmetic only, so nothing to tune for balance; a longer chase (more tasks or tiers) would be a content decision.
 - Should the modifier apply to every hero, not only those who joined? Joining keeps the boundary exact (no kills from before the start) and gives the participation count; applying it to all would need a per-hero counter for every farmer.
 - Tallies are per account (alts help fill one track). Per hero instead?
 - No automatic next event: each is scheduled by hand. A rotation (like seasons) could come later.

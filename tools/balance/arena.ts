@@ -37,7 +37,8 @@ for (const b of RATED_BRACKETS.filter((x) => !only || only.includes(x.id))) {
   const t0 = Date.now();
   const pop = arenaPopulation(b, size, options);
   // Ticket B.5: POWER=1|2 ranks by Character Power as before, with matchmaking 3's class scale.
-  const cfg = process.env.POWER && process.env.POWER !== '3' ? DEFAULT_MATCHMAKING : matchmakingConfig(b.id);
+  const cfg =
+    process.env.POWER && process.env.POWER !== '3' ? DEFAULT_MATCHMAKING : matchmakingConfig(b.id);
   const powers = pop.map((h) => h.power).sort((x, y) => x - y);
   console.log(
     `${b.label}: Power ${powers[0]}–${powers[powers.length - 1]} (median ${powers[powers.length >> 1]})`,

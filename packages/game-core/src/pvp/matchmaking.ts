@@ -100,7 +100,9 @@ export const DUEL_POWER_EXPONENT = 0.6;
  * factor is needed on top. Deterministic, ≈ 0.2 ms.
  */
 export function duelPower(fighter: PvpFighterInput, bracket: PvpBracket): number {
-  return Math.round(DUEL_POWER_SCALE * Math.exp(DUEL_POWER_EXPONENT * duelStrength(fighter, bracket)));
+  return Math.round(
+    DUEL_POWER_SCALE * Math.exp(DUEL_POWER_EXPONENT * duelStrength(fighter, bracket)),
+  );
 }
 
 /** Whether a bracket's bracket Power (version 3) is duel Power. */
@@ -143,7 +145,8 @@ const OFFER_SEED_VERSION = 3;
 
 /**
  * A hero's **bracket Power**: 5.1's Character Power of its (checked) gear, evaluated at the
- * bracket's reference level, × its awakening factor since version 2. A duel fights every hero at that level (5.4: level does not count
+ * bracket's reference level, × its awakening factor since version 2; since version 3 (ticket
+ * B.5) the hero's `duelPower` in the duel-Power brackets (30+). A duel fights every hero at that level (5.4: level does not count
  * inside a bracket), so the level part of Power says nothing about a duel; measured, ranging on raw
  * Power left 4 % of offered pairs in 10–19 at a 95 %+ favourite against 0.5 % with bracket Power
  * (docs/PVP.md "Matchmaking"). Its version is `BRACKET_POWER_VERSION`: Power 1 since ticket 6.1
@@ -223,10 +226,10 @@ export function matchmakingConfig(bracketId: string): Readonly<MatchmakingConfig
 /**
  * Matchmaking in the duel-Power brackets. Duel Power reads the class tuning, so B.4's Power scale
  * (warrior ÷ 1.035, warlock ÷ 0.967) would count the class twice (on the synthetic population it
- * took 90 %+ favourites from 2 % back to 6 %). What remains is fitted on the realistic heroes
+ * took 90 %+ favourites from 3 % back to 6 %). What remains is fitted on the realistic heroes
  * (`realistic-arena.json`, offered pairs): duel Power, measured against reference heroes without
- * effects, rates the warrior a little high against real opponents (41 % over offered pairs at
- * 1.0); warrior ÷ 1.02 puts every class at 46–54 %.
+ * effects, rates the warrior a little high against real opponents (41 % over offered pairs with
+ * no scale); warrior ÷ 1.02 puts every class at 44.5–53.4 %.
  */
 export const DUEL_POWER_MATCHMAKING: Readonly<MatchmakingConfig> = Object.freeze({
   ...DEFAULT_MATCHMAKING,

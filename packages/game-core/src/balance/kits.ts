@@ -46,6 +46,23 @@ export function legendaryKit(c: ClassId, itemLevel: number): GeneratedItem[] {
   );
 }
 
+/**
+ * Ticket B.5: another roll of `legendaryKit` (sample 0 is `legendaryKit` itself), so a class's
+ * boss win rate is measured over several kits rather than one kit's luck with its effects.
+ */
+export function legendarySample(c: ClassId, itemLevel: number, sample: number): GeneratedItem[] {
+  if (sample === 0) return legendaryKit(c, itemLevel);
+  return kit(c, itemLevel, 'legendary').map((item, k) =>
+    generateItem({
+      seed: (item.seed * 31 + sample * 7919 + k) % 2 ** 31,
+      itemLevel,
+      baseId: item.baseId,
+      rarityId: 'legendary',
+      classId: c,
+    })!,
+  );
+}
+
 export const upgraded = (items: GeneratedItem[], upgradeLevel: number): GeneratedItem[] =>
   items.map((i) => ({ ...i, upgradeLevel }));
 

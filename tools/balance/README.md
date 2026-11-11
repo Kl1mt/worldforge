@@ -1,4 +1,4 @@
-# Balance measurements (tickets B.2, 4.8, B.3, 5.4, 5.6, B.4, T.7, 6.1, 6.2, 6.5)
+# Balance measurements (tickets B.2, 4.8, B.3, 5.4, 5.6, B.4, T.7, 6.1, 6.2, 6.5, B.5)
 
 Dev scripts behind the before/after tables in `docs/COMBAT.md`, `docs/DUNGEONS.md`, `docs/EFFECTS.md`, `docs/PVP.md` and `docs/LEADERBOARDS.md`. Not run in CI (the guards are `packages/game-core/src/balance/*.test.ts`). Run from the repo root:
 
@@ -24,6 +24,9 @@ pnpm --filter @worldforge/server telemetry:simulate -- --dir .telemetry-sample/t
 pnpm --filter @worldforge/server exec tsx --conditions=source ../../tools/balance/trading.ts base=../../.telemetry-sample/t7-base alts=../../.telemetry-sample/t7-alts on=../../.telemetry-sample/t7-on all=../../.telemetry-sample/t7-all
 # Ticket 6.5: Item Awakening (docs/AWAKENING.md), game-core only; STRENGTH=1.25 SHARE=1 for the untuned options
 pnpm --filter @worldforge/server exec tsx ../../tools/balance/awakening.ts builds   # or: items, older, power, pvp, time, realistic, all
+# Ticket B.5: the endgame pass (docs/BALANCE.md "B.5"); bosses takes TYRANT_SCALE=res,arm HEROIC_SCALE=res,arm TYRANT_SHELL=… TYRANT_BURN=… to try boss data
+pnpm --filter @worldforge/server exec tsx ../../tools/balance/endgame.ts bosses   # or: pace, loot (HOURS=1500 RUNS=200), forgeward, event, older
+MAX_LEVEL=40 AWAKENED=1 pnpm --filter @worldforge/server exec tsx ../../tools/balance/arena.ts 120 32 20   # 30+ to level 40; POWER=2 ranks by Character Power as before B.5
 ```
 
 To compare with another revision, run them in a worktree of it (`git worktree add`).

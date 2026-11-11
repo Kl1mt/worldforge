@@ -308,7 +308,6 @@ export function simulateDuel(input: DuelInput, config: PvpConfig = DEFAULT_PVP_C
   };
 }
 
-
 /** No in-fight effect (the reference hero's: implicit stats only). */
 const NO_EFFECTS: PvpFighter['effects'] = {
   critBurn: 0,
