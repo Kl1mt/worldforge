@@ -1,4 +1,5 @@
-import { getClass, type ClassId } from '../classes.js';
+import { CLASS_IDS, getClass, type ClassId } from '../classes.js';
+import { STAT_LIMITS } from '../combat/characterStats.js';
 import {
   DEFAULT_COMBAT_CONFIG,
   attackHit,
@@ -15,6 +16,7 @@ import {
   PVP_RULES_VERSION,
   findPvpBracket,
   normaliseFighter,
+  pvpReferenceStats,
   pvpBracketOf,
   type PvpBracket,
   type PvpConfig,
@@ -304,4 +306,128 @@ export function simulateDuel(input: DuelInput, config: PvpConfig = DEFAULT_PVP_C
     sides: { challenger: sideResult('challenger'), defender: sideResult('defender') },
     events,
   };
+}
+
+
+/** No in-fight effect (the reference hero's: implicit stats only). */
+const NO_EFFECTS: PvpFighter['effects'] = {
+  critBurn: 0,
+  execute: { threshold: 0, bonus: 0 },
+  bossSlayer: 0,
+  lifeOnKill: 0,
+  bloodrush: { perStack: 0, maxStacks: 0, decayMs: 0 },
+  thorns: 0,
+  fortitude: { threshold: 0, bonus: 0 },
+  skillRage: 0,
+  skillSurge: 0,
+  skillOpener: 0,
+  skillRot: 0,
+};
+
+/**
+ * The bracket's reference hero of a class as a duel fights it (ticket B.5): `pvpReferenceStats`
+ * with the class tuning, no effects. `normaliseFighter` maps a hero in the reference kit to these
+ * stats, so this is the anchor every hero is pulled toward.
+ */
+export function referenceFighter(
+  classId: ClassId,
+  bracket: PvpBracket,
+  config: PvpConfig = DEFAULT_PVP_CONFIG,
+): PvpFighter {
+  const stats = pvpReferenceStats(classId, bracket, config);
+  stats.health = Math.max(STAT_LIMITS.health.min, Math.floor(stats.health));
+  const tuning = config.classDamage[bracket.id]?.[classId] ?? 1;
+  const primary = getClass(classId).primaryDamage === 'physical' ? 'physicalDamage' : 'magicDamage';
+  stats[primary] = Math.min(STAT_LIMITS[primary].max, stats[primary] * tuning);
+  return {
+    classId,
+    level: bracket.referenceLevel,
+    pveStats: { ...stats },
+    stats,
+    maxHealth: stats.health,
+    skillDamage: 0,
+    effects: { ...NO_EFFECTS },
+  };
+}
+
+/** How long the expected-value fight of `duelStrength` may run before it extrapolates. */
+const EXPECTED_LIMIT_MS = 600_000;
+
+/**
+ * Ticket B.5: a duel between two normalised fighters played on **expected** blows instead of
+ * rolled ones (each blow = crit chance × crit + the rest × normal, the luck of the blow at its
+ * mean 1, a surge weighted by the chance the blow before was a crit), with both sides striking on
+ * their own timelines (as `simulateDuel`) and thorns answering every blow. Neither side stops at
+ * the other's fall: it returns the time each side's health reaches 0 (extrapolated linearly past
+ * `EXPECTED_LIMIT_MS`), without sudden death, which shortens both alike. No random draw.
+ */
+export function expectedDuelTimes(
+  a: PvpFighter,
+  b: PvpFighter,
+  bracket: PvpBracket,
+  config: PvpConfig = DEFAULT_PVP_CONFIG,
+): { a: number; b: number } {
+  type S = 'a' | 'b';
+  const fighters = { a, b };
+  const setups = { a: duelSetup(a, b, bracket, config), b: duelSetup(b, a, bracket, config) };
+  const hp = { a: a.maxHealth, b: b.maxHealth };
+  const pCrit = { a: 0, b: 0 };
+  const attack = { a: 1, b: 1 };
+  const fall: Record<S, number | null> = { a: null, b: null };
+  const expected = (h: { critChance: number; crit: number; normal: number }) =>
+    h.critChance * h.crit + (1 - h.critChance) * h.normal;
+  while (fall.a === null || fall.b === null) {
+    const ta = attack.a * setups.a.playerIntervalMs;
+    const tb = attack.b * setups.b.playerIntervalMs;
+    const t = Math.min(ta, tb);
+    if (t > EXPECTED_LIMIT_MS) break;
+    const s: S = ta <= tb ? 'a' : 'b';
+    const o: S = s === 'a' ? 'b' : 'a';
+    const own = Math.max(1, hp[s]);
+    const theirs = Math.max(1, hp[o]);
+    const plain = attackHit(setups[s], attack[s], false, own, theirs);
+    const afterCrit = attackHit(setups[s], attack[s], true, own, theirs);
+    // A fall between blows: the share of this blow's interval its damage needed, so a small
+    // edge (one more point per blow) moves the time even when the blow count stays the same.
+    const strike = (k: S, damage: number) => {
+      const before = hp[k];
+      hp[k] -= damage;
+      if (hp[k] <= 0 && fall[k] === null) {
+        const from = (attack[s] - 1) * setups[s].playerIntervalMs;
+        fall[k] = from + ((t - from) * Math.max(0, before)) / Math.max(1e-9, damage);
+      }
+    };
+    strike(o, (1 - pCrit[s]) * expected(plain) + pCrit[s] * expected(afterCrit));
+    pCrit[s] =
+      (1 - pCrit[s]) * (plain.surged ? 0 : plain.critChance) +
+      pCrit[s] * (afterCrit.surged ? 0 : afterCrit.critChance);
+    const thorns = thornsDamage(setups[o]);
+    if (thorns > 0) strike(s, thorns);
+    attack[s]++;
+  }
+  const time = (k: S) =>
+    fall[k] ??
+    (EXPECTED_LIMIT_MS * fighters[k].maxHealth) / Math.max(1, fighters[k].maxHealth - hp[k]);
+  return { a: time('a'), b: time('b') };
+}
+
+/**
+ * Ticket B.5: a hero's **duel strength** in a bracket, the measure behind bracket Power 3: the
+ * mean over the four classes' reference heroes (`referenceFighter`) of ln(the time the reference
+ * needs to fell the hero ÷ the time the hero needs to fell the reference), from the expected-value
+ * duel (`expectedDuelTimes`). 0 = as strong as the reference kit; +0.1 = about 10 % faster to win
+ * than to lose. Pure and deterministic (no seed); ≈ 0.2 ms.
+ */
+export function duelStrength(
+  input: PvpFighterInput,
+  bracket: PvpBracket,
+  config: PvpConfig = DEFAULT_PVP_CONFIG,
+): number {
+  const hero = normaliseFighter(input, bracket, config);
+  let sum = 0;
+  for (const classId of CLASS_IDS) {
+    const t = expectedDuelTimes(hero, referenceFighter(classId, bracket, config), bracket, config);
+    sum += Math.log(t.a / t.b);
+  }
+  return sum / CLASS_IDS.length;
 }

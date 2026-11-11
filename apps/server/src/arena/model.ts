@@ -9,7 +9,9 @@ import {
   duelFighter,
   duelSnapshot,
   findPvpBracket,
+  matchmakingConfig,
   pickOpponents,
+  usesDuelPower,
   pvpBracketOf,
   type ClassId,
   type DuelSnapshot,
@@ -226,9 +228,18 @@ export function defencePower(
   bracketId: string,
 ) {
   if (d.power !== null && d.powerVersion === BRACKET_POWER_VERSION) return d.power;
+  // Ticket B.5: bracket Power 3 equals 2 outside the duel-Power brackets (1–29), so a stored
+  // version-2 value is still right there; in 30+ it is recomputed (duel Power, ≈ 0.2 ms).
+  const sameAsTwo = !usesDuelPower(bracketId);
+  if (d.power !== null && d.powerVersion === 2 && sameAsTwo) return d.power;
   // Ticket 6.5b: bracket Power 2 equals 1 for a snapshot without an awakening (every defence set
   // before 6.5b), so a stored version-1 value is still right for it.
-  if (d.power !== null && d.powerVersion === 1 && !d.snapshot.equipment.some((i) => i.awakening)) {
+  if (
+    d.power !== null &&
+    d.powerVersion === 1 &&
+    sameAsTwo &&
+    !d.snapshot.equipment.some((i) => i.awakening)
+  ) {
     return d.power;
   }
   const bracket = findPvpBracket(bracketId) ?? pvpBracketOf(d.snapshot.level);
@@ -320,6 +331,8 @@ export async function drawOpponents(
     }),
     seed,
     DUEL_OFFER_SIZE,
+    // Ticket B.5 (matchmaking 4): the bracket's config (30+ compares duel Power, class scale 1).
+    matchmakingConfig(bracketId),
   );
   return {
     defenceIds: result.picks.map((p) => p.candidate.defenceId),

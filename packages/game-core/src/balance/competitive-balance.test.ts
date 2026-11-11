@@ -11,6 +11,7 @@ import {
   duelSnapshot,
   findPvpBracket,
   initialRating,
+  matchmakingConfig,
   pickOpponents,
   prestigeTierFor,
   rateDuel,
@@ -68,8 +69,13 @@ interface Hero {
 }
 
 const heroMemo = new Map<string, Hero[]>();
-function realistic(bracketId: string): Hero[] {
-  const hit = heroMemo.get(bracketId);
+/**
+ * Ticket B.5: `version` is the bracket Power the heroes are ranked by (3 = today's; 2 = B.4's,
+ * Character Power, which B.4's comparisons with 5.6 were measured on).
+ */
+function realistic(bracketId: string, version: 2 | 3 = 3): Hero[] {
+  const memoKey = `${bracketId}:${version}`;
+  const hit = heroMemo.get(memoKey);
   if (hit) return hit;
   const bracket = findPvpBracket(bracketId)!;
   const heroes = FIXTURE[bracketId]!.map(([classId, level, items], index) => {
@@ -94,14 +100,14 @@ function realistic(bracketId: string): Hero[] {
       accountId: `a${index}`,
       classId,
       level,
-      power: bracketPower(fighter, bracket),
+      power: bracketPower(fighter, bracket, version),
       rating: 1500,
       deviation: 350,
       fighter,
       rejected: equipment.length - fighter.equipment.length,
     };
   });
-  heroMemo.set(bracketId, heroes);
+  heroMemo.set(memoKey, heroes);
   return heroes;
 }
 
@@ -114,8 +120,8 @@ const MATCHMAKING_V1: MatchmakingConfig = {
 };
 
 /** Every hero asks for a list; each offered pair is fought `seeds` times. */
-function offered(bracketId: string, config: MatchmakingConfig, seeds = 16) {
-  const heroes = realistic(bracketId);
+function offered(bracketId: string, config: MatchmakingConfig, seeds = 16, version: 2 | 3 = 3) {
+  const heroes = realistic(bracketId, version);
   const cells = new Map<string, { s: number; n: number }>();
   const fav: number[] = [];
   let empty = 0;
@@ -187,11 +193,12 @@ describe('the realistic arena fixture', () => {
   });
 });
 
-describe('matchmaking 2 on realistic heroes (B.4)', () => {
+describe('matchmaking on realistic heroes (B.4, B.5)', () => {
   for (const id of ['20-29', '30-plus']) {
     it(`${id}: Power relative to the class evens the classes over offered pairs`, SLOW, () => {
-      const v2 = offered(id, DEFAULT_MATCHMAKING);
-      const v1 = offered(id, MATCHMAKING_V1);
+      // B.4's comparison, on the Power it was fitted on (bracket Power 2): matchmaking 2 against 5.6.
+      const v2 = offered(id, DEFAULT_MATCHMAKING, 16, 2);
+      const v1 = offered(id, MATCHMAKING_V1, 16, 2);
       // Measured (docs/PVP.md): 5.6 left the warrior at 37–41 % and the warlock at 60–62 %; now
       // every class is 44–56 %.
       for (const c of CLASS_IDS) {
@@ -205,6 +212,18 @@ describe('matchmaking 2 on realistic heroes (B.4)', () => {
       expect(v2.meanFavourite).toBeLessThanOrEqual(0.72);
       expect(v2.over95).toBeLessThanOrEqual(0.05);
       expect(v2.empty).toBe(0);
+      // Ticket B.5: today's matchmaking (4, with bracket Power 3: duel Power in 30+) keeps every
+      // class inside the band and is at least as fair as B.4's on the same heroes (30+: classes
+      // 44.5–53.4 %, mean favourite 70.3 % → 65.1 %, 90 %+ 8.2 % → 2.3 %, 95 %+ 3.3 % → 0.3 %).
+      const now = offered(id, matchmakingConfig(id));
+      for (const c of CLASS_IDS) {
+        expect(now.classMean[c], `${id} ${c} (B.5)`).toBeGreaterThanOrEqual(0.42);
+        expect(now.classMean[c], `${id} ${c} (B.5)`).toBeLessThanOrEqual(0.58);
+      }
+      expect(now.meanFavourite).toBeLessThanOrEqual(v2.meanFavourite + 0.005);
+      expect(now.over95).toBeLessThanOrEqual(Math.max(v2.over95, 0.01));
+      expect(now.empty).toBe(0);
+      if (id === '20-29') expect(now).toEqual(v2);
     });
   }
 });
@@ -222,8 +241,10 @@ function ratedWeeks(
   blockAtFourth = false,
   /** Only the first `size` heroes (a small town). */
   size?: number,
+  /** Ticket B.5: the bracket Power the heroes are ranked by (2 = B.4's measurements). */
+  version: 2 | 3 = 3,
 ) {
-  const heroes = realistic('30-plus').slice(0, size);
+  const heroes = realistic('30-plus', version).slice(0, size);
   const state = new Map(
     heroes.map((h) => [
       h.index,
@@ -321,16 +342,21 @@ describe('the rating over a season (B.4)', () => {
     'fresh pairs first: most rated duels count in full; ratings settle within a few days',
     SLOW,
     () => {
-      const v1 = ratedWeeks(MATCHMAKING_V1, 7, undefined, true);
-      const v2 = ratedWeeks(DEFAULT_MATCHMAKING, 7);
+      // Ticket B.5: 5.6 against B.4 on the Power both were measured on (bracket Power 2); today's
+      // matchmaking (4, duel Power in 30+) is checked against the same bands below.
+      const v1 = ratedWeeks(MATCHMAKING_V1, 7, undefined, true, undefined, 2);
+      const b4 = ratedWeeks(DEFAULT_MATCHMAKING, 7, undefined, false, undefined, 2);
+      expect(b4.fullShare - v1.fullShare).toBeGreaterThanOrEqual(0.04);
+      expect(v1.quarterShare - b4.quarterShare).toBeGreaterThanOrEqual(0.08);
+      const mm = matchmakingConfig('30-plus');
+      const v2 = ratedWeeks(mm, 7);
       // B.4b: the same matchmaking with 5.6's block (a pair's fourth duel counted 0, not offered).
-      const blocked = ratedWeeks(DEFAULT_MATCHMAKING, 7, undefined, true);
-      // Measured on these 120 heroes (5.6 → now): in full 40 % → 45 %, at a quarter 28 % → 17 %
-      // (500-player season, ~480 heroes in 30+: 30 % → 88 % in full).
+      const blocked = ratedWeeks(mm, 7, undefined, true);
+      // Measured on these 120 heroes (5.6 → B.4): in full 39 % → 45 %, at a quarter 28 % → 17 %
+      // (500-player season, ~480 heroes in 30+: 30 % → 88 % in full). Ticket B.5 (duel Power in
+      // 30+, compressed by its exponent 0.6): 51 % in full, 9 % at a quarter.
       expect(v2.fullShare).toBeGreaterThanOrEqual(0.42);
-      expect(v2.fullShare - v1.fullShare).toBeGreaterThanOrEqual(0.04);
       expect(v2.quarterShare).toBeLessThanOrEqual(0.2);
-      expect(v1.quarterShare - v2.quarterShare).toBeGreaterThanOrEqual(0.08);
       // Repeat pairs never block (owner decision, B.4b): no list is empty, and keeping them costs
       // at most 2 points of full-value duels against blocking them (46 %).
       expect(v2.emptyShare).toBe(0);
@@ -340,7 +366,7 @@ describe('the rating over a season (B.4)', () => {
       expect(v2.established).toBe(realistic('30-plus').length);
       expect(v2.medianSettledGames).toBeLessThanOrEqual(30);
       // The soft reset: a season started from the last one's ratings settles in fewer games.
-      const next = ratedWeeks(DEFAULT_MATCHMAKING, 7, v2.ratings);
+      const next = ratedWeeks(mm, 7, v2.ratings);
       expect(next.medianSettledGames).toBeLessThan(v2.medianSettledGames);
     },
   );
@@ -348,8 +374,8 @@ describe('the rating over a season (B.4)', () => {
 
 describe('a small town (B.4b)', () => {
   it('repeat pairs never block: sixteen duellists keep finding rated opponents', SLOW, () => {
-    const floor = ratedWeeks(DEFAULT_MATCHMAKING, 7, undefined, false, 16);
-    const block = ratedWeeks(DEFAULT_MATCHMAKING, 7, undefined, true, 16);
+    const floor = ratedWeeks(matchmakingConfig('30-plus'), 7, undefined, false, 16);
+    const block = ratedWeeks(matchmakingConfig('30-plus'), 7, undefined, true, 16);
     // 5.6's block emptied most lists within the week; with the ¼ floor none is empty, and the
     // repeats count for a quarter.
     expect(block.emptyShare).toBeGreaterThanOrEqual(0.3);
