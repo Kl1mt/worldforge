@@ -188,6 +188,8 @@ The Cinderwastes' region boss (`docs/WORLD.md` "The Cinder Depths and the Tyrant
 
 So good Verge gear beats him at 36–38, not trivially: upgraded Verge Legendaries win most runs, plain ones a third to a half, and nothing short of Legendaries wins. The mage (cloth against his physical blows) is the weakest class here, the hunter the strongest (as at the Watch); B.5 owns class balance. No best-in-slot build kills him in under 0.4 × the earliest enrage, and his shell breaks before every kill. He is harder than the Ashen Warden for the same kind of kit at each boss's entry (asserted). Measured with `tools/balance/cinder-depths.ts boss` too: the B.2 build search's best builds at item level 33 win every run at +5 and at +10 Void from 36 to 40, in 18–25 s (the warrior, mage and warlock) and 12–15 s (the hunter's Drowned Vigil with Ambush, 9 s at the fastest: below 0.4 × the earliest enrage, as that build was at the Watch; class balance is B.5's).
 
+**B.5 (the endgame balance pass, `docs/BALANCE.md` "B.5", item 2):** his slag turns blades more than spells: `bossScale` resistance × 0.7, armour × 1.2 (`EnemyScale.armor`, new and optional, default 1; health and damage × 1). Over 8 Legendary kits per class the casters had trailed (Legendaries +5 at 38: 92/57/88/82 %, spread 34 points); now 86/76/75/92 % (17), at 36 80/71/68/91 % (was 89/54/78/75 %). The table above is 6.2's single kit per class, whose rolled effects happen to be the mage's worst; its bands still hold. The hunter's best build still kills him in 13–15 s (fastest 11–12 s): an open point for the owner (`docs/BALANCE.md`).
+
 ## The Heroic crypt (ticket 6.3)
 
 The harder crypt mode the owner asked for (4.11 follow-up, F.1): **tier IV, "Heroic"**, the same Nameless Crypt with harder chambers and a harder Gravewarden, tuned for upgraded Cinderwastes Legendaries. Owner decisions: tier III stays "the Legendary tier"; Heroic pays in **better top-rarity odds, not a new power curve**.
@@ -223,6 +225,8 @@ The harder crypt mode the owner asked for (4.11 follow-up, F.1): **tier IV, "Her
 
 So Heroic sits where the Forge Tyrant sits for the same kit (34 / 70 / 91 % at +0 / +5 / +10): upgraded Verge Legendaries win it, plain ones a third of the time, epics never. The mage (cloth against the Gravewarden's physical blows) is the weakest class, as at the Tyrant; class balance is B.5's. Asserted in `balance/heroic-balance.test.ts`: naked 0 %; epics +10 ≤ 10 %; Legendaries 15–60 %; +5 above +0 and ≤ 85 %; +10 ≥ 85 % with every class ≥ 50 %; harder than tier III for the same kit; far more top rarities than tier III and no item above item level 41.
 
+**B.5 (`docs/BALANCE.md` "B.5", item 2):** the Heroic Gravewarden's resistance 0.5 → **0.4** and armour × **1.15** (`bossScale`), to even the classes: over 8 Legendary kits per class with Legendaries +5 the mage won 59–74 % and the others 72–92 %; now mage 66–79 %, every class 66–94 %, the spread 17–21 points (was 18–24). The table above (one kit per class) after B.5: at 32 Legendaries 25/0/58/46 (32), +5 92/0/100/96 (72), +10 100/88/100/100 (97); at 34 +0 42/0/71/58 (43), +5 96/8/100/96 (75), +10 100/92/100/100 (98); at 36 +5 96/17/100/96 (77), +10 100/96/100/100 (99).
+
 **Invariance.** Tiers I–III, the Watch and the Forge are untouched: the pinned no-effects hashes, 6.1's and 6.2's curve pins and every earlier balance suite pass unchanged.
 
 ## Weekly boss modifiers (ticket 6.3)
@@ -232,7 +236,7 @@ Every week one **modifier** holds at every boss but the first: the crypt's Grave
 | Modifier | Effect (as players read it) | Mechanics | Hoard focus |
 |---|---|---|---|
 | Burning | Every 4 seconds its flames burn you for a third of one of its blows, whatever your armour. | `burn`: a tick of ⅓ × its ordinary blow every 4 s (its own timeline; never enraged) | *Fire-hardened mail*: helms and chest pieces × 1.5 |
-| Warded | A ward rises at 60 % health and holds until 45 %: your blows deal 30 % less. | `ward` 0.6 → 0.45, hero blows and thorns × 0.7 | *Warding trinkets*: rings and amulets × 1.5 |
+| Warded | A ward rises at 60 % health and holds until 45 %: your blows deal 25 % less (30 % before B.5). | `ward` 0.6 → 0.45, hero blows and thorns × 0.75 (× 0.7 before B.5) | *Warding trinkets*: rings and amulets × 1.5 |
 | Frenzied | Below 40 % health the boss strikes a quarter faster. | `frenzy` below 0.4, attack speed × 1.25 | *Quick hands and feet*: gloves and boots × 1.5 |
 | Unyielding | 15 % more health, strikes 15 % slower. | health × 1.15, attack speed × 0.85 | *Siege arms*: weapons and off-hands × 1.5 |
 | Relentless | Its rage comes 5 seconds sooner. | enrage window − 5 s | *Slayer's lore*: Tyrant's Bane and Headsman's Due × 2 |
@@ -259,6 +263,8 @@ Every week one **modifier** holds at every boss but the first: the crypt's Grave
 | Ashen Warden · 26, Legendaries +5 | 98 | 97 | 97 | 95 | 98 | 95 |
 | Forge Tyrant · 36, Legendaries +5 | 70 | 67 | 69 | 69 | 67 | 66 |
 | Forge Tyrant · 36, Legendaries +10 | 89 | 83 | 81 | 88 | 83 | 83 |
+
+**B.5:** Warded was the hardest modifier at most bosses (the Warded column above: up to 23 points at the edge kits) and now deals × 0.75 (was × 0.7): crypt II rares 50 %, crypt III epics +8 27 %, Legendaries 80 %, the Ashen Warden's Legendaries 56 %, Heroic +5 72 %, among the other modifiers (`docs/BALANCE.md` "B.5", item 6). The Heroic and Tyrant rows moved with item 2's scales (the table above is 6.3's).
 
 A modifier makes a boss somewhat harder for a kit at the edge (up to about 20 points, most for the kits that only just win: epics +8 at tier III) and barely moves the best kits (0–8 points). Asserted (`heroic-balance.test.ts`, 12 seeds per class, one reference kit per boss): tier I's win rate is the same under every modifier; elsewhere no modifier raises a boss's win rate by more than 5 points or lowers it by more than 30. The first tuning (Warded at half damage from 60 % to 35 %, Unyielding with a third more health, Relentless 10 s) cost up to 50 points and was toned down to these numbers. Guild boss damage per attempt (24 seeds, every class, level 14 commons · level 21 epics · level 28 Legendaries +10): Burning −3 to −4 %, Warded −5 to −8 %, Frenzied −1 to −5 %, **Unyielding +1 to +9 %** (its slower blows let a hero last longer; the extra health means nothing to a boss that can't fall), Relentless −1 to −8 % (asserted within ± 15 %).
 

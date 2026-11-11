@@ -62,8 +62,8 @@ export const BOSS_MODIFIERS: readonly BossModifierDefinition[] = [
     id: 'warded',
     name: 'Warded',
     effect:
-      'A ward rises when the boss falls to 60 % health and holds until 45 %: while it stands your blows deal 30 % less damage.',
-    mechanics: { ward: { fromHealthShare: 0.6, toHealthShare: 0.45, damageTakenMultiplier: 0.7 } },
+      'A ward rises when the boss falls to 60 % health and holds until 45 %: while it stands your blows deal 25 % less damage.',
+    mechanics: { ward: { fromHealthShare: 0.6, toHealthShare: 0.45, damageTakenMultiplier: 0.75 } },
     lootFocus: {
       id: 'mod-warded',
       name: 'Warding trinkets',
@@ -194,6 +194,7 @@ export function applyBossModifier(
         health: (data.scale?.health ?? 1) * m.healthMultiplier,
         damage: data.scale?.damage ?? 1,
         ...(data.scale?.resistance !== undefined ? { resistance: data.scale.resistance } : {}),
+        ...(data.scale?.armor !== undefined ? { armor: data.scale.armor } : {}),
       }
     : data.scale;
   const shift = m.enrageEarlierMs ?? 0;

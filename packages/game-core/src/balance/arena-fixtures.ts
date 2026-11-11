@@ -22,7 +22,7 @@ import {
   type PvpBracket,
   type PvpFighterInput,
   type Rating,
-  DEFAULT_MATCHMAKING,
+  matchmakingConfig,
   BRACKET_POWER_VERSION,
   awakenItem,
 } from '../index.js';
@@ -70,7 +70,12 @@ export interface ArenaPopulationOptions {
    */
   awakened?: boolean;
   /** The bracket Power version matchmaking ranks by (default `BRACKET_POWER_VERSION`). */
-  powerVersion?: 1 | 2;
+  powerVersion?: 1 | 2 | 3;
+  /**
+   * Ticket B.5: the highest level drawn in an open-ended bracket (default the bracket's lowest + 5,
+   * i.e. 30–35 in 30+, 5.6's population; 40 = with 6.2's Cinder Depths).
+   */
+  maxLevel?: number;
 }
 
 /** `size` heroes of a bracket (one account each), with their Power. Memoised per bracket. */
@@ -80,11 +85,11 @@ export function arenaPopulation(
   options: ArenaPopulationOptions = {},
 ): ArenaHero[] {
   const version = options.powerVersion ?? BRACKET_POWER_VERSION;
-  const key = `${bracket.id}:${size}:${options.awakened ? 'awakened' : 'plain'}:${version}`;
+  const top = bracket.max ?? options.maxLevel ?? bracket.min + 5;
+  const key = `${bracket.id}:${size}:${options.awakened ? 'awakened' : 'plain'}:${version}:${top}`;
   const cached = popMemo.get(key);
   if (cached) return cached;
   const rng = createRng(`arena-pop:${bracket.id}`);
-  const top = bracket.max ?? bracket.min + 5;
   const heroes: ArenaHero[] = [];
   for (let i = 0; i < size; i++) {
     const classId = CLASS_IDS[i % CLASS_IDS.length]!;
@@ -168,7 +173,7 @@ export function measureFairness(
   heroes: readonly ArenaHero[],
   mode: 'matchmaking' | 'random',
   seeds: number,
-  config: MatchmakingConfig = DEFAULT_MATCHMAKING,
+  config: MatchmakingConfig = matchmakingConfig(bracket.id),
   size = 5,
   /** Ticket 6.5b: count only the offered pairs this accepts (e.g. one side awakened). */
   only?: (seeker: ArenaHero, opponent: ArenaHero) => boolean,
@@ -238,7 +243,7 @@ export function settleRatings(
   bracket: PvpBracket,
   heroes: readonly ArenaHero[],
   rounds: number,
-  config: MatchmakingConfig = DEFAULT_MATCHMAKING,
+  config: MatchmakingConfig = matchmakingConfig(bracket.id),
 ): ArenaHero[] {
   const state = heroes.map((h) => ({ ...h }));
   const ratings = new Map<string, { r: Rating; at: Date | null }>(

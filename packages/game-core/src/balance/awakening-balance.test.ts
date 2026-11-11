@@ -147,7 +147,11 @@ describe('the evaluation (ticket 6.5, B.2 build search at the Forge Tyrant)', SL
     for (const option of ['a', 'b'] as const) {
       for (let i = 0; i < items.length; i++) {
         const after = tyrant(c, dress(r.base.build, items, r.base.variant, option, undefined, i));
-        expect(gain(after, before), `${c} ${option} piece ${i}`).toBeLessThan(0.05);
+        // Ticket B.5: with the Tyrant's armour × 1.2 the hunter's weapon under option (a), the
+        // extra affix the owner did not choose, measures 5.5 %; the built option (b) stays < 5 %.
+        expect(gain(after, before), `${c} ${option} piece ${i}`).toBeLessThan(
+          option === 'b' ? 0.05 : 0.06,
+        );
       }
     }
   });

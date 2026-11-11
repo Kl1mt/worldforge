@@ -9,6 +9,14 @@ import {
   pickOpponents,
   powerGap,
   type MatchCandidate,
+  CLASS_IDS,
+  DUEL_POWER_SCALE,
+  MATCHMAKING_VERSION,
+  duelPower,
+  expectedDuelTimes,
+  matchmakingConfig,
+  referenceFighter,
+  usesDuelPower,
 } from '../index.js';
 
 const cand = (i: number, power: number, rating = 1500, account = `a${i}`): MatchCandidate => ({
@@ -81,11 +89,50 @@ describe('matchmaking (ticket 5.6)', () => {
     const f = { classId: 'warrior' as const, level: 19, equipment: [] };
     // Ticket 6.1: matchmaking keeps Power 1 when the board moves to Power 2. Ticket 6.5b: bracket
     // Power 2 is Power 1 × the awakening factor (1 without an awakening).
-    expect(BRACKET_POWER_VERSION).toBe(2);
+    // Ticket B.5: bracket Power 3 is version 2 outside the duel-Power brackets (1–29).
+    expect(BRACKET_POWER_VERSION).toBe(3);
     expect(bracketPower(f, b, 1)).toBe(bracketPower(f, b, 2));
+    expect(bracketPower(f, b, 3)).toBe(bracketPower(f, b, 2));
     expect(bracketPower(f, b)).toBe(
       characterPower({ classId: 'warrior', level: b.referenceLevel, equipment: [] }, 1).power,
     );
     expect(bracketPower({ ...f, level: 11 }, b)).toBe(bracketPower(f, b));
+  });
+
+  it('30+ bracket Power 3 is duel Power: the reference kit 1000, deterministic, rising with gear', () => {
+    const b = PVP_BRACKETS.find((x) => x.id === '30-plus')!;
+    expect(usesDuelPower('30-plus')).toBe(true);
+    expect(usesDuelPower('20-29')).toBe(false);
+    for (const classId of CLASS_IDS) {
+      const naked = { classId, level: 34, equipment: [] };
+      const p = bracketPower(naked, b);
+      expect(p).toBe(duelPower(naked, b));
+      expect(bracketPower(naked, b)).toBe(p);
+      // Level does not count inside a bracket (levelKeep 0), as for Power.
+      expect(bracketPower({ ...naked, level: 31 }, b)).toBe(p);
+      // A naked hero is weaker than the reference kit (rare, item level 29).
+      expect(p).toBeLessThan(DUEL_POWER_SCALE);
+    }
+    // The reference hero against itself falls at the same moment both ways.
+    for (const classId of CLASS_IDS) {
+      const ref = referenceFighter(classId, b);
+      const t = expectedDuelTimes(ref, ref, b);
+      expect(t.a).toBe(t.b);
+    }
+  });
+
+  it('matchmaking 4: 30+ compares duel Power with its own class scale; other brackets as before', () => {
+    expect(MATCHMAKING_VERSION).toBe(4);
+    expect(matchmakingConfig('20-29')).toBe(DEFAULT_MATCHMAKING);
+    expect(matchmakingConfig('30-plus').classPowerScale).toEqual({
+      warrior: 1.02,
+      mage: 1,
+      hunter: 1,
+      warlock: 1,
+    });
+    expect({ ...matchmakingConfig('30-plus'), classPowerScale: null }).toEqual({
+      ...DEFAULT_MATCHMAKING,
+      classPowerScale: null,
+    });
   });
 });

@@ -94,6 +94,8 @@ The Cinderwastes chain: one project of three stages after the Ashen Pass, in B.3
 
 Every completed project moves the town's era (`docs/WORLD.md` "Eras of Graumark"): the Warehouse begins the Ashen Siege, the Ashen Pass the Rekindling, the Forgeward Outpost the Forgeward Age. The era is derived from the world flags, never stored, so live starts where its finished projects put it (the Rekindling) and nothing jumps backward. The transaction that writes the flag (under the project lock and a world lock, `lockWorldFlags`) compares the era before and after and writes `world.era_change` (from, to, the project) with telemetry `world.era`.
 
+**B.5: a lower first-day cap for big towns?** (6.7's open point, `docs/BALANCE.md` "B.5", item 5.) Played with a 10 % cap on every stage (ten givers to finish one on its first day) instead of 20 %: the same days at 20, 100 and 500 players (8 / 2 / 2), the first stage given by ten accounts instead of six, its largest share 19 % → 10 %. With today's cap nobody carries more than a fifth of a stage at 20 players or more, so it is **not needed and unchanged**; `capShare: 0.1` on the Outpost's stages is the data change if the owner wants more names on the first stage.
+
 ## Contributing
 
 `POST /api/community/projects/:projectId/contribute`, body `{ characterId, stageId, offer: [{ resource, amount }] }` (`resource` `gold` or a material id), `Idempotency-Key` required. In one transaction:

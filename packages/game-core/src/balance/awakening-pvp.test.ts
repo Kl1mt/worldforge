@@ -6,6 +6,7 @@ import {
   awakenItem,
   awakenedEffectCount,
   bracketPower,
+  duelPower,
   duelFighter,
   duelSnapshot,
   equipmentSlotsForKind,
@@ -105,11 +106,11 @@ describe('duels apply the awakened effect (no duel rule changed)', () => {
   });
 });
 
-describe('bracket Power 2 sees awakening', () => {
+describe('bracket Power sees awakening', () => {
   const b30 = PVP_BRACKETS.find((b) => b.id === '30-plus')!;
 
-  it('equals version 1 on every kit without an awakening', () => {
-    expect(BRACKET_POWER_VERSION).toBe(2);
+  it('version 2 equals version 1 on every kit without an awakening', () => {
+    expect(BRACKET_POWER_VERSION).toBe(3);
     for (const c of CLASS_IDS) {
       for (let k = 0; k < 12; k++) {
         const f = fighter(c, 38, plainKit(c, 38, k));
@@ -130,6 +131,21 @@ describe('bracket Power 2 sees awakening', () => {
       expect(p2 / p1 - 1).toBeLessThan(0.03);
     }
   });
+
+  it('version 3 (ticket B.5: duel Power in 30+) raises an awakened kit by its duel edge', () => {
+    let rose = 0;
+    for (const c of CLASS_IDS) {
+      const plain = plainKit(c, 38, 0);
+      const p = bracketPower(fighter(c, 38, plain), b30, 3);
+      const a = bracketPower(fighter(c, 38, awaken(plain)), b30, 3);
+      expect(p).toBe(duelPower(fighter(c, 38, plain), b30));
+      // 6.5b measured the awakened kit's duel edge at 52–55 %: a small rise, never a fall.
+      expect(a).toBeGreaterThanOrEqual(p);
+      if (a > p) rose++;
+      expect(a / p - 1).toBeLessThan(0.06);
+    }
+    expect(rose).toBeGreaterThanOrEqual(3);
+  });
 });
 
 describe('matchmaking fairness with an awakened population', () => {
@@ -138,13 +154,12 @@ describe('matchmaking fairness with an awakened population', () => {
       const pop = arenaPopulation(bracket, 120, { awakened: true });
       expect(pop.some((h) => h.fighter.equipment.some((i) => i.awakening))).toBe(true);
       const mm = measureFairness(bracket, pop, 'matchmaking', 32);
-      const top = bracket.id === '30-plus';
       expect(mm.meanFavourite).toBeLessThanOrEqual(0.72);
-      // 20–29 keeps the ≤ 9 % / ≤ 5 % band (measured 3.5 % / 0.8 %). 30+ keeps ≤ 7 % 95 %+
-      // favourites (6.7 %); its 90 %+ share measures 14.5 % (13.5 % ranked by bracket Power 1,
-      // 13.2 % with nobody awakened), over the 14 % band: reported, not loosened (B.5 owns 30+).
-      if (!top) expect(mm.over90).toBeLessThanOrEqual(0.09);
-      expect(mm.over95).toBeLessThanOrEqual(top ? 0.07 : 0.05);
+      // 20–29 keeps the ≤ 9 % / ≤ 5 % band (measured 3.5 % / 0.8 %). 30+ measured 14.5 % / 6.7 %
+      // under bracket Power 2 (over the 14 % band, 6.5b); ticket B.5's duel Power (bracket Power
+      // 3, which reads the awakening through the duel's own normalisation) 2.5 % / 0.5 %.
+      expect(mm.over90).toBeLessThanOrEqual(0.09);
+      expect(mm.over95).toBeLessThanOrEqual(0.05);
       expect(mm.extremePairs).toBeLessThanOrEqual(0.03);
       expect(mm.emptyLists).toBe(0);
       expect(mm.meanListSize).toBeGreaterThanOrEqual(4.9);
