@@ -139,7 +139,8 @@ describe('fight traits (ticket 8.1)', () => {
   };
   const withTraits = (id: 'hollowKnight' | 'reachStalker' | 'paleChoir' | 'huskTitan') => {
     const enemy = ENEMIES.find((e) => e.id === id)!;
-    const plain = { ...enemy, traits: undefined };
+    const plain = { ...enemy };
+    delete plain.traits;
     return {
       enemy,
       traited: buildEncounter(enemy, 43, 'warrior', 43, stats, DEFAULT_COMBAT_CONFIG),
