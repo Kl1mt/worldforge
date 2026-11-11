@@ -265,7 +265,7 @@ The busiest Phase 6 screen is a Heroic run in progress: about 38 requests and 37
 | Class | Value | Phase 6 use | Abuse it stops | Cost of a counted request (shared store) | Verdict |
 | --- | --- | --- | --- | --- | --- |
 | Account (3.9) | 900 requests, 300 actions a minute per account | every route above; a Heroic run's settle polls are the largest share (each replays the run in game-core, ≈ 1.2 ms of CPU at tier IV, 0.4 ms at the Tyrant) | scripted clients; at the cap, 300 replays a minute (≈ 6 ms of CPU a second) per account | one upsert on `rate_limit_counters` (≈ 1.1 ms round trip one after another, ≤ 0.27 ms extra under load: 6.9's `scale.pg.test.ts`) | keep |
-| Social writes (4.1) | 12 a minute, 240 an hour | guild boss attempts (three a week) and every Phase 4–5 write; Phase 6 added none | chat floods, report and duel spam | + one upsert (two keys: the minute and the hour windows in one row) | keep |
+| Social writes (4.1) | 12 a minute, 240 an hour | guild boss attempts (three a week) and every Phase 4–5 write; Phase 6 added none | chat floods, report and duel spam | + one upsert (one row holds the minute and the hour window) | keep |
 | Trade (T.4) | 20 a minute | unchanged (trading is switched off in production) | offer spam, cap probing | + one upsert | keep |
 | Board reads (5.2) | 60 a minute, boards and ladder counted apart | unchanged (6.1's PvE board is a board read) | scraping every page and filter | + one upsert | keep |
 | Admin reconcile (D.3) | 3 per 5 minutes per admin | on request | a heavy audit scan in a loop from a stolen admin session | + one upsert | keep |
