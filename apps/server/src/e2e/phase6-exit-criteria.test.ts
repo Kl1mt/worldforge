@@ -889,6 +889,15 @@ describe('Phase 6 exit criteria', () => {
       progress: { ...warden, ashenWardenDefeated: true },
       kit: { itemLevel: 39, tag: 'phase6-heroic' },
     });
+    // Even bouts (as Phase 5 takes off the gear): every duellist in the same seeded kit, so the
+    // lists don't hang on drops (the awakened weapon now sits with Ember's second hero).
+    for (const [j, classId] of [
+      [verge, 'warrior'],
+      [prism, 'warrior'],
+      [ember, 'warlock'],
+    ] as const) {
+      await seed(j, { level: j.state.level, classId, kit: { itemLevel: 39, tag: 'phase6-duel' } });
+    }
     const handleOf = new Map<Journey, string>();
     for (const j of players) handleOf.set(j, (await playerOf(j)).account.handle);
     const arena = async (j: Journey) => {
@@ -939,7 +948,7 @@ describe('Phase 6 exit criteria', () => {
     const pairs = new Map<string, number>();
     const fought: { duel: Duel; challenger: Journey; defender: Journey }[] = [];
     const duellists = players.filter((j) => expectedFoes(j).length > 0);
-    expect(duellists.length).toBeGreaterThanOrEqual(3);
+    expect(duellists).toHaveLength(players.length);
     const ratedDay = async (perHero: number) => {
       for (const j of duellists) {
         for (let n = 0; n < perHero; n++) {
@@ -997,7 +1006,7 @@ describe('Phase 6 exit criteria', () => {
     });
     expect(testList.statusCode, testList.body).toBe(200);
     expect(testList.json<Arena>().rated.offer?.opponents ?? []).toEqual([]);
-    expect(fought.length).toBeGreaterThanOrEqual(30);
+    expect(fought).toHaveLength(players.length * RATED_DUELS_PER_DAY);
     for (const j of duellists) {
       const list = (await j.api('GET', '/api/arena/duels?limit=100')).json<{
         duels: { id: string; kind: string }[];
