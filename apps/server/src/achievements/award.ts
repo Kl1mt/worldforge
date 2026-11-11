@@ -237,6 +237,8 @@ export async function refreshAchievements(
     cosmetics,
   );
   // Ticket 6.8: milestone cosmetics (level 40, a boss slain, the Heroic crypt) from the hero's row.
-  cosmetics?.push(...(await grantMilestonesTx(executor, character, now)));
+  // Evaluated first: `cosmetics?.push(...)` would skip its argument (and the grant) without a sink.
+  const milestones = await grantMilestonesTx(executor, character, now);
+  cosmetics?.push(...milestones);
   return awarded;
 }
