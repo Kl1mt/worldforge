@@ -112,7 +112,7 @@ describe('the cosmetic catalogue', () => {
     }
   });
 
-  it('is never bought with money and has no stats: only words and a source', () => {
+  it('has no price and no stats in its definition: only words and a source', () => {
     for (const c of COSMETICS) {
       expect(Object.keys(c).sort()).toEqual(['description', 'id', 'kind', 'name', 'source']);
       expect(['default', 'event', 'achievement', 'milestone', 'season', 'exchange']).toContain(
