@@ -1014,7 +1014,7 @@ GDD §12. Read `docs/COMMUNITY.md`, the world flags.
   - the flag-unlock journey.
 - Done: **Rebuild the Forgeward Outpost** (`forgewardOutpost`, after the Ashen Pass; 3 stages, 300,000 gold, 2,500 ore, 1,200 shards, 80 silver, 10 Tyrant's Embers in the last stage; B.3's caps) sets `forgewardRaised`. It **gates nothing live** (the Verge, Depths and Tyrant keep their rules; the seams stay unused, tested). Town upgrade **the Forgeward bellows**: Tyrantforged Work 20 % cheaper in gold (3,000 → 2,400; `economy/town.ts`). **Eras** derived from the flags (Long Dusk → Ashen Siege → **Rekindling**, live today → Forgeward Age): town title, CSS tint, banners, crier and Tavern line; words only. Test accounts refused (`403 test_account`). Era changes audited (`world.era_change`) and counted (`world.era`) under a world lock, with a real-PG race test; per-project reconcile. Admin world folio shows era and stages; `admin:project stage` for test setups only. Pacing: 8 / 2 / 2 days at 20 / 100 / 500 players with the realistic player, ≥ 5 givers on a stage's first day (`balance/forgeward-balance.test.ts`). No migration. Version 0.6.11. `docs/COMMUNITY.md`, `WORLD.md`, `ECONOMY.md`, `QUESTS.md`, `TELEMETRY.md`.
 
-### 6.8 Cosmetic collection book (vertical) — `done (PR #TBD)`
+### 6.8 Cosmetic collection book (vertical) — `done (PR #127)`
 GDD §13. Read `docs/LEADERBOARDS.md` (5.3 prestige display), `docs/SOCIAL.md` (profiles).
 - A collection book: hero appearance variants (class palette swaps), banner and crest styles, and title colours. Each entry has a source (event, deed, season, milestone).
 - Equip and preview; shown on profiles, boards, rosters and the duel screen.
