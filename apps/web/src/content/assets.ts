@@ -352,6 +352,30 @@ export const ASSETS = {
   'crest.gilt': crestStyle('gilt'),
   'crest.bone': crestStyle('bone'),
   'crest.ember': crestStyle('ember'),
+  // The Hollow Reach (A.17): art only. Ticket 8.1 adds the first area, its enemies and the tier-5
+  // bases with these ids; 8.2 the deeper area and the region boss (128×128).
+  'area.hollow-reach': { path: '/assets/areas/hollow-reach.png', width: 384, height: 216 },
+  'area.hollow-depths': { path: '/assets/areas/hollow-depths.png', width: 384, height: 216 },
+  'enemy.hollow-knight': enemy('hollow-knight', 'front'),
+  'enemy.reach-stalker': enemy('reach-stalker', 'left'),
+  'enemy.pale-choir': enemy('pale-choir', 'left'),
+  'enemy.husk-titan': enemy('husk-titan', 'front'),
+  'enemy.hollow-sovereign': enemy('hollow-sovereign', 'front', 128),
+  'enemy.hollow-knight-attack': enemyAttack('hollow-knight'),
+  'enemy.reach-stalker-attack': enemyAttack('reach-stalker'),
+  'enemy.pale-choir-attack': enemyAttack('pale-choir'),
+  'enemy.husk-titan-attack': enemyAttack('husk-titan'),
+  // Tier 5, the Hollow Reach (A.17): one icon per tier-5 base of ticket 8.1.
+  'item.hollowsteel-greatblade': item('hollowsteel-greatblade'),
+  'item.pale-choir-stave': item('pale-choir-stave'),
+  'item.reachstalker-longbow': item('reachstalker-longbow'),
+  'item.hollow-aegis': item('hollow-aegis'),
+  'item.hollowknight-helm': item('hollowknight-helm'),
+  'item.titanhusk-cuirass': item('titanhusk-cuirass'),
+  'item.palebone-gauntlets': item('palebone-gauntlets'),
+  'item.reachwalker-sabatons': item('reachwalker-sabatons'),
+  'item.requiem-locket': item('requiem-locket'),
+  'item.hollow-signet': item('hollow-signet'),
 } as const satisfies Record<string, SpriteAsset>;
 
 export type AssetId = keyof typeof ASSETS;
@@ -392,29 +416,10 @@ export const ART_VARIANTS: Readonly<Record<string, AssetId>> = {
  * lands as the closest existing sprite with a pale, hollow tint (`pixel--tint-hollow`). The foes
  * stand in as kin with attack frames, so the scene animates them the same way. Registered art
  * always wins, so each entry turns itself off once A.17 registers its name; remove it then.
+ * A.17 drew every name, so the map is empty; it stays as the fallback for Hollow Reach art still
+ * missing.
  */
-export const HOLLOW_STAND_INS: Readonly<Record<string, AssetId>> = {
-  'area.hollow-reach': 'area.cinderwastes',
-  'enemy.hollow-knight': 'enemy.fallen-knight',
-  'enemy.hollow-knight-attack': 'enemy.fallen-knight-attack',
-  'enemy.reach-stalker': 'enemy.wolf',
-  'enemy.reach-stalker-attack': 'enemy.wolf-attack',
-  'enemy.pale-choir': 'enemy.pyre-cultist',
-  'enemy.pale-choir-attack': 'enemy.pyre-cultist-attack',
-  'enemy.husk-titan': 'enemy.ash-colossus',
-  'enemy.husk-titan-attack': 'enemy.ash-colossus-attack',
-  // The tier-5 icons (game-core `ITEM_BASES[].icon`) as their tier-4 counterparts.
-  'item.hollowsteel-greatblade': 'item.cinderforged-blade',
-  'item.pale-choir-stave': 'item.emberheart-scepter',
-  'item.reachstalker-longbow': 'item.slagbone-bow',
-  'item.hollow-aegis': 'item.obsidian-bulwark',
-  'item.hollowknight-helm': 'item.revenant-visage',
-  'item.titanhusk-cuirass': 'item.ashplate-hauberk',
-  'item.palebone-gauntlets': 'item.slagiron-gauntlets',
-  'item.reachwalker-sabatons': 'item.cinderstride-greaves',
-  'item.requiem-locket': 'item.ember-reliquary',
-  'item.hollow-signet': 'item.wispfire-band',
-};
+export const HOLLOW_STAND_INS: Readonly<Record<string, AssetId>> = {};
 
 /** One sprite object per variant (callers may compare sprites by identity). */
 const VARIANT_SPRITES: ReadonlyMap<string, SpriteAsset> = new Map(

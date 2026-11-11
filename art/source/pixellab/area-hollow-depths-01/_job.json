@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, backdrop, the Hollow Depths: a vast underground cavern-cathedral deep beneath the Hollow Reach, huge pillars of pale bone and stone rising into darkness like a cathedral nave, ribbed vaults of giant ribs overhead, broken gothic arches and an empty bone throne on a stair at the far end, cold grey mist pooling on the floor, faint pale shafts of light from cracks far above, near-black shadows, no fire, no embers, no lava, muted desaturated palette, near-black, bone white and cold grey, faint cold blue-grey light, gloomy light",
+  "style_image": "apps/web/public/assets/areas/cinderwastes.png",
+  "job_id": "e2783c65-11f0-4b42-8596-0df8b6837be6",
+  "created_at": "2026-11-11T20:28:52.239195+00:00",
+  "seed": 1477684790,
+  "generations": 15.0,
+  "count": 1,
+  "width": 384,
+  "height": 216
+}

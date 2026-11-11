@@ -1,0 +1,14 @@
+{
+  "endpoint": "animate-with-text-v3",
+  "action": "four separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left; the last two cells of the bottom row stay empty. All four make a short physical attack at the same time, each staying inside its own cell, using only their bodies and weapons: the hollow armoured knight swings his long sword down to the left, the long-limbed pale stalker lunges forward to the left and rakes with its claws, the floating masked choir sways forward to the left with open mouths, the huge cracked husk giant swings its heavy fist down to the left. Then each returns to its starting pose. No bursts, no flashes, no sparks, no particles, no glow; keep every creature's exact colours and size.",
+  "first_frame": "art/source/pixellab/anim-enemies-05/_first.png",
+  "frame_count": 9,
+  "job_id": "0a7aa2cb-108d-49a6-bb47-277bea034b0d",
+  "created_at": "2026-11-11T20:35:43.275754+00:00",
+  "seed": 0,
+  "loop": true,
+  "usage": {
+    "type": "generations",
+    "generations": 6.0
+  }
+}
