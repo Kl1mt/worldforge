@@ -12,8 +12,9 @@ import { MATERIAL_IDS, type MaterialId } from './materials.js';
  * No monopoly (GDD §12.2): one player (account, all heroes together) may give at most
  * `capShare` of each need of a stage per contribution window (the UTC day of the game clock).
  * Ticket B.3: the share grows by `capGrowthPerDay` for every day the stage has stood since its
- * first gift, up to `capShareMax`, so a stage still needs five players on its first day (a big
- * town can't hand it to a few), while a small town is not held for weeks. Contributor rewards are
+ * first gift, up to `capShareMax`, so a stage still needs five players on its first day (ten for
+ * the Forgeward Outpost's stages, `capShare: 0.1`, ticket B.5b; a big town can't hand it to a
+ * few), while a small town is not held for weeks. Contributor rewards are
  * achievements only (cosmetic, ticket 4.2), never power.
  *
  * Tuning (ticket B.3): the needs, `capShare` (per stage, or the default in
@@ -229,6 +230,8 @@ export const COMMUNITY_PROJECTS: readonly CommunityProjectDefinition[] = [
     // Ticket 6.7 (docs/COMMUNITY.md "The Forgeward Outpost"): the Cinderwastes chain. A late-game
     // sink sized for a town of about twenty (a week or two), finished in a day or two by a big
     // one; the Tyrant's Ember only in the last stage, and few of them.
+    // Ticket B.5b (owner decision): every stage starts at a tenth a day (`capShare: 0.1`), so a
+    // stage needs ten givers on its first day; it grows by the default rule (30 %, 50 %, 60 %).
     id: 'forgewardOutpost',
     name: 'Rebuild the Forgeward Outpost',
     description:
@@ -241,6 +244,7 @@ export const COMMUNITY_PROJECTS: readonly CommunityProjectDefinition[] = [
         id: 'slagRoad',
         name: 'Clear the slag road',
         description: 'Break the cooled slag off the old road and shore the cuttings with iron.',
+        capShare: 0.1,
         needs: [
           { resource: 'gold', amount: 60_000 },
           { resource: 'ironOre', amount: 1_000 },
@@ -251,6 +255,7 @@ export const COMMUNITY_PROJECTS: readonly CommunityProjectDefinition[] = [
         id: 'forgewardWalls',
         name: 'Raise the forgeward walls',
         description: 'Iron-banded walls on the old footings, the gate set with Abbey silver.',
+        capShare: 0.1,
         needs: [
           { resource: 'gold', amount: 100_000 },
           { resource: 'ironOre', amount: 1_500 },
@@ -261,6 +266,7 @@ export const COMMUNITY_PROJECTS: readonly CommunityProjectDefinition[] = [
         id: 'kindleBeacon',
         name: 'Kindle the beacon',
         description: 'Only the Tyrant’s own fire will light the beacon on the forgeward tower.',
+        capShare: 0.1,
         needs: [
           { resource: 'gold', amount: 140_000 },
           { resource: 'soulShard', amount: 800 },
@@ -290,7 +296,9 @@ export function stageCapShare(
 ): number {
   if (!Number.isInteger(ageDays) || ageDays < 0) throw new RangeError(`Invalid age: ${ageDays}`);
   const base = stage.capShare ?? config.capShare;
-  const grown = base + config.capGrowthPerDay * ageDays;
+  // Rounded to nine places so float sums don't creep past a share (0.1 + 0.2 is 0.30000000000000004,
+  // which would round a cap up by one; ticket B.5b).
+  const grown = Math.round((base + config.capGrowthPerDay * ageDays) * 1e9) / 1e9;
   return Math.min(Math.max(base, config.capShareMax), grown);
 }
 
@@ -303,7 +311,8 @@ export function stageCap(
 ): number {
   const need = stage.needs.find((n) => n.resource === resource);
   if (!need) return 0;
-  return Math.max(1, Math.ceil(need.amount * stageCapShare(stage, ageDays, config)));
+  // The epsilon keeps a product like 1,000 × 0.3 from rounding up on float noise.
+  return Math.max(1, Math.ceil(need.amount * stageCapShare(stage, ageDays, config) - 1e-9));
 }
 
 /**

@@ -64,12 +64,18 @@ describe('community project data', () => {
     expect(isProjectOpen(pass, new Set(['restoreWarehouse']))).toBe(true);
   });
 
-  it('no monopoly: on its first day every stage needs at least five accounts', () => {
+  it('no monopoly: on its first day every stage needs at least five accounts (the Forgeward ten)', () => {
     expect(COMMUNITY_PROJECT_CONFIG.capShare).toBe(0.2);
     for (const p of COMMUNITY_PROJECTS) {
+      // Ticket B.5b: the Forgeward Outpost's stages start at a tenth; every other stage keeps the
+      // default fifth.
+      const forgeward = p.id === 'forgewardOutpost';
       for (const s of p.stages) {
-        const days = Math.max(...s.needs.map((n) => Math.ceil(n.amount / stageCap(s, n.resource))));
-        expect(days, `${p.id}/${s.id}`).toBeGreaterThanOrEqual(5);
+        expect(s.capShare, `${p.id}/${s.id}`).toBe(forgeward ? 0.1 : undefined);
+        const givers = Math.max(
+          ...s.needs.map((n) => Math.ceil(n.amount / stageCap(s, n.resource))),
+        );
+        expect(givers, `${p.id}/${s.id}`).toBeGreaterThanOrEqual(forgeward ? 10 : 5);
       }
     }
   });
@@ -83,7 +89,11 @@ describe('the cap grows with the stage (ticket B.3)', () => {
     expect([0, 1, 2, 3].map((d) => stageCap(STAGE, 'gold', d))).toEqual([200, 400, 600, 600]);
     expect(stageCap(STAGE, 'timber', 1)).toBe(40); // ceil(39.6)
     // A stage's own share starts the growth; a share above the ceiling is kept, never cut.
-    expect(stageCapShare({ ...STAGE, capShare: 0.1 }, 1)).toBeCloseTo(0.3);
+    expect(stageCapShare({ ...STAGE, capShare: 0.1 }, 1)).toBe(0.3);
+    // Ticket B.5b: no float creep (0.1 + 0.2 must not round a cap of 3 up to 4).
+    expect(
+      stageCap({ ...STAGE, capShare: 0.1, needs: [{ resource: 'gold', amount: 10 }] }, 'gold', 1),
+    ).toBe(3);
     expect(stageCapShare({ ...STAGE, capShare: 0.8 }, 3)).toBe(0.8);
     // Another config (the balance test's "before"): no growth.
     const flat = { capShare: 0.2, capGrowthPerDay: 0, capShareMax: 0.2 };
