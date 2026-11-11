@@ -1293,8 +1293,9 @@ Like 6.1. Read `docs/WORLD.md`, `docs/COMBAT.md`, `docs/LOOT.md`, `docs/LEADERBO
 - A level-40 hero in today's best gear farms it profitably, and Phase 6 drops keep their uses.
 - Patch notes `0.8.0`.
 
-### A.17 Hollow Reach art — `todo`
+### A.17 Hollow Reach art — `done (PR #TBD)`
 Like A.11. Two area backdrops, 4–6 enemies, a region boss, and 8-frame attack sheets for the common enemies (A.14b's pipeline). Tier-5 item icons like A.15. Budget: about 5–7 PixelLab jobs plus one regeneration, reporting the credit drop. **Acceptance:** contact sheets.
+- Done: `area.hollow-reach`, `area.hollow-depths` (384×216); `enemy.hollow-knight`, `enemy.reach-stalker`, `enemy.pale-choir`, `enemy.husk-titan` (64×64) with 8-frame attack sheets (`enemy.<name>-attack`, a burst clean-up before the snap); `enemy.hollow-sovereign` (128×128, code animation); ten tier-5 icons `item.<8.1 base id>`. Registered only, not drawn yet. 86 generations (eight jobs: seven + one regeneration for the choir), balance 1,319 → 1,233. The Hollow Reach backdrop is dimmed (an edit) to the other areas' value range. See `docs/ASSET_GUIDELINES.md` "The Hollow Reach"; contact sheets `art/preview-hollow-reach.png`, `art/preview-tier5-icons.png`.
 
 ### 8.2 Region III, part 2: levels 46–52, the region boss & a community gate (vertical) — `todo`
 Like 6.2 and 6.7.

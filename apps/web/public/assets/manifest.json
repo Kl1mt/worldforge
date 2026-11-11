@@ -2380,6 +2380,264 @@
         "width": 40,
         "height": 48
       }
+    },
+    {
+      "id": "area.hollow-reach",
+      "path": "/assets/areas/hollow-reach.png",
+      "kind": "area",
+      "size": {
+        "width": 384,
+        "height": 216
+      },
+      "prompt": "dark fantasy pixel art, backdrop, the Hollow Reach: a hollowed bone-pale dead land beyond the ash, a forest of dead white trees whose trunks rise and arch like the pillars and ribbed vaults of ruined cathedrals, broken gothic arches among the trunks, pale cracked ground with drifting low grey mist, the colossal hollow husk of a fallen giant lying half buried on the horizon, ribs and an empty skull, a hollow washed-out pale grey sky with a faint pale sun, no fire, no embers, muted desaturated palette, bone white, ash pale and cold grey, faint cold blue-grey light, gloomy light",
+      "source": "art/source/pixellab/area-hollow-reach-01/edits/00-dimmed.png"
+    },
+    {
+      "id": "area.hollow-depths",
+      "path": "/assets/areas/hollow-depths.png",
+      "kind": "area",
+      "size": {
+        "width": 384,
+        "height": 216
+      },
+      "prompt": "dark fantasy pixel art, backdrop, the Hollow Depths: a vast underground cavern-cathedral deep beneath the Hollow Reach, huge pillars of pale bone and stone rising into darkness like a cathedral nave, ribbed vaults of giant ribs overhead, broken gothic arches and an empty bone throne on a stair at the far end, cold grey mist pooling on the floor, faint pale shafts of light from cracks far above, near-black shadows, no fire, no embers, no lava, muted desaturated palette, near-black, bone white and cold grey, faint cold blue-grey light, gloomy light",
+      "source": "art/source/pixellab/area-hollow-depths-01/00.png"
+    },
+    {
+      "id": "enemy.hollow-knight",
+      "path": "/assets/enemies/hollow-knight.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view facing left, neutral standing pose, enemies of the Hollow Reach: a hollow knight, a gaunt tall armoured revenant in pale bone-grey dented plate, a gaping empty hole through its chest where the heart was, a tattered grey cloak, a long thin sword held low; a reach stalker, a long-limbed pale gaunt hunter crouched low on four thin limbs, bone-white skin stretched over ribs, long clawed fingers, an eyeless narrow head, fast predator, weathered worn gear, muted desaturated palette, bone white and cold grey, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-hollow-reach-01/01.png",
+      "facing": "front"
+    },
+    {
+      "id": "enemy.reach-stalker",
+      "path": "/assets/enemies/reach-stalker.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view facing left, neutral standing pose, enemies of the Hollow Reach: a hollow knight, a gaunt tall armoured revenant in pale bone-grey dented plate, a gaping empty hole through its chest where the heart was, a tattered grey cloak, a long thin sword held low; a reach stalker, a long-limbed pale gaunt hunter crouched low on four thin limbs, bone-white skin stretched over ribs, long clawed fingers, an eyeless narrow head, fast predator, weathered worn gear, muted desaturated palette, bone white and cold grey, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-hollow-reach-01/11.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.pale-choir",
+      "path": "/assets/enemies/pale-choir.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view facing left, enemy of the Hollow Reach: a pale choir, a floating cluster of three small hooded singers huddled together and joined at the robes, each wearing a pale cracked white porcelain mask with a round open singing mouth, tattered grey robes trailing into wisps of mist below, no legs, hovering, faint cold blue light around them, magic, muted desaturated palette, bone white, ash pale and cold grey, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-hollow-reach-03/01.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.husk-titan",
+      "path": "/assets/enemies/husk-titan.png",
+      "kind": "enemy",
+      "size": {
+        "width": 64,
+        "height": 64
+      },
+      "prompt": "dark fantasy pixel art, full body, side view facing left, neutral pose, enemies of the Hollow Reach: a pale choir, a floating cluster of three small hooded singers fused together at the robes, each wearing a pale cracked porcelain mask with an open singing mouth, tattered grey robes trailing into mist below, no legs, faint cold blue light, magic; a husk titan, a huge hulking hunched giant of cracked pale dried husk and bone, hollow and empty inside, deep cracks showing darkness within, enormous heavy arms, the large type, muted desaturated palette, bone white, ash pale and cold grey, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/enemies-hollow-reach-02/00.png",
+      "facing": "front"
+    },
+    {
+      "id": "enemy.hollow-sovereign",
+      "path": "/assets/enemies/hollow-sovereign.png",
+      "kind": "enemy",
+      "size": {
+        "width": 128,
+        "height": 128
+      },
+      "prompt": "dark fantasy pixel art, full body, side view facing left, neutral standing pose, boss: the Hollow Sovereign, a towering crowned colossus of pale bone and grey mist, a tall jagged bone crown on a long empty skull, a gaunt ribcage torso with cold mist swirling inside the hollow chest, long bone arms, a tattered pale grey royal mantle dissolving into mist at the hem, a long bone sceptre held low, faint cold blue-white light in the eye sockets, massive silhouette, no fire, muted desaturated palette, bone white, ash pale and cold grey, dark near-black outline, transparent background",
+      "source": "art/source/pixellab/boss-hollow-sovereign-01/01.png",
+      "facing": "front"
+    },
+    {
+      "id": "enemy.hollow-knight-attack",
+      "path": "/assets/enemies/hollow-knight-attack.png",
+      "kind": "enemy",
+      "size": {
+        "width": 82,
+        "height": 64
+      },
+      "frames": 8,
+      "lead": 18,
+      "prompt": "(animate-with-text-v3, four enemies in a 3x2 grid; first and last frame = the grid of stills) four separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left; the last two cells of the bottom row stay empty. All four make a short physical attack at the same time, each staying inside its own cell, using only their bodies and weapons: the hollow armoured knight swings his long sword down to the left, the long-limbed pale stalker lunges forward to the left and rakes with its claws, the floating masked choir sways forward to the left with open mouths, the huge cracked husk giant swings its heavy fist down to the left. Then each returns to its starting pose. No bursts, no flashes, no sparks, no particles, no glow; keep every creature's exact colours and size.",
+      "source": "art/source/pixellab/anim-enemies-05/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), bursts cut and palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/hollow-knight.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.reach-stalker-attack",
+      "path": "/assets/enemies/reach-stalker-attack.png",
+      "kind": "enemy",
+      "size": {
+        "width": 82,
+        "height": 64
+      },
+      "frames": 8,
+      "lead": 18,
+      "prompt": "(animate-with-text-v3, four enemies in a 3x2 grid; first and last frame = the grid of stills) four separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left; the last two cells of the bottom row stay empty. All four make a short physical attack at the same time, each staying inside its own cell, using only their bodies and weapons: the hollow armoured knight swings his long sword down to the left, the long-limbed pale stalker lunges forward to the left and rakes with its claws, the floating masked choir sways forward to the left with open mouths, the huge cracked husk giant swings its heavy fist down to the left. Then each returns to its starting pose. No bursts, no flashes, no sparks, no particles, no glow; keep every creature's exact colours and size.",
+      "source": "art/source/pixellab/anim-enemies-05/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), bursts cut and palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/reach-stalker.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.pale-choir-attack",
+      "path": "/assets/enemies/pale-choir-attack.png",
+      "kind": "enemy",
+      "size": {
+        "width": 82,
+        "height": 64
+      },
+      "frames": 8,
+      "lead": 18,
+      "prompt": "(animate-with-text-v3, four enemies in a 3x2 grid; first and last frame = the grid of stills) four separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left; the last two cells of the bottom row stay empty. All four make a short physical attack at the same time, each staying inside its own cell, using only their bodies and weapons: the hollow armoured knight swings his long sword down to the left, the long-limbed pale stalker lunges forward to the left and rakes with its claws, the floating masked choir sways forward to the left with open mouths, the huge cracked husk giant swings its heavy fist down to the left. Then each returns to its starting pose. No bursts, no flashes, no sparks, no particles, no glow; keep every creature's exact colours and size.",
+      "source": "art/source/pixellab/anim-enemies-05/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), bursts cut and palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/pale-choir.png",
+      "facing": "left"
+    },
+    {
+      "id": "enemy.husk-titan-attack",
+      "path": "/assets/enemies/husk-titan-attack.png",
+      "kind": "enemy",
+      "size": {
+        "width": 82,
+        "height": 64
+      },
+      "frames": 8,
+      "lead": 18,
+      "prompt": "(animate-with-text-v3, four enemies in a 3x2 grid; first and last frame = the grid of stills) four separate pixel art monsters in a 3 by 2 grid, each in its own cell and facing left; the last two cells of the bottom row stay empty. All four make a short physical attack at the same time, each staying inside its own cell, using only their bodies and weapons: the hollow armoured knight swings his long sword down to the left, the long-limbed pale stalker lunges forward to the left and rakes with its claws, the floating masked choir sways forward to the left with open mouths, the huge cracked husk giant swings its heavy fist down to the left. Then each returns to its starting pose. No bursts, no flashes, no sparks, no particles, no glow; keep every creature's exact colours and size.",
+      "source": "art/source/pixellab/anim-enemies-05/01.png … 07.png (this enemy's cell, 18 px of strike room on the left), bursts cut and palette-snapped by tools/art/enemy_frames.py; frame 0 = /assets/enemies/husk-titan.png",
+      "facing": "left"
+    },
+    {
+      "id": "item.hollowsteel-greatblade",
+      "path": "/assets/items/hollowsteel-greatblade.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, hollowed bone-pale gear of the Hollow Reach: long sword of pale bleached steel with a hollow fuller and a ribcage crossguard; sceptre of pale bone with a hollow cage at its head holding a wisp of cold mist; longbow of bleached bone and pale sinew; tall kite shield of pale bone plates with a hollow round hole at its centre; closed helm of pale bone-grey steel shaped like a hollow-eyed skull mask; pale bone-grey plate cuirass with a hollow ribbed chest; gauntlets of pale bone plates with long fingers; pale steel greaves with rib-like bone plates; pendant on a chain holding a hollow bone cage with a faint mist light; ring of pale bone with a small cold pale stone, bleached bone, pale grey steel, grey mist, faint cold blue-white accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier5-01/edits/00-clean.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.pale-choir-stave",
+      "path": "/assets/items/pale-choir-stave.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, hollowed bone-pale gear of the Hollow Reach: long sword of pale bleached steel with a hollow fuller and a ribcage crossguard; sceptre of pale bone with a hollow cage at its head holding a wisp of cold mist; longbow of bleached bone and pale sinew; tall kite shield of pale bone plates with a hollow round hole at its centre; closed helm of pale bone-grey steel shaped like a hollow-eyed skull mask; pale bone-grey plate cuirass with a hollow ribbed chest; gauntlets of pale bone plates with long fingers; pale steel greaves with rib-like bone plates; pendant on a chain holding a hollow bone cage with a faint mist light; ring of pale bone with a small cold pale stone, bleached bone, pale grey steel, grey mist, faint cold blue-white accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier5-01/edits/17-clean.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.reachstalker-longbow",
+      "path": "/assets/items/reachstalker-longbow.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, hollowed bone-pale gear of the Hollow Reach: long sword of pale bleached steel with a hollow fuller and a ribcage crossguard; sceptre of pale bone with a hollow cage at its head holding a wisp of cold mist; longbow of bleached bone and pale sinew; tall kite shield of pale bone plates with a hollow round hole at its centre; closed helm of pale bone-grey steel shaped like a hollow-eyed skull mask; pale bone-grey plate cuirass with a hollow ribbed chest; gauntlets of pale bone plates with long fingers; pale steel greaves with rib-like bone plates; pendant on a chain holding a hollow bone cage with a faint mist light; ring of pale bone with a small cold pale stone, bleached bone, pale grey steel, grey mist, faint cold blue-white accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier5-01/edits/19-clean.png",
+      "slot": "weapon"
+    },
+    {
+      "id": "item.hollow-aegis",
+      "path": "/assets/items/hollow-aegis.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, hollowed bone-pale gear of the Hollow Reach: long sword of pale bleached steel with a hollow fuller and a ribcage crossguard; sceptre of pale bone with a hollow cage at its head holding a wisp of cold mist; longbow of bleached bone and pale sinew; tall kite shield of pale bone plates with a hollow round hole at its centre; closed helm of pale bone-grey steel shaped like a hollow-eyed skull mask; pale bone-grey plate cuirass with a hollow ribbed chest; gauntlets of pale bone plates with long fingers; pale steel greaves with rib-like bone plates; pendant on a chain holding a hollow bone cage with a faint mist light; ring of pale bone with a small cold pale stone, bleached bone, pale grey steel, grey mist, faint cold blue-white accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier5-01/edits/44-clean.png",
+      "slot": "offhand"
+    },
+    {
+      "id": "item.hollowknight-helm",
+      "path": "/assets/items/hollowknight-helm.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, hollowed bone-pale gear of the Hollow Reach: long sword of pale bleached steel with a hollow fuller and a ribcage crossguard; sceptre of pale bone with a hollow cage at its head holding a wisp of cold mist; longbow of bleached bone and pale sinew; tall kite shield of pale bone plates with a hollow round hole at its centre; closed helm of pale bone-grey steel shaped like a hollow-eyed skull mask; pale bone-grey plate cuirass with a hollow ribbed chest; gauntlets of pale bone plates with long fingers; pale steel greaves with rib-like bone plates; pendant on a chain holding a hollow bone cage with a faint mist light; ring of pale bone with a small cold pale stone, bleached bone, pale grey steel, grey mist, faint cold blue-white accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier5-01/edits/32-clean.png",
+      "slot": "head"
+    },
+    {
+      "id": "item.titanhusk-cuirass",
+      "path": "/assets/items/titanhusk-cuirass.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, hollowed bone-pale gear of the Hollow Reach: long sword of pale bleached steel with a hollow fuller and a ribcage crossguard; sceptre of pale bone with a hollow cage at its head holding a wisp of cold mist; longbow of bleached bone and pale sinew; tall kite shield of pale bone plates with a hollow round hole at its centre; closed helm of pale bone-grey steel shaped like a hollow-eyed skull mask; pale bone-grey plate cuirass with a hollow ribbed chest; gauntlets of pale bone plates with long fingers; pale steel greaves with rib-like bone plates; pendant on a chain holding a hollow bone cage with a faint mist light; ring of pale bone with a small cold pale stone, bleached bone, pale grey steel, grey mist, faint cold blue-white accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier5-01/edits/36-clean.png",
+      "slot": "chest"
+    },
+    {
+      "id": "item.palebone-gauntlets",
+      "path": "/assets/items/palebone-gauntlets.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, hollowed bone-pale gear of the Hollow Reach: long sword of pale bleached steel with a hollow fuller and a ribcage crossguard; sceptre of pale bone with a hollow cage at its head holding a wisp of cold mist; longbow of bleached bone and pale sinew; tall kite shield of pale bone plates with a hollow round hole at its centre; closed helm of pale bone-grey steel shaped like a hollow-eyed skull mask; pale bone-grey plate cuirass with a hollow ribbed chest; gauntlets of pale bone plates with long fingers; pale steel greaves with rib-like bone plates; pendant on a chain holding a hollow bone cage with a faint mist light; ring of pale bone with a small cold pale stone, bleached bone, pale grey steel, grey mist, faint cold blue-white accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier5-01/edits/40-clean.png",
+      "slot": "hands"
+    },
+    {
+      "id": "item.reachwalker-sabatons",
+      "path": "/assets/items/reachwalker-sabatons.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, hollowed bone-pale gear of the Hollow Reach: long sword of pale bleached steel with a hollow fuller and a ribcage crossguard; sceptre of pale bone with a hollow cage at its head holding a wisp of cold mist; longbow of bleached bone and pale sinew; tall kite shield of pale bone plates with a hollow round hole at its centre; closed helm of pale bone-grey steel shaped like a hollow-eyed skull mask; pale bone-grey plate cuirass with a hollow ribbed chest; gauntlets of pale bone plates with long fingers; pale steel greaves with rib-like bone plates; pendant on a chain holding a hollow bone cage with a faint mist light; ring of pale bone with a small cold pale stone, bleached bone, pale grey steel, grey mist, faint cold blue-white accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier5-01/edits/41-clean.png",
+      "slot": "feet"
+    },
+    {
+      "id": "item.requiem-locket",
+      "path": "/assets/items/requiem-locket.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, hollowed bone-pale gear of the Hollow Reach: long sword of pale bleached steel with a hollow fuller and a ribcage crossguard; sceptre of pale bone with a hollow cage at its head holding a wisp of cold mist; longbow of bleached bone and pale sinew; tall kite shield of pale bone plates with a hollow round hole at its centre; closed helm of pale bone-grey steel shaped like a hollow-eyed skull mask; pale bone-grey plate cuirass with a hollow ribbed chest; gauntlets of pale bone plates with long fingers; pale steel greaves with rib-like bone plates; pendant on a chain holding a hollow bone cage with a faint mist light; ring of pale bone with a small cold pale stone, bleached bone, pale grey steel, grey mist, faint cold blue-white accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier5-01/edits/48-clean.png",
+      "slot": "neck"
+    },
+    {
+      "id": "item.hollow-signet",
+      "path": "/assets/items/hollow-signet.png",
+      "kind": "item",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art item icons, one item per icon, hollowed bone-pale gear of the Hollow Reach: long sword of pale bleached steel with a hollow fuller and a ribcage crossguard; sceptre of pale bone with a hollow cage at its head holding a wisp of cold mist; longbow of bleached bone and pale sinew; tall kite shield of pale bone plates with a hollow round hole at its centre; closed helm of pale bone-grey steel shaped like a hollow-eyed skull mask; pale bone-grey plate cuirass with a hollow ribbed chest; gauntlets of pale bone plates with long fingers; pale steel greaves with rib-like bone plates; pendant on a chain holding a hollow bone cage with a faint mist light; ring of pale bone with a small cold pale stone, bleached bone, pale grey steel, grey mist, faint cold blue-white accents, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-tier5-01/edits/53-clean.png",
+      "slot": "ring"
     }
   ]
 }

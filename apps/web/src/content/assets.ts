@@ -351,6 +351,30 @@ export const ASSETS = {
   'crest.gilt': crestStyle('gilt'),
   'crest.bone': crestStyle('bone'),
   'crest.ember': crestStyle('ember'),
+  // The Hollow Reach (A.17): art only. Ticket 8.1 adds the first area, its enemies and the tier-5
+  // bases with these ids; 8.2 the deeper area and the region boss (128×128).
+  'area.hollow-reach': { path: '/assets/areas/hollow-reach.png', width: 384, height: 216 },
+  'area.hollow-depths': { path: '/assets/areas/hollow-depths.png', width: 384, height: 216 },
+  'enemy.hollow-knight': enemy('hollow-knight', 'front'),
+  'enemy.reach-stalker': enemy('reach-stalker', 'left'),
+  'enemy.pale-choir': enemy('pale-choir', 'left'),
+  'enemy.husk-titan': enemy('husk-titan', 'front'),
+  'enemy.hollow-sovereign': enemy('hollow-sovereign', 'front', 128),
+  'enemy.hollow-knight-attack': enemyAttack('hollow-knight'),
+  'enemy.reach-stalker-attack': enemyAttack('reach-stalker'),
+  'enemy.pale-choir-attack': enemyAttack('pale-choir'),
+  'enemy.husk-titan-attack': enemyAttack('husk-titan'),
+  // Tier 5, the Hollow Reach (A.17): one icon per tier-5 base of ticket 8.1.
+  'item.hollowsteel-greatblade': item('hollowsteel-greatblade'),
+  'item.pale-choir-stave': item('pale-choir-stave'),
+  'item.reachstalker-longbow': item('reachstalker-longbow'),
+  'item.hollow-aegis': item('hollow-aegis'),
+  'item.hollowknight-helm': item('hollowknight-helm'),
+  'item.titanhusk-cuirass': item('titanhusk-cuirass'),
+  'item.palebone-gauntlets': item('palebone-gauntlets'),
+  'item.reachwalker-sabatons': item('reachwalker-sabatons'),
+  'item.requiem-locket': item('requiem-locket'),
+  'item.hollow-signet': item('hollow-signet'),
 } as const satisfies Record<string, SpriteAsset>;
 
 export type AssetId = keyof typeof ASSETS;

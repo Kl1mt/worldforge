@@ -403,3 +403,84 @@ describe('cosmetic art (A.13)', () => {
     expect(fileSize(sprite!)).toEqual({ width: 32, height: 32 });
   });
 });
+
+describe('Hollow Reach art (A.17)', () => {
+  const pngSize = (path: string) => {
+    const bytes = readFileSync(new URL(`../../public${path}`, import.meta.url));
+    return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+  };
+
+  // The names tickets 8.1 (area, enemies, tier-5 bases) and 8.2 (deeper area, region boss) build
+  // on, each with the Cinderwastes peer whose size it shares: keep them.
+  const ART = {
+    'area.hollow-reach': 'area.cinderwastes',
+    'area.hollow-depths': 'area.cinder-depths',
+    'enemy.hollow-knight': 'enemy.cinder-revenant',
+    'enemy.reach-stalker': 'enemy.slag-hound',
+    'enemy.pale-choir': 'enemy.ember-wisp',
+    'enemy.husk-titan': 'enemy.ash-colossus',
+    'enemy.hollow-sovereign': 'enemy.forge-tyrant',
+  } as const;
+  const COMMON = ['hollow-knight', 'reach-stalker', 'pale-choir', 'husk-titan'];
+  // 8.1's tier-5 bases (`item.<base id>`) and their slots, the same family as tier 4.
+  const TIER5 = {
+    'hollowsteel-greatblade': 'weapon',
+    'pale-choir-stave': 'weapon',
+    'reachstalker-longbow': 'weapon',
+    'hollow-aegis': 'offhand',
+    'hollowknight-helm': 'head',
+    'titanhusk-cuirass': 'chest',
+    'palebone-gauntlets': 'hands',
+    'reachwalker-sabatons': 'feet',
+    'requiem-locket': 'neck',
+    'hollow-signet': 'ring',
+  } as const;
+
+  it('resolves every name to a manifest entry and a file the size of its Cinderwastes peer', () => {
+    for (const [id, peer] of Object.entries(ART)) {
+      const sprite = findSprite(id);
+      expect(sprite, id).not.toBeNull();
+      const entry = manifest.assets.find((m) => m.id === id);
+      expect(entry?.path, id).toBe(sprite?.path);
+      expect(existsSync(new URL(`../../public${entry?.path}`, import.meta.url)), id).toBe(true);
+      expect(pngSize(entry!.path), id).toEqual(entry?.size);
+      const peerSprite = findSprite(peer);
+      expect(entry?.size, id).toEqual({ width: peerSprite?.width, height: peerSprite?.height });
+    }
+  });
+
+  it('faces the hero without mirroring', () => {
+    for (const id of Object.keys(ART).filter((k) => k.startsWith('enemy.'))) {
+      expect(findSprite(id)?.facing, id).not.toBe('right');
+    }
+  });
+
+  it('gives each common foe a left-facing 8-frame sheet, and the boss none', () => {
+    for (const name of COMMON) {
+      const still = findSprite(`enemy.${name}`)!;
+      const sheet = enemyAttackSheet(`enemy.${name}`);
+      expect(sheet, name).toMatchObject({ frames: 8, facing: 'left', height: still.height });
+      expect(sheet!.width - (sheet!.lead ?? 0), name).toBe(still.width);
+      expect(pngSize(sheet!.path), name).toEqual({ width: sheet!.width * 8, height: still.height });
+    }
+    expect(enemyAttackSheet('enemy.hollow-sovereign')).toBeNull();
+  });
+
+  it('gives every tier-5 base its own 32×32 icon of its slot, untinted', () => {
+    const paths = new Set<string>();
+    for (const [name, slot] of Object.entries(TIER5)) {
+      const sprite = findSprite(`item.${name}`);
+      expect(sprite, name).toMatchObject({
+        path: `/assets/items/${name}.png`,
+        width: 32,
+        height: 32,
+      });
+      expect(sprite?.tint, name).toBeUndefined();
+      expect(pngSize(sprite!.path), name).toEqual({ width: 32, height: 32 });
+      const entry = manifest.assets.find((m) => m.id === `item.${name}`);
+      expect(entry, name).toMatchObject({ kind: 'item', slot });
+      paths.add(sprite!.path);
+    }
+    expect(paths.size).toBe(Object.keys(TIER5).length);
+  });
+});
