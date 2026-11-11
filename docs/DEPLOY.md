@@ -300,6 +300,9 @@ deploy/admin.sh test-account <handle> on    # mark (handle from the inspector or
 deploy/admin.sh test-account <handle> off   # back to a normal account
 ```
 
+**Rule (owner decision, 2026-11-11):** never switch a test account back to normal while it holds anything granted with the admin tools (items, gold, materials, XP). Switching it off releases all of it into the real game. Delete its heroes, or keep it a test account. Cheat tools used on the admin's own normal account create real value too, so test on a test account.
+
+
 A test account is hidden from every leaderboard, the season archive and so its awards, and the arena ladder; it is matched in the arena only against other test accounts; it can't trade, give to the town works, or fight the guild boss in a guild with players who are not test accounts (ticket 6.10); and its telemetry is left out of the balance report (it still counts in the reconciliation). Turning the flag off puts it back on the boards as its heroes stand.
 
 **Hero deletion** is a soft delete: the hero disappears for the player and is frozen, its farming is settled and stopped, its open trade offers are voided (escrow goes back), its shelf items move to another hero of the account (refused when there is none: take them off the shelf first; refused too while the hero has a dungeon run that is not claimed yet, ticket 6.10), its arena defence and board rows go. Guild roles belong to the account and don't change. Within **14 days** the inspector can restore it (refused when every hero slot is taken). After that, remove it for good:
