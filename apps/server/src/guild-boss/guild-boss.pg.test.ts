@@ -41,6 +41,7 @@ import { insertGuild } from '../test/guilds.js';
 import { insertCharacter } from '../test/heroes.js';
 import { caller, insertAccount, type TestAccount } from '../test/social.js';
 import { attemptSeed } from './model.js';
+import { setTestAccount } from '../admin/test-accounts.js';
 
 const url = process.env.DATABASE_URL;
 if (!url && process.env.REQUIRE_PG_TESTS === '1') {
@@ -362,6 +363,49 @@ describe.skipIf(!url)('real PostgreSQL: the guild boss races safely', () => {
         .from(guildMembers)
         .where(eq(guildMembers.accountId, target.id));
       expect(still).toBeUndefined();
+    }
+    expect(transactionStats.retries).toBe(retries);
+  });
+
+  // Ticket 6.10 (docs/PHASE6_EXPLOIT_REVIEW.md F1): a test account fights only for a guild of test
+  // accounts. A real player joining races its attempts: each lands before the join (the real player
+  // was no member, so no stage it breaks pays them) or is refused; never a reward for the player.
+  it('a test account’s attempts racing a real player’s join: landed before it or refused', async () => {
+    const retries = transactionStats.retries;
+    clock = () => SATURDAY;
+    const week = guildBossWeek(SATURDAY).key;
+    for (let round = 0; round < ROUNDS; round++) {
+      const { guild, accounts, heroes } = await guildOf(2);
+      const [leader, tester] = accounts as [TestAccount, TestAccount];
+      await setTestAccount(db(), leader.handle, true);
+      await setTestAccount(db(), tester.handle, true);
+      await nearStage(guild, week, 1);
+      const real = await insertAccount(db(), { now: new Date(SATURDAY) });
+      expect(
+        status(await call(leader, 'POST', '/api/guild/invites', { handle: real.handle })),
+      ).toBe(200);
+      const jobs = shuffled(
+        [
+          ...Array.from(
+            { length: GUILD_BOSS_ATTEMPTS_PER_WEEK },
+            () => () => attempt(tester, heroes[1]!),
+          ),
+          () => call(real, 'POST', `/api/guilds/${guild.handle}/invite/accept`),
+        ],
+        round,
+      );
+      const codes = (await Promise.all(jobs.map((j) => j()))).map(status);
+      expect(codes).toContain(200);
+      const landed = codes.filter((c) => c === 201).length;
+      expect(landed + codes.filter((c) => c === '403 test_account').length).toBe(
+        GUILD_BOSS_ATTEMPTS_PER_WEEK,
+      );
+      // After the join every test-account attempt is refused.
+      expect(status(await attempt(leader, heroes[0]!))).toBe('403 test_account');
+      expect(
+        await db().select().from(guildBossRewards).where(eq(guildBossRewards.accountId, real.id)),
+      ).toEqual([]);
+      await expectExact(guild, { [week]: boss.stages[0]!.threshold - 1 });
     }
     expect(transactionStats.retries).toBe(retries);
   });
