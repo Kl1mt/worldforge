@@ -1123,8 +1123,8 @@ Checked and holding: awakening (refusals and held value before paying; races aga
 **Risks carried into Phase 7 (desktop and mobile).**
 - The browser runs and screenshots cover desktop widths; Phase 6 screens (the Banked Fire, the collection book, the Events tab, the Heroic door) have no mobile run yet, and the animations' cost on low-end phones is unmeasured.
 - Awakening and the boards: the hunter's burst build is still ~11 % faster fully awakened (accepted); Relentless is the hardest modifier by a small margin (watch).
-- Abbey silver has no sink once the Forgeward stands (the numbers' one gap; owner decision).
-- Spare Gravewarden Seals pile up until 6.11.
+- Abbey silver has no sink once the Forgeward stands (the numbers' one gap; owner decision; 6.11 added the engraver and the exchange).
+- Spare Gravewarden Seals pile up until 6.11 (done: the engraver and the exchange).
 - Trading is still closed; its live telemetry, and awakened/Prismatic items' place in it, are unseen with real players.
 - Playtest feedback has still not arrived; Phase 6 was tuned from simulations (B.5).
 - One API instance in production (6.9 made two safe; the switch is the owner's).
@@ -1139,12 +1139,13 @@ Checked and holding: awakening (refusals and held value before paying; races aga
 - **Schedule 6.11, the Seal sink**, and decide whether Abbey silver gets a sink too.
 - Decide the accepted risks above if they should differ (cheat-minted value on an admin's own account, the test flag released on switch-off).
 
-### 6.11 Gravewarden Seal & Abbey silver sink (small) — `todo`
+### 6.11 Gravewarden Seal & Abbey silver sink (small) — `done (PR #137)`
 Owner decision on B.5 (2026-11-11, `docs/BALANCE.md` "B.5", item 8): a dedicated player ends a full awakened kit with 15–17 spare Gravewarden Seals and nothing to spend them on. Placeholder; not built.
 - Suggested scope: a cosmetic (a collection-book entry, banner or crest style) or a modest Forge recipe priced in Seals. **No new power** (no stats, no better odds, nothing that counts in duels or boards).
 - Data-driven like the other sinks; audited and reconciled; test accounts as elsewhere.
 - Re-measure the Seal flow with `tools/balance/endgame.ts` so the sink doesn't starve awakening.
 - **Owner decision (2026-11-11, 6.10 question 1):** fold in **Abbey silver**, which has no repeatable sink once the Forgeward stands (`docs/BALANCE.md` "Phase 6 exit criterion"). Same rules: no new power.
+- Done: two sinks, no new power. **The Engraver** at the Forge (repeatable): words from a fixed list of twelve (no free text) cut into a worn or packed item, **seal-wax for 2 Gravewarden's Seals** or **silver inlay for 15 Abbey silver**, shown in the tooltip, read by no rule, doesn't bind; every engraving pays, the same one twice is refused (`POST …/forge/engrave`, a Forge action; migration `0043_item_engraving`, additive). **The Seal and Silver Counter** (once per account): five new collection-book entries that reuse A.13's art with a CSS tint (Seal-wax and Abbey-silver title colours, 3 Seals / 25 silver; Silvered seal banner, 2 Seals + 20 silver; Abbey-silver crest, 30 silver; Wax-sealed crest, 4 Seals), granted by `grantCosmeticsTx` before paying in one transaction (exactly once per account even when two heroes race; `409 already_owned`). Both: Idempotency-Key, value on hold after a trade not spendable, audited (`forge.engrave`, `cosmetic.exchange`), telemetry (`forge` engrave, `cosmetic.exchange`, `material.out forge_engrave | cosmetic_exchange`), reconciled; test accounts allowed (cosmetics rank nothing), their telemetry in the test rollups (D.4). Data in game-core `cosmetics/exchange.ts`. **The flow** (`tools/balance/endgame.ts sinks`, game-core `balance/seal-flow.ts`, the realistic dedicated player, 56 days): the full awakened kit on the same day with and without the sinks (24–27 days; the sinks take only Seals above a two-per-piece reserve, which the Forge warns about), spare Seals at the kit 15–17 → 1–4, 15–17 Seals and 150 silver to the sinks over the season; Abbey silver 195–219 gathered from 17 to 23. Every older material now has a repeatable sink (the Phase 6 exit guard updated). Gear Score, Power, PvE Progress and the duel rules unchanged (no version). Web: the Forge's Engraver and Counter panels (all states, desktop and mobile), the engraving line in tooltips, "Exchange" in the collection book. Tests: game-core `cosmetics.test.ts`, `seal-flow.test.ts`, `phase6-exit-criterion.test.ts`; server `forge/seal-sinks.test.ts`, `seal-sinks.pg.test.ts`, the journey's `playSealSinkStep`; web `seal-sinks.test.tsx`. Version 0.6.19 (after F.7's 0.6.18). `docs/ECONOMY.md` "Seal and silver sinks", `BALANCE.md` "6.11", `COSMETICS.md`, `AWAKENING.md`, `TELEMETRY.md`, `DATA_MODEL.md`.
 
 ## Phase 7 — Desktop release & mobile port
 **Status: deferred** (tickets written 2026-11-11; owner decision the same day: Phase 8 comes first, Phase 7 is revisited later).

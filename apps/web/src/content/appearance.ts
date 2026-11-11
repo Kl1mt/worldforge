@@ -16,7 +16,16 @@ import { heroPaletteSwaps } from './palettes';
  * - **crest styles** are 48×56 frames around a crest window (`crestStyleAsset`); without art, a
  *   plain rim;
  * - **title colours** are code only (CSS, `cosmetics/cosmetics.css`).
+ * Ticket 6.11: the exchange's banner and crests reuse A.13's art (`ART_TINTS`), recoloured in CSS
+ * (`.cosm-banner--<name>` / `.cosm-crest--<name>` filters); no new art.
  */
+
+/** Ticket 6.11: cosmetics drawn with another style's art and a CSS tint (cosmetics.css). */
+export const ART_TINTS: Readonly<Record<string, string>> = {
+  'banner.silvered-seal': 'banner.crypt-seal',
+  'crest.abbey-silver': 'crest.iron',
+  'crest.seal-wax': 'crest.iron',
+};
 
 /** `#rrggbb` → `#rrggbb`. */
 export type PaletteSwap = ReadonlyMap<string, string>;
@@ -51,10 +60,10 @@ export function hasPaletteArt(id: string): boolean {
 
 /** A banner style's 32×32 sprite, or null (draw the plain banner). */
 export function bannerStyleSprite(id: string): SpriteAsset | null {
-  return bannerStyleAsset(id);
+  return bannerStyleAsset(ART_TINTS[id] ?? id);
 }
 
 /** A crest style's frame, or null (draw the plain rim). */
 export function crestStyleSprite(id: string): CrestStyleSprite | null {
-  return crestStyleAsset(id);
+  return crestStyleAsset(ART_TINTS[id] ?? id);
 }

@@ -1,5 +1,8 @@
 import {
   awakenedEffectStrength,
+  findEngraving,
+  parseEngraving,
+  type EngravingFinish,
   type EquippedItem,
   itemBindingSource,
   type ItemBindingReason,
@@ -125,6 +128,8 @@ export interface ItemView {
    * null otherwise. Its effect text in `effect` already reads the awakened numbers.
    */
   awakened: AwakenedView | null;
+  /** Ticket 6.11: the engraver's words and finish (cosmetic only), or null. */
+  engraving: { text: string; finish: EngravingFinish } | null;
   /** Ticket T.1: the item's binding in plain words; null where the server sent none (offers). */
   binding: BindingView | null;
   /**
@@ -300,6 +305,7 @@ export type ItemDisplaySource = Pick<
       | 'holdUntil'
       | 'awakening'
       | 'awakenedAt'
+      | 'engraving'
     >
   >;
 
@@ -357,6 +363,7 @@ export function toItemView(dto: ItemDisplaySource): ItemView {
     ),
     locked: dto.locked ?? false,
     awakened: awakenedView(dto),
+    engraving: engravingView(dto.engraving),
     binding: bindingView(dto),
     ...(dto.holdUntil && Date.parse(dto.holdUntil) > Date.now()
       ? { heldUntil: dto.holdUntil }
@@ -383,6 +390,15 @@ export function toItemView(dto: ItemDisplaySource): ItemView {
       ...(dto.variant ? { variant: dto.variant } : {}),
     },
   };
+}
+
+/** Ticket 6.11: a stored engraving (`<finish>:<id>`) as the tooltip shows it; null if unknown. */
+export function engravingView(
+  key: string | null | undefined,
+): { text: string; finish: EngravingFinish } | null {
+  const e = parseEngraving(key);
+  if (!e) return null;
+  return { text: findEngraving(e.engravingId)!.text, finish: e.finish };
 }
 
 /** Ticket 6.5b: the awakening of a server item, as the frame and tooltip show it. */

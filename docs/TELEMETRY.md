@@ -49,6 +49,7 @@ The audit log is stamped by the database clock, the rollups by the game clock, s
 | `community.contribute` | project id | stage id | | contributions (ticket 4.6) |
 | `community.stage` | project id | stage id | | stages completed (ticket 4.6) |
 | `world.era` | era before | era after | | world era changes (ticket 6.7): one per `world.era_change` audit row, written by a completing project or an admin flag toggle that moved the era |
+| `cosmetic.exchange` | cosmetic kind | cosmetic id | | cosmetics bought at the Forge's exchange (ticket 6.11): one per `cosmetic.exchange` audit row; the price is `material.out` source `cosmetic_exchange`. Engravings are the `forge` metric (`engrave`, rarity, finish) with `material.out` source `forge_engrave` |
 | `warehouse.move` | `deposit` or `withdraw` | | | moves that changed something / items moved (ticket 4.7) |
 | `warehouse.upgrade` | `level1`…`level6` (the level bought) | | | upgrades (ticket 4.7) |
 | `shelf.move` | `deposit` or `withdraw` | `items`, `materials` or `gold` | | moves (one per kind per request) / items, material units or gold moved (ticket T.3, the account shelf). Shelf gold is not `gold.in`/`gold.out`: it stays with the account |
@@ -125,6 +126,8 @@ The admin panel's Telemetry tab (`#/admin/telemetry`) shows this report in the b
 
 ## World progression (ticket 6.7)
 Contributions to the Forgeward Outpost are ordinary `community.contribute`, `gold.out community_project` and `material.out community_project` counts (the Tyrant's Ember among the materials). `reconcileWithAudit` now also checks **each project on its own** (`community: <projectId> contributions` and `… gold` against the `community.contribute` rows of that project) and **`world: era changes`** (`world.era_change` rows against `world.era`). Test accounts can't contribute (`403 test_account`), so none of their play reaches these counts.
+
+Ticket 6.11: `reconcileWithAudit` also checks **`forge: engraves`, `forge: engrave gold`, `forge: engrave materials`** (the Forge's list) and **`cosmetics: exchanged`, `cosmetics: exchange materials`** (`cosmetic.exchange` rows against the `cosmetic.exchange` metric and `material.out cosmetic_exchange`).
 
 ## Admin tools and test accounts (ticket D.4)
 

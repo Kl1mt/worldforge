@@ -88,6 +88,8 @@ export interface ItemView {
    */
   awakening?: ItemAwakening;
   awakenedAt?: string;
+  /** Ticket 6.11: the engraver's epithet (`<finish>:<id>`, cosmetic only); absent when none. */
+  engraving?: string;
 }
 
 export interface InventoryView {
@@ -123,6 +125,7 @@ export function itemView(i: ItemInstance, switches: Readonly<TradingSwitches>): 
     ...bindingView(i, switches),
     ...(i.holdUntil ? { holdUntil: i.holdUntil.toISOString() } : {}),
     ...awakeningView(i),
+    ...(i.engraving ? { engraving: i.engraving } : {}),
   };
 }
 
@@ -214,6 +217,7 @@ export const itemSchema = {
       properties: { option: { type: 'string' }, effectStrength: { type: 'number' } },
     },
     awakenedAt: { type: 'string' },
+    engraving: { type: 'string' },
     source: { type: 'string' },
     createdAt: { type: 'string' },
     upgradeLevel: { type: 'integer' },

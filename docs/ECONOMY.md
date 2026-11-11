@@ -306,3 +306,32 @@ A completed community project may open a town upgrade for everyone: a modest ser
 
 ## Item Awakening (ticket 6.5b)
 The Forge's last path for a finished item (`docs/AWAKENING.md`): a +10 Legendary, Mythic or set item at item level 23 or higher is awakened once, permanently; its effect (or its set's bonuses, piece by piece) counts × 1.1. **Price** (`DEFAULT_AWAKENING_SETTINGS.cost`, data): 3 Tyrant's Embers, 2 Gravewarden's Seals (one per crypt hoard of any tier, Heroic included: the Seal's lasting sink), 15,000 gold at item level 20 scaled like every Forge price by `(itemLevel + 5) / 25` (25,200 at item level 37) and 30 soul shards. Gold and materials on hold after a trade don't count. Embers and Seals are untradeable and come from 20-hour boss hoards, so time, not gold, paces it (about 3 days per item for a dedicated player). No random draw. Afterwards rerolls and improvements stay available at their usual prices. Audit `forge.awaken`; telemetry sink source `forge_awaken` (`gold.out`, `material.out`), reconciled.
+
+## Seal and silver sinks (ticket 6.11)
+Owner decisions (B.5 item 8, 6.10 question 1): a sink for the Gravewarden's Seals left over after awakening and for Abbey silver once the Forgeward stands. **No new power**: nothing here is read by a combat, loot, scoring, PvP or trading rule, nothing counts in duels, boards, Gear Score or Power. Data in game-core `cosmetics/exchange.ts` (`COSMETIC_EXCHANGE`, `ENGRAVING_PRICES`, `ENGRAVINGS`); details of the cosmetics in `docs/COSMETICS.md` "The exchange and engravings".
+
+| Sink | Price | Repeatable? | What it gives |
+|---|---|---|---|
+| **The engraver**, seal-wax (`POST …/forge/engrave`, finish `seal`) | **2 Gravewarden's Seals** | yes: every engraving pays, a re-engraving included | words from a fixed list of twelve epithets, shown in the item's tooltip in wax red |
+| **The engraver**, silver inlay (finish `silver`) | **15 Abbey silver** | yes | the same words in tarnished silver |
+| **The Seal and Silver Counter** (`POST …/exchange`): Seal-wax title colour | 3 Seals | once per account | collection-book entry |
+| Abbey-silver title colour | 25 silver | once | 〃 |
+| Silvered seal banner | 2 Seals + 20 silver | once | 〃 |
+| Abbey-silver crest | 30 silver | once | 〃 |
+| Wax-sealed crest | 4 Seals | once | 〃 |
+
+Exchange in all: 9 Seals and 75 silver. No gold (gold has its sinks). Two Seals is an awakening's Seal share, so engraving a whole kit costs about what a dedicated player has left over after awakening it.
+
+- **Rules.** Paid from the hero's own holdings; gold and materials on hold after a trade don't count (the quote names what is missing and the spend refuses it, T.5). The engraver works on worn and packed items (not stored, shelved or held ones), has no random draw, refuses the same engraving twice (`409 same_engraving`) and words off the list (`422 unknown_engraving`) before paying, and doesn't bind the item (an engraving is cosmetic; it travels with the item through the shelf or a trade). The exchange grants through the collection book's `grantCosmeticsTx` before paying, in one transaction, so a cosmetic is bought exactly once per account even when two heroes race (`409 already_owned`, nothing paid). Both need an `Idempotency-Key`.
+- **Audit and telemetry, reconciled:** `forge.engrave` (engraving, previous, finish, materials; the `forge` metric `engrave, <rarity>, <finish>`, `material.out` source `forge_engrave`); `cosmetic.exchange` (cosmetic, kind, materials; metric `cosmetic.exchange`, `material.out` source `cosmetic_exchange`) next to the grant's `cosmetic.grant`. `reconcileWithAudit` checks both ("forge: engrave…", "cosmetics: exchange…"), and the journey's holdings replay counts them.
+- **Test accounts** may use both (cosmetics rank nothing); their telemetry goes to the test rollups like everything they do (D.4).
+- **The awakening reserve.** The Forge warns when seal-wax would leave fewer Seals than the hero's ready-to-awaken items need (two each); silver inlay spends none.
+
+**The flow before and after** (`docs/BALANCE.md` "6.11", the realistic dedicated player over a 56-day season): Seals come in at about 1.3 a day (a crypt hoard a day and the guild boss's two a week) and awakening takes 0.67 a day.
+
+| class | before: full awakened kit · spare Seals then | after: full awakened kit · spare Seals then | Seals / silver to the sinks over the season |
+|---|---|---|---|
+| warrior (9 pieces) | day 27 · 16.7 | day 27 · 3.7 | 17 / 150 |
+| mage, hunter, warlock (8) | day 24–25 · 14.9–16.1 | day 24–25 · 1.1–3.9 | 15 / 150 |
+
+The kit day is the same with and without the sinks (they take only Seals above the reserve). Abbey silver: a dedicated hero gathers about 200 levelling through the Abbey (17 → 23) and none later; with 150 left after the town works the exchange and a kit's silver inlays use it up, and with 40 the Seal side carries the engravings. After the kit, the engraver keeps taking Seals (2 an engraving) for every new piece.

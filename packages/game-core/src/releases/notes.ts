@@ -23,9 +23,22 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.6.18';
+export const GAME_VERSION = '0.6.19';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.6.19',
+    date: '2026-11-16',
+    title: 'Wax and silver',
+    new: [
+      'The Engraver at the Forge cuts words into your gear, pressed in seal-wax for Gravewarden’s Seals or inlaid in silver for Abbey silver. The words show when you look at the item and change nothing else. Engrave again whenever you like; each engraving is paid anew.',
+      'The Seal and Silver Counter at the Forge trades spare Seals and Abbey silver for five keepsakes for your collection book: two title colours, a silvered banner and two crests. Each is yours once, for the whole account.',
+    ],
+    changed: [
+      'The Forge warns you when seal-wax would spend Seals your items still need to be awakened.',
+    ],
+    tickets: ['6.11'],
+  },
   {
     version: '0.6.18',
     date: '2026-11-15',

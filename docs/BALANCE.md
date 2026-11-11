@@ -229,13 +229,13 @@ An older set piece costs 1–3 % and keeps its slot until a newer copy drops (th
 | Raw hide (2) | Marchwarden's Work; the Forge on tier-2 items | the Warehouse | |
 | Iron ore (2) | Knightly Work, **Tyrantforged Work**; the Forge on tier-3 and **tier-4** items | the Warehouse, the Ashen Pass, **the Forgeward Outpost** | yes |
 | Soul shards (2) | Marchwarden's, Knightly and **Tyrantforged Work**; the Forge's essence on every item; **awakening** | the Ashen Pass, **the Forgeward Outpost** | yes |
-| Abbey silver (2) | **none** | the Ashen Pass, **the Forgeward Outpost** | one-off only |
-| Gravewarden Seal (2) | **awakening** | the Ashen Pass | yes |
+| Abbey silver (2) | **none** (6.11: **the engraver's silver inlay**) | the Ashen Pass, **the Forgeward Outpost** (6.11: the exchange) | one-off only (6.11: yes) |
+| Gravewarden Seal (2) | **awakening** (6.11: and **the engraver's seal-wax**) | the Ashen Pass (6.11: the exchange) | yes |
 | Tyrant's Ember (6) | Tyrantforged Work, awakening | the Forgeward Outpost | (Phase 6's own) |
 
-Every older material but Abbey silver has a repeatable sink, and the endgame's own sinks spend three of them (ore, shards, Seals). **Abbey silver** is the exception: once a town has built the Forgeward Outpost (80 silver) it is only traded. A known gap, recorded for the owner (like B.5 item 8's spare Seals), not changed here. Asserted exactly, so a new sink (or a lost one) shows up in the guard.
+Every older material but Abbey silver has a repeatable sink, and the endgame's own sinks spend three of them (ore, shards, Seals). **Abbey silver** is the exception: once a town has built the Forgeward Outpost (80 silver) it is only traded. A known gap, recorded for the owner (like B.5 item 8's spare Seals), not changed here. Asserted exactly, so a new sink (or a lost one) shows up in the guard. **Since 6.11** (below, "6.11"): every older material has a repeatable sink; the engraver spends Seals and Abbey silver, and the guard asserts the new list.
 
-**Older sources still drop what the endgame uses.** The crypt's hoard drops a Gravewarden Seal at every tier, I–III included (an awakening input). Every set piece in the endgame's best builds (the Pass farming builds and the Tyrant builds below: the Drowned Vigil, the Ashen Choir, the Bloodmoon Hunt) drops from older tables (the Abbey, the crypt's tiers I–III, the Pass and their bosses), and the crypt's tiers II and III still focus the Vigil and the Choir. Every older area yields at least one material with a repeatable sink (the Abbey's ore; its silver, above, has none).
+**Older sources still drop what the endgame uses.** The crypt's hoard drops a Gravewarden Seal at every tier, I–III included (an awakening input). Every set piece in the endgame's best builds (the Pass farming builds and the Tyrant builds below: the Drowned Vigil, the Ashen Choir, the Bloodmoon Hunt) drops from older tables (the Abbey, the crypt's tiers I–III, the Pass and their bosses), and the crypt's tiers II and III still focus the Vigil and the Choir. Every older area yields at least one material with a repeatable sink (the Abbey's ore; its silver, above, had none until 6.11's engraver).
 
 ### 2. Meaningful choices
 
@@ -284,3 +284,28 @@ Plain upgraded Verge Legendaries beat both late bosses seven to nine times in te
 ### Verdict and open points
 
 The criterion holds on every measure: older gear moves into the new region and earns more there, older drops keep a slot, a salvage value and a sink, the new systems are choices (a sidegrade, a modest late step, a weekly twist), and none is needed to beat the hardest PvE content. Open points for the owner, none blocking: **Abbey silver** has no repeatable sink once the Forgeward Outpost is built; **spare Gravewarden Seals** (B.5 item 8, sink planned in 6.11); **Relentless** is the hardest modifier on average by a small margin (watch); the hunter's full awakened kit at +11 % is its accepted burst build (B.5b).
+
+## 6.11: the Gravewarden Seal and Abbey silver sinks
+
+Owner decisions on B.5 (item 8, the spare Seals) and on 6.10 (question 1, Abbey silver): sinks for both, **no new power**. Built: the Forge's **engraver** (repeatable) and **the Seal and Silver Counter**, an exchange for five collection-book cosmetics (once each per account). Prices and rules: `docs/ECONOMY.md` "Seal and silver sinks", `docs/COSMETICS.md` "The exchange and engravings". Tool: `pnpm --filter @worldforge/server exec tsx ../../tools/balance/endgame.ts sinks` (`SEASON_DAYS`, `SILVER`); guard `packages/game-core/src/balance/seal-flow.test.ts`; the season model is game-core's `balance/seal-flow.ts` (expected values a day at a time).
+
+**The realistic player** (B.5): a dedicated hero in Verge Legendaries +10 at 38, five tries a day at the Tyrant's and the crypt's hoards (one Ember and one Seal a day for every class: 1.00 / 1.00), the guild boss's two Seals a week, an awakening whenever it can pay (Embers and Seals gate it; gold takes 4–9 hours). With the sinks it spends **only the Seals above its reserve** (two per piece still to awaken, the Forge's warning) on the exchange first, then on an engraving of each kit piece (seal-wax while Seals are spare, silver inlay with silver beyond what the unbought offers need). **Abbey silver**: only gathered in the Sunken Abbey; a dedicated hero levelling 17 → 23 there (Epic gear +5, 24–27 h of farming, 1.6–1.8 days) gathers **195–219** (7.3–8.8 an hour) and none at the endgame; after its share of the town works (the Ashen Pass and the Forgeward ask 180 of the whole town) **150** is the modelled stock.
+
+**Before and after** (a 56-day season from the first Tyrant win):
+
+| class (pieces) | before: kit done · spare Seals then · at season end | after: kit done · spare Seals then (spent on sinks by then) · season: Seals to sinks · engravings · Seals left · silver left |
+|---|---|---|
+| warrior (9) | day 27 · 16.7 · 54.0 | day 27 · 3.7 (13) · 17 (all 5 offers) · 9 · 37.0 · 0 of 150 |
+| mage (8) | day 25 · 16.1 · 56.0 | day 25 · 1.1 (15) · 15 (all 5) · 8 · 41.0 · 0 of 150 |
+| hunter (8) | day 24 · 14.9 · 56.0 | day 24 · 3.9 (11) · 15 (all 5) · 8 · 41.0 · 0 of 150 |
+| warlock (8) | day 24 · 14.9 · 56.0 | day 24 · 3.9 (11) · 15 (all 5) · 8 · 41.0 · 0 of 150 |
+
+With only 40 silver (`SILVER=40`, a player who gave most of it to the town): the same kit days, spare Seals at the kit 1.1–1.9, 23–25 Seals to the sinks over the season (3 of 5 offers, the rest Seal-pressed engravings), 15 silver left.
+
+**Reading.**
+- **Awakening isn't starved:** the kit lands on the same day with and without the sinks for every class (24–27 days, B.5's band, about one season), because the sinks only take Seals above the reserve. The guard asserts the day, the Seals awakening used, and the band.
+- **The spare Seals get a use:** 15–17 spare at the kit → 1–4; the exchange (9 Seals once) and engraving a kit (2 Seals a piece) are about what a dedicated player has left over.
+- **After the kit** Seals still come in (about 1.3 a day); the engraver is the repeatable sink for them (a new engraving on every new piece or a change of words, 2 Seals each). It is a sink, not a drain: nobody has to spend them, and it is never needed.
+- **Abbey silver** has a repeatable sink again (15 a silver inlay) and 75 in the exchange; a dedicated hero's Abbey stock lasts the exchange and a kit's worth of inlays.
+- **Regular and casual players** reach the kit later (48–54 and 96–108 days, B.5); the reserve rule is the same for them, so the sinks never slow their awakening either.
+- **Unchanged:** no gameplay number moved. No rule reads an engraving or an exchanged cosmetic (the cosmetics import scan covers `cosmetics/exchange.ts`); the no-effects hashes, the curve pins, Gear Score, Power, PvE Progress and the duel rules are unchanged (no version), and the server tests assert that engraving and buying every offer leave a hero's 5.1 scores identical.

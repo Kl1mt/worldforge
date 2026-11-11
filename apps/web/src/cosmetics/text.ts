@@ -64,6 +64,8 @@ export function howToEarn(source: CosmeticSource): string {
       if (source.minTier === 'champion') return 'Finish first on a season roll (Champion).';
       return `Win a ${t?.name ?? source.minTier} honour or better at a season’s end.`;
     }
+    case 'exchange':
+      return 'Trade Gravewarden’s Seals or Abbey silver for it at the Forge’s exchange.';
   }
 }
 
@@ -80,6 +82,8 @@ export function sourceLabel(source: CosmeticSource): string {
       return 'Milestone';
     case 'season':
       return 'Season';
+    case 'exchange':
+      return 'Exchange';
   }
 }
 

@@ -1,4 +1,13 @@
 import { describe, expect, it } from 'vitest';
+import {
+  COSMETIC_EXCHANGE,
+  ENGRAVINGS,
+  ENGRAVING_PRICES,
+  engravingKey,
+  engravingRefusal,
+  exchangeOffer,
+  parseEngraving,
+} from './exchange.js';
 import { ACHIEVEMENT_IDS } from '../achievements/definitions.js';
 import { EVENT_DEFINITIONS } from '../events/definitions.js';
 import {
@@ -60,6 +69,12 @@ describe('the cosmetic catalogue', () => {
       'title-colour.verdigris',
       'title-colour.royal',
       'title.reaper-of-the-harvest',
+      // Ticket 6.11: the exchange's entries (A.13's art, tinted in code).
+      'title-colour.seal-wax',
+      'title-colour.abbey-silver',
+      'banner.silvered-seal',
+      'crest.abbey-silver',
+      'crest.seal-wax',
     ];
     expect(COSMETICS.map((c) => c.id).sort()).toEqual([...want].sort());
   });
@@ -80,6 +95,10 @@ describe('the cosmetic catalogue', () => {
         case 'achievement':
           expect(ACHIEVEMENT_IDS, c.id).toContain(s.achievementId);
           break;
+        case 'exchange':
+          // Ticket 6.11: every exchange cosmetic has exactly one offer (and every offer one entry).
+          expect(exchangeOffer(c.id), c.id).toBeDefined();
+          break;
         case 'milestone':
         case 'season':
           break;
@@ -93,10 +112,12 @@ describe('the cosmetic catalogue', () => {
     }
   });
 
-  it('is never purchasable and has no stats: only words and a source', () => {
+  it('is never bought with money and has no stats: only words and a source', () => {
     for (const c of COSMETICS) {
       expect(Object.keys(c).sort()).toEqual(['description', 'id', 'kind', 'name', 'source']);
-      expect(['default', 'event', 'achievement', 'milestone', 'season']).toContain(c.source.kind);
+      expect(['default', 'event', 'achievement', 'milestone', 'season', 'exchange']).toContain(
+        c.source.kind,
+      );
       // No number anywhere but a milestone's level/tier.
       const json = JSON.stringify(c);
       expect(json).not.toMatch(/\b(price|cost|stats?|power|damage|armou?r|bonus|buy|sell)\b/i);
@@ -168,5 +189,61 @@ describe('earning rules', () => {
     expect(equipProblem('crest', 'crest.nope', owned)).toBe('unknown');
     expect(equipProblem('appearance', DEFAULT_APPEARANCE_ID, new Set())).toBeNull();
     expect(equipProblem('appearance', 'appearance.ember', new Set())).toBe('not_owned');
+  });
+});
+
+describe('ticket 6.11: the exchange and the engraver', () => {
+  it('offers only exchange-sourced cosmetics, once each, priced in Seals and Abbey silver only', () => {
+    const ids = COSMETIC_EXCHANGE.map((o) => o.cosmeticId);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids.sort()).toEqual(
+      COSMETICS.filter((c) => c.source.kind === 'exchange')
+        .map((c) => c.id)
+        .sort(),
+    );
+    for (const o of COSMETIC_EXCHANGE) {
+      expect(findCosmetic(o.cosmeticId)?.source.kind).toBe('exchange');
+      expect(['title', 'appearance']).not.toContain(findCosmetic(o.cosmeticId)!.kind);
+      const keys = Object.keys(o.price);
+      expect(keys.length, o.cosmeticId).toBeGreaterThan(0);
+      for (const k of keys) expect(['gravewardenSeal', 'abbeySilver']).toContain(k);
+      for (const n of Object.values(o.price)) expect(Number.isInteger(n) && n! > 0).toBe(true);
+    }
+    // The prices as documented (docs/ECONOMY.md "Seal and silver sinks").
+    expect(Object.fromEntries(COSMETIC_EXCHANGE.map((o) => [o.cosmeticId, o.price]))).toEqual({
+      'title-colour.seal-wax': { gravewardenSeal: 3 },
+      'title-colour.abbey-silver': { abbeySilver: 25 },
+      'banner.silvered-seal': { gravewardenSeal: 2, abbeySilver: 20 },
+      'crest.abbey-silver': { abbeySilver: 30 },
+      'crest.seal-wax': { gravewardenSeal: 4 },
+    });
+    expect(ENGRAVING_PRICES).toEqual({ seal: { gravewardenSeal: 2 }, silver: { abbeySilver: 15 } });
+  });
+
+  it('engraves only listed epithets, and refuses the same engraving twice', () => {
+    expect(new Set(ENGRAVINGS.map((e) => e.id)).size).toBe(ENGRAVINGS.length);
+    for (const e of ENGRAVINGS) {
+      expect(e.id).toMatch(/^[a-z]+(-[a-z]+)*$/);
+      expect(e.text.length).toBeLessThanOrEqual(20);
+    }
+    const ash = { finish: 'seal' as const, engravingId: 'ashbound' };
+    expect(engravingKey(ash)).toBe('seal:ashbound');
+    expect(parseEngraving('seal:ashbound')).toEqual(ash);
+    expect(parseEngraving('silver:ashbound')).toEqual({
+      finish: 'silver',
+      engravingId: 'ashbound',
+    });
+    for (const bad of [null, '', 'seal', 'gold:ashbound', 'seal:nope']) {
+      expect(parseEngraving(bad)).toBeNull();
+    }
+    expect(engravingRefusal(null, ash)).toBeNull();
+    expect(engravingRefusal('silver:ashbound', ash)).toBeNull();
+    expect(engravingRefusal('seal:ashbound', ash)).toBe('same_engraving');
+    expect(engravingRefusal(null, { finish: 'seal', engravingId: 'free text' })).toBe(
+      'unknown_engraving',
+    );
+    expect(engravingRefusal(null, { finish: 'gold' as never, engravingId: 'ashbound' })).toBe(
+      'unknown_engraving',
+    );
   });
 });

@@ -18,6 +18,8 @@ import { materialView } from '../game/materials';
 import { ItemPicker } from './economy/ItemPicker';
 import { ForgeWork } from './economy/ForgeWork';
 import { AwakenPanel } from './economy/AwakenPanel';
+import { EngravePanel } from './economy/EngravePanel';
+import { ExchangePanel } from './economy/ExchangePanel';
 import { Gold, NoticeLine, ShopHeader, type Notice } from './economy/ShopHeader';
 import './economy/shop.css';
 
@@ -43,6 +45,8 @@ export function ForgeScreen() {
   const [crafted, setCrafted] = useState<ItemView | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [notice, setNotice] = useState<Notice | null>(null);
+  // Ticket 6.11: an exchange purchase re-reads the engraver's quote (same Seals and silver).
+  const [spent, setSpent] = useState(0);
   const keys = useRef(new ActionKeys()).current;
 
   const apply = useCallback((res: ApiResult<ForgeState>) => {
@@ -320,6 +324,60 @@ export function ForgeScreen() {
             <p className="display">Opening the pack…</p>
           </div>
         )}
+      </section>
+
+      <section className="shop__panel panel-iron" aria-labelledby="engrave-title">
+        <header className="shop__panel-head">
+          <h2 id="engrave-title" className="display shop__panel-title">
+            The Engraver
+          </h2>
+          <p className="shop__panel-note">
+            Words cut into your gear, pressed in seal-wax or inlaid in silver. Only how it reads
+            changes.
+          </p>
+        </header>
+        {inventory.kind === 'ready' ? (
+          <EngravePanel
+            heroId={hero.id}
+            equipped={inventory.value.equipped}
+            pack={items}
+            materials={ready?.materials ?? []}
+            refresh={spent}
+            onApplied={(r) => {
+              updateCharacter(r.character);
+              applyInventory(r.inventory);
+              refreshMaterials();
+              load();
+            }}
+            onNotice={setNotice}
+          />
+        ) : (
+          <div className="shop__empty" role="status">
+            <p className="display">Opening the pack…</p>
+          </div>
+        )}
+      </section>
+
+      <section className="shop__panel panel-iron" aria-labelledby="exchange-title">
+        <header className="shop__panel-head">
+          <h2 id="exchange-title" className="display shop__panel-title">
+            The Seal and Silver Counter
+          </h2>
+          <p className="shop__panel-note">
+            Spare Gravewarden’s Seals and Abbey silver, traded for keepsakes for your collection
+            book. Each once.
+          </p>
+        </header>
+        <ExchangePanel
+          heroId={hero.id}
+          banner={hero.appearance.banner}
+          onBought={() => {
+            refreshMaterials();
+            setSpent((n) => n + 1);
+            load();
+          }}
+          onNotice={setNotice}
+        />
       </section>
 
       <div className="shop__cols">

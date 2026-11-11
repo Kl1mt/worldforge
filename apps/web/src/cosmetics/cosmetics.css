@@ -19,6 +19,13 @@
 .cosm-tint--royal {
   --cosm-tint: #a78be0;
 }
+/* Ticket 6.11: the exchange's title colours. */
+.cosm-tint--seal-wax {
+  --cosm-tint: #c4463c;
+}
+.cosm-tint--abbey-silver {
+  --cosm-tint: #b9bfc4;
+}
 .honour.cosm-tint .honour__words,
 .book-swatch__words.cosm-tint {
   color: var(--cosm-tint);
@@ -76,6 +83,26 @@
 }
 .cosm-crest--ember {
   --cosm-metal: var(--ember-glow);
+}
+/*
+ * Ticket 6.11: the exchange's styles reuse A.13's art (content/appearance.ts `ART_TINTS`), tinted
+ * here. Filters keep the art's pixels (no smoothing): silver drains the colour and lifts it, wax
+ * pushes it to a dark red.
+ */
+.cosm-crest--abbey-silver {
+  --cosm-metal: #b9bfc4;
+}
+.cosm-crest--seal-wax {
+  --cosm-metal: #8f2f2a;
+}
+.cosm-banner--silvered-seal .cosm-banner__device,
+.cosm-crest--abbey-silver .cosm-crest__frame,
+.cosm-crest--abbey-silver .cosm-crestmark__art {
+  filter: grayscale(1) brightness(1.35) contrast(1.1);
+}
+.cosm-crest--seal-wax .cosm-crest__frame,
+.cosm-crest--seal-wax .cosm-crestmark__art {
+  filter: sepia(1) saturate(4) hue-rotate(-28deg) brightness(0.8);
 }
 .cosm-crest__well {
   position: absolute;
