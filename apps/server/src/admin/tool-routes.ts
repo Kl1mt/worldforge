@@ -76,6 +76,7 @@ import { lockDuelAccount, withdrawFromDefence } from '../arena/model.js';
 import { revokeSessions } from '../auth/tokens.js';
 import { throttleKey } from '../auth/login-throttle.js';
 import { recordTelemetry } from '../telemetry/record.js';
+import { refreshAchievements, type FactCharacter, type FactKey } from '../achievements/award.js';
 import { goldIn, goldOut, materialCounts, xpIn } from '../telemetry/counts.js';
 import { refreshAccountHeroes, refreshHeroScores } from '../leaderboards/snapshot.js';
 import { snapshotDeps } from '../leaderboards/routes.js';
@@ -299,6 +300,18 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
   };
   const warning = (gate: CheatGate) => (gate.ownPublic ? { warning: 'public_boards' } : {});
 
+  /**
+   * Ticket D.4b: after a progress write, the same refresh the gameplay paths run (achievements,
+   * their deed cosmetics and the milestone cosmetics), in the tool's transaction, so what the new
+   * state earns arrives now, exactly once, audited with its normal source. `hero` is the row as it
+   * is after the write. Nothing is taken back when a write lowers progress (6.8).
+   */
+  const grantEarned = async (tx: Transaction, hero: FactCharacter, keys: readonly FactKey[]) => {
+    const cosmetics: string[] = [];
+    const achievements = await refreshAchievements(tx, hero, keys, gameNow(), cosmetics);
+    return { achievements, cosmetics };
+  };
+
   // ---- Inspector ------------------------------------------------------------------------------
   admin.get(
     '/accounts/:handle',
@@ -467,6 +480,8 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
           })
           .returning();
         const item = row!;
+        // A Legendary or a +10 is a deed (as a drop, a forge or a purchase is).
+        const earned = await grantEarned(tx, hero, ['maxRarity', 'maxUpgradeLevel']);
         await adminAudit(tx, {
           event: 'admin.item.grant',
           adminId,
@@ -474,6 +489,7 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
           characterId: hero.id,
           reason: spec.reason,
           after: itemSummary(item),
+          data: { earned },
         });
         // Provenance (T.1): the creation is on record, so the item never reads as unprovenanced.
         await writeAudit(tx, {
@@ -487,6 +503,7 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
         ]);
         return {
           item: adminItemView(item, switches, app.authNow()),
+          earned,
           ...warning(gate),
         };
       });
@@ -770,6 +787,7 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
             updatedAt: now,
           })
           .where(eq(characters.id, hero.id));
+        const earned = await grantEarned(tx, { ...hero, level: next.level }, ['maxCharacterLevel']);
         await adminAudit(tx, {
           event: 'admin.xp',
           adminId,
@@ -778,12 +796,13 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
           reason: b.reason,
           before: { level: hero.level, experience: hero.experience },
           after: { level: next.level, experience: next.xp },
-          data: { xp: b.xp },
+          data: { xp: b.xp, earned },
         });
         recordTelemetry(tx, now, xpIn('admin', '', b.xp));
         return {
           before: { level: hero.level, experience: hero.experience },
           after: { level: next.level, experience: next.xp },
+          earned,
           ...warning(gate),
         };
       });
@@ -817,6 +836,7 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
             updatedAt: gameNow(),
           })
           .where(eq(characters.id, hero.id));
+        const earned = await grantEarned(tx, { ...hero, level: b.level }, ['maxCharacterLevel']);
         await adminAudit(tx, {
           event: 'admin.level',
           adminId,
@@ -825,10 +845,12 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
           reason: b.reason,
           before: { level: hero.level, experience: hero.experience },
           after: { level: b.level, experience: 0 },
+          data: { earned },
         });
         return {
           before: { level: hero.level, experience: hero.experience },
           after: { level: b.level, experience: 0 },
+          earned,
           ...warning(gate),
         };
       });
@@ -943,6 +965,10 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
           .update(characters)
           .set({ progress, version: sql`${characters.version} + 1`, updatedAt: gameNow() })
           .where(eq(characters.id, hero.id));
+        const earned = await grantEarned(tx, { ...hero, progress }, [
+          'gravewardenDefeated',
+          'cryptTierCleared',
+        ]);
         await adminAudit(tx, {
           event: 'admin.progress',
           adminId,
@@ -951,8 +977,9 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
           reason: b.reason,
           before: hero.progress,
           after: progress,
+          data: { earned },
         });
-        return { before: hero.progress, after: progress, ...warning(gate) };
+        return { before: hero.progress, after: progress, earned, ...warning(gate) };
       });
       await refreshBoards(request, (await targetAccount(app.db, p.handle)).id, p.characterId);
       return out;
