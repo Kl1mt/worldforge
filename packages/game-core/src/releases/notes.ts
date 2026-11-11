@@ -104,7 +104,7 @@ export const PATCH_NOTES: readonly PatchNote[] = [
       'The Collection Book: every look, banner, crest and title colour in Graumark on one page, those you have and those still to earn, each saying how it is earned. Try any of them on your hero first, then show the ones you own. Open it from the bar at the bottom of the screen.',
       'Hero appearances: four new colourings for every class (Ashen, Ember, Grave-moss and Midnight), chosen per hero. Your hero wears it in the fields, the crypt and the arena, and on your profile.',
       'Banner styles, crest styles and title colours for your account: shown on your profile, on the Roll of Renown, in your guild’s roster and on your title.',
-      'They are earned in play, never bought: deeds (for example the Forgeward banner for everyone who helped rebuild the outpost), milestones (a hero of level 40, the Forge Tyrant or the Ashen Warden slain, the Heroic crypt cleared), season honours and events. What you have already earned is waiting in the book.',
+      'They are earned in play: deeds (for example the Forgeward banner for everyone who helped rebuild the outpost), milestones (a hero of level 40, the Forge Tyrant or the Ashen Warden slain, the Heroic crypt cleared), season honours and events. What you have already earned is waiting in the book.',
       'They are only looks: they change no number in the game, are bound to your account and cannot be traded.',
     ],
     changed: [
