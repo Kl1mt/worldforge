@@ -108,6 +108,12 @@ export interface EnemyScale {
    * Gravewarden resists magic less, so the casters (slowest there with farmed gear) catch up.
    */
   resistance?: number;
+  /**
+   * Ticket B.5: multiplies the enemy's armour (physical mitigation), default 1. The class-spread
+   * lever at the endgame bosses, with `resistance`: the Forge Tyrant's slag turns blades more than
+   * spells (docs/BALANCE.md "B.5").
+   */
+  armor?: number;
 }
 
 /**
@@ -311,7 +317,9 @@ export const DUNGEONS: readonly DungeonDefinition[] = [
         unlock: { level: 32, cryptTierCleared: 3 },
         roomScale: { health: 1.6, damage: 1.6 },
         bossLevel: 36,
-        bossScale: { health: 3.4, damage: 2.6, resistance: 0.5 },
+        // Ticket B.5: resistance 0.5 → 0.4 and armour × 1.15 (was 1), to even the classes: the
+        // mage won 59–74 % with Legendaries +5 against 77–92 % for the others (8 kit samples).
+        bossScale: { health: 3.4, damage: 2.6, resistance: 0.4, armor: 1.15 },
         bossMaxFightMs: 150_000,
         bossEnrage: {
           atMs: { min: 30_000, max: 60_000 },
@@ -411,6 +419,10 @@ export const DUNGEONS: readonly DungeonDefinition[] = [
         maxLevel: 40,
         unlock: { level: 36, ashenWardenDefeated: true },
         bossLevel: 40,
+        // Ticket B.5: his slag turns blades more than spells (resistance × 0.7, armour × 1.2;
+        // none before): the casters won 54–57 % (mage) with Legendaries +5 against 78–92 % for
+        // the physical classes (8 kit samples). docs/BALANCE.md "B.5".
+        bossScale: { health: 1, damage: 1, resistance: 0.7, armor: 1.2 },
         bossMaxFightMs: 150_000,
         bossEnrage: {
           atMs: { min: 35_000, max: 65_000 },

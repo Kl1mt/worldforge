@@ -696,9 +696,14 @@ function rollScaledEncounter(
 /** Ticket 3.6: an enemy with its health and damage scaled (a deeper tier's boss). */
 export function scaleEnemy(enemy: EnemyDefinition, scale?: EnemyScale): EnemyDefinition {
   const resistance = scale?.resistance ?? 1;
-  if (!scale || (scale.health === 1 && scale.damage === 1 && resistance === 1)) return enemy;
+  const armor = scale?.armor ?? 1;
+  if (!scale || (scale.health === 1 && scale.damage === 1 && resistance === 1 && armor === 1))
+    return enemy;
   return {
     ...enemy,
+    ...(armor !== 1
+      ? { armor: { base: enemy.armor.base * armor, perLevel: enemy.armor.perLevel * armor } }
+      : {}),
     ...(resistance !== 1
       ? {
           resistance: {
