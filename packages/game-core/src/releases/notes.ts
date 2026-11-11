@@ -23,9 +23,18 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.6.16';
+export const GAME_VERSION = '0.6.17';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.6.17',
+    date: '2026-11-15',
+    title: 'The end of the Cinderwastes chapter',
+    fixed: [
+      'A hero whose name was hidden by a moderator no longer shows its appearance on its player’s profile.',
+    ],
+    tickets: ['6.10'],
+  },
   {
     version: '0.6.16',
     date: '2026-11-14',

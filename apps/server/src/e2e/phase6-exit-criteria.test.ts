@@ -81,7 +81,6 @@ import {
   type PrestigeMetric,
 } from '@worldforge/game-core';
 import { buildApp } from '../app.js';
-import { SESSION_COOKIE } from '../auth/index.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
 import { advanceStage, completeProject } from '../community/project-cli.js';
 import {

@@ -730,11 +730,11 @@ async function replayHoldings(
         items += 1;
         addMaterials(d.materials, -1);
         break;
-      // Ticket 3.4 (checked since 3.9): upgrades, rerolls and improvements spend gold and materials.
+      // Ticket 3.4 (checked since 3.9): upgrades, rerolls and improvements spend gold and materials;
+      // ticket 6.5b (checked since 6.10): so does an awakening (gold, Embers, Seals and shards).
       case 'forge.upgrade':
       case 'forge.reroll':
       case 'forge.improve':
-      // Ticket 6.5b (checked since 6.10): an awakening is paid in gold, Embers, Seals and shards.
       case 'forge.awaken':
         gold -= d.gold!;
         addMaterials(d.materials, -1);

@@ -103,6 +103,14 @@ pnpm --filter @worldforge/web dev
 E2E_MAIL_DIR=/tmp/wf-mail node tools/e2e/phase5-exit.mjs
 ```
 
+The Phase 6 browser run (ticket 6.10), CI job `e2e-phase6` (~25 s), is `tools/e2e/phase6-exit.mjs`: the town in the Forgeward Age with the Harvest of Bones banner, the map's Verge, Depths and Tyrant's Forge, the Tavern's boss modifier against the Heroic door, the Forge's Banked Fire (awakening, the mark and the lock), a Tyrant's Forge run, the Prismatic and Void frames frozen under automation, the collection book, a level gate and the hidden animation gallery for a player, and the admin's Events tab and gallery. `E2E_SEED_PHASE6=1` completes the town's three works, schedules the Harvest and seeds two heroes and an admin at start (`apps/server/src/e2e/seed-phase6.ts`); it needs a fresh server:
+
+```
+E2E_SEED_PHASE6=1 pnpm --filter @worldforge/server e2e:serve
+pnpm --filter @worldforge/web dev
+node tools/e2e/phase6-exit.mjs
+```
+
 ### Local playtest without Docker (ticket P.1)
 `pnpm playtest` runs `apps/server/src/playtest/serve.ts`: the real `buildApp()` on a PGlite database persisted to `.playtest-data/` (git-ignored), plus the web dev server, for playtesting on a machine without Docker or PostgreSQL. Like the e2e server it is excluded from the production build and refuses `NODE_ENV=production`; auth and rules are unchanged. Optional fast time (`pnpm playtest:fast`, `PLAYTEST_TIME_SCALE`) speeds up only the server's farming clock and never runs it backwards across restarts. User guide and details: `docs/PLAYTEST.md`.
 
