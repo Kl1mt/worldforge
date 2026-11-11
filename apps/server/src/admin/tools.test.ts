@@ -50,6 +50,7 @@ import {
 } from '../test/trading.js';
 import { shelfCalls } from '../test/shelf.js';
 import { openWarehouse } from '../test/warehouse.js';
+import { makeCryptReady } from '../test/dungeon.js';
 import { reconcileWithAudit, loadRollups } from '../telemetry/report.js';
 import { refreshHeroScores } from '../leaderboards/snapshot.js';
 import { snapshotDeps } from '../leaderboards/routes.js';
@@ -1210,6 +1211,41 @@ describe('admin tools (D.4)', () => {
       clockMs += RESTORE_WINDOW_MS + 1000;
       const late = await admin('POST', `${u.heroUrl}/restore`, { reason: 'asked' });
       expect(late.json().error.code).toBe('restore_window_passed');
+      clockMs = saved;
+    });
+
+    // Ticket 6.10 (docs/PHASE6_EXPLOIT_REVIEW.md F2): a deleted hero's unclaimed run held the
+    // account's one open run, and nobody could claim it (the hero is gone), so none of the account's
+    // heroes could farm or enter a dungeon until a restore or the purge.
+    it('refuses to delete a hero with an unclaimed dungeon run, so the account is never stuck', async () => {
+      const t = await target({ level: 16 });
+      const other = await insertCharacter(db(), t.acc.id, { level: 5 });
+      await makeCryptReady(db(), t.hero.id, 'warrior', 16);
+      const select = (id: string) => call(t.acc, 'POST', `/api/characters/${id}/select`, {});
+      expect((await select(t.hero.id)).statusCode).toBe(200);
+      const start = await call(t.acc, 'POST', `/api/characters/${t.hero.id}/dungeon`, {
+        dungeonId: 'namelessCrypt',
+      });
+      expect(start.statusCode, start.body).toBe(201);
+      const endsAt = Date.parse(start.json<{ run: { endsAt: string } }>().run.endsAt);
+
+      const del = () => admin('POST', `${t.heroUrl}/delete`, { confirm: t.hero.name, reason: 'asked' });
+      const refused = await del();
+      expect(refused.statusCode, refused.body).toBe(409);
+      expect(refused.json().error.code).toBe('hero_in_dungeon');
+      expect((await heroRow(t.hero.id)).deletedAt).toBeNull();
+
+      // Once the run is claimed the hero can go, and the account's other hero farms.
+      const saved = clockMs;
+      clockMs = Math.max(clockMs, endsAt) + 1000;
+      const claim = await call(t.acc, 'POST', `/api/characters/${t.hero.id}/dungeon/claim`, {});
+      expect(claim.statusCode, claim.body).toBe(200);
+      expect((await del()).statusCode).toBe(200);
+      expect((await select(other.id)).statusCode).toBe(200);
+      const farm = await call(t.acc, 'POST', `/api/characters/${other.id}/activity`, {
+        areaId: 'crowwood',
+      });
+      expect(farm.statusCode, farm.body).toBeLessThan(300);
       clockMs = saved;
     });
 
