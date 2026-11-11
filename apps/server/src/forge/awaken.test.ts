@@ -30,6 +30,7 @@ import { insertCharacter } from '../test/heroes.js';
 import { openWarehouse } from '../test/warehouse.js';
 import { reconcileWithAudit } from '../telemetry/report.js';
 import type { ForgeActionResponse, ForgeItemResponse } from './work.js';
+import { AWAKEN_LOCK_BACKFILL_ID, backfillAwakenLock } from '../inventory/awaken-lock-backfill.js';
 
 /**
  * Ticket 6.5b: the Forge's awaken action (docs/AWAKENING.md "As built"). The clock is injected
@@ -383,6 +384,116 @@ describe('binding, trading and the shelf', () => {
     const moved = await row(sword.id);
     expect(moved.characterId).toBe(second.id);
     expect(moved.awakening).toEqual({ option: 'effect', effectStrength: 1.1 });
+  });
+});
+
+describe('awakening locks the item (ticket 6.5c)', () => {
+  const call = (s: Trader, method: 'POST' | 'DELETE', url: string, payload?: object) =>
+    app.inject({
+      method,
+      url: `/api/characters/${s.hero.id}${url}`,
+      ...(payload ? { payload } : {}),
+      headers: { 'idempotency-key': randomUUID() },
+      cookies: { wf_session: s.token },
+    });
+
+  it('locks it in the same transaction, audits it once, and a same-key replay changes nothing', async () => {
+    const s = await smith(2);
+    const sword = await item(s.hero.id);
+    expect(sword.locked).toBe(false);
+    const key = randomUUID();
+    const [a, b] = await Promise.all([awaken(s, sword.id, key), awaken(s, sword.id, key)]);
+    for (const r of [a, b]) expect([200, 409]).toContain(r.statusCode);
+    const ok = [a, b].find((r) => r.statusCode === 200)!;
+    expect(ok.json<ForgeActionResponse>().item.locked).toBe(true);
+    const replay = await awaken(s, sword.id, key);
+    expect(replay.statusCode).toBe(200);
+    expect(replay.json<ForgeActionResponse>().item.locked).toBe(true);
+    const after = await row(sword.id);
+    expect(after).toMatchObject({ locked: true, awakening: { option: 'effect' } });
+    const locks = await db()
+      .select()
+      .from(auditLog)
+      .where(and(eq(auditLog.event, 'item.lock'), eq(auditLog.characterId, s.hero.id)));
+    expect(locks).toHaveLength(1);
+    expect(locks[0]!.data).toEqual({ itemId: sword.id, locked: true, via: 'awaken' });
+    expect(await stock(s.hero.id, 'tyrantsEmber')).toBe(3);
+  });
+
+  it('refuses sell, salvage and discard while locked; after an unlock it sells', async () => {
+    const s = await smith();
+    const sword = await item(s.hero.id);
+    expect((await awaken(s, sword.id)).statusCode).toBe(200);
+    const gold = await goldOf(s.hero.id);
+    for (const [method, url, payload] of [
+      ['POST', '/merchant/sell', { itemIds: [sword.id] }],
+      ['POST', '/forge/salvage', { itemIds: [sword.id] }],
+      ['DELETE', `/items/${sword.id}`, undefined],
+    ] as const) {
+      const r = await call(s, method, url, payload);
+      expect(r.statusCode, url).toBe(409);
+      expect(r.json().error.code).toBe('item_locked');
+    }
+    expect((await row(sword.id)).id).toBe(sword.id);
+    expect(await goldOf(s.hero.id)).toBe(gold);
+    // The player may unlock it like any lock; the awakening stays, and the item sells.
+    const unlock = await call(s, 'POST', `/items/${sword.id}/unlock`, {});
+    expect(unlock.statusCode).toBe(200);
+    expect((await row(sword.id)).awakening).toEqual({ option: 'effect', effectStrength: 1.1 });
+    const sell = await call(s, 'POST', '/merchant/sell', { itemIds: [sword.id] });
+    expect(sell.statusCode, sell.body).toBe(200);
+    expect(await goldOf(s.hero.id)).toBeGreaterThan(gold);
+    expect(await db().select().from(itemInstances).where(eq(itemInstances.id, sword.id))).toEqual(
+      [],
+    );
+  });
+
+  it('leaves an already locked item locked, without a second audit row', async () => {
+    const s = await smith();
+    const sword = await item(s.hero.id, {}, { locked: true });
+    expect((await awaken(s, sword.id)).statusCode).toBe(200);
+    expect((await row(sword.id)).locked).toBe(true);
+    const locks = await db()
+      .select()
+      .from(auditLog)
+      .where(and(eq(auditLog.event, 'item.lock'), eq(auditLog.characterId, s.hero.id)));
+    expect(locks).toEqual([]);
+  });
+});
+
+describe('the awaken-lock backfill (ticket 6.5c)', () => {
+  it('locks items awakened before 6.5c once, audits each, and is idempotent', async () => {
+    const s = await insertTrader(db(), clock);
+    const old = await item(
+      s.hero.id,
+      {},
+      { awakening: { option: 'effect', effectStrength: 1.1 }, awakenedAt: clock },
+    );
+    const plain = await item(s.hero.id, { seed: 41 });
+    const first = await backfillAwakenLock(db(), { now });
+    expect(first).toMatchObject({ ran: true, skipped: 0 });
+    expect(first.locked).toBeGreaterThanOrEqual(1);
+    expect((await row(old.id)).locked).toBe(true);
+    expect((await row(plain.id)).locked).toBe(false);
+    const audits = await db()
+      .select()
+      .from(auditLog)
+      .where(and(eq(auditLog.event, 'item.lock'), eq(auditLog.characterId, s.hero.id)));
+    expect(audits.map((a) => a.data)).toEqual([
+      { itemId: old.id, locked: true, via: 'backfill', backfill: AWAKEN_LOCK_BACKFILL_ID },
+    ]);
+    // Done once: a second start-up skips it; a forced re-run finds nothing left.
+    expect(await backfillAwakenLock(db(), { now })).toEqual({
+      id: AWAKEN_LOCK_BACKFILL_ID,
+      ran: false,
+      locked: 0,
+      skipped: 0,
+    });
+    // A manual unlock after the pass is never undone.
+    await db().update(itemInstances).set({ locked: false }).where(eq(itemInstances.id, old.id));
+    expect(await backfillAwakenLock(db(), { now })).toMatchObject({ ran: false });
+    expect((await row(old.id)).locked).toBe(false);
+    expect(await backfillAwakenLock(db(), { now, force: true })).toMatchObject({ ran: true });
   });
 });
 

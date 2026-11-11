@@ -366,6 +366,7 @@ export function AwakenPanel({
                 on your account shelf for your other heroes.
               </li>
               <li>Upgrades are done; rerolls and improvements stay possible.</li>
+              <li>The item will be locked; unlock it in the Pack if you ever want to sell it.</li>
             </ul>
             <div className="awaken__confirm-actions">
               <button

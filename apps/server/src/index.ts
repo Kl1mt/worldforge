@@ -2,6 +2,7 @@ import { buildApp } from './app.js';
 import { loadConfig, requireDatabaseUrl } from './config.js';
 import { createPostgresDatabase } from './db/client.js';
 import { backfillItemBinding } from './inventory/binding-backfill.js';
+import { backfillAwakenLock } from './inventory/awaken-lock-backfill.js';
 import { DISABLED_MAILER, createLogMailer, createSmtpMailer, type Mailer } from './mail/mailer.js';
 
 const config = loadConfig();
@@ -63,6 +64,15 @@ try {
         r.ran ? 'item-binding backfill ran' : 'item-binding backfill: already done',
       ),
     (err: unknown) => app.log.error({ err }, 'item-binding backfill failed; retried at next start'),
+  );
+  // Ticket 6.5c: lock items awakened under 6.5b (before awakening locked them); once per database.
+  backfillAwakenLock(database.db).then(
+    (r) =>
+      app.log.info(
+        { backfill: r.id, ...r },
+        r.ran ? 'awaken-lock backfill ran' : 'awaken-lock backfill: already done',
+      ),
+    (err: unknown) => app.log.error({ err }, 'awaken-lock backfill failed; retried at next start'),
   );
   if (config.mail.transport === 'none') {
     app.log.warn('email is not set up (no SMTP_HOST): verification and password reset are off');
