@@ -23,9 +23,25 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.6.19';
+export const GAME_VERSION = '0.8.0';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.8.0',
+    date: '2026-11-17',
+    title: 'Beyond the furnace: the Hollow Reach',
+    new: [
+      'A new region opens past the Forge Tyrant’s furnace: the Hollow Reach. Its first land, the Pale Marches, is for heroes of level 40 who have slain the Forge Tyrant.',
+      'Four new foes, each with its own trick: the Hollow Knight’s blade slips past part of your armour, the Reach Stalker is hard to land a critical blow on, the Pale Choir’s hymn dulls your class skill, and the Husk Titan’s dead hide turns critical blows.',
+      'Ten new pieces of gear, one for every slot, drop only in the Pale Marches. They are a step above the Cinderwastes’ gear, and the strongest magic properties yet can roll on the best of them.',
+      'Three new milestones on the PvE Progress board and two new trials in the Proving Grounds (levels 42 and 46). Like every board change, they start with the next season.',
+    ],
+    changed: [
+      'Levelling now slows down around level 54 instead of 48, as the new foes go up to level 47.',
+      'Your Cinderwastes and Heroic gear is still good there: a hero in it can farm the Pale Marches safely, and it salvages into the iron ore and soul shards the new gear needs at the Forge.',
+    ],
+    tickets: ['8.1'],
+  },
   {
     version: '0.6.19',
     date: '2026-11-16',

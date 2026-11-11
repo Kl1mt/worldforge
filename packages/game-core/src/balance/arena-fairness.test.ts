@@ -68,4 +68,27 @@ describe('matchmaking fairness bands', () => {
       },
     );
   }
+
+  // Ticket 8.1: the Pale Marches take 30+ up to 46, with tier-5 gear from item level 41 (the
+  // reference kits for the new top end: commons to Legendary +10 Void kits and B.2 builds at the
+  // hero's level − 1, so 41–45 wear tier 5). Bracket Power 3 and matchmaking 4 unchanged: measured
+  // 3.7 % / 1.2 % (awakened 3.3 % / 1.2 %), mean favourite 66 %, extreme pairs 0.2 %.
+  for (const awakened of [false, true]) {
+    it(
+      `30+ with heroes up to level 46${awakened ? ', top kits awakened' : ''}: inside the band`,
+      SLOW,
+      () => {
+        const bracket = RATED_BRACKETS.find((b) => b.id === '30-plus')!;
+        const pop = arenaPopulation(bracket, SIZE, { maxLevel: 46, awakened });
+        const mm = measureFairness(bracket, pop, 'matchmaking', SEEDS);
+        expect(mm.meanFavourite).toBeLessThanOrEqual(0.72);
+        expect(mm.over90).toBeLessThanOrEqual(0.09);
+        expect(mm.over95).toBeLessThanOrEqual(0.05);
+        expect(mm.extremePairs).toBeLessThanOrEqual(0.03);
+        expect(mm.emptyLists).toBe(0);
+        expect(mm.meanListSize).toBeGreaterThanOrEqual(4.9);
+        expect(mm.widened).toBeLessThanOrEqual(0.25);
+      },
+    );
+  }
 });

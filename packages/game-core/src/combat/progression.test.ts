@@ -64,6 +64,11 @@ describe('XP curve', () => {
     expect(xpLevelFactor(41, 35)).toBeCloseTo(0.4);
     expect(xpLevelFactor(42, 34)).toBeCloseTo(0.1);
     expect(xpLevelFactor(43, 34)).toBe(0.1);
+    // Ticket 8.1: with the Pale Marches' top foes at 46–47 the floor arrives at about 54 (was 48
+    // with the Depths' 40–41): the soft cap moved to about 54–55 with the content, no constant
+    // changed (balance.test.ts "the Pale Marches" measures it).
+    expect(xpLevelFactor(53, 47)).toBeCloseTo(0.4);
+    expect(xpLevelFactor(54, 46)).toBeCloseTo(0.1);
   });
 
   it('applies multiple level-ups and keeps the remainder', () => {

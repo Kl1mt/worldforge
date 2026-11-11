@@ -249,6 +249,8 @@ describe('set piece generation', () => {
         // Ticket 6.2: the Cinder Depths and the Forge Tyrant's hoard.
         'cinderDepths',
         'forgeTyrant',
+        // Ticket 8.1: the Pale Marches (the Hollow Reach).
+        'paleMarches',
       ];
       if (lateGame.some((id) => tableId.startsWith(id))) {
         // Ticket B.2: a third of the Legendary rolls (was half).

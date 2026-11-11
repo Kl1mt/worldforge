@@ -87,10 +87,10 @@ describe('Phase 2 exit criteria', () => {
     const w = await hero.world();
     expect(w.progress.gravewardenDefeated).toBe(true);
     // Every Graumark area; the Ashen Pass waits for the community (ticket 4.8), the Cinderwastes
-    // for the Ashen Warden (ticket 6.1).
+    // for the Ashen Warden (ticket 6.1), the Hollow Reach for the Forge Tyrant (ticket 8.1).
     expect(
       w.areas
-        .filter((a) => !['ashenPass', 'ashfallVerge', 'cinderDepths'].includes(a.id))
+        .filter((a) => !['ashenPass', 'ashfallVerge', 'cinderDepths', 'paleMarches'].includes(a.id))
         .every((a) => a.unlocked),
     ).toBe(true);
     expect(w.areas.find((a) => a.id === 'ashenPass')!.blockers).toContainEqual({

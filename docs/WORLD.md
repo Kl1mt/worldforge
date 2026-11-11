@@ -16,6 +16,7 @@ Ticket 2.1. Data and pure rules in `packages/game-core/src/world/` (areas, dunge
 | `ashfallVerge` (ticket 6.1, the Cinderwastes) | 28–34 | level 28 + Ashen Warden defeated | `cinderRevenant` 30, `slagHound` 30, `emberWisp` 25, `ashColossus` 15 | `ironOre`, `soulShard` (revenants) | tier 4 (29–35), gold × 2.3 |
 | `cinderDepths` (ticket 6.2, the Cinderwastes) | 34–40 | level 34 + Ashen Warden defeated (the Verge's top) | `forgeRevenant` 30, `slagMastiff` 30, `ashflameWisp` 25, `slagColossus` 15 | `ironOre`, `soulShard` (revenants) | tier 4 (35–41), gold × 3 |
 | Dungeon `tyrantsForge` (ticket 6.2) | — (no chambers) | level 36 + Ashen Warden defeated | boss `forgeTyrant` (level 40) | boss drop `tyrantsEmber` | boss hoard only: `forgeTyrant` (39–41) |
+| `paleMarches` (ticket 8.1, the Hollow Reach) | 40–46 | level 40 + Forge Tyrant defeated | `hollowKnight` 30, `reachStalker` 30, `paleChoir` 25, `huskTitan` 15 | `ironOre`, `soulShard` (knights, choir) | tier 5 (41–47), gold × 3.9 |
 
 - Each Graumark area overlaps the next by one level step (`next.minLevel = prev.maxLevel − 1`); the area's unlock level is its minimum enemy level. The Ashen Pass starts two levels above the Abbey's top (24 vs 22): crypt tier III (21–24) bridges the gap.
 - Rooms, run timing, the boss enrage and the boss loot (`gravewarden` table, boss-exclusive bases, cooldown) are data on `DungeonDefinition` since ticket 2.5; rules in `docs/DUNGEONS.md`.
@@ -63,6 +64,31 @@ Per level they have 1.27–1.37 × the Verge's health at 1–1.16 × its damage,
 
 **Older content stays relevant** (asserted in `balance.test.ts` "the Cinder Depths" and "the Forge Tyrant"): good Verge gear (the Verge's plain Legendaries +10, item level 33) farms the Depths at 34–40 with no deaths and more XP and gold an hour than the Verge's top, while the Verge's rares fall; the Depths' own drops (item level 39) kill 1.07–1.22 × as fast at 40. The Pass's and the Verge's drops keep their salvage yields and Forge paths (their materials drop in the Depths). Numbers in `docs/COMBAT.md` "The Cinder Depths".
 
+## Region III, the Hollow Reach: the Pale Marches (ticket 8.1)
+
+The first area of Phase 8's new region (ROADMAP Phase 8 defaults: Region III, working name the Hollow Reach, levels 40–52 in two areas plus a region boss; ticket 8.2 adds the second area, the boss and the community gate). Its region is `The Hollow Reach`, its area id `paleMarches`, "The Pale Marches": the grey land past the Forge Tyrant's furnace, where the fire has gone out and the knights who guard it are empty plate. Map marker on the map's west edge below the Depths (`MAP_MARKERS`).
+
+**Unlock.** Level 40 and the Forge Tyrant slain (`UnlockRule.forgeTyrantDefeated`, blocker `{ kind: 'forgeTyrantDefeated' }`, "Defeat the Forge Tyrant"; the hero's `progress.forgeTyrantDefeated`, set by a Tyrant's Forge kill since 6.2 and by D.4's progress tool). **Seam for 8.2's community gate:** a project's flag can go on the `worldFlag` of the region's *later* places (8.2's area and boss); every server path already passes the world flags. The Pale Marches are live from their release, so they never get one (no access is ever taken away): `world.test.ts` and `world/pale-marches.test.ts` assert that every flag leaves them as they are.
+
+**Art (A.17, in parallel).** Backdrop `area.hollow-reach`; foes `enemy.hollow-knight`, `enemy.reach-stalker`, `enemy.pale-choir`, `enemy.husk-titan` (with `-attack` frame sheets); the ten tier-5 icons `item.<base id>`. Until A.17 registers them, the web draws each as its nearest existing sprite with a pale "hollow" tint (`HOLLOW_STAND_INS` in `apps/web/src/content/assets.ts`, CSS `pixel--tint-hollow`): the Verge's backdrop, the fallen knight, the wolf, the pyre cultist and the ash colossus (all with attack frames, so the A.14 scene and the admin gallery animate them), and each tier-5 icon as its tier-4 counterpart. Registered art always wins, so each stand-in switches itself off when A.17's art lands.
+
+| Enemy | Drawn as (until A.17) | Type | Health | Damage | Trait | Notes |
+|---|---|---|---|---|---|---|
+| `hollowKnight` Hollow Knight | `fallen-knight` | physical | 130 + 84/level | 13.8 + 3.95 | its blows ignore 25 % of the hero's armour (`defensePierce`) | undead (soul shards), armoured (30 + 5), attack speed 0.9 |
+| `reachStalker` Reach Stalker | `wolf` | physical | 100 + 70/level | 8.6 + 2.55 | −15 points of the hero's crit chance (`critEvasion`) | fast (1.6), light |
+| `paleChoir` Pale Choir | `pyre-cultist` | magic | 80 + 57/level | 9.6 + 2.85 | the class skill keeps 60 % of its extra damage (`skillGuard` 0.4) | undead (soul shards), warded (resistance 28 + 4.4), 1.2 |
+| `huskTitan` Husk Titan | `ash-colossus` | physical | 250 + 124/level | 21 + 5.9 | crits deal half their bonus (`critGuard` 0.5) | slow (0.45), the most health of any regular foe, heavy armour |
+
+**Fight traits** (`EnemyTraits` on `EnemyDefinition`, game-core `combat/encounter.ts`): optional data, fixed numbers the encounter is built with (no extra draw, no new timeline rule, the same in the detailed and the aggregate simulation). A foe without traits (every foe before 8.1) builds exactly the encounter it did (`encounter.test.ts`; the no-effects hashes and the 6.1/6.2/8.1 curve pins are unchanged). Each trait answers a different build: armour-stacking (the knight), crit chance (the stalker), skill-damage builds (the choir), crit damage (the titan).
+
+Per level they have about 1.05–1.15 × the Depths' health at about the same damage plus their trait, and about 1.2 × its XP per kill; kill gold × 3.9 (the Depths × 3). A fight costs today's best gear about 1.2–1.3 × the Depths' share of its health.
+
+**Rewards.** The loot table `paleMarches`: **tier-5 bases only** (ten, one per slot kind and weapon family like tiers 2–4, from item level 41, each about a tenth above its tier-4 counterpart at the same item level), item levels **41–47** (one above the Depths' top), affix bias 1.0, the late-game odds (Mythics, a third of Legendaries as set pieces, Legendary weight 1.5, Void 10 %, Prismatic 5 %), kill gold × 3.9. **Tier-6 affixes** (flat damage, health, armour, resistance) from item level 43, Epic and better from 42, never at 41 or below (`docs/LOOT.md`). Gathering: iron ore (8 %; tier-5 items salvage to 4 ore a unit, so their upgrades ask for more of it) and soul shards from the knights and the choir (3 %). **No new material:** none would have a real sink yet (8.2's region boss material gets one); Phase 6's Tyrant's Ember keeps its sink (Tyrantforged Work, tier 4).
+
+**The merchant** stocks the Marches every day for every hero (F.7's floor: a level-40 offer is stocked at 41, the tier-5 bases' first level; `pale-marches-balance.test.ts` and the server test check every outcome, not a lucky seed).
+
+**Older content stays relevant** (asserted in `balance/pale-marches-balance.test.ts` and `phase6-exit-criterion.test.ts`): a level-40 hero in today's best gear (the Depths' Legendaries +10, plain or awakened, the Heroic crypt's, the best Depths build at +10 Void) farms the Marches with no deaths and more XP and gold an hour than the Depths; the Phase 6 drops salvage into the ore and shards the tier-5 Forge spends, and the Marches drop both. Numbers in `docs/COMBAT.md` "The Hollow Reach".
+
 ## Enemies
 `EnemyDefinition` adds `undead` (undead drop `soulShard`, ticket 2.3) and `rank` (`normal` or `boss`) to the Phase 1 fields; `damageType` is the damage family (physical → armor, magic → resistance). Each enemy is in exactly one roster. Asset ids are `enemy.<kebab-case id>` (the three Phase 1 enemies keep their existing ids).
 
@@ -71,7 +97,7 @@ Enemy damage was retuned in ticket B.1 (`docs/COMBAT.md`): each later area hits 
 ## Materials and professions
 `MATERIALS`: id, name, description, icon (`material.<kebab-case id>`, in `apps/web/public/assets/materials/`, A.4), rarity, source and profession, and the areas that list it.
 - `gathering`: `timber` (Woodcutting), `ashwort` (Herbalism), `rawHide` (Skinning), `ironOre` and `abbeySilver` (Mining; silver is rare).
-- `undeadDrop`: `soulShard` (listed in the Old Burial Grounds, where every enemy is undead; since 4.8 / 6.1 also in the Ashen Pass and the Ashfall Verge).
+- `undeadDrop`: `soulShard` (listed in the Old Burial Grounds, where every enemy is undead; since 4.8 / 6.1 / 6.2 / 8.1 also in the Ashen Pass, the Ashfall Verge, the Cinder Depths and the Pale Marches).
 - `bossDrop`: `gravewardenSeal`; `tyrantsEmber` (ticket 6.2, the Forge Tyrant; never tradeable, spent only by Tyrantforged Work).
 
 Yields, gathering and profession levels (ticket 2.3): `packages/game-core/src/professions/`, rules in `docs/FARMING.md` ("Gathering & professions").
@@ -82,7 +108,7 @@ Ticket 4.6: a rule may also need a global world flag (`UnlockRule.worldFlag`, se
 `isAreaUnlocked(areaId, character, progress)` and `isDungeonUnlocked(…)` with `character = { level }` and `progress = { gravewardenDefeated }`. `areaUnlockBlockers` / `dungeonUnlockBlockers` return the unmet conditions in a stable order (`{ kind: 'level', required }`, then `{ kind: 'gravewardenDefeated' }`) for the world map. A non-integer or < 1 level throws. The rules live in `UnlockRule` on each place (data), so new places need no code.
 
 ## Item tiers
-Every item base has a `tier` (`items/bases.ts`): tier 1 are the 17 Phase 1 bases; tiers 2, 3 and 4 add one base per slot kind with art and per weapon family (10 each: warrior sword, mage/warlock staff, hunter bow, shield, head, chest, hands, feet, neck, ring). Tier 2 drops from item level 9–10, tier 3 from 15–16, tier 4 (ticket 6.1, appended after every earlier base) from 29 and only in the Cinderwastes (the Ashfall Verge, since 6.2 the Cinder Depths and the Forge Tyrant's hoard), and each beats the tier below at the same item level. Each new base has its own icon `item.<base id>` (A.4).
+Every item base has a `tier` (`items/bases.ts`): tier 1 are the 17 Phase 1 bases; tiers 2, 3, 4 and 5 add one base per slot kind with art and per weapon family (10 each: warrior sword, mage/warlock staff, hunter bow, shield, head, chest, hands, feet, neck, ring). Tier 2 drops from item level 9–10, tier 3 from 15–16, tier 4 (ticket 6.1, appended after every earlier base) from 29 and only in the Cinderwastes (the Ashfall Verge, since 6.2 the Cinder Depths and the Forge Tyrant's hoard), tier 5 (ticket 8.1, appended after tier 4) from 41 and only in the Hollow Reach (the Pale Marches), and each beats the tier below at the same item level. Each new base has its own icon `item.<base id>` (A.4).
 
 ## Loot in settlement
 `settleFarming` rolls the area's loot table (`AreaDefinition.lootTableId`) instead of the global `standard` table. Tables may set an `itemLevel` range that clamps the rolled item level (a clamp, no extra RNG draw). The `standard` table is now explicitly the tier-1 bases, so `generateItem` without a table and every stored Phase 1 seed reproduce what they did before. The Abandoned Fields table has the same entries and drop chance, so Fields settlements are bit-identical to Phase 1 (pinned in `world.test.ts`; checked against `main` over 48 class/level/seed combinations).
