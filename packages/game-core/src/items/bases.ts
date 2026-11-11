@@ -34,7 +34,7 @@ export interface ItemBaseStat {
   perLevel: number;
 }
 
-export const ITEM_TIERS = [1, 2, 3, 4] as const;
+export const ITEM_TIERS = [1, 2, 3, 4, 5] as const;
 
 export type ItemTier = (typeof ITEM_TIERS)[number];
 
@@ -49,7 +49,7 @@ export interface ItemBaseDefinition {
   /**
    * Content tier (ticket 2.1): 1 = Phase 1 / Abandoned Fields, 2 = Crowwood to Blackwater,
    * 3 = Blackwater, the Nameless Crypt, the Sunken Abbey and the Ashen Pass, 4 = the Cinderwastes
-   * (ticket 6.1). Higher tiers have stronger implicit
+   * (ticket 6.1), 5 = the Hollow Reach (ticket 8.1). Higher tiers have stronger implicit
    * stats at the same item level; area loot tables weight tiers by area.
    */
   tier: ItemTier;
@@ -975,6 +975,130 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     stats: [
       { stat: 'resistance', base: 5, perLevel: 1 },
       { stat: 'health', base: 7, perLevel: 2 },
+    ],
+  },
+  // Ticket 8.1: tier 5, the Hollow Reach (Region III, from item level 41). Appended after every
+  // earlier base so tier-wide tables and stored seeds keep their order. Each beats its tier-4
+  // counterpart at the same item level by about a tenth; their icons are art ticket A.17's.
+  {
+    id: 'hollowsteel-greatblade',
+    name: 'Hollowsteel Greatblade',
+    slot: 'weapon',
+    icon: 'item.hollowsteel-greatblade',
+    classes: ['warrior'],
+    tier: 5,
+    minItemLevel: 41,
+    stats: [{ stat: 'physicalDamage', base: 19, perLevel: 2.42 }],
+  },
+  {
+    id: 'pale-choir-stave',
+    name: 'Stave of the Pale Choir',
+    slot: 'weapon',
+    icon: 'item.pale-choir-stave',
+    classes: ['mage', 'warlock'],
+    tier: 5,
+    minItemLevel: 41,
+    stats: [{ stat: 'magicDamage', base: 18, perLevel: 2.42 }],
+  },
+  {
+    id: 'reachstalker-longbow',
+    name: 'Reachstalker Longbow',
+    slot: 'weapon',
+    icon: 'item.reachstalker-longbow',
+    classes: ['hunter'],
+    tier: 5,
+    minItemLevel: 41,
+    stats: [{ stat: 'physicalDamage', base: 18, perLevel: 2.37 }],
+  },
+  {
+    id: 'hollow-aegis',
+    name: 'Hollow Aegis',
+    slot: 'offhand',
+    icon: 'item.hollow-aegis',
+    classes: ['warrior'],
+    tier: 5,
+    minItemLevel: 41,
+    stats: [
+      { stat: 'armor', base: 15, perLevel: 2.42 },
+      { stat: 'resistance', base: 6, perLevel: 1 },
+    ],
+  },
+  {
+    id: 'hollowknight-helm',
+    name: 'Hollow Knight’s Helm',
+    slot: 'head',
+    icon: 'item.hollowknight-helm',
+    classes: ALL_CLASSES,
+    tier: 5,
+    minItemLevel: 41,
+    stats: [
+      { stat: 'armor', base: 10, perLevel: 1.93 },
+      { stat: 'health', base: 11, perLevel: 3.14 },
+    ],
+  },
+  {
+    id: 'titanhusk-cuirass',
+    name: 'Titanhusk Cuirass',
+    slot: 'chest',
+    icon: 'item.titanhusk-cuirass',
+    classes: ALL_CLASSES,
+    tier: 5,
+    minItemLevel: 41,
+    stats: [
+      { stat: 'armor', base: 18, perLevel: 3.85 },
+      { stat: 'health', base: 13, perLevel: 3.41 },
+    ],
+  },
+  {
+    id: 'palebone-gauntlets',
+    name: 'Palebone Gauntlets',
+    slot: 'hands',
+    icon: 'item.palebone-gauntlets',
+    classes: ALL_CLASSES,
+    tier: 5,
+    minItemLevel: 41,
+    stats: [
+      { stat: 'armor', base: 7, perLevel: 1.82 },
+      { stat: 'resistance', base: 2, perLevel: 0.5 },
+    ],
+  },
+  {
+    id: 'reachwalker-sabatons',
+    name: 'Reachwalker Sabatons',
+    slot: 'feet',
+    icon: 'item.reachwalker-sabatons',
+    classes: ALL_CLASSES,
+    tier: 5,
+    minItemLevel: 41,
+    stats: [
+      { stat: 'armor', base: 7, perLevel: 1.82 },
+      { stat: 'health', base: 6, perLevel: 1.82 },
+    ],
+  },
+  {
+    id: 'requiem-locket',
+    name: 'Requiem Locket',
+    slot: 'neck',
+    icon: 'item.requiem-locket',
+    classes: ALL_CLASSES,
+    tier: 5,
+    minItemLevel: 41,
+    stats: [
+      { stat: 'resistance', base: 6, perLevel: 1.1 },
+      { stat: 'health', base: 11, perLevel: 2.64 },
+    ],
+  },
+  {
+    id: 'hollow-signet',
+    name: 'Hollow Signet',
+    slot: 'ring',
+    icon: 'item.hollow-signet',
+    classes: ALL_CLASSES,
+    tier: 5,
+    minItemLevel: 41,
+    stats: [
+      { stat: 'resistance', base: 6, perLevel: 1.1 },
+      { stat: 'health', base: 8, perLevel: 2.2 },
     ],
   },
 ];

@@ -188,6 +188,10 @@ describe('generated items', () => {
     expect(maxTier(sampleItems(5000, 29))).toBe(4);
     expect(maxTier(sampleItems(5000, 30))).toBe(5);
     expect(maxTier(sampleItems(5000, 31))).toBe(5);
+    // Ticket 8.1: tier 6 likewise from 43 (Epic and better from 42), never at 41 or below.
+    expect(maxTier(sampleItems(5000, 41))).toBe(5);
+    expect(maxTier(sampleItems(5000, 42))).toBe(6);
+    expect(maxTier(sampleItems(5000, 43))).toBe(6);
 
     const low = getImplicitStats({ baseId: 'longsword', rarityId: 'common', itemLevel: 5 });
     const high = getImplicitStats({ baseId: 'longsword', rarityId: 'common', itemLevel: 25 });
@@ -220,6 +224,35 @@ describe('generated items', () => {
         expect(t5.weight, affix.id).toBeLessThan(t4.weight);
       }
     }
+  });
+
+  it('never unlocks tier 6 at item level 41 or below, whatever the rarity (ticket 8.1)', () => {
+    for (const affix of AFFIXES) {
+      for (const [rarityId, rarity] of Object.entries(DEFAULT_LOOT_CONFIG.rarities)) {
+        for (let level = 1; level <= 41; level++) {
+          const tiers = tiersForItemLevel(affix, level, rarity.affixLevelBonus);
+          // The tiers below 6 unlock exactly as before 8.1 (every source up to the Depths' 41).
+          expect(
+            tiers.every((t) => t.tier <= 5),
+            `${affix.id} ${rarityId} @${level}`,
+          ).toBe(true);
+        }
+      }
+      const t6 = affix.tiers.find((t) => t.tier === 6);
+      if (t6) {
+        expect(tiersForItemLevel(affix, 43).at(-1), affix.id).toBe(t6);
+        expect(tiersForItemLevel(affix, 42, 2).at(-1), affix.id).toBe(t6);
+        expect(tiersForItemLevel(affix, 42).at(-1)?.tier, affix.id).toBe(5);
+        const t5 = affix.tiers.find((t) => t.tier === 5)!;
+        expect(t6.min, affix.id).toBeGreaterThan(t5.max);
+        expect(t6.weight, affix.id).toBeLessThan(t5.weight);
+        expect(t6.minItemLevel - t5.minItemLevel, affix.id).toBe(12);
+      }
+    }
+    // Exactly the five flat affixes that have a tier 5 get a tier 6.
+    expect(AFFIXES.filter((a) => a.tiers.some((t) => t.tier === 6)).map((a) => a.id)).toEqual(
+      AFFIXES.filter((a) => a.tiers.some((t) => t.tier === 5)).map((a) => a.id),
+    );
   });
 
   it('honours fixed base and rarity', () => {

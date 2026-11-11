@@ -219,7 +219,32 @@ No deaths at 34, 37 or 40 (≤ 2), damage share < 21 %, 6–13 kills a minute, i
 |---|---|---|---|---|---|---|---|---|---|---|
 | Hours (warrior · hunter) | 2.1 · 1.7 | 2.2 · 1.9 | 2.4 · 2.0 | 2.6 · 2.2 | 2.8 · 2.4 | 4.4 · 3.7 | 8.4 · 7.1 | 14 · 12 | 36 · 31 | 39 · 33 |
 
-6.1's soft cap "about 41–42" is now about 47–48. The Forge Tyrant: `docs/DUNGEONS.md` "The Tyrant's Forge".
+6.1's soft cap "about 41–42" is now about 47–48 (8.1: about 53–54, "The Hollow Reach" below). The Forge Tyrant: `docs/DUNGEONS.md` "The Tyrant's Forge".
+
+## The Hollow Reach (ticket 8.1)
+Region III's first area, the Pale Marches (levels 40–46, `docs/WORLD.md`), is tuned against **today's best gear**: what a hero who slew the Forge Tyrant wears (the Depths' and the Heroic crypt's Legendaries, plain or awakened, and the best Depths farming builds). Its foes have about 1.05–1.15 × the Depths' health per level at about the same damage, each with one **fight trait** (`EnemyTraits`: the knight's blade ignores 25 % of the hero's armour, the stalker takes 15 points off the hero's crit chance, the choir dulls the class skill to 60 % of its extra damage, the titan halves the crit bonus), and about 1.2 × the Depths' XP per kill; kill gold × 3.9.
+
+**Today's best gear** (`balance/pale-marches-balance.test.ts`, 3 seeds × 1 h; Legendaries with class effects, +10; asserted bands in brackets):
+
+| Kit | Marches 40 / 43 / 46: kills/min | deaths/h | damage share 40 / 46 | XP/h · gold/h at 40 | against the Depths at 40 (pace · XP · gold) |
+|---|---|---|---|---|---|
+| Depths Legendaries (item level 39) | warrior 8.7 / 8.7 / 8.6 · mage 7.6 / 7.4 / 7.1 · hunter 9.7 / 9.3 / 9.1 · warlock 7.5 / 7.2 / 6.9 | 0 (warlock 0.3 at 46) | 9–14 % / 11–18 % | 268–363k · 4,090–5,200 | 0.86–0.92 · × 1.07–1.14 · × 1.12–1.20 |
+| the same, awakened | 7.6–10.0 at 40, 7.1–9.4 at 46 | 0 | 8–14 % / 11–17 % | 276–376k · 4,250–5,440 | 0.87–0.92 · × 1.08–1.14 · × 1.13–1.22 |
+| Heroic Legendaries (37) | 7.0–8.4 at 40, 6.5–7.9 at 46 | 0 | 10–15 % / 13–19 % | 260–297k · 3,970–4,660 | 0.87–0.92 · × 1.08–1.13 · × 1.14–1.19 |
+
+Asserted: no deaths at 40, ≤ 1 an hour at 43 and 46, damage share < 21 %, 6–13 kills a minute, more XP (> × 1.03) and gold (> × 1.05) than the Depths at 40 with the same gear, a step up (pace 0.75–0.96, damage share > 1.1 × the Depths'), iron ore ≤ 100 and soul shards ≤ 45 an hour (measured 42–64 and 10–13). The Depths' rares +5 fall 62–81 times an hour (> 20). **The Marches' own drops** (plain Legendaries +5 at item level 45, tier 5, a mean over four kits; a single kit's affix rolls can outweigh the tier step) kill 1.10–1.32 × as fast at 46 as the same kits at the Depths' 39 (asserted 1.04–1.45), with no deaths.
+
+**The best Depths builds** (the Phase 6 exit criterion's search, +10 Void, item level 39; `phase6-exit-criterion.test.ts`): 14.5–17.5 kills a minute at 40 (0.88–0.92 × the Depths'), XP × 1.09–1.14, gold × 1.17–1.21, no deaths at 40 or 46; awakened 14.8–18.1. With `tools/balance/pale-marches.ts farm` (the best Pass build in Depths drops): 13.1–16.8 kills a minute at 40, 12.2–15.5 at 46, 2–6 % damage share.
+
+**The top of the area.** A hero levelled to 46 in plain item-level-39 gear begins to slip on a bad kit: in the tool's sample, the mage's plain Depths Legendaries +10 (no class effects) die about 7 times an hour at 46 and the warlock's own drops at +5 about 11 times; at +10 the Marches' own drops hold 46 with no deaths. That is the area's gear check at its top, not at its entry.
+
+**The curves.** No value at or below 40 moved (`balance/curve-pins-8-1.test.ts`, hashes from `main`: an hour in the Depths at 34 / 37 / 40, a Forge Tyrant and a Heroic run, the Depths' and the Tyrant's rolls at 35–41, the Depths merchant, the XP curve to 40; 6.1's and 6.2's pins unchanged). The XP formula (`700 · L²`) and the penalty (−15 % per level past two above the foe, at least 10 %) are unchanged: with the Marches' foes up to 47 the penalty's floor arrives at about 54 instead of 48, so the soft cap moved with the content again. Hours per level for the Depths' Legendaries +10 farming the best open area (`pale-marches-balance.test.ts`; the best builds take about half as long, `tools/balance/pale-marches.ts xp`):
+
+| Level | 40 | 44 | 46 | 48 | 50 | 52 | 53 | 54 | 55 | 56 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Hours (hunter · warlock) | 3.1 · 4.1 | 3.6 · 4.8 | 3.8 · 5.2 | 4.1 · 5.6 | 6.3 · 8.3 | 12 · 16 | 20 · 26 | 51 · 66 | 52 · 69 | 54 · 71 |
+
+Asserted: under 8 h a level at 46 and 48, and from 54 more than 2.2 × the hours at 50 and over 40 h. 6.2's soft cap "about 47–48" is now about **53–54** (the roadmap's "about 55").
 
 ## PvP (ticket 5.4)
 Hero-vs-hero duels run on this engine (`buildEncounter`, `attackHit`, `thornsDamage`) through a separate normalisation layer in `packages/game-core/src/pvp/`; nothing above changes for PvE. Rules, factors and balance bands: `docs/PVP.md`.

@@ -598,6 +598,7 @@ describe('areas & unlocks (ticket 2.2)', () => {
       ['ashenPass', false],
       ['ashfallVerge', false],
       ['cinderDepths', false],
+      ['paleMarches', false],
     ]);
     expect(w.areas[4]!.blockers).toEqual([
       { kind: 'level', required: 17 },
@@ -618,6 +619,11 @@ describe('areas & unlocks (ticket 2.2)', () => {
     expect(w.areas[7]!.blockers).toEqual([
       { kind: 'level', required: 34 },
       { kind: 'ashenWardenDefeated' },
+    ]);
+    // Ticket 8.1: the Hollow Reach at 40, past the Forge Tyrant.
+    expect(w.areas[8]!.blockers).toEqual([
+      { kind: 'level', required: 40 },
+      { kind: 'forgeTyrantDefeated' },
     ]);
     expect(w.dungeons).toEqual([
       {

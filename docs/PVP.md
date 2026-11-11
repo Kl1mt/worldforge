@@ -346,3 +346,16 @@ The endgame balance pass (`docs/BALANCE.md` "B.5", item 1) brings 30+ back insid
 - The arena screen shows the log and, per side, PvE versus normalised stats ("your 1,218 health counts as 920").
 - B.4 re-checked the bands with realistic defences ("Balance pass: competitive systems"); the owner's playtest feedback is still to come.
 - 5.6's open points are under "Rating, matchmaking and the ladder".
+
+## 8.1: the 30+ bracket with the Hollow Reach's gear
+No PvP rule changed: `PVP_RULES_VERSION` stays 2, bracket Power stays 3 (duel Power in 30+, B.5) and matchmaking stays 4 (its 30+ class scale). The 30+ reference kit (a rare of the best regular base at item level 29) and the duel Power reference heroes are untouched: tier 5 starts at item level 41, so it only reaches the bracket through the heroes' own gear. The Marches' fight traits are world-enemy data; a duel builds its fighters as foes without traits, so no duel moved (the pinned duel hashes and `pvp-balance.test.ts` hold).
+
+**Re-measured with heroes up to level 46** (`arena-fairness.test.ts`, the synthetic 30+ population widened to 30–46, gear at level − 1, so 41–45 wear tier 5: commons to Legendary +10 Void kits and B.2 builds, the reference kits for the new top end; 120 heroes, 32 duels per offered pair):
+
+| 30+ | 90 %+ favourites | 95 %+ favourites | mean favourite | 3+ tiers apart | lists widened | empty lists |
+|---|---|---|---|---|---|---|
+| 30–40 (B.5), season start | 4.0 % | 0.7 % | — | — | — | 0 |
+| **30–46 (8.1), season start** | **3.7 %** | **1.2 %** | 66 % | 0.2 % | 2.5 % | 0 |
+| 30–46, every +10 Void kit awakened | 3.3 % | 1.2 % | 66 % | 0.2 % | 2.5 % | 0 |
+
+Inside B.5's bands (≤ 9 % / ≤ 5 %), which the new tests assert unchanged; duel Power reads the tier-5 kits as the duel does, so no bump of bracket Power or matchmaking was needed, and nothing was loosened.
