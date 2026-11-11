@@ -12,6 +12,7 @@
 import { mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
+import { selectUsableDrop } from './usable-drop.mjs';
 
 const require = createRequire(import.meta.url);
 let playwright;
@@ -149,15 +150,9 @@ async function run(browser, vp) {
   await page.waitForURL(/#\/inventory/);
   await page.locator('.stash__grid .item-frame--new').first().waitFor();
   await shoot(page, vp, 'first-steps-pack');
-  const sockets = page.locator('.stash__grid button.item-frame');
+  // The first drops can all be other classes' gear (ticket F.8): keep farming until one fits.
   const equipButton = page.getByRole('button', { name: 'Equip', exact: true });
-  let picked = false;
-  const count = await sockets.count();
-  for (let i = 0; i < count && !picked; i++) {
-    await sockets.nth(i).click();
-    picked = await equipButton.isEnabled();
-  }
-  if (!picked) throw new Error(`no usable item among ${count} drops`);
+  await selectUsableDrop(page, { baseUrl, log: (t) => step(vp, t) });
   await equipButton.click();
   await page.locator('.pack__notice--ok').waitFor();
   await expectGuide(page, 'Visit the Tavern');
