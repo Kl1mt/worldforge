@@ -474,9 +474,7 @@ describe('display privacy (5.2) and where it shows', () => {
         createdAt: new Date(NOW.getTime() - DAY),
         expiresAt: new Date(NOW.getTime() + DAY),
       });
-    expect(await heroes(viewer)).toEqual([
-      expect.objectContaining({ name: null, palette: null }),
-    ]);
+    expect(await heroes(viewer)).toEqual([expect.objectContaining({ name: null, palette: null })]);
     // The owner still sees their own hero as it is.
     expect(await heroes(owner)).toEqual([
       expect.objectContaining({ name: hero.name, palette: 'appearance.ember' }),

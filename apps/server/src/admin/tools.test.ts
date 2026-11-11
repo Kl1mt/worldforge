@@ -1229,7 +1229,8 @@ describe('admin tools (D.4)', () => {
       expect(start.statusCode, start.body).toBe(201);
       const endsAt = Date.parse(start.json<{ run: { endsAt: string } }>().run.endsAt);
 
-      const del = () => admin('POST', `${t.heroUrl}/delete`, { confirm: t.hero.name, reason: 'asked' });
+      const del = () =>
+        admin('POST', `${t.heroUrl}/delete`, { confirm: t.hero.name, reason: 'asked' });
       const refused = await del();
       expect(refused.statusCode, refused.body).toBe(409);
       expect(refused.json().error.code).toBe('hero_in_dungeon');
