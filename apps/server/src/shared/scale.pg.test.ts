@@ -7,7 +7,7 @@
  * reaches the other by NOTIFY or, when the notify is missed, by the version check. Assertions hold
  * in every order of the parallel requests.
  */
-import { afterAll, beforeAll, describe, expect, it } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { sql } from 'drizzle-orm';
 import { buildApp, type AppOptions } from '../app.js';
@@ -103,10 +103,13 @@ describe.skipIf(!url)('two API instances on one real PostgreSQL (ticket 6.9)', (
     rs.filter((r) => r.statusCode === code).length;
 
   beforeAll(async () => {
-    database = await createPostgresTestDatabase(url!, { poolMax: 40 });
+    database = await createPostgresTestDatabase(url!, { poolMax: 20 });
+  });
+  // Each test's instances close after it (connections are shared with the other pg test files).
+  afterEach(async () => {
+    await Promise.all(apps.splice(0).map((a) => a.close()));
   });
   afterAll(async () => {
-    await Promise.all(apps.map((a) => a.close()));
     await database?.close();
   });
 
@@ -314,10 +317,6 @@ describe.skipIf(!url)('two API instances on one real PostgreSQL (ticket 6.9)', (
           'tradeSweep',
         ].sort(),
       );
-      for (const app of [a, b]) {
-        apps.splice(apps.indexOf(app), 1);
-        await app.close();
-      }
     });
   });
 

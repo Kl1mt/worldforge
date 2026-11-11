@@ -24,6 +24,43 @@ export function createPostgresDatabase({
   // reconnects on the next query; /api/health reports the outage meanwhile.
   pool.on('error', (err) => onIdleError?.(err));
   const db = drizzle(pool, { schema, casing: 'snake_case' });
+  type Sub = { channel: string; onNotify: (p: string) => void; onError: (e: Error) => void };
+  const subscribers = new Set<Sub>();
+  const listening = new Set<string>();
+  let listenClient: Promise<pg.Client> | null = null;
+  const dropListener = async () => {
+    const c = listenClient;
+    listenClient = null;
+    listening.clear();
+    if (c) await (await c.catch(() => null))?.end().catch(() => undefined);
+  };
+  const listener = (): Promise<pg.Client> => {
+    listenClient ??= dedicated('worldforge-listen').then((client) => {
+      let open = true;
+      const fail = (err: Error) => {
+        if (!open) return;
+        open = false;
+        listenClient = null;
+        listening.clear();
+        void client.end().catch(() => undefined);
+        // Every subscriber hears it and listens again (a new connection).
+        for (const sub of [...subscribers]) {
+          subscribers.delete(sub);
+          sub.onError(err);
+        }
+      };
+      client.on('error', fail);
+      client.on('end', () => fail(new Error('listen connection ended')));
+      client.on('notification', (m) => {
+        for (const sub of subscribers) if (sub.channel === m.channel) sub.onNotify(m.payload ?? '');
+      });
+      return client;
+    });
+    listenClient.catch(() => {
+      listenClient = null;
+    });
+    return listenClient;
+  };
   const dedicated = async (name: string) => {
     const client = new pg.Client({
       connectionString: url,
@@ -37,7 +74,11 @@ export function createPostgresDatabase({
   return {
     db,
     ping: (timeoutMs) => pingDatabase(db, timeoutMs),
-    close: () => pool.end(),
+    close: async () => {
+      subscribers.clear();
+      await dropListener();
+      await pool.end();
+    },
     // Ticket 6.9: the scheduler leader's lock connection and the cache notify listener.
     session: async (): Promise<DbSession> => {
       const client = await dedicated('worldforge-leader');
@@ -60,24 +101,24 @@ export function createPostgresDatabase({
         },
       };
     },
+    // One listening connection per database handle, shared by every subscriber (each app built
+    // on this handle), so many apps in one process cost one connection.
     listen: async (channel, onNotify, onError) => {
-      const client = await dedicated('worldforge-listen');
-      let open = true;
-      const fail = (err: Error) => {
-        if (!open) return;
-        open = false;
-        void client.end().catch(() => undefined);
-        onError(err);
-      };
-      client.on('error', fail);
-      client.on('end', () => fail(new Error('listen connection ended')));
-      client.on('notification', (m) => {
-        if (m.channel === channel) onNotify(m.payload ?? '');
-      });
-      await client.query(`listen ${pg.escapeIdentifier(channel)}`);
+      const sub = { channel, onNotify, onError };
+      subscribers.add(sub);
+      try {
+        const client = await listener();
+        if (!listening.has(channel)) {
+          await client.query(`listen ${pg.escapeIdentifier(channel)}`);
+          listening.add(channel);
+        }
+      } catch (err) {
+        subscribers.delete(sub);
+        throw err;
+      }
       return async () => {
-        open = false;
-        await client.end().catch(() => undefined);
+        subscribers.delete(sub);
+        if (subscribers.size === 0) await dropListener();
       };
     },
   };
