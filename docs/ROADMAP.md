@@ -1100,6 +1100,11 @@ Goal (owner request): admin features for testing and support, like giving and re
 - **Tools:** player inspector (no email; "verified yes/no"), items (grant with preview, remove from pack/gear/Warehouse/shelf; held and escrowed refused), currencies (grant/refund/remove, never below 0 or into held value; XP, level), hero management, progress tools, session tools, world tools (flags with an every-player warning, scheduler state), and a read-only "view as player".
 - Migration `0036_admin_tools` (additive). Tests: `admin/tools.test.ts` (permission matrix, cheat gate, audit rows, idempotency, reconcile, test accounts off boards/archive/matchmaking/trading, soft delete → restore → purge, the no-email guard, the soft-delete read guard), real PG `admin/tools.pg.test.ts` (deletion vs accept, deletion vs shelf deposit, grant vs accept, removal vs sell), journey `e2e/admin-tools-journey.test.ts`. Admin-only, so no patch note.
 
+### D.4b Admin progress tools grant milestone cosmetics instantly — `done (PR #129)`
+Owner request: a cosmetic or deed that an admin progress tool's write earns arrives at once, not at the hero's next level-up or claim (e.g. the Gravewarden, Ashen Warden or Forge Tyrant marked defeated, crypt tier IV cleared, level 40). Read `docs/COSMETICS.md`, `docs/DEPLOY.md` (admin tools), `apps/server/src/admin/`.
+- After each progress write (set progress, set level, grant XP, grant an item) the tool runs the gameplay paths' `refreshAchievements` (achievements, their deed cosmetics, the milestone cosmetics) in its own transaction: exactly once, audited with the normal source; the `admin.*` row names what it triggered (`earned`). D.4's cheat gate unchanged. Removals (a boss flag cleared, a lower level) take nothing back (6.8).
+- Tests: each tool grants at once and exactly once (repeat, double submit with one key), the test-account gate, reconciliation. No migration, no patch note (admin-only).
+
 ## Art tickets (run alongside the phases)
 
 ### A.1 Class portraits — `done (PR #14)`
