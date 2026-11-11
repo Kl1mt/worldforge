@@ -2020,6 +2020,100 @@ export async function playCinderDepthsStep(
 }
 
 /**
+ * Phase 8 Hollow Reach step (ticket 8.1): from a hero of level 40 in today's best gear (the
+ * Depths' Legendaries). The Pale Marches wait for the Forge Tyrant (the farming start is refused
+ * until he falls); the Tyrant's Forge is fought until he does (bounded), then the Marches open and
+ * are farmed for a few visits: tier-5 drops at 41–47 and only existing materials, from the second
+ * visit (the first can finish the previous area's cycle). The merchant stocks the Marches in full,
+ * and PvE Progress counts them under the version in force (version 5: 18 of 21 at 40 without Heroic). Returns
+ * what a composing run reports.
+ */
+export async function playHollowReachStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  hero: Journey,
+  now: () => Date,
+) {
+  const { api, base, state } = hero;
+  const area = getArea('paleMarches');
+  const view = async () => (await hero.world()).areas.find((a) => a.id === area.id)!;
+  expect(state.level).toBeGreaterThanOrEqual(area.unlock.level);
+  const before = await view();
+  if (!before.unlocked) {
+    expect(before.blockers).toEqual([{ kind: 'forgeTyrantDefeated' }]);
+    const refused = await api('POST', `${base}/activity`, { areaId: area.id });
+    expect(refused.statusCode).toBe(409);
+    expect(refused.json<{ error: { code: string } }>().error.code).toBe('area_locked');
+    while (!state.forge.some((f) => f.bossDefeated)) {
+      expect(state.forge.length, 'the Tyrant should fall within a few runs').toBeLessThan(20);
+      await hero.sellJunk(await hero.inventory());
+      await hero.runDungeon('tyrantsForge');
+    }
+  }
+  expect(await view()).toEqual({ id: area.id, unlocked: true, blockers: [] });
+  const go = await api('POST', `${base}/activity`, { areaId: area.id });
+  expect([200, 201]).toContain(go.statusCode);
+  const table = getLootTable(area.lootTableId);
+  let kills = 0;
+  let deaths = 0;
+  let tier5 = 0;
+  for (let i = 0; i < 3; i++) {
+    const { summary, activity } = await hero.settle();
+    expect(activity!.areaId).toBe(area.id);
+    kills += summary.kills;
+    deaths += summary.deaths;
+    // The first settlement can still finish the previous area's cycle (CLAUDE.md).
+    if (i > 0) {
+      for (const item of summary.items) {
+        expect(item.itemLevel).toBeGreaterThanOrEqual(table.itemLevel!.min);
+        expect(item.itemLevel).toBeLessThanOrEqual(table.itemLevel!.max);
+        if (!item.setId && !item.mythicId) {
+          expect(findItemBase(item.baseId)!.tier, item.baseId).toBe(5);
+          tier5++;
+        }
+      }
+      for (const id of Object.keys(summary.materials ?? {}))
+        expect(area.materials as readonly string[]).toContain(id);
+    }
+    await hero.sellJunk(await hero.inventory());
+  }
+  expect(kills).toBeGreaterThan(0);
+  expect(state.areasFarmed.has(area.id)).toBe(true);
+
+  // The merchant stocks the Marches in full (F.7), tier 5 at 41 or above.
+  const stock = (await api('GET', `${base}/merchant`)).json<{
+    offers: { areaId: string; item: { baseId: string; itemLevel: number } }[];
+  }>();
+  const offers = stock.offers.filter((o) => o.areaId === area.id);
+  expect(offers).toHaveLength(2);
+  for (const o of offers) {
+    expect(findItemBase(o.item.baseId)!.tier).toBe(5);
+    expect(o.item.itemLevel).toBeGreaterThanOrEqual(table.itemLevel!.min);
+  }
+
+  // The boards: PvE Progress counts the Marches under the version in force (a season under way
+  // keeps the older version until it ends).
+  const versions = await app.formulaVersions.at(now());
+  const read = await api('GET', '/api/leaderboards/pveProgress');
+  const board = read.json<{
+    board: { formulaVersion: number; yours: { value: number; hero: { level: number } }[] };
+  }>().board;
+  expect(board.formulaVersion).toBe(versions.pveProgress);
+  const mine = board.yours.find((e) => e.hero.level === state.level)!;
+  expect(mine.value).toBeGreaterThanOrEqual(versions.pveProgress >= 5 ? 18 : 10);
+  const report = await checkLeaderboards(cliDeps(database.db), 200, now());
+  expect(report.problems.filter((p) => p.kind === 'wrong')).toEqual([]);
+  return {
+    kills,
+    deaths,
+    tier5,
+    tyrantRuns: state.forge.length,
+    level: state.level,
+    pveProgress: mine.value,
+  };
+}
+
+/**
  * Phase 6 world progression step (ticket 6.7): with the town's first two projects done (the
  * owner's 4.6 CLI) the world is in the Rekindling and the Forgeward Outpost opens on the board; the
  * hero farms and gives its share of gold to the slag road; the owner's test-setup `stage` command

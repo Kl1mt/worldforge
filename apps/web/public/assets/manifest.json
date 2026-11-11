@@ -623,6 +623,11 @@
           "id": "tyrantsForge",
           "x": 122,
           "y": 70
+        },
+        {
+          "id": "paleMarches",
+          "x": 18,
+          "y": 120
         }
       ]
     },
