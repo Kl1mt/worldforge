@@ -3,8 +3,9 @@ import { PRESTIGE_TIER_IDS, type PrestigeTier } from '../scoring/prestige.js';
 /**
  * The cosmetic catalogue (ticket 6.6 started it, ticket 6.8's collection book completes it;
  * docs/COSMETICS.md). Every cosmetic has an id, a kind, a name, a description and the one place it
- * is earned. **Cosmetics are never bought and carry no stats** (GDD §13.3): a definition has no
- * price and no numbers, nothing in the combat, loot, farming, dungeon, economy, trading, scoring
+ * is earned. **Cosmetics are never bought with money and carry no stats** (GDD §13.3): a definition
+ * has no price and no numbers (ticket 6.11's exchange prices, in materials earned in play, live in
+ * `exchange.ts`), nothing in the combat, loot, farming, dungeon, economy, trading, scoring
  * or PvP rules reads this module (an import scan in `cosmetics.test.ts`), and the no-effects hashes
  * and 5.1 scores are unchanged by them. Account-bound: never traded, never mailed.
  *
@@ -47,14 +48,17 @@ export type CosmeticMilestone =
  * - `event`: a tier of an event's reward track (6.6);
  * - `achievement`: granted with an achievement (a deed, 4.2; Forgeward contributors via 6.7's);
  * - `milestone`: a hero of the account reaches it (level, a boss slain, a crypt tier cleared);
- * - `season`: a season honour of at least `minTier` on any board (5.3).
+ * - `season`: a season honour of at least `minTier` on any board (5.3);
+ * - `exchange`: ticket 6.11, traded at the Forge for Gravewarden's Seals and Abbey silver earned in
+ *   play (`COSMETIC_EXCHANGE` in `exchange.ts` holds the price; never real money).
  */
 export type CosmeticSource =
   | { kind: 'default' }
   | { kind: 'event'; eventId: string }
   | { kind: 'achievement'; achievementId: string }
   | { kind: 'milestone'; milestone: CosmeticMilestone }
-  | { kind: 'season'; minTier: PrestigeTier };
+  | { kind: 'season'; minTier: PrestigeTier }
+  | { kind: 'exchange' };
 
 export interface CosmeticDefinition {
   /** `<kind>.<kebab-case name>`; stored in `cosmetic_unlocks.cosmetic_id`. */
@@ -214,6 +218,42 @@ export const COSMETICS: readonly CosmeticDefinition[] = [
     name: 'Royal',
     description: 'Your title in deep royal purple, for a season’s Champion.',
     source: { kind: 'season', minTier: 'champion' },
+  },
+  // --- 6.11: the Forge's exchange (Seals and Abbey silver; existing art, tinted in code) ---
+  {
+    id: 'title-colour.seal-wax',
+    kind: 'titleColour',
+    name: 'Seal-wax',
+    description: 'Your title in the dark red of the wax the Gravewarden pressed his seals in.',
+    source: { kind: 'exchange' },
+  },
+  {
+    id: 'title-colour.abbey-silver',
+    kind: 'titleColour',
+    name: 'Abbey silver',
+    description: 'Your title in the tarnished silver of the drowned abbey’s treasury.',
+    source: { kind: 'exchange' },
+  },
+  {
+    id: 'banner.silvered-seal',
+    kind: 'banner',
+    name: 'Silvered seal banner',
+    description: 'The crypt’s broken seal again, stitched in abbey-silver thread.',
+    source: { kind: 'exchange' },
+  },
+  {
+    id: 'crest.abbey-silver',
+    kind: 'crest',
+    name: 'Abbey-silver crest',
+    description: 'A riveted rim beaten from drowned-abbey silver, still dull with the water.',
+    source: { kind: 'exchange' },
+  },
+  {
+    id: 'crest.seal-wax',
+    kind: 'crest',
+    name: 'Wax-sealed crest',
+    description: 'A rim dipped in the crypt’s red sealing wax and pressed while warm.',
+    source: { kind: 'exchange' },
   },
 ];
 

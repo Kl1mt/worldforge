@@ -600,3 +600,8 @@
   right: 13%;
   z-index: 1;
 }
+
+/* Ticket 6.11: the exchange's silvered banner reuses the crypt-seal device, tinted (cosmetics.css). */
+.hero-portrait[data-banner-style='banner.silvered-seal'] .hero-portrait__device {
+  filter: grayscale(1) brightness(1.35) contrast(1.1);
+}

@@ -448,6 +448,11 @@ export const itemInstances = pgTable(
     awakening: jsonb('awakening').$type<ItemAwakening>(),
     /** Ticket 6.5b: when the item was awakened; set exactly while `awakening` is. */
     awakenedAt: timestamp('awakened_at', { withTimezone: true }),
+    /**
+     * Ticket 6.11: the engraver's epithet, `<finish>:<engraving id>` (game-core `ENGRAVINGS`,
+     * `parseEngraving`), or null. Cosmetic only: no rule reads it, it travels with the item.
+     */
+    engraving: text('engraving'),
     ...timestamps,
   },
   (t) => [

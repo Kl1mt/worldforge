@@ -1,5 +1,6 @@
 import type {
   AwakeningRefusal,
+  EngravingFinish,
   ItemAwakening,
   ItemBinding,
   ItemBindingReason,
@@ -139,6 +140,8 @@ export interface ItemDto {
   /** Ticket 6.5b: the item's awakening and when it happened (ISO); absent when not awakened. */
   awakening?: ItemAwakening;
   awakenedAt?: string;
+  /** Ticket 6.11: the engraver's epithet (`<finish>:<id>`), cosmetic only; absent when none. */
+  engraving?: string;
 }
 
 export interface InventoryDto {
@@ -371,6 +374,11 @@ export interface ForgeItemDto {
     blockers: ForgeBlockerDto[];
     effectStrength: number;
   } | null;
+  /** Ticket 6.11: the engraver: the current engraving and each finish's price and blockers. */
+  engrave: {
+    current: string | null;
+    finishes: { finish: EngravingFinish; cost: ForgeCostDto; blockers: ForgeBlockerDto[] }[];
+  };
 }
 
 export interface ForgeItemState {
@@ -391,7 +399,8 @@ export type ForgeOutcomeDto =
       upgradePity: number;
     }
   | { action: 'reroll' | 'improve'; affixIndex: number; before: ItemAffix; after: ItemAffix }
-  | { action: 'awaken'; awakened: 'effect' | 'set'; effectStrength: number };
+  | { action: 'awaken'; awakened: 'effect' | 'set'; effectStrength: number }
+  | { action: 'engrave'; engraving: string; previous: string | null };
 
 export interface ForgeActionResult {
   character: Character;
@@ -583,6 +592,55 @@ export const forgeApi = {
     f?: typeof fetch,
   ): Promise<ApiResult<ForgeActionResult>> =>
     apiRequest(`${c(id)}/forge/awaken`, { method: 'POST', body: { itemId }, ...keyed(key) }, f),
+  /** Ticket 6.11: engrave an epithet in seal-wax (Seals) or silver inlay (Abbey silver). */
+  engrave: (
+    id: string,
+    itemId: string,
+    finish: EngravingFinish,
+    engravingId: string,
+    key: string,
+    f?: typeof fetch,
+  ): Promise<ApiResult<ForgeActionResult>> =>
+    apiRequest(
+      `${c(id)}/forge/engrave`,
+      { method: 'POST', body: { itemId, finish, engravingId }, ...keyed(key) },
+      f,
+    ),
+};
+
+/** Ticket 6.11: one offer of the Forge's exchange (a collection-book cosmetic). */
+export interface ExchangeOfferDto {
+  cosmeticId: string;
+  kind: string;
+  name: string;
+  description: string;
+  price: MaterialStackDto[];
+  owned: boolean;
+  blockers: ForgeBlockerDto[];
+}
+
+export interface ExchangeState {
+  characterId: string;
+  materials: MaterialStackDto[];
+  offers: ExchangeOfferDto[];
+}
+
+export interface ExchangeBuyResult extends ExchangeState {
+  bought: string;
+  paid: MaterialStackDto[];
+}
+
+/** Ticket 6.11: the exchange (Seals and Abbey silver for cosmetics; docs/COSMETICS.md). */
+export const exchangeApi = {
+  get: (id: string, o: Signal = {}, f?: typeof fetch): Promise<ApiResult<ExchangeState>> =>
+    apiRequest(`${c(id)}/exchange`, o, f),
+  buy: (
+    id: string,
+    cosmeticId: string,
+    key: string,
+    f?: typeof fetch,
+  ): Promise<ApiResult<ExchangeBuyResult>> =>
+    apiRequest(`${c(id)}/exchange`, { method: 'POST', body: { cosmeticId }, ...keyed(key) }, f),
 };
 
 /** A short sentence for a failed game action (equip, farm, …), branching on the error code. */
@@ -612,6 +670,15 @@ export function describeGameFailure(error: Pick<ApiFailure, 'code'>): string {
       return 'Not enough materials.';
     case 'max_upgrade':
       return 'This item is already at +10.';
+    // Ticket 6.11: the exchange and the engraver.
+    case 'already_owned':
+      return 'Your collection book already holds that one.';
+    case 'unknown_offer':
+      return 'The Forge no longer trades that. The view has been refreshed.';
+    case 'same_engraving':
+      return 'The item already bears that engraving.';
+    case 'unknown_engraving':
+      return 'The engraver doesn’t know those words.';
     case 'improvement_cap':
       return 'This affix has been improved as far as it goes.';
     case 'affix_at_max':

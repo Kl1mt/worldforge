@@ -162,6 +162,17 @@ export function ItemTooltip({
               Permanent.
             </p>
           ) : null}
+          {item.engraving ? (
+            <p
+              className={`tooltip__engraving tooltip__engraving--${item.engraving.finish}`}
+              data-engraving={item.engraving.finish}
+            >
+              <span className="caps">
+                {item.engraving.finish === 'seal' ? 'Pressed in seal-wax' : 'Inlaid in silver'}
+              </span>{' '}
+              “{item.engraving.text}”
+            </p>
+          ) : null}
           {note ? <p className="tooltip__note">{note}</p> : null}
           {item.binding ? (
             <p className={`tooltip__binding tooltip__binding--${item.binding.kind}`}>

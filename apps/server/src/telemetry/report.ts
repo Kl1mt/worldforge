@@ -541,7 +541,8 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
       sumRollups(rows, 'material.in', src('forge_salvage'), 'amount'),
     ],
     // Ticket 6.5b: awakening is a Forge action like the others (a new gold and material sink).
-    ...(['craft', 'upgrade', 'reroll', 'improve', 'awaken'] as const).flatMap(
+    // Ticket 6.11: so is engraving (Seals or Abbey silver, no gold).
+    ...(['craft', 'upgrade', 'reroll', 'improve', 'awaken', 'engrave'] as const).flatMap(
       (action): [string, Promise<number>, number][] => [
         [
           `forge: ${action}s`,
@@ -560,6 +561,17 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
         ],
       ],
     ),
+    // Ticket 6.11: the exchange (collection-book cosmetics for Seals and Abbey silver).
+    [
+      'cosmetics: exchanged',
+      audit('cosmetic.exchange', sql`count(*)`),
+      sumRollups(rows, 'cosmetic.exchange'),
+    ],
+    [
+      'cosmetics: exchange materials',
+      bundle('cosmetic.exchange', sql`a.data->'materials'`),
+      sumRollups(rows, 'material.out', src('cosmetic_exchange'), 'amount'),
+    ],
     [
       'forge: upgrade successes',
       audit('forge.upgrade', sql`count(*)`, sql`(data->>'success')::boolean`),

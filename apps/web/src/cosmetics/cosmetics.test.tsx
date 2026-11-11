@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { CLASS_IDS, COSMETICS, findCosmetic } from '@worldforge/game-core';
-import { appearancePalette } from '../content/appearance';
+import { ART_TINTS, appearancePalette } from '../content/appearance';
 import { HeroPortrait } from '../characters/HeroPortrait';
 import { ShownTitle } from '../social/Prestige';
 import { BannerStyle, CrestMark, CrestRim, HeroLook, titleColourClass } from './Cosmetics';
@@ -55,14 +55,16 @@ describe('palettes (A.13) on every class', () => {
 
 describe('banner and crest art (A.13), and the fallbacks without it', () => {
   it('draws the art of every banner and crest style', () => {
+    // Ticket 6.11: the exchange's styles draw another style's art, tinted (`ART_TINTS`).
+    const art = (id: string) => ART_TINTS[id] ?? id;
     for (const c of COSMETICS.filter((x) => x.kind === 'banner')) {
       const html = renderToStaticMarkup(<BannerStyle id={c.id} scale={2} />);
-      expect(html, c.id).toContain(`/assets/banners/${c.id.slice('banner.'.length)}.png`);
+      expect(html, c.id).toContain(`/assets/banners/${art(c.id).slice('banner.'.length)}.png`);
       expect(html).not.toContain('cosm-banner--plain');
     }
     for (const c of COSMETICS.filter((x) => x.kind === 'crest')) {
       const html = renderToStaticMarkup(<CrestRim id={c.id}>x</CrestRim>);
-      expect(html, c.id).toContain(`/assets/crests/crest-${c.id.slice('crest.'.length)}.png`);
+      expect(html, c.id).toContain(`/assets/crests/crest-${art(c.id).slice('crest.'.length)}.png`);
       expect(html).toContain('width="96"'); // 48 px at ×2
     }
   });
@@ -154,7 +156,8 @@ describe('the book', () => {
         .map((e) => e.id)
         .sort(),
     ).toEqual(['appearance.default', 'banner.harvest-sheaf']);
-    expect(filterEntries(book.entries, 'crest', 'locked')).toHaveLength(4);
+    // Four crests earned in play, two from the exchange (6.11).
+    expect(filterEntries(book.entries, 'crest', 'locked')).toHaveLength(6);
     expect(counts(book.entries)).toEqual({ owned: 2, total: COSMETICS.length });
   });
 
@@ -175,7 +178,7 @@ describe('the book', () => {
       const words = howToEarn(c.source);
       expect(words.length, c.id).toBeGreaterThan(10);
       expect(words).not.toMatch(/undefined|\[object/);
-      expect(sourceLabel(c.source)).toMatch(/^(Default|Event|Deed|Milestone|Season)$/);
+      expect(sourceLabel(c.source)).toMatch(/^(Default|Event|Deed|Milestone|Season|Exchange)$/);
     }
     expect(howToEarn(findCosmetic('appearance.ashen')!.source)).toBe('Bring a hero to level 40.');
     expect(howToEarn(findCosmetic('appearance.midnight')!.source)).toContain('Heroic');

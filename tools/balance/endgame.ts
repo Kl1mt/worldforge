@@ -6,6 +6,9 @@
 //           Void) with its mean and fastest kill. Try boss data without editing it:
 //           TYRANT_SCALE=res,arm HEROIC_SCALE=res,arm (multipliers on resistance and armour),
 //           TYRANT_SHELL=until,multiplier (the slag shell).
+//   sinks:  ticket 6.11, the Seal and Abbey silver flow of a season, before and after the
+//           exchange and the engraver (docs/BALANCE.md "6.11"): Embers and Seals a day from the
+//           Tyrant and the crypt (as `awakening.ts time`), Abbey silver gathered from 17 to 23.
 import * as G from '../../packages/game-core/src/index.ts';
 import { kit, legendarySample, upgraded } from '../../packages/game-core/src/balance/kits.ts';
 import {
@@ -485,5 +488,107 @@ if (mode === 'older') {
       return `${label} ${kpm.toFixed(1)}/min, Tyrant ${pct(b.rate)}% ${b.mean.toFixed(0)}s`;
     });
     console.log(`${c}: ${cells.join(' · ')}`);
+  }
+}
+
+if (mode === 'sinks') {
+  // Ticket 6.11 (docs/BALANCE.md "6.11"). Rates as `awakening.ts time` (Verge Legendaries +10 at
+  // 38, five tries a day at each hoard); the season model is game-core's `sealFlow`.
+  const { legendaryKit } = await import('../../packages/game-core/src/balance/kits.ts');
+  const { buildSlots } = await import('../../packages/game-core/src/balance/builds.ts');
+  const { sealFlow } = await import('../../packages/game-core/src/balance/seal-flow.ts');
+  const { DEFAULT_AWAKENING_SETTINGS } =
+    await import('../../packages/game-core/src/items/awakening.ts');
+  const SEASON = Number(process.env.SEASON_DAYS ?? 56);
+  const N = Number(process.env.TRIES ?? 40);
+  const HOURS_A_DAY = 15;
+  const k = DEFAULT_AWAKENING_SETTINGS.cost;
+  const prices = {
+    awakenSeals: k.gravewardenSeal,
+    awakenEmbers: k.tyrantsEmber,
+    exchange: G.COSMETIC_EXCHANGE.map((o) => ({
+      seals: o.price.gravewardenSeal ?? 0,
+      silver: o.price.abbeySilver ?? 0,
+    })),
+    engraveSeals: G.ENGRAVING_PRICES.seal.gravewardenSeal ?? 0,
+    engraveSilver: G.ENGRAVING_PRICES.silver.abbeySilver ?? 0,
+  };
+  console.log(
+    `## 6.11 sinks: exchange ${prices.exchange.reduce((s, o) => s + o.seals, 0)} Seals + ${prices.exchange.reduce((s, o) => s + o.silver, 0)} silver once; engraving ${prices.engraveSeals} Seals or ${prices.engraveSilver} silver each; season ${SEASON} days`,
+  );
+  // Abbey silver: a dedicated hero farms the Sunken Abbey from 17 to 23 (where the crypt's tier
+  // III and the Pass take over) in Epic gear two levels below; silver is only gathered there.
+  for (const c of G.CLASS_IDS) {
+    const items = upgraded(kit(c, 18, 'epic'), 5);
+    let level = 17;
+    let xp = 0;
+    let hours = 0;
+    let silver = 0;
+    let professions: G.SettleFarmingInput['professions'] = undefined;
+    while (level < 23 && hours < 200) {
+      const r = G.settleFarming({
+        character: { classId: c, level, xp },
+        equipment: items,
+        areaId: 'sunkenAbbey',
+        seed: `b611-silver:${c}:${hours}`,
+        firstCycle: 0,
+        durationMs: 3_600_000,
+        inventoryCount: 0,
+        ...(professions ? { professions } : {}),
+      });
+      level = r.level;
+      xp = r.xp;
+      professions = r.professions;
+      silver += r.materials.abbeySilver ?? 0;
+      hours += 1;
+    }
+    console.log(
+      `${c}: Abbey 17 → 23 in ${hours} h of farming (${(hours / HOURS_A_DAY).toFixed(1)} dedicated days), ${silver} Abbey silver (${(silver / hours).toFixed(1)}/h)`,
+    );
+  }
+  console.log('');
+  console.log(
+    '| class | Embers/day | Seals/day (+ guild 2/week) | before: kit day · spare Seals at kit · at season end | after: kit day · spare Seals at kit (to sinks by then) · season: Seals to sinks · engravings · Seals left · silver left |',
+  );
+  console.log('|---|---|---|---|---|');
+  for (const c of G.CLASS_IDS) {
+    const items = upgraded(legendaryKit(c, 33), 10);
+    const win = (dungeonId: G.DungeonId, tier: G.DungeonTier) => {
+      let w = 0;
+      for (let i = 0; i < N; i++)
+        if (
+          G.simulateDungeonRun({
+            dungeonId,
+            tier,
+            character: { classId: c, level: 38, xp: 0 },
+            equipment: items,
+            seed: `awakening-time:${dungeonId}:${i}`,
+            bossLootEligible: false,
+            inventoryCount: 0,
+          }).bossDefeated
+        )
+          w++;
+      return w / N;
+    };
+    const perDay = (p: number) => 1 - (1 - p) ** 5;
+    const embersPerDay = perDay(win('tyrantsForge', 1));
+    const sealsPerDay = perDay(Math.max(win('namelessCrypt', 4), win('namelessCrypt', 3)));
+    const pieces = buildSlots(c).length;
+    const silverStock = Number(process.env.SILVER ?? 150);
+    const base = {
+      days: SEASON,
+      sealsPerDay,
+      guildSealsPerWeek: 2,
+      embersPerDay,
+      pieces,
+      silverStock,
+      prices,
+    };
+    const before = sealFlow({ ...base, sinks: false });
+    const after = sealFlow({ ...base, sinks: true });
+    const f = (x: number | null) => (x === null ? '—' : x.toFixed(1));
+    console.log(
+      `| ${c} (${pieces}) | ${embersPerDay.toFixed(2)} | ${sealsPerDay.toFixed(2)} + 0.29 | day ${before.kitDay ?? '—'} · ${f(before.spareAtKit)} · ${before.sealsLeft.toFixed(1)} | day ${after.kitDay ?? '—'} · ${f(after.spareAtKit)} (${after.sinkSealsAtKit ?? '—'}) · ${after.sealsToSinks} (${after.exchangeBought} offers) · ${after.engravings} · ${after.sealsLeft.toFixed(1)} · ${after.silverLeft} of ${silverStock} |`,
+    );
   }
 }

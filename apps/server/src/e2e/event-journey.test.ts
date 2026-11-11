@@ -3,7 +3,8 @@
  * owner schedules the Harvest of Bones in the admin panel, a fresh hero joins in the Tavern, farms
  * the Fields until its first task is done and the first reward tier is granted once; the owner ends
  * the event early and nothing earned is lost. Ticket 6.8: the keepsake is then equipped from the
- * collection book (`playCollectionStep`).
+ * collection book (`playCollectionStep`). Ticket 6.11: Seals and Abbey silver spent at the Forge's
+ * exchange and engraver (`playSealSinkStep`).
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
@@ -11,7 +12,7 @@ import { buildApp } from '../app.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
 import type { DatabaseHandle } from '../db/types.js';
 import { createTestDatabase } from '../test/db.js';
-import { playCollectionStep, playEventStep, startJourney } from './journey.js';
+import { playCollectionStep, playEventStep, playSealSinkStep, startJourney } from './journey.js';
 
 let database: DatabaseHandle;
 let app: FastifyInstance;
@@ -50,5 +51,8 @@ describe('journey: a rotating event (Phase 6)', () => {
     // Ticket 6.8: the keepsake in the collection book, equipped.
     const book = await playCollectionStep(hero);
     expect(book.owned).toContain('banner.harvest-sheaf');
+    // Ticket 6.11: the exchange and the engraver.
+    const sinks = await playSealSinkStep(database, hero);
+    expect(sinks.engraving).toBe('silver:oathworn');
   }, 120_000);
 });

@@ -1,0 +1,240 @@
+/* Ticket 6.11: the Forge's engraver and exchange (docs/COSMETICS.md "The exchange and
+   engravings"). Scoped `engrave` / `xcounter` / `xoffer`; wax-red and tarnished-silver accents
+   from the tokens, built on the shop and forge pieces. */
+.engrave {
+  display: grid;
+  grid-template-columns: minmax(200px, 0.7fr) minmax(0, 2fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.engrave__pick {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.engrave__group {
+  color: var(--brass-500);
+}
+
+.engrave .picker__grid {
+  grid-template-columns: repeat(auto-fill, 72px);
+}
+
+.engrave__detail {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--bg-sunken);
+  border-top: 2px solid var(--crimson-500);
+  box-shadow: inset 0 0 0 1px var(--iron-700);
+  min-width: 0;
+}
+
+.engrave__head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.engrave__name,
+.engrave__where,
+.engrave__note,
+.engrave__preview {
+  margin: 0;
+}
+
+.engrave__where,
+.engrave__note {
+  color: var(--bone-300);
+}
+
+.engrave__choice {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+.engrave__choice legend {
+  color: var(--brass-500);
+  margin-bottom: var(--space-1);
+}
+
+.engrave__words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+.engrave__words [aria-checked='true'] {
+  border-color: var(--brass-400);
+  color: var(--brass-300);
+}
+
+.engrave__finishes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-2);
+}
+
+.engrave__finish {
+  display: grid;
+  gap: var(--space-1);
+  justify-items: start;
+  padding: var(--space-2) var(--space-3);
+  background: var(--ink-900);
+  border: 1px solid var(--iron-600);
+  color: var(--text);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.engrave__finish[aria-checked='true'] {
+  border-color: var(--seal-accent);
+  box-shadow: inset 0 0 0 1px var(--seal-accent);
+}
+
+.engrave__finish--seal {
+  --seal-accent: var(--crimson-400);
+}
+
+.engrave__finish--silver {
+  --seal-accent: #b9bfc4;
+}
+
+.engrave__finish:focus-visible {
+  outline: 2px solid var(--brass-300);
+  outline-offset: 2px;
+}
+
+.engrave__finish-name {
+  color: var(--seal-accent);
+  font-family: var(--font-display, inherit);
+}
+
+.engrave__finish-cost {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.engrave__warn {
+  margin: 0;
+  color: var(--bone-200);
+  border-left: 2px solid var(--crimson-500);
+  padding-left: var(--space-2);
+}
+
+.engrave__go {
+  justify-self: start;
+}
+
+/* The exchange counter. */
+.xcounter {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.xcounter__done {
+  margin: 0;
+  color: var(--bone-200);
+}
+
+.xcounter__list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.xoffer {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr);
+  grid-template-rows: 1fr auto;
+  gap: var(--space-2) var(--space-3);
+  padding: var(--space-3);
+  background: var(--bg-sunken);
+  box-shadow: inset 0 0 0 1px var(--iron-700);
+  border-left: 2px solid var(--iron-600);
+}
+
+.xoffer--owned {
+  border-left-color: var(--brass-500);
+}
+
+.xoffer__swatch {
+  display: grid;
+  place-items: center;
+  min-height: 56px;
+  grid-row: span 2;
+}
+
+.xoffer__words {
+  font-family: var(--font-display, inherit);
+  font-size: var(--text-lg, 1.25rem);
+  color: var(--cosm-tint, var(--text));
+}
+
+.xoffer__body {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.xoffer__kind {
+  margin: 0;
+  color: var(--brass-500);
+}
+
+.xoffer__name,
+.xoffer__desc {
+  margin: 0;
+}
+
+.xoffer__desc {
+  color: var(--bone-300);
+  font-size: var(--text-sm);
+}
+
+.xoffer__buy,
+.xoffer__owned {
+  justify-self: start;
+  margin: 0;
+}
+
+.xoffer__owned {
+  color: var(--brass-400);
+}
+
+@media (max-width: 760px) {
+  .engrave {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .engrave__finishes {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .xcounter__list {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.engrave__preview {
+  font-style: italic;
+}
+.engrave__preview .caps {
+  font-style: normal;
+}
+.engrave__preview--seal {
+  color: #c4463c;
+}
+.engrave__preview--silver {
+  color: #b9bfc4;
+}

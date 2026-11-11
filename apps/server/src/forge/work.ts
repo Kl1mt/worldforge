@@ -24,6 +24,12 @@ import {
   type ForgeRefusal,
   type MaterialId,
   type RolledAffix,
+  ENGRAVING_FINISHES,
+  ENGRAVING_PRICES,
+  engravingKey,
+  engravingRefusal,
+  parseEngraving,
+  type EngravingFinish,
 } from '@worldforge/game-core';
 import { characters, itemInstances, type Character, type ItemInstance } from '../db/schema.js';
 import type { Database, Transaction } from '../db/types.js';
@@ -137,6 +143,14 @@ export interface ForgeItemView {
     blockers: ForgeBlocker[];
     effectStrength: number;
   } | null;
+  /**
+   * Ticket 6.11: the engraver (cosmetic only). `current` is the stored `<finish>:<id>` or null;
+   * per finish the price and what is missing (value on hold excluded).
+   */
+  engrave: {
+    current: string | null;
+    finishes: { finish: EngravingFinish; cost: ForgeCostView; blockers: ForgeBlocker[] }[];
+  };
 }
 
 export interface ForgeItemResponse {
@@ -159,7 +173,9 @@ export type ForgeOutcome =
     }
   | { action: 'reroll' | 'improve'; affixIndex: number; before: RolledAffix; after: RolledAffix }
   /** Ticket 6.5b: what the awakening strengthens (the item's own effect, or its set's bonuses). */
-  | { action: 'awaken'; awakened: 'effect' | 'set'; effectStrength: number };
+  | { action: 'awaken'; awakened: 'effect' | 'set'; effectStrength: number }
+  /** Ticket 6.11: the engraving cut, and the one it replaced. */
+  | { action: 'engrave'; engraving: string; previous: string | null };
 
 export interface ForgeActionResponse {
   character: CharacterView;
@@ -189,6 +205,11 @@ export function awakenForgeCost(row: Pick<ItemInstance, 'itemLevel'>): ForgeCost
       soulShard: c.soulShard,
     },
   };
+}
+
+/** Ticket 6.11: an engraving's price as a Forge cost (no gold). */
+export function engraveForgeCost(finish: EngravingFinish): ForgeCost {
+  return { gold: 0, materials: { ...ENGRAVING_PRICES[finish] } };
 }
 
 /** Ticket 6.5b: the row as the awakening rules read it. */
@@ -311,6 +332,21 @@ export function forgeItemView(
           ),
           effectStrength: shippedAwakening().effectStrength,
         },
+    engrave: {
+      current: parseEngraving(row.engraving) ? row.engraving! : null,
+      finishes: ENGRAVING_FINISHES.map((finish) => {
+        const cost = engraveForgeCost(finish);
+        return {
+          finish,
+          cost: costView(cost),
+          blockers: forgeCostBlockers(
+            cost,
+            Math.max(0, gold - onHold.gold),
+            spendableOf(held, onHold.materials),
+          ),
+        };
+      }),
+    },
   };
 }
 
@@ -415,6 +451,17 @@ const affixBodySchema = {
   },
 } as const;
 
+const engraveBodySchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['itemId', 'finish', 'engravingId'],
+  properties: {
+    itemId: { type: 'string', format: 'uuid' },
+    finish: { type: 'string', enum: ['seal', 'silver'] },
+    engravingId: { type: 'string', minLength: 1, maxLength: 32 },
+  },
+} as const;
+
 const costSchema = {
   type: 'object',
   required: ['gold', 'materials'],
@@ -448,6 +495,7 @@ const forgeItemSchema = {
     'reroll',
     'improve',
     'awaken',
+    'engrave',
   ],
   properties: {
     itemId: { type: 'string' },
@@ -562,6 +610,21 @@ const forgeItemSchema = {
         effectStrength: { type: 'number' },
       },
     },
+    engrave: {
+      type: 'object',
+      required: ['current', 'finishes'],
+      properties: {
+        current: { type: ['string', 'null'] },
+        finishes: {
+          type: 'array',
+          items: {
+            type: 'object',
+            required: ['finish', 'cost', 'blockers'],
+            properties: { finish: { type: 'string' }, cost: costSchema, blockers: blockersSchema },
+          },
+        },
+      },
+    },
   },
 } as const;
 
@@ -598,6 +661,8 @@ const forgeActionResponseSchema = {
         before: affixSchema,
         after: affixSchema,
         awakened: { type: 'string' },
+        engraving: { type: 'string' },
+        previous: { type: ['string', 'null'] },
         effectStrength: { type: 'number' },
       },
     },
@@ -607,7 +672,7 @@ const forgeActionResponseSchema = {
   },
 } as const;
 
-type Action = 'upgrade' | 'reroll' | 'improve' | 'awaken';
+type Action = 'upgrade' | 'reroll' | 'improve' | 'awaken' | 'engrave';
 
 interface Applied {
   /** The columns to write besides the counter. */
@@ -621,6 +686,7 @@ interface Applied {
       | 'awakening'
       | 'awakenedAt'
       | 'locked'
+      | 'engraving'
     >
   >;
   outcome: ForgeOutcome;
@@ -722,7 +788,7 @@ export async function registerForgeWork(
             // Ticket 6.5b: the awakening's check leaves out value on hold after a trade, so it
             // names what is missing before anything is paid (the spend itself refuses it anyway).
             const onHold =
-              name === 'awaken'
+              name === 'awaken' || name === 'engrave'
                 ? await heldValueOf(tx, characterId, now)
                 : { gold: 0, materials: {} };
             const blockers = forgeCostBlockers(
@@ -743,8 +809,13 @@ export async function registerForgeWork(
                 ...applied.patch,
                 forgeCounter: sql`${itemInstances.forgeCounter} + 1`,
                 // Ticket T.1: any Forge work binds the item to the account (docs/TRADING.md).
-                binding: 'account',
-                boundAccountId: sql`coalesce(${itemInstances.boundAccountId}, ${accountId}::uuid)`,
+                // Ticket 6.11: an engraving is cosmetic and leaves the binding as it was.
+                ...(name === 'engrave'
+                  ? {}
+                  : {
+                      binding: 'account' as const,
+                      boundAccountId: sql`coalesce(${itemInstances.boundAccountId}, ${accountId}::uuid)`,
+                    }),
               })
               .where(and(eq(itemInstances.id, row.id), eq(itemInstances.forgeCounter, counter)))
               .returning();
@@ -934,4 +1005,38 @@ export async function registerForgeWork(
       }),
     };
   });
+  // Ticket 6.11: the engraver (docs/ECONOMY.md "Seal and silver sinks"). Cosmetic only: an epithet
+  // from game-core's list in seal-wax (Seals) or silver inlay (Abbey silver), shown in the
+  // tooltip; no rule reads it and the item stays as bound as it was. No draw; repeatable (every
+  // engraving pays, the same one twice is refused before paying); value on hold isn't spendable.
+  action<{ itemId: string; finish: EngravingFinish; engravingId: string }>(
+    'engrave',
+    'engrave',
+    engraveBodySchema,
+    (row, _character, { finish, engravingId }) => {
+      const next = { finish, engravingId };
+      const refusal = engravingRefusal(row.engraving, next);
+      if (refusal === 'unknown_engraving') {
+        throw new ApiError(422, 'unknown_engraving', 'The engraver doesn’t know that epithet.', {
+          itemId: row.id,
+        });
+      }
+      if (refusal === 'same_engraving') {
+        throw new ApiError(409, 'same_engraving', 'The item already bears this engraving.', {
+          itemId: row.id,
+        });
+      }
+      const engraving = engravingKey(next);
+      const previous = row.engraving ?? null;
+      return {
+        cost: engraveForgeCost(finish),
+        apply: () => ({
+          patch: { engraving },
+          outcome: { action: 'engrave', engraving, previous },
+          audit: { engraving, previous, finish },
+          telemetry: [row.rarityId, finish],
+        }),
+      };
+    },
+  );
 }

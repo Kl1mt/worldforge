@@ -135,6 +135,22 @@
   text-shadow: 0 0 2px var(--ember-glow);
 }
 
+/* Ticket 6.11: the engraver's words: dark wax red, or tarnished silver. Cosmetic only. */
+.tooltip__engraving {
+  margin: var(--space-1) 0 0;
+  font-style: italic;
+  font-size: var(--text-xs);
+}
+.tooltip__engraving .caps {
+  font-style: normal;
+}
+.tooltip__engraving--seal {
+  color: #c4463c;
+}
+.tooltip__engraving--silver {
+  color: #b9bfc4;
+}
+
 .tooltip[data-awakened='true'] .tooltip__head {
   border-image: repeating-linear-gradient(
       to right,

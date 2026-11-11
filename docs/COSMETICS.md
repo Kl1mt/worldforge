@@ -8,10 +8,11 @@ Code: game-core `packages/game-core/src/cosmetics/` (catalogue, sources, earning
 - Open **Collection book** from the bar at the bottom. Filter by kind (appearances, banners, crests, title colours, titles) and by earned or still to earn. Every page says how it is earned.
 - **Try it on:** the mirror shows the chosen hero with the page's look, banner, crest and title colour, owned or not.
 - **Wear it:** an appearance is chosen per hero; the banner style, crest style and title colour are for the whole account; a title is the one title shown (also under your profile → Season honours).
-- Keepsakes are earned in play, bound to the account, never sold, bought or traded. What was earned before the book opened is already in it.
+- Keepsakes are earned in play, bound to the account, never sold, bought with money or traded. What was earned before the book opened is already in it.
+- **Ticket 6.11:** five more come from the Forge's **Seal and Silver Counter**, traded for Gravewarden's Seals and Abbey silver earned in play (each once per account). The Forge's **Engraver** cuts words into gear (below).
 
 ## The catalogue (game-core `COSMETICS`)
-Each entry: `id` (`<kind>.<name>`, stored in `cosmetic_unlocks`, never renamed or reused), `kind`, `name`, `description` and one `source`. No price, no numbers (a test checks every entry's keys).
+Each entry: `id` (`<kind>.<name>`, stored in `cosmetic_unlocks`, never renamed or reused), `kind`, `name`, `description` and one `source`. No price, no numbers (a test checks every entry's keys); an `exchange` entry's price lives in `cosmetics/exchange.ts`.
 
 | Id | Kind | Source |
 |---|---|---|
@@ -35,6 +36,11 @@ Each entry: `id` (`<kind>.<name>`, stored in `cosmetic_unlocks`, never renamed o
 | `title-colour.verdigris` | title colour | deed: fifty contracts (`contracts50`) |
 | `title-colour.royal` | title colour | season: a Champion honour |
 | `title.reaper-of-the-harvest` | title | event: Harvest of Bones, tier 3 (6.6) |
+| `title-colour.seal-wax` | title colour | exchange: 3 Seals (6.11) |
+| `title-colour.abbey-silver` | title colour | exchange: 25 Abbey silver (6.11) |
+| `banner.silvered-seal` | banner | exchange: 2 Seals + 20 Abbey silver (6.11; the crypt-seal art, silvered) |
+| `crest.abbey-silver` | crest | exchange: 30 Abbey silver (6.11; the iron crest art, silvered) |
+| `crest.seal-wax` | crest | exchange: 4 Seals (6.11; the iron crest art in wax red) |
 
 **Adding one:** append a definition with a source the server already grants (above), list its art for an art ticket, and add words if the source is new. The next deploy's backfill grants it to accounts that already earned it (the backfill id hashes every id and source).
 
@@ -46,6 +52,13 @@ Each entry: `id` (`<kind>.<name>`, stored in `cosmetic_unlocks`, never renamed o
 - **events:** 6.6's `grantTiersTx` (`event:<n>:tier:<t>`, audited `event.reward`).
 - **admin progress tools (D.4b):** set progress, set level, grant XP and grant an item call `refreshAchievements` in their transaction, so deeds and milestones arrive at once with their normal sources; the tool's `admin.*` audit row lists them under `earned`. Clearing a flag or lowering a level takes nothing back.
 Test accounts unlock like anyone (nothing is ranked); D.4's rules apply to everything they touch (counts, telemetry). Nothing a grant does touches a gameplay row.
+
+## The exchange and engravings (ticket 6.11)
+Sinks for the Gravewarden's Seals left over after awakening and for Abbey silver (prices and the economy: `docs/ECONOMY.md` "Seal and silver sinks"; the flow: `BALANCE.md` "6.11").
+- **The exchange** (the Forge's "Seal and Silver Counter"): the catalogue's `exchange`-sourced entries, each with one price in Seals and/or Abbey silver (`COSMETIC_EXCHANGE`). Bought once per account by any hero, from that hero's spendable holdings. The grant is an ordinary one (`grantCosmeticsTx`, source `exchange:<character id>`, audited `cosmetic.grant`) made **before** paying in the same transaction: the unlock's primary key decides a race between two heroes (the loser `409 already_owned`, nothing paid; real-PG test `forge/seal-sinks.pg.test.ts`). The backfill grants nothing from this source. Nothing is taken back, and the entries are worn from the book like any other.
+- **No new art.** The banner and the crests draw A.13's crypt-seal banner and iron crest (`content/appearance.ts` `ART_TINTS`) through a CSS filter on the art (`cosmetics.css`: silver drains the colour and lifts it, wax turns it dark red; the hero portrait's device too); the title colours are CSS like the others. Without art, the plain fallbacks in the style's metal (silver, wax red).
+- **Engravings** (the Forge's "Engraver"): words from a fixed list of twelve (`ENGRAVINGS`; no free text, nothing to moderate) and a finish, **seal-wax** (2 Seals) or **silver inlay** (15 Abbey silver). Stored on the item as `<finish>:<id>` (`item_instances.engraving`, migration `0043_item_engraving`), shown in the item's tooltip ("Pressed in seal-wax “Unbowed”"), read by nothing else. Repeatable: a new engraving replaces the old and pays again; the same one twice is refused. It doesn't bind the item.
+- **Invariance:** `cosmetics/exchange.ts` sits in the cosmetics module, so the import scan covers it; engraving an equipped item and buying every offer leave the hero's 5.1 scores identical (server test and journey).
 
 ## Backfill
 `backfillCosmetics` (`migrate-cli`, after the achievement backfill; `docs/DEPLOY.md` "Data backfills"): for every account, one transaction each, the cosmetics of its achievements, its heroes' milestones and its season honours, sourced `backfill:…`. Once per database and catalogue (`data_backfills` id `cosmetics:<hash>`); a crash half-way leaves no row and the next run finishes (each grant is exactly once). **On live** at the first deploy: every account that already reached a source gets its cosmetics (e.g. every Forgeward contributor the Forgeward banner, every hero past level 40 the Ashen look), nothing is equipped for them, and the Harvest keepsakes they already had become wearable.
@@ -67,13 +80,15 @@ Nothing in game-core's rules imports `cosmetics/` (an import scan); the no-effec
 - `POST /api/account/cosmetics/equip` `{ banner?, crest?, titleColour? }` (at least one; an owned id of that kind or null) → the collection. Needs `Idempotency-Key`. `422 not_owned | wrong_kind | unknown_cosmetic`.
 - `POST /api/characters/:characterId/appearance` `{ appearance }` (owned appearance id, `appearance.default` or null) → the collection. Needs `Idempotency-Key`; `404` for a hero not the account's.
 - Titles: `POST /api/account/prestige { title: null, frame, cosmeticTitle }` (5.3 / 6.6).
+- Ticket 6.11: `GET /api/characters/:characterId/exchange` → `{ characterId, materials, offers: [{ cosmeticId, kind, name, description, price, owned, blockers }] }`; `POST /api/characters/:characterId/exchange` `{ cosmeticId }` (Idempotency-Key) → the same plus `bought`, `paid`. `409 already_owned`, `422 unknown_offer | insufficient_materials`. The engraver: `POST /api/characters/:characterId/forge/engrave` `{ itemId, finish: 'seal' | 'silver', engravingId }` (a Forge action; the Forge item view carries `engrave: { current, finishes }`). Audit `cosmetic.exchange`, `forge.engrave`.
 - `GET /api/account/cosmetics` (6.6) still lists the unlocks.
 - Audit: `cosmetic.grant`, `cosmetic.equip` (`scope: account|hero`).
 
 ## Tests
 - game-core `cosmetics/cosmetics.test.ts`: ids, kinds and sources valid (achievements and events exist, A.13's ids all present), no price or stats, earning rules (achievements, milestones, season tiers), the equip rule.
 - server `cosmetics/cosmetics.test.ts`: each source grants once (refreshes repeated), season honours by tier through `awardSeason`, the backfill (idempotent, forced re-run grants nothing, a crash then resume), equip validation (key required, owned only, kind, unknown, other account's hero, replay, partial changes, audit), the foreign keys, display privacy (rosters with a block, hidden profiles in the arena), invariance (scores and the row unchanged) and the import scan. `cosmetics.pg.test.ts` (real Postgres): heroes racing to the same milestones, live grants racing the backfill, two backfills.
-- Journey: `playCollectionStep` (after the event step in `event-journey.test.ts`).
+- Journey: `playCollectionStep` (after the event step in `event-journey.test.ts`), then `playSealSinkStep` (6.11).
+- Ticket 6.11: game-core `cosmetics/cosmetics.test.ts` (offers, prices, epithets, refusals), `balance/seal-flow.test.ts` (awakening's pace unchanged); server `forge/seal-sinks.test.ts` (prices, hold rule, exactly once, refusals, invariance, reconciliation, test accounts) and `seal-sinks.pg.test.ts`; web `screens/economy/seal-sinks.test.tsx`.
 - web `cosmetics/cosmetics.test.tsx`: palettes for every look and class, own colours until drawn, banner and crest art and the plain fallbacks, title colours on season and cosmetic titles, the book's filters and what is worn, the words.
 
 ## Open points (owner)

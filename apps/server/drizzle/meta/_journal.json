@@ -302,6 +302,13 @@
       "when": 1794399614901,
       "tag": "0042_scale_readiness",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "7",
+      "when": 1794418888757,
+      "tag": "0043_item_engraving",
+      "breakpoints": true
     }
   ]
 }

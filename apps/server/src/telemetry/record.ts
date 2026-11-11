@@ -75,6 +75,9 @@ export const TELEMETRY_METRICS = [
   'event.reward',
   // Ticket 6.7: world era changes (from era, to era), mirroring `world.era_change` audit rows.
   'world.era',
+  // Ticket 6.11: cosmetics bought at the Forge's exchange (kind, cosmetic id); what they cost is
+  // `material.out` source `cosmetic_exchange`.
+  'cosmetic.exchange',
 ] as const;
 export type TelemetryMetric = (typeof TELEMETRY_METRICS)[number];
 

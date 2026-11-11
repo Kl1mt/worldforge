@@ -67,6 +67,7 @@ import type { DatabaseHandle } from '../db/types.js';
 import { setAccountRole } from '../social/roles.js';
 import { loadRollups, reconcileWithAudit, sumRollups } from '../telemetry/report.js';
 import { setTestAccount } from '../admin/test-accounts.js';
+import { giveMaterials } from '../test/trading.js';
 import { advanceStage, completeProject } from '../community/project-cli.js';
 import type { WarehouseMoveResponse, WarehouseView } from '../warehouse/routes.js';
 import type { ShelfMoveResponse, ShelfView } from '../shelf/routes.js';
@@ -731,11 +732,14 @@ async function replayHoldings(
         addMaterials(d.materials, -1);
         break;
       // Ticket 3.4 (checked since 3.9): upgrades, rerolls and improvements spend gold and materials;
-      // ticket 6.5b (checked since 6.10): so does an awakening (gold, Embers, Seals and shards).
+      // ticket 6.5b (checked since 6.10): so does an awakening (gold, Embers, Seals and shards);
+      // ticket 6.11: an engraving and the exchange spend Seals or Abbey silver (gold 0).
       case 'forge.upgrade':
       case 'forge.reroll':
       case 'forge.improve':
       case 'forge.awaken':
+      case 'forge.engrave':
+      case 'cosmetic.exchange':
         gold -= d.gold!;
         addMaterials(d.materials, -1);
         break;
@@ -4482,4 +4486,86 @@ export async function playCollectionStep(hero: Journey) {
   // Cosmetics carry no power.
   expect(await scores()).toEqual(before);
   return { owned };
+}
+
+/**
+ * Ticket 6.11: the Seal and Abbey silver sinks at the Forge (docs/COSMETICS.md "The exchange and
+ * engravings"). The hero is given Seals and silver (a measured seeding, like the Phase 6 journeys),
+ * buys one Seal and one silver offer at the exchange (a replay pays nothing, a second purchase is
+ * refused), wears the bought crest, engraves an item in seal-wax and re-engraves it in silver
+ * (each pays), and nothing anyone's scores read moves; the holdings and telemetry reconcile.
+ */
+export async function playSealSinkStep(database: DatabaseHandle, hero: Journey) {
+  const scores = async () => {
+    const r = await hero.api('GET', `${hero.base}/scores`);
+    expect(r.statusCode, r.body).toBe(200);
+    return r.json();
+  };
+  // Settle what is farmed up to now (the clock stands still in this step), so the scores before
+  // and after read the same experience: only the sinks could move them.
+  const settled = await hero.api('POST', `${hero.base}/activity/settle`);
+  expect([200, 409], settled.body).toContain(settled.statusCode);
+  const before = await scores();
+  // A measured seeding (the test helper; the hold guard keeps material writes out of src).
+  await giveMaterials(database.db, hero.characterId, { gravewardenSeal: 9, abbeySilver: 40 });
+  const baseline = await holdingsBaseline(database, hero.characterId);
+  const held = async (m: MaterialId) =>
+    (
+      await database.db
+        .select()
+        .from(characterMaterials)
+        .where(
+          and(
+            eq(characterMaterials.characterId, hero.characterId),
+            eq(characterMaterials.materialId, m),
+          ),
+        )
+    )[0]?.quantity ?? 0;
+  const startSeals = await held('gravewardenSeal');
+  const startSilver = await held('abbeySilver');
+
+  type Offers = { offers: { cosmeticId: string; owned: boolean; blockers: unknown[] }[] };
+  const shop = await hero.api('GET', `${hero.base}/exchange`);
+  expect(shop.statusCode, shop.body).toBe(200);
+  expect(shop.json<Offers>().offers.map((o) => o.cosmeticId)).toContain('crest.seal-wax');
+  const key = randomUUID();
+  const bought = await hero.keyed(`${hero.base}/exchange`, { cosmeticId: 'crest.seal-wax' }, key);
+  expect(bought.statusCode, bought.body).toBe(200);
+  const replay = await hero.keyed(`${hero.base}/exchange`, { cosmeticId: 'crest.seal-wax' }, key);
+  expect(replay.headers['idempotency-replayed']).toBe('true');
+  const twice = await hero.keyed(`${hero.base}/exchange`, { cosmeticId: 'crest.seal-wax' });
+  expect(twice.statusCode).toBe(409);
+  const silver = await hero.keyed(`${hero.base}/exchange`, {
+    cosmeticId: 'title-colour.abbey-silver',
+  });
+  expect(silver.statusCode, silver.body).toBe(200);
+  const worn = await hero.keyed('/api/account/cosmetics/equip', { crest: 'crest.seal-wax' });
+  expect(worn.statusCode, worn.body).toBe(200);
+
+  const inv = await hero.api('GET', `${hero.base}/inventory`);
+  expect(inv.statusCode, inv.body).toBe(200);
+  const view = inv.json<InventoryView>();
+  const target = view.equipped[0] ?? view.inventory[0];
+  expect(target, 'an item to engrave').toBeDefined();
+  const sealed = await hero.keyed(`${hero.base}/forge/engrave`, {
+    itemId: target!.id,
+    finish: 'seal',
+    engravingId: 'oathworn',
+  });
+  expect(sealed.statusCode, sealed.body).toBe(200);
+  const inlaid = await hero.keyed(`${hero.base}/forge/engrave`, {
+    itemId: target!.id,
+    finish: 'silver',
+    engravingId: 'oathworn',
+  });
+  expect(inlaid.statusCode, inlaid.body).toBe(200);
+  expect(inlaid.json<{ item: ItemView }>().item.engraving).toBe('silver:oathworn');
+  // 4 Seals (the crest) + 2 (the seal-wax engraving); 25 silver (the colour) + 15 (the inlay).
+  expect(await held('gravewardenSeal')).toBe(startSeals - 6);
+  expect(await held('abbeySilver')).toBe(startSilver - 40);
+  expect(await scores()).toEqual(before);
+  await expectHoldingsMatchAudit(database, hero.characterId, baseline);
+  const checks = await reconcileWithAudit(database.db);
+  expect(checks.filter((c) => !c.ok)).toEqual([]);
+  return { bought: ['crest.seal-wax', 'title-colour.abbey-silver'], engraving: 'silver:oathworn' };
 }

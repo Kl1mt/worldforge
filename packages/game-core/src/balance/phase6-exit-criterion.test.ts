@@ -6,7 +6,9 @@ import {
   BOSS_MODIFIER_IDS,
   CLASS_IDS,
   COMMUNITY_PROJECTS,
+  COSMETIC_EXCHANGE,
   DEFAULT_AWAKENING_SETTINGS,
+  ENGRAVING_PRICES,
   DEFAULT_ECONOMY_CONFIG,
   DUNGEONS,
   FORGE_RECIPES,
@@ -156,13 +158,29 @@ function sinksOf(m: MaterialId) {
   if (econ.essence.materialId === m) repeatable.push('forge:essence');
   const cost: Partial<Record<string, number>> = { ...DEFAULT_AWAKENING_SETTINGS.cost };
   if ((cost[m] ?? 0) > 0) repeatable.push('awakening');
+  // Ticket 6.11: the engraver (repeatable: every engraving pays) and the exchange (once each).
+  if (Object.values(ENGRAVING_PRICES).some((p) => (p as Record<string, number>)[m])) {
+    repeatable.push('engraving');
+  }
   const oneOff = COMMUNITY_PROJECTS.filter((p) =>
     p.stages.some((s) => s.needs.some((n) => n.resource === m)),
   ).map((p) => `project:${p.id}`);
+  if (COSMETIC_EXCHANGE.some((o) => (o.price as Record<string, number>)[m])) {
+    oneOff.push('exchange');
+  }
   return { repeatable, oneOff };
 }
-/** The Phase 6 sinks: the Tyrant's recipe, the Forge on tier-4 (Cinderwastes) items, awakening. */
-const PHASE6_SINKS = ['recipe:tyrantforgedWork', 'forge:tier-4', 'forge:essence', 'awakening'];
+/**
+ * The Phase 6 sinks: the Tyrant's recipe, the Forge on tier-4 (Cinderwastes) items, awakening, the
+ * engraver (6.11).
+ */
+const PHASE6_SINKS = [
+  'recipe:tyrantforgedWork',
+  'forge:tier-4',
+  'forge:essence',
+  'awakening',
+  'engraving',
+];
 
 /* --- The endgame's best builds (sections 1 and 2) -------------------------------------------- */
 
@@ -285,18 +303,26 @@ describe('Phase 6 exit 1: older content stays relevant (ticket 6.10)', () => {
     const older = MATERIAL_IDS.filter((m) => !PHASE6_MATERIALS.includes(m));
     const scan = Object.fromEntries(older.map((m) => [m, sinksOf(m)]));
     const label = JSON.stringify(scan);
-    // Every older material but Abbey silver has a repeatable sink; Abbey silver's only sinks are
-    // community stages (the Ashen Pass and, from Phase 6, the Forgeward Outpost): a known gap,
-    // recorded in docs/BALANCE.md, not changed here.
+    // Every older material has a repeatable sink. Until 6.11 Abbey silver's only sinks were
+    // community stages (the Ashen Pass and the Forgeward Outpost); the engraver closes the gap.
     const noRepeatable = older.filter((m) => scan[m]!.repeatable.length === 0);
-    expect(noRepeatable, label).toEqual(['abbeySilver']);
+    expect(noRepeatable, label).toEqual([]);
+    expect(scan.abbeySilver!.repeatable, label).toEqual(['engraving']);
     expect(scan.abbeySilver!.oneOff, label).toContain('project:forgewardOutpost');
+    expect(scan.abbeySilver!.oneOff, label).toContain('exchange');
+    expect(scan.gravewardenSeal!.repeatable, label).toEqual(['awakening', 'engraving']);
     // The endgame's own sinks spend older materials: ore and shards (the Tyrantforged Work, the
-    // Forge on tier-4 items), soul shards and Gravewarden Seals (awakening).
+    // Forge on tier-4 items), soul shards and Gravewarden Seals (awakening), Seals and Abbey
+    // silver (the engraver, 6.11).
     const spentByPhase6 = older.filter((m) =>
       scan[m]!.repeatable.some((s) => PHASE6_SINKS.includes(s)),
     );
-    expect(spentByPhase6, label).toEqual(['ironOre', 'soulShard', 'gravewardenSeal']);
+    expect([...spentByPhase6].sort(), label).toEqual([
+      'abbeySilver',
+      'gravewardenSeal',
+      'ironOre',
+      'soulShard',
+    ]);
   });
 
   it(
@@ -306,12 +332,12 @@ describe('Phase 6 exit 1: older content stays relevant (ticket 6.10)', () => {
       const crypt = DUNGEONS.find((d) => d.id === 'namelessCrypt')!;
       expect(crypt.bossDrops).toContain('gravewardenSeal');
       expect(sinksOf('gravewardenSeal').repeatable).toContain('awakening');
-      // Every older area's gathered and dropped materials have a repeatable sink, Abbey silver
-      // aside (the Abbey's ore does): no older area yields only dead materials.
+      // Every older area's gathered and dropped materials have a repeatable sink (Abbey silver
+      // since 6.11's engraver): no older area yields a dead material.
       for (const area of AREAS.filter((a) => !PHASE6_TABLES.includes(a.id))) {
         const used = area.materials.filter((m) => sinksOf(m).repeatable.length > 0);
         expect(used.length, area.id).toBeGreaterThan(0);
-        for (const m of area.materials) if (m !== 'abbeySilver') expect(used, area.id).toContain(m);
+        for (const m of area.materials) expect(used, area.id).toContain(m);
       }
       // The set pieces of the endgame's best builds (B.5 item 10 farming; the Tyrant's below) all
       // drop from older tables (the Abbey, the crypt's tiers I–III, the Pass, their bosses).

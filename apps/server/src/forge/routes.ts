@@ -48,6 +48,7 @@ import {
 import { changeMaterialsTx, loadMaterialBundle } from '../materials/store.js';
 import { idempotentTransaction } from '../idempotency/index.js';
 import { registerForgeWork } from './work.js';
+import { registerCosmeticExchange } from '../cosmetics/exchange.js';
 import { itemBindingColumns } from '../inventory/columns.js';
 import {
   changeGold,
@@ -224,6 +225,8 @@ export async function registerForge(
   const capacity = activity.rules.inventory.capacity;
   // Ticket 3.4: upgrades, rerolls and affix improvement (`./work.ts`).
   await registerForgeWork(app, activity);
+  // Ticket 6.11: the exchange (Seals and Abbey silver for collection-book cosmetics).
+  await registerCosmeticExchange(app, activity);
 
   app.get<{ Params: { characterId: string } }>(
     '/characters/:characterId/forge',
