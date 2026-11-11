@@ -7,7 +7,7 @@ The balance passes (B-tickets) record their method, before/after tables and deci
 - B.3 (top end, social economy): `docs/ECONOMY.md`, `docs/COMMUNITY.md`, `docs/DUNGEONS.md`.
 - B.4 (competitive systems): `docs/LEADERBOARDS.md`, `docs/PVP.md` "Balance pass: competitive systems".
 - **B.5 (endgame, Phase 6): below.** Owner decisions on its questions: **B.5b** at the end of the section.
-- **Phase 6 exit criterion (ticket 6.10): at the end.** A record, not a pass: nothing changes.
+- **Phase 6 exit criterion (ticket 6.10): at the end.** A record, not a pass: nothing changes. **Ticket 8.1** extends it to the Hollow Reach (its own section below).
 
 ## B.5: the endgame (Phase 6)
 
@@ -309,3 +309,21 @@ With only 40 silver (`SILVER=40`, a player who gave most of it to the town): the
 - **Abbey silver** has a repeatable sink again (15 a silver inlay) and 75 in the exchange; a dedicated hero's Abbey stock lasts the exchange and a kit's worth of inlays.
 - **Regular and casual players** reach the kit later (48–54 and 96–108 days, B.5); the reserve rule is the same for them, so the sinks never slow their awakening either.
 - **Unchanged:** no gameplay number moved. No rule reads an engraving or an exchanged cosmetic (the cosmetics import scan covers `cosmetics/exchange.ts`); the no-effects hashes, the curve pins, Gear Score, Power, PvE Progress and the duel rules are unchanged (no version), and the server tests assert that engraving and buying every offer leave a hero's 5.1 scores identical.
+
+## 8.1: the Hollow Reach and the Phase 6 exit criterion
+Ticket 8.1 adds Region III's first area, the Pale Marches (40–46, `docs/WORLD.md`), tuned against today's best gear. **No value at or below level 40 moved** (`balance/curve-pins-8-1.test.ts`, hashes computed on `main` before 8.1; the no-effects hashes, 6.1's and 6.2's pins and every earlier balance suite pass unchanged). New numbers, all new content (before → after):
+
+| | Before 8.1 | After |
+|---|---|---|
+| Top area | the Cinder Depths, 34–40 | the Pale Marches, 40–46 (tier-5 drops 41–47) |
+| Top item tier · affix tier | 4 (from 29) · 5 (from 31, base ≥ 30) | 5 (from 41) · 6 (from 43, base ≥ 42) |
+| XP soft cap (a level takes > 40 h) | about 48 | about 54 (no constant changed) |
+| Power · PvE Progress | 2 (22 trials) · 4 (18 milestones) | 3 (24 trials) · 5 (21), between seasons |
+| 30+ 90 %+ / 95 %+ favourites (heroes to the top level) | 4.0 % / 0.7 % (to 40) | 3.7 % / 1.2 % (to 46) |
+
+**The Phase 6 exit criterion, extended** (`phase6-exit-criterion.test.ts` "Phase 6 exit, extended"): Phase 6 content stays relevant in the Hollow Reach.
+- **Phase 6 gear farms the new area.** The best Depths build per class (the file's own search, +10 Void, item level 39), plain and awakened, farms the Marches at 40 with no deaths (and none at 46): 14.5–18.1 kills a minute, 0.88–0.93 × its Depths pace, XP × 1.09–1.14 and gold × 1.17–1.21 the Depths' at 40. The plain Depths and Heroic Legendaries +10 do the same at 6.5–10 kills a minute (`pale-marches-balance.test.ts`, `docs/COMBAT.md` "The Hollow Reach").
+- **Phase 6 drops keep their uses.** A tier-4 Legendary salvages to 12 iron ore and 3 soul shards; the tier-5 Forge spends both (4 ore a unit), and the Marches drop both, so every Pass, Verge and Depths drop's salvage and +10 path stays live. The Tyrant's Ember keeps its sink (Tyrantforged Work). No new material and no new recipe.
+- **Its own drops are worth chasing:** the Marches' plain Legendaries +5 (item level 45) kill 1.10–1.32 × as fast at 46 as the same kits at 39 (four kits each), without a new power curve beyond the tier step.
+
+**Open points:** at the area's top (46) a plain item-level-39 kit without class effects can begin to fall (the tool's mage sample: about 7 deaths an hour), the intended gear check before 8.2's second area. Live telemetry (B.6) should confirm the entry pace and the soft cap with real players.

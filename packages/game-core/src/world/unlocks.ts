@@ -16,6 +16,10 @@ export interface UnlockRule {
   /** Ticket 6.1: the Ashen Warden must have fallen to this character (the Cinderwastes). */
   ashenWardenDefeated?: boolean;
   /**
+   * Ticket 8.1: the Forge Tyrant must have fallen to this character (Region III, the Hollow Reach).
+   */
+  forgeTyrantDefeated?: boolean;
+  /**
    * Ticket 4.6: a global world flag (set by a completed community project) must be set. Read from
    * `UnlockCharacter.world`; without it the place stays closed (the safe default).
    */
@@ -47,8 +51,9 @@ export interface WorldProgress {
    */
   ashenWardenDefeated?: boolean;
   /**
-   * Ticket 6.2: the Forge Tyrant (the Tyrant's Forge) has fallen to this character. Gates nothing
-   * yet (PvE Progress counts it); absent on characters that never fought him.
+   * Ticket 6.2: the Forge Tyrant (the Tyrant's Forge) has fallen to this character. Since ticket
+   * 8.1 it opens the Hollow Reach (PvE Progress counts it too); absent on characters that never
+   * fought him.
    */
   forgeTyrantDefeated?: boolean;
 }
@@ -67,6 +72,8 @@ export type UnlockBlocker =
   | { kind: 'cryptTier'; tier: number }
   /** Ticket 6.1: slay the Ashen Warden first. */
   | { kind: 'ashenWardenDefeated' }
+  /** Ticket 8.1: slay the Forge Tyrant first. */
+  | { kind: 'forgeTyrantDefeated' }
   /** Ticket 4.6: a community project must complete first (it sets this flag). */
   | { kind: 'worldFlag'; flag: WorldFlagId };
 
@@ -89,6 +96,9 @@ export function unlockBlockers(
   }
   if (rule.ashenWardenDefeated && progress.ashenWardenDefeated !== true) {
     blockers.push({ kind: 'ashenWardenDefeated' });
+  }
+  if (rule.forgeTyrantDefeated && progress.forgeTyrantDefeated !== true) {
+    blockers.push({ kind: 'forgeTyrantDefeated' });
   }
   if (rule.worldFlag !== undefined && character.world?.[rule.worldFlag] !== true) {
     blockers.push({ kind: 'worldFlag', flag: rule.worldFlag });

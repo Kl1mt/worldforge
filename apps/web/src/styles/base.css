@@ -106,6 +106,12 @@ a {
     contrast(1.22);
 }
 
+/* Ticket 8.1: a stand-in for Hollow Reach art still to be drawn (A.17): the nearest sprite, bled
+   pale and cold, the fire gone out of it; no blur (crisp pixels). */
+.pixel--tint-hollow {
+  filter: grayscale(0.8) sepia(0.15) hue-rotate(170deg) brightness(1.08) contrast(1.15);
+}
+
 /* A frame sheet (ticket A.14): a one-frame window; the strip inside slides by whole frames. */
 .pixel-sheet {
   display: block;

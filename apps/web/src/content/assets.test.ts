@@ -13,6 +13,7 @@ import {
 } from '@worldforge/game-core';
 import {
   ART_STAND_INS,
+  HOLLOW_STAND_INS,
   BANNER_STYLE_IDS,
   CREST_STYLE_IDS,
   CREST_STYLE_WINDOW,
@@ -146,6 +147,64 @@ describe('Cinderwastes art (tickets 6.1, A.11, A.15)', () => {
       expect(Object.hasOwn(ASSETS, target), `${id} → ${target}`).toBe(true);
       expect(Object.hasOwn(ASSETS, id), `${id} is drawn now: remove its stand-in`).toBe(false);
       expect(findSprite(id)!.tint, id).toBe('cinder');
+    }
+  });
+});
+
+describe('Hollow Reach art (ticket 8.1, A.17)', () => {
+  // The names 8.1 builds on and A.17 draws (its contact sheet; each lands under `ASSETS`).
+  const NAMES = [
+    'area.hollow-reach',
+    'enemy.hollow-knight',
+    'enemy.reach-stalker',
+    'enemy.pale-choir',
+    'enemy.husk-titan',
+  ];
+
+  it('uses exactly A.17’s names for the Pale Marches and its foes', () => {
+    const marches = getArea('paleMarches');
+    expect([marches.assetId, ...marches.enemies.map((e) => getEnemy(e.enemyId).assetId)]).toEqual(
+      NAMES,
+    );
+  });
+
+  it('resolves every name, drawn or not: its own art, else a pale stand-in with frames', () => {
+    for (const id of NAMES) {
+      const sprite = findSprite(id)!;
+      expect(sprite, id).not.toBeNull();
+      if (Object.hasOwn(ASSETS, id)) {
+        expect(sprite.tint, id).toBeUndefined();
+        expect(Object.hasOwn(HOLLOW_STAND_INS, id), `${id} is drawn now: remove its stand-in`).toBe(
+          false,
+        );
+        continue;
+      }
+      expect(sprite.tint, id).toBe('hollow');
+      expect(sprite.path, id).toBe(ASSETS[HOLLOW_STAND_INS[id]!].path);
+      if (id.startsWith('enemy.')) {
+        // The stand-in kin has attack frames, so the scene animates the foe until A.17's land.
+        expect(enemyAttackSheet(id), id).toMatchObject({ frames: 8, tint: 'hollow' });
+      }
+    }
+    for (const target of Object.values(HOLLOW_STAND_INS))
+      expect(Object.hasOwn(ASSETS, target), target).toBe(true);
+  });
+
+  it('gives every tier-5 base an icon: A.17’s own once drawn, else its tier-4 counterpart', () => {
+    const tier5 = ITEM_BASES.filter((b) => b.tier === 5);
+    expect(tier5).toHaveLength(10);
+    const tier4 = ITEM_BASES.filter((b) => b.tier === 4);
+    for (const base of tier5) {
+      expect(base.icon, base.id).toBe(`item.${base.id}`);
+      const sprite = findSprite(base.icon)!;
+      expect(sprite, base.id).toMatchObject({ width: 32, height: 32 });
+      if (Object.hasOwn(ASSETS, base.icon)) {
+        expect(sprite.tint, base.id).toBeUndefined();
+        continue;
+      }
+      expect(sprite.tint, base.id).toBe('hollow');
+      const counterpart = tier4.find((b) => findSprite(b.icon)?.path === sprite.path);
+      expect(counterpart?.slot, base.id).toBe(base.slot);
     }
   });
 });

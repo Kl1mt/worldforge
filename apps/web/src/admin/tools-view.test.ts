@@ -126,7 +126,13 @@ describe('admin inspector helpers (ticket D.4)', () => {
       gravewardenDefeated: true,
       cryptTierCleared: 3,
       ashenWardenDefeated: true,
+      forgeTyrantDefeated: true,
     });
     expect(done.every((p) => p.missing.length === 0)).toBe(true);
+    // Ticket 8.1: the Pale Marches wait for the Forge Tyrant.
+    const noTyrant = unlockSummary(60, { gravewardenDefeated: true, ashenWardenDefeated: true });
+    expect(noTyrant.find((p) => p.id === 'paleMarches')!.missing).toEqual([
+      'needs the Forge Tyrant defeated',
+    ]);
   });
 });

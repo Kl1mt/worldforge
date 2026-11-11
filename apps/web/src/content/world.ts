@@ -52,6 +52,8 @@ export const MAP_MARKERS: readonly MapMarker[] = [
   // Ticket 6.2: the Depths and the Tyrant's Forge beside them, under the Pass.
   { id: 'cinderDepths', x: 34, y: 70 },
   { id: 'tyrantsForge', x: 122, y: 70 },
+  // Ticket 8.1: the Hollow Reach past the furnace, on the map's west edge below the Depths.
+  { id: 'paleMarches', x: 18, y: 120 },
 ];
 
 export function mapMarker(id: MapPlaceId): MapMarker | null {

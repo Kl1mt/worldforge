@@ -72,7 +72,7 @@ An uncommon offer costs twice the common one (15–30 min). Recipes now take ~0.
 ## Forge work: upgrades, rerolls, affix improvement (ticket 3.4)
 GDD §8.1, §8.3. Rules and numbers in `packages/game-core/src/economy/forgeActions.ts` (`DEFAULT_FORGE_ACTION_CONFIG`) and `items/model.ts` (`UPGRADE_IMPLICIT_BONUS`); the server (`apps/server/src/forge/work.ts`) applies them. Works on worn and packed items alike.
 
-**Costs.** Every action costs gold plus the item's own **tier materials** (the salvage table's units: tier 1 timber, tier 2 raw hide + timber, tier 3 two iron ore per unit, tier 4 three since ticket 6.1) and soul shards. Everything scales with the item level by `(itemLevel + 5) / 25` (× 1 at item level 20, × 0.4 at 5), so cheap gear is cheap to work. Upgrades and sell/salvage prices are independent: an upgraded item sells and salvages for the same as at +0 (the investment is a sink, not a deposit).
+**Costs.** Every action costs gold plus the item's own **tier materials** (the salvage table's units: tier 1 timber, tier 2 raw hide + timber, tier 3 two iron ore per unit, tier 4 three since ticket 6.1, tier 5 four since ticket 8.1) and soul shards. Everything scales with the item level by `(itemLevel + 5) / 25` (× 1 at item level 20, × 0.4 at 5), so cheap gear is cheap to work. Upgrades and sell/salvage prices are independent: an upgraded item sells and salvages for the same as at +0 (the investment is a sink, not a deposit).
 
 **Upgrades +0 → +10.** Raise the item's implicit (base) stats only: cumulative +4, 8, 12, 16, 21, 26, 31, 37, 43, **50 %** at +10. Affixes and effects are untouched. A failure costs that attempt's gold and materials, **never** destroys or downgrades the item, and adds one to the pity; when the pity reaches the step's threshold the next attempt cannot fail; a success resets it.
 
@@ -335,3 +335,9 @@ Exchange in all: 9 Seals and 75 silver. No gold (gold has its sinks). Two Seals 
 | mage, hunter, warlock (8) | day 24–25 · 14.9–16.1 | day 24–25 · 1.1–3.9 | 15 / 150 |
 
 The kit day is the same with and without the sinks (they take only Seals above the reserve). Abbey silver: a dedicated hero gathers about 200 levelling through the Abbey (17 → 23) and none later; with 150 left after the town works the exchange and a kit's silver inlays use it up, and with 40 the Seal side carries the engravings. After the kit, the engraver keeps taking Seals (2 an engraving) for every new piece.
+
+## The Hollow Reach (ticket 8.1)
+- **Kill gold:** the Pale Marches' table × 3.9 (the Depths × 3): today's best gear earns × 1.12–1.22 the Depths' gold an hour at 40 (4,000–5,500; the best builds 7,100–8,500), `docs/COMBAT.md` "The Hollow Reach".
+- **Salvage and the Forge:** tier 5 salvages to 4 iron ore a unit (tier 4: 3), plus the usual essence (soul shards); its upgrades, rerolls and improvements spend the same. The Marches drop iron ore (8 %) and soul shards (3 %, the knights and the choir), so every Phase 6 drop's salvage and Forge path stays live (`phase6-exit-criterion.test.ts`).
+- **No new material:** none would have a real sink yet; the Tyrant's Ember keeps its sink (Tyrantforged Work, tier 4, item level ≤ 41). Ticket 8.2's region boss material gets one.
+- **Merchant:** two Marches offers a day for every hero who has the area open, tier 5 at item level 41–46 (F.7's floor stocks a level-40 roll at 41); prices follow the usual rule.

@@ -227,6 +227,8 @@ export function blockerText(b: UnlockBlocker): string {
       return `needs crypt tier ${['I', 'II', 'III'][b.tier - 1] ?? b.tier} cleared`;
     case 'ashenWardenDefeated':
       return 'needs the Ashen Warden defeated';
+    case 'forgeTyrantDefeated':
+      return 'needs the Forge Tyrant defeated';
     case 'worldFlag':
       return `needs the world flag “${isWorldFlagId(b.flag) ? getWorldFlag(b.flag).opens : b.flag}”`;
   }

@@ -1282,7 +1282,7 @@ GDD §15 Phase 7 exit, §16.3.
 7. B.6
 8. 8.7
 
-### 8.1 Region III, part 1: the Hollow Reach, levels 40–46 (vertical) — `todo`
+### 8.1 Region III, part 1: the Hollow Reach, levels 40–46 (vertical) — `done (PR #141)`
 Like 6.1. Read `docs/WORLD.md`, `docs/COMBAT.md`, `docs/LOOT.md`, `docs/LEADERBOARDS.md`, `docs/PVP.md`, 6.1/6.2 as built.
 - The first area at levels 40–46:
   - new enemies (art from A.17);
@@ -1292,6 +1292,7 @@ Like 6.1. Read `docs/WORLD.md`, `docs/COMBAT.md`, `docs/LOOT.md`, `docs/LEADERBO
 - PvP reference kits for the new top end, with the 30+ bands kept (B.5's duel-Power matchmaking).
 - A level-40 hero in today's best gear farms it profitably, and Phase 6 drops keep their uses.
 - Patch notes `0.8.0`.
+- Done: the Pale Marches (`paleMarches`, region the Hollow Reach, 40–46; unlock level 40 + the Forge Tyrant, `forgeTyrantDefeated`; no world flag: 8.2's gate is for later places). Foes `hollowKnight`/`reachStalker`/`paleChoir`/`huskTitan` on A.17's names (pale stand-ins until its art lands, `HOLLOW_STAND_INS`), each with one fight trait (`EnemyTraits`: armour pierce, crit evasion, skill guard, crit guard; build-time numbers, no draws). Ten tier-5 bases from item level 41, table 41–47 with gold × 3.9, affix tier 6 from 43 (never below 42). No value ≤ 40 moved (`curve-pins-8-1.test.ts`); soft cap ~53–54. Today's best gear (Depths/Heroic Legendaries +10, awakened or not, best Depths builds) farms it with no deaths at 40, XP × 1.07–1.14, gold × 1.12–1.22 the Depths'. Power 3 (+ trials 42, 46) and PvE Progress 5 (21 milestones), between seasons; no Gear Score version. PvP unchanged (rules 2, bracket Power 3, matchmaking 4); 30+ to 46 measures 3.7 / 1.2 %. No migration. Version 0.8.0. Details: `docs/WORLD.md`, `COMBAT.md` "The Hollow Reach", `LOOT.md`, `LEADERBOARDS.md`, `PVP.md`, `BALANCE.md`.
 
 ### A.17 Hollow Reach art — `done (PR #140)`
 Like A.11. Two area backdrops, 4–6 enemies, a region boss, and 8-frame attack sheets for the common enemies (A.14b's pipeline). Tier-5 item icons like A.15. Budget: about 5–7 PixelLab jobs plus one regeneration, reporting the credit drop. **Acceptance:** contact sheets.

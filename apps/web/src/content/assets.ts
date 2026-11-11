@@ -13,9 +13,10 @@ export interface SpriteAsset {
   /**
    * Drawn tinted: `cinder`, a stand-in for art still to be made (`ART_STAND_INS`, ticket 6.1);
    * `ember`, a forge-tempered variant of existing art (`ART_VARIANTS`, ticket 6.2); `heroic`, the
-   * Heroic crypt's treatment of its own art (`heroicSprite`, ticket 6.3).
+   * Heroic crypt's treatment of its own art (`heroicSprite`, ticket 6.3); `hollow`, a stand-in for
+   * Hollow Reach art still to be made (`HOLLOW_STAND_INS`, ticket 8.1).
    */
-  tint?: 'cinder' | 'ember' | 'heroic';
+  tint?: 'cinder' | 'ember' | 'heroic' | 'hollow';
   /**
    * Ticket A.14: a frame sheet. The file is one row of `frames` frames, each `width` × `height`
    * (so the PNG is `frames × width` wide); `PixelSprite` shows one frame at a time.
@@ -410,18 +411,55 @@ export const ART_VARIANTS: Readonly<Record<string, AssetId>> = {
   'material.tyrants-ember': 'material.soul-shard',
 };
 
+/**
+ * Ticket 8.1: the Hollow Reach's names (art ticket A.17, drawn in parallel), shown until their art
+ * lands as the closest existing sprite with a pale, hollow tint (`pixel--tint-hollow`). The foes
+ * stand in as kin with attack frames, so the scene animates them the same way. Registered art
+ * always wins, so each entry turns itself off once A.17 registers its name; remove it then.
+ */
+export const HOLLOW_STAND_INS: Readonly<Record<string, AssetId>> = {
+  'area.hollow-reach': 'area.cinderwastes',
+  'enemy.hollow-knight': 'enemy.fallen-knight',
+  'enemy.hollow-knight-attack': 'enemy.fallen-knight-attack',
+  'enemy.reach-stalker': 'enemy.wolf',
+  'enemy.reach-stalker-attack': 'enemy.wolf-attack',
+  'enemy.pale-choir': 'enemy.pyre-cultist',
+  'enemy.pale-choir-attack': 'enemy.pyre-cultist-attack',
+  'enemy.husk-titan': 'enemy.ash-colossus',
+  'enemy.husk-titan-attack': 'enemy.ash-colossus-attack',
+  // The tier-5 icons (game-core `ITEM_BASES[].icon`) as their tier-4 counterparts.
+  'item.hollowsteel-greatblade': 'item.cinderforged-blade',
+  'item.pale-choir-stave': 'item.emberheart-scepter',
+  'item.reachstalker-longbow': 'item.slagbone-bow',
+  'item.hollow-aegis': 'item.obsidian-bulwark',
+  'item.hollowknight-helm': 'item.revenant-visage',
+  'item.titanhusk-cuirass': 'item.ashplate-hauberk',
+  'item.palebone-gauntlets': 'item.slagiron-gauntlets',
+  'item.reachwalker-sabatons': 'item.cinderstride-greaves',
+  'item.requiem-locket': 'item.ember-reliquary',
+  'item.hollow-signet': 'item.wispfire-band',
+};
+
 /** One sprite object per variant (callers may compare sprites by identity). */
 const VARIANT_SPRITES: ReadonlyMap<string, SpriteAsset> = new Map(
   Object.entries(ART_VARIANTS).map(([id, target]) => [id, { ...ASSETS[target], tint: 'ember' }]),
 );
+const HOLLOW_SPRITES: ReadonlyMap<string, SpriteAsset> = new Map(
+  Object.entries(HOLLOW_STAND_INS).map(([id, target]) => [
+    id,
+    { ...ASSETS[target], tint: 'hollow' },
+  ]),
+);
 
 /**
  * A registered sprite by a content asset id; else its ember variant (`ART_VARIANTS`, ticket 6.2);
- * else its tinted stand-in (`ART_STAND_INS`); else `null` when the art does not exist (yet).
+ * else its Hollow Reach stand-in (`HOLLOW_STAND_INS`, ticket 8.1); else its tinted stand-in
+ * (`ART_STAND_INS`); else `null` when the art does not exist (yet).
  */
 export function findSprite(id: string): SpriteAsset | null {
   if (Object.hasOwn(ASSETS, id)) return ASSETS[id as AssetId];
   if (Object.hasOwn(ART_VARIANTS, id)) return VARIANT_SPRITES.get(id)!;
+  if (Object.hasOwn(HOLLOW_STAND_INS, id)) return HOLLOW_SPRITES.get(id)!;
   const standIn = Object.hasOwn(ART_STAND_INS, id) ? ART_STAND_INS[id] : undefined;
   return standIn ? { ...ASSETS[standIn], tint: 'cinder' } : null;
 }

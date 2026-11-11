@@ -18,13 +18,17 @@ export const FORMULA_VERSIONS: FormulaVersions = {
   level: 1,
   /** 2 (ticket B.4): equal scores are ordered by magic quality (`sortKey` [total, quality]). */
   gearScore: 2,
-  /** 2 (ticket 6.1): trials at levels 30 and 34 added (22 trials). */
-  power: 2,
+  /**
+   * 2 (ticket 6.1): trials at levels 30 and 34 added (22 trials). 3 (ticket 8.1): trials at 42 and
+   * 46, the Pale Marches (24).
+   */
+  power: 3,
   /**
    * 2 (ticket 6.1): the Cinderwastes' three milestones added (13). 3 (ticket 6.2): the Cinder
    * Depths and the Forge Tyrant, four more (17). 4 (ticket 6.3): the Heroic crypt cleared (18).
+   * 5 (ticket 8.1): the Pale Marches' three milestones (21).
    */
-  pveProgress: 4,
+  pveProgress: 5,
 };
 
 /**
@@ -42,8 +46,8 @@ export const FORMULA_BASELINE: FormulaVersions = {
 export const SUPPORTED_FORMULA_VERSIONS: Readonly<Record<ScoreMetric, readonly number[]>> = {
   level: [1],
   gearScore: [2],
-  power: [1, 2],
-  pveProgress: [1, 2, 3, 4],
+  power: [1, 2, 3],
+  pveProgress: [1, 2, 3, 4, 5],
 };
 
 /** One line of a score's breakdown: what counted, how much, and why (or why not). */

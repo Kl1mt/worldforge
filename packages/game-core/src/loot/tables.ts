@@ -53,6 +53,8 @@ export const PRISMATIC_TABLE_IDS = [
   'forgeTyrant',
   'namelessCryptIV',
   'gravewardenIV',
+  // Ticket 8.1: the Hollow Reach.
+  'paleMarches',
 ] as const;
 
 /**
@@ -261,6 +263,22 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
     itemDropChance: 0.06,
     itemLevel: { min: 35, max: 41 },
     entries: tierEntries({ 4: 1 }),
+  },
+  // Ticket 8.1: the Pale Marches (the Hollow Reach, levels 40–46). Tier-5 bases only, item levels
+  // 41–47 (tier-6 affixes from 43, never below 42), the late-game odds and the Depths' affix bias;
+  // gold × 3.9 (its foes take longer to kill than the Depths').
+  {
+    id: 'paleMarches',
+    affixTierBias: 1,
+    goldMultiplier: 3.9,
+    mythics: true,
+    setShare: SET_SHARE,
+    legendaryWeight: LEGENDARY_WEIGHT,
+    voidChance: VOID_CHANCE,
+    prismaticChance: PRISMATIC_CHANCE,
+    itemDropChance: 0.06,
+    itemLevel: { min: 41, max: 47 },
+    entries: tierEntries({ 5: 1 }),
   },
 ];
 
