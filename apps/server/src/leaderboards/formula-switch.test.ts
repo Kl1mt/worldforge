@@ -322,7 +322,10 @@ describe('formula versions between seasons (ticket 6.1)', () => {
             .select()
             .from(leaderboardEntries)
             .where(
-              and(eq(leaderboardEntries.characterId, hero.id), eq(leaderboardEntries.metric, metric)),
+              and(
+                eq(leaderboardEntries.characterId, hero.id),
+                eq(leaderboardEntries.metric, metric),
+              ),
             )
         )[0]!;
       // During season 3 the season's versions stand: 17 of 18, 22 trials.

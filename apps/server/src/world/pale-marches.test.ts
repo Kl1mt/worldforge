@@ -150,7 +150,9 @@ describe('the Pale Marches (ticket 8.1)', () => {
     // Level 40 rolls item level 40 for an offer about one time in seven, where the Marches have no
     // base (tier 5 starts at 41): F.7's floor stocks it at 41. Every hero, every day, in every
     // outcome: both offers, tier 5, between 41 and the area's top.
-    const heroes = await Promise.all([40, 40, 40, 43, 46].map((level) => hero(level, TYRANT_SLAYER)));
+    const heroes = await Promise.all(
+      [40, 40, 40, 43, 46].map((level) => hero(level, TYRANT_SLAYER)),
+    );
     for (let day = 0; day < 4; day++) {
       for (const p of heroes) {
         const offers = await marchesOffers(p);

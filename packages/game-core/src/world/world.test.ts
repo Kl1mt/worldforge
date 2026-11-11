@@ -637,16 +637,21 @@ describe('unlock rules', () => {
     for (const progress of [NO_PROGRESS, warden, tyrant]) {
       for (const level of [39, 40, 46]) {
         expect(
-          areaUnlockBlockers('paleMarches', { level, world: all as typeof NO_WORLD_FLAGS }, progress),
+          areaUnlockBlockers(
+            'paleMarches',
+            { level, world: all as typeof NO_WORLD_FLAGS },
+            progress,
+          ),
         ).toEqual(areaUnlockBlockers('paleMarches', { level }, progress));
       }
     }
     // The Tyrant opens nothing else: every other place reads the same with and without him.
     for (const id of AREA_IDS.filter((x) => x !== 'paleMarches')) {
       for (const level of [1, 28, 40, 60]) {
-        expect(areaUnlockBlockers(id, { level, world: all as typeof NO_WORLD_FLAGS }, tyrant), id).toEqual(
-          areaUnlockBlockers(id, { level, world: all as typeof NO_WORLD_FLAGS }, warden),
-        );
+        expect(
+          areaUnlockBlockers(id, { level, world: all as typeof NO_WORLD_FLAGS }, tyrant),
+          id,
+        ).toEqual(areaUnlockBlockers(id, { level, world: all as typeof NO_WORLD_FLAGS }, warden));
       }
     }
   });

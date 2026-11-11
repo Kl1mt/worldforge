@@ -68,8 +68,7 @@ function plainKit(
 ): G.EquippedItem[] {
   const rng = G.createRng(`pm-kit:${c}:${itemLevel}:${rarityId}:${maxTier}`);
   const bases = G.ITEM_BASES.filter(
-    (b) =>
-      !b.unique && b.tier <= maxTier && b.minItemLevel <= itemLevel && G.canClassUseItem(b, c),
+    (b) => !b.unique && b.tier <= maxTier && b.minItemLevel <= itemLevel && G.canClassUseItem(b, c),
   ).sort((a, b) => b.tier - a.tier || b.minItemLevel - a.minItemLevel);
   const taken = new Set<string>();
   const out: G.EquippedItem[] = [];

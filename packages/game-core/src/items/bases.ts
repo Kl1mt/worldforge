@@ -988,9 +988,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     classes: ['warrior'],
     tier: 5,
     minItemLevel: 41,
-    stats: [
-      { stat: 'physicalDamage', base: 19, perLevel: 2.42 },
-    ],
+    stats: [{ stat: 'physicalDamage', base: 19, perLevel: 2.42 }],
   },
   {
     id: 'pale-choir-stave',
@@ -1000,9 +998,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     classes: ['mage', 'warlock'],
     tier: 5,
     minItemLevel: 41,
-    stats: [
-      { stat: 'magicDamage', base: 18, perLevel: 2.42 },
-    ],
+    stats: [{ stat: 'magicDamage', base: 18, perLevel: 2.42 }],
   },
   {
     id: 'reachstalker-longbow',
@@ -1012,9 +1008,7 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
     classes: ['hunter'],
     tier: 5,
     minItemLevel: 41,
-    stats: [
-      { stat: 'physicalDamage', base: 18, perLevel: 2.37 },
-    ],
+    stats: [{ stat: 'physicalDamage', base: 18, perLevel: 2.37 }],
   },
   {
     id: 'hollow-aegis',

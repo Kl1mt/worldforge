@@ -111,14 +111,13 @@ const KIT_SAMPLES = 4;
  */
 function sampleKit(c: ClassId, itemLevel: number, sample: number): GeneratedItem[] {
   const rng = createRng(`pm-sample:${c}:${itemLevel}:${sample}`);
-  return kit(c, itemLevel, 'legendary').map(
-    (item) =>
-      generateItem({
-        seed: rng.int(0, 2 ** 31),
-        itemLevel,
-        baseId: item.baseId,
-        rarityId: 'legendary',
-      })!,
+  return kit(c, itemLevel, 'legendary').map((item) =>
+    generateItem({
+      seed: rng.int(0, 2 ** 31),
+      itemLevel,
+      baseId: item.baseId,
+      rarityId: 'legendary',
+    })!,
   );
 }
 
@@ -145,24 +144,28 @@ describe('the Pale Marches (ticket 8.1)', () => {
     }
   });
 
-  it('pays more XP and gold an hour than the Depths’ top with the same gear: a step up', SLOW, () => {
-    for (const [name, make] of Object.entries(TODAY)) {
-      for (const c of CLASS_IDS) {
-        const items = make(c);
-        const depths = farm(c, 40, 'cinderDepths', name, items);
-        const entry = farm(c, 40, 'paleMarches', name, items);
-        const label = `${name} ${c}`;
-        // Measured: XP × 1.07–1.14, gold × 1.12–1.22, pace 0.86–0.92, damage share × 1.19–1.34.
-        expect(entry.xpPerHour / depths.xpPerHour, label).toBeGreaterThan(1.03);
-        expect(entry.goldPerHour / depths.goldPerHour, label).toBeGreaterThan(1.05);
-        expect(entry.goldPerHour, label).toBeLessThan(7_000);
-        const pace = entry.killsPerMin / depths.killsPerMin;
-        expect(pace, label).toBeGreaterThan(0.75);
-        expect(pace, label).toBeLessThan(0.96);
-        expect(entry.damageShare, label).toBeGreaterThan(depths.damageShare * 1.1);
+  it(
+    'pays more XP and gold an hour than the Depths’ top with the same gear: a step up',
+    SLOW,
+    () => {
+      for (const [name, make] of Object.entries(TODAY)) {
+        for (const c of CLASS_IDS) {
+          const items = make(c);
+          const depths = farm(c, 40, 'cinderDepths', name, items);
+          const entry = farm(c, 40, 'paleMarches', name, items);
+          const label = `${name} ${c}`;
+          // Measured: XP × 1.07–1.14, gold × 1.12–1.22, pace 0.86–0.92, damage share × 1.19–1.34.
+          expect(entry.xpPerHour / depths.xpPerHour, label).toBeGreaterThan(1.03);
+          expect(entry.goldPerHour / depths.goldPerHour, label).toBeGreaterThan(1.05);
+          expect(entry.goldPerHour, label).toBeLessThan(7_000);
+          const pace = entry.killsPerMin / depths.killsPerMin;
+          expect(pace, label).toBeGreaterThan(0.75);
+          expect(pace, label).toBeLessThan(0.96);
+          expect(entry.damageShare, label).toBeGreaterThan(depths.damageShare * 1.1);
+        }
       }
-    }
-  });
+    },
+  );
 
   it('its own tier-5 drops are worth chasing; the Depths’ rares fall here', SLOW, () => {
     for (const c of CLASS_IDS) {
@@ -208,7 +211,12 @@ describe('the Pale Marches (ticket 8.1)', () => {
     expect(maxTier(43)).toBe(6);
     // Every tier-5 base beats its tier-4 counterpart at the same item level by about a tenth.
     const t4 = ['cinderforged-blade', 'emberheart-scepter', 'slagbone-bow', 'obsidian-bulwark'];
-    const t5 = ['hollowsteel-greatblade', 'pale-choir-stave', 'reachstalker-longbow', 'hollow-aegis'];
+    const t5 = [
+      'hollowsteel-greatblade',
+      'pale-choir-stave',
+      'reachstalker-longbow',
+      'hollow-aegis',
+    ];
     for (const [i, id] of t5.entries()) {
       const a = getItemBase(id).stats[0]!;
       const b = getItemBase(t4[i]!).stats[0]!;
@@ -223,7 +231,11 @@ describe('the Pale Marches (ticket 8.1)', () => {
     // The Pass's, the Verge's and the Depths' drops salvage to the ore the Marches yield, and
     // their whole +10 Forge path prices in materials the Marches drop (no new material).
     for (const c of CLASS_IDS) {
-      for (const item of [...kit(c, 27, 'legendary'), ...kit(c, 33, 'legendary'), ...kit(c, 39, 'legendary')]) {
+      for (const item of [
+        ...kit(c, 27, 'legendary'),
+        ...kit(c, 33, 'legendary'),
+        ...kit(c, 39, 'legendary'),
+      ]) {
         const y = salvageYield(item);
         expect(y.gold, item.baseId).toBeGreaterThan(0);
         expect(y.materials.ironOre ?? 0, item.baseId).toBeGreaterThan(0);

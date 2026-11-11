@@ -287,7 +287,8 @@ export function buildEncounter(
   const traits = enemy.traits;
   const pierce = traits?.defensePierce ?? 0;
   const playerDefense =
-    (enemy.damageType === 'physical' ? stats.armor : stats.resistance) * (pierce > 0 ? 1 - pierce : 1);
+    (enemy.damageType === 'physical' ? stats.armor : stats.resistance) *
+    (pierce > 0 ? 1 - pierce : 1);
   const taken = e.damage * (1 - mitigation(playerDefense, enemyLevel, config));
 
   const critDamage =
@@ -306,9 +307,7 @@ export function buildEncounter(
 
   const fullSkill = skillDef.damageMultiplier * (1 + bonusOf(modifiers?.skillDamage));
   const skillMultiplier =
-    traits?.skillGuard !== undefined
-      ? 1 + (fullSkill - 1) * (1 - traits.skillGuard)
-      : fullSkill;
+    traits?.skillGuard !== undefined ? 1 + (fullSkill - 1) * (1 - traits.skillGuard) : fullSkill;
   // Bloodrush (ticket 3.2): each stack adds attack speed for this fight.
   const momentum = fx && fx.bloodrush.perStack > 0 ? Math.max(0, context?.momentum ?? 0) : 0;
   const attackSpeed =

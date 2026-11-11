@@ -550,7 +550,9 @@ describe('Phase 6 exit, extended: Phase 6 content stays relevant in the Hollow R
     const t4 = ITEM_BASES.find((b) => b.tier === 4 && !b.unique)!;
     const y = salvageYield({ baseId: t4.id, rarityId: 'legendary', itemLevel: 39 });
     expect(y.materials).toEqual({ ironOre: 12, soulShard: 3 });
-    expect(sinksOf('ironOre').repeatable).toEqual(expect.arrayContaining(['forge:tier-4', 'forge:tier-5']));
+    expect(sinksOf('ironOre').repeatable).toEqual(
+      expect.arrayContaining(['forge:tier-4', 'forge:tier-5']),
+    );
     expect(sinksOf('soulShard').repeatable).toContain('forge:essence');
     const marches = AREAS.find((a) => a.id === 'paleMarches')!;
     expect([...marches.materials].sort()).toEqual(['ironOre', 'soulShard']);

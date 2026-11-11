@@ -94,7 +94,14 @@ export const MATERIALS: readonly MaterialDefinition[] = [
     rarity: 'uncommon',
     source: 'gathering',
     profession: 'mining',
-    areas: ['blackwater', 'sunkenAbbey', 'ashenPass', 'ashfallVerge', 'cinderDepths', 'paleMarches'],
+    areas: [
+      'blackwater',
+      'sunkenAbbey',
+      'ashenPass',
+      'ashfallVerge',
+      'cinderDepths',
+      'paleMarches',
+    ],
   },
   {
     id: 'soulShard',
