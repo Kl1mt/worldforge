@@ -250,6 +250,15 @@ Under D.3's `/api/admin` scope: the not-found `404` for everyone but admins (bef
 
 Lock order of every write: the shelf lock and the target account row (`for no key update`) when needed, the admin's row (`for share`), the hero (`lockOwnedCharacter`, settling first), its items. Deletion also runs T.5's and T.7's seams (docs/TRADING.md "Hero deletion").
 
+## Readiness (ticket 8.6)
+Under D.3's `/api/admin` scope (the not-found `404` for everyone but admins, `no-store`); `docs/GOING_LIVE.md` is the owner's checklist behind it.
+
+| Route | Body / answer |
+|---|---|
+| `GET /admin/readiness` | `{ items: [{ id, title, status: done \| attention \| not_set, summary, facts: [{ label, value }], links: [{ kind: tab \| doc, … }] }], privacy: { checklist, version, updatedAt }, testLetter: { available }, generatedAt }`. Read-only; audited `admin.view` `{ section: 'readiness' }`. Serialised from a closed schema (`additionalProperties: false`), so nothing but these fields leaves the server: never an SMTP host, user, password or sender, never a legal file's text, never a path. |
+| `PUT /admin/readiness/privacy` | `Idempotency-Key`; `{ expectedVersion, ticked: [ids] }` (ids of the checklist only) → the board. `game_settings` key `readiness.privacy`; a stale version is `409 settings_conflict`; an unchanged list writes nothing; audited `admin.readiness.privacy` `{ key, version, before, after }`. |
+| `POST /admin/readiness/test-letter` | `{ to }` → `{ outcome: sent \| failed, code, at }` (`code`: the provider's code on a failure, never its text). `400 validation_failed` for something that is not an address shape, `503 email_unavailable` without mail, `429 rate_limited` (`limit: test_letter`, 3 an hour per admin). **The address is stored and logged nowhere:** the audit row `admin.readiness.test_letter` holds `{ outcome, code, transport }`, telemetry `mail.send` `[test_letter, outcome]`, the log only the provider's code; the route takes no `Idempotency-Key` (its record would hash the address), so a repeated click sends another letter within the limit. |
+
 ## Events (ticket 6.6)
 `GET /api/events`, `GET /api/characters/:id/event`, `POST /api/characters/:id/event/join` (repeat-safe by state: `201` once, then `200`; it settles the hero first), `GET /api/account/cosmetics`; admin `GET|POST /api/admin/events`, `POST /api/admin/events/:n/end`, `POST /api/admin/events/:n/cancel` (D.3's `404` for non-admins). Plan refusals: `409 event_plan_refused` with `details.problem`. `POST /api/account/prestige` takes an optional `cosmeticTitle`. Details in `docs/EVENTS.md`.
 

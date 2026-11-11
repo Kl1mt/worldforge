@@ -8,6 +8,7 @@ import { isMaterialId } from '../world/materials.js';
 import {
   DEFAULT_ECONOMY_CONFIG,
   FORGE_RECIPES,
+  areaStock,
   buyPrice,
   craftBlockers,
   craftItem,
@@ -73,6 +74,36 @@ describe('merchant stock', () => {
         expect(validateItem(offer.item)).toEqual([]);
         expect(offer.price).toBe(buyPrice(offer.item));
         expect(parseOfferId(offer.offerId)).toMatchObject({ day: params.day, areaId: area.id });
+      }
+    }
+  });
+
+  it('stocks every area in full for every hero and day (F.7: the Verge rolled item level 28, below its first base)', () => {
+    // Characters and days are fixed, so this is deterministic; before F.7 about 1 Verge stock in 4
+    // came up short (and 1 in 50 empty), every other area never.
+    for (let n = 0; n < 300; n++) {
+      const characterId = `0190f000-0000-7000-8000-${n.toString(16).padStart(12, '0')}`;
+      const day = `2026-11-${String((n % 28) + 1).padStart(2, '0')}`;
+      for (const classId of CLASS_IDS) {
+        for (const areaId of AREA_IDS) {
+          const stock = areaStock(characterId, classId, day, areaId);
+          expect(
+            stock.map((o) => o.offerId),
+            `${areaId} ${classId} ${characterId} ${day}`,
+          ).toEqual(
+            Array.from(
+              { length: DEFAULT_ECONOMY_CONFIG.merchant.offersPerArea },
+              (_, i) => `${day}.${areaId}.${i}`,
+            ),
+          );
+          const area = getArea(areaId);
+          for (const offer of stock) {
+            expect(offer.item.itemLevel).toBeGreaterThanOrEqual(area.minLevel);
+            expect(offer.item.itemLevel).toBeLessThanOrEqual(area.maxLevel);
+            expect(canClassUseItem(getItemBase(offer.item.baseId), classId)).toBe(true);
+            expect(validateItem(offer.item)).toEqual([]);
+          }
+        }
       }
     }
   });

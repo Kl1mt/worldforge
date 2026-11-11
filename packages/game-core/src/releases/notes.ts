@@ -23,11 +23,11 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.6.18';
+export const GAME_VERSION = '0.6.19';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
   {
-    version: '0.6.18',
+    version: '0.6.19',
     date: '2026-11-16',
     title: 'Wax and silver',
     new: [
@@ -38,6 +38,15 @@ export const PATCH_NOTES: readonly PatchNote[] = [
       'The Forge warns you when seal-wax would spend Seals your items still need to be awakened.',
     ],
     tickets: ['6.11'],
+  },
+  {
+    version: '0.6.18',
+    date: '2026-11-15',
+    title: 'A full stall at the Verge',
+    fixed: [
+      'The merchant now always has two Ashfall Verge items for you each day. On some days it had only one, or none at all.',
+    ],
+    tickets: ['F.7'],
   },
   {
     version: '0.6.17',

@@ -276,6 +276,7 @@ Signed in as an admin, the footer has an **Admin panel** link (`/#/admin`, ticke
 - **Seasons:** the current and next season with their dates and counts, past seasons; schedule or re-plan the next season, move a season's end (extend or shorten), or end the current season early. The same rules as `deploy/admin.sh seasons`.
 - **Trading:** every trading switch and weekly limit (ticket T.2, `docs/TRADING.md` "Admin switches"), each with what it controls and what switching it off does to players, the limits with their hard maxima, the suggested launch order, and the change history (who, when, old and new value). At launch the master switch is off, so nothing can be traded until you turn it on. Change switches and numbers, then **Save changes**; a number over its hard maximum can't be saved. If another admin saved in between, you're told to reload instead of overwriting their change. A save takes effect on the server at once (with several instances, within a minute), without a deploy. Moderators see the same board read-only at the bottom of the moderator queue.
 - **Trades** (ticket T.6): the trade history (everyone, one player or a pair), each trade's case with both sides in full and its audit trail, the reversal of a completed trade within 14 days (all or nothing, with a reason both players read and an optional sanction), and the trade pattern report. Moderators have the same desk on the docket.
+- **Readiness** (ticket 8.6): the going-live checklist (`docs/GOING_LIVE.md`) at a glance, read-only: email, the privacy policy, reserved names, test accounts, Season 1, the first event, the trading launch step, the last backup, the deployed version and the `SHARED_STATE` mode, each done / needs attention / not set, with a link to the tab or the doc that changes it. Two actions: **Send test letter** (to an address you type, which is stored and logged nowhere; 3 an hour) and the ticks of what your privacy policy mentions (stored and audited). It never shows an SMTP setting, your legal text or a file path.
 - **Roles:** who is moderator or admin. Granting and revoking stay on the server (`deploy/admin.sh grant|revoke`): there is deliberately no button, so a stolen admin session cannot create admins.
 
 Everything there is audited on your account. To other players and moderators `/api/admin/*` does not exist (`404`); the trading settings' read view (`/api/mod/settings/trading`) is open to moderators, read-only.
@@ -344,7 +345,7 @@ Since ticket 5.7 the server sends a few letters: the link that verifies a player
    - `MAIL_FROM`: the sender, e.g. `Worldforge <no-reply@play.example.com>`, on the verified domain;
    - `PUBLIC_BASE_URL` only if players open the game somewhere other than `https://$DOMAIN` (the default).
 4. `deploy/deploy.sh`. The log shows `email is set up` and, a moment later, `SMTP connection and login ok`, or `SMTP check failed` with the error code (wrong host, port or password). A half-finished configuration (`SMTP_HOST` without `MAIL_FROM`, a user without a password) stops the server at start with a clear message, and `deploy.sh` rolls back.
-5. Test: register a throwaway account with your own address, or use "Forgot your password?" on your account; the letter should arrive within a minute. If not, check the provider's activity log and the server log (`docker compose logs server | grep mail`).
+5. Test: in the admin panel's **Readiness** tab, **Send test letter** to your own address (ticket 8.6; the address is stored nowhere), or register a throwaway account with your own address, or use "Forgot your password?" on your account; the letter should arrive within a minute. If not, check the provider's activity log and the server log (`docker compose logs server | grep mail`).
 
 Letters are sent after the request finishes, so a slow provider never slows the game; failures are logged (without addresses) and counted in telemetry (`mail.send`). Links point to `PUBLIC_BASE_URL` and carry their token after `#`, so it never appears in Caddy's or Cloudflare's logs. **Privacy policy:** once you send letters, mention them in `deploy/legal/datenschutz.md`: verification and reset emails, the provider as a processor (sign its DPA), and that the address is used only for the account.
 
@@ -367,6 +368,8 @@ ls -lh ~/worldforge/deploy/backups/daily/
 ```
 
 (If you prefer cron, `crontab -e` with `40 3 * * * /home/deploy/worldforge/deploy/backup.sh >> /home/deploy/worldforge-backup.log 2>&1` does the same.)
+
+**Backup status for the admin panel** (ticket 8.6): after every good dump `backup.sh` writes `deploy/status/backup.json` with the time and the size only (`{"finishedAt":"…Z","bytes":…}`, mode 644), and the server reads it through a read-only mount (`./status:/app/status:ro`, `BACKUP_STATUS_FILE`) for the Readiness tab, which marks a backup older than 36 hours. `deploy.sh` creates `deploy/status/` (as your user, so Docker never creates it as root); the dumps themselves are never mounted into the server.
 
 **Copy backups off the VPS.** A backup that lives only on the server is gone when the server is. At least weekly, pull them to another machine. On your computer:
 
@@ -481,6 +484,9 @@ The tunnel keeps the IP out of DNS and off the web ports. Don't give it away els
 - If the IP has leaked anyway (e.g. an old `A` record existed), the clean fix is a new IP from the hosting provider. Then restore the latest backup on a fresh server, or ask the provider to swap the address.
 
 ## 16. Before going public
+
+The step-by-step version, with how to check each step, is **`docs/GOING_LIVE.md`**; the admin panel's Readiness tab shows where you are.
+
 
 Worldforge is ready to run for a **small, invited group**. Before you advertise it:
 

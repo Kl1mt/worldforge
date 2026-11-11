@@ -98,6 +98,10 @@ if ((backup)) && service_running db; then
   "$DEPLOY_DIR/backup.sh" --kind pre-deploy >/dev/null
 fi
 
+# Ticket 8.6: the server mounts deploy/status/ read-only (backup.sh's status file). Created here,
+# as this user, so Docker never creates it owned by root.
+mkdir -p "$DEPLOY_DIR/status" && chmod 755 "$DEPLOY_DIR/status"
+
 # --- 4. Migrate (one transaction; a failure leaves the database as it was) -------------------
 compose up -d --wait db
 log "applying migrations"

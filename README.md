@@ -22,4 +22,4 @@ Found a security problem? Please report it privately as described in [`SECURITY.
 
 ## For the project owner
 
-Development setup, scripts and CI: [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md). Local playtest: [`docs/PLAYTEST.md`](docs/PLAYTEST.md). Production server: [`docs/DEPLOY.md`](docs/DEPLOY.md). Design and plan: [`docs/GDD.md`](docs/GDD.md), [`docs/ROADMAP.md`](docs/ROADMAP.md).
+Development setup, scripts and CI: [`docs/DEVELOPMENT.md`](docs/DEVELOPMENT.md). Local playtest: [`docs/PLAYTEST.md`](docs/PLAYTEST.md). Production server: [`docs/DEPLOY.md`](docs/DEPLOY.md); before inviting players: [`docs/GOING_LIVE.md`](docs/GOING_LIVE.md). Design and plan: [`docs/GDD.md`](docs/GDD.md), [`docs/ROADMAP.md`](docs/ROADMAP.md).

@@ -225,6 +225,20 @@ export const adminApi = {
       body: { reason },
       headers: { 'Idempotency-Key': key },
     }),
+  /** Ticket 8.6: the going-live readiness board (read-only). */
+  readiness: (signal?: AbortSignal) => get<ReadinessReport>('/admin/readiness', signal),
+  savePrivacyTicks: (expectedVersion: number, ticked: string[], key: string) =>
+    apiRequest<ReadinessReport>('/admin/readiness/privacy', {
+      method: 'PUT',
+      body: { expectedVersion, ticked },
+      headers: { 'Idempotency-Key': key },
+    }),
+  /** The address is sent once and never stored; the answer never repeats it. */
+  sendTestLetter: (to: string) =>
+    apiRequest<{ outcome: 'sent' | 'failed'; code: string | null; at: string }>(
+      '/admin/readiness/test-letter',
+      { method: 'POST', body: { to } },
+    ),
   /** `endsAt` omitted: end the season now. */
   endSeason: (number: number, endsAt?: string) =>
     apiRequest<AdminSeasons>(`/admin/seasons/${number}/end`, {
@@ -232,6 +246,36 @@ export const adminApi = {
       body: endsAt ? { endsAt } : {},
     }),
 };
+
+/** Ticket 8.6: the readiness board (`GET /api/admin/readiness`). */
+export type ReadinessStatus = 'done' | 'attention' | 'not_set';
+export type ReadinessLink =
+  | { kind: 'tab'; section: string; label: string }
+  | { kind: 'doc'; path: string; anchor: string; label: string };
+export interface ReadinessItem {
+  id: string;
+  title: string;
+  status: ReadinessStatus;
+  summary: string;
+  facts: { label: string; value: string }[];
+  links: ReadinessLink[];
+}
+export interface ReadinessReport {
+  items: ReadinessItem[];
+  privacy: {
+    checklist: { id: string; label: string; hint: string; ticked: boolean }[];
+    version: number;
+    updatedAt: string | null;
+  };
+  testLetter: { available: boolean };
+  generatedAt: string;
+}
+
+/** Where a readiness doc link points: the file in the public repository, at its heading. */
+export const DOCS_BASE = 'https://github.com/Kl1mt/worldforge/blob/main/';
+export function docHref(path: string, anchor: string): string {
+  return `${DOCS_BASE}${path}${anchor ? `#${anchor}` : ''}`;
+}
 
 /** Ticket 6.9: one reserved name; built-in ones (`id: null`) can't be removed. */
 export interface ReservedNameRow {

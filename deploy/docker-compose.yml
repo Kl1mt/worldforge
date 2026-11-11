@@ -102,6 +102,8 @@ services:
       # The owner's legal pages, mounted read-only from deploy/legal/ (DEPLOY.md "Legal pages");
       # a missing file falls back to the placeholder template baked into the image.
       LEGAL_DIR: /app/legal
+      # Ticket 8.6: backup.sh's status file (a time and a size), read-only, for the Readiness tab.
+      BACKUP_STATUS_FILE: /app/status/backup.json
       # Only for the invite links `deploy/admin.sh invite create` prints.
       DOMAIN: ${DOMAIN:-}
       # Ticket 5.7 (DEPLOY.md "Email"): outgoing mail over SMTP, any provider. Without SMTP_HOST
@@ -125,6 +127,7 @@ services:
     tmpfs: [/tmp]
     volumes:
       - ./legal:/app/legal:ro
+      - ./status:/app/status:ro
     cap_drop: [ALL]
     security_opt: ['no-new-privileges:true']
     networks: [backend, frontend]

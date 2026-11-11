@@ -12,6 +12,8 @@ coverage/
 # Production deploy (docs/DEPLOY.md): local secrets, dumps and the script lock.
 deploy/backups/
 deploy/.lock
+# Ticket 8.6: backup.sh's status file (a time and a size) for the admin panel.
+deploy/status/
 # The owner's legal pages on the VPS (ticket D.2, docs/DEPLOY.md "Legal pages"): personal data.
 deploy/legal/*
 !deploy/legal/README.md

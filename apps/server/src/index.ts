@@ -19,7 +19,10 @@ const mailer: Mailer =
     : config.mail.transport === 'log'
       ? createLogMailer((m) =>
           app.log.info(
-            { mail: m.kind, to: m.to, subject: m.subject, text: m.text },
+            // Ticket 8.6: a test letter's address is typed by an admin and never logged.
+            m.kind === 'test_letter'
+              ? { mail: m.kind, subject: m.subject }
+              : { mail: m.kind, to: m.to, subject: m.subject, text: m.text },
             'mail (dev log)',
           ),
         )
@@ -38,7 +41,7 @@ const app = buildApp({
   legal: { dir: config.legalDir },
   // Ticket 6.9: limits shared across API instances (docs/DEPLOY.md "Running two API instances").
   shared: { limits: config.sharedState },
-  admin: { build: config.build },
+  admin: { build: config.build, backupStatusFile: config.backupStatusFile },
   activity: {
     offlineCapMs: config.offlineCapSeconds * 1000,
     settleIntervalMs: config.settleIntervalSeconds * 1000,

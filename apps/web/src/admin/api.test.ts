@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { describeAdminFailure, formatUptime, inviteLink } from './api';
+import { describeAdminFailure, docHref, formatUptime, inviteLink } from './api';
 
 describe('admin panel helpers (ticket D.3)', () => {
   it('builds the hash-form invite link on the given origin', () => {
@@ -21,5 +21,16 @@ describe('admin panel helpers (ticket D.3)', () => {
     expect(f('rate_limited', 429, { retryAfterSeconds: 200 })).toMatch(/4 minutes/);
     expect(f('internal_error', 500)).toMatch(/failed/);
     expect(f('validation_failed')).toBe('msg');
+  });
+});
+
+describe('readiness doc links (ticket 8.6)', () => {
+  it('points at the heading in the public repository', () => {
+    expect(docHref('docs/DEPLOY.md', 'email')).toBe(
+      'https://github.com/Kl1mt/worldforge/blob/main/docs/DEPLOY.md#email',
+    );
+    expect(docHref('docs/GOING_LIVE.md', '')).toBe(
+      'https://github.com/Kl1mt/worldforge/blob/main/docs/GOING_LIVE.md',
+    );
   });
 });

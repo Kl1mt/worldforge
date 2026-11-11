@@ -26,6 +26,8 @@ import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
 import { lockAdmin } from './tools.js';
 import { registerAdminTools } from './tool-routes.js';
 import { registerReservedNamesAdmin } from './reserved-names.js';
+import { registerReadinessAdmin } from './readiness-routes.js';
+import { DISABLED_MAILER, type Mailer } from '../mail/mailer.js';
 
 /**
  * The admin panel's API (ticket D.3, docs/API_CONVENTIONS.md "Admin"), all under `/api/admin`.
@@ -51,6 +53,16 @@ export interface AdminOptions {
   gameNow?: () => Date;
   /** Ticket D.4: the farming settings (the tools settle and lock heroes like gameplay does). */
   activity?: ActivityOptions;
+  /** Ticket 8.6 (Readiness tab): the mail transport (`buildApp` passes the auth mailer). */
+  mailer?: Mailer;
+  /** Ticket 8.6: the owner's legal directory (presence only; `buildApp` passes `legal.dir`). */
+  legalDir?: string | undefined;
+  /** Ticket 8.6: `deploy/backup.sh`'s status file (`BACKUP_STATUS_FILE`). */
+  backupStatusFile?: string | undefined;
+  /** Ticket 8.6: the SHARED_STATE mode (`buildApp` passes `shared.limits`). */
+  sharedState?: 'postgres' | 'memory';
+  /** Ticket 8.6: test letters per admin per window (default 3 an hour). */
+  testLetterLimit?: { max: number; windowMs: number };
 }
 
 export const DEFAULT_RECONCILE_LIMIT = { max: 3, windowMs: 5 * 60_000 };
@@ -748,6 +760,15 @@ export async function registerAdmin(app: FastifyInstance, options: AdminOptions 
 
       // ---- Ticket 6.9: the reserved-names store (the Names tab) ------------------------------
       await registerReservedNamesAdmin(admin);
+      await registerReadinessAdmin(admin, {
+        now: () => app.authNow(),
+        mailer: options.mailer ?? DISABLED_MAILER,
+        legalDir: options.legalDir,
+        backupStatusFile: options.backupStatusFile,
+        sharedState: options.sharedState ?? 'memory',
+        build,
+        ...(options.testLetterLimit ? { testLetterLimit: options.testLetterLimit } : {}),
+      });
 
       // ---- Roles: read-only (granting stays CLI-only) ----------------------------------------
       admin.get(

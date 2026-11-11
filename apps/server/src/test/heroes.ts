@@ -10,17 +10,25 @@ export async function insertCharacter(
   db: Database,
   accountId: string,
   {
+    id = uuidv7(),
     name,
     classId = 'warrior',
     level = 1,
     progress = { gravewardenDefeated: false },
-  }: { name?: string; classId?: ClassId; level?: number; progress?: WorldProgress } = {},
+  }: {
+    /** Pin the id when a test needs a known per-character seed (merchant stock, F.7). */
+    id?: string;
+    name?: string;
+    classId?: ClassId;
+    level?: number;
+    progress?: WorldProgress;
+  } = {},
 ): Promise<Character> {
   seq += 1;
   const [row] = await db
     .insert(characters)
     .values({
-      id: uuidv7(),
+      id,
       accountId,
       name: name ?? `Hero${seq}x${Math.floor(Math.random() * 1e6)}`,
       classId,
