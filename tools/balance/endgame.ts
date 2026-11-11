@@ -334,7 +334,7 @@ if (mode === 'loot') {
 /**
  * `forgeward`: 6.7's open point, measured: would a big town need a lower first-day cap (10 %, so
  * ten givers) on the Forgeward Outpost? The realistic town (`largeTown`) at 20/100/500 players
- * with today's cap (20 % on the first day) and with 10 % on every stage.
+ * with 6.7's cap (20 % on the first day) and with 10 % on every stage (shipped in ticket B.5b).
  */
 if (mode === 'forgeward') {
   const { largeTown, playTown } =

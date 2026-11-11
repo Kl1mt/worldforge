@@ -147,15 +147,15 @@ describe('the Forgeward Outpost (ticket 6.7)', () => {
       { from: 'ashenSiege', to: 'rekindling', projectId: 'clearAshenPass', by: 'admin' },
     ]);
 
-    // Five players a day finish a stage (B.3's caps: a fifth each on the first day).
-    const town = [p!, ...(await patrons(4))];
+    // Ten players a day finish a stage (ticket B.5b: a tenth each on the first day).
+    const town = [p!, ...(await patrons(9))];
     for (const [i, stage] of [ROAD!, WALLS!, BEACON!].entries()) {
       const out = await giveCaps(town, stage);
-      expect(out.slice(0, 4).every((o) => o.stagesCompleted.length === 0)).toBe(true);
-      expect(out[4]!.stagesCompleted).toEqual([stage.id]);
-      expect(out[4]!.projectCompleted).toBe(i === 2);
+      expect(out.slice(0, 9).every((o) => o.stagesCompleted.length === 0)).toBe(true);
+      expect(out[9]!.stagesCompleted).toEqual([stage.id]);
+      expect(out[9]!.projectCompleted).toBe(i === 2);
     }
-    // Each gave exactly its caps: the embers too (two each, ten in all).
+    // Each gave exactly its caps: the embers too (one each, ten in all).
     const embers = await db()
       .select({ n: sql<number>`sum(${communityContributions.amount})::int` })
       .from(communityContributions)
@@ -186,12 +186,13 @@ describe('the Forgeward Outpost (ticket 6.7)', () => {
     expect(checks.find((c) => c.check === 'world: era changes')).toMatchObject({ ok: true });
   });
 
-  it('caps each account at a fifth on the first day, whatever its heroes, and nothing more is taken', async () => {
+  it('caps each account at a tenth on the first day (B.5b), whatever its heroes, and nothing more is taken', async () => {
     await liveWorld();
     const [p] = await patrons(1);
     const twin = await insertCharacter(db(), p!.who.id, { level: 30 });
     await fund(db(), twin.id, RICH);
     const cap = stageCap(ROAD!, 'gold');
+    expect(cap).toBe(6_000);
     const first = await contribute(p!, FORGEWARD.id, ROAD!.id, { gold: cap - 1000 });
     expect(first.json().accepted).toEqual([{ resource: 'gold', amount: cap - 1000 }]);
     // The second hero of the same account shares the cap.
@@ -227,21 +228,20 @@ describe('the Forgeward Outpost (ticket 6.7)', () => {
 
   it('the window rule at a stage completion: 23:59:59 counts on that day, the next stage’s cap grows from its own first day', async () => {
     await liveWorld();
-    const town = await patrons(5);
+    const town = await patrons(10);
     const day = new Date(nowMs).toISOString().slice(0, 10);
     nowMs = Date.parse(`${day}T23:59:59.000Z`);
     const out = await giveCaps(town, ROAD!);
-    expect(out[4]!.stagesCompleted).toEqual(['slagRoad']);
+    expect(out[9]!.stagesCompleted).toEqual(['slagRoad']);
     // The first giver to the walls, the same second: the walls' first day is today.
     const g = stageCap(WALLS!, 'gold');
     const late = await contribute(town[0]!, FORGEWARD.id, WALLS!.id, { gold: g });
     expect(late.json().accepted).toEqual([{ resource: 'gold', amount: g }]);
-    // One millisecond past midnight: a new window, and the walls stood one day, so 40 %.
+    // One millisecond past midnight: a new window, and the walls stood one day, so 30 %.
     nowMs = Date.parse(`${day}T23:59:59.000Z`) + 1001;
+    expect(stageCap(WALLS!, 'gold', 1)).toBe(30_000);
     const next = await contribute(town[0]!, FORGEWARD.id, WALLS!.id, { gold: 10 * g });
-    expect(next.json().accepted).toEqual([
-      { resource: 'gold', amount: stageCap(WALLS!, 'gold', 1) },
-    ]);
+    expect(next.json().accepted).toEqual([{ resource: 'gold', amount: 30_000 }]);
     const rows = await db()
       .select({ stage: communityContributions.stageId, day: communityContributions.day })
       .from(communityContributions)

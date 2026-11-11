@@ -23,9 +23,18 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.6.14';
+export const GAME_VERSION = '0.6.15';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.6.15',
+    date: '2026-11-13',
+    title: 'More hands for the Forgeward',
+    changed: [
+      'The Forgeward Outpost now needs more helping hands on each stage’s first day: one player may give a tenth of what a stage needs that day (it was a fifth), so ten townsfolk can finish it on the day it opens. The share still grows each day the stage stands.',
+    ],
+    tickets: ['B.5b'],
+  },
   {
     version: '0.6.14',
     date: '2026-11-13',

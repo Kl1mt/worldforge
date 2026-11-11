@@ -79,7 +79,10 @@ There is no event leaderboard. The admin view's and the CLI's participation coun
 - Journey: `playEventStep` (`e2e/journey.ts`; `event-journey.test.ts`).
 
 ## Open points (owner)
-- **B.5** (`docs/BALANCE.md` "B.5", item 7): a hero who can beat a dungeon master finishes the Harvest's whole track in about an hour of play, a newcomer reaches tier 2 in about two hours. Cosmetic only, so nothing to tune for balance; a longer chase (more tasks or tiers) would be a content decision.
+- **B.5** (`docs/BALANCE.md` "B.5", item 7): a hero who can beat a dungeon master finishes the Harvest's whole track in about an hour of play, a newcomer reaches tier 2 in about two hours. Cosmetic only, so nothing to tune for balance. **Owner decision (B.5b, 2026-11-11):** the Harvest of Bones stays as it is; see "Guidance for future events".
+
+## Guidance for future events
+- **The next event should be a longer chase** (owner, B.5b): an endgame hero should not finish the whole track in an hour. Size its tallies and tiers against the event's length (more or bigger tasks, more tiers, or tiers that need several days of play), measured for a newcomer, a mid-game hero and an endgame hero as B.5 measured the Harvest (`tools/balance/endgame.ts event`). The rules above still hold: cosmetic rewards only, a modest modifier, ordinary loot at ordinary odds.
 - Should the modifier apply to every hero, not only those who joined? Joining keeps the boundary exact (no kills from before the start) and gives the participation count; applying it to all would need a per-hero counter for every farmer.
 - Tallies are per account (alts help fill one track). Per hero instead?
 - No automatic next event: each is scheduled by hand. A rotation (like seasons) could come later.

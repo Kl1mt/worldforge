@@ -875,6 +875,7 @@ GDD §15 Phase 6, §7.5 (variants), §8.2 (Item Awakening), §12 (community), §
 9. B.5
 10. 6.9
 11. 6.10
+12. 6.11 (small; when the owner schedules it)
 
 ### 6.1 Endgame region I: the Cinderwastes, levels 28–34 (vertical) — `done (PR #109)`
 GDD §7, §9, §11, §15 Phase 6. Read `docs/WORLD.md`, `docs/COMBAT.md` (heroes past the content's top), `docs/LOOT.md`, `docs/FARMING.md`, `docs/DUNGEONS.md` (the Ashen Watch).
@@ -1046,6 +1047,7 @@ GDD §16.4. Needs 6.1–6.8.
 - Address the owner's playtest feedback (`docs/PLAYTEST_FEEDBACK.md`) if it has arrived.
 - **Acceptance:** before/after tables; balance suites green and fast.
 - Done (playtest feedback had not arrived; the API simulator plays no Phase 6 content, so the endgame player is modelled in game-core at the realistic cadence; `tools/balance/endgame.ts`). **PvP 30+:** almost every lopsided pair sat within 1 % on bracket Power (a PvE measure that saturates at the top), so **bracket Power 3** ranks 30+ by **duel Power** (an expected-value duel against the bracket's four reference heroes, 1000 × e^(0.6 × the log time ratio); deterministic, ~0.2 ms; reads awakening and variants as the duel does) and **matchmaking 4** gives 30+ its own class scale (warrior ÷ 1.02, fitted on realistic heroes); 10–29 unchanged (their lists draw exactly as before). 90 %+ / 95 %+ favourites in 30+ 13.2 / 6.5 % → 3.2 / 1.0 % (to level 40: 13.8 / 8.8 → 4.0 / 0.7; all top kits awakened: 14.5 / 6.7 → 2.5 / 0.5; realistic heroes 8.2 / 3.3 → 2.3 / 0.3), rated duels in full 45 → 51 %; bands back to ≤ 9 / ≤ 5 % for 30+, not loosened. No duel rule changed (`PVP_RULES_VERSION` 2); stored 30+ defences recompute at the draw, no migration. **Bosses:** the Forge Tyrant resistance × 0.7, armour × 1.2 and the Heroic Gravewarden resistance 0.5 → 0.4, armour × 1.15 (new optional `EnemyScale.armor`): with Legendaries +5 over 8 kits the class spread 34 → 17–23 points at the Tyrant and 18–24 → 17–21 at Heroic, the mage 54–74 % → 66–79 %; the hunter's best build still kills in 13–17 s (owner question). **Warded** −30 % → −25 % (it was the hardest modifier; touches tiers II–III and the Warden). **Measured, unchanged:** Heroic loot (best build 26–58 dedicated days with Heroic, 33–90 without: not too fast for an 8-week season), Prismatic vs Void (no duel changed), Forgeward first-day cap (10 % changes no pace; not needed), the Harvest (track in about an hour; shard bonus harmless), awakening (Ember-bound, 24–27 days a kit, about a season), XP 28 → 40 in 38–52 h of farming with the soft cap at 47–48, older drops (Pass set pieces in a Depths kit −1 to −3 %). Guards `balance/endgame-balance.test.ts`, `arena-fairness.test.ts` (30+ to level 40, plain and awakened), `competitive-balance.test.ts`, server `arena/power-version.test.ts`. Version 0.6.14. `docs/BALANCE.md` "B.5", `PVP.md` "B.5", `DUNGEONS.md`, `COMMUNITY.md`, `ECONOMY.md`, `EVENTS.md`, `AWAKENING.md`, `LEADERBOARDS.md`, `DATA_MODEL.md`.
+- **B.5b Owner decisions on B.5; the Forgeward first-day cap (2026-11-11)** — `done (PR #131)`: (1) the hunter's burst build stays until real player data shows a problem (accepted risk); (2) spare Gravewarden Seals get a sink later (placeholder 6.11, not built); (3) the Harvest of Bones stays, the next event should be a longer chase (`docs/EVENTS.md` guidance); (4) `capShare: 0.1` on the Forgeward Outpost's three stages: ten givers to finish a stage on its first day (was five), growing by the default rule (10 → 30 → 50 → 60 %); every other stage keeps 20 %. B.5's measurement verified: 8 / 2 / 2 days at 20 / 100 / 500 players either way, the first stage's givers 6 → 10 and its largest share 19 → 10 %. `stageCapShare`/`stageCap` no longer round a cap up on float noise (0.1 + 0.2). No migration. Version 0.6.15. `docs/COMMUNITY.md`, `BALANCE.md` "B.5b", `EVENTS.md`.
 
 ### 6.9 Scale readiness: shared limiters, caches & schedulers — `todo`
 Carried risk from Phases 4–5: one API instance.
@@ -1064,6 +1066,12 @@ GDD §15 Phase 6 exit, §16.3.
 - A browser run for the key flows (CI job `e2e-phase6`).
 - An exploit review of every Phase 6 endpoint and a rate-limit review.
 - A Phase 6 retrospective in this file.
+
+### 6.11 Gravewarden Seal sink (small) — `todo`
+Owner decision on B.5 (2026-11-11, `docs/BALANCE.md` "B.5", item 8): a dedicated player ends a full awakened kit with 15–17 spare Gravewarden Seals and nothing to spend them on. Placeholder; not built.
+- Suggested scope: a cosmetic (a collection-book entry, banner or crest style) or a modest Forge recipe priced in Seals. **No new power** (no stats, no better odds, nothing that counts in duels or boards).
+- Data-driven like the other sinks; audited and reconciled; test accounts as elsewhere.
+- Re-measure the Seal flow with `tools/balance/endgame.ts` so the sink doesn't starve awakening.
 
 ## Deployment
 

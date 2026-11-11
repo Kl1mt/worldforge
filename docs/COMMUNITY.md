@@ -18,7 +18,7 @@ Never rename or reuse a project, stage or flag id: progress rows, contributions,
 
 ### Numbers
 
-Each stage needs gold and one to three materials. The **cap** is the share of each need one player (account, all heroes together) may give per window (the UTC game day). On a stage's first day it is `COMMUNITY_PROJECT_CONFIG.capShare` = **20 %** (rounded up, at least 1; a stage may override it with `capShare`), so **five players are needed to finish a stage on the day it opens**. Since ticket B.3 the share **grows by `capGrowthPerDay` = 20 points for every day the stage has stood since its first gift**, up to `capShareMax` = **60 %** (20 → 40 → 60 %; game-core `stageCapShare`, `stageAgeDays`; the server reads the stage's first gift day under the project lock, no new column). A big town finishes each stage on its first day under the 20 % rule; a small one is no longer held five days per stage.
+Each stage needs gold and one to three materials. The **cap** is the share of each need one player (account, all heroes together) may give per window (the UTC game day). On a stage's first day it is `COMMUNITY_PROJECT_CONFIG.capShare` = **20 %** (rounded up, at least 1; a stage may override it with `capShare`: the Forgeward Outpost's stages use **10 %** since ticket B.5b), so **five players are needed to finish a stage on the day it opens** (ten for the Outpost). Since ticket B.3 the share **grows by `capGrowthPerDay` = 20 points for every day the stage has stood since its first gift**, up to `capShareMax` = **60 %** (20 → 40 → 60 %; game-core `stageCapShare`, `stageAgeDays`; the server reads the stage's first gift day under the project lock, no new column). A big town finishes each stage on its first day under the 20 % rule; a small one is no longer held five days per stage.
 
 | Stage | Needs (B.3: before → after) | Cap per player, day 1 · day 2 · day 3+ |
 | --- | --- | --- |
@@ -75,7 +75,7 @@ The Cinderwastes chain: one project of three stages after the Ashen Pass, in B.3
 | 100 | 1 + 1 | 1 + 1 | 5–10 | 20 % |
 | 500 | 1 + 1 | 1 + 1 | 5–10 | 20 % |
 
-**After** (the Forgeward Outpost; the stages' days in brackets):
+**After** (the Forgeward Outpost as 6.7 shipped it, 20 % on every stage's first day; the stages' days in brackets):
 
 | Active players | Cap-bound | With gathering | Givers per stage (gathering) | Largest share of one account (gathering) |
 | --- | --- | --- | --- | --- |
@@ -86,15 +86,28 @@ The Cinderwastes chain: one project of three stages after the Ashen Pass, in B.3
 | **100** | 1 (1/1/1) | **2** (1/1/2) | 6 / 14 / 24 | 5–19 % |
 | **500** | 1 (1/1/1) | **2** (1/1/2) | 6 / 16 / 20 | 10–19 % |
 
+**Since B.5b** (owner decision 2026-11-11: `capShare: 0.1` on all three stages, ten givers on a first day; pinned in `forgeward-balance.test.ts`, its 20/100/500 gathering rows from the 6.7 shape too):
+
+| Active players | Cap-bound | With gathering | Givers per stage (gathering) | Largest share of one account (gathering) |
+| --- | --- | --- | --- | --- |
+| 1 | 10 (4/4/4) | 31 (7/16/10) | 1 | 100 % |
+| 3 | 4 (2/2/2) | 20 (3/4/15) | 3 | 45–68 % |
+| 10 | 3 (1/2/2) | 10 (2/2/8) | 10 | 19–29 % |
+| **20** | 2 (1/1/2) | **8** (1/2/7) | **10** / 16 / 20 | 10–18 % |
+| **100** | 1 (1/1/1) | **2** (1/1/2) | **10** / 13 / 24 | 5–10 % |
+| **500** | 1 (1/1/1) | **2** (1/1/2) | **10** / 16 / 20 | 7–10 % |
+
+The realistic town's pace is unchanged at every size from 3 players up (one day more for a player alone); the first stage, which a big town finishes on its first day, now has ten givers instead of six and nobody gives more than a tenth of it. In the cap-bound view a town of 20 now takes a second day for the beacon (it opens late on day one, after the walls, with few accounts left to give).
+
 **Reading.** At 20 players the chain is about a week, held by the beacon's embers (three endgame players, half an ember a day each); at 100 and 500 the gold and ore go on the first day and the embers on the second (nobody is modelled holding a stockpile on day one; a live town of Tyrant hunters could finish on day one). A small town still gets there in three to four weeks. The needs do not scale with the town (B.3's trade-off, kept: a fixed sink, a target that doesn't move while people give).
 
-**No monopoly at scale** (asserted for every size and both towns): nobody gives more than a fifth of a need on a stage's first day; a stage finished on its first day had at least five givers, and nobody carried more than a fifth of it; nobody ever gives more than 60 % of a need in a day; four accounts with endless means (embers included) can't finish a Forgeward stage on its first day. In the cap-bound view a big town still finishes each stage with exactly five accounts at a fifth each: **the cap guarantees five givers, not more**. With the realistic player the largest share of any account from 20 players up is about a fifth (20.2 % at 20, the caps rounding up in the seven-day beacon). Embers are the only need a few high-level players hold, and they can't carry a stage with them alone: the gold and shards of the same stage need the rest of the town, and two embers per account on the first day need five ember holders to finish that day. *Owner option, not built:* a first-day `capShare` of 10 % for the Forgeward stages (per stage data) would need ten givers on a stage's first day in a big town and cost a small town about a day per stage.
+**No monopoly at scale** (asserted for every size and both towns): nobody gives more than a stage's first-day share of a need on its first day (a fifth; **a tenth for the Forgeward stages since B.5b**); a stage finished on its first day had at least five givers (**ten** for the Forgeward), and nobody carried more than that share of it; nobody ever gives more than 60 % of a need in a day; **nine** accounts with endless means (embers included) can't finish a Forgeward stage on its first day. In the cap-bound view a big town finishes each Forgeward stage with exactly ten accounts at a tenth each: **the cap guarantees ten givers, not more**. With the realistic player the largest share of any account from 20 players up is under a fifth (18 % at 20, in the two-day walls, where the second day's cap is 30 %). Embers are the only need a few high-level players hold, and they can't carry a stage with them alone: the gold and shards of the same stage need the rest of the town, and one ember per account on the first day needs ten ember holders to finish that day.
 
 ### Eras (ticket 6.7)
 
 Every completed project moves the town's era (`docs/WORLD.md` "Eras of Graumark"): the Warehouse begins the Ashen Siege, the Ashen Pass the Rekindling, the Forgeward Outpost the Forgeward Age. The era is derived from the world flags, never stored, so live starts where its finished projects put it (the Rekindling) and nothing jumps backward. The transaction that writes the flag (under the project lock and a world lock, `lockWorldFlags`) compares the era before and after and writes `world.era_change` (from, to, the project) with telemetry `world.era`.
 
-**B.5: a lower first-day cap for big towns?** (6.7's open point, `docs/BALANCE.md` "B.5", item 5.) Played with a 10 % cap on every stage (ten givers to finish one on its first day) instead of 20 %: the same days at 20, 100 and 500 players (8 / 2 / 2), the first stage given by ten accounts instead of six, its largest share 19 % → 10 %. With today's cap nobody carries more than a fifth of a stage at 20 players or more, so it is **not needed and unchanged**; `capShare: 0.1` on the Outpost's stages is the data change if the owner wants more names on the first stage.
+**B.5: a lower first-day cap for big towns?** (6.7's open point, `docs/BALANCE.md` "B.5", item 5.) Played with a 10 % cap on every stage (ten givers to finish one on its first day) instead of 20 %: the same days at 20, 100 and 500 players (8 / 2 / 2), the first stage given by ten accounts instead of six, its largest share 19 % → 10 %. **Owner decision (B.5b, 2026-11-11): shipped** as `capShare: 0.1` on the Outpost's three stages; the measurement re-run with the shipped data is identical (tables above). The other projects keep 20 %.
 
 ## Contributing
 

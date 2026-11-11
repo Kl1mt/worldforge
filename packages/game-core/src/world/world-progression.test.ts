@@ -52,7 +52,7 @@ describe('the Forgeward Outpost chain (ticket 6.7)', () => {
     ]);
   });
 
-  it('uses B.3’s caps: a fifth of each need on day one, growing to three fifths', () => {
+  it('uses a tenth of each need on day one (ticket B.5b), growing by B.3’s rule to three fifths', () => {
     const caps = FORGEWARD.stages.map((s) =>
       s.needs.map(
         (n) =>
@@ -61,22 +61,22 @@ describe('the Forgeward Outpost chain (ticket 6.7)', () => {
     );
     expect(caps).toEqual([
       [
-        'gold 60000: 12000/24000/36000/36000',
-        'ironOre 1000: 200/400/600/600',
-        'soulShard 400: 80/160/240/240',
+        'gold 60000: 6000/18000/30000/36000',
+        'ironOre 1000: 100/300/500/600',
+        'soulShard 400: 40/120/200/240',
       ],
       [
-        'gold 100000: 20000/40000/60000/60000',
-        'ironOre 1500: 300/600/900/900',
-        'abbeySilver 80: 16/32/48/48',
+        'gold 100000: 10000/30000/50000/60000',
+        'ironOre 1500: 150/450/750/900',
+        'abbeySilver 80: 8/24/40/48',
       ],
       [
-        'gold 140000: 28000/56000/84000/84000',
-        'soulShard 800: 160/320/480/480',
-        'tyrantsEmber 10: 2/4/6/6',
+        'gold 140000: 14000/42000/70000/84000',
+        'soulShard 800: 80/240/400/480',
+        'tyrantsEmber 10: 1/3/5/6',
       ],
     ]);
-    for (const s of FORGEWARD.stages) expect(s.capShare).toBeUndefined();
+    for (const s of FORGEWARD.stages) expect(s.capShare).toBe(0.1);
   });
 });
 
