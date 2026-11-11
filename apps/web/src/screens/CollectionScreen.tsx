@@ -21,8 +21,8 @@ import '../cosmetics/collection.css';
 /**
  * Ticket 6.8: the collection book (`#/collection`, docs/COSMETICS.md). Every cosmetic, earned or
  * locked with how to earn it; filters by kind and by earned/locked; a preview (the hero in each
- * palette, the banner, the crest, the title in its colour) and equip. Cosmetics are earned in play,
- * never bought, and change no number in the game.
+ * palette, the banner, the crest, the title in its colour) and equip. Cosmetics are earned in play
+ * (a shop may sell some later, ROADMAP 8.8) and change no number in the game.
  */
 
 type Busy = { id: string } | null;
@@ -251,7 +251,7 @@ export function CollectionScreen() {
                 </button>
               )
             ) : (
-              <p className="book__locked">Locked. Keepsakes are earned in play, never bought.</p>
+              <p className="book__locked">Locked. Earned in play.</p>
             )}
             {message ? (
               <p

@@ -1,6 +1,6 @@
 # Cosmetics and the collection book (ticket 6.8)
 
-GDD §13; Phase 6 ground rules in `ROADMAP.md` (**cosmetics never grant power and are never bought**). The collection book holds every cosmetic in Graumark: those an account owns and those still to earn, each with how it is earned, a preview on the hero and equip. Cosmetics change how a player is seen, never a number in the game.
+GDD §13; Phase 6 ground rules in `ROADMAP.md` (**cosmetics never grant power**; owner decision 2026-11-11: a cosmetic shop selling cosmetics for real money may come later, cosmetics only, see ROADMAP 8.8). The collection book holds every cosmetic in Graumark: those an account owns and those still to earn, each with how it is earned, a preview on the hero and equip. Cosmetics change how a player is seen, never a number in the game.
 
 Code: game-core `packages/game-core/src/cosmetics/` (catalogue, sources, earning rules, equip rule, tests); server `apps/server/src/cosmetics/` (`grant.ts` the only writer of unlocks besides 6.6's event track, `backfill.ts`, `display.ts`, `routes.ts`); web `apps/web/src/cosmetics/` (API, store, words, display pieces), `screens/CollectionScreen.tsx` (`#/collection`), `content/appearance.ts` (A.13's art and fallbacks), `components/paletteSwap.ts` (palettes drawn in code), `admin/PalettePreview.tsx` (the animation gallery's Palettes table). Art: A.13 (`content/palettes.ts`, `/assets/banners/`, `/assets/crests/`, contact sheet `art/preview-cosmetics.png`). Screenshots: `node tools/screenshots/cosmetics.mjs` (a dev server on a scratch database).
 
@@ -8,7 +8,7 @@ Code: game-core `packages/game-core/src/cosmetics/` (catalogue, sources, earning
 - Open **Collection book** from the bar at the bottom. Filter by kind (appearances, banners, crests, title colours, titles) and by earned or still to earn. Every page says how it is earned.
 - **Try it on:** the mirror shows the chosen hero with the page's look, banner, crest and title colour, owned or not.
 - **Wear it:** an appearance is chosen per hero; the banner style, crest style and title colour are for the whole account; a title is the one title shown (also under your profile → Season honours).
-- Keepsakes are earned in play, bound to the account, never sold, bought with money or traded. What was earned before the book opened is already in it.
+- The keepsakes in the book today are earned in play, bound to the account and never traded. A shop selling cosmetics for real money may come later (ROADMAP 8.8); it sells looks only, never power. What was earned before the book opened is already in it.
 - **Ticket 6.11:** five more come from the Forge's **Seal and Silver Counter**, traded for Gravewarden's Seals and Abbey silver earned in play (each once per account). The Forge's **Engraver** cuts words into gear (below).
 
 ## The catalogue (game-core `COSMETICS`)

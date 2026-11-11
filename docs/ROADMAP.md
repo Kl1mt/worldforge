@@ -857,7 +857,7 @@ GDD §15 Phase 6, §7.5 (variants), §8.2 (Item Awakening), §12 (community), §
 - **Content stays data-driven** (areas, enemies, loot tables, bosses, events, cosmetics). Balance numbers move only in their own ticket or a B-ticket, with before/after tables.
 - **Older content stays relevant.** New tiers extend the curves, they don't replace them. A ticket that adds power states how a hero in today's best gear fares, and the balance suites assert it.
 - **Boards move by versions, never resets** (5.2 sweep, 5.3 "formula changes between seasons"). New content adds Power trials and PvE Progress milestones as new formula versions, scheduled between seasons.
-- **Cosmetics and events never sell or grant power** (GDD §13.3). Event rewards are cosmetic or ordinary loot at ordinary odds.
+- **Cosmetics and events never grant power** (GDD §13.3). Event rewards are cosmetic or ordinary loot at ordinary odds.
 - **PvP stays separate.** New content may need new reference kits or class factors in the PvP normalisation layer (`PVP_RULES_VERSION` bump with measurements); PvE numbers never change for PvP's sake.
 - **Abuse first**, as in Phase 5. Phase 5's lessons apply: check-then-act across an `await`; check offered lists and ownership before relation-based refusals; test "the other side" of every view.
 
@@ -868,7 +868,7 @@ GDD §15 Phase 6, §7.5 (variants), §8.2 (Item Awakening), §12 (community), §
 - **Prismatic:** a second variant **after Void, never stacked with it** in this phase (GDD §7.5, the 3.5 decision). Rarer than Void, Legendary/Mythic/set only, a different stat shape rather than more power. Stacking (a Void-Prismatic item) stays out until a later decision.
 - **Item Awakening:** **evaluate first** (a design doc and a game-core prototype behind a switch, off). Ship only on the owner's yes.
 - **Events:** **admin-scheduled rotating events** (e.g. a "Harvest of Bones" week): a world modifier, an event quest line in the Tavern and a cosmetic reward track. Up to one event at a time, scheduled in the admin panel like seasons.
-- **Cosmetics:** a **collection book** with hero appearance variants (palette swaps of the class sprites), banner and crest styles, and title colours. Earned from events, deeds, seasons and milestones; never bought; no stats.
+- **Cosmetics:** a **collection book** with hero appearance variants (palette swaps of the class sprites), banner and crest styles, and title colours. Earned from events, deeds, seasons and milestones; no stats. (Owner decision 2026-11-11: a real-money cosmetic shop may come later, 8.8.)
 
 **Order** (one or two sessions at a time):
 1. 6.1 and A.11 (parallel)
@@ -1029,7 +1029,7 @@ GDD §12. Read `docs/COMMUNITY.md`, the world flags.
 GDD §13. Read `docs/LEADERBOARDS.md` (5.3 prestige display), `docs/SOCIAL.md` (profiles).
 - A collection book: hero appearance variants (class palette swaps), banner and crest styles, and title colours. Each entry has a source (event, deed, season, milestone).
 - Equip and preview; shown on profiles, boards, rosters and the duel screen.
-- Never purchasable, no stats. Cosmetics are account-bound and not tradeable.
+- No stats. Cosmetics are account-bound and not tradeable. (Owner decision 2026-11-11: a real-money cosmetic shop may come later, 8.8.)
 - Tests:
   - granted exactly once;
   - display privacy (5.2 rules);
@@ -1354,6 +1354,17 @@ Plus `docs/GOING_LIVE.md`, a step-by-step checklist for the owner. **No secrets 
 - The trading telemetry once trading is open (T.7's 10 % Legendary alarm, etc.).
 - Re-check every Phase 6 and 8 band with real players.
 - Before/after tables; data-only changes where possible.
+
+### 8.8 Cosmetic shop (real money) — design first, gated — `todo`
+Owner decision (2026-11-11): cosmetics may also be bought for real money later. GDD §13.3 still applies: never power, stats, drop odds or competitive advantage.
+- **Design first** (`docs/SHOP.md`), and owner decisions before building:
+  - which cosmetics are sold, and whether earned-only ones such as season honours and event keepsakes stay earn-only;
+  - prices and currency;
+  - the payment provider (e.g. Stripe, configured only on the VPS);
+  - refunds;
+  - VAT/consumer law (EU) and the legal pages;
+  - no randomized paid items without a legal review (GDD §13.3).
+- Then build: purchases as audited, idempotent grants into the collection book; receipts; admin refund and reversal tools; test-mode payments only in CI; no card data ever touches the server.
 
 ### 8.7 Phase 8 hardening & exit — `todo`
 Like 6.10:
