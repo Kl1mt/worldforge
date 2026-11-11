@@ -268,3 +268,9 @@
 .anim-gallery__palettes td {
   vertical-align: bottom;
 }
+
+/* Variants table: rarities that never carry a variant or awaken show a dash. */
+.anim-gallery__na {
+  text-align: center;
+  color: var(--text-faint);
+}

@@ -56,6 +56,14 @@ export const VARIANT_PREVIEW_ROWS: readonly {
   },
 ];
 
+/**
+ * Only Legendary and Mythic items (set pieces are Legendary) carry a variant or awaken in the game
+ * (game-core `activeVariant`, `docs/AWAKENING.md`); other rarities show a dash, not a fake look.
+ */
+export function carriesVariant(rarity: RarityId): boolean {
+  return rarity === 'legendary' || rarity === 'mythic';
+}
+
 export function VariantPreview({ scale, shimmer }: { scale: number; shimmer: ShimmerMode }) {
   return (
     <section className="anim-gallery__group" aria-label="Variants">
@@ -85,22 +93,29 @@ export function VariantPreview({ scale, shimmer }: { scale: number; shimmer: Shi
               <th scope="row" className="caps">
                 {row.label}
               </th>
-              {VARIANT_PREVIEW_ICONS.map((c) => (
-                <td key={c.label}>
-                  <ItemFrame
-                    item={{
-                      icon: c.icon,
-                      name: c.icon.replace(/^item\./, ''),
-                      rarity: c.rarity,
-                      variant: row.variant,
-                      ...(row.awakened ? { awakened: row.awakened, upgradeLevel: 10 } : {}),
-                    }}
-                    scale={scale}
-                    context={`${c.label}, ${row.label}`}
-                    shimmer={shimmer}
-                  />
-                </td>
-              ))}
+              {VARIANT_PREVIEW_ICONS.map((c) =>
+                row.key !== 'plain' && !carriesVariant(c.rarity) ? (
+                  <td key={c.label} className="anim-gallery__na">
+                    <span aria-hidden="true">—</span>
+                    <span className="visually-hidden">Not in the game</span>
+                  </td>
+                ) : (
+                  <td key={c.label}>
+                    <ItemFrame
+                      item={{
+                        icon: c.icon,
+                        name: c.icon.replace(/^item\./, ''),
+                        rarity: c.rarity,
+                        variant: row.variant,
+                        ...(row.awakened ? { awakened: row.awakened, upgradeLevel: 10 } : {}),
+                      }}
+                      scale={scale}
+                      context={`${c.label}, ${row.label}`}
+                      shimmer={shimmer}
+                    />
+                  </td>
+                ),
+              )}
             </tr>
           ))}
         </tbody>
