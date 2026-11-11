@@ -219,7 +219,7 @@ The world map came out with opaque white pixels along its burnt edge (about 1,15
 
 ## The Hollow Reach (ticket A.17)
 
-- Art for Region III (tickets 8.1 and 8.2), registered but not drawn anywhere yet. The names are fixed because 8.1 and 8.2 build on them:
+- Art for Region III (tickets 8.1 and 8.2). 8.1 (the Pale Marches, `paleMarches`) draws the Hollow Reach backdrop, its four foes and the tier-5 icons by these names, and its pale stand-ins (`HOLLOW_STAND_INS`) are gone; `area.hollow-depths` and the Sovereign wait for 8.2. The names are fixed:
   - **Backdrops** (384×216): `area.hollow-reach` (a bone-pale dead cathedral-forest: white trees arching like ribbed vaults, broken gothic arches, low grey mist, the skull and ribs of a colossal husk on the horizon under a hollow pale sky; 8.1) and `area.hollow-depths` (a cavern-cathedral of bone pillars and rib vaults, an empty bone throne on a stair, pale light shafts from above; 8.2).
   - **Enemies** (64×64): `enemy.hollow-knight` (a gaunt revenant in pale dented plate and a great helm, a hole through the chest, sword low; `front`), `enemy.reach-stalker` (a long-limbed, eyeless pale hunter crouched on four thin limbs; `left`), `enemy.pale-choir` (three hooded singers in cracked porcelain masks, joined at the robes, trailing into mist; `left`), `enemy.husk-titan` (a hulking cracked husk of bone and dried hide, dark hollows inside, the large type; `front`).
   - **Region boss** (128×128): `enemy.hollow-sovereign`, a crowned colossus of bone in a tattered mantle that dissolves into mist, cold mist inside the hollow ribcage, a bone sceptre held low. No hammer and no armour, so it reads apart from the Forge Tyrant.

@@ -416,29 +416,10 @@ export const ART_VARIANTS: Readonly<Record<string, AssetId>> = {
  * lands as the closest existing sprite with a pale, hollow tint (`pixel--tint-hollow`). The foes
  * stand in as kin with attack frames, so the scene animates them the same way. Registered art
  * always wins, so each entry turns itself off once A.17 registers its name; remove it then.
+ * A.17 drew every name, so the map is empty; it stays as the fallback for Hollow Reach art still
+ * missing.
  */
-export const HOLLOW_STAND_INS: Readonly<Record<string, AssetId>> = {
-  'area.hollow-reach': 'area.cinderwastes',
-  'enemy.hollow-knight': 'enemy.fallen-knight',
-  'enemy.hollow-knight-attack': 'enemy.fallen-knight-attack',
-  'enemy.reach-stalker': 'enemy.wolf',
-  'enemy.reach-stalker-attack': 'enemy.wolf-attack',
-  'enemy.pale-choir': 'enemy.pyre-cultist',
-  'enemy.pale-choir-attack': 'enemy.pyre-cultist-attack',
-  'enemy.husk-titan': 'enemy.ash-colossus',
-  'enemy.husk-titan-attack': 'enemy.ash-colossus-attack',
-  // The tier-5 icons (game-core `ITEM_BASES[].icon`) as their tier-4 counterparts.
-  'item.hollowsteel-greatblade': 'item.cinderforged-blade',
-  'item.pale-choir-stave': 'item.emberheart-scepter',
-  'item.reachstalker-longbow': 'item.slagbone-bow',
-  'item.hollow-aegis': 'item.obsidian-bulwark',
-  'item.hollowknight-helm': 'item.revenant-visage',
-  'item.titanhusk-cuirass': 'item.ashplate-hauberk',
-  'item.palebone-gauntlets': 'item.slagiron-gauntlets',
-  'item.reachwalker-sabatons': 'item.cinderstride-greaves',
-  'item.requiem-locket': 'item.ember-reliquary',
-  'item.hollow-signet': 'item.wispfire-band',
-};
+export const HOLLOW_STAND_INS: Readonly<Record<string, AssetId>> = {};
 
 /** One sprite object per variant (callers may compare sprites by identity). */
 const VARIANT_SPRITES: ReadonlyMap<string, SpriteAsset> = new Map(
