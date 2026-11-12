@@ -58,6 +58,7 @@ import {
   writeTreasury,
 } from './model.js';
 import { guildStandingOf } from '../guild-seasons/routes.js';
+import { refreshGuildSeason } from '../guild-seasons/model.js';
 
 /**
  * Guild hall routes (ticket 8.4, docs/GUILD_HALLS.md, docs/API_CONVENTIONS.md "Guild halls").
@@ -236,6 +237,8 @@ export async function registerGuildHalls(
     const mine = await membershipOf(app.db, accountId);
     const standing: GuildStanding = mine ? mine.member.role : 'none';
     decide(standing, 'view');
+    // The guild's own roll entry is brought up to date first (like the board's viewer refresh).
+    await refreshGuildSeason(app.db, activity.now(), app.authNow(), [mine!.guild.id]);
     return hallView(
       app.db,
       accountId,

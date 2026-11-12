@@ -80,7 +80,8 @@ export function HallCrest({
   const u = frame ? findGuildHallUpgrade(frame) : undefined;
   const sprite = u?.kind === 'crestFrame' ? crestStyleAsset(HALL_ART[u.id] ?? '') : null;
   const [failed, setFailed] = useState<string | null>(null);
-  if (!u || u.kind !== 'crestFrame') return <Crest emblem={emblem} size="lg" />;
+  if (!u || u.kind !== 'crestFrame')
+    return <Crest emblem={emblem} size={scale === 1 ? 'md' : 'lg'} />;
   const show = sprite && failed !== sprite.path ? sprite : null;
   const w = CREST_STYLE_WINDOW;
   return (

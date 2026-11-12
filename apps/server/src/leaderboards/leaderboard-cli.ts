@@ -13,11 +13,11 @@ import { loadWorldState } from '../community/world-state.js';
 import { checkLeaderboards, type CheckReport } from './check.js';
 import { FormulaVersionSource } from './formulas.js';
 import { refreshAll, type SnapshotDeps } from './snapshot.js';
-import { checkGuildSeasons } from '../guild-seasons/model.js';
+import { checkGuildSeasons, refreshGuildSeason } from '../guild-seasons/model.js';
 
 const USAGE = `Usage:
   pnpm admin:leaderboards check      (recompute every stored row, guild roll included; exit 1 if one is wrong)
-  pnpm admin:leaderboards refresh    (rewrite every hero's rows from current state)`;
+  pnpm admin:leaderboards refresh    (rewrite every hero's rows and the guild roll from current state)`;
 
 export function cliDeps(db: Database): SnapshotDeps {
   const formulas = new FormulaVersionSource(db, 0);
@@ -76,6 +76,9 @@ if (isMain) {
     } else {
       const updated = await refreshAll(deps, new Date());
       console.log(`Refreshed: ${updated} heroes changed.`);
+      // Ticket 8.4: and the season's guild roll (every guild, from stored facts).
+      const roll = await refreshGuildSeason(cli.database.db, new Date(), new Date());
+      console.log(`Guild roll: ${roll.updated} of ${roll.refreshed} guilds changed.`);
       console.log(formatCheck(await checkLeaderboards(deps)));
     }
   } catch (err) {

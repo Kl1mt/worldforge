@@ -149,17 +149,22 @@ export function useLoad<T>(
   const reload = useCallback(() => setTick((t) => t + 1), []);
   useEffect(() => {
     const ctl = new AbortController();
-    void fetcher(ctl.signal).then((res) => {
-      if (ctl.signal.aborted) return;
-      if (res.ok) {
-        last.current = res.value;
-        setState({ kind: 'ready', value: res.value, stale: false });
-      } else if (last.current && res.error.code !== 'not_in_guild') {
-        setState({ kind: 'ready', value: last.current, stale: true });
-      } else {
-        setState({ kind: 'error', error: res.error });
-      }
-    });
+    void fetcher(ctl.signal).then(
+      (res) => {
+        if (ctl.signal.aborted) return;
+        if (res.ok) {
+          last.current = res.value;
+          setState({ kind: 'ready', value: res.value, stale: false });
+        } else if (last.current && res.error.code !== 'not_in_guild') {
+          setState({ kind: 'ready', value: last.current, stale: true });
+        } else {
+          setState({ kind: 'error', error: res.error });
+        }
+      },
+      () => {
+        // Aborted (unmounted or reloaded): nothing to show.
+      },
+    );
     return () => ctl.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tick, ...deps]);

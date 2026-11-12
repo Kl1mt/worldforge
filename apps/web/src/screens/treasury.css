@@ -93,10 +93,16 @@
   display: grid;
   gap: 4px;
 }
-.treasury__give select,
-.treasury__give input {
+.treasury__give-row select,
+.treasury__give-row input {
   min-height: 36px;
   min-width: 9rem;
+}
+.treasury__ack input {
+  width: 20px;
+  height: 20px;
+  margin: 2px 0 0;
+  flex: none;
 }
 .treasury__ack {
   display: flex;
@@ -141,6 +147,9 @@
   .treasury__ware {
     grid-template-columns: 80px minmax(0, 1fr);
   }
+  .treasury__ware-look {
+    overflow: hidden;
+  }
   .treasury__ware-act {
     grid-column: 1 / -1;
   }
@@ -172,7 +181,8 @@
 }
 .treasury__swatch {
   display: block;
-  width: 96px;
+  width: 100%;
+  max-width: 96px;
   height: 64px;
   border: 1px solid var(--outline-dark);
   position: relative;
