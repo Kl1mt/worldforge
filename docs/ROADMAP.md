@@ -1497,6 +1497,178 @@ Checked and holding: Crownforged Work, the Throne, the lanterns' caps and gates,
 - **Send playtest feedback** (`docs/PLAYTEST_FEEDBACK.md` is still the empty template).
 - **Decide the Guild Roll's tie-break and minimum roll size**, and whether the accepted risks in the review should differ.
 
+## Phase 9 — Classes & builds: resources, skills & account growth
+**Status: tickets written** 2026-11-12 at the owner's request. Like Phase 8, this is the owner's extension beyond the GDD's plan, on the browser client; Phase 7 stays deferred. It builds the GDD's class and account promises that are still open:
+- the class resources of §5.2 (Rage, Mana, Focus, Soul Fragments; today they are only labels);
+- skill loadouts and skills unlocked by level and later content (§6.3; today each class has one auto-skill, `docs/COMBAT.md`);
+- damage over time (§5.2, the Warlock's identity);
+- earned character slots and an upgradeable offline cap (§5.3, §17; today 2 slots and a fixed 3 hours);
+- the cosmetic Reward Shrine (§13.2).
+
+**Exit:** each class plays as its GDD row reads: its resource drives its skills, and a player picks a loadout outside combat. At least three loadouts per class are viable for farming and for bosses, so no single build wins everything. Older gear keeps its value, and the boards and PvP moved by versions between seasons. Accounts grow by playing: more character slots, a longer offline cap and the Shrine, all earned and never bought. Everything is reconciled, fair and free of pay-to-win, as in every earlier phase.
+
+**Ground rules for Phase 9** (all earlier rules still apply, including `CLAUDE.md` "Writing tests that don't flake", the patch-notes and the screenshots rules)
+- **Phase 9 releases are 0.9.x.** The first Phase 9 PR players can see bumps to `0.9.0`.
+- **The default loadout fights exactly as today.** A hero who never opens the loadout screen keeps today's combat, kill rates and balance bands, bit for bit. A pinned replay over the existing balance suites proves it. New skills are sidegrades within the bands, not a new power curve.
+- **One model, two simulations.** Resources, cooldowns and damage over time must work in both the detailed log (`simulateFarming`) and the offline settlement (`simulateFarmingAggregate`, exact distributions). The two must agree within the existing tolerance tests. If an exact form isn't possible, the design ticket says what replaces it, and the cost is measured.
+- **Phase 6's rules carry over:**
+  - older content stays relevant;
+  - boards move by versions between seasons (a skill change is a new Power version);
+  - PvP tuning never changes a PvE number (`PVP_RULES_VERSION` bump with measurements);
+  - every number change has before/after tables.
+- **Account growth is earned, never bought** (GDD §5.3, §13.3). Slots, offline hours and Shrine draws come from play, never from the 8.8 shop.
+- **Live data:** if B.6 has run, its findings come first. If it hasn't, 9.2 must not move any number B.6 would need as its baseline, except through the loadouts players choose.
+
+**Defaults the owner can override** (recorded in the GDD when the ticket lands):
+- **Resources:**
+  - **Rage** builds as the Warrior hits and is hit, and is spent by heavy skills.
+  - **Mana** starts full and regenerates over time; skills cost it.
+  - **Focus** builds while the Hunter isn't hit; crits refund some.
+  - **Soul Fragments** come from kills and damage-over-time ticks and empower shadow skills.
+  - All are deterministic: no new random draws except crits.
+- **Skills:**
+  - each class gets **six active skills and four passives**, unlocked from level 1 to about 40;
+  - a **loadout of three actives and one passive**, switched outside combat (it settles first, like the loot filter);
+  - **three loadout presets per hero**;
+  - today's skill is each class's first active, and the default loadout is today's.
+- **Damage over time:** the Warlock's identity, with one damage-over-time skill each for the Mage (burn) and the Hunter (bleed). It ticks on the fight's timeline, fixed in game-core.
+- **Later-content skills:** two skills per class from Phase 6 and 8 content (e.g. a quest from the Forge Tyrant or the Hollow Sovereign), so older bosses gain a use.
+- **Character slots:**
+  - a 3rd slot when any hero on the account reaches level 28;
+  - a 4th when a hero clears the Heroic crypt;
+  - a 5th from the town's next community project.
+  - Account-bound and never removed.
+- **Offline cap:** from 3 hours up to **8 hours**, in steps earned through account deeds (levels, regions, the crypt tiers), shown on the account page. The server-side `OFFLINE_CAP_SECONDS` stays the base; the bonus is per account.
+- **The Reward Shrine** (GDD §13.2), cosmetic only:
+  - draws: one free draw a day, with unclaimed days kept (up to 7 banked, so a missed day is never lost), plus extra draws earned through play (event tiers, season honours, the deeds);
+  - odds: published in the Shrine and in `docs/SHRINE.md`;
+  - duplicates: turn into Shrine marks that buy a chosen cosmetic;
+  - **no paid draws** (the 8.8 shop never sells draws, and randomized paid items stay out without a legal review, §13.3);
+  - companions (a small cosmetic animal beside the hero in the combat scene, GDD §13.1) as a new cosmetic kind.
+
+**Order** (one or two sessions at a time):
+1. 9.1 (the skill design and prototype) and 9.4 (account growth), in parallel since they are independent
+2. the owner's decisions on 9.1
+3. 9.2 and A.18 (parallel)
+4. 9.3
+5. 9.5 and A.19 (parallel)
+6. B.7
+7. 9.6
+
+### 9.1 Skills, resources & loadouts: design & prototype (design + game-core) — `todo`
+Read GDD §5.2, §6.3, `docs/COMBAT.md`, `docs/BALANCE.md`, `docs/PVP.md` ("normalisation"), `docs/LEADERBOARDS.md` ("formula changes"), `docs/EFFECTS.md`.
+- **`docs/SKILLS.md`:**
+  - each class's resource rules;
+  - the six actives and four passives per class, with unlock levels and the two later-content skills;
+  - the loadout rules (3 + 1, presets, switching settles first);
+  - how damage over time sits on the timeline;
+  - how Legendary and set effects that name "the class skill" read a loadout. **Recommended:** they read the first active slot, so today's items keep their meaning.
+- **The aggregate settlement:** show how `simulateFarmingAggregate` stays exact with resources, cooldowns and damage over time. Options: a state-machine DP per encounter setup; a short exact replay per fight with the same single draw; or a precomputed distribution per loadout. Measure the offline settlement's cost on a 3-hour and an 8-hour window against today's.
+- **A game-core prototype behind a switch, off:**
+  - the default loadout gives a bit-identical replay of today on every existing balance suite;
+  - per class, measure every loadout's farming kills/min and tier III, Heroic, Tyrant and Sovereign boss times against today's bands;
+  - a build search (like B.2's) over loadouts shows at least three viable loadouts per class for farming and for bosses, and no loadout dominates both.
+- **PvP:** the effect on duel Power and matchmaking, and a proposed `PVP_RULES_VERSION` 3. A defence snapshot carries its loadout.
+- **Boards:** a proposed Power version 4 (the Proving Grounds read the hero's best loadout or the default one; **recommended:** the hero's saved defence loadout, so it can't be gamed per trial) and when it takes over.
+- **Owner questions** listed at the end of the doc, with recommendations. Nothing ships before the owner's yes (9.2).
+
+### 9.2 Skills, resources & loadouts build (vertical, only after the owner's yes on 9.1) — `todo`
+- **game-core:** the 9.1 rules switched on, data-driven skills in `combat/skills.ts`, resources on the combat timeline, damage over time in both simulations, loadouts validated (class, unlock level, slots).
+- **Server:**
+  - loadouts and presets per hero, set by an idempotent call that settles first and is audited;
+  - the duel defence snapshot carries the loadout;
+  - Power 4 and `PVP_RULES_VERSION` 3 take over between seasons (5.3's rule, 6.1's sweep);
+  - telemetry by loadout (kills/min and boss times per class and loadout, for B.7);
+  - a migration (additive; heroes without a loadout read the default).
+- **Web:**
+  - a **Skills** screen on the character page: the class's skills with unlock levels and locked ones shown, the 3 + 1 slots, presets, and plain descriptions with real numbers from game-core;
+  - the resource bar in the combat scene now moves (Rage 62 / 100, as Phase 0 drew it);
+  - damage-over-time ticks in the log and the scene.
+- **Tests:** the default-loadout replay of every balance suite, the two simulations' agreement per loadout, switching mid-settlement, presets, the defence snapshot, the board versions at the season boundary (real PG), and a journey step `playSkillsStep`.
+- Docs: `docs/SKILLS.md` (done state), `COMBAT.md`, `PVP.md`, `LEADERBOARDS.md`, `TELEMETRY.md`, `DATA_MODEL.md`. Patch notes.
+
+### A.18 Skill icons & effect animations — `todo`
+- One icon per skill (10 per class, 40 in all, plus the later-content skills), 32 px, in the existing icon style, with a contact sheet in `art/`.
+- **Code animations** in the combat scene (like A.14):
+  - a skill cast flash per class;
+  - damage-over-time ticks (burn, bleed, shadow);
+  - the resource bar filling and spending.
+- Shown in the admin Animations gallery. Frugal with PixelLab generations.
+
+### 9.3 Later-content skills & skill quests (vertical) — `todo`
+- The two later-content skills per class (9.1) unlocked through **skill quests** in the Tavern, from Phase 6 and 8 content, e.g.:
+  - a Forge Tyrant quest (Cinderwastes);
+  - a Hollow Sovereign quest (Hollow Reach);
+  - each needs a boss kill and an older boss's material (Tyrant's Embers, Gravewarden's Seals), so older bosses gain a use.
+- **Skill-aware Legendary effects:** a few new Legendary and set effects that read a skill or resource (e.g. "Rage spent heals you"), on new bases only. Existing effects keep their meaning; the "class skill" reads the first active slot (9.1's rule).
+- Power and PvE Progress: a new milestone for each skill quest is a new PvE Progress version between seasons, or none if 9.1 decides so.
+- Journey step; patch notes; `docs/SKILLS.md`, `QUESTS.md`, `EFFECTS.md`.
+
+### 9.4 Account growth: character slots & offline cap (vertical) — `todo`
+Read GDD §5.3, §9.1, §17 (offline cap), `docs/FARMING.md` ("the offline cap"), `docs/COMMUNITY.md`.
+- **Earned character slots** (defaults above):
+  - granted once, audited, idempotent, account-bound, never removed;
+  - the server checks them in hero creation;
+  - existing accounts get what they already earned through a backfill that can be re-run;
+  - test accounts follow the same rules (D.4).
+- **The offline cap:** a per-account bonus on top of `OFFLINE_CAP_SECONDS`, from deeds (default steps 3 → 4 → 5 → 6 → 8 hours), read by the settlement on the server only. The bonus counts from the moment it is earned; it never pays back time already lost.
+- **Web:** the account page shows slots and offline hours: what is earned, what is next, and how to get it. The hero list shows a locked slot with its unlock.
+- **Tests:**
+  - the settlement at the cap's edges (just under, at, just over each step);
+  - a deed earned during a settlement;
+  - the backfill run twice;
+  - slot creation racing a deletion (real PG).
+- `docs/FARMING.md`, a new `docs/ACCOUNTS.md` and `DATA_MODEL.md`. Patch notes. Migration (additive).
+
+### 9.5 The Reward Shrine & companions (vertical) — `todo`
+Read GDD §13.1–13.3, `docs/COSMETICS.md`, `docs/EVENTS.md`.
+- **`docs/SHRINE.md`:** the odds, the pools, the duplicate rule, the banked free draws and where extra draws come from.
+- **The Shrine (game-core + server):**
+  - each draw comes from a server `crypto` seed stored with it, and game-core can replay it;
+  - draws are granted into the collection book (6.8), audited and idempotent;
+  - free draws bank up to 7 and never expire within that bank;
+  - extra draws from play (event tiers, season honours, deeds);
+  - duplicates become Shrine marks, which buy a chosen cosmetic;
+  - the odds are published, and a test checks that the published odds equal game-core's;
+  - **no paid draws and no draws from the 8.8 shop.** Test accounts draw, but their pulls never count in telemetry.
+- **Companions:** a new cosmetic kind in the collection book, one shown beside the hero in the combat scene, with no stats (the 8.7 invariance test extended).
+- **Web:** the Shrine opens the hub's locked "Summoning Shrine" hotspot (2.2), with a draw animation, the odds one click away, the marks shop, and the companion picker in the collection book.
+- **Tests:** a reconciliation (draws = grants + marks, marks = earned − spent), a replayed draw key pays once, the bank's limit at its edges, and odds measured over many seeds against the published table.
+- Journey step; patch notes; `COSMETICS.md`, `TELEMETRY.md`, `DATA_MODEL.md`. Migration (additive).
+
+### A.19 Shrine & companion art — `todo`
+- The Shrine's hub art (the lit shrine in place of the locked one).
+- **8–12 companions**, small pixel animals and wisps in the setting's dark-fantasy palette, each with a two-frame idle.
+- Palette variants for a few Shrine-only appearances, banners and crests.
+- A contact sheet in `art/`; frugal with generations.
+
+### B.7 Balance pass: skills & loadouts — `todo`
+- Run after 9.2 and 9.3, with live telemetry by loadout if the town is open (otherwise simulations, as B.5).
+- Check, per class:
+  - at least three viable loadouts for farming and for bosses, and none dominates both;
+  - every Phase 6 and 8 band still holds;
+  - PvP brackets and the 25 % gear / ±25 % luck rules (5.4) still hold with loadouts.
+- Before/after tables; data-only changes where possible. A Power version change waits for a season boundary.
+
+### 9.6 Phase 9 hardening & exit — `todo`
+Like 8.7:
+- **An exit run** over:
+  - loadouts and presets;
+  - the resources and damage over time in both simulations;
+  - the skill quests;
+  - earned slots and the offline cap;
+  - the Shrine and companions;
+  - the board and PvP versions taking over at a season boundary.
+  Everything reconciled.
+- **A browser run in CI** (`e2e-phase9`).
+- **An exploit review** (`docs/PHASE9_EXPLOIT_REVIEW.md`), including:
+  - loadout switches racing a settlement;
+  - defence snapshots;
+  - Shrine replays and the free-draw bank across the day boundary;
+  - slot creation races.
+- **A rate-limit review.**
+- **The Phase 9 retrospective.**
+
 ## Deployment
 
 ### D.1 Production deployment — `done (PR #52)`
