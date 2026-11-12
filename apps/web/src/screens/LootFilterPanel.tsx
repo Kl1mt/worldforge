@@ -20,6 +20,7 @@ import {
   describeRules,
 } from '../game/lootFilter';
 import type { Load } from '../game/GameProvider';
+import { LootFilterPresets } from './LootFilterPresets';
 import './loot-filter.css';
 
 type Notice = { kind: 'ok' | 'error'; text: string };
@@ -147,6 +148,22 @@ export function LootFilterPanel() {
           always yours.
         </p>
       </header>
+
+      <LootFilterPresets
+        heroId={hero.id}
+        state={state.value}
+        draft={draft}
+        pack={pack}
+        onChange={(next) => {
+          // The draft follows only a change of the rules in force (a preset saved or renamed
+          // leaves unsaved edits alone).
+          if (JSON.stringify(next.rules) !== JSON.stringify(saved)) {
+            setDraft(next.rules ?? { ...EMPTY_LOOT_FILTER });
+          }
+          setState({ kind: 'ready', value: next });
+          setNotice(null);
+        }}
+      />
 
       <form
         className="lf__form"
