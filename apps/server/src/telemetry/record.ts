@@ -80,6 +80,13 @@ export const TELEMETRY_METRICS = [
   // Ticket 6.11: cosmetics bought at the Forge's exchange (kind, cosmetic id); what they cost is
   // `material.out` source `cosmetic_exchange`.
   'cosmetic.exchange',
+  // Ticket 8.4: guild treasuries (gifts: events, amount = gold; buys: upgrade kind and id, amount =
+  // gold spent from the treasury; forfeits on a disband: amount = gold lost) and guild honours
+  // (tier; events = guilds). The gold a gift takes from the hero is `gold.out guild_treasury`.
+  'guild_treasury.contribute',
+  'guild_hall.buy',
+  'guild_treasury.forfeit',
+  'guild_season.award',
 ] as const;
 export type TelemetryMetric = (typeof TELEMETRY_METRICS)[number];
 

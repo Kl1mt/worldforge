@@ -35,6 +35,12 @@ import { bumpCacheVersion } from '../shared/cache-sync.js';
 import { writeAudit } from '../db/audit.js';
 import { ApiError } from '../errors.js';
 import { notTestOrDeleted } from '../admin/eligibility.js';
+import {
+  archiveGuildSeasonTx,
+  awardGuildSeason,
+  refreshGuildSeason,
+  type GuildAwardOptions,
+} from '../guild-seasons/model.js';
 
 /**
  * Seasons and prestige awards (ticket 5.3, docs/LEADERBOARDS.md "Seasons" and "Prestige rewards").
@@ -405,14 +411,24 @@ export async function archiveSeason(
       where e.season = ${number} and e.games >= ${PROVISIONAL_GAMES}
         and ${notSanctioned(sanctionsAt)}
       on conflict do nothing`);
-    await tx.update(seasons).set({ archivedAt: now }).where(eq(seasons.number, number));
+    // Ticket 8.4: the guild roll's final standings, in the same transaction and under the same lock.
+    const guildRoll = await archiveGuildSeasonTx(tx, season, sanctionsAt);
+    await tx
+      .update(seasons)
+      .set({ archivedAt: now, guildArchivedAt: now })
+      .where(eq(seasons.number, number));
     const [counted] = await queryRows<{ n: number }>(
       tx,
       sql`select count(*)::int as n from season_standings where season = ${number}`,
     );
     await writeAudit(tx, {
       event: 'season.archive',
-      data: { season: number, standings: counted?.n ?? 0 },
+      data: {
+        season: number,
+        standings: counted?.n ?? 0,
+        guilds: guildRoll.ranked,
+        guildRoster: guildRoll.roster,
+      },
     });
     return 'archived';
   });
@@ -556,6 +572,10 @@ export interface SeasonJobReport {
   created: number | null;
   archived: number[];
   awarded: number[];
+  /** Ticket 8.4: seasons whose guild honours were given in this run. */
+  guildAwarded: number[];
+  /** Ticket 8.4: guild rows the live roll rewrote. */
+  guildRows: number;
 }
 
 /**
@@ -567,16 +587,27 @@ export async function runSeasonJobs(
   db: Database,
   now: Date,
   sanctionsAt: Date,
-  options: { graceMs?: number; award?: AwardOptions } = {},
+  options: { graceMs?: number; award?: AwardOptions; guildAward?: GuildAwardOptions } = {},
 ): Promise<SeasonJobReport> {
-  const report: SeasonJobReport = { created: null, archived: [], awarded: [] };
+  const report: SeasonJobReport = {
+    created: null,
+    archived: [],
+    awarded: [],
+    guildAwarded: [],
+    guildRows: 0,
+  };
   const created = await ensureNextSeason(db, now);
   report.created = created?.number ?? null;
+  // Ticket 8.4: the live guild roll of the season under way (every guild, from stored facts).
+  report.guildRows = (await refreshGuildSeason(db, now, sanctionsAt)).updated;
   const open = await db
     .select()
     .from(seasons)
     .where(
-      and(isNull(seasons.awardedAt), sql`${seasons.endsAt} <= ${now.toISOString()}::timestamptz`),
+      and(
+        sql`(${seasons.awardedAt} is null or ${seasons.guildAwardedAt} is null)`,
+        sql`${seasons.endsAt} <= ${now.toISOString()}::timestamptz`,
+      ),
     )
     .orderBy(asc(seasons.number));
   for (const s of open) {
@@ -585,8 +616,12 @@ export async function runSeasonJobs(
       if (out === 'archived') report.archived.push(s.number);
       if (out !== 'archived' && out !== 'already') continue;
     }
-    const award = await awardSeason(db, s.number, now, options.award);
-    if (award.kind === 'awarded') report.awarded.push(s.number);
+    if (!s.awardedAt) {
+      const award = await awardSeason(db, s.number, now, options.award);
+      if (award.kind === 'awarded') report.awarded.push(s.number);
+    }
+    const guild = await awardGuildSeason(db, s.number, now, options.guildAward);
+    if (guild.kind === 'awarded') report.guildAwarded.push(s.number);
   }
   return report;
 }

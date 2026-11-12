@@ -13,6 +13,7 @@ import type { Executor, Transaction } from '../db/types.js';
 import type { RelationEvents } from './relations.js';
 import { writeAudit } from '../db/audit.js';
 import { ApiError } from '../errors.js';
+import { forfeitTreasuryTx } from '../guild-halls/model.js';
 
 /**
  * The guild model (ticket 4.4, docs/SOCIAL.md "Guilds"): the reusable helpers other features ask
@@ -151,6 +152,8 @@ export async function disbandGuildTx(
   await tx.delete(guildInvites).where(eq(guildInvites.guildId, guild.id));
   await tx.delete(guildApplications).where(eq(guildApplications.guildId, guild.id));
   await tx.update(guilds).set({ disbandedAt: now }).where(eq(guilds.id, guild.id));
+  // Ticket 8.4: the treasury is forfeit, never refunded (docs/GUILD_HALLS.md).
+  await forfeitTreasuryTx(tx, guild, { accountId: by.accountId, moderator: by.moderator }, now);
   await writeAudit(tx, {
     event: 'guild.disband',
     accountId: by.accountId,
