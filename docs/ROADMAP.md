@@ -1383,6 +1383,7 @@ Owner decision (2026-11-11): cosmetics may also be bought for real money later. 
   - refunds;
   - VAT/consumer law (EU) and the legal pages;
   - no randomized paid items without a legal review (GDD §13.3).
+  - **Owner decision (2026-11-12):** the shop may also sell **extra character slots** (beyond the earned ones of 9.4) and **Shrine draws** (9.5). Draws are randomized, so they need the legal review above; the fallback is selling Shrine marks or chosen cosmetics directly. Never offline hours, power, stats or drop odds.
 - Then build: purchases as audited, idempotent grants into the collection book; receipts; admin refund and reversal tools; test-mode payments only in CI; no card data ever touches the server.
 
 ### 8.7 Phase 8 hardening & exit — `done (PR #149)`
@@ -1505,7 +1506,7 @@ Checked and holding: Crownforged Work, the Throne, the lanterns' caps and gates,
 - earned character slots and an upgradeable offline cap (§5.3, §17; today 2 slots and a fixed 3 hours);
 - the cosmetic Reward Shrine (§13.2).
 
-**Exit:** each class plays as its GDD row reads: its resource drives its skills, and a player picks a loadout outside combat. At least three loadouts per class are viable for farming and for bosses, so no single build wins everything. Older gear keeps its value, and the boards and PvP moved by versions between seasons. Accounts grow by playing: more character slots, a longer offline cap and the Shrine, all earned and never bought. Everything is reconciled, fair and free of pay-to-win, as in every earlier phase.
+**Exit:** each class plays as its GDD row reads: its resource drives its skills, and a player picks a loadout outside combat. At least three loadouts per class are viable for farming and for bosses, so no single build wins everything. Older gear keeps its value, and the boards and PvP moved by versions between seasons. Accounts grow by playing: more character slots, a longer offline cap and the Shrine's free draws, all earned in play. Extra slots and Shrine draws may also be sold later in the 8.8 shop (owner decision, 2026-11-12), never anything with power. Everything is reconciled, fair and free of pay-to-win, as in every earlier phase.
 
 **Ground rules for Phase 9** (all earlier rules still apply, including `CLAUDE.md` "Writing tests that don't flake", the patch-notes and the screenshots rules)
 - **Phase 9 releases are 0.9.x.** The first Phase 9 PR players can see bumps to `0.9.0`.
@@ -1516,7 +1517,8 @@ Checked and holding: Crownforged Work, the Throne, the lanterns' caps and gates,
   - boards move by versions between seasons (a skill change is a new Power version);
   - PvP tuning never changes a PvE number (`PVP_RULES_VERSION` bump with measurements);
   - every number change has before/after tables.
-- **Account growth is earned, never bought** (GDD §5.3, §13.3). Slots, offline hours and Shrine draws come from play, never from the 8.8 shop.
+- **Everything can be earned in play** (GDD §5.3, §13.3). **Owner decision (2026-11-12):** extra character slots and Shrine draws may also be bought later in the 8.8 shop. Phase 9 sells nothing; 9.4 and 9.5 only record each grant's source, so a shop source can be added later without a migration.
+- **The offline cap is never sold:** more offline hours mean more progress, which is power. Paid slots carry no power either: each new hero still levels from 1 under the same rules.
 - **Live data:** if B.6 has run, its findings come first. If it hasn't, 9.2 must not move any number B.6 would need as its baseline, except through the loadouts players choose.
 
 **Defaults the owner can override** (recorded in the GDD when the ticket lands):
@@ -1543,7 +1545,7 @@ Checked and holding: Crownforged Work, the Throne, the lanterns' caps and gates,
   - draws: one free draw a day, with unclaimed days kept (up to 7 banked, so a missed day is never lost), plus extra draws earned through play (event tiers, season honours, the deeds);
   - odds: published in the Shrine and in `docs/SHRINE.md`;
   - duplicates: turn into Shrine marks that buy a chosen cosmetic;
-  - **no paid draws** (the 8.8 shop never sells draws, and randomized paid items stay out without a legal review, §13.3);
+  - **paid draws later, gated:** the owner wants extra draws sold in the 8.8 shop. A paid random draw is a loot box, so it stays off until 8.8's legal review (EU and German youth-protection rules, platform rules, §13.3) says yes. If the review says no, the shop sells marks or chosen cosmetics directly instead;
   - companions (a small cosmetic animal beside the hero in the combat scene, GDD §13.1) as a new cosmetic kind.
 
 **Order** (one or two sessions at a time):
@@ -1630,7 +1632,7 @@ Read GDD §13.1–13.3, `docs/COSMETICS.md`, `docs/EVENTS.md`.
   - extra draws from play (event tiers, season honours, deeds);
   - duplicates become Shrine marks, which buy a chosen cosmetic;
   - the odds are published, and a test checks that the published odds equal game-core's;
-  - **no paid draws and no draws from the 8.8 shop.** Test accounts draw, but their pulls never count in telemetry.
+  - **no paid draws in this ticket:** each draw's grant records its source (`daily`, `play`, and later `shop`), and nothing sells draws until 8.8 and its legal review. The free daily draw and the play sources stay, so paying is never needed. Test accounts draw, but their pulls never count in telemetry.
 - **Companions:** a new cosmetic kind in the collection book, one shown beside the hero in the combat scene, with no stats (the 8.7 invariance test extended).
 - **Web:** the Shrine opens the hub's locked "Summoning Shrine" hotspot (2.2), with a draw animation, the odds one click away, the marks shop, and the companion picker in the collection book.
 - **Tests:** a reconciliation (draws = grants + marks, marks = earned − spent), a replayed draw key pays once, the bank's limit at its edges, and odds measured over many seeds against the published table.
