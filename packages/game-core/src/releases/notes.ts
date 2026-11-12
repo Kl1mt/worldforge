@@ -44,6 +44,10 @@ export const PATCH_NOTES: readonly PatchNote[] = [
       'Tyrant’s Embers gain a new use: the last stage of the lanterns needs ten of them.',
       'Good Pale Marches gear is enough to farm the Deep safely and to take on the Sovereign, though not every time; the Deep’s own drops win him far more often.',
     ],
+    fixed: [
+      'In long fights at the Warden’s Watch and the Tyrant’s Forge, the fight log sometimes called the boss “the foe”. It now always names him.',
+      'The forge-tempered foes of the Cinder Depths now keep their ember glow while they fight, not only in the list of foes.',
+    ],
     tickets: ['8.2'],
   },
   {

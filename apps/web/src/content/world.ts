@@ -54,9 +54,9 @@ export const MAP_MARKERS: readonly MapMarker[] = [
   { id: 'tyrantsForge', x: 122, y: 70 },
   // Ticket 8.1: the Hollow Reach past the furnace, on the map's west edge below the Depths.
   { id: 'paleMarches', x: 18, y: 120 },
-  // Ticket 8.2: the Hollow Deep below the Marches, the Hollow Throne at its bottom.
-  { id: 'hollowDeep', x: 16, y: 196 },
-  { id: 'hollowThrone', x: 104, y: 204 },
+  // Ticket 8.2: the Hollow Deep and the Hollow Throne along the map's south edge.
+  { id: 'hollowDeep', x: 140, y: 190 },
+  { id: 'hollowThrone', x: 196, y: 204 },
 ];
 
 export function mapMarker(id: MapPlaceId): MapMarker | null {

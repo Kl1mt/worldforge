@@ -93,7 +93,7 @@ Per level they have about 1.05–1.15 × the Depths' health at about the same da
 
 ## Region III, the Hollow Reach: the Hollow Deep and the Hollow Throne (ticket 8.2)
 
-The Hollow Reach's second area and its region boss. Area id `hollowDeep`, "The Hollow Deep": the pit below the Pale Marches with no bottom anyone has seen, where the hollow kin are older and something at the bottom wears a crown. Backdrop `area.hollow-depths` (A.17). Map markers at the map's south-west corner below the Marches (`hollowDeep` at 16,196, `hollowThrone` at 104,204).
+The Hollow Reach's second area and its region boss. Area id `hollowDeep`, "The Hollow Deep": the pit below the Pale Marches with no bottom anyone has seen, where the hollow kin are older and something at the bottom wears a crown. Backdrop `area.hollow-depths` (A.17). Map markers along the map's south edge (`hollowDeep` at 140,190, `hollowThrone` at 196,204).
 
 **Unlock: the first community gate on new content.** Level 46, the Forge Tyrant slain **and the world flag `deepLanternsLit`** (the "Light the Lanterns of the Deep" project, `docs/COMMUNITY.md`). The Throne needs level 48, the Tyrant and the same flag. Unlike 6.7's chain this flag gates content from its release; it is allowed here because nothing live is taken away (the Deep and the Throne are new). `world/hollow-reach-gate.test.ts` (game-core) and `community/deep-lanterns.test.ts` (server) assert that every other area and dungeon tier answers exactly the same with and without the flag at every level and progress. Blockers on the map: "The town must light the lanterns of the deep first." (`WORLD_FLAGS` `lockedText`) plus the usual level and Tyrant lines.
 

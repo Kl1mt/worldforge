@@ -8,7 +8,7 @@ import type {
   QuestEvent,
   UnlockBlocker,
 } from '@worldforge/game-core';
-import { AUTO_SKILLS, getEnemy, type ClassId } from '@worldforge/game-core';
+import { AUTO_SKILLS, getDungeon, getEnemy, type ClassId } from '@worldforge/game-core';
 import type { Character } from '../characters/api';
 import { DUNGEON_WORDS } from '../content/dungeons';
 import { formatNumber } from '../lib/format';
@@ -197,7 +197,11 @@ export function cryptLog(
   classId: ClassId,
   dungeonId: DungeonId = 'namelessCrypt',
 ): CryptLogLine[] {
-  const ctx: CryptLogContext = { totalRooms, classId, foe: null, dungeonId };
+  // Ticket 8.2: a boss-only run (the Watch, the Forge, the Throne) fights only its boss, so a log
+  // window that starts after the `spawn` still names him ("the Sovereign", not "the foe").
+  const dungeon = getDungeon(dungeonId);
+  const foe = dungeon.rooms.length === 0 ? dungeon.bossId : null;
+  const ctx: CryptLogContext = { totalRooms, classId, foe, dungeonId };
   const lines: CryptLogLine[] = [];
   for (const e of events) {
     if (e.type === 'spawn') ctx.foe = e.enemyId;

@@ -126,6 +126,15 @@ describe('the Hollow Sovereign in the throne log (ticket 8.2)', () => {
     expect(siphons[0]!.text).toMatch(/he heals \d+/);
     for (const l of lines.filter((x) => x.text.includes('crown-blow')))
       expect(l.text).toMatch(/^The Sovereign’s crown-blow lands for [\d,]+!$/);
+    // A window that starts mid-fight (after the spawn) still names him.
+    const late = cryptLog(
+      events.filter((e) => e.type !== 'spawn' && e.type !== 'enter'),
+      0,
+      'warrior',
+      'hollowThrone',
+    );
+    for (const l of late.filter((x) => x.tone === 'hit'))
+      expect(l.text).toMatch(/Hollow Sovereign/);
     // A naked hero at 50 falls to him.
     expect(lines.at(-1)!.text).toBe(
       'The Sovereign keeps his throne. You crawl back up the lantern road.',
