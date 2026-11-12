@@ -42,6 +42,13 @@ Each entry: `id` (`<kind>.<name>`, stored in `cosmetic_unlocks`, never renamed o
 | `crest.abbey-silver` | crest | exchange: 30 Abbey silver (6.11; the iron crest art, silvered) |
 | `crest.seal-wax` | crest | exchange: 4 Seals (6.11; the iron crest art in wax red) |
 | `title-colour.hollow-pale` | title colour | milestone: the Hollow Sovereign slain (8.2; CSS only) |
+| `title-colour.wick-amber` | title colour | event: the Lantern Procession, tier 1 (8.3; CSS only) |
+| `banner.procession-lantern` | banner | event: the Lantern Procession, tier 2 (8.3; the Warden-flame art, re-dyed lantern gold) |
+| `crest.lantern-brass` | crest | event: the Lantern Procession, tier 3 (8.3; the iron crest art in sooted brass) |
+| `title-colour.deep-lantern` | title colour | event: the Lantern Procession, tier 4 (8.3; CSS only) |
+| `appearance.lantern-bearer` | appearance | event: the Lantern Procession, tier 5 (8.3; a palette of every class) |
+| `banner.hollow-procession` | banner | event: the Lantern Procession, tier 6 (8.3; the ember standard art, bleached pale) |
+| `title.keeper-of-the-long-road` | title | event: the Lantern Procession, tier 7 (8.3) |
 
 **Adding one:** append a definition with a source the server already grants (above), list its art for an art ticket, and add words if the source is new. The next deploy's backfill grants it to accounts that already earned it (the backfill id hashes every id and source).
 
@@ -71,6 +78,8 @@ Sinks for the Gravewarden's Seals left over after awakening and for Abbey silver
 - **5.3 keeps working:** frames and titles as before; a title colour colours whichever title is shown (season or cosmetic); no colour leaves 5.3's look unchanged (tested).
 
 ## Art and fallbacks
+**Ticket 8.3:** the Lantern Procession's seven keepsakes add no PixelLab art. Its banners and crest draw A.13's art through `ART_TINTS` (`content/appearance.ts`) with CSS filters (`.cosm-banner--procession-lantern`, `.cosm-banner--hollow-procession`, `.cosm-crest--lantern-brass` in `cosmetics/cosmetics.css`; the hero portrait's banner device has the same filters in `screens/characters.css`); its title colours are `.cosm-tint--wick-amber` and `.cosm-tint--deep-lantern`; its appearance is a fifth theme of `tools/art/hero_palettes.py` (road-grey cloth, dark lantern brass, amber glints), regenerated into `content/palettes.ts` and checked against every class's portrait and attack sheet by `palettes.test.ts`. Its source is the event (granted exactly once per account in the completing transaction, as every event tier; `docs/EVENTS.md`). A later real-money shop (8.8) is not part of this; event keepsakes stay earned in play.
+
 Palettes are A.13's colour substitutions (`heroPaletteSwaps`), applied in the browser on a canvas (A.13's `recolourPixels`) once per sprite and look, cached; until it is drawn, without a canvas, or for an unknown look the hero wears its own colours. Banner styles (32×32) and crest-style frames (48×56 around a 40×48 window) are sprites; when one is missing or fails to load the book and the profile draw a plain banner and a plain rim in the style's metal (tested; screenshots with the art blocked). Title colours are CSS only (`cosm-tint--<name>`). The admin animation gallery's **Palettes** table shows every look on every class (portrait and frame sheet).
 
 ## Invariance

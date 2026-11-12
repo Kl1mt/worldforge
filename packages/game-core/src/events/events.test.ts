@@ -31,6 +31,11 @@ const DAY = 24 * HOUR;
 const t0 = new Date('2030-03-04T00:00:00Z');
 const at = (ms: number) => new Date(t0.getTime() + ms);
 const harvest = getEventDefinition('harvestOfBones');
+const harvestBounty = (() => {
+  const m = harvest.modifier;
+  if (m.kind !== 'killBounty') throw new Error('the Harvest has a kill bounty');
+  return m;
+})();
 
 describe('event content', () => {
   it('every definition is valid and its cosmetics exist', () => {
@@ -62,7 +67,7 @@ describe('event content', () => {
     // Ticket 6.8: the collection book shows banners and title colours too.
     expect(cosmeticShownToday(findCosmetic('banner.harvest-sheaf')!)).toBe(true);
     // The modifier counts only undead of the first areas.
-    for (const id of harvest.modifier.enemyIds) {
+    for (const id of harvestBounty.enemyIds) {
       expect(ENEMIES.find((e) => e.id === id)!.undead).toBe(true);
     }
   });
@@ -190,13 +195,13 @@ describe('event progress', () => {
       // All at once.
       const all = { risenFarmhand: 0, boneScarecrow: 0, carrionWolf: 0 };
       for (const c of chunks) for (const k of Object.keys(c) as (keyof typeof c)[]) all[k] += c[k];
-      const once = killBounty(harvest.modifier, 0, all);
+      const once = killBounty(harvestBounty, 0, all);
       // In pieces.
       let counted = 0;
       let bonus = 0;
       let p = initialEventProgress(harvest);
       for (const c of chunks) {
-        const r = killBounty(harvest.modifier, counted, c);
+        const r = killBounty(harvestBounty, counted, c);
         counted = r.counted;
         bonus += r.bonus.soulShard ?? 0;
         p = applyEventProgress(
@@ -219,11 +224,11 @@ describe('event progress', () => {
   });
 
   it('the bounty ignores foes it does not name and is modest', () => {
-    expect(killBounty(harvest.modifier, 0, { carrionWolf: 1000, ashWraith: 1000 })).toEqual({
+    expect(killBounty(harvestBounty, 0, { carrionWolf: 1000, ashWraith: 1000 })).toEqual({
       counted: 0,
       bonus: {},
     });
     // One shard per 40 risen: at most 2.5 % of a kill's worth, under the Burial Grounds' own 3 %.
-    expect(1 / harvest.modifier.every).toBeLessThanOrEqual(0.025);
+    expect(1 / harvestBounty.every).toBeLessThanOrEqual(0.025);
   });
 });

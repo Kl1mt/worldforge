@@ -252,7 +252,7 @@ deploy/admin.sh seasons close                                            # seal 
 Trade patterns (ticket T.6, `docs/TRADING.md` "T.6 as built"): `deploy/admin.sh trading patterns` prints the trade pattern report of the last 28 days (`--days 1–90`, `--json` for the raw report): pairs with one-way flows or no other partners, the same invite or sign-up mailbox, accounts that received a lot while new, reached a weekly cap in several weeks, offered unprovenanced items or had trades reversed, and invite clusters. Players appear by handle and display name; no emails, ids or invite codes are printed. Read-only (`pnpm admin:trading patterns` in development). Moderators see the same report on the docket, and admins in the panel's "Trades" tab. Migration `0035` only adds three nullable columns and three indexes.
 
 ### Events
-Rotating events (ticket 6.6, `docs/EVENTS.md`): nothing starts by itself; you schedule each one, in the admin panel (Events tab) or here. One runs at a time; times are UTC; every change is audited.
+Rotating events (ticket 6.6, `docs/EVENTS.md`): you schedule each one, in the admin panel (Events tab) or here, or (ticket 8.3) let the **automatic calendar** rotate them. One runs at a time; times are UTC; every change is audited.
 
 ```bash
 deploy/admin.sh events list                       # the events you can schedule (e.g. harvestOfBones)
@@ -265,6 +265,20 @@ deploy/admin.sh events close                      # close ended events and give 
 ```
 
 The running server closes an ended event a few minutes after its end and gives any reward still owed, once. In development: `pnpm admin:events …`.
+
+**The automatic calendar (ticket 8.3).** It **starts paused** (also here, after the deploy) and does nothing until you turn it on. Once on, the scheduler puts the next event of your rotation on the calendar when the last one has closed, the gap after its end (never in the past). An event you schedule by hand always wins: it replaces an automatic one that has not begun, and the rotation carries on after it. Same controls as the admin panel's Events tab ("The automatic calendar"):
+
+```bash
+deploy/admin.sh events calendar status            # on or paused, the rotation, the gap, the next 3 planned
+deploy/admin.sh events calendar set --rotation lanternProcession:28,harvestOfBones:7 --gap 7
+                                                  # the events in order with each length (days 1–28; a
+                                                  # missing ":days" takes the event's own), the gap (0–60)
+deploy/admin.sh events calendar resume            # turn it on
+deploy/admin.sh events calendar pause             # stop creating new ones (a waiting one still begins)
+deploy/admin.sh events calendar skip              # pass over the next one (cancels it if already waiting)
+```
+
+With two API instances (§17) only the leader of the event jobs creates events; a restart never creates one twice.
 
 ### Admin panel
 

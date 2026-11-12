@@ -6,6 +6,9 @@
 //           Void) with its mean and fastest kill. Try boss data without editing it:
 //           TYRANT_SCALE=res,arm HEROIC_SCALE=res,arm (multipliers on resistance and armour),
 //           TYRANT_SHELL=until,multiplier (the slag shell).
+//   procession: ticket 8.3, the Lantern Procession's pacing (docs/EVENTS.md): per hero and class,
+//           kills and gathered materials an hour, the modifier's ore, and the hours of farming
+//           each week's open-road and deeper-road farming tasks take.
 //   sinks:  ticket 6.11, the Seal and Abbey silver flow of a season, before and after the
 //           exchange and the engraver (docs/BALANCE.md "6.11"): Embers and Seals a day from the
 //           Tyrant and the crypt (as `awakening.ts time`), Abbey silver gathered from 17 to 23.
@@ -363,7 +366,7 @@ if (mode === 'forgeward') {
  */
 if (mode === 'event') {
   const def = G.getEventDefinition('harvestOfBones');
-  const mod = def.modifier as { enemyIds: readonly string[]; every: number };
+  const mod = def.modifier as unknown as { enemyIds: readonly string[]; every: number };
   const risen = new Set(mod.enemyIds);
   const farm = (c: G.ClassId, level: number, eq: G.EquippedItem[], areaId: G.AreaId) => {
     let kills = 0,
@@ -422,6 +425,76 @@ if (mode === 'event') {
       }
       console.log(
         `${label.padEnd(28)} ${c.padEnd(8)} ${areaId}: ${Math.round(f.kills)} kills/h (${Math.round(f.risen)} risen) · bounty ${f.bounty} + own ${f.shards.toFixed(1)} shards · ${Math.round(f.gold)} g · ${Math.round(f.xp / 1000)}k XP · Furrows ${(furrows * 60).toFixed(0)} min, Tithe ${(tithe * 60).toFixed(0)} min, Reaping ${(reaping * 60).toFixed(0)} min${usual}`,
+      );
+    }
+  }
+}
+
+/**
+ * `procession`: the Lantern Procession (8.3) for a newcomer (level 6, no gear, the Fields), a
+ * level-12 hero (uncommons +2, Crowwood), a mid-game hero (20, rares +5, the Sunken Abbey) and
+ * endgame heroes (40 in the Depths, 46 in the Pale Marches, Legendaries +5): kills and gathered
+ * materials an hour, the ore bonus, and per week the hours its farming tasks take (the slower of
+ * the kill and the gathering task; the bonus ore counts for gathering, the deeper road's kills
+ * count for both kill tasks where the hero farms the Cinderwastes or the Hollow Reach).
+ */
+if (mode === 'procession') {
+  const def = G.getEventDefinition('lanternProcession');
+  const mod = def.modifier as unknown as { materialIds: readonly string[]; every: number };
+  const counted = new Set(mod.materialIds);
+  const heroes: [string, number, (c: G.ClassId) => G.EquippedItem[], G.AreaId][] = [
+    ['newcomer 6, no gear', 6, () => [], 'abandonedFields'],
+    ['early 12, uncommons +2', 12, (c) => upgraded(kit(c, 11, 'uncommon'), 2), 'crowwood'],
+    ['mid-game 20, rares +5', 20, (c) => upgraded(kit(c, 19, 'rare'), 5), 'sunkenAbbey'],
+    [
+      'endgame 40, Legendaries +5',
+      40,
+      (c) => upgraded(legendarySample(c, 38, 0), 5),
+      'cinderDepths',
+    ],
+    [
+      'endgame 46, Legendaries +5',
+      46,
+      (c) => upgraded(legendarySample(c, 44, 0), 5),
+      'paleMarches',
+    ],
+  ];
+  const week = (w: number, kind: 'kill' | 'gatherAny', deep: boolean) =>
+    def.quests.find(
+      (q) =>
+        (q.week ?? 1) === w && q.objective.kind === kind && (q.minLevel !== undefined) === deep,
+    )?.objective.count ?? 0;
+  for (const [label, level, eq, areaId] of heroes) {
+    for (const c of G.CLASS_IDS) {
+      let kills = 0,
+        gathered = 0;
+      const H = 3;
+      for (let h = 0; h < H; h++) {
+        const s = G.settleFarming({
+          character: { classId: c, level, xp: 0 },
+          equipment: eq(c),
+          areaId,
+          seed: `8.3-procession:${c}:${level}:${areaId}:${h}`,
+          firstCycle: 0,
+          durationMs: 3_600_000,
+          inventoryCount: 0,
+        });
+        kills += s.kills;
+        for (const [m, n] of Object.entries(s.materials)) if (counted.has(m)) gathered += n ?? 0;
+      }
+      const k = kills / H;
+      const g = gathered / H;
+      const ore = g / mod.every;
+      const hours = [1, 2, 3, 4].map((w) => {
+        const t = Math.max(week(w, 'kill', false) / k, week(w, 'gatherAny', false) / (g + ore));
+        return t.toFixed(1);
+      });
+      const deep =
+        level >= 28
+          ? ` · deeper road kills ${[2, 4].map((w) => (week(w, 'kill', true) / k).toFixed(1)).join(' / ')} h (weeks 2 / 4)`
+          : '';
+      console.log(
+        `${label.padEnd(28)} ${c.padEnd(8)} ${areaId}: ${Math.round(k)} kills/h · ${g.toFixed(0)} gathered/h · ${ore.toFixed(1)} ore/h · open road per week ${hours.join(' / ')} h${deep}`,
       );
     }
   }

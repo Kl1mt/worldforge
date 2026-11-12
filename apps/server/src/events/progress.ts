@@ -1,9 +1,10 @@
 import { and, eq, isNull, sql } from 'drizzle-orm';
 import {
   applyEventProgress,
+  eventBounty,
+  eventWeekAt,
   findEventDefinition,
   initialEventProgress,
-  killBounty,
   type EnemyId,
   type MaterialId,
   type QuestEvent,
@@ -25,8 +26,10 @@ import { grantTiersTx, lockOpenEvent, type GrantedTier } from './model.js';
 
 export interface EventFacts {
   questEvents: readonly QuestEvent[];
-  /** Kills by foe (farming); the modifier's bounty counts them. */
+  /** Kills by foe (farming); the kill bounty counts them. */
   killsByEnemy?: Partial<Record<EnemyId, number>>;
+  /** Ticket 8.3: materials gathered while farming (the settlement's own); the gather bounty. */
+  gathered?: Partial<Record<MaterialId, number>>;
 }
 
 export interface EventProgressOutcome {
@@ -44,7 +47,8 @@ export interface EventProgressOutcome {
  */
 export async function recordEventProgressTx(
   tx: Transaction,
-  hero: { id: string; accountId: string },
+  /** `level`: the hero's level when the request arrived (8.3's level-gated quests). */
+  hero: { id: string; accountId: string; level: number },
   facts: EventFacts,
   now: Date,
   { joinedBy }: { joinedBy?: Date } = {},
@@ -79,14 +83,17 @@ export async function recordEventProgressTx(
   if (!p) return null;
   if (joinedBy && p.joinedAt.getTime() > joinedBy.getTime()) return null;
 
-  const bounty = killBounty(def.modifier, p.bountyKills, facts.killsByEnemy ?? {});
+  const bounty = eventBounty(def.modifier, p.bountyKills, facts);
   const bonusEvents: QuestEvent[] = (Object.entries(bounty.bonus) as [MaterialId, number][]).map(
     ([materialId, count]) => ({ type: 'materialGathered', materialId, count }),
   );
-  const { progress, completed } = applyEventProgress(def, p.progress, [
-    ...facts.questEvents,
-    ...bonusEvents,
-  ]);
+  // Ticket 8.3: only the weeks begun when the request arrived, and the hero's level then.
+  const { progress, completed } = applyEventProgress(
+    def,
+    p.progress,
+    [...facts.questEvents, ...bonusEvents],
+    { week: eventWeekAt(event.startsAt, now), level: hero.level },
+  );
   const moved = progress.some((v, i) => v !== p.progress[i]);
   if (!moved && bounty.counted === p.bountyKills) return null;
 

@@ -49,7 +49,7 @@ export function howToEarn(source: CosmeticSource): string {
     case 'event': {
       const e = findEventDefinition(source.eventId);
       return e
-        ? `A keepsake of the ${e.name} event’s reward track, while it runs.`
+        ? `A keepsake of the ${e.name.replace(/^The /, '')} event’s reward track, while it runs.`
         : 'A keepsake of a past event.';
     }
     case 'achievement': {

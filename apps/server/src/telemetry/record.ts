@@ -73,6 +73,8 @@ export const TELEMETRY_METRICS = [
   'event.join',
   'event.quest',
   'event.reward',
+  // Ticket 8.3: events put on the calendar (dim1 event id, dim2 `admin`, `cli` or `calendar`).
+  'event.schedule',
   // Ticket 6.7: world era changes (from era, to era), mirroring `world.era_change` audit rows.
   'world.era',
   // Ticket 6.11: cosmetics bought at the Forge's exchange (kind, cosmetic id); what they cost is

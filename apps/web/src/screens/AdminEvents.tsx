@@ -2,6 +2,7 @@ import { useCallback, useEffect, useId, useState } from 'react';
 import { adminApi, describeAdminFailure, type AdminEvents } from '../admin/api';
 import type { EventView } from '../events/api';
 import { timeLeft } from '../events/text';
+import { EventCalendarPanel } from './AdminEventCalendar';
 import type { ApiFailure } from '../lib/api';
 import './admin-events.css';
 
@@ -10,6 +11,7 @@ import './admin-events.css';
  * under way, the next one and past ones with their participation (test accounts left out); schedule
  * one (one at a time, never overlapping), move its end (extend or bring forward), end it early or
  * cancel one that has not begun. Every change is audited on the server; the same rules as the CLI.
+ * Ticket 8.3: the automatic calendar (`AdminEventCalendar.tsx`) sits above the schedule form.
  */
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -159,6 +161,15 @@ export function EventsFolio() {
                 }
               />
             ) : null}
+            <EventCalendarPanel
+              key={view.calendar.updatedAt ?? 'defaults'}
+              view={view}
+              busy={busy}
+              onSet={(label, patch) => void act(label, () => adminApi.setEventCalendar(patch))}
+              onSkip={() =>
+                void act('The next event is skipped.', () => adminApi.skipCalendarEvent())
+              }
+            />
             <ScheduleForm
               view={view}
               busy={busy}
@@ -213,7 +224,9 @@ export function EventsFolio() {
             deploy/admin.sh events status{'\n'}deploy/admin.sh events list{'\n'}deploy/admin.sh
             events schedule harvestOfBones --start 2026-11-23T00:00:00Z --days 7{'\n'}
             deploy/admin.sh events extend 1 --to 2026-12-01T00:00:00Z{'\n'}deploy/admin.sh events
-            end 1{'\n'}deploy/admin.sh events cancel 2
+            end 1{'\n'}deploy/admin.sh events cancel 2{'\n'}deploy/admin.sh events calendar status
+            {'\n'}deploy/admin.sh events calendar pause|resume|skip{'\n'}deploy/admin.sh events
+            calendar set --rotation lanternProcession:28,harvestOfBones:7 --gap 7
           </code>
         </pre>
         <p className="dossier__dim">
@@ -341,7 +354,9 @@ function ScheduleForm({
   const [days, setDays] = useState(String(first?.defaultDays ?? 7));
   const n = Number(days);
   const valid = def !== undefined && start !== '' && Number.isInteger(n) && n >= 1 && n <= 28;
-  if (view.next) {
+  // Ticket 8.3: an automatic event waiting may be replaced by hand (manual always wins).
+  const replaces = view.next?.source === 'calendar' ? view.next : null;
+  if (view.next && !replaces) {
     return (
       <p className="strong__note evfolio__hint">
         One event waits to begin. To plan another, cancel it or wait until it starts.
@@ -357,6 +372,9 @@ function ScheduleForm({
         {view.current
           ? 'It may start when the event under way ends, or later; events never overlap.'
           : 'It may start now or later.'}
+        {replaces
+          ? ` It replaces ${replaces.name}, which the calendar put on for ${UTC.format(new Date(replaces.startsAt))} UTC; the rotation comes back to it afterwards.`
+          : ''}
       </p>
       <form
         className="seasoncard__form"

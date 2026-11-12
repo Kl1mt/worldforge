@@ -4,6 +4,8 @@ import {
   COSMETICS,
   cosmeticShownToday,
   findCosmetic,
+  eventQuestOpen,
+  eventWeekAt,
   findEventDefinition,
   EVENT_DEFINITIONS,
   type MaterialId,
@@ -32,6 +34,13 @@ import {
   type CosmeticLookup,
 } from './model.js';
 import { joinEventTx } from './progress.js';
+import {
+  calendarView,
+  calendarViewSchema,
+  skipCalendarEvent,
+  updateCalendar,
+  type CalendarPatch,
+} from './calendar.js';
 
 /**
  * Ticket 6.6 routes (docs/API_CONVENTIONS.md "Events", docs/EVENTS.md):
@@ -42,7 +51,8 @@ import { joinEventTx } from './progress.js';
  * - `GET /api/account/cosmetics`: the account's unlocked cosmetics.
  * - Admin (inside D.3's `/api/admin` scope): `GET /admin/events`, `POST /admin/events`,
  *   `POST /admin/events/:number/end` (`{ endsAt }`, or `{}` to end now),
- *   `POST /admin/events/:number/cancel`.
+ *   `POST /admin/events/:number/cancel`; ticket 8.3's calendar: `POST /admin/events/calendar`
+ *   (`{ paused?, rotation?, gapDays? }`) and `POST /admin/events/calendar/skip`.
  */
 
 export const cosmeticView: CosmeticLookup = (id) => {
@@ -86,12 +96,14 @@ const heroEventResponse = {
           type: 'array',
           items: {
             type: 'object',
-            required: ['id', 'progress', 'target', 'done'],
+            required: ['id', 'progress', 'target', 'done', 'open'],
             properties: {
               id: { type: 'string' },
               progress: { type: 'integer' },
               target: { type: 'integer' },
               done: { type: 'boolean' },
+              /** Ticket 8.3: its week has begun and the hero has its level (it advances now). */
+              open: { type: 'boolean' },
             },
           },
         },
@@ -132,7 +144,7 @@ const notFound = () => new ApiError(404, 'not_found', 'No such character.');
 
 async function ownedHero(db: Executor, accountId: string, characterId: string) {
   const [hero] = await db
-    .select({ id: characters.id, accountId: characters.accountId })
+    .select({ id: characters.id, accountId: characters.accountId, level: characters.level })
     .from(characters)
     .where(
       and(
@@ -148,7 +160,7 @@ async function ownedHero(db: Executor, accountId: string, characterId: string) {
 /** The hero's part in the event under way and the account's track, as clients see them. */
 export async function heroEventBody(
   db: Executor,
-  hero: { id: string; accountId: string },
+  hero: { id: string; accountId: string; level: number },
   now: Date,
 ) {
   const list = await listEvents(db);
@@ -190,6 +202,10 @@ export async function heroEventBody(
             progress: p.progress[i] ?? 0,
             target: q.objective.count,
             done: (p.progress[i] ?? 0) >= q.objective.count,
+            open: eventQuestOpen(q, {
+              week: eventWeekAt(current.startsAt, now),
+              level: hero.level,
+            }),
           })),
           tallies: p.tallies,
           bountyKills: p.bountyKills,
@@ -313,9 +329,11 @@ export async function registerEvents(
 
 const adminEventsResponse = {
   type: 'object',
-  required: ['now', 'definitions', 'current', 'next', 'past', 'counts'],
+  required: ['now', 'definitions', 'current', 'next', 'past', 'counts', 'calendar'],
   properties: {
     now: { type: 'string' },
+    /** Ticket 8.3: the automatic calendar and the next three planned events. */
+    calendar: calendarViewSchema,
     definitions: {
       type: 'array',
       items: {
@@ -420,6 +438,7 @@ export async function adminEventsBody(db: Executor, now: Date) {
   }
   return {
     now: now.toISOString(),
+    calendar: await calendarView(db, now),
     definitions: EVENT_DEFINITIONS.map((d) => ({
       id: d.id,
       name: d.name,
@@ -527,6 +546,55 @@ export async function registerEventAdmin(
         now,
         actor(request.auth!.account.id),
       );
+      return adminEventsBody(admin.db, now);
+    },
+  );
+
+  // Ticket 8.3: the automatic calendar (pause, resume, rotation, gap; skip the next one).
+  const calendarEntry = {
+    type: 'object',
+    additionalProperties: false,
+    required: ['definitionId', 'days'],
+    properties: {
+      definitionId: { type: 'string', minLength: 1, maxLength: 64 },
+      days: { type: 'integer', minimum: 1, maximum: 28 },
+    },
+  } as const;
+  admin.post(
+    '/events/calendar',
+    {
+      schema: {
+        body: {
+          type: 'object',
+          additionalProperties: false,
+          minProperties: 1,
+          properties: {
+            paused: { type: 'boolean' },
+            rotation: { type: 'array', maxItems: 12, items: calendarEntry },
+            gapDays: { type: 'integer', minimum: 0, maximum: 60 },
+          },
+        },
+        response: { 200: adminEventsResponse },
+      },
+    },
+    async (request) => {
+      const now = options.now();
+      await updateCalendar(
+        admin.db,
+        request.body as CalendarPatch,
+        now,
+        actor(request.auth!.account.id),
+      );
+      return adminEventsBody(admin.db, now);
+    },
+  );
+
+  admin.post(
+    '/events/calendar/skip',
+    { schema: { response: { 200: adminEventsResponse } } },
+    async (request) => {
+      const now = options.now();
+      await skipCalendarEvent(admin.db, now, actor(request.auth!.account.id));
       return adminEventsBody(admin.db, now);
     },
   );

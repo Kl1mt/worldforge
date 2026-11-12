@@ -757,7 +757,7 @@ export async function registerDungeons(
           // it before the run started.
           await recordEventProgressTx(
             tx,
-            { id: characterId, accountId },
+            { id: characterId, accountId, level: character.level },
             { questEvents: r.questEvents },
             now,
             { joinedBy: run.startedAt },

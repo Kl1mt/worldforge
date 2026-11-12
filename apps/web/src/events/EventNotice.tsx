@@ -1,17 +1,37 @@
 import { useCallback, useEffect, useState } from 'react';
+import { getMaterial, type MaterialId } from '@worldforge/game-core';
 import { useActiveCharacter } from '../characters/CharactersProvider';
 import { useGame } from '../game/GameProvider';
 import { Meter } from '../components/Meter';
 import { eventsApi, type HeroEvent } from './api';
-import { eventFrom, eventUntil, talliesLine, timeLeft, trackLines } from './text';
+import {
+  bonusWords,
+  eventFrom,
+  eventUntil,
+  questWeeks,
+  talliesLine,
+  timeLeft,
+  trackLines,
+  weekOpens,
+} from './text';
 import './events.css';
+
+const materialName = (id: string) => {
+  try {
+    return getMaterial(id as MaterialId).name;
+  } catch {
+    return id;
+  }
+};
 
 type State = { kind: 'loading' } | { kind: 'error' } | { kind: 'ready'; value: HeroEvent };
 
 /**
  * Ticket 6.6: the event notice in the Tavern (docs/EVENTS.md). While an event runs: its story, the
  * modifier, the hero's quests (join first) and the account's reward track. Before one begins: a
- * short word of what is coming. No event: nothing.
+ * short word of what is coming. No event: nothing. Ticket 8.3: the words follow the event (its
+ * giver, its modifier, its bonus); a quest line of several weeks is shown week by week, the weeks
+ * to come with the day they open, and level-gated tasks with their level.
  */
 export function EventNotice() {
   const hero = useActiveCharacter();
@@ -48,8 +68,8 @@ export function EventNotice() {
     if (!res.ok) {
       setJoinError(
         res.error.code === 'no_event'
-          ? 'The Harvest is over; the Reeve has gone home.'
-          : 'The Reeve could not take your name right now. Try again.',
+          ? 'The event is over; its notice has been taken down.'
+          : 'Your name could not be taken right now. Try again.',
       );
       setAttempt((n) => n + 1);
       return;
@@ -61,7 +81,7 @@ export function EventNotice() {
   if (state.kind === 'loading')
     return (
       <p className="evt-notice__wait" role="status">
-        The keeper looks for the Reeve’s notice…
+        The keeper looks for the event notice…
       </p>
     );
   if (state.kind === 'error')
@@ -93,6 +113,8 @@ export function EventNotice() {
     );
   }
   const lines = trackLines(e, v.track);
+  const weeks = questWeeks(e);
+  const bonus = v.hero ? bonusWords(v.hero.bonus, materialName) : '';
   return (
     <section className="evt-notice" aria-labelledby="evt-notice-title">
       <div className="evt-notice__head">
@@ -113,12 +135,12 @@ export function EventNotice() {
 
       <div className="evt-notice__body">
         <div className="evt-notice__quests">
-          <h3 className="caps evt-notice__sub">The Reeve’s tasks</h3>
+          <h3 className="caps evt-notice__sub">{e.giver}’s tasks</h3>
           {!v.hero ? (
             <div className="evt-notice__join">
               <p>
-                Put your name to the Harvest to take up these tasks. Only what {hero.name} does from
-                now on counts, and the extra Soul Shards come only to those who take part.
+                Put your name to the {e.name} to take up these tasks. Only what {hero.name} does
+                from now on counts, and “{e.modifier.name}” comes only to those who take part.
               </p>
               <button
                 type="button"
@@ -126,7 +148,7 @@ export function EventNotice() {
                 onClick={() => void join()}
                 disabled={joining}
               >
-                {joining ? 'Signing…' : `Join the ${e.name}`}
+                {joining ? 'Signing…' : `Join the ${e.name.replace(/^The /, '')}`}
               </button>
               {joinError ? (
                 <p className="tavern__alert" role="alert">
@@ -135,41 +157,67 @@ export function EventNotice() {
               ) : null}
             </div>
           ) : null}
-          <ol className="evt-notice__list">
-            {e.quests.map((q, i) => {
-              const mine = v.hero?.quests[i];
-              const done = mine?.done ?? false;
-              return (
-                <li key={q.id} className={`evt-task${done ? ' evt-task--done' : ''}`}>
-                  <span className="evt-task__name display">{q.name}</span>
-                  <span className="evt-task__tallies">
-                    {q.tallies} {e.tallyName}
-                  </span>
-                  <span className="evt-task__desc">{q.description}</span>
-                  {mine ? (
-                    <Meter
-                      className="evt-task__meter"
-                      variant="xp"
-                      current={mine.progress}
-                      max={mine.target}
-                      label={`${q.name}: ${mine.progress} of ${mine.target}`}
-                    />
-                  ) : null}
-                  {mine ? (
-                    <span className="evt-task__count">
-                      {done
-                        ? 'Done'
-                        : `${mine.progress.toLocaleString('en-GB')} / ${mine.target.toLocaleString('en-GB')}`}
-                    </span>
-                  ) : null}
-                </li>
-              );
-            })}
-          </ol>
-          {v.hero && (v.hero.bonus.soulShard ?? 0) > 0 ? (
+          {weeks.map((g) => (
+            <div
+              key={g.week}
+              className={`evt-week evt-week--${g.state}`}
+              aria-label={e.weeks > 1 ? `Week ${g.week}` : undefined}
+            >
+              {e.weeks > 1 ? (
+                <p className="caps evt-week__head">
+                  Week {g.week} of {e.weeks}
+                  {g.state === 'later' ? ` · ${weekOpens(g.opensAt)}` : null}
+                  {g.state === 'now' ? ' · this week' : null}
+                </p>
+              ) : null}
+              <ol className="evt-notice__list">
+                {g.quests.map(({ quest: q, index: i }) => {
+                  const mine = v.hero?.quests[i];
+                  const done = mine?.done ?? false;
+                  const levelShut = q.minLevel !== null && hero.level < q.minLevel;
+                  const waiting = g.state === 'later';
+                  return (
+                    <li
+                      key={q.id}
+                      className={`evt-task${done ? ' evt-task--done' : ''}${waiting ? ' evt-task--later' : ''}`}
+                    >
+                      <span className="evt-task__name display">{q.name}</span>
+                      <span className="evt-task__tallies">
+                        {q.tallies} {e.tallyName}
+                      </span>
+                      <span className="evt-task__desc">
+                        {q.description}
+                        {levelShut ? (
+                          <span className="evt-task__gate evt-task__gate--shut">
+                            {` Needs level ${q.minLevel}: ${hero.name} is ${hero.level}.`}
+                          </span>
+                        ) : null}
+                      </span>
+                      {mine && !waiting ? (
+                        <Meter
+                          className="evt-task__meter"
+                          variant="xp"
+                          current={mine.progress}
+                          max={mine.target}
+                          label={`${q.name}: ${mine.progress} of ${mine.target}`}
+                        />
+                      ) : null}
+                      {mine && !waiting ? (
+                        <span className="evt-task__count">
+                          {done
+                            ? 'Done'
+                            : `${mine.progress.toLocaleString('en-GB')} / ${mine.target.toLocaleString('en-GB')}`}
+                        </span>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
+          ))}
+          {v.hero && bonus ? (
             <p className="evt-notice__bonus">
-              The Harvest has given {hero.name} {v.hero.bonus.soulShard} extra Soul Shard
-              {v.hero.bonus.soulShard === 1 ? '' : 's'} so far.
+              The {e.name.replace(/^The /, '')} has given {hero.name} {bonus} so far.
             </p>
           ) : null}
         </div>
@@ -202,8 +250,11 @@ export function EventNotice() {
         </div>
       </div>
       <p className="evt-notice__fine">
-        When the Harvest ends, unfinished tasks lapse. Whatever you have earned by then, shards and
-        rewards alike, is yours to keep.
+        {e.weeks > 1
+          ? `A new week of tasks opens every seven days; earlier weeks stay open to the end. `
+          : null}
+        When the {e.name.replace(/^The /, '')} ends, unfinished tasks lapse. Whatever you have
+        earned by then, materials and rewards alike, is yours to keep.
       </p>
     </section>
   );

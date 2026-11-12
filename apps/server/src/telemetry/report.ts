@@ -1255,6 +1255,8 @@ export function telemetrySections(report: TelemetryReport): TelemetrySection[] {
     s.tables.push({
       headers: [
         'event',
+        'scheduled by hand',
+        'by the calendar',
         'heroes joined',
         'quests done',
         'tallies',
@@ -1263,6 +1265,9 @@ export function telemetrySections(report: TelemetryReport): TelemetrySection[] {
       ],
       rows: ids.map((id) => [
         id,
+        // Ticket 8.3: events put on the calendar (admin panel and CLI vs the automatic calendar).
+        sumRollups(evRows, 'event.schedule', (d) => d[0] === id && d[1] !== 'calendar'),
+        sumRollups(evRows, 'event.schedule', (d) => d[0] === id && d[1] === 'calendar'),
         sumRollups(evRows, 'event.join', (d) => d[0] === id),
         sumRollups(evRows, 'event.quest', (d) => d[0] === id),
         sumRollups(evRows, 'event.quest', (d) => d[0] === id, 'amount'),

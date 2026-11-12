@@ -210,6 +210,14 @@ export const adminApi = {
     }),
   cancelEvent: (number: number) =>
     apiRequest<AdminEvents>(`/admin/events/${number}/cancel`, { method: 'POST' }),
+  /** Ticket 8.3: the automatic calendar (pause, resume, rotation, gap) and skip. */
+  setEventCalendar: (patch: {
+    paused?: boolean;
+    rotation?: CalendarEntryInput[];
+    gapDays?: number;
+  }) => apiRequest<AdminEvents>('/admin/events/calendar', { method: 'POST', body: patch }),
+  skipCalendarEvent: () =>
+    apiRequest<AdminEvents>('/admin/events/calendar/skip', { method: 'POST' }),
   /** Ticket 6.9: the reserved-names store (built in and added by admins). */
   reservedNames: (signal?: AbortSignal) =>
     get<{ names: ReservedNameRow[] }>('/admin/reserved-names', signal),
@@ -324,6 +332,32 @@ export interface AdminEvents {
     rewardsSweptAt: string | null;
   }[];
   counts: { event: number; heroes: number; accounts: number; questsDone: number; grants: number }[];
+  /** Ticket 8.3: the automatic calendar and the next three planned events. */
+  calendar: {
+    paused: boolean;
+    /** False until the owner first saves it (the defaults). */
+    saved: boolean;
+    rotation: { definitionId: string; name: string; days: number }[];
+    gapDays: number;
+    nextIndex: number;
+    createdCount: number;
+    updatedAt: string | null;
+    planned: {
+      definitionId: string;
+      name: string;
+      startsAt: string;
+      endsAt: string;
+      kind: 'scheduled' | 'rotation';
+      number: number | null;
+      source: 'manual' | 'calendar' | null;
+    }[];
+  };
+}
+
+/** Ticket 8.3: one entry of the calendar's rotation. */
+export interface CalendarEntryInput {
+  definitionId: string;
+  days: number;
 }
 
 /** The register link an invite code opens (D.2's hash form), on this site's own address. */

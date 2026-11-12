@@ -47,3 +47,120 @@
     gap: var(--space-1);
   }
 }
+
+/*
+ * Ticket 8.3: the automatic calendar (scoped `evcal`). A ledger page: the state stamped in the
+ * corner like a clerk's seal, the next three as a ruled list, the rotation as numbered rows.
+ */
+.evcal {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.evcal__head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.evcal__title {
+  margin: var(--space-1) 0 0;
+}
+
+.evcal__state {
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--font-display, inherit);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 2px solid currentcolor;
+  transform: rotate(-3deg);
+}
+
+.evcal__state--paused {
+  color: var(--text-dim);
+}
+
+.evcal__state--on {
+  color: var(--brass-500);
+}
+
+.evcal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.evcal__sub {
+  margin: var(--space-2) 0 0;
+}
+
+.evcal__planned,
+.evcal__rotation {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.evcal__plan {
+  display: grid;
+  grid-template-columns: minmax(10rem, 1fr) minmax(14rem, 2fr) minmax(10rem, 1.4fr);
+  gap: var(--space-3);
+  align-items: baseline;
+  padding-bottom: var(--space-1);
+  border-bottom: 1px dashed var(--border-subtle, rgb(255 255 255 / 12%));
+}
+
+.evcal__plan-tag {
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
+.evcal__plan--scheduled .evcal__plan-tag {
+  color: var(--brass-500);
+}
+
+.evcal__plan--held {
+  opacity: 0.6;
+}
+
+.evcal__form {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.evcal__entry {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.evcal__index {
+  min-width: 1.5rem;
+  font-family: var(--font-display, inherit);
+  color: var(--text-muted);
+}
+
+.evcal__days {
+  width: 5rem;
+}
+
+.evcal__next {
+  color: var(--brass-500);
+}
+
+.evcal__moves {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+@media (width <= 720px) {
+  .evcal__plan {
+    grid-template-columns: 1fr;
+    gap: var(--space-1);
+  }
+}

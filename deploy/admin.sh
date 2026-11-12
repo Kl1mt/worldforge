@@ -25,6 +25,9 @@
 #   deploy/admin.sh events end|cancel <number> (end the event under way now / call off a future one)
 #   deploy/admin.sh events extend <number> --to <ISO>   (moves an event's end)
 #   deploy/admin.sh events close               (closes ended events and sweeps their rewards now)
+#   deploy/admin.sh events calendar status     (the automatic calendar and the next 3 planned, ticket 8.3)
+#   deploy/admin.sh events calendar pause|resume|skip
+#   deploy/admin.sh events calendar set --rotation lanternProcession:28,harvestOfBones:7 --gap 7
 #   deploy/admin.sh trading patterns [--days 28] [--json]   (trade pattern report, ticket T.6)
 #   deploy/admin.sh test-account <handle> on|off   (mark a test account for the admin tools, D.4)
 #   deploy/admin.sh purge [--dry-run]          (delete heroes soft-deleted over 14 days ago, D.4)

@@ -128,7 +128,12 @@ const progress = (
   kills = {},
 ) =>
   withTransaction(w.db, (tx) =>
-    recordEventProgressTx(tx, hero, { questEvents: events, killsByEnemy: kills }, w.now()),
+    recordEventProgressTx(
+      tx,
+      { level: 1, ...hero },
+      { questEvents: events, killsByEnemy: kills },
+      w.now(),
+    ),
   );
 const kill = (enemyId: EnemyId, count: number): QuestEvent => ({
   type: 'enemyKilled',
@@ -200,10 +205,10 @@ describe('the event boundary (window rule, injected clock)', () => {
     expect((await w.join(who, h.id)).statusCode).toBe(422);
 
     // Closed after the grace, once; nothing is written after it.
-    expect(await runEventJobs(w.db, w.now())).toEqual({ closed: [], swept: [] });
+    expect(await runEventJobs(w.db, w.now())).toEqual({ closed: [], swept: [], created: null });
     w.clock.ms = end + EVENT_CLOSE_GRACE_MS;
-    expect(await runEventJobs(w.db, w.now())).toEqual({ closed: [1], swept: [1] });
-    expect(await runEventJobs(w.db, w.now())).toEqual({ closed: [], swept: [] });
+    expect(await runEventJobs(w.db, w.now())).toEqual({ closed: [1], swept: [1], created: null });
+    expect(await runEventJobs(w.db, w.now())).toEqual({ closed: [], swept: [], created: null });
     expect(await closeEvent(w.db, 1, w.now())).toBe('already');
     // A late progress write with a clock inside the window finds the event closed.
     expect(
@@ -251,7 +256,10 @@ describe('one event at a time; admin controls and the permission matrix', () => 
     expect(await w.db.select().from(worldEvents)).toEqual([]);
     const res = await w.call(admin, 'GET', '/api/admin/events');
     expect(res.statusCode).toBe(200);
-    expect(res.json().definitions.map((d: { id: string }) => d.id)).toEqual(['harvestOfBones']);
+    expect(res.json().definitions.map((d: { id: string }) => d.id)).toEqual([
+      'harvestOfBones',
+      'lanternProcession',
+    ]);
   });
 
   it('schedules, refuses a second at once, extends, ends early, cancels a future one; audited', async () => {
@@ -513,7 +521,7 @@ describe('an event ending mid-quest; the reward track exactly once', () => {
     expect(await w.participant(1, h.id)).toEqual(before);
     expect(await shards()).toBe(2);
     w.clock.ms += EVENT_CLOSE_GRACE_MS;
-    expect(await runEventJobs(w.db, w.now())).toEqual({ closed: [1], swept: [1] });
+    expect(await runEventJobs(w.db, w.now())).toEqual({ closed: [1], swept: [1], created: null });
     // Earlier tiers are kept.
     expect((await w.db.select().from(eventTrackGrants)).length).toBe(3);
     // The next run: a new number, fresh progress (the first run's cosmetics are not granted twice).
@@ -657,9 +665,11 @@ describe('invariance: no event, or not joined, means identical results; joined a
       sql`select (data->>'kills')::int as kills from audit_log where event = 'activity.reward' and character_id = ${joined.id}`,
     );
     expect(p.bountyKills).toBeLessThanOrEqual(reward!.kills);
-    expect(killBounty(harvest.modifier, 0, { risenFarmhand: p.bountyKills }).bonus).toEqual(
-      p.bonus,
-    );
+    expect(
+      killBounty(harvest.modifier as Extract<typeof harvest.modifier, { kind: 'killBounty' }>, 0, {
+        risenFarmhand: p.bountyKills,
+      }).bonus,
+    ).toEqual(p.bonus);
     // Telemetry and audit agree.
     expect((await reconcileWithAudit(w.db)).filter((x) => !x.ok)).toEqual([]);
   });

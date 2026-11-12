@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Hero appearance palettes (ticket A.13): extract each class sprite's palette and design the
-four themed swaps. No generations: this is palette work.
+four themed swaps (ticket 8.3 adds a fifth, the Lantern Procession's "lantern-bearer"). No
+generations: this is palette work.
 
 Every class portrait and its attack sheet share one palette (A.14 snapped the frames to the
 portrait's colours), so one substitution list per class covers the still, the code idle and the
@@ -28,7 +29,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CHARS = ROOT / "apps/web/public/assets/characters"
 TS = ROOT / "apps/web/src/content/palettes.ts"
 CLASSES = ["warrior", "mage", "hunter", "warlock"]
-PALETTES = ["ashen", "ember", "grave-moss", "midnight"]
+PALETTES = ["ashen", "ember", "grave-moss", "midnight", "lantern-bearer"]
 
 # Colours deliberately left alone besides the near-black outline: faces and hands (skin), and the
 # warlock's bone mask and skull, so every look is still the same hero.
@@ -135,6 +136,14 @@ THEMES = {
         "metal": (222, 210, 0.14, 0.05, 1.00),
         "leather": (235, 225, 0.30, 0.20, 0.65),
         "accent": (205, 210, 0.10, 0.04, 1.15),
+    },
+    # Ticket 8.3, the Lantern Procession: road-grey cloth (cool, a touch lighter than Ashen's soot),
+    # dark lantern-brass fittings, warm leather and amber glints like a lit wick.
+    "lantern-bearer": {
+        "cloth": (215, 205, 0.09, 0.06, 1.02),
+        "metal": (34, 46, 0.42, 0.50, 0.95),
+        "leather": (24, 32, 0.34, 0.30, 0.80),
+        "accent": (36, 44, 0.85, 0.75, 1.15),
     },
 }
 # Midnight's silver trim: the bright half of the metal ramp is lifted, the dark half pressed down.

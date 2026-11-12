@@ -75,6 +75,7 @@ describe('hero appearance palettes (A.13)', () => {
       'appearance.ember',
       'appearance.grave-moss',
       'appearance.midnight',
+      'appearance.lantern-bearer',
     ]);
   });
 

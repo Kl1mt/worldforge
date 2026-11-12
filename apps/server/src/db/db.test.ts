@@ -90,6 +90,7 @@ describe('migrations', () => {
       'duel_offers',
       'duels',
       'dungeon_runs',
+      'event_calendar',
       'event_participants',
       'event_track_grants',
       'event_tracks',

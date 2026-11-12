@@ -9,6 +9,10 @@
 //   cancel <number>                          call off an event that has not begun
 //   close                                    close ended events and sweep their reward tracks now
 //                                            (the running server does this every few minutes)
+//   calendar status                          ticket 8.3: the automatic calendar, the next 3 planned
+//   calendar pause | resume | skip           stop or start it; pass over its next event
+//   calendar set [--rotation id:days,…] [--gap N]
+//                                            the rotation in order with each length, the gap in days
 // Times are UTC (ISO 8601, e.g. 2026-11-23T00:00:00Z). Every change is audited (`via: 'cli'`).
 // Uses DATABASE_URL, else (outside production) the playtest database.
 import { EVENT_DEFINITIONS, findEventDefinition } from '@worldforge/game-core';
@@ -18,6 +22,7 @@ import type { Database } from '../db/types.js';
 import { ApiError } from '../errors.js';
 import { cancelEvent, runEventJobs, scheduleEvent, setEventEnd } from './model.js';
 import { adminEventsBody } from './routes.js';
+import { calendarView, skipCalendarEvent, updateCalendar } from './calendar.js';
 
 const USAGE = `Usage:
   pnpm admin:events status
@@ -27,6 +32,9 @@ const USAGE = `Usage:
   pnpm admin:events extend <number> --to <ISO>
   pnpm admin:events cancel <number>
   pnpm admin:events close
+  pnpm admin:events calendar status
+  pnpm admin:events calendar pause | resume | skip
+  pnpm admin:events calendar set [--rotation lanternProcession:28,harvestOfBones:7] [--gap 7]
 Times are UTC, e.g. 2026-11-23T00:00:00Z.`;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -84,6 +92,87 @@ export async function formatEventStatus(db: Database, now: Date): Promise<string
   return lines.join('\n');
 }
 
+/** Ticket 8.3: the calendar in plain text; exported for tests. */
+export async function formatCalendarStatus(db: Database, now: Date): Promise<string> {
+  const c = await calendarView(db, now);
+  const lines = [
+    `Calendar: ${c.paused ? 'PAUSED (nothing is created automatically)' : 'running'}${c.saved ? '' : ' (defaults, never saved)'}`,
+    `Gap between events: ${c.gapDays} days. Automatic events created so far: ${c.createdCount}.`,
+    c.rotation.length === 0
+      ? 'Rotation: empty.'
+      : `Rotation: ${c.rotation
+          .map((e, i) => `${i === c.nextIndex ? '→ ' : ''}${e.definitionId} (${e.days} days)`)
+          .join(', ')}`,
+    c.planned.length === 0 ? 'Planned: nothing.' : 'Planned (UTC):',
+    ...c.planned.map(
+      (p) =>
+        `  ${p.startsAt} → ${p.endsAt}  ${p.name}  ${
+          p.kind === 'scheduled'
+            ? `event ${p.number}, on the calendar (${p.source === 'calendar' ? 'automatic' : 'by hand'})`
+            : c.paused
+              ? 'from the rotation, once resumed'
+              : 'from the rotation'
+        }`,
+    ),
+  ];
+  return lines.join('\n');
+}
+
+function parseRotation(v: string): { definitionId: string; days: number }[] {
+  if (v === '' || v === '-') return [];
+  return v.split(',').map((part) => {
+    const [id, daysArg] = part.split(':');
+    const def = id ? findEventDefinition(id) : undefined;
+    if (!def) throw new UsageError(`No event "${id ?? ''}" (see \`list\`).`);
+    const days = daysArg === undefined ? def.defaultDays : Number(daysArg);
+    if (!Number.isInteger(days) || days < 1 || days > 28)
+      throw new UsageError('Each length must be a whole number of days from 1 to 28.');
+    return { definitionId: def.id, days };
+  });
+}
+
+async function runCalendarCommand(db: Database, args: string[], now: Date): Promise<string> {
+  const [sub, ...rest] = args;
+  const actor = { accountId: null, via: 'cli' as const };
+  switch (sub) {
+    case undefined:
+    case 'status':
+      return formatCalendarStatus(db, now);
+    case 'pause':
+    case 'resume':
+      await updateCalendar(db, { paused: sub === 'pause' }, now, actor);
+      return `${sub === 'pause' ? 'Paused' : 'Resumed'}.\n${await formatCalendarStatus(db, now)}`;
+    case 'skip': {
+      const out = await skipCalendarEvent(db, now, actor);
+      const name = findEventDefinition(out.skipped)?.name ?? out.skipped;
+      return `Skipped ${name}${out.cancelled ? ` (event ${out.cancelled} cancelled)` : ''}.\n${await formatCalendarStatus(db, now)}`;
+    }
+    case 'set': {
+      const rotationArg = flag(rest, '--rotation');
+      const gapArg = flag(rest, '--gap');
+      if (rotationArg === undefined && gapArg === undefined)
+        throw new UsageError('calendar set needs --rotation and/or --gap.');
+      let gapDays: number | undefined;
+      if (gapArg !== undefined) {
+        gapDays = Number(gapArg);
+        if (!/^\d{1,2}$/.test(gapArg)) throw new UsageError('--gap must be whole days, 0 to 60.');
+      }
+      await updateCalendar(
+        db,
+        {
+          ...(rotationArg !== undefined ? { rotation: parseRotation(rotationArg) } : {}),
+          ...(gapDays !== undefined ? { gapDays } : {}),
+        },
+        now,
+        actor,
+      );
+      return `Saved.\n${await formatCalendarStatus(db, now)}`;
+    }
+    default:
+      throw new UsageError(USAGE);
+  }
+}
+
 /** Runs one command; returns its output. Exported for tests. */
 export async function runEventCommand(db: Database, args: string[], now: Date): Promise<string> {
   const [command, ...rest] = args;
@@ -133,11 +222,14 @@ export async function runEventCommand(db: Database, args: string[], now: Date): 
       const e = await cancelEvent(db, eventNumber(rest[0]), now, actor);
       return `${label(e.number, e.definitionId)} is cancelled.`;
     }
+    case 'calendar':
+      return runCalendarCommand(db, rest, now);
     case 'close': {
       const out = await runEventJobs(db, now);
       return [
         out.closed.length ? `Closed: events ${out.closed.join(', ')}.` : null,
         out.swept.length ? `Rewards swept: events ${out.swept.join(', ')}.` : null,
+        out.created !== null ? `The calendar put event ${out.created} on the calendar.` : null,
         'Nothing else was due.',
       ]
         .filter(Boolean)

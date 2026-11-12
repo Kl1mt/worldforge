@@ -304,3 +304,36 @@
     grid-column: 2;
   }
 }
+
+/*
+ * Ticket 8.3: a quest line of several weeks. Each week is a short run of tasks under a ruled head;
+ * the weeks to come are inked faintly (not yet posted), the week under way carries an ochre rule.
+ */
+.evt-week + .evt-week {
+  margin-top: var(--space-3);
+}
+
+.evt-week__head {
+  margin: 0 0 var(--space-2);
+  padding-bottom: var(--space-1);
+  color: #5b4a33;
+  border-bottom: 1px dashed rgb(91 74 51 / 45%);
+}
+
+.evt-week--now .evt-week__head {
+  color: var(--evt-ochre);
+  border-bottom: 2px solid var(--evt-ochre);
+}
+
+.evt-task--later {
+  opacity: 0.55;
+}
+
+.evt-task__gate {
+  font-style: italic;
+  color: #5b4a33;
+}
+
+.evt-task__gate--shut {
+  color: #7a2a1c;
+}

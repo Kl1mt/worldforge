@@ -4,7 +4,8 @@
  * the Fields until its first task is done and the first reward tier is granted once; the owner ends
  * the event early and nothing earned is lost. Ticket 6.8: the keepsake is then equipped from the
  * collection book (`playCollectionStep`). Ticket 6.11: Seals and Abbey silver spent at the Forge's
- * exchange and engraver (`playSealSinkStep`).
+ * exchange and engraver (`playSealSinkStep`). Ticket 8.3: the automatic calendar puts the Lantern
+ * Procession on, the hero takes its first week's task and sees week 2 open (`playCalendarStep`).
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
@@ -12,7 +13,13 @@ import { buildApp } from '../app.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
 import type { DatabaseHandle } from '../db/types.js';
 import { createTestDatabase } from '../test/db.js';
-import { playCollectionStep, playEventStep, playSealSinkStep, startJourney } from './journey.js';
+import {
+  playCalendarStep,
+  playCollectionStep,
+  playEventStep,
+  playSealSinkStep,
+  startJourney,
+} from './journey.js';
 
 let database: DatabaseHandle;
 let app: FastifyInstance;
@@ -54,5 +61,10 @@ describe('journey: a rotating event (Phase 6)', () => {
     // Ticket 6.11: the exchange and the engraver.
     const sinks = await playSealSinkStep(database, hero);
     expect(sinks.engraving).toBe('silver:oathworn');
-  }, 120_000);
+    // Ticket 8.3: the calendar's Procession, then the Harvest after it.
+    const cal = await playCalendarStep(app, database, hero, clock);
+    expect(cal.event).toBe(2);
+    expect(cal.next).toBe(3);
+    expect(cal.tallies).toBeGreaterThanOrEqual(10);
+  }, 180_000);
 });

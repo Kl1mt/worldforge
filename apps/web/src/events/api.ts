@@ -19,11 +19,26 @@ export interface EventView {
   description: string;
   tallyName: string;
   modifier: { name: string; description: string };
-  quests: { id: string; name: string; description: string; target: number; tallies: number }[];
+  quests: {
+    id: string;
+    name: string;
+    description: string;
+    target: number;
+    tallies: number;
+    /** Ticket 8.3: the week it opens in (1 from the start), its level (null: every hero). */
+    week: number;
+    minLevel: number | null;
+    opensAt: string;
+  }[];
   track: { tier: number; tallies: number; cosmetic: EventCosmetic }[];
   startsAt: string;
   endsAt: string;
   status: 'scheduled' | 'active' | 'closing' | 'closed' | 'cancelled';
+  /** Ticket 8.3: weeks of the quest line; the week under way (0 before the start). */
+  weeks: number;
+  week: number;
+  /** Ticket 8.3: `manual` or `calendar`. */
+  source: string;
 }
 
 export interface EventsNow {
@@ -35,7 +50,8 @@ export interface EventsNow {
 export interface HeroEvent extends EventsNow {
   hero: {
     joinedAt: string;
-    quests: { id: string; progress: number; target: number; done: boolean }[];
+    /** `open`: its week has begun and the hero has its level (8.3). */
+    quests: { id: string; progress: number; target: number; done: boolean; open: boolean }[];
     tallies: number;
     bountyKills: number;
     bonus: Record<string, number>;

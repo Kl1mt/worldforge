@@ -156,8 +156,8 @@ describe('the book', () => {
         .map((e) => e.id)
         .sort(),
     ).toEqual(['appearance.default', 'banner.harvest-sheaf']);
-    // Four crests earned in play, two from the exchange (6.11).
-    expect(filterEntries(book.entries, 'crest', 'locked')).toHaveLength(6);
+    // Four crests earned in play, two from the exchange (6.11), one from the Procession (8.3).
+    expect(filterEntries(book.entries, 'crest', 'locked')).toHaveLength(7);
     expect(counts(book.entries)).toEqual({ owned: 2, total: COSMETICS.length });
   });
 

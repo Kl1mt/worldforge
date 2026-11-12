@@ -263,6 +263,57 @@ export const COSMETICS: readonly CosmeticDefinition[] = [
     description: 'A rim dipped in the crypt’s red sealing wax and pressed while warm.',
     source: { kind: 'exchange' },
   },
+  // --- 8.3: the Lantern Procession's reward track (existing art with code treatments: a CSS
+  // title colour, A.13's banner and crest art recoloured, a palette, a title; no new art) ---
+  {
+    id: 'title-colour.wick-amber',
+    kind: 'titleColour',
+    name: 'Wick-amber',
+    description: 'Your title in the warm amber of a lantern wick just lit.',
+    source: { kind: 'event', eventId: 'lanternProcession' },
+  },
+  {
+    id: 'banner.procession-lantern',
+    kind: 'banner',
+    name: 'Procession banner',
+    description: 'The Watch’s flame device, re-sewn in lantern gold for the walk to the Hollow.',
+    source: { kind: 'event', eventId: 'lanternProcession' },
+  },
+  {
+    id: 'crest.lantern-brass',
+    kind: 'crest',
+    name: 'Lantern-brass crest',
+    description: 'A riveted rim of dark lantern brass, sooted by four weeks on the road.',
+    source: { kind: 'event', eventId: 'lanternProcession' },
+  },
+  {
+    id: 'title-colour.deep-lantern',
+    kind: 'titleColour',
+    name: 'Deep-lantern',
+    description: 'Your title in the cold green-blue the lanterns burn with near the Hollow.',
+    source: { kind: 'event', eventId: 'lanternProcession' },
+  },
+  {
+    id: 'appearance.lantern-bearer',
+    kind: 'appearance',
+    name: 'Procession bearer',
+    description: 'Road-grey cloth and lantern-brass fittings, as the procession’s bearers wear.',
+    source: { kind: 'event', eventId: 'lanternProcession' },
+  },
+  {
+    id: 'banner.hollow-procession',
+    kind: 'banner',
+    name: 'Hollow procession banner',
+    description: 'The ember standard, bleached pale by the Hollow’s light at the road’s end.',
+    source: { kind: 'event', eventId: 'lanternProcession' },
+  },
+  {
+    id: 'title.keeper-of-the-long-road',
+    kind: 'title',
+    name: 'Keeper of the Long Road',
+    description: 'For walking the whole Lantern Procession, gate to Hollow.',
+    source: { kind: 'event', eventId: 'lanternProcession' },
+  },
 ];
 
 const BY_ID = new Map(COSMETICS.map((c) => [c.id, c]));

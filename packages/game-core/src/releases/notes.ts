@@ -23,9 +23,25 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.8.1';
+export const GAME_VERSION = '0.8.2';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.8.2',
+    date: '2026-11-19',
+    title: 'The Lantern Procession',
+    new: [
+      'A new, longer event: the Lantern Procession. For four weeks Graumark walks its lanterns from the town gate to the edge of the Hollow, one stage a week. Join it in the Tavern.',
+      'A new week of tasks opens every seven days, and earlier weeks stay open until the end. Each week has two tasks for heroes of every level and a third, on the deeper road, for heroes of level 28 and up.',
+      'While it lasts, every 25 Timber, Ashwort, Raw Hide or Iron Ore you gather while farming bring an extra Iron Ore for the lantern frames.',
+      'Seven keepsakes to earn with lantern marks: the Wick-amber and Deep-lantern title colours, the Procession and Hollow procession banners, the Lantern-brass crest, the Procession bearer look for every class, and the title Keeper of the Long Road. A hero of any level who walks the whole road earns the first five; the deeper road leads to the rest. Like every event reward, they are for show only.',
+      'Events can now follow one another on their own: Graumark’s calendar can bring the next event round after a short rest. The Tavern says when the next one begins.',
+    ],
+    changed: [
+      'The event notice in the Tavern now shows the tasks week by week, with the day each week opens and the level a task needs.',
+    ],
+    tickets: ['8.3'],
+  },
   {
     version: '0.8.1',
     date: '2026-11-18',

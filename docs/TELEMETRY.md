@@ -76,6 +76,7 @@ Ticket 4.8: the Warden's Watch records under the same metrics as `ashenWatch:1` 
 | `event.join` | event id | | | heroes joined an event (ticket 6.6) |
 | `event.quest` | event id | task id | | tasks done / tallies |
 | `event.reward` | event id | `tier<n>` | cosmetic id | reward-track tiers granted |
+| `event.schedule` | event id | `admin`, `cli` or `calendar` | | events put on the calendar (ticket 8.3; by hand or by the automatic calendar) |
 | `forge` | `salvage`, `craft`, `upgrade`, `reroll`, `improve`, `awaken` (6.5b) | recipe id; for upgrades the level tried (`+1`…`+10`); for rerolls/improvements/awakenings the item's rarity | upgrades: `success`, `guaranteed` (certain or pity), `failure`; rerolls/improvements: the resulting affix id; awakenings: `effect` or `set` | uses (salvage: items) |
 
 The loot filter's drops (`item.fate filter_*`, `gold.in *_filter`, `material.in *_filter`) are kept apart from manual sells and salvages (`item.sold`, `item.salvaged`, `gold.in merchant_sell`/`forge_salvage`). Drop rates use `item.drop`, which includes filtered and overflowed drops, so a filter does not hide what dropped.
@@ -108,7 +109,7 @@ A sample dataset: `pnpm --filter @worldforge/server telemetry:simulate` plays 24
 
 **Boss modifiers (ticket 6.3).** The report has a "Boss modifiers" section: per modifier and boss (`<dungeon>:<tier>`) the runs won and lost, the win rate, hoard items and how many were Legendary or Mythic; and per modifier the guild boss attempts, how many fell, counted damage and damage per attempt. Runs started before 6.3 show as `none`. `--reconcile` checks `boss_modifier.run` against the `dungeon.claim` and `boss_modifier.guild_boss` against the `guild_boss.attempt` audit rows written since 6.3 (those carry `bossModifier`, older ones are left out on both sides). This is what B.5 tunes the modifiers from; the game-core measurements are in `docs/DUNGEONS.md` and `tools/balance/heroic.ts`.
 
-**Events (ticket 6.6).** The report has an "Events" section: per event the heroes joined, tasks done, tallies, tiers granted and bonus materials; tasks done per task; tiers granted per tier and cosmetic. `--reconcile` checks `event.join`, `event.quest` (count and tallies), `material.in event` and `event.reward` against the `event.join`, `event.progress` and `event.reward` audit rows, and two holdings: `event_track_grants` holds exactly the audited grants, `event_tracks` exactly the audited tallies (`docs/EVENTS.md`).
+**Events (ticket 6.6).** The report has an "Events" section: per event (since 8.3) how often it was scheduled by hand and by the calendar, the heroes joined, tasks done, tallies, tiers granted and bonus materials (the Lantern Procession's ore is `material.in` source `event` like the Harvest's shards); tasks done per task; tiers granted per tier and cosmetic. `--reconcile` checks `event.join`, `event.quest` (count and tallies), `material.in event` and `event.reward` against the `event.join`, `event.progress` and `event.reward` audit rows, and two holdings: `event_track_grants` holds exactly the audited grants, `event_tracks` exactly the audited tallies (`docs/EVENTS.md`).
 
 ## Admin view (ticket D.3)
 

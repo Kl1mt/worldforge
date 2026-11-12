@@ -286,7 +286,8 @@ export async function settleActivityTx(
     await recordEventProgressTx(
       tx,
       character,
-      { questEvents, killsByEnemy: settlement.killsByEnemy },
+      // Ticket 8.3: the gather bounty counts the settlement's own materials (not the filter's).
+      { questEvents, killsByEnemy: settlement.killsByEnemy, gathered: settlement.materials },
       now,
     );
 
