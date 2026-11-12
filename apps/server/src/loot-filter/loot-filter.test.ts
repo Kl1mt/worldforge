@@ -173,7 +173,7 @@ describe('loot filter rules', () => {
   it('start empty, can be set, normalised, audited once per change, and cleared', async () => {
     const p = await newPlayer();
     const initial = (await call(p, 'GET', '/loot-filter')).json<LootFilterResponse>();
-    expect(initial).toEqual({ characterId: p.id, rules: null, active: false });
+    expect(initial).toEqual({ characterId: p.id, rules: null, active: false, presets: [] });
 
     const r = rules({
       action: 'sell',
@@ -187,6 +187,7 @@ describe('loot filter rules', () => {
       characterId: p.id,
       rules: { ...r, wantedAffixes: ['armor', 'gold-find'] },
       active: true,
+      presets: [],
     });
     expect((await setFilter(p, { ...r, wantedAffixes: ['armor', 'gold-find'] })).statusCode).toBe(
       200,

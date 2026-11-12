@@ -46,6 +46,7 @@ import {
 import { itemBindingColumns, itemEffectColumns } from '../inventory/columns.js';
 import type { Executor, Transaction } from '../db/types.js';
 import { withTransaction, constraintOf } from '../db/transaction.js';
+import { notifyDropsTx } from '../inbox/notify.js';
 import { writeAudit } from '../db/audit.js';
 import { recordTelemetry } from '../telemetry/record.js';
 import {
@@ -744,6 +745,15 @@ export async function registerDungeons(
             };
           });
           if (rows.length > 0) await tx.insert(itemInstances).values(rows);
+          // Ticket 8.5: drops worth seeing go to the account's inbox, in this transaction.
+          await notifyDropsTx(tx, {
+            accountId,
+            characterId,
+            source: 'crypt',
+            placeId: run.dungeonId,
+            items: r.items,
+            now,
+          });
           const none = normalizeProfessions({});
           await grantGatheringTx(tx, characterId, r.materials, none, none, now);
           await changeMaterialsTx(tx, characterId, filter.materials, now);

@@ -29,6 +29,7 @@ import {
 import { queryRows } from '../db/query.js';
 import { withTransaction } from '../db/transaction.js';
 import type { Database, Executor, Transaction } from '../db/types.js';
+import { notifyTx } from '../inbox/notify.js';
 import { writeAudit } from '../db/audit.js';
 import { ApiError } from '../errors.js';
 import { recordTelemetry } from '../telemetry/record.js';
@@ -419,6 +420,14 @@ export async function grantTiersTx(
       event: 'event.reward',
       accountId,
       data: { event: event.number, eventId: def.id, via, tallies, ...g },
+    });
+    // Ticket 8.5: the milestone and its keepsake, in the account's inbox (once per tier).
+    await notifyTx(tx, {
+      accountId,
+      kind: 'event.reward',
+      data: { eventId: def.id, event: event.number, tier: t.tier, cosmeticId: t.cosmeticId },
+      now,
+      dedupeKey: `event:${event.number}:tier:${t.tier}`,
     });
     recordTelemetry(tx, now, [
       { metric: 'event.reward', dims: [def.id, `tier${t.tier}`, t.cosmeticId] },

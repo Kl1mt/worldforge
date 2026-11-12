@@ -40,6 +40,7 @@ import {
 import { duelDefences, duelOffers, duels, type Duel } from '../db/schema.js';
 import type { Executor } from '../db/types.js';
 import { withTransaction } from '../db/transaction.js';
+import { notifyTx } from '../inbox/notify.js';
 import { writeAudit } from '../db/audit.js';
 import { uuidv7 } from '../db/uuid.js';
 import { ApiError } from '../errors.js';
@@ -807,6 +808,31 @@ export async function registerArena(
                   }
                 : {}),
             },
+          });
+          // Ticket 8.5: the defender's inbox (the duel is theirs to open; no name stored).
+          await notifyTx(tx, {
+            accountId: defence.accountId,
+            kind: 'duel.defence',
+            data: {
+              duelId: row!.id,
+              kind,
+              bracketId,
+              outcome:
+                fight.outcome === 'draw'
+                  ? 'draw'
+                  : fight.outcome === 'defender'
+                    ? 'held'
+                    : 'fell',
+              ...(rating
+                ? {
+                    rating: Math.round(
+                      rating.defender.after.rating - rating.defender.before.rating,
+                    ),
+                  }
+                : {}),
+            },
+            now,
+            from: me,
           });
           recordTelemetry(tx, now, [
             { metric: 'duel.fight', dims: [kind, bracketId, fight.outcome] },

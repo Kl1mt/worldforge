@@ -24,6 +24,8 @@ import { registerForge } from './forge/routes.js';
 import { pruneIdempotencyKeys } from './idempotency/index.js';
 import { registerQuests } from './quests/routes.js';
 import { registerLootFilter } from './loot-filter/routes.js';
+import { registerInbox } from './inbox/routes.js';
+import { pruneInboxes } from './inbox/notify.js';
 import { registerSafety } from './social/routes.js';
 import { registerProfiles } from './social/profiles.js';
 import { registerModeration } from './social/moderation.js';
@@ -219,6 +221,7 @@ export function buildApp({
       await registerForge(api, activityOptions);
       await registerQuests(api, activityOptions);
       await registerLootFilter(api, activityOptions);
+      await registerInbox(api, activityOptions.now);
       await registerSafety(api);
       await registerProfiles(api);
       await registerModeration(api);
@@ -347,7 +350,9 @@ function registerSettlementScheduler(
           authNow().getTime(),
           DEFAULT_LOGIN_THROTTLE.resetAfterMs,
         );
-        return `keys ${n}, sessions ${auth.sessions}, tokens ${auth.tokens}, limits ${limits}`;
+        // Ticket 8.5: inbox entries past their age or the per-account cap (game clock).
+        const inbox = await pruneInboxes(app.db, now);
+        return `keys ${n}, sessions ${auth.sessions}, tokens ${auth.tokens}, limits ${limits}, inbox ${inbox}`;
       });
     }
     await step('leaderboardSweep', async () => {

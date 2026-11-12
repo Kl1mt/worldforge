@@ -29,6 +29,7 @@ import { canonicalJson } from '../idempotency/index.js';
 import { queryRows } from '../db/query.js';
 import { withTransaction } from '../db/transaction.js';
 import type { Database, Executor, Transaction } from '../db/types.js';
+import { notifyTx } from '../inbox/notify.js';
 import { writeAudit } from '../db/audit.js';
 import { recordTelemetry } from '../telemetry/record.js';
 import { grantCosmeticsTx } from '../cosmetics/grant.js';
@@ -505,6 +506,14 @@ export async function awardGuildSeason(
           { accountId: r.accountId, now, source: `guildSeason:${number}` },
           guildSeasonCosmeticsEarned(tierOf.get(r.guildId)!),
         );
+        // Ticket 8.5: the guild's honours in the member's inbox (once; the run is resumable).
+        await notifyTx(tx, {
+          accountId: r.accountId,
+          kind: 'guild.honours',
+          data: { season: number, tier: tierOf.get(r.guildId)! },
+          now,
+          dedupeKey: `guildSeason:${number}`,
+        });
       }
     });
   }

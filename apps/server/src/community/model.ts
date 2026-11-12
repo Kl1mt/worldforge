@@ -20,6 +20,7 @@ import {
 } from '../db/schema.js';
 import type { Database, Executor, Transaction } from '../db/types.js';
 import { withTransaction } from '../db/transaction.js';
+import { broadcastTx } from '../inbox/notify.js';
 import { writeAudit } from '../db/audit.js';
 import { ApiError } from '../errors.js';
 import { awardAchievements } from '../achievements/award.js';
@@ -232,6 +233,13 @@ export async function advanceProject(
     await writeAudit(tx, {
       event: 'community.stage_complete',
       data: { projectId: def.id, stageId: stage.id, stageIndex: index - 1, ...(by ? { by } : {}) },
+    });
+    // Ticket 8.5: every account's inbox (once per stage).
+    await broadcastTx(tx, {
+      kind: 'world.stage',
+      data: { projectId: def.id, stageId: stage.id, stageIndex: index - 1 },
+      now,
+      dedupeKey: `stage:${def.id}:${stage.id}`,
     });
     recordTelemetry(tx, now, [{ metric: 'community.stage', dims: [def.id, stage.id] }]);
   }

@@ -20,6 +20,7 @@ import {
 } from 'drizzle-orm/pg-core';
 import type {
   ItemBinding,
+  LootFilterPreset,
   AccountRole,
   PrestigeMetric,
   PrestigeTier,
@@ -301,6 +302,15 @@ export const characters = pgTable(
      * and the crypt claim under the character lock, so each window uses one well-defined set.
      */
     lootFilter: jsonb('loot_filter').$type<LootFilterRules>(),
+    /**
+     * Ticket 8.5: up to `LOOT_FILTER_PRESET_LIMIT` named loot-filter presets (game-core
+     * `LootFilterPreset`), each validated like the filter. Saved and renamed by
+     * `…/loot-filter/presets`; applying one goes through `POST …/loot-filter` (settle first, audit).
+     */
+    lootFilterPresets: jsonb('loot_filter_presets')
+      .$type<LootFilterPreset[]>()
+      .notNull()
+      .default(sql`'[]'::jsonb`),
     /**
      * Warehouse upgrades bought (ticket 4.7): capacity is game-core `warehouseCapacity(level)`.
      * Written only by `POST …/warehouse/upgrade` under the character lock.
@@ -2715,5 +2725,31 @@ export const guildHallDisplays = pgTable(
       columns: [t.guildId, t.titleColour],
       foreignColumns: [guildHallUpgrades.guildId, guildHallUpgrades.upgradeId],
     }),
+  ],
+);
+
+/**
+ * Ticket 8.5 (docs/NOTIFICATIONS.md): the account's inbox. Written only by the server, in the
+ * transaction of the event it reports (`notifyTx`, `apps/server/src/inbox/`); never from a client
+ * body. `dedupe_key` (unique per account when set) makes resumable jobs (honours, eras) write an
+ * entry once. Bounded: the newest `INBOX_KEEP` per account and `INBOX_KEEP_DAYS` days.
+ */
+export const accountNotifications = pgTable(
+  'account_notifications',
+  {
+    id: uuid('id').primaryKey(),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    kind: text('kind').notNull(),
+    data: jsonb('data').$type<Record<string, unknown>>().notNull(),
+    dedupeKey: text('dedupe_key'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+    readAt: timestamp('read_at', { withTimezone: true }),
+  },
+  (t) => [
+    index('account_notifications_account_id_idx').on(t.accountId, t.createdAt),
+    index('account_notifications_created_at_idx').on(t.createdAt),
+    uniqueIndex('account_notifications_dedupe_idx').on(t.accountId, t.dedupeKey),
   ],
 );

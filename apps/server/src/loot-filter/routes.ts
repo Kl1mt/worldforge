@@ -7,12 +7,19 @@ import {
   LOOT_FILTER_EFFECT_IDS,
   LOOT_FILTER_MAX_WANTED,
   RARITY_IDS,
+  LOOT_FILTER_PRESET_LIMIT,
+  LOOT_FILTER_PRESET_NAME_MAX,
+  LOOT_FILTER_CODE_MAX_LENGTH,
+  decodeLootFilterCode,
   isLootFilterActive,
+  normalisePresetName,
   parseLootFilter,
+  type LootFilterPreset,
   type LootFilterRules,
 } from '@worldforge/game-core';
 import { characters } from '../db/schema.js';
 import { withTransaction } from '../db/transaction.js';
+import type { Transaction } from '../db/types.js';
 import { writeAudit } from '../db/audit.js';
 import { ApiError } from '../errors.js';
 import type { ActivityOptions } from '../activity/settle.js';
@@ -34,12 +41,21 @@ import {
  * old left to settle). Setting the same rules again changes nothing, so no `Idempotency-Key`.
  */
 
+export interface LootFilterPresetView {
+  slot: number;
+  name: string;
+  rules: LootFilterRules | null;
+  active: boolean;
+}
+
 export interface LootFilterResponse {
   characterId: string;
   /** Null = no filter. */
   rules: LootFilterRules | null;
   /** Whether the rules can handle any drop at all. */
   active: boolean;
+  /** Ticket 8.5: the hero's saved presets, in slot order. */
+  presets: LootFilterPresetView[];
 }
 
 const rulesSchema = {
@@ -69,20 +85,86 @@ const rulesSchema = {
   },
 } as const;
 
+const codeSchema = {
+  type: 'string',
+  minLength: 1,
+  maxLength: LOOT_FILTER_CODE_MAX_LENGTH,
+} as const;
+const slotSchema = { type: 'integer', minimum: 0, maximum: LOOT_FILTER_PRESET_LIMIT - 1 } as const;
+const nameSchema = {
+  type: 'string',
+  minLength: 1,
+  maxLength: LOOT_FILTER_PRESET_NAME_MAX * 4,
+} as const;
+
+/** Exactly one source of rules: the rules, a share code (8.5) or a saved preset (8.5). */
 const bodySchema = {
   type: 'object',
   additionalProperties: false,
-  required: ['rules'],
-  properties: { rules: { anyOf: [{ type: 'null' }, rulesSchema] } },
+  properties: {
+    rules: { anyOf: [{ type: 'null' }, rulesSchema] },
+    code: codeSchema,
+    preset: slotSchema,
+  },
+  oneOf: [{ required: ['rules'] }, { required: ['code'] }, { required: ['preset'] }],
+} as const;
+
+const presetBodySchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['slot', 'name'],
+  properties: {
+    slot: slotSchema,
+    name: nameSchema,
+    rules: { anyOf: [{ type: 'null' }, rulesSchema] },
+    code: codeSchema,
+  },
+  oneOf: [{ required: ['rules'] }, { required: ['code'] }],
+} as const;
+
+const renameBodySchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['name'],
+  properties: { name: nameSchema },
+} as const;
+
+const decodeBodySchema = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['code'],
+  properties: { code: codeSchema },
+} as const;
+
+const presetParamsSchema = {
+  type: 'object',
+  required: ['characterId', 'slot'],
+  properties: {
+    characterId: characterParamsSchema.properties.characterId,
+    slot: slotSchema,
+  },
 } as const;
 
 const responseSchema = {
   type: 'object',
-  required: ['characterId', 'rules', 'active'],
+  required: ['characterId', 'rules', 'active', 'presets'],
   properties: {
     characterId: { type: 'string' },
     rules: { anyOf: [{ type: 'null' }, rulesSchema] },
     active: { type: 'boolean' },
+    presets: {
+      type: 'array',
+      items: {
+        type: 'object',
+        required: ['slot', 'name', 'rules', 'active'],
+        properties: {
+          slot: { type: 'integer' },
+          name: { type: 'string' },
+          rules: { anyOf: [{ type: 'null' }, rulesSchema] },
+          active: { type: 'boolean' },
+        },
+      },
+    },
   },
 } as const;
 
@@ -93,8 +175,82 @@ function canonical(rules: LootFilterRules | null): string {
   return JSON.stringify([action, belowRarity, wantedAffixes, wantedEffects, include]);
 }
 
-function view(characterId: string, rules: LootFilterRules | null): LootFilterResponse {
-  return { characterId, rules, active: isLootFilterActive(rules) };
+function view(
+  characterId: string,
+  rules: LootFilterRules | null,
+  presets: readonly LootFilterPreset[],
+): LootFilterResponse {
+  return {
+    characterId,
+    rules,
+    active: isLootFilterActive(rules),
+    presets: presets.map((p, slot) => ({
+      slot,
+      name: p.name,
+      rules: p.rules,
+      active: isLootFilterActive(p.rules),
+    })),
+  };
+}
+
+function invalidRules(problems: unknown): ApiError {
+  return new ApiError(400, 'validation_failed', 'Invalid loot filter rules.', { problems });
+}
+
+/**
+ * The rules a body names, validated here whatever the client showed: plain rules through
+ * `parseLootFilter`, a share code through `decodeLootFilterCode` (which ends in the same parser).
+ */
+export function rulesFromBody(body: { rules?: unknown; code?: unknown }): LootFilterRules | null {
+  if (body.code !== undefined) {
+    const decoded = decodeLootFilterCode(body.code);
+    if (!decoded.ok) {
+      throw new ApiError(400, 'invalid_filter_code', 'That share code cannot be read.', {
+        reason: decoded.error,
+        ...(decoded.problems ? { problems: decoded.problems } : {}),
+      });
+    }
+    return decoded.rules;
+  }
+  if (body.rules === null || body.rules === undefined) return null;
+  const parsed = parseLootFilter(body.rules);
+  if (!parsed.ok) throw invalidRules(parsed.problems);
+  return parsed.rules;
+}
+
+function presetName(input: unknown): string {
+  const name = normalisePresetName(input);
+  if (name === null) {
+    throw new ApiError(400, 'validation_failed', 'Give the preset a name of 1–24 characters.', {
+      fields: { name: `1–${LOOT_FILTER_PRESET_NAME_MAX} characters, no control characters.` },
+    });
+  }
+  return name;
+}
+
+function storedPresets(row: { lootFilterPresets: LootFilterPreset[] | null }): LootFilterPreset[] {
+  return Array.isArray(row.lootFilterPresets) ? row.lootFilterPresets : [];
+}
+
+/** Locks the hero's row (no settlement: a preset never touches the filter in force). */
+async function lockPresets(tx: Transaction, accountId: string, characterId: string) {
+  const [row] = await tx
+    .select({ lootFilter: characters.lootFilter, lootFilterPresets: characters.lootFilterPresets })
+    .from(characters)
+    .where(
+      and(
+        eq(characters.id, characterId),
+        eq(characters.accountId, accountId),
+        isNull(characters.deletedAt),
+      ),
+    )
+    .for('no key update');
+  if (!row) throw characterNotFound();
+  return { rules: row.lootFilter ?? null, presets: storedPresets(row) };
+}
+
+function presetNotFound(): ApiError {
+  return new ApiError(404, 'preset_not_found', 'There is no preset in that slot.');
 }
 
 export async function registerLootFilter(
@@ -111,7 +267,10 @@ export async function registerLootFilter(
       const accountId = request.auth!.account.id;
       const { characterId } = request.params;
       const [row] = await app.db
-        .select({ lootFilter: characters.lootFilter })
+        .select({
+          lootFilter: characters.lootFilter,
+          lootFilterPresets: characters.lootFilterPresets,
+        })
         .from(characters)
         .where(
           and(
@@ -121,11 +280,14 @@ export async function registerLootFilter(
           ),
         );
       if (!row) throw characterNotFound();
-      return view(characterId, row.lootFilter ?? null);
+      return view(characterId, row.lootFilter ?? null, storedPresets(row));
     },
   );
 
-  app.post<{ Params: { characterId: string }; Body: { rules: unknown } }>(
+  app.post<{
+    Params: { characterId: string };
+    Body: { rules?: unknown; code?: string; preset?: number };
+  }>(
     '/characters/:characterId/loot-filter',
     {
       preHandler: app.requireAccount,
@@ -138,19 +300,22 @@ export async function registerLootFilter(
     async (request): Promise<LootFilterResponse> => {
       const accountId = request.auth!.account.id;
       const { characterId } = request.params;
-      let rules: LootFilterRules | null = null;
-      if (request.body.rules !== null) {
-        const parsed = parseLootFilter(request.body.rules);
-        if (!parsed.ok) {
-          throw new ApiError(400, 'validation_failed', 'Invalid loot filter rules.', {
-            problems: parsed.problems,
-          });
-        }
-        rules = parsed.rules;
-      }
+      const { preset } = request.body;
+      // Rules and codes are validated before the transaction; a preset is read under the lock.
+      const given = preset === undefined ? rulesFromBody(request.body) : undefined;
       return withTransaction(app.db, async (tx) => {
         // Locks the character and settles with the rules in force until now.
         const character = await lockOwnedCharacter(tx, accountId, characterId, activity);
+        const presets = storedPresets(character);
+        let rules: LootFilterRules | null;
+        if (preset !== undefined) {
+          const chosen = presets[preset];
+          if (!chosen) throw presetNotFound();
+          // Stored presets were validated when saved; re-check against today's content anyway.
+          rules = rulesFromBody({ rules: chosen.rules });
+        } else {
+          rules = given!;
+        }
         const before = character.lootFilter ?? null;
         if (canonical(before) !== canonical(rules)) {
           await tx
@@ -161,10 +326,142 @@ export async function registerLootFilter(
             event: 'loot_filter.update',
             accountId,
             characterId,
-            data: { before, after: rules },
+            data: {
+              before,
+              after: rules,
+              ...(preset !== undefined ? { preset } : {}),
+              ...(request.body.code !== undefined ? { via: 'code' } : {}),
+            },
           });
         }
-        return view(characterId, rules);
+        return view(characterId, rules, presets);
+      });
+    },
+  );
+
+  // Ticket 8.5: a share code read back for the import preview, by the server's own decoder.
+  app.post<{ Params: { characterId: string }; Body: { code: string } }>(
+    '/characters/:characterId/loot-filter/decode',
+    {
+      preHandler: app.requireAccount,
+      schema: { params: characterParamsSchema, body: decodeBodySchema },
+    },
+    async (request) => {
+      const rules = rulesFromBody({ code: request.body.code });
+      return { rules, active: isLootFilterActive(rules) };
+    },
+  );
+
+  // Ticket 8.5: save (or overwrite) a preset. The rules in force are not changed.
+  app.post<{
+    Params: { characterId: string };
+    Body: { slot: number; name: string; rules?: unknown; code?: string };
+  }>(
+    '/characters/:characterId/loot-filter/presets',
+    {
+      preHandler: app.requireAccount,
+      schema: {
+        params: characterParamsSchema,
+        body: presetBodySchema,
+        response: { 200: responseSchema },
+      },
+    },
+    async (request): Promise<LootFilterResponse> => {
+      const accountId = request.auth!.account.id;
+      const { characterId } = request.params;
+      const { slot } = request.body;
+      const name = presetName(request.body.name);
+      const rules = rulesFromBody(request.body);
+      return withTransaction(app.db, async (tx) => {
+        const held = await lockPresets(tx, accountId, characterId);
+        if (slot > held.presets.length) {
+          throw new ApiError(422, 'preset_slot_gap', 'Save into the next free slot.', {
+            next: held.presets.length,
+          });
+        }
+        const before = held.presets[slot] ?? null;
+        const presets = [...held.presets];
+        presets[slot] = { name, rules };
+        if (JSON.stringify(before) !== JSON.stringify(presets[slot])) {
+          await tx
+            .update(characters)
+            .set({ lootFilterPresets: presets, updatedAt: activity.now() })
+            .where(eq(characters.id, characterId));
+          await writeAudit(tx, {
+            event: 'loot_filter.preset',
+            accountId,
+            characterId,
+            data: { action: before ? 'overwrite' : 'save', slot, name, rules },
+          });
+        }
+        return view(characterId, held.rules, presets);
+      });
+    },
+  );
+
+  app.post<{ Params: { characterId: string; slot: number }; Body: { name: string } }>(
+    '/characters/:characterId/loot-filter/presets/:slot/rename',
+    {
+      preHandler: app.requireAccount,
+      schema: {
+        params: presetParamsSchema,
+        body: renameBodySchema,
+        response: { 200: responseSchema },
+      },
+    },
+    async (request): Promise<LootFilterResponse> => {
+      const accountId = request.auth!.account.id;
+      const { characterId, slot } = request.params;
+      const name = presetName(request.body.name);
+      return withTransaction(app.db, async (tx) => {
+        const held = await lockPresets(tx, accountId, characterId);
+        const current = held.presets[slot];
+        if (!current) throw presetNotFound();
+        const presets = [...held.presets];
+        presets[slot] = { ...current, name };
+        if (current.name !== name) {
+          await tx
+            .update(characters)
+            .set({ lootFilterPresets: presets, updatedAt: activity.now() })
+            .where(eq(characters.id, characterId));
+          await writeAudit(tx, {
+            event: 'loot_filter.preset',
+            accountId,
+            characterId,
+            data: { action: 'rename', slot, from: current.name, name },
+          });
+        }
+        return view(characterId, held.rules, presets);
+      });
+    },
+  );
+
+  app.delete<{ Params: { characterId: string; slot: number } }>(
+    '/characters/:characterId/loot-filter/presets/:slot',
+    {
+      preHandler: app.requireAccount,
+      schema: { params: presetParamsSchema, response: { 200: responseSchema } },
+    },
+    async (request): Promise<LootFilterResponse> => {
+      const accountId = request.auth!.account.id;
+      const { characterId, slot } = request.params;
+      return withTransaction(app.db, async (tx) => {
+        const held = await lockPresets(tx, accountId, characterId);
+        const current = held.presets[slot];
+        // Repeat-safe by state: deleting an empty slot changes nothing.
+        if (!current) return view(characterId, held.rules, held.presets);
+        const presets = held.presets.filter((_, i) => i !== slot);
+        await tx
+          .update(characters)
+          .set({ lootFilterPresets: presets, updatedAt: activity.now() })
+          .where(eq(characters.id, characterId));
+        await writeAudit(tx, {
+          event: 'loot_filter.preset',
+          accountId,
+          characterId,
+          data: { action: 'delete', slot, name: current.name },
+        });
+        return view(characterId, held.rules, presets);
       });
     },
   );
