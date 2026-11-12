@@ -277,15 +277,27 @@ export const lootFilterApi = {
     id: string,
     slot: number,
     name: string,
+    /** Ticket 8.7: the preset's current name, so a moved slot is refused (`preset_changed`). */
+    from: string,
     f?: typeof fetch,
   ): Promise<ApiResult<LootFilterState>> =>
     apiRequest(
       `${c(id)}/loot-filter/presets/${slot}/rename`,
-      { method: 'POST', body: { name } },
+      { method: 'POST', body: { name, from } },
       f,
     ),
-  deletePreset: (id: string, slot: number, f?: typeof fetch): Promise<ApiResult<LootFilterState>> =>
-    apiRequest(`${c(id)}/loot-filter/presets/${slot}`, { method: 'DELETE' }, f),
+  /** Ticket 8.7: names the preset it deletes, so a retry never removes the next one. */
+  deletePreset: (
+    id: string,
+    slot: number,
+    name: string,
+    f?: typeof fetch,
+  ): Promise<ApiResult<LootFilterState>> =>
+    apiRequest(
+      `${c(id)}/loot-filter/presets/${slot}?name=${encodeURIComponent(name)}`,
+      { method: 'DELETE' },
+      f,
+    ),
 };
 
 /** Merchant and forge (ticket 2.6). */
@@ -737,6 +749,8 @@ export function describeGameFailure(error: Pick<ApiFailure, 'code'>): string {
       return 'That share code cannot be read. Check that it was copied whole.';
     case 'preset_not_found':
       return 'That preset is gone. The list has been refreshed.';
+    case 'preset_changed':
+      return 'Your presets changed in another window. Reload the page and try again.';
     case 'preset_slot_gap':
       return 'Save into the next free preset slot.';
     // Ticket 4.7: the Warehouse.

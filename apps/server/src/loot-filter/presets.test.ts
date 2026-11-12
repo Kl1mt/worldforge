@@ -150,7 +150,7 @@ describe('loot filter presets (ticket 8.5)', () => {
     expect(gap.statusCode).toBe(422);
     expect(gap.json()).toMatchObject({ error: { code: 'preset_slot_gap', details: { next: 0 } } });
     // Ticket 8.7 (F-review): a lone surrogate was a 500 (Postgres refuses it in jsonb).
-    for (const name of ['', '   ', 'x'.repeat(25), 'a\u202eb', 'ab\ud800', '\udc00x', 'a\ufeffb']) {
+    for (const name of ['', '   ', 'x'.repeat(25), 'a\u202eb', 'ab\ud800', '\udc00x', 'a\u2060b']) {
       const bad = await call(q, 'POST', '/loot-filter/presets', { slot: 0, name, rules: junk });
       expect(bad.statusCode, JSON.stringify(name)).toBe(400);
     }
@@ -331,7 +331,7 @@ describe('loot filter presets (ticket 8.5)', () => {
     expect(
       (await call(intruder, 'POST', '/loot-filter/presets/0/rename', { name: 'x' })).statusCode,
     ).toBe(404);
-    expect((await call(intruder, 'DELETE', '/loot-filter/presets/0')).statusCode).toBe(404);
+    expect((await call(intruder, 'DELETE', '/loot-filter/presets/0?name=x')).statusCode).toBe(404);
     const mine = (await call(owner, 'GET', '/loot-filter')).json<LootFilterResponse>();
     expect(mine.presets).toEqual([{ slot: 0, name: 'Mine', rules: junk, active: true }]);
     expect(mine.rules).toBeNull();
