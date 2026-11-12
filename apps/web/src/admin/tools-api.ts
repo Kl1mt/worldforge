@@ -304,6 +304,8 @@ export const toolsApi = {
       ashenWardenDefeated: boolean;
       /** Ticket 6.2. */
       forgeTyrantDefeated: boolean;
+      /** Ticket 8.2. */
+      hollowSovereignDefeated: boolean;
       reason: string;
     },
   ) =>

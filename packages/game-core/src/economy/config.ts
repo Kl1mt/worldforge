@@ -144,6 +144,26 @@ export const FORGE_RECIPES: readonly ForgeRecipe[] = [
     rarities: { rare: 65, epic: 35 },
     maxItemLevel: 41,
   },
+  // Ticket 8.2: the Hollow Sovereign's crown shard as a sink (docs/ECONOMY.md "The Hollow
+  // Throne"). The Tyrantforged Work one region on: tier-5 gear in the slot the player picks,
+  // never below Rare, at most at the Deep's top item level. Never Legendary: it fills a slot, it
+  // never beats a good drop (no runaway power).
+  {
+    id: 'crownforgedWork',
+    name: 'Crownforged Work',
+    description:
+      'Hollow-Reach steel quenched with a shard of the Sovereign’s crown. One shard, and the slot is yours to choose.',
+    tier: 5,
+    level: 48,
+    gold: 4_500,
+    materials: [
+      { materialId: 'crownShard', quantity: 1 },
+      { materialId: 'ironOre', quantity: 80 },
+      { materialId: 'soulShard', quantity: 16 },
+    ],
+    rarities: { rare: 65, epic: 35 },
+    maxItemLevel: 53,
+  },
 ];
 
 export function findForgeRecipe(id: string): ForgeRecipe | undefined {

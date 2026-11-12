@@ -128,6 +128,8 @@ function winRate(
 
 /** Materials Phase 6 added (`world/materials.ts`); every other one is a Phase 1–5 material. */
 const PHASE6_MATERIALS: readonly MaterialId[] = ['tyrantsEmber'];
+/** Ticket 8.2: materials newer than Phase 6 (the Hollow Sovereign's crown shard). */
+const PHASE8_MATERIALS: readonly MaterialId[] = ['crownShard'];
 /** Loot tables Phase 6 added (the Cinderwastes, Heroic, the Tyrant); the rest are older. */
 const PHASE6_TABLES = [
   'ashfallVerge',
@@ -137,7 +139,7 @@ const PHASE6_TABLES = [
   'forgeTyrant',
 ];
 /** Ticket 8.1: tables newer than Phase 6 (the Hollow Reach); neither Phase 6 nor older. */
-const PHASE8_TABLES = ['paleMarches'];
+const PHASE8_TABLES = ['paleMarches', 'hollowDeep', 'hollowSovereign'];
 const OLDER_TABLES = [...AREA_LOOT_TABLES, ...BOSS_LOOT_TABLES].filter(
   (t) => !PHASE6_TABLES.includes(t.id) && !PHASE8_TABLES.includes(t.id),
 );
@@ -302,7 +304,9 @@ describe('Phase 6 exit 1: older content stays relevant (ticket 6.10)', () => {
   });
 
   it('Phase 1–5 materials stay inputs of live sinks (content scan)', () => {
-    const older = MATERIAL_IDS.filter((m) => !PHASE6_MATERIALS.includes(m));
+    const older = MATERIAL_IDS.filter(
+      (m) => !PHASE6_MATERIALS.includes(m) && !PHASE8_MATERIALS.includes(m),
+    );
     const scan = Object.fromEntries(older.map((m) => [m, sinksOf(m)]));
     const label = JSON.stringify(scan);
     // Every older material has a repeatable sink. Until 6.11 Abbey silver's only sinks were
@@ -559,6 +563,45 @@ describe('Phase 6 exit, extended: Phase 6 content stays relevant in the Hollow R
     // The Tyrant's Ember keeps its sink (the Tyrantforged Work, tier 4) and no new material came.
     expect(sinksOf('tyrantsEmber').repeatable).toContain('recipe:tyrantforgedWork');
     expect(MATERIAL_IDS).not.toContain('hollowEssence');
-    expect(FORGE_RECIPES.map((r) => r.tier)).toEqual([1, 2, 3, 4]);
+    // Ticket 8.2: the Crownforged Work (tier 5) came with the Hollow Deep's boss; no other.
+    expect(FORGE_RECIPES.map((r) => r.tier)).toEqual([1, 2, 3, 4, 5]);
+  });
+});
+
+describe('Phase 6 exit, extended again: the Hollow Deep (ticket 8.2)', () => {
+  // Heroic, the Tyrant and the Cinderwastes keep uses once the Deep opens; the best Marches gear
+  // moves on (`hollow-deep-balance.test.ts` has the farming and boss win rates by gear).
+  it('the Tyrant’s Ember gains a use: the lanterns of the deep; his recipe and awakening stay', () => {
+    const ember = sinksOf('tyrantsEmber');
+    expect(ember.repeatable).toEqual(['recipe:tyrantforgedWork', 'awakening']);
+    expect(ember.oneOff).toEqual(['project:forgewardOutpost', 'project:deepLanterns']);
+    // The crown shard's one sink is its recipe; nothing else spends it, and no project needs it
+    // (the Sovereign's door is behind the lanterns).
+    expect(sinksOf('crownShard')).toEqual({ repeatable: ['recipe:crownforgedWork'], oneOff: [] });
+  });
+
+  it('Phase 6 drops salvage into what the Deep’s Forge spends; the Deep yields the same', () => {
+    const deep = AREAS.find((a) => a.id === 'hollowDeep')!;
+    expect([...deep.materials].sort()).toEqual(['ironOre', 'soulShard']);
+    // Heroic (item level 37) and the Cinderwastes' tier 4 salvage to ore and shards, which the
+    // Crownforged Work and the Forge on tier-5 items spend.
+    const t4 = ITEM_BASES.find((b) => b.tier === 4 && !b.unique)!;
+    for (const itemLevel of [33, 37, 39, 41]) {
+      const y = salvageYield({ baseId: t4.id, rarityId: 'legendary', itemLevel });
+      expect(Object.keys(y.materials).sort()).toEqual(['ironOre', 'soulShard']);
+    }
+    expect(sinksOf('ironOre').repeatable).toEqual(
+      expect.arrayContaining(['recipe:crownforgedWork', 'forge:tier-5']),
+    );
+    expect(sinksOf('soulShard').repeatable).toContain('recipe:crownforgedWork');
+    // Abbey silver and the shards are needed by the lanterns too (a one-off town sink).
+    expect(sinksOf('abbeySilver').oneOff).toContain('project:deepLanterns');
+  });
+
+  it('the Crownforged Work never beats a good drop: Rare or Epic, tier 5, item level ≤ 53', () => {
+    const r = FORGE_RECIPES.find((x) => x.id === 'crownforgedWork')!;
+    expect(Object.keys(r.rarities).sort()).toEqual(['epic', 'rare']);
+    expect(r.maxItemLevel).toBe(53);
+    expect(r.materials.find((m) => m.materialId === 'crownShard')?.quantity).toBe(1);
   });
 });

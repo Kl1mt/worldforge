@@ -246,6 +246,20 @@ Asserted: no deaths at 40, ≤ 1 an hour at 43 and 46, damage share < 21 %, 6–
 
 Asserted: under 8 h a level at 46 and 48, and from 54 more than 2.2 × the hours at 50 and over 40 h. 6.2's soft cap "about 47–48" is now about **53–54** (the roadmap's "about 55").
 
+## The Hollow Deep (ticket 8.2)
+Region III's second area (levels 46–52, `docs/WORLD.md`) is tuned against **the best Pale Marches gear**: the Marches' tier-5 Legendaries (item level 47, its top), +10, plain or awakened. Its four foes are older kin of the Marches' with about 1.1 × their health and damage per level and **two fight traits each** (`EnemyTraits` combined on the same rules; `encounter.test.ts`): the sentinel pierces 25 % of the hero's armour and guards 20 % of the class skill's extra damage, the stalker evades 12 points of crit chance and pierces 12 %, the choir guards 30 % of the skill and 25 % of the crit bonus, the colossus guards 40 % of the crit bonus and evades 8 points. XP about 1.1 × the Marches' per kill; kill gold × 4.6.
+
+**The best Marches gear** (`balance/hollow-deep-balance.test.ts`, 3 seeds × 1 h; Legendaries with class effects at item level 47, +10):
+
+| Kit | Deep 46 / 49 / 52: kills/min | deaths/h | damage share 46 / 52 | XP/h · gold/h at 46 | against the Marches at 46 (pace · XP · gold) |
+|---|---|---|---|---|---|
+| Marches Legendaries +10 | warrior 7.4 / 7.2 / 7.1 · mage 6.8 / 6.7 / 6.6 · hunter 9.7 / 9.4 / 9.2 · warlock 7.6 / 7.4 / 7.2 | 0 | 9–14 % / 11–17 % | 330–448k · 4,540–6,960 | 0.92–0.95 · × 1.07–1.11 · × 1.06–1.12 |
+| the same, awakened | 7.1–9.9 at 46, 6.7–9.4 at 52 | 0 | 9–13 % / 10–17 % | 343–456k · 4,700–7,020 | 0.92–0.95 · × 1.08–1.11 · × 1.07–1.13 |
+
+Asserted: no deaths at 46, 49 and 52, damage share < 20 %, 6–11 kills a minute, more XP (> × 1.03) and gold (> × 1.05) than the Marches at 46 with the same gear, a step up (pace 0.80–0.98, a higher damage share), iron ore ≤ 100 and soul shards ≤ 45 an hour (measured 35–59 and 8–10). With `tools/balance/hollow-deep.ts farm`: the Marches' Legendaries +5 at item level 45 hold 46 and 49 without deaths (the hunter's sample begins to fall at 52, about 8 an hour: the area's gear check at its top), and the Depths' Legendaries +10 hold the entry but fall at 49–52 (the warlock 18–33 an hour).
+
+**The curves.** No value at or below 46 moved (`balance/curve-pins-8-2.test.ts`). The XP formula and penalty are unchanged; with the Deep's foes up to 52 the soft cap moved from about 54 to about 57–58 (`docs/BALANCE.md` "8.2").
+
 ## PvP (ticket 5.4)
 Hero-vs-hero duels run on this engine (`buildEncounter`, `attackHit`, `thornsDamage`) through a separate normalisation layer in `packages/game-core/src/pvp/`; nothing above changes for PvE. Rules, factors and balance bands: `docs/PVP.md`.
 

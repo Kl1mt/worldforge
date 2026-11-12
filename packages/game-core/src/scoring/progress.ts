@@ -21,7 +21,9 @@ export type ProgressMilestone =
   /** Ticket 6.1: the area is open to the hero and the hero has reached this level. */
   | { id: string; kind: 'areaLevel'; areaId: AreaId; level: number; name: string }
   /** Ticket 6.2: the Forge Tyrant fell to this hero (the Tyrant's Forge). */
-  | { id: string; kind: 'forgeTyrant'; name: string };
+  | { id: string; kind: 'forgeTyrant'; name: string }
+  /** Ticket 8.2: the Hollow Sovereign fell to this hero (the Hollow Throne). */
+  | { id: string; kind: 'hollowSovereign'; name: string };
 
 /** In order: what a hero meets on the way up. Data; a new place adds a line (and a version). */
 const MILESTONES_V1: readonly ProgressMilestone[] = [
@@ -86,6 +88,26 @@ const MILESTONES_V4: readonly ProgressMilestone[] = [
   { id: 'crypt:4', kind: 'cryptTier', tier: 4, name: 'The Nameless Crypt, Heroic cleared' },
 ];
 
+/** Version 5 (ticket 8.1): the Pale Marches. */
+const MILESTONES_V5: readonly ProgressMilestone[] = [
+  ...MILESTONES_V4,
+  { id: 'area:paleMarches', kind: 'area', areaId: 'paleMarches' },
+  {
+    id: 'marches:43',
+    kind: 'areaLevel',
+    areaId: 'paleMarches',
+    level: 43,
+    name: 'The Pale Marches, level 43',
+  },
+  {
+    id: 'marches:46',
+    kind: 'areaLevel',
+    areaId: 'paleMarches',
+    level: 46,
+    name: 'The Pale Marches, level 46',
+  },
+];
+
 /**
  * Every version's milestones (ticket 6.1), so stored rows of any of them recompute. Version 2
  * adds the Ashfall Verge (13 milestones); version 3 (ticket 6.2) the Cinder Depths reached (level
@@ -93,29 +115,33 @@ const MILESTONES_V4: readonly ProgressMilestone[] = [
  * version 4 (ticket 6.3) the Heroic crypt cleared (tier IV, level 32 and tier III): 18. It comes
  * last: the hardest crypt clear, often the last milestone a hero takes. Version 5 (ticket 8.1) the
  * Hollow Reach: the Pale Marches reached (level 40 and the Forge Tyrant), its middle (43) and its
- * top (46): 21.
+ * top (46): 21. Version 6 (ticket 8.2) the Hollow Deep reached (level 46, the Forge Tyrant and
+ * the lanterns of the deep, a world flag), its middle (49), the Hollow Sovereign defeated and its
+ * top (52): 25.
  */
 export const PVE_MILESTONES_BY_VERSION: Readonly<Record<number, readonly ProgressMilestone[]>> = {
   1: MILESTONES_V1,
   2: MILESTONES_V2,
   3: MILESTONES_V3,
   4: MILESTONES_V4,
-  5: [
-    ...MILESTONES_V4,
-    { id: 'area:paleMarches', kind: 'area', areaId: 'paleMarches' },
+  5: MILESTONES_V5,
+  6: [
+    ...MILESTONES_V5,
+    { id: 'area:hollowDeep', kind: 'area', areaId: 'hollowDeep' },
     {
-      id: 'marches:43',
+      id: 'deep:49',
       kind: 'areaLevel',
-      areaId: 'paleMarches',
-      level: 43,
-      name: 'The Pale Marches, level 43',
+      areaId: 'hollowDeep',
+      level: 49,
+      name: 'The Hollow Deep, level 49',
     },
+    { id: 'throne', kind: 'hollowSovereign', name: 'The Hollow Sovereign defeated' },
     {
-      id: 'marches:46',
+      id: 'deep:52',
       kind: 'areaLevel',
-      areaId: 'paleMarches',
-      level: 46,
-      name: 'The Pale Marches, level 46',
+      areaId: 'hollowDeep',
+      level: 52,
+      name: 'The Hollow Deep, level 52',
     },
   ],
 };
@@ -170,6 +196,8 @@ function reached(m: ProgressMilestone, input: PveProgressInput): boolean {
       return input.progress.ashenWardenDefeated === true;
     case 'forgeTyrant':
       return input.progress.forgeTyrantDefeated === true;
+    case 'hollowSovereign':
+      return input.progress.hollowSovereignDefeated === true;
     case 'areaLevel':
       return (
         input.level >= m.level &&

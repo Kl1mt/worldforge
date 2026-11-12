@@ -23,7 +23,8 @@ import { ExchangePanel } from './economy/ExchangePanel';
 import { Gold, NoticeLine, ShopHeader, type Notice } from './economy/ShopHeader';
 import './economy/shop.css';
 
-const TIER_NAME = ['', 'Tier I', 'Tier II', 'Tier III', 'Tier IV'];
+// Ticket 8.2: tier V (the Crownforged Work).
+const TIER_NAME = ['', 'Tier I', 'Tier II', 'Tier III', 'Tier IV', 'Tier V'];
 
 function addStacks(into: Map<MaterialId, number>, stacks: readonly MaterialStackDto[]) {
   for (const s of stacks) into.set(s.materialId, (into.get(s.materialId) ?? 0) + s.quantity);

@@ -515,6 +515,13 @@ export function AreaScreen() {
               At their bottom burns <a href={routeHref('tyrant')}>the Tyrant’s Forge</a>.
             </>
           ) : null}
+          {/* Ticket 8.2: the Hollow Reach's region boss, the Hollow Throne. */}
+          {area.id === 'hollowDeep' ? (
+            <>
+              {' '}
+              At its bottom waits <a href={routeHref('throne')}>the Hollow Throne</a>.
+            </>
+          ) : null}
         </p>
         {pending ? (
           <p className="area__travel" role="status">

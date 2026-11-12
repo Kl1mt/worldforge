@@ -104,5 +104,11 @@ export const DEFAULT_PROFESSION_CONFIG: ProfessionConfig = {
       yields: [{ materialId: 'ironOre', chance: 0.08 }],
       undeadDrops: [{ materialId: 'soulShard', chance: 0.03 }],
     },
+    // Ticket 8.2: the Hollow Deep likewise (no new gathering material: nothing new would have a
+    // sink); the same odds as the Marches.
+    hollowDeep: {
+      yields: [{ materialId: 'ironOre', chance: 0.08 }],
+      undeadDrops: [{ materialId: 'soulShard', chance: 0.03 }],
+    },
   },
 };

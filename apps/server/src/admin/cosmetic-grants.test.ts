@@ -152,6 +152,40 @@ describe('admin progress tools grant cosmetics at once (D.4b)', () => {
     ]);
   });
 
+  it('marking the Hollow Sovereign defeated grants Hollow pale at once (ticket 8.2), exactly once', async () => {
+    const t = await target({ level: 50 });
+    const milestone = `milestone:${t.hero.id}`;
+    const base = {
+      gravewardenDefeated: true,
+      ashenWardenDefeated: true,
+      forgeTyrantDefeated: true,
+    };
+    ok(await post(`${t.heroUrl}/progress`, progress(base)));
+    const slain = ok(
+      await post(`${t.heroUrl}/progress`, progress({ ...base, hollowSovereignDefeated: true })),
+    );
+    expect(slain.after).toMatchObject({ hollowSovereignDefeated: true });
+    expect(slain.earned.cosmetics).toEqual(['title-colour.hollow-pale']);
+    expect(await unlocks(t.acc.id)).toContainEqual({
+      id: 'title-colour.hollow-pale',
+      source: milestone,
+    });
+    expect((await lastAudit(t.acc.id, 'admin.progress')).data).toMatchObject({
+      after: { hollowSovereignDefeated: true },
+      earned: { cosmetics: ['title-colour.hollow-pale'] },
+    });
+    // Again, and cleared: nothing new, nothing taken back.
+    const again = ok(
+      await post(`${t.heroUrl}/progress`, progress({ ...base, hollowSovereignDefeated: true })),
+    );
+    expect(again.earned).toEqual({ achievements: [], cosmetics: [] });
+    ok(await post(`${t.heroUrl}/progress`, progress({ ...base, hollowSovereignDefeated: false })));
+    expect(await unlocks(t.acc.id)).toContainEqual({
+      id: 'title-colour.hollow-pale',
+      source: milestone,
+    });
+  });
+
   it('crypt tier III and IV grant the crypt seal and the Heroic look', async () => {
     const t = await target({ level: 34 });
     const tier3 = ok(

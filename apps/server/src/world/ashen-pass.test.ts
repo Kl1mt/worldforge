@@ -103,8 +103,9 @@ describe('the Ashen Pass behind the world flag (ticket 4.8)', () => {
       'ashenPass',
       'ashfallVerge',
       'cinderDepths',
-      // Ticket 8.1: the Pale Marches wait for the Forge Tyrant.
+      // Ticket 8.1: the Pale Marches wait for the Forge Tyrant; 8.2 the Hollow Deep too.
       'paleMarches',
+      'hollowDeep',
     ]);
     expect(w.dungeons.find((d) => d.id === 'ashenWatch')).toEqual({
       id: 'ashenWatch',
@@ -158,7 +159,15 @@ describe('the Ashen Pass behind the world flag (ticket 4.8)', () => {
     const w = await world(p);
     // The Cinderwastes (6.1, 6.2) wait for the Ashen Warden.
     // Ticket 8.1: and the Hollow Reach for the Forge Tyrant.
-    const cinderwastes = ['ashfallVerge', 'cinderDepths', 'tyrantsForge', 'paleMarches'];
+    // Ticket 8.2: the Hollow Deep and the Hollow Throne for the Tyrant and the lanterns too.
+    const cinderwastes = [
+      'ashfallVerge',
+      'cinderDepths',
+      'tyrantsForge',
+      'paleMarches',
+      'hollowDeep',
+      'hollowThrone',
+    ];
     expect(w.areas.every((a) => a.unlocked || cinderwastes.includes(a.id))).toBe(true);
     expect(w.dungeons.every((d) => d.unlocked || cinderwastes.includes(d.id))).toBe(true);
     expect(w.dungeons.find((d) => d.id === 'ashenWatch')!.unlocked).toBe(true);

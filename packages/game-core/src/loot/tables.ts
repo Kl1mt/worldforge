@@ -55,6 +55,9 @@ export const PRISMATIC_TABLE_IDS = [
   'gravewardenIV',
   // Ticket 8.1: the Hollow Reach.
   'paleMarches',
+  // Ticket 8.2: the Hollow Deep and the Hollow Sovereign's hoard.
+  'hollowDeep',
+  'hollowSovereign',
 ] as const;
 
 /**
@@ -114,6 +117,18 @@ export const FORGE_TYRANT_FOCUS = {
   name: 'The Tyrant’s anvil',
   description: 'Helms, chest pieces, gloves and boots drop twice as often.',
   slots: ['head', 'chest', 'hands', 'feet'],
+  slotWeight: 2,
+} as const satisfies LootFocus;
+
+/**
+ * Ticket 8.2: the loot focus of the Hollow Sovereign's hoard (docs/DUNGEONS.md, "The Hollow
+ * Throne"): his regalia, the pieces the Tyrant's anvil does not favour.
+ */
+export const HOLLOW_SOVEREIGN_FOCUS = {
+  id: 'hollow-sovereign',
+  name: 'The Sovereign’s regalia',
+  description: 'Weapons, rings and amulets drop twice as often.',
+  slots: ['weapon', 'ring', 'neck'],
   slotWeight: 2,
 } as const satisfies LootFocus;
 
@@ -280,6 +295,22 @@ export const AREA_LOOT_TABLES: readonly LootTableDefinition[] = [
     itemLevel: { min: 41, max: 47 },
     entries: tierEntries({ 5: 1 }),
   },
+  // Ticket 8.2: the Hollow Deep (levels 46–52). The Marches' table one band higher: tier-5 bases,
+  // item levels 47–53 (more tier-6 affixes; no new base, affix tier or item-level cap), the same
+  // late-game odds and affix bias; gold × 4.6 (its foes take longer again).
+  {
+    id: 'hollowDeep',
+    affixTierBias: 1,
+    goldMultiplier: 4.6,
+    mythics: true,
+    setShare: SET_SHARE,
+    legendaryWeight: LEGENDARY_WEIGHT,
+    voidChance: VOID_CHANCE,
+    prismaticChance: PRISMATIC_CHANCE,
+    itemDropChance: 0.06,
+    itemLevel: { min: 47, max: 53 },
+    entries: tierEntries({ 5: 1 }),
+  },
 ];
 
 const BOSS_EXCLUSIVE: readonly LootTableEntry[] = [
@@ -374,5 +405,20 @@ export const BOSS_LOOT_TABLES: readonly LootTableDefinition[] = [
     itemLevel: { min: 39, max: 41 },
     entries: tierEntries({ 4: 1 }),
     focus: FORGE_TYRANT_FOCUS,
+  },
+  // Ticket 8.2: the Hollow Sovereign's hoard (the Hollow Throne). Tier-5 bases at the Deep's top
+  // item levels (51–53), the Tyrant's affix bias, and his regalia as the loot focus.
+  {
+    id: 'hollowSovereign',
+    affixTierBias: 1.4,
+    mythics: true,
+    setShare: SET_SHARE,
+    legendaryWeight: LEGENDARY_WEIGHT,
+    voidChance: VOID_CHANCE,
+    prismaticChance: PRISMATIC_CHANCE,
+    itemDropChance: 1,
+    itemLevel: { min: 51, max: 53 },
+    entries: tierEntries({ 5: 1 }),
+    focus: HOLLOW_SOVEREIGN_FOCUS,
   },
 ];

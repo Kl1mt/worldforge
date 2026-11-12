@@ -251,6 +251,9 @@ describe('set piece generation', () => {
         'forgeTyrant',
         // Ticket 8.1: the Pale Marches (the Hollow Reach).
         'paleMarches',
+        // Ticket 8.2: the Hollow Deep and the Hollow Sovereign's hoard.
+        'hollowDeep',
+        'hollowSovereign',
       ];
       if (lateGame.some((id) => tableId.startsWith(id))) {
         // Ticket B.2: a third of the Legendary rolls (was half).

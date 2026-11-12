@@ -105,3 +105,39 @@ describe('the weekly boss modifier in the crypt log (ticket 6.3)', () => {
     expect(lines.at(-1)!.text).toBe('The grave-bell tolls: a crushing blow for 300.');
   });
 });
+
+describe('the Hollow Sovereign in the throne log (ticket 8.2)', () => {
+  it('logs his first siphon and his crown-blows, from a real run', () => {
+    const run = simulateDungeonRun({
+      dungeonId: 'hollowThrone',
+      character: { classId: 'warrior', level: 50, xp: 0 },
+      seed: 'web-throne',
+      bossLootEligible: true,
+      inventoryCount: 0,
+    });
+    const events = dungeonRunProgress(run, run.durationMs, 10_000).events;
+    expect(events.filter((e) => e.type === 'siphon').length).toBeGreaterThan(0);
+    const lines = cryptLog(events, run.totalRooms, 'warrior', 'hollowThrone');
+    expect(lines[0]!.text).toBe(
+      'The throne room. The Hollow Sovereign rises, and the dark rises with him.',
+    );
+    const siphons = lines.filter((l) => l.text.startsWith('The Sovereign drinks your wound'));
+    expect(siphons).toHaveLength(1);
+    expect(siphons[0]!.text).toMatch(/he heals \d+/);
+    for (const l of lines.filter((x) => x.text.includes('crown-blow')))
+      expect(l.text).toMatch(/^The Sovereign’s crown-blow lands for [\d,]+!$/);
+    // A window that starts mid-fight (after the spawn) still names him.
+    const late = cryptLog(
+      events.filter((e) => e.type !== 'spawn' && e.type !== 'enter'),
+      0,
+      'warrior',
+      'hollowThrone',
+    );
+    for (const l of late.filter((x) => x.tone === 'hit'))
+      expect(l.text).toMatch(/Hollow Sovereign/);
+    // A naked hero at 50 falls to him.
+    expect(lines.at(-1)!.text).toBe(
+      'The Sovereign keeps his throne. You crawl back up the lantern road.',
+    );
+  });
+});

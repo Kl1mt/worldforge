@@ -103,9 +103,41 @@ The realistic town's pace is unchanged at every size from 3 players up (one day 
 
 **No monopoly at scale** (asserted for every size and both towns): nobody gives more than a stage's first-day share of a need on its first day (a fifth; **a tenth for the Forgeward stages since B.5b**); a stage finished on its first day had at least five givers (**ten** for the Forgeward), and nobody carried more than that share of it; nobody ever gives more than 60 % of a need in a day; **nine** accounts with endless means (embers included) can't finish a Forgeward stage on its first day. In the cap-bound view a big town finishes each Forgeward stage with exactly ten accounts at a tenth each: **the cap guarantees ten givers, not more**. With the realistic player the largest share of any account from 20 players up is under a fifth (18 % at 20, in the two-day walls, where the second day's cap is 30 %). Embers are the only need a few high-level players hold, and they can't carry a stage with them alone: the gold and shards of the same stage need the rest of the town, and one ember per account on the first day needs ten ember holders to finish that day.
 
+## The lanterns of the deep (ticket 8.2)
+
+The Hollow Reach chain: one project of three stages after the Forgeward Outpost (`requires: 'forgewardOutpost'`), in B.3's model unchanged. **The first project that gates content from its release:** its flag `deepLanternsLit` opens the Hollow Deep and the Hollow Throne (`docs/WORLD.md`). That is allowed because nothing live is taken away: they are new, and every other place opens exactly as before (asserted in game-core `world/hollow-reach-gate.test.ts` and the server's `community/deep-lanterns.test.ts`, which compares every other area and dungeon for heroes of 28–52 before and after the flag). Every stage uses **B.5b's tenth** (`capShare: 0.1`): ten givers to finish a stage on its first day, growing by the default rule (10 → 30 → 50 → 60 %). Materials come from what Hollow Reach heroes already hold (the Marches' ore and shards, Abbey silver from stock) and, once more, **ten Tyrant's Embers** in the last stage (a second one-off use of his hoard; nothing from behind the gate, so no crown shard).
+
+| Stage | Needs | Cap per account, day 1 · day 2 · day 3 · day 4+ |
+| --- | --- | --- |
+| Lanterns 1 · Sink the lantern posts (`lanternPosts`) | 90,000 gold · 1,200 iron ore · 500 soul shards | 9,000 · 27,000 · 45,000 · 54,000; 120 · 360 · 600 · 720; 50 · 150 · 250 · 300 |
+| Lanterns 2 · Hang the chains (`lanternChains`) | 130,000 gold · 1,800 iron ore · 90 Abbey silver | 13,000 · 39,000 · 65,000 · 78,000; 180 · 540 · 900 · 1,080; 9 · 27 · 45 · 54 |
+| Lanterns 3 · Kindle the lanterns (`kindleLanterns`) | 180,000 gold · 900 soul shards · 10 Tyrant's Embers | 18,000 · 54,000 · 90,000 · 108,000; 90 · 270 · 450 · 540; 1 · 3 · 5 · 6 |
+
+**What else it opens.** The **lantern smithy** (Crownforged Work 20 % cheaper in gold, 4,500 → 3,600; `docs/ECONOMY.md` "Town upgrades"; a price, never power) and the **Lantern Vigil**, the fifth era (`docs/WORLD.md`). Contributors earn the deed **Lantern-bearer of the Deep** (`deepLanternBearer`; its icon shows the wax-seal placeholder until it is drawn).
+
+**Test accounts never give** (D.4): `403 test_account`, nothing taken or counted (asserted for this project).
+
+### Pacing at 20, 100 and 500 players (ticket 8.2)
+
+`balance/deep-lanterns-balance.test.ts` plays the chain from the day it opens with B.3's model (`balance/community-town.ts`). The realistic town when the lanterns open (`reachTown`): a tenth **Hollow Reach** heroes (`REACH`: ~22,000 gold, 180 ore and 110 shards spared a day, 4 silver from stock, half an ember a day), a tenth Cinderwastes heroes (6.7's `ENDGAME`), a third veterans, the rest newcomers; embers kept from day to day. Days (1-based) until done; per stage: days it stood · distinct givers · the largest share of the stage one account gave.
+
+| Active players | Cap-bound | With gathering | Givers per stage (gathering) | Largest share of one account (gathering) |
+| --- | --- | --- | --- | --- |
+| 1 | 10 (4/4/4) | 37 (7/23/9) | 1 | 100 % |
+| 3 | 4 (2/2/2) | 20 (3/5/14) | 3 | 48–69 % |
+| 5 | 4 (2/2/2) | 10 (2/3/7) | 5 | 30–38 % |
+| 10 | 3 (1/2/2) | 10 (2/2/8) | 10 | 20–34 % |
+| **20** | 2 (1/1/2) | **6** (1/2/5) | **10** / 18 / 20 | 10–17 % |
+| **100** | 1 (1/1/1) | **2** (1/1/2) | **10** / 15 / 28 | 4–10 % |
+| **500** | 1 (1/1/1) | **2** (1/1/2) | **10** / 23 / 20 | 7–10 % |
+
+**Reading.** A town of 20 lights the lanterns in about **six days** (held by the chains' ore and the last stage's embers); 100 and 500 players in **two**. **A small town still finishes it:** five to ten active players in about **ten days**, three in about **three weeks**, a player alone in a little over five weeks (the cap-bound row: ten days if the means are there). The needs do not scale with the town (B.3's trade-off). **No monopoly** (asserted for every size): nobody gives more than a tenth of a need on a stage's first day, a stage finished on its first day had at least ten givers and nobody carried more than a tenth of it, nobody ever gives more than 60 % of a need a day, nine accounts with endless means can't finish a stage on its first day, and from 20 players up the largest share of any account is under a fifth.
+
+**The window rule at a stage completion** (server test): a gift at 23:59:59 counts on that day, the next stage's cap grows from its own first day (its first gift, the same second), and a gift to the finished stage is refused (`stage_changed`) and takes nothing.
+
 ### Eras (ticket 6.7)
 
-Every completed project moves the town's era (`docs/WORLD.md` "Eras of Graumark"): the Warehouse begins the Ashen Siege, the Ashen Pass the Rekindling, the Forgeward Outpost the Forgeward Age. The era is derived from the world flags, never stored, so live starts where its finished projects put it (the Rekindling) and nothing jumps backward. The transaction that writes the flag (under the project lock and a world lock, `lockWorldFlags`) compares the era before and after and writes `world.era_change` (from, to, the project) with telemetry `world.era`.
+Every completed project moves the town's era (`docs/WORLD.md` "Eras of Graumark"): the Warehouse begins the Ashen Siege, the Ashen Pass the Rekindling, the Forgeward Outpost the Forgeward Age, and (ticket 8.2) the lanterns of the deep the Lantern Vigil. The era is derived from the world flags, never stored, so live starts where its finished projects put it (the Rekindling) and nothing jumps backward. The transaction that writes the flag (under the project lock and a world lock, `lockWorldFlags`) compares the era before and after and writes `world.era_change` (from, to, the project) with telemetry `world.era`.
 
 **B.5: a lower first-day cap for big towns?** (6.7's open point, `docs/BALANCE.md` "B.5", item 5.) Played with a 10 % cap on every stage (ten givers to finish one on its first day) instead of 20 %: the same days at 20, 100 and 500 players (8 / 2 / 2), the first stage given by ten accounts instead of six, its largest share 19 % → 10 %. **Owner decision (B.5b, 2026-11-11): shipped** as `capShare: 0.1` on the Outpost's three stages; the measurement re-run with the shipped data is identical (tables above). The other projects keep 20 %.
 

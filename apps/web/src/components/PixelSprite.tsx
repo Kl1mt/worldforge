@@ -77,7 +77,13 @@ export function PixelSprite({
   if (frames > 1) {
     return (
       <span
-        className={['pixel-sheet', mirror ? 'pixel--mirror' : '', className]
+        // Ticket 8.2: a tinted sheet (the Deep's and the Depths' kin) keeps its tint, as a still does.
+        className={[
+          'pixel-sheet',
+          mirror ? 'pixel--mirror' : '',
+          sprite.tint ? `pixel--tint-${sprite.tint}` : '',
+          className,
+        ]
           .filter(Boolean)
           .join(' ')}
         style={{

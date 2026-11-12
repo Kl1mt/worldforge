@@ -56,6 +56,12 @@ export interface WorldProgress {
    * fought him.
    */
   forgeTyrantDefeated?: boolean;
+  /**
+   * Ticket 8.2: the Hollow Sovereign (the Hollow Throne) has fallen to this character. Gates
+   * nothing (PvE Progress counts it, a milestone cosmetic reads it); absent on characters that
+   * never fought him.
+   */
+  hollowSovereignDefeated?: boolean;
 }
 
 /** The deepest crypt tier cleared (ticket 3.6); a pre-3.6 Gravewarden kill counts as tier I. */

@@ -17,6 +17,7 @@ import {
 import {
   FORMULA_VERSIONS,
   PVE_MILESTONES,
+  pveMilestones,
   affixQuality,
   checkEquipment,
   compareSortKeys,
@@ -85,7 +86,7 @@ describe('determinism', () => {
   // ambient state). If one moves, a formula changed: bump its `FORMULA_VERSIONS` entry and update
   // the pin and docs/LEADERBOARDS.md in the same change (5.2 recomputes stored values on a bump).
   it('pins the values of reference heroes (bump FORMULA_VERSIONS when one moves)', () => {
-    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 2, power: 3, pveProgress: 5 });
+    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 2, power: 3, pveProgress: 6 });
     const pinned = CLASS_IDS.map((classId) => {
       // Ticket 6.1: the version-1 pins, computed at version 1 (unchanged by 6.1).
       const s = computeScores(hero({ classId, equipment: kit(classId, 19, 'rare', 3) }), {
@@ -709,12 +710,12 @@ describe('PvE Progress', () => {
       guildBossStage: 5,
     });
     const v5 = (level: number, tyrant: boolean, tier = 4) => progress(hero(level, tyrant, tier), 5);
-    expect(PVE_MILESTONES).toHaveLength(21);
-    expect(PVE_MILESTONES.slice(-3).map((m) => m.id)).toEqual([
-      'area:paleMarches',
-      'marches:43',
-      'marches:46',
-    ]);
+    expect(pveMilestones(5)).toHaveLength(21);
+    expect(
+      pveMilestones(5)
+        .slice(-3)
+        .map((m) => m.id),
+    ).toEqual(['area:paleMarches', 'marches:43', 'marches:46']);
     // The Tyrant and level 40 open the Marches (milestone 19); its middle at 43, its top at 46.
     expect(v5(40, true).sortKey).toEqual([19, 19, 5]);
     expect(v5(42, true).sortKey).toEqual([19, 19, 5]);
@@ -728,7 +729,7 @@ describe('PvE Progress', () => {
     for (const level of [1, 24, 28, 34, 37, 40, 43, 46, 60]) {
       for (const tyrant of [false, true]) {
         for (const tier of [3, 4]) {
-          const before = progress(hero(level, tyrant, tier)).value;
+          const before = progress(hero(level, tyrant, tier), 4).value;
           expect(v5(level, tyrant, tier).value).toBeGreaterThanOrEqual(before);
           if (!tyrant) expect(v5(level, tyrant, tier).value).toBe(before);
         }
@@ -739,6 +740,48 @@ describe('PvE Progress', () => {
     expect(progress({ ...hero(46, true), world: all as typeof NO_WORLD_FLAGS }, 5).sortKey).toEqual(
       v5(46, true).sortKey,
     );
+  });
+
+  it('version 6 (8.2) adds the Hollow Deep (behind the lanterns) and the Hollow Sovereign', () => {
+    const LIT = { ...NO_WORLD_FLAGS, ashenPassCleared: true, deepLanternsLit: true };
+    const hero = (level: number, lit: boolean, sovereign = false) => ({
+      level,
+      progress: {
+        gravewardenDefeated: true,
+        cryptTierCleared: 4,
+        ashenWardenDefeated: true,
+        forgeTyrantDefeated: true,
+        ...(sovereign ? { hollowSovereignDefeated: true } : {}),
+      },
+      world: lit ? LIT : { ...NO_WORLD_FLAGS, ashenPassCleared: true },
+      guildBossStage: 5,
+    });
+    const v6 = (level: number, lit: boolean, sovereign = false) =>
+      progress(hero(level, lit, sovereign), 6);
+    expect(PVE_MILESTONES).toHaveLength(25);
+    expect(PVE_MILESTONES.slice(-4).map((m) => m.id)).toEqual([
+      'area:hollowDeep',
+      'deep:49',
+      'throne',
+      'deep:52',
+    ]);
+    // The Deep at 46 with the lanterns lit (milestone 22), its middle at 49, its top at 52.
+    expect(v6(46, true).sortKey).toEqual([22, 22, 5]);
+    expect(v6(49, true).sortKey).toEqual([23, 23, 5]);
+    expect(v6(52, true).sortKey).toEqual([24, 25, 5]);
+    expect(v6(52, true, true).sortKey).toEqual([25, 25, 5]);
+    expect(v6(52, true, true).lines.every((l) => l.counted)).toBe(true);
+    // Without the lanterns none of the Deep's, at any level (the Sovereign's door is behind them).
+    expect(v6(60, false).sortKey).toEqual([21, 21, 5]);
+    // Every version-5 hero scores the same or more under version 6, and one that never reached
+    // the Deep or the Sovereign scores exactly the same.
+    for (const level of [1, 28, 40, 46, 49, 52, 60]) {
+      for (const lit of [false, true]) {
+        const before = progress(hero(level, lit), 5).value;
+        expect(v6(level, lit).value).toBeGreaterThanOrEqual(before);
+        if (!lit) expect(v6(level, lit).value).toBe(before);
+      }
+    }
   });
 
   it('never counts a guild boss stage that does not exist', () => {

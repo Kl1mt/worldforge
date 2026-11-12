@@ -39,7 +39,7 @@ export function cosmeticScope(kind: CosmeticKind): 'hero' | 'account' {
 /** Milestones a hero reaches (read from the hero's own level and progress flags). */
 export type CosmeticMilestone =
   | { kind: 'characterLevel'; level: number }
-  | { kind: 'bossDefeated'; boss: 'ashenWarden' | 'forgeTyrant' }
+  | { kind: 'bossDefeated'; boss: 'ashenWarden' | 'forgeTyrant' | 'hollowSovereign' }
   | { kind: 'cryptTier'; tier: number };
 
 /**
@@ -219,6 +219,14 @@ export const COSMETICS: readonly CosmeticDefinition[] = [
     description: 'Your title in deep royal purple, for a season’s Champion.',
     source: { kind: 'season', minTier: 'champion' },
   },
+  // Ticket 8.2: the Hollow Sovereign's milestone (a title colour: CSS only, no new art).
+  {
+    id: 'title-colour.hollow-pale',
+    kind: 'titleColour',
+    name: 'Hollow pale',
+    description: 'Your title in the cold grey of the Sovereign’s crown, for those who took it.',
+    source: { kind: 'milestone', milestone: { kind: 'bossDefeated', boss: 'hollowSovereign' } },
+  },
   // --- 6.11: the Forge's exchange (Seals and Abbey silver; existing art, tinted in code) ---
   {
     id: 'title-colour.seal-wax',
@@ -293,6 +301,7 @@ export interface MilestoneHero {
     cryptTierCleared?: number;
     ashenWardenDefeated?: boolean;
     forgeTyrantDefeated?: boolean;
+    hollowSovereignDefeated?: boolean;
   };
 }
 
@@ -301,9 +310,9 @@ export function milestoneReached(m: CosmeticMilestone, hero: MilestoneHero): boo
     case 'characterLevel':
       return hero.level >= m.level;
     case 'bossDefeated':
-      return m.boss === 'ashenWarden'
-        ? hero.progress.ashenWardenDefeated === true
-        : hero.progress.forgeTyrantDefeated === true;
+      if (m.boss === 'ashenWarden') return hero.progress.ashenWardenDefeated === true;
+      if (m.boss === 'hollowSovereign') return hero.progress.hollowSovereignDefeated === true;
+      return hero.progress.forgeTyrantDefeated === true;
     case 'cryptTier': {
       const stored = Number.isInteger(hero.progress.cryptTierCleared)
         ? hero.progress.cryptTierCleared!

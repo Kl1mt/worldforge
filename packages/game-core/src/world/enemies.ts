@@ -50,6 +50,13 @@ export const ENEMY_IDS = [
   'reachStalker',
   'paleChoir',
   'huskTitan',
+  // The Hollow Deep, the Hollow Reach's second area (ticket 8.2): kin of the Marches' foes.
+  'hollowSentinel',
+  'deepStalker',
+  'dirgeChoir',
+  'huskColossus',
+  // The Hollow Throne (ticket 8.2): the Hollow Reach's region boss.
+  'hollowSovereign',
 ] as const;
 
 export type EnemyId = (typeof ENEMY_IDS)[number];
@@ -591,6 +598,93 @@ export const ENEMIES: readonly EnemyDefinition[] = [
     resistance: { base: 16, perLevel: 2.6 },
     xp: { base: 75, perLevel: 17.4 },
     traits: { critGuard: 0.5 },
+  },
+  // — The Hollow Deep (ticket 8.2), the second area of Region III (levels 46–52, docs/WORLD.md):
+  // deeper kin of the Marches' foes, drawn as their sprites with the Deep's tint (no new art).
+  // Tuned against the best Marches gear (tier-5 Legendaries at item level 45–47, +5/+10). Each
+  // foe pairs two fight traits (`EnemyTraits`), so no single build answers all four.
+  // The sentinel: a hollow knight that never left its post; it pierces armour and shrugs off the
+  // class skill.
+  {
+    id: 'hollowSentinel',
+    name: 'Hollow Sentinel',
+    assetId: 'enemy.hollow-sentinel',
+    damageType: 'physical',
+    undead: true,
+    rank: 'normal',
+    attackSpeed: 0.9,
+    health: { base: 140, perLevel: 92 },
+    damage: { base: 14.5, perLevel: 4.15 },
+    armor: { base: 32, perLevel: 5.3 },
+    resistance: { base: 15, perLevel: 2.5 },
+    xp: { base: 64, perLevel: 15.8 },
+    traits: { defensePierce: 0.25, skillGuard: 0.2 },
+  },
+  // The deep stalker: faster than its kin above, elusive, and its claws find the gaps.
+  {
+    id: 'deepStalker',
+    name: 'Deep Stalker',
+    assetId: 'enemy.deep-stalker',
+    damageType: 'physical',
+    undead: false,
+    rank: 'normal',
+    attackSpeed: 1.6,
+    health: { base: 105, perLevel: 76 },
+    damage: { base: 9, perLevel: 2.7 },
+    armor: { base: 17, perLevel: 3 },
+    resistance: { base: 13, perLevel: 2.3 },
+    xp: { base: 59, perLevel: 14.3 },
+    traits: { critEvasion: 0.12, defensePierce: 0.12 },
+  },
+  // The dirge choir: the pale choir's deeper hymn, dulling both the class skill and critical blows.
+  {
+    id: 'dirgeChoir',
+    name: 'Dirge Choir',
+    assetId: 'enemy.dirge-choir',
+    damageType: 'magic',
+    undead: true,
+    rank: 'normal',
+    attackSpeed: 1.2,
+    health: { base: 85, perLevel: 62 },
+    damage: { base: 10, perLevel: 3 },
+    armor: { base: 9, perLevel: 1.5 },
+    resistance: { base: 30, perLevel: 4.6 },
+    xp: { base: 58, perLevel: 14 },
+    traits: { skillGuard: 0.3, critGuard: 0.25 },
+  },
+  // The husk colossus: the titans' elder, its dead hide turning crits and its bulk hard to strike
+  // cleanly.
+  {
+    id: 'huskColossus',
+    name: 'Husk Colossus',
+    assetId: 'enemy.husk-colossus',
+    damageType: 'physical',
+    undead: false,
+    rank: 'normal',
+    attackSpeed: 0.45,
+    health: { base: 265, perLevel: 134 },
+    damage: { base: 22, perLevel: 6.2 },
+    armor: { base: 34, perLevel: 5.5 },
+    resistance: { base: 17, perLevel: 2.7 },
+    xp: { base: 86, perLevel: 20.1 },
+    traits: { critGuard: 0.4, critEvasion: 0.08 },
+  },
+  // — The Hollow Sovereign (ticket 8.2), the Hollow Reach's region boss in the Hollow Throne
+  // (docs/DUNGEONS.md). Magic blows (the Tyrant's were physical) and a hunger: its blows feed it
+  // (`BossMechanics.siphon` on its tier), with a crown-blow; on the existing engine, no new draws.
+  {
+    id: 'hollowSovereign',
+    name: 'The Hollow Sovereign',
+    assetId: 'enemy.hollow-sovereign',
+    damageType: 'magic',
+    undead: true,
+    rank: 'boss',
+    attackSpeed: 0.55,
+    health: { base: 2200, perLevel: 580 },
+    damage: { base: 12, perLevel: 2.6 },
+    armor: { base: 30, perLevel: 4.6 },
+    resistance: { base: 22, perLevel: 3.2 },
+    xp: { base: 1100, perLevel: 180 },
   },
 ];
 

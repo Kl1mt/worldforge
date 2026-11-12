@@ -26,6 +26,10 @@
 .cosm-tint--abbey-silver {
   --cosm-tint: #b9bfc4;
 }
+/* Ticket 8.2: the Hollow Sovereign's milestone. */
+.cosm-tint--hollow-pale {
+  --cosm-tint: #c9cfd8;
+}
 .honour.cosm-tint .honour__words,
 .book-swatch__words.cosm-tint {
   color: var(--cosm-tint);

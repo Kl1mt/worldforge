@@ -41,6 +41,7 @@ Each entry: `id` (`<kind>.<name>`, stored in `cosmetic_unlocks`, never renamed o
 | `banner.silvered-seal` | banner | exchange: 2 Seals + 20 Abbey silver (6.11; the crypt-seal art, silvered) |
 | `crest.abbey-silver` | crest | exchange: 30 Abbey silver (6.11; the iron crest art, silvered) |
 | `crest.seal-wax` | crest | exchange: 4 Seals (6.11; the iron crest art in wax red) |
+| `title-colour.hollow-pale` | title colour | milestone: the Hollow Sovereign slain (8.2; CSS only) |
 
 **Adding one:** append a definition with a source the server already grants (above), list its art for an art ticket, and add words if the source is new. The next deploy's backfill grants it to accounts that already earned it (the backfill id hashes every id and source).
 

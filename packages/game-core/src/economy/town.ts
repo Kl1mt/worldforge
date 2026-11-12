@@ -10,6 +10,9 @@ import type { ForgeRecipe } from './config.js';
  * the outpost's beacon, so the Tyrantforged Work recipe costs 20 % less gold. Its other costs (the
  * Tyrant's Ember, ore and shards) are unchanged, so the ember still paces the recipe exactly as
  * before; only the gold sink shrinks (3,000 → 2,400 per craft).
+ *
+ * Ticket 8.2: the **lantern smithy** (`deepLanternsLit`): Crownforged Work 20 % less gold
+ * (4,500 → 3,600); the crown shard, ore and shards unchanged.
  */
 
 export interface TownUpgradeDefinition {
@@ -32,6 +35,16 @@ export const TOWN_UPGRADES: readonly TownUpgradeDefinition[] = [
       'The Forge works the Tyrant’s fire at the outpost beacon: Tyrantforged Work costs 20 % less gold.',
     flag: 'forgewardRaised',
     forgeGoldDiscount: { recipeId: 'tyrantforgedWork', share: 0.2 },
+  },
+  {
+    // Ticket 8.2: the lanterns of the deep. The same kind of service one region on: the crown
+    // shard still paces the recipe exactly; only its gold sink shrinks (4,500 → 3,600).
+    id: 'lanternSmithy',
+    name: 'The lantern smithy',
+    description:
+      'The lantern-keepers’ smithy at the rim of the deep works crown-iron by lantern light: Crownforged Work costs 20 % less gold.',
+    flag: 'deepLanternsLit',
+    forgeGoldDiscount: { recipeId: 'crownforgedWork', share: 0.2 },
   },
 ];
 

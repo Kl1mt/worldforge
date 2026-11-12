@@ -148,11 +148,15 @@ describe('fight traits (ticket 8.1)', () => {
     };
   };
 
-  it('only the Pale Marches’ foes have traits, one each', () => {
+  it('only the Hollow Reach’s foes have traits: one each in the Marches, two in the Deep', () => {
     const traited = ENEMIES.filter((e) => e.traits !== undefined).map((e) => e.id);
-    expect(traited).toEqual(getArea('paleMarches').enemies.map((e) => e.enemyId));
+    const deep = getArea('hollowDeep').enemies.map((e) => e.enemyId);
+    expect(traited).toEqual([...getArea('paleMarches').enemies.map((e) => e.enemyId), ...deep]);
     for (const e of ENEMIES.filter((x) => x.traits)) {
-      expect(Object.keys(e.traits!), e.id).toHaveLength(1);
+      // Ticket 8.2: the Deep's kin pair two traits, so no single build answers all four.
+      expect(Object.keys(e.traits!), e.id).toHaveLength(
+        (deep as readonly string[]).includes(e.id) ? 2 : 1,
+      );
       for (const v of Object.values(e.traits!)) {
         expect(v, e.id).toBeGreaterThan(0);
         expect(v, e.id).toBeLessThan(1);
@@ -190,6 +194,19 @@ describe('fight traits (ticket 8.1)', () => {
     expect(traited.auto).toEqual(plain.auto);
     expect(traited.skill.normal).toBeLessThan(plain.skill.normal);
     expect(traited.skill.normal).toBeGreaterThanOrEqual(traited.auto.normal);
+  });
+
+  it('the Deep’s kin combine two traits on the same rules (ticket 8.2)', () => {
+    const enemy = ENEMIES.find((e) => e.id === 'dirgeChoir')!;
+    const plain = { ...enemy };
+    delete plain.traits;
+    const a = buildEncounter(enemy, 49, 'warrior', 49, stats, DEFAULT_COMBAT_CONFIG);
+    const b = buildEncounter(plain, 49, 'warrior', 49, stats, DEFAULT_COMBAT_CONFIG);
+    // Skill guard and crit guard together: a duller skill and duller crits, the same blows taken.
+    expect(a.skill.normal).toBeLessThan(b.skill.normal);
+    expect(a.auto.crit).toBeLessThan(b.auto.crit);
+    expect(a.auto.normal).toBe(b.auto.normal);
+    expect(a.enemyHit).toBe(b.enemyHit);
   });
 
   it('a foe without traits builds exactly the encounter it did', () => {

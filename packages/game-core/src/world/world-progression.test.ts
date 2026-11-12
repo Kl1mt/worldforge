@@ -35,13 +35,19 @@ import {
 const FORGEWARD = findCommunityProject('forgewardOutpost')!;
 /** The flags live has today: both earlier projects done. */
 const LIVE: WorldFlags = { ...NO_WORLD_FLAGS, warehouseRestored: true, ashenPassCleared: true };
-const ALL: WorldFlags = Object.fromEntries(WORLD_FLAG_IDS.map((f) => [f, true])) as WorldFlags;
+/**
+ * Every flag up to 6.7's (ticket 8.2 added `deepLanternsLit`, which opens new content: its own
+ * tests are in `hollow-reach-gate.test.ts`).
+ */
+const ALL: WorldFlags = Object.fromEntries(
+  WORLD_FLAG_IDS.map((f) => [f, f !== 'deepLanternsLit']),
+) as WorldFlags;
 
 describe('the Forgeward Outpost chain (ticket 6.7)', () => {
   it('opens after the Ashen Pass, sets its own flag and rewards a cosmetic achievement', () => {
     expect(FORGEWARD.requires).toBe('clearAshenPass');
     expect(FORGEWARD.grantsFlag).toBe('forgewardRaised');
-    expect(WORLD_FLAG_IDS.at(-1)).toBe('forgewardRaised');
+    expect(WORLD_FLAG_IDS.at(-2)).toBe('forgewardRaised');
     expect(WORLD_FLAGS.map((f) => f.id)).toEqual([...WORLD_FLAG_IDS]);
     const a = ACHIEVEMENTS.find((x) => x.id === FORGEWARD.rewardAchievementId)!;
     expect(a.criterion).toEqual({ kind: 'communityProject', projectId: 'forgewardOutpost' });
@@ -146,7 +152,8 @@ describe('eras of Graumark (ticket 6.7)', () => {
     let flags: WorldFlags = NO_WORLD_FLAGS;
     let last = worldEraIndex(worldEra(flags).id);
     expect(last).toBe(0);
-    for (const f of order) {
+    // Ticket 8.2: and the lanterns of the deep after them.
+    for (const f of [...order, 'deepLanternsLit' as const]) {
       flags = { ...flags, [f]: true };
       const now = worldEraIndex(worldEra(flags).id);
       expect(now).toBe(last + 1);

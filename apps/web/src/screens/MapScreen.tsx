@@ -224,6 +224,7 @@ export function MapScreen() {
             crypt: 'Go to the crypt door',
             watch: 'Go to the watchtower',
             tyrant: 'Go down to the forge',
+            throne: 'Go down to the throne',
           }[words.route]
         }
       </a>

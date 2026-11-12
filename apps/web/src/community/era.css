@@ -109,6 +109,18 @@
   --hub-era-banner-opacity: 1;
 }
 
+/* Ticket 8.2: the Lantern Vigil: cold lantern-light over the street, pale lantern-cloth banners. */
+.hub-era--lanternVigil {
+  --hub-era-tint: radial-gradient(
+    ellipse at 30% 15%,
+    rgb(220 226 200 / 32%),
+    rgb(60 64 82 / 28%) 55%,
+    transparent 85%
+  );
+  --hub-era-banner: #d8d2b8;
+  --hub-era-banner-opacity: 0.95;
+}
+
 @media (prefers-contrast: more) {
   .hub-era__tint {
     display: none;

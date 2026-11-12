@@ -61,7 +61,7 @@ describe('Void content (ticket 3.5)', () => {
     // Ticket 3.6 adds the deeper crypt tiers' chambers and Gravewarden.
     // Ticket 4.8 adds the Ashen Pass and the Ashen Warden's hoard; 6.1 the Ashfall Verge; 6.2 the
     // Cinder Depths and the Forge Tyrant's hoard; 6.3 the Heroic crypt's chambers and hoard; 8.1
-    // the Pale Marches.
+    // the Pale Marches; 8.2 the Hollow Deep and the Hollow Sovereign's hoard.
     expect(withVoid.sort()).toEqual([
       'ashenPass',
       'ashenWarden',
@@ -72,6 +72,8 @@ describe('Void content (ticket 3.5)', () => {
       'gravewardenII',
       'gravewardenIII',
       'gravewardenIV',
+      'hollowDeep',
+      'hollowSovereign',
       'namelessCrypt',
       'namelessCryptII',
       'namelessCryptIII',

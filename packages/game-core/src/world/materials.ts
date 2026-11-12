@@ -29,6 +29,8 @@ export const MATERIAL_IDS = [
   'gravewardenSeal',
   // Ticket 6.2: the Forge Tyrant's boss material (sink: the Tyrantforged Work recipe).
   'tyrantsEmber',
+  // Ticket 8.2: the Hollow Sovereign's boss material (sink: the Crownforged Work recipe).
+  'crownShard',
 ] as const;
 
 export type MaterialId = (typeof MATERIAL_IDS)[number];
@@ -101,6 +103,8 @@ export const MATERIALS: readonly MaterialDefinition[] = [
       'ashfallVerge',
       'cinderDepths',
       'paleMarches',
+      // Ticket 8.2.
+      'hollowDeep',
     ],
   },
   {
@@ -111,7 +115,14 @@ export const MATERIALS: readonly MaterialDefinition[] = [
     rarity: 'uncommon',
     source: 'undeadDrop',
     profession: null,
-    areas: ['oldBurialGrounds', 'ashenPass', 'ashfallVerge', 'cinderDepths', 'paleMarches'],
+    areas: [
+      'oldBurialGrounds',
+      'ashenPass',
+      'ashfallVerge',
+      'cinderDepths',
+      'paleMarches',
+      'hollowDeep',
+    ],
   },
   {
     id: 'abbeySilver',
@@ -139,6 +150,19 @@ export const MATERIALS: readonly MaterialDefinition[] = [
     description:
       'A coal from the Forge Tyrant’s furnace heart. It never cools; smiths say it remembers every blade.',
     icon: 'material.tyrants-ember',
+    rarity: 'epic',
+    source: 'bossDrop',
+    profession: null,
+    areas: [],
+  },
+  {
+    // Ticket 8.2: one per Hollow Sovereign hoard; never traded (`UNTRADEABLE_MATERIALS`). Its one
+    // sink is the Crownforged Work recipe (docs/ECONOMY.md "The Hollow Throne").
+    id: 'crownShard',
+    name: 'Shard of the Hollow Crown',
+    description:
+      'A sliver of the Sovereign’s crown, cold as the deep. Smiths say it still wants a head to sit on.',
+    icon: 'material.crown-shard',
     rarity: 'epic',
     source: 'bossDrop',
     profession: null,

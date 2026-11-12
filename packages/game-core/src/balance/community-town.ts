@@ -59,6 +59,23 @@ export const ENDGAME: Supply = {
   gravewardenSeal: 1,
   tyrantsEmber: 0.5,
 };
+/**
+ * Ticket 8.2: the Hollow Reach (the Pale Marches and, once open, the Deep): ~5,000 gold an hour
+ * with Marches Legendaries (`tools/balance/hollow-deep.ts farm`), ore and shards from the region's
+ * gathering, silver from stock, and a Tyrant's Ember on half the days (the Forge is still on the
+ * way; most Reach heroes still run it for its hoard).
+ */
+export const REACH: Supply = {
+  gold: 22_000,
+  timber: 20,
+  rawHide: 20,
+  ashwort: 20,
+  ironOre: 180,
+  soulShard: 110,
+  abbeySilver: 4,
+  gravewardenSeal: 1,
+  tyrantsEmber: 0.5,
+};
 export const ENDLESS: Supply = Object.fromEntries(
   [
     'gold',
@@ -89,6 +106,20 @@ export const largeTown = (n: number): Supply[] => {
   const vet = Math.round(n / 3);
   return Array.from({ length: n }, (_, i) =>
     i < end ? ENDGAME : i < end + vet ? VETERAN : NEWCOMER,
+  );
+};
+
+/**
+ * Ticket 8.2's town when the lanterns of the deep open: a tenth Hollow Reach heroes (at least one),
+ * a tenth Cinderwastes heroes, a third veterans, the rest newcomers. Reach heroes give first on
+ * day 0 (the worst case for monopoly). Only heroes past the Forge Tyrant hold embers.
+ */
+export const reachTown = (n: number): Supply[] => {
+  const reach = Math.max(1, Math.round(n / 10));
+  const end = Math.round(n / 10);
+  const vet = Math.round(n / 3);
+  return Array.from({ length: n }, (_, i) =>
+    i < reach ? REACH : i < reach + end ? ENDGAME : i < reach + end + vet ? VETERAN : NEWCOMER,
   );
 };
 

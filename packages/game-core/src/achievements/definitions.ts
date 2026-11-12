@@ -206,6 +206,15 @@ export const ACHIEVEMENTS: readonly AchievementDefinition[] = [
     criterion: { kind: 'communityProject', projectId: 'forgewardOutpost' },
     assetId: 'achievement.forgeward-builder',
   },
+  // Ticket 8.2: the lanterns of the deep (icon awaiting art: the wax-seal placeholder until then).
+  {
+    id: 'deepLanternBearer',
+    name: 'Lantern-bearer of the Deep',
+    description: 'Help light the lanterns of the deep.',
+    category: 'world',
+    criterion: { kind: 'communityProject', projectId: 'deepLanterns' },
+    assetId: 'achievement.deep-lantern-bearer',
+  },
 ];
 
 export type AchievementId = string;

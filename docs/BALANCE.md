@@ -310,6 +310,29 @@ With only 40 silver (`SILVER=40`, a player who gave most of it to the town): the
 - **Regular and casual players** reach the kit later (48–54 and 96–108 days, B.5); the reserve rule is the same for them, so the sinks never slow their awakening either.
 - **Unchanged:** no gameplay number moved. No rule reads an engraving or an exchanged cosmetic (the cosmetics import scan covers `cosmetics/exchange.ts`); the no-effects hashes, the curve pins, Gear Score, Power, PvE Progress and the duel rules are unchanged (no version), and the server tests assert that engraving and buying every offer leave a hero's 5.1 scores identical.
 
+## 8.2: the Hollow Deep, the Hollow Sovereign and the exit criterion again
+Ticket 8.2 adds Region III's second area, the Hollow Deep (46–52), its region boss, the Hollow Sovereign (the Hollow Throne, level 48 door, boss level 52), and the community gate in front of both (`docs/WORLD.md`, `DUNGEONS.md`, `COMMUNITY.md`), tuned against the best Pale Marches gear. **No value at or below level 46 moved** (`balance/curve-pins-8-2.test.ts`, hashes computed on `main` before 8.2, commit 5f6e017: the Marches at 40 / 43 / 46 and the Depths at 40, Tyrant runs at 46 with and without a modifier, a Heroic run, the Marches' and the Tyrant's rolls at 41–47, the merchant, the XP curve to 46; 8.1's, 6.2's and 6.1's pins, the no-effects hashes and every earlier balance suite pass unchanged). New numbers, all new content (before → after):
+
+| | Before 8.2 | After |
+|---|---|---|
+| Top area | the Pale Marches, 40–46 (tier-5 drops 41–47) | the Hollow Deep, 46–52 (tier 5, 47–53) |
+| Region boss | the Forge Tyrant (40) | + the Hollow Sovereign (52): siphon (heals half of each landed blow), crown-blow every 4th × 2.5 |
+| Boss material · sink | Tyrant's Ember · Tyrantforged Work, awakening, the beacon | + Shard of the Hollow Crown · Crownforged Work (tier 5, Rare/Epic, ≤ 53); embers gain the lanterns |
+| XP soft cap (a level takes > 40 h) | about 54 | about **57–58** (no constant changed) |
+| PvE Progress · Power · Gear Score | 5 (21) · 3 · 2 | **6 (25)**, chained after 8.1's pending switch · 3 (trials at 48 and 52 exist) · 2 |
+| Community · era | the Forgeward Outpost · the Forgeward Age | + the lanterns of the deep (3 stages, 400,000 gold, ten givers a first day) · the Lantern Vigil |
+| 30+ 90 %+ / 95 %+ favourites (heroes to the top level) | 3.7 % / 1.2 % (to 46) | 2.2 % / 0.8 % (to 52) |
+
+**The exit criterion, extended again** (`balance/hollow-deep-balance.test.ts`, `phase6-exit-criterion.test.ts` "extended again: the Hollow Deep"):
+- **The best Marches gear farms the new area.** The Marches' Legendaries +10 (item level 47, with class effects), plain and awakened, farm the Deep at 46, 49 and 52 with **no deaths**: 6.6–9.9 kills a minute, 0.92–0.95 × their Marches pace at 46, XP × 1.07–1.11 and gold × 1.06–1.13 the Marches' top (`docs/COMBAT.md` "The Hollow Deep").
+- **The Sovereign is beatable around 48–50 in good Marches gear, but not trivially** (win rates over 4 classes × 4 kit samples × 12 seeds, `docs/DUNGEONS.md` "The Hollow Throne"): Marches Legendaries +0 about 10 %, +5 about 40–55 %, **+10 about 85 %** (every class above 50 %), awakened about 89 %; the Deep's own Legendaries +10 win every run; the Depths' best +10 about 40 %, always below the Marches' +10. The weekly modifiers cost the +10 kits 3–8 points.
+- **Heroic, the Tyrant and the Cinderwastes keep uses.** Their tier-4 drops salvage into the ore and shards the Crownforged Work and the tier-5 Forge spend (and the Deep yields both); the Tyrant's Ember keeps its recipe and awakening and gains a one-off sink (the lanterns' ten); the crown shard's only sink is its recipe (no awakening input, no project need). Every older material keeps a repeatable sink (unchanged scan).
+- **Its own drops are worth chasing:** a level-46 hero's Marches gear holds the Deep, but the Deep's Legendaries +10 take the Sovereign from 85 % to 100 %.
+
+**The curves.** Hours per level for the Marches' Legendaries +10 farming the best open area (`hollow-deep-balance.test.ts`, `tools/balance/hollow-deep.ts xp`): before the Deep 7–8 h at 50, 11–15 h at 52 and 47–64 h from 54; with it 4–5 h at 50 and 52, 4–6 h at 54, 7–9 h at 56 and 12–16 h at 58. The XP formula and the level penalty are unchanged: with foes up to 52 the penalty's floor arrives about four levels later, so the soft cap moved with the content again, from about 54 to about **57–58** (the roadmap's "about 55" plus the Deep's extra level of reach; documented, not tuned).
+
+**Open points.** (1) Class spread at the Sovereign: with Marches +10 the hunter wins every run, the mage and the warlock 69–81 % (a wider spread than the Tyrant's 17–23 points after B.5); the siphon punishes slower kills. Left for B.6 with live data. (2) The Depths' best +10 still wins about 40 % (the warrior's and hunter's kits far more than the mage's 0 %): older gear is a long shot, not a wall. (3) Live telemetry should confirm the lanterns' pace with the real town.
+
 ## 8.1: the Hollow Reach and the Phase 6 exit criterion
 Ticket 8.1 adds Region III's first area, the Pale Marches (40–46, `docs/WORLD.md`), tuned against today's best gear. **No value at or below level 40 moved** (`balance/curve-pins-8-1.test.ts`, hashes computed on `main` before 8.1; the no-effects hashes, 6.1's and 6.2's pins and every earlier balance suite pass unchanged). New numbers, all new content (before → after):
 

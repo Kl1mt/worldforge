@@ -203,6 +203,8 @@ export async function startJourney(options: JourneyOptions) {
     watch: [] as { level: number; outcome: string; bossDefeated: boolean }[],
     /** Ticket 6.2: runs of the Tyrant's Forge. */
     forge: [] as { level: number; outcome: string; bossDefeated: boolean }[],
+    /** Ticket 8.2: runs of the Hollow Throne. */
+    throne: [] as { level: number; outcome: string; bossDefeated: boolean }[],
     abbeyLockedBeforeBoss: false,
     /** Pause the junk sale (Phase 3 lets the pack fill to see drops kept over capacity). */
     tidy: true,
@@ -431,7 +433,7 @@ export async function startJourney(options: JourneyOptions) {
    */
   const runCrypt = async (tier = 1) => runDungeon('namelessCrypt', tier);
   const runDungeon = async (
-    dungeonId: 'namelessCrypt' | 'ashenWatch' | 'tyrantsForge',
+    dungeonId: 'namelessCrypt' | 'ashenWatch' | 'tyrantsForge' | 'hollowThrone',
     tier = 1,
   ) => {
     const start = await api('POST', `${base}/dungeon`, { dungeonId, tier });
@@ -465,6 +467,7 @@ export async function startJourney(options: JourneyOptions) {
     };
     if (dungeonId === 'namelessCrypt') state.crypt.push({ tier, ...record });
     else if (dungeonId === 'ashenWatch') state.watch.push(record);
+    else if (dungeonId === 'hollowThrone') state.throne.push(record);
     else state.forge.push(record);
     state.level = character.level;
     return result;
@@ -1639,6 +1642,7 @@ export async function playCommunityStep(database: DatabaseHandle, hero: Journey)
     ['restoreWarehouse', 'open'],
     ['clearAshenPass', 'locked'],
     ['forgewardOutpost', 'locked'],
+    ['deepLanterns', 'locked'],
   ]);
   const stage = first.projects[0]!.stages[first.projects[0]!.stageIndex]!;
   const goldNeed = stage.needs.find((n) => n.resource === 'gold')!;
@@ -2109,6 +2113,154 @@ export async function playHollowReachStep(
     tier5,
     tyrantRuns: state.forge.length,
     level: state.level,
+    pveProgress: mine.value,
+  };
+}
+
+/**
+ * Phase 8 Hollow Deep step (ticket 8.2): with the Forgeward Outpost standing (the owner's CLI) the
+ * Hollow Deep waits for the lanterns of the deep: the farming start and the Throne's door are
+ * refused. The hero gives its share of gold to the first stage; the owner's test-setup `stage`
+ * command finishes the three stages (refused as production first); the flag opens the Deep and the
+ * Throne, the era moves to the Lantern Vigil. The Deep is farmed (tier-5 drops at 47–53 from the
+ * second visit), the Throne fought until the Sovereign falls (bounded: the best Marches gear wins
+ * about 85 % at 48–50, `hollow-deep-balance.test.ts`), the hoard is bound and carries a crown
+ * shard, which a Crownforged Work spends (at the lantern smithy's price), and PvE Progress counts it
+ * all under the version in force.
+ */
+export async function playHollowDeepStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  hero: Journey,
+  now: () => Date,
+) {
+  const { api, base, keyed, state } = hero;
+  type Board = {
+    projects: {
+      id: string;
+      status: string;
+      stageIndex: number;
+      stages: { id: string; needs: { resource: string; cap: number }[] }[];
+    }[];
+  };
+  const area = getArea('hollowDeep');
+  const view = async () => (await hero.world()).areas.find((a) => a.id === area.id)!;
+  const throneView = async () =>
+    (await hero.world()).dungeons.find((d) => d.id === 'hollowThrone')!;
+  expect(state.level).toBeGreaterThanOrEqual(getDungeonTier('hollowThrone', 1).unlock.level);
+  expect((await view()).blockers).toEqual([{ kind: 'worldFlag', flag: 'deepLanternsLit' }]);
+  const refused = await api('POST', `${base}/activity`, { areaId: area.id });
+  expect(refused.statusCode).toBe(409);
+  expect((await throneView()).unlocked).toBe(false);
+
+  // The town lights the lanterns: the hero's share of gold, then the owner's test-setup command.
+  const board = (await api('GET', '/api/community/projects')).json<Board>();
+  const lanterns = board.projects.find((p) => p.id === 'deepLanterns')!;
+  expect(lanterns).toMatchObject({ status: 'open', stageIndex: 0 });
+  const posts = lanterns.stages[0]!;
+  const heroGold = async () =>
+    (await api('GET', '/api/characters'))
+      .json<{ characters: { id: string; gold: number }[] }>()
+      .characters.find((c) => c.id === hero.characterId)!.gold;
+  const held = await heroGold();
+  expect(held).toBeGreaterThanOrEqual(100);
+  const offer = Math.min(held - 50, posts.needs.find((n) => n.resource === 'gold')!.cap);
+  const gave = await keyed('/api/community/projects/deepLanterns/contribute', {
+    characterId: hero.characterId,
+    stageId: posts.id,
+    offer: [{ resource: 'gold', amount: offer }],
+  });
+  expect(gave.statusCode, gave.body).toBe(200);
+  expect(await advanceStage(database.db, 'deepLanterns', now(), { production: true })).toMatch(
+    /^Refused/,
+  );
+  for (let i = 0; i < 3; i++)
+    await advanceStage(database.db, 'deepLanterns', now(), { production: false });
+  app.worldState.invalidate();
+  const after = (await api('GET', '/api/world')).json<{
+    flags: Record<string, boolean>;
+    era: { id: string; title: string };
+  }>();
+  expect(after.flags.deepLanternsLit).toBe(true);
+  expect(after.era).toMatchObject({ id: 'lanternVigil', title: 'Era of the Lantern Vigil' });
+  expect(await view()).toEqual({ id: area.id, unlocked: true, blockers: [] });
+
+  // The Deep, farmed for a few visits.
+  const go = await api('POST', `${base}/activity`, { areaId: area.id });
+  expect([200, 201]).toContain(go.statusCode);
+  const table = getLootTable(area.lootTableId);
+  let kills = 0;
+  let deaths = 0;
+  for (let i = 0; i < 3; i++) {
+    const { summary, activity } = await hero.settle();
+    expect(activity!.areaId).toBe(area.id);
+    kills += summary.kills;
+    deaths += summary.deaths;
+    // The first settlement can still finish the previous area's cycle (CLAUDE.md).
+    if (i > 0) {
+      for (const item of summary.items) {
+        expect(item.itemLevel).toBeGreaterThanOrEqual(table.itemLevel!.min);
+        expect(item.itemLevel).toBeLessThanOrEqual(table.itemLevel!.max);
+        if (!item.setId && !item.mythicId) expect(findItemBase(item.baseId)!.tier).toBe(5);
+      }
+      for (const id of Object.keys(summary.materials ?? {}))
+        expect(area.materials as readonly string[]).toContain(id);
+    }
+    await hero.sellJunk(await hero.inventory());
+  }
+  expect(kills).toBeGreaterThan(0);
+  await api('POST', `${base}/activity/stop`);
+
+  // The Throne, until the Sovereign falls.
+  let hoard: DungeonClaimResponse['result'] | null = null;
+  while (!state.throne.some((f) => f.bossDefeated)) {
+    expect(state.throne.length, 'the Sovereign should fall within a few runs').toBeLessThan(20);
+    await hero.sellJunk(await hero.inventory());
+    const result = await hero.runDungeon('hollowThrone');
+    if (result.bossLoot) hoard = result;
+  }
+  expect(hoard).not.toBeNull();
+  expect(hoard!.materials).toEqual({ crownShard: 1 });
+  const inv = await hero.inventory();
+  const fromHoard = [...inv.inventory, ...Object.values(inv.equipped)].filter(
+    (i) => i && i.source === 'hoard:hollowThrone',
+  );
+  for (const item of fromHoard) expect(item!.binding, item!.rarityId).toBe('account');
+
+  // The shard's sink: one Crownforged Work at the lantern smithy's price.
+  const forge = (await api('GET', `${base}/forge`)).json<ForgeResponse>();
+  const recipe = forge.recipes.find((r) => r.recipeId === 'crownforgedWork')!;
+  expect(recipe.blockers.some((b) => b.kind === 'material' && b.materialId === 'crownShard')).toBe(
+    false,
+  );
+  let crafted = false;
+  if (recipe.blockers.length === 0) {
+    const res = await keyed(`${base}/forge/craft`, { recipeId: recipe.recipeId, slot: 'ring' });
+    expect(res.statusCode, res.body).toBe(200);
+    crafted = true;
+  }
+
+  // The boards: PvE Progress under the version in force.
+  const versions = await app.formulaVersions.at(now());
+  const read = (await api('GET', '/api/leaderboards/pveProgress')).json<{
+    board: { formulaVersion: number; yours: { value: number; hero: { level: number } }[] };
+  }>().board;
+  expect(read.formulaVersion).toBe(versions.pveProgress);
+  const mine = read.yours.find((e) => e.hero.level === state.level)!;
+  expect(mine.value).toBeGreaterThanOrEqual(versions.pveProgress >= 6 ? 23 : 10);
+  // The town's books (the hero's own were seeded outside the audit, so only these are checked).
+  const checks = await reconcileWithAudit(database.db);
+  for (const c of checks.filter(
+    (c) => c.check.startsWith('community:') || c.check.startsWith('world:'),
+  )) {
+    expect(c, c.check).toMatchObject({ ok: true });
+  }
+  return {
+    kills,
+    deaths,
+    throneRuns: state.throne.length,
+    crafted,
+    era: after.era.id,
     pveProgress: mine.value,
   };
 }
@@ -2956,6 +3108,8 @@ export async function playAdminPanelStep(
     ['clearAshenPass', 'complete'],
     // Ticket 6.7: the third project opens once the Pass is clear.
     ['forgewardOutpost', 'open'],
+    // Ticket 8.2: the lanterns wait for the Forgeward.
+    ['deepLanterns', 'locked'],
   ]);
   const roles = (await admin.api('GET', '/api/admin/roles')).json<{
     staff: { role: string }[];

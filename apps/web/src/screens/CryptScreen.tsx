@@ -511,6 +511,11 @@ export function TyrantScreen() {
   return <DungeonScreen dungeonId="tyrantsForge" />;
 }
 
+/** Ticket 8.2: the Hollow Throne (the Hollow Reach's region boss). */
+export function ThroneScreen() {
+  return <DungeonScreen dungeonId="hollowThrone" />;
+}
+
 /** A dungeon's door, run and reckoning (ticket 2.5; one screen for every dungeon since 4.8). */
 function DungeonScreen({ dungeonId }: { dungeonId: DungeonId }) {
   const dungeon = getDungeon(dungeonId);
