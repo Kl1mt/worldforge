@@ -6,14 +6,17 @@ import {
   giftDayCounts,
   guildSeasonAwards as computeGuildAwards,
   guildSeasonCosmeticsEarned,
+  guildSeasonInputAt,
+  guildSeasonReachedAt,
   guildSeasonScore,
   memberCommunityPoints,
   memberHonourEligible,
   pveMilestones,
   type GuildHonourTier,
   type GuildSeasonInput,
-  type GuildSeasonMember,
   type GuildSeasonScore,
+  type GuildSeasonTimedMember,
+  type GuildSeasonTimeline,
   type ProjectResource,
 } from '@worldforge/game-core';
 import {
@@ -57,6 +60,8 @@ const DAY_MS = 86_400_000;
 export interface GuildFacts {
   guildId: string;
   input: GuildSeasonInput;
+  /** The same facts with their times (`input` = `guildSeasonInputAt(timeline)`), for "reached at". */
+  timeline: GuildSeasonTimeline;
   /** The counted members' account ids (same order as `input.members`). */
   counted: string[];
   /** Per counted member: joined at, and their town-works points (for the honour roll). */
@@ -94,6 +99,7 @@ export async function gatherGuildFacts(
     out.set(g.id, {
       guildId: g.id,
       input: { stages: [], members: [] },
+      timeline: { stages: [], members: [] },
       counted: [],
       detail: new Map(),
     });
@@ -114,9 +120,9 @@ export async function gatherGuildFacts(
         and not ${activeSanction('m.account_id', opts.sanctionsAt)}
       order by m.account_id`,
   );
-  const stages = await queryRows<{ guild_id: string; stage: number }>(
+  const stages = await queryRows<{ guild_id: string; stage: number; reached_at: Date | string }>(
     executor,
-    sql`select guild_id, stage from guild_boss_stages
+    sql`select guild_id, stage, reached_at from guild_boss_stages
       where guild_id = any(${ids}::uuid[])
         and reached_at >= ${window.startsAt.toISOString()}::timestamptz
         and reached_at < ${window.endsAt.toISOString()}::timestamptz
@@ -125,18 +131,32 @@ export async function gatherGuildFacts(
   );
   for (const s of stages) {
     const f = out.get(s.guild_id);
-    if (f) (f.input.stages as number[]).push(Number(s.stage));
+    if (f) {
+      (f.timeline.stages as GuildSeasonTimeline['stages'][number][]).push({
+        stage: Number(s.stage),
+        at: new Date(s.reached_at).getTime(),
+      });
+    }
   }
-  if (members.length === 0) return out;
+  if (members.length === 0) {
+    for (const f of out.values()) f.input = guildSeasonInputAt(f.timeline);
+    return out;
+  }
   const accountIds = `{${members.map((m) => m.account_id).join(',')}}`;
-  const pveRows = await queryRows<{ account_id: string; value: number; formula_version: number }>(
+  const pveRows = await queryRows<{
+    account_id: string;
+    value: number;
+    formula_version: number;
+    achieved_at: Date | string;
+  }>(
     executor,
-    sql`select e.account_id, e.value, e.formula_version from leaderboard_entries e
+    sql`select e.account_id, e.value, e.formula_version, e.achieved_at from leaderboard_entries e
       join characters c on c.id = e.character_id
       where e.metric = 'pveProgress' and c.deleted_at is null
         and e.account_id = any(${accountIds}::uuid[])`,
   );
-  const bestPve = new Map<string, { value: number; of: number }>();
+  // The best share per account; between heroes with the same share, the one that reached it first.
+  const bestPve = new Map<string, { value: number; of: number; at: number }>();
   for (const r of pveRows) {
     let of: number;
     try {
@@ -145,8 +165,12 @@ export async function gatherGuildFacts(
       continue;
     }
     const value = Number(r.value);
+    const at = new Date(r.achieved_at).getTime();
     const prev = bestPve.get(r.account_id);
-    if (!prev || value * prev.of > prev.value * of) bestPve.set(r.account_id, { value, of });
+    const better = prev ? value * prev.of - prev.value * of : 1;
+    if (!prev || better > 0 || (better === 0 && at < prev.at)) {
+      bestPve.set(r.account_id, { value, of, at });
+    }
   }
   const startDay = window.startsAt.toISOString().slice(0, 10);
   const endDay = window.endsAt.toISOString().slice(0, 10);
@@ -176,26 +200,33 @@ export async function gatherGuildFacts(
     const facts = out.get(m.guild_id);
     if (!facts) continue;
     const joinedAt = new Date(m.joined_at);
-    const sums = new Map<string, number>();
-    for (const g of giftsOf.get(m.account_id) ?? []) {
-      // Only a day that began inside the season (and before `at`) and after the joining day.
-      if (!giftDayCounts(g.day, joinedAt, window)) continue;
-      if (Date.parse(`${g.day}T00:00:00.000Z`) > at.getTime()) continue;
-      const key = `${g.project_id}\u0000${g.stage_id}\u0000${g.resource}`;
-      sums.set(key, (sums.get(key) ?? 0) + Number(g.amount));
-    }
-    const member: GuildSeasonMember = {
+    const timed: GuildSeasonTimedMember = {
+      countsFrom: joinedAt.getTime() + GUILD_SEASON_RULES.countAfterDays * DAY_MS,
       pve: bestPve.get(m.account_id) ?? null,
-      gifts: [...sums.entries()]
-        .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([key, amount]) => {
-          const [projectId, stageId, resource] = key.split('\u0000') as [string, string, string];
-          return { projectId, stageId, resource: resource as ProjectResource, amount };
-        }),
+      // Only a day that began inside the season (and before `at`) and after the joining day.
+      gifts: (giftsOf.get(m.account_id) ?? [])
+        .filter(
+          (g) =>
+            giftDayCounts(g.day, joinedAt, window) &&
+            Date.parse(`${g.day}T00:00:00.000Z`) <= at.getTime(),
+        )
+        .map((g) => ({
+          projectId: g.project_id,
+          stageId: g.stage_id,
+          resource: g.resource as ProjectResource,
+          amount: Number(g.amount),
+          at: Date.parse(`${g.day}T00:00:00.000Z`),
+        })),
     };
-    (facts.input.members as GuildSeasonMember[]).push(member);
+    (facts.timeline.members as GuildSeasonTimedMember[]).push(timed);
     facts.counted.push(m.account_id);
-    facts.detail.set(m.account_id, { joinedAt, communityPoints: memberCommunityPoints(member) });
+    facts.detail.set(m.account_id, { joinedAt, communityPoints: 0 });
+  }
+  for (const f of out.values()) {
+    f.input = guildSeasonInputAt(f.timeline);
+    f.counted.forEach((accountId, i) => {
+      f.detail.get(accountId)!.communityPoints = memberCommunityPoints(f.input.members[i]!);
+    });
   }
   return out;
 }
@@ -209,6 +240,31 @@ export function guildInputsHash(input: GuildSeasonInput, version: number): strin
 
 const sameKey = (a: readonly number[], b: readonly number[]) =>
   a.length === b.length && a.every((v, i) => Number(v) === Number(b[i]));
+
+/**
+ * "Reached at" (ticket 8.4b): when the guild reached its `sortKey`, from the facts' own times
+ * (`guildSeasonReachedAt`, within the window `[startsAt, at]`), never the refresh's clock. While the
+ * key stays the same it never moves later (a fact that raised nothing, or a member's PvE tie-breaker
+ * moving, keeps it); it can only move earlier, which also corrects rows written before 8.4b, whose
+ * time was a refresh's.
+ */
+function reachedAt(
+  f: GuildFacts,
+  score: GuildSeasonScore,
+  window: { startsAt: Date },
+  at: Date,
+  prev: { sortKey: number[]; achievedAt: Date } | undefined,
+): Date {
+  const derived = guildSeasonReachedAt(
+    f.timeline,
+    { startsAt: window.startsAt.getTime(), at: at.getTime() },
+    score.formulaVersion,
+  );
+  if (prev && sameKey(prev.sortKey, score.sortKey) && prev.achievedAt.getTime() <= derived) {
+    return prev.achievedAt;
+  }
+  return new Date(derived);
+}
 
 /** Whether a score is listed (the board's minimum counted members and a score above zero). */
 export const isListed = (score: Pick<GuildSeasonScore, 'value' | 'members'>) =>
@@ -255,10 +311,17 @@ export async function refreshGuildSeason(
       const score = guildSeasonScore(f.input, version);
       const hash = guildInputsHash(f.input, version);
       const prev = byGuild.get(f.guildId);
-      if (prev && prev.inputsHash === hash && prev.formulaVersion === version) continue;
+      const achievedAt = reachedAt(f, score, season, now, prev);
+      if (
+        prev &&
+        prev.inputsHash === hash &&
+        prev.formulaVersion === version &&
+        prev.achievedAt.getTime() === achievedAt.getTime()
+      ) {
+        continue;
+      }
       // Nothing to show and nothing stored: no row (a guild appears once it has any score).
       if (!prev && score.value === 0) continue;
-      const achievedAt = prev && sameKey(prev.sortKey, score.sortKey) ? prev.achievedAt : now;
       await tx
         .insert(guildSeasonEntries)
         .values({
@@ -348,9 +411,7 @@ export async function archiveGuildSeasonTx(
   const scored = [...facts.values()]
     .map((f) => {
       const score = guildSeasonScore(f.input);
-      const prev = prevOf.get(f.guildId);
-      const achievedAt =
-        prev && sameKey(prev.sortKey, score.sortKey) ? prev.achievedAt : season.endsAt;
+      const achievedAt = reachedAt(f, score, season, season.endsAt, prevOf.get(f.guildId));
       return { f, score, achievedAt };
     })
     .filter((s) => isListed(s.score) && !leftOff.has(s.f.guildId))

@@ -23,9 +23,18 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.8.5';
+export const GAME_VERSION = '0.8.6';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.8.6',
+    date: '2026-11-22',
+    title: 'Fairer ties on the Guild Roll',
+    changed: [
+      'When two guilds have exactly the same score on the Guild Roll, the one that reached it first now ranks ahead, counted from the moment the guild boss stage, the milestone or the gift that raised its score happened, not from when the roll was last looked at.',
+    ],
+    tickets: ['8.4b'],
+  },
   {
     version: '0.8.5',
     date: '2026-11-22',

@@ -1341,6 +1341,9 @@ Read `docs/SOCIAL.md` (guilds), `docs/GUILD_BOSS.md`, `docs/LEADERBOARDS.md` (se
 - Test accounts are excluded from rankings (D.4).
 - Done: **the Guild Roll** (`#/boards/guilds`): formula version 1 = guild boss stages broken in the season (Cracked 20 … Laid to Rest 100; ≤ 2,400) + members' PvE Progress (≤ 100 each by share of milestones, best 20; ≤ 2,000) + town-works gifts (a whole need = 100, ≤ 100 a member, best 20; ≤ 2,000); computed server-side from stored facts (`guild_season_entries`, recompute check in `admin:leaderboards check`). Churn rules: members count 7 days after joining, leavers at once; gifts only from the day after joining; on the roll with ≥ 3 counted members; honours to members of ≥ 14 days at the end who fought the guild boss or gave to the works; test accounts and sanctioned members never count; a sanctioned leader or forced rename leaves the guild off. Archived in 5.3's archive transaction; honours exactly once and resumable (real PG): Champion (1st), Exalted (top 10 %, 2–3), Renowned (top 30 %, 3–10), cumulative banner and crest per tier (6 catalogue cosmetics, source `guildSeason`, existing art tinted). **Guild halls** (`#/treasury`): a treasury members fund (gold and five materials; a tenth of the whole hall's price per account and day; no over-fill; never refunded, forfeit on disband), twelve cosmetic upgrades (hall banners, crest frames, hall light, name colours; 238,000 gold in all) bought and hung by the leader or officers; audited and reconciled (holdings = gifts − buys − forfeits). Migration `0045_guild_seasons_halls` (additive). Version 0.8.3. `docs/GUILD_HALLS.md`, `LEADERBOARDS.md` "Guild seasons", `SOCIAL.md`, `COMMUNITY.md`, `COSMETICS.md`, `ECONOMY.md`, `TELEMETRY.md`, `DATA_MODEL.md`, `API_CONVENTIONS.md`.
 
+### 8.4b Guild Roll tie-break — `in progress`
+Owner decision (2026-11-12, from the Phase 8 retrospective's owner questions): between guilds with exactly the same score, the one that **reached** it first ranks first, measured by the facts' own times (a guild boss stage broken, a counted member's PvE milestone, a counted gift, a member becoming counted), not by when the row was last refreshed. Follows the window rule, deterministic from stored facts; the archive and honours use the same order; honours already awarded stay. `docs/LEADERBOARDS.md` "Guild seasons".
+
 ### 8.5 Quality-of-life pass (vertical) — `done (PR #148)`
 **The owner's playtest notes come first** (`docs/PLAYTEST_FEEDBACK.md`). Otherwise:
 - inventory search, sorting and filters;
@@ -1477,7 +1480,7 @@ Checked and holding: Crownforged Work, the Throne, the lanterns' caps and gates,
 **Risks carried forward.**
 - **No live data yet:** Phase 8 was tuned from simulations. **B.6 stays open until the town is live** and its telemetry and the owner's playtest notes exist.
 - **Trading is still closed.** Its live telemetry (T.7's alarm, the Crownforged pieces' place in it) is unseen.
-- **The Guild Roll needs owner decisions:** the tie-break by refresh time and small rolls honouring everyone. Both are accepted for now.
+- **The Guild Roll needs owner decisions:** the tie-break by refresh time (decided 2026-11-12: reached first by the facts' times, ticket 8.4b) and small rolls honouring everyone (accepted for now).
 - **Mobile:** the Phase 8 screens have screenshots at 390 px but no mobile browser run (Phase 7).
 - **One API instance in production** (6.9 made two safe).
 
