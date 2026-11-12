@@ -120,7 +120,7 @@ export function InventoryScreen() {
   }, [items]);
 
   const visible = useMemo(
-    () => applyItemQuery(items, query, { nowMs: Date.now(), equipped, classId: hero.classId }),
+    () => applyItemQuery(items, query, { equipped, classId: hero.classId }),
     [items, query, equipped, hero.classId],
   );
   // Narrowed by anything but the rarity row (which has its own empty state and counts).

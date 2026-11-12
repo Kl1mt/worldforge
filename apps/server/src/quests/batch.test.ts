@@ -12,16 +12,10 @@ import type { QuestBoardResponse } from './store.js';
 import type { BatchTurnInResult } from './routes.js';
 import { NAME_SAFE_LETTERS } from '../test/names.js';
 
-const MIN = 60 * 1000;
-const HOUR = 60 * MIN;
-
 let database: DatabaseHandle;
 let app: FastifyInstance;
 // The game clock, derived from the wall clock (CLAUDE.md "Dates").
-let nowMs = Date.now();
-const advance = (ms: number) => {
-  nowMs += ms;
-};
+const nowMs = Date.now();
 const options: ActivityOptions = { ...DEFAULT_ACTIVITY_OPTIONS, now: () => new Date(nowMs) };
 
 beforeAll(async () => {

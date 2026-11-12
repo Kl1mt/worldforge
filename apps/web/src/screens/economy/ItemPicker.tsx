@@ -49,7 +49,7 @@ export function ItemPicker({
   const sorted = useMemo(
     () =>
       queryScreen
-        ? applyItemQuery(items, query, { nowMs: Date.now() })
+        ? applyItemQuery(items, query)
         : [...items].sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
     [items, query, queryScreen],
   );

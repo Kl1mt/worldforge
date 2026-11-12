@@ -98,8 +98,6 @@ function call(p: Player, method: 'GET' | 'POST' | 'DELETE', path: string, payloa
   });
 }
 
-const setFilter = (p: Player, rules: LootFilterRules | null) =>
-  call(p, 'POST', '/loot-filter', { rules });
 const rules = (r: Partial<LootFilterRules>): LootFilterRules => ({ ...EMPTY_LOOT_FILTER, ...r });
 
 const audits = (p: Player, event: string) =>

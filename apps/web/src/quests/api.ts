@@ -64,6 +64,17 @@ export interface TurnInResult {
   };
 }
 
+/** Ticket 8.5: one quest's outcome in a batch turn-in. */
+export type BatchTurnInItem =
+  | { questId: string; ok: true; reward: TurnInResult['reward'] }
+  | { questId: string; ok: false; status: number; code: string; message: string };
+
+export interface BatchTurnInResult {
+  results: BatchTurnInItem[];
+  quests: QuestBoard;
+  character: Character;
+}
+
 export type AcceptIntent =
   | { kind: 'story'; questId: StoryQuestId }
   /** `rewardSlot` (ticket 3.6): the chosen reward item slot of an Abbey contract. */
@@ -89,6 +100,21 @@ export const questsApi = {
     apiRequest(
       `${q(id)}/${encodeURIComponent(questRowId)}/turn-in`,
       { method: 'POST', headers: { 'Idempotency-Key': key } },
+      f,
+    ),
+  /**
+   * Ticket 8.5: every listed quest at once; each is paid by its own transaction and a failure is
+   * reported for that quest alone. Reuse `key` when retrying the same batch.
+   */
+  turnInBatch: (
+    id: string,
+    questRowIds: string[],
+    key: string,
+    f?: typeof fetch,
+  ): Promise<ApiResult<BatchTurnInResult>> =>
+    apiRequest(
+      `${q(id)}/turn-in-batch`,
+      { method: 'POST', body: { questIds: questRowIds }, headers: { 'Idempotency-Key': key } },
       f,
     ),
 };

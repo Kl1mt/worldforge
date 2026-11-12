@@ -203,6 +203,12 @@ export function normalisePresetName(input: unknown): string | null {
   if (typeof input !== 'string') return null;
   const name = input.replace(/\s+/g, ' ').trim();
   if (name.length === 0 || [...name].length > LOOT_FILTER_PRESET_NAME_MAX) return null;
-  if (/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/.test(name)) return null;
+  for (const ch of name) {
+    const c = ch.codePointAt(0)!;
+    // Control characters, zero-width marks and bidirectional overrides.
+    if (c < 0x20 || (c >= 0x7f && c <= 0x9f)) return null;
+    if ((c >= 0x200b && c <= 0x200f) || (c >= 0x202a && c <= 0x202e)) return null;
+    if (c >= 0x2066 && c <= 0x2069) return null;
+  }
   return name;
 }

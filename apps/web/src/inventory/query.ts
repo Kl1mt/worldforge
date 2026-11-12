@@ -94,9 +94,13 @@ function either(flag: Either, value: boolean): boolean {
   return flag === 'any' || (flag === 'yes') === value;
 }
 
-/** Whether the item is received in a trade and still held at `nowMs`. */
-export function isHeld(item: ItemView, nowMs: number): boolean {
-  return item.heldUntil !== undefined && Date.parse(item.heldUntil) > nowMs;
+/**
+ * Whether the item is received in a trade and still held (at `nowMs` when given; `toItemView`
+ * already keeps `heldUntil` only for holds running when the view was made).
+ */
+export function isHeld(item: ItemView, nowMs?: number): boolean {
+  if (item.heldUntil === undefined) return false;
+  return nowMs === undefined || Date.parse(item.heldUntil) > nowMs;
 }
 
 /** Tradeable: it carries no account binding (an item without binding info counts as bound). */
@@ -104,7 +108,7 @@ export function isTradeable(item: ItemView): boolean {
   return item.binding?.kind === 'open';
 }
 
-export function matchesItemQuery(item: ItemView, q: ItemQuery, nowMs: number): boolean {
+export function matchesItemQuery(item: ItemView, q: ItemQuery, nowMs?: number): boolean {
   if (q.slot !== 'any' && item.slot !== q.slot) return false;
   if (q.rarity !== 'any' && item.rarity !== q.rarity) return false;
   if (
@@ -155,7 +159,7 @@ const SLOT_ORDER = new Map<string, number>(ITEM_SLOT_KINDS.map((s, i) => [s, i])
 export function applyItemQuery(
   items: readonly ItemView[],
   q: ItemQuery,
-  ctx: { nowMs: number; equipped?: EquippedMap; classId?: string },
+  ctx: { nowMs?: number; equipped?: EquippedMap; classId?: string } = {},
 ): ItemView[] {
   const newest = (a: ItemView, b: ItemView) =>
     b.createdAt.localeCompare(a.createdAt) || a.id.localeCompare(b.id);

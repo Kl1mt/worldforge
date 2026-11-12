@@ -19,6 +19,16 @@ import {
   type TurnInResult,
 } from './api';
 
+/** Ticket 8.5: what one "claim all" paid, and what it could not. */
+export interface BatchOutcome {
+  claimed: number;
+  xp: number;
+  gold: number;
+  levelsGained: number;
+  items: number;
+  failed: { questId: string; message: string }[];
+}
+
 export interface QuestsState {
   board: Load<QuestBoard>;
   /** The quest row id or offer key an action is running for. */
@@ -28,6 +38,9 @@ export interface QuestsState {
   lastReward: (TurnInResult['reward'] & { questId: string; kind: 'story' | 'contract' }) | null;
   accept: (intent: AcceptIntent) => Promise<void>;
   turnIn: (questRowId: string) => Promise<void>;
+  /** Ticket 8.5: claim every listed (ready) quest in one request. */
+  turnInAll: (questRowIds: string[]) => Promise<void>;
+  lastBatch: BatchOutcome | null;
   dismissReward: () => void;
   reload: () => void;
 }
@@ -44,6 +57,7 @@ function useQuestsState(characterId: string): QuestsState {
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [lastReward, setLastReward] = useState<QuestsState['lastReward']>(null);
+  const [lastBatch, setLastBatch] = useState<BatchOutcome | null>(null);
   const [attempt, setAttempt] = useState(0);
   // One Idempotency-Key per turn-in until it gets a definite answer, so a retry after a lost
   // response replays instead of being refused (ticket 2.6's client helper).
@@ -95,6 +109,7 @@ function useQuestsState(characterId: string): QuestsState {
         board.kind === 'ready' ? board.value.quests.find((q) => q.id === questRowId) : undefined;
       setBusy(questRowId);
       setError(null);
+      setLastBatch(null);
       const res = await questsApi.turnIn(characterId, questRowId, key);
       setBusy(null);
       keys.current.settle(action, res.ok ? null : res.error);
@@ -118,13 +133,72 @@ function useQuestsState(characterId: string): QuestsState {
     [board, characterId, reloadGame, updateCharacter],
   );
 
+  const turnInAll = useCallback(
+    async (questRowIds: string[]) => {
+      if (questRowIds.length === 0) return;
+      const action = `turn-in-batch:${[...questRowIds].sort().join(',')}`;
+      const key = keys.current.keyFor(action);
+      setBusy('batch');
+      setError(null);
+      setLastReward(null);
+      const res = await questsApi.turnInBatch(characterId, questRowIds, key);
+      setBusy(null);
+      keys.current.settle(action, res.ok ? null : res.error);
+      if (!res.ok) {
+        setError(describeQuestFailure(res.error));
+        setAttempt((n) => n + 1);
+        return;
+      }
+      setBoard({ kind: 'ready', value: res.value.quests });
+      updateCharacter(res.value.character);
+      const out: BatchOutcome = {
+        claimed: 0,
+        xp: 0,
+        gold: 0,
+        levelsGained: 0,
+        items: 0,
+        failed: [],
+      };
+      let reloadItems = false;
+      for (const r of res.value.results) {
+        if (r.ok) {
+          out.claimed += 1;
+          out.xp += r.reward.xp;
+          out.gold += r.reward.gold;
+          out.levelsGained += r.reward.levelsGained;
+          if (r.reward.item) out.items += 1;
+          if (r.reward.item || Object.keys(r.reward.materials).length > 0) reloadItems = true;
+        } else {
+          out.failed.push({ questId: r.questId, message: describeQuestFailure(r) });
+        }
+      }
+      setLastBatch(out);
+      if (reloadItems) reloadGame();
+    },
+    [characterId, reloadGame, updateCharacter],
+  );
+
   const reload = useCallback(() => {
     setBoard({ kind: 'loading' });
     setAttempt((n) => n + 1);
   }, []);
-  const dismissReward = useCallback(() => setLastReward(null), []);
+  const dismissReward = useCallback(() => {
+    setLastReward(null);
+    setLastBatch(null);
+  }, []);
 
-  return { board, busy, error, lastReward, accept, turnIn, dismissReward, reload };
+  return {
+    board,
+    busy,
+    error,
+    lastReward,
+    lastBatch,
+    accept,
+    turnIn,
+    turnInAll,
+    dismissReward,
+    reload,
+  };
 }
 
 const QuestsContext = createContext<QuestsState | null>(null);
