@@ -49,6 +49,9 @@ Each entry: `id` (`<kind>.<name>`, stored in `cosmetic_unlocks`, never renamed o
 | `appearance.lantern-bearer` | appearance | event: the Lantern Procession, tier 5 (8.3; a palette of every class) |
 | `banner.hollow-procession` | banner | event: the Lantern Procession, tier 6 (8.3; the ember standard art, bleached pale) |
 | `title.keeper-of-the-long-road` | title | event: the Lantern Procession, tier 7 (8.3) |
+| `banner.guild-renowned` / `crest.guild-renowned` | banner / crest | guild season: Renowned guild or better (8.4; the laurel banner and the gilt crest in pewter) |
+| `banner.guild-exalted` / `crest.guild-exalted` | banner / crest | guild season: Exalted guild or better (8.4; in old brass) |
+| `banner.guild-champion` / `crest.guild-champion` | banner / crest | guild season: Champion guild (8.4; crimson and gold) |
 
 **Adding one:** append a definition with a source the server already grants (above), list its art for an art ticket, and add words if the source is new. The next deploy's backfill grants it to accounts that already earned it (the backfill id hashes every id and source).
 
@@ -58,6 +61,7 @@ Each entry: `id` (`<kind>.<name>`, stored in `cosmetic_unlocks`, never renamed o
 - **milestones:** `refreshAchievements` (settlements that changed the level or brought drops, dungeon claims, quest turn-ins, forge, merchant, equip) checks the hero's level and progress flags. Source `milestone:<character id>`.
 - **season honours:** `awardSeason`'s last transaction (with `awarded_at`) grants each account's season cosmetics by its best tier this season. Source `season:<n>`.
 - **events:** 6.6's `grantTiersTx` (`event:<n>:tier:<t>`, audited `event.reward`).
+- **guild honours (8.4):** `awardGuildSeason` grants each honour-roll member the cosmetics of their guild's tier, cumulatively (`guildSeasonCosmeticsEarned`), source `guildSeason:<n>`, in batches; exactly once by the primary key, resumable (`LEADERBOARDS.md` "Guild seasons"). The backfill grants nothing from this source.
 - **admin progress tools (D.4b):** set progress, set level, grant XP and grant an item call `refreshAchievements` in their transaction, so deeds and milestones arrive at once with their normal sources; the tool's `admin.*` audit row lists them under `earned`. Clearing a flag or lowering a level takes nothing back.
 Test accounts unlock like anyone (nothing is ranked); D.4's rules apply to everything they touch (counts, telemetry). Nothing a grant does touches a gameplay row.
 
@@ -103,5 +107,5 @@ Nothing in game-core's rules imports `cosmetics/` (an import scan); the no-effec
 
 ## Open points (owner)
 - The mapping of each cosmetic to its source is a first pass (see the table); change any source by editing the catalogue (the backfill reruns, nothing granted is taken back).
-- Guild crests: crest styles frame the account's crest mark and profile plate; a guild-wide crest style chosen by the leader could come later.
+- Guild crests: crest styles frame the account's crest mark and profile plate. Ticket 8.4 adds the guild-wide look: a guild's **hall** (bought from its treasury, chosen by the leader or officers: hall banners, a crest frame, the hall's light, a name colour; `GUILD_HALLS.md`) and guild honours for members (above). Hall looks are not catalogue entries: they belong to the guild, not to an account.
 - Seasons grant by the best tier of the season; past seasons count through the backfill.

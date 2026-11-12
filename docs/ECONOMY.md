@@ -137,6 +137,9 @@ Upgrades move the cliff like the boss effects do: a +7 kit of commons (≈ 9 × 
 ## Community projects (ticket 4.6)
 A shared sink: the two projects take 114,000 gold and ~2,150 materials in all (B.3 trimmed the Warehouse's materials), at most 20 % of each stage's need per player on its first day, growing 20 points a day to 60 % (B.3) (`docs/COMMUNITY.md` "Numbers"). Telemetry: `gold.out community_project`, `material.out community_project`.
 
+## Guild treasuries (ticket 8.4)
+A sink: gold and materials given to a guild's treasury leave the economy at the gift (`gold.out guild_treasury`, `material.out guild_treasury`) and buy only cosmetic hall looks; nothing is ever refunded (a disbanded guild's treasury is lost). The whole hall costs 238,000 gold plus 120 timber, 100 raw hide, 290 iron ore, 390 soul shards and 70 Abbey silver; one account gives at most a tenth of each per day, and never more than the hall still needs (`docs/GUILD_HALLS.md`). Against ≈ 25,000–35,000 gold a day of late-game income it is a modest, one-off guild goal, not a power source.
+
 ## The Warehouse (ticket 4.7)
 A gold sink with a use: six upgrades from 30 to 120 shelves cost 1,000 · 3,000 · 7,500 · 15,000 · 30,000 · 50,000 gold (106,500 in all, `docs/WAREHOUSE.md`). Stored items are never sold or salvaged until moved back; they keep their sell and salvage prices. Telemetry: `gold.out warehouse_upgrade`.
 

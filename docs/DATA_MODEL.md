@@ -527,6 +527,18 @@ Migration `0042_scale_readiness` (additive). docs/DEPLOY.md §17, docs/SOCIAL.md
 - `reserved_names` (id uuid PK, `name`, `skeleton` unique, `note`, `created_by` → accounts set null, `created_at`): names the admins reserve on top of game-core's `RESERVED_NAME_DEFAULTS`.
 - `accounts.display_name_skeleton`, `characters.name_skeleton`, `guilds.name_skeleton` (text, nullable, indexed): written with every new or changed name; older rows filled by the start-up backfill `name-skeletons:v1`. Not unique (names taken before 6.9 may already look alike; they are grandfathered); new names are checked under an advisory lock instead.
 
+### guild_season_entries, guild_season_standings, guild_season_rosters, guild_season_awards, guild treasuries and halls; seasons.guild_archived_at, guild_awarded_at — implemented (8.4)
+Migration `0045_guild_seasons_halls` (additive: eight new tables, two new nullable columns; nothing existing changed). docs/LEADERBOARDS.md "Guild seasons", docs/GUILD_HALLS.md.
+- `seasons.guild_archived_at`, `guild_awarded_at` (nullable): the guild roll's archive (set with `archived_at`, in its transaction) and honours (set last, under the season lock). A season archived before 8.4 gets `guild_awarded_at` with nothing given.
+- `guild_season_entries` (PK `season, guild_id`; FKs seasons, guilds cascade): the live roll. `formula_version`, `value` bigint, `sort_key` bigint[] ([total, boss, pve, community]), `inputs_hash`, `input` jsonb (game-core `GuildSeasonInput`: stages, counted members' PvE share and gifts; no account ids), `members` (counted), `achieved_at`, `updated_at`. Index `(season, sort_key desc, achieved_at, guild_id)`.
+- `guild_season_standings` (PK `season, guild_id`; unique `season, rank`): the final standings, with `name`, `tag`, `emblem` copied, and the same score columns.
+- `guild_season_rosters` (PK `season, account_id`; `guild_id`): each ranked guild's honour roll at the archive (the churn rules).
+- `guild_season_awards` (PK `season, guild_id`; `tier` checked `champion|exalted|renowned`, `rank`, `awarded_at`): exactly once by the key.
+- `guild_treasuries` (`guild_id` PK, `gold` bigint ≥ 0, `materials` jsonb, `updated_at`): changes only under the guild lock; set to nothing (audited) on a disband.
+- `guild_treasury_gifts` (PK `guild_id, account_id, day, resource`; `amount` > 0): the daily cap's window rows (B.3's model).
+- `guild_hall_upgrades` (PK `guild_id, upgrade_id`; `bought_by` → accounts set null, `gold`, `materials`, `bought_at`): bought once per guild.
+- `guild_hall_displays` (`guild_id` PK; `hall_banner`, `crest_frame`, `backdrop`, `title_colour`, each null or one of the guild's own upgrades by composite foreign keys; `updated_at`).
+
 ## Relationships
 
 ```
