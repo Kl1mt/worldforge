@@ -34,6 +34,13 @@
  *   piece and two keepsakes (Hralda Vey `p6-hralda@graumark.test`), a level-34 hunter the
  *   Tyrant's door still bars (Tamsin Coldlamp `p6-tamsin@graumark.test`) and an admin (Ysolde
  *   Marr `p6-ysolde@graumark.test`), password `ashes-and-iron-42`.
+ * - with `E2E_SEED_PHASE8=1` (ticket 8.7, `tools/e2e/phase8-exit.mjs`) the Phase 8 run's world
+ *   (`seed-phase8.ts`): the town's works done (the Lantern Vigil, the Hollow Deep and the Throne
+ *   open), Season 1 under way, the guild "The Lantern Wardens" on the Guild Roll, a level-50
+ *   warrior in Marches Legendary +10 kit who leads it (Odric Lanternhand `p8-odric@graumark.test`),
+ *   a level-46 hunter the Throne's door still bars (Brynja Coldwick `p8-brynja@`), a level-22 mage
+ *   with a mixed pack and three ready Tavern notices (Cass Wenhallow `p8-cass@`) and an admin
+ *   (Mira Castellane `p8-mira@`), password `ashes-and-iron-42`. The calendar stays paused.
  * Auth, validation and rate limits are unchanged.
  *
  *   pnpm --filter @worldforge/server e2e:serve
@@ -49,6 +56,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { createMemoryMailer } from '../mail/mailer.js';
 import { seedPhase5 } from './seed-phase5.js';
 import { seedPhase6 } from './seed-phase6.js';
+import { seedPhase8 } from './seed-phase8.js';
 
 if (process.env.NODE_ENV === 'production') {
   console.error('src/e2e/serve.ts is a test server and does not run with NODE_ENV=production.');
@@ -146,6 +154,7 @@ if (seedTest) {
 
 if (process.env.E2E_SEED_PHASE5 === '1') await seedPhase5(app, database.db, now);
 if (process.env.E2E_SEED_PHASE6 === '1') await seedPhase6(app, database.db, now);
+if (process.env.E2E_SEED_PHASE8 === '1') await seedPhase8(app, database.db, now);
 
 await app.listen({ host: config.host, port: config.port });
 app.log.warn(
