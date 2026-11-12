@@ -56,7 +56,7 @@ export const MAP_MARKERS: readonly MapMarker[] = [
   { id: 'paleMarches', x: 18, y: 120 },
   // Ticket 8.2: the Hollow Deep and the Hollow Throne along the map's south edge.
   { id: 'hollowDeep', x: 140, y: 190 },
-  { id: 'hollowThrone', x: 196, y: 204 },
+  { id: 'hollowThrone', x: 204, y: 196 },
 ];
 
 export function mapMarker(id: MapPlaceId): MapMarker | null {
