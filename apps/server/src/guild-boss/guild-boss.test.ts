@@ -688,6 +688,31 @@ describe('guild boss', () => {
     await setTestAccount(db(), t.leader.handle, true);
     await setTestAccount(db(), t.others[0]!.handle, true);
     await fought(t.others[0]!, t.heroOf(t.others[0]!));
+
+    // Ticket 8.7 (F4): the stages a guild of test accounts broke stay with it, so a real player
+    // may not join it (by invite or application): its minted stages would pay them and rank it.
+    const real = await account();
+    const invited = await call(t.leader, 'POST', '/api/guild/invites', { handle: real.handle });
+    expect(invited.statusCode, invited.body).toBe(200);
+    const joined = await call(real, 'POST', `/api/guilds/${t.guild.handle}/invite/accept`);
+    expect(status(joined)).toBe('403 test_guild');
+    const applied = await call(real, 'POST', `/api/guilds/${t.guild.handle}/apply`);
+    if (applied.statusCode === 200) {
+      const taken = await call(t.leader, 'POST', `/api/guild/applications/${real.handle}/accept`);
+      expect(status(taken)).toBe('403 test_guild');
+    } else {
+      expect(status(applied)).toBe('403 test_guild');
+    }
+    expect(
+      await db().select().from(guildMembers).where(eq(guildMembers.accountId, real.id)),
+    ).toEqual([]);
+    // A test account may still join a real guild (it just can't fight there, F1).
+    const realGuild = await guildOf();
+    const probe = await account();
+    await setTestAccount(db(), probe.handle, true);
+    await call(realGuild.leader, 'POST', '/api/guild/invites', { handle: probe.handle });
+    const ok = await call(probe, 'POST', `/api/guilds/${realGuild.guild.handle}/invite/accept`);
+    expect(ok.statusCode, ok.body).toBe(200);
   });
 
   it('reconciles: totals equal the attempts, telemetry equals the audit log', async () => {
