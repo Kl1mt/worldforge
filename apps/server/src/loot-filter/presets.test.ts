@@ -332,6 +332,9 @@ describe('loot filter presets (ticket 8.5)', () => {
       (await call(intruder, 'POST', '/loot-filter/presets/0/rename', { name: 'x' })).statusCode,
     ).toBe(404);
     expect((await call(intruder, 'DELETE', '/loot-filter/presets/0?name=x')).statusCode).toBe(404);
+    // Ticket 8.7: the code preview answers only for the caller's own hero, like every hero route.
+    const code = encodeLootFilterCode(junk);
+    expect((await call(intruder, 'POST', '/loot-filter/decode', { code })).statusCode).toBe(404);
     const mine = (await call(owner, 'GET', '/loot-filter')).json<LootFilterResponse>();
     expect(mine.presets).toEqual([{ slot: 0, name: 'Mine', rules: junk, active: true }]);
     expect(mine.rules).toBeNull();
