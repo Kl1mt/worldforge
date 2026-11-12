@@ -45,6 +45,8 @@ export const GAME_ROUTES = [
   'trading',
   // Ticket 6.8: the collection book, `#/collection` (cosmetics: earned, locked, equip).
   'collection',
+  // Ticket 8.4: the guild treasury and the hall's cosmetic upgrades, `#/treasury`.
+  'treasury',
 ] as const;
 /** The gate: only shown to visitors without a session. Ticket 5.7: `forgot` (password). */
 export const AUTH_ROUTES = ['login', 'register', 'forgot'] as const;

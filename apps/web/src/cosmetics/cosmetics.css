@@ -181,3 +181,35 @@
   /* A row mark shrinks the 48×56 frame smoothly (the guidelines' row exception). */
   image-rendering: auto;
 }
+
+/* Ticket 8.4: guild honours, the laurel banner and the gilt crest recoloured per tier. */
+.cosm-crest--guild-renowned {
+  --cosm-metal: #8f9496;
+}
+.cosm-crest--guild-exalted {
+  --cosm-metal: #a07c3a;
+}
+.cosm-crest--guild-champion {
+  --cosm-metal: #c9a24a;
+}
+.cosm-banner--guild-renowned .cosm-banner__device {
+  filter: grayscale(0.9) brightness(1.15);
+}
+.cosm-banner--guild-exalted .cosm-banner__device {
+  filter: sepia(0.9) saturate(1.4) brightness(0.95);
+}
+.cosm-banner--guild-champion .cosm-banner__device {
+  filter: saturate(1.6) hue-rotate(-18deg) brightness(1.05) drop-shadow(0 0 2px #8a1c1c);
+}
+.cosm-crest--guild-renowned .cosm-crest__frame,
+.cosm-crest--guild-renowned .cosm-crestmark__art {
+  filter: grayscale(0.95) brightness(1.1);
+}
+.cosm-crest--guild-exalted .cosm-crest__frame,
+.cosm-crest--guild-exalted .cosm-crestmark__art {
+  filter: sepia(0.8) saturate(1.3) brightness(0.85);
+}
+.cosm-crest--guild-champion .cosm-crest__frame,
+.cosm-crest--guild-champion .cosm-crestmark__art {
+  filter: saturate(1.4) drop-shadow(0 0 2px #9b2226);
+}

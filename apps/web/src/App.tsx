@@ -25,6 +25,7 @@ import { ModerationScreen } from './screens/ModerationScreen';
 import { ProfileScreen } from './screens/ProfileScreen';
 import { FriendsScreen } from './screens/FriendsScreen';
 import { GuildScreen } from './screens/GuildScreen';
+import { TreasuryScreen } from './screens/TreasuryScreen';
 import { WorksScreen } from './screens/WorksScreen';
 import { WarehouseScreen } from './screens/WarehouseScreen';
 import { BoardsScreen } from './screens/BoardsScreen';
@@ -132,6 +133,7 @@ function Routes() {
             {route === 'character' ? <CharacterScreen /> : null}
             {route === 'inventory' ? <InventoryScreen /> : null}
             {route === 'account' ? <AccountScreen /> : null}
+            {route === 'treasury' ? <TreasuryScreen /> : null}
             {route === 'moderation' && staff ? <ModerationScreen /> : null}
             {route === 'admin' && admin ? <AdminScreen /> : null}
             {route === 'profile' ? <ProfileScreen /> : null}

@@ -769,8 +769,8 @@ async function replayHoldings(
         addMaterials(d.materials);
         break;
       // Ticket 4.6: contributions to a community project spend gold and materials.
-      case 'community.contribute':
       // Ticket 8.4: a gift to the guild treasury leaves the hero the same way.
+      case 'community.contribute':
       case 'guild.treasury_contribute':
         gold -= d.gold!;
         addMaterials(d.materials, -1);

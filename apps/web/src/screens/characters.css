@@ -613,3 +613,14 @@
 .hero-portrait[data-banner-style='banner.hollow-procession'] .hero-portrait__device {
   filter: grayscale(0.85) brightness(1.5) contrast(0.9);
 }
+
+/* Ticket 8.4: guild honours' banners on the portrait's device. */
+.hero-portrait[data-banner-style='banner.guild-renowned'] .hero-portrait__device {
+  filter: grayscale(0.9) brightness(1.15);
+}
+.hero-portrait[data-banner-style='banner.guild-exalted'] .hero-portrait__device {
+  filter: sepia(0.9) saturate(1.4) brightness(0.95);
+}
+.hero-portrait[data-banner-style='banner.guild-champion'] .hero-portrait__device {
+  filter: saturate(1.6) hue-rotate(-18deg) brightness(1.05);
+}

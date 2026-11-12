@@ -1,0 +1,78 @@
+/* Ticket 8.4: the guild roll (`#/boards/guilds`). Every class is scoped `groll-`. */
+.groll-season,
+.groll-fine,
+.groll-empty {
+  color: var(--bone-200);
+}
+.groll-mine {
+  padding: var(--space-2) var(--space-3);
+  margin-bottom: var(--space-3);
+}
+.groll-mine > p {
+  margin: 0 0 var(--space-1);
+}
+.groll-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-1);
+}
+.groll-row {
+  display: grid;
+  grid-template-columns: 2.5rem 56px minmax(0, 1fr) auto;
+  grid-template-areas:
+    'rank crest name value'
+    'rank crest parts value';
+  gap: 0 var(--space-3);
+  align-items: center;
+  padding: var(--space-2);
+  border: 1px solid var(--iron-700);
+  background: var(--ink-900);
+}
+.groll-rank {
+  grid-area: rank;
+  font-size: 1.2rem;
+  color: var(--brass-300);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.groll-crest {
+  grid-area: crest;
+  display: grid;
+  place-items: center;
+}
+.groll-name {
+  grid-area: name;
+  font-size: 1.05rem;
+}
+.groll-tag {
+  color: var(--bone-300);
+  font-size: 0.85em;
+}
+.groll-parts {
+  grid-area: parts;
+  color: var(--bone-300);
+  font-size: 0.82rem;
+}
+.groll-value {
+  grid-area: value;
+  font-size: 1.2rem;
+  font-variant-numeric: tabular-nums;
+}
+.groll-honour {
+  color: var(--brass-300);
+  font-size: 0.85rem;
+}
+.groll-honour--champion {
+  color: #e9b949;
+}
+.groll-how {
+  margin-top: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+.groll-how ul {
+  margin: var(--space-2) 0 0;
+  padding-left: 1.2rem;
+  color: var(--bone-200);
+}

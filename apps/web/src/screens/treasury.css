@@ -1,0 +1,218 @@
+/* Ticket 8.4: the guild treasury & hall (`#/treasury`). Every class is scoped `treasury__`. */
+.treasury {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 1100px;
+  margin: 0 auto;
+}
+.treasury__head h1 {
+  margin: 0;
+}
+.treasury__eyebrow {
+  margin: 0;
+  color: var(--bone-300);
+}
+.treasury__lede,
+.treasury__fine {
+  color: var(--bone-200);
+  max-width: 62ch;
+}
+.treasury__fine {
+  font-size: 0.9rem;
+}
+.treasury__status,
+.treasury__empty {
+  padding: var(--space-4);
+}
+.treasury__empty {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+}
+.treasury__body {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 300px;
+  gap: var(--space-4);
+  align-items: start;
+}
+@media (max-width: 860px) {
+  .treasury__body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.treasury__main,
+.treasury__side {
+  display: grid;
+  gap: var(--space-3);
+}
+.treasury__ledger,
+.treasury__give,
+.treasury__shelf,
+.treasury__slip {
+  padding: var(--space-3) var(--space-4);
+  display: grid;
+  gap: var(--space-2);
+}
+.treasury__shelf-title {
+  margin: 0;
+  color: var(--accent-strong, var(--brass-300));
+  font-size: 0.85rem;
+}
+.treasury__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+}
+.treasury__table th,
+.treasury__table td {
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--iron-700);
+  text-align: right;
+}
+.treasury__table th[scope='row'],
+.treasury__table thead th:first-child {
+  text-align: left;
+}
+.treasury__table thead th {
+  color: var(--bone-300);
+  font-weight: normal;
+  font-size: 0.8rem;
+}
+.treasury__notice {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 3px solid var(--crimson-500);
+  background: rgb(92 40 44 / 0.25);
+}
+.treasury__give-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+.treasury__give-row .field {
+  display: grid;
+  gap: 4px;
+}
+.treasury__give select,
+.treasury__give input {
+  min-height: 36px;
+  min-width: 9rem;
+}
+.treasury__ack {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+.treasury__give > .btn {
+  justify-self: start;
+}
+.treasury__message {
+  margin: 0;
+}
+.treasury__message--error {
+  color: var(--crimson-400);
+}
+.treasury__message--ok {
+  color: var(--moss-400);
+}
+.treasury__stale {
+  position: relative;
+  margin: 0;
+  color: var(--bone-300);
+  font-size: 0.85rem;
+}
+.treasury__wares {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--space-2);
+}
+.treasury__ware {
+  display: grid;
+  grid-template-columns: 112px minmax(0, 1fr) auto;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-2);
+  border: 1px solid var(--iron-700);
+  background: var(--ink-900);
+}
+@media (max-width: 520px) {
+  .treasury__ware {
+    grid-template-columns: 80px minmax(0, 1fr);
+  }
+  .treasury__ware-act {
+    grid-column: 1 / -1;
+  }
+}
+.treasury__ware--owned {
+  border-color: var(--brass-600);
+}
+.treasury__ware-look {
+  display: grid;
+  place-items: center;
+  min-height: 84px;
+}
+.treasury__ware-name {
+  margin: 0;
+  font-size: 1rem;
+}
+.treasury__ware-desc,
+.treasury__ware-price {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--bone-200);
+}
+.treasury__ware-price {
+  color: var(--brass-300);
+}
+.treasury__ware-note {
+  font-size: 0.85rem;
+  color: var(--bone-300);
+}
+.treasury__swatch {
+  display: block;
+  width: 96px;
+  height: 64px;
+  border: 1px solid var(--outline-dark);
+  position: relative;
+  background: var(--ink-850);
+}
+.treasury__swatch::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--gh-glow, transparent);
+}
+.treasury__colour {
+  font-size: 2rem;
+}
+.treasury__slip-season,
+.treasury__slip-rank {
+  margin: 0;
+}
+.treasury__slip-rank {
+  font-size: 1.1rem;
+  color: var(--bone-100);
+}
+.treasury__parts {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px var(--space-3);
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+.treasury__parts dt {
+  color: var(--bone-300);
+}
+.treasury__parts dd {
+  margin: 0;
+  text-align: right;
+}
+.treasury__honours {
+  margin: 0;
+  padding-left: 1.1rem;
+}
+.treasury__honour--champion {
+  color: var(--brass-300);
+}

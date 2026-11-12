@@ -8,7 +8,6 @@ import {
   guildSeasonCosmeticsEarned,
   guildSeasonScore,
   memberCommunityPoints,
-  memberCounts,
   memberHonourEligible,
   pveMilestones,
   type GuildHonourTier,
@@ -138,7 +137,7 @@ export async function gatherGuildFacts(
   );
   const bestPve = new Map<string, { value: number; of: number }>();
   for (const r of pveRows) {
-    let of = 0;
+    let of: number;
     try {
       of = pveMilestones(Number(r.formula_version)).length;
     } catch {
@@ -554,7 +553,7 @@ export async function checkGuildSeasons(executor: Executor): Promise<GuildCheckR
   ) => {
     for (const r of rows) {
       out.rows += 1;
-      let ok = false;
+      let ok: boolean;
       try {
         const s = guildSeasonScore(r.input, r.formulaVersion);
         ok =

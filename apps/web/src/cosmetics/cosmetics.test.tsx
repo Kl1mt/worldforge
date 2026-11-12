@@ -156,8 +156,9 @@ describe('the book', () => {
         .map((e) => e.id)
         .sort(),
     ).toEqual(['appearance.default', 'banner.harvest-sheaf']);
-    // Four crests earned in play, two from the exchange (6.11), one from the Procession (8.3).
-    expect(filterEntries(book.entries, 'crest', 'locked')).toHaveLength(7);
+    // Four crests earned in play, two from the exchange (6.11), one from the Procession (8.3),
+    // three from guild honours (8.4).
+    expect(filterEntries(book.entries, 'crest', 'locked')).toHaveLength(10);
     expect(counts(book.entries)).toEqual({ owned: 2, total: COSMETICS.length });
   });
 
@@ -178,7 +179,9 @@ describe('the book', () => {
       const words = howToEarn(c.source);
       expect(words.length, c.id).toBeGreaterThan(10);
       expect(words).not.toMatch(/undefined|\[object/);
-      expect(sourceLabel(c.source)).toMatch(/^(Default|Event|Deed|Milestone|Season|Exchange)$/);
+      expect(sourceLabel(c.source)).toMatch(
+        /^(Default|Event|Deed|Milestone|Season|Exchange|Guild)$/,
+      );
     }
     expect(howToEarn(findCosmetic('appearance.ashen')!.source)).toBe('Bring a hero to level 40.');
     expect(howToEarn(findCosmetic('appearance.midnight')!.source)).toContain('Heroic');

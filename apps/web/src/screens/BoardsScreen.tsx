@@ -31,6 +31,8 @@ import {
 import { daysLeft, seasonSpan, seasonsApi, type SeasonList } from '../social/seasons';
 import './gate.css';
 import './boards.css';
+import './guild-roll.css';
+import { GuildRoll } from './GuildRoll';
 
 /**
  * The leaderboards (ticket 5.2, docs/LEADERBOARDS.md "Boards"): the Roll of Renown in the town
@@ -86,6 +88,16 @@ type Reporting = { entry: Reportable; about: 'displayName' | 'heroName' } | null
 
 export function BoardsScreen() {
   const loc = boardLocation(useHash());
+  // Ticket 8.4: the guild roll.
+  if (loc.metric === 'guilds') {
+    const season = typeof loc.season === 'number' ? loc.season : null;
+    return (
+      <GuildRoll
+        season={season}
+        tabs={<RollTabs current="guilds" classId={null} bracket={null} season={loc.season} />}
+      />
+    );
+  }
   return loc.metric === 'arena' ? <ArenaLadder loc={loc} /> : <ScoreBoards loc={loc} />;
 }
 
@@ -111,7 +123,7 @@ function RollTabs({
   bracket,
   season,
 }: {
-  current: ScoreMetric | 'arena';
+  current: ScoreMetric | 'arena' | 'guilds';
   classId: ClassId | null;
   bracket: string | null;
   season: 'current' | number | null;
@@ -136,6 +148,13 @@ function RollTabs({
         aria-current={current === 'arena' ? 'page' : undefined}
       >
         Arena Ladder
+      </a>
+      <a
+        className="renown__roll-tab renown__roll-tab--guilds"
+        href={boardHref('guilds', { season: typeof season === 'number' ? season : null })}
+        aria-current={current === 'guilds' ? 'page' : undefined}
+      >
+        Guild Roll
       </a>
     </nav>
   );

@@ -1,0 +1,153 @@
+/* Ticket 8.4: guild hall looks (social/HallLook.tsx). Every class is scoped `gh-`. Existing art
+   (A.13's banners and crests) with code treatments; backdrops and name colours are CSS only. */
+
+.gh-stage {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-3) var(--space-3);
+  border: 1px solid var(--outline-dark);
+  background-color: var(--ink-900);
+  background-image:
+    linear-gradient(to bottom, rgb(0 0 0 / 0.1), rgb(0 0 0 / 0.55)),
+    repeating-linear-gradient(90deg, var(--ink-850) 0 46px, var(--ink-800) 46px 48px);
+  overflow: hidden;
+}
+.gh-stage::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--gh-glow, transparent);
+  mix-blend-mode: screen;
+}
+.gh-stage__wall {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4);
+  min-height: 120px;
+}
+.gh-stage__name {
+  position: relative;
+  margin: 0;
+  font-size: 1.35rem;
+  text-align: center;
+}
+.gh-stage__tag {
+  color: var(--bone-300);
+  font-size: 0.9em;
+}
+
+/* Backdrops (tints). */
+.gh-backdrop--hearth-glow {
+  --gh-glow: radial-gradient(ellipse at 50% 110%, rgb(240 100 42 / 0.45), transparent 65%);
+}
+.gh-backdrop--moonlit-stone {
+  --gh-glow: linear-gradient(to bottom, rgb(95 128 168 / 0.4), rgb(20 30 50 / 0.1));
+}
+.gh-backdrop--hollow-lantern {
+  --gh-glow:
+    radial-gradient(circle at 25% 15%, rgb(110 200 190 / 0.35), transparent 45%),
+    radial-gradient(circle at 75% 15%, rgb(110 200 190 / 0.35), transparent 45%);
+}
+
+/* Guild name colours. */
+.gh-name--forge-gold {
+  color: #e9b949;
+  text-shadow: 0 0 6px rgb(233 185 73 / 0.35);
+}
+.gh-name--grave-green {
+  color: #8fae7a;
+}
+.gh-name--blood-wine {
+  color: #c4505a;
+}
+
+/* Hall banners. */
+.gh-banner {
+  position: relative;
+  display: inline-block;
+}
+.gh-banner__cloth {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, var(--wood-700), var(--wood-800));
+  clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 85%, 0 100%);
+}
+.gh-banner__device {
+  position: absolute;
+  top: 0;
+  left: 0;
+  image-rendering: pixelated;
+}
+.gh-banner--plain .gh-banner__cloth {
+  background: linear-gradient(to bottom, var(--iron-600), var(--iron-700));
+}
+.gh-art--iron-drapes .gh-banner__device {
+  filter: grayscale(1) brightness(0.95) contrast(1.1);
+}
+.gh-art--ember-hangings .gh-banner__cloth {
+  background: linear-gradient(to bottom, var(--crimson-700), var(--crimson-800));
+}
+.gh-art--pale-silks .gh-banner__device {
+  filter: grayscale(0.85) brightness(1.55) contrast(0.85);
+}
+.gh-art--pale-silks .gh-banner__cloth {
+  background: linear-gradient(to bottom, var(--bone-300), var(--bone-400));
+}
+
+/* Crest frames. */
+.gh-crest {
+  position: relative;
+  display: inline-block;
+}
+.gh-crest__well {
+  position: absolute;
+  display: grid;
+  place-items: center;
+}
+.gh-crest__frame {
+  position: absolute;
+  inset: 0;
+  image-rendering: pixelated;
+  pointer-events: none;
+}
+.gh-crest--plain {
+  border: 3px solid var(--brass-500);
+  border-radius: 6px 6px 22px 22px;
+}
+.gh-art--iron-rim.gh-crest--plain {
+  border-color: var(--iron-500);
+}
+.gh-art--bone-ring.gh-crest--plain {
+  border-color: var(--bone-200);
+}
+.gh-art--gilt-wreath.gh-crest--plain {
+  border-color: var(--brass-400);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .gh-backdrop--hollow-lantern::before {
+    animation: gh-flicker 6s ease-in-out infinite;
+  }
+}
+@keyframes gh-flicker {
+  50% {
+    opacity: 0.8;
+  }
+}
+
+/* The guild page's banner takes the hall's backdrop tint too (GuildScreen). */
+.guildbanner.gh-backdrop {
+  position: relative;
+}
+.guildbanner.gh-backdrop::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: var(--gh-glow, transparent);
+  mix-blend-mode: screen;
+}
