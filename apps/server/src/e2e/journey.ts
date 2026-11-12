@@ -13,6 +13,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, inArray, like, or, sql } from 'drizzle-orm';
 import {
   CONTRACT_TEMPLATES,
+  ceilToMonday,
   GUILD_BOSS_ATTEMPTS_PER_WEEK,
   prestigeTierFor,
   GUILD_CREATE_COST,
@@ -3491,7 +3492,8 @@ export async function playCalendarStep(
   expect(planned.next).toMatchObject({ definitionId: 'lanternProcession', source: 'calendar' });
   const number = planned.next!.number;
   const startsAt = Date.parse(planned.next!.startsAt);
-  // Never in the past: the gap after the last event's end, or the next full hour.
+  // Never in the past; on a Monday 00:00 UTC (8.3b).
+  expect(new Date(planned.next!.startsAt).getUTCDay()).toBe(1);
   expect(startsAt).toBeGreaterThanOrEqual(clock.now());
   // The hero rests until then (no settlement spans the offline cap).
   await hero.api('POST', `${hero.base}/activity/stop`);
@@ -3538,8 +3540,8 @@ export async function playCalendarStep(
   expect(closed.created).not.toBeNull();
   const after = await admin('GET', '/api/admin/events');
   expect(after.next).toMatchObject({ definitionId: 'harvestOfBones', source: 'calendar' });
-  // Ended at `endAt`: the gap (two days) after it.
-  expect(Date.parse(after.next!.startsAt)).toBe(endAt + 2 * 24 * HOUR);
+  // Ended at `endAt`: the first Monday 00:00 UTC at least the gap (two days) after it (8.3b).
+  expect(after.next!.startsAt).toBe(ceilToMonday(new Date(endAt + 2 * 24 * HOUR)).toISOString());
   // Nothing earned is lost; the keepsake stays.
   const unlocks = (await hero.api('GET', '/api/account/cosmetics')).json<{
     unlocks: { id: string }[];

@@ -322,7 +322,14 @@ export interface AdminSeasons extends SeasonList {
 /** Ticket 6.6: the admin panel's event view (`GET /api/admin/events`). */
 export interface AdminEvents {
   now: string;
-  definitions: { id: string; name: string; tagline: string; defaultDays: number }[];
+  /** `minDays` (8.3b): the fewest days it may last (its weeks × 7; 0: no minimum). */
+  definitions: {
+    id: string;
+    name: string;
+    tagline: string;
+    defaultDays: number;
+    minDays: number;
+  }[];
   current: EventView | null;
   next: EventView | null;
   past: {

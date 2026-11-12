@@ -11,8 +11,14 @@ import { EventCalendarPanel, plannedTag } from './AdminEventCalendar';
 const view = (over: Partial<AdminEvents['calendar']> = {}): AdminEvents => ({
   now: '2031-01-06T00:00:00.000Z',
   definitions: [
-    { id: 'harvestOfBones', name: 'Harvest of Bones', tagline: '', defaultDays: 7 },
-    { id: 'lanternProcession', name: 'The Lantern Procession', tagline: '', defaultDays: 28 },
+    { id: 'harvestOfBones', name: 'Harvest of Bones', tagline: '', defaultDays: 7, minDays: 0 },
+    {
+      id: 'lanternProcession',
+      name: 'The Lantern Procession',
+      tagline: '',
+      defaultDays: 28,
+      minDays: 28,
+    },
   ],
   current: null,
   next: null,
@@ -104,6 +110,22 @@ describe('the automatic calendar panel', () => {
       ),
     ).toBe('Event 2, scheduled by hand');
     expect(plannedTag(view().calendar.planned[0]!, false)).toBe('From the rotation');
+  });
+
+  it('8.3b: says automatic events start on Mondays; a weekly event below its weeks is refused', () => {
+    const html = render(view({ paused: false }));
+    expect(html).toContain('first Monday (00:00 UTC) at least 7 days after its end');
+    expect(html).toContain('min="28"');
+    expect(html).not.toContain('role="alert"');
+    // A saved rotation the server would now refuse (shown as the form starts from it).
+    const short = render(
+      view({
+        rotation: [{ definitionId: 'lanternProcession', name: 'The Lantern Procession', days: 21 }],
+      }),
+    );
+    expect(short).toContain(
+      'The Lantern Procession runs over 4 weeks, so it must last at least 28 days.',
+    );
   });
 
   it('an empty rotation plans nothing and cannot be turned on or skipped', () => {

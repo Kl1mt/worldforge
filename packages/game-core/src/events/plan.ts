@@ -1,4 +1,5 @@
 import { findEventDefinition } from './definitions.js';
+import { eventMinDays } from './progress.js';
 
 /**
  * The event calendar (ticket 6.6, docs/EVENTS.md "Scheduling"), modelled on 5.3's seasons. An event
@@ -64,6 +65,7 @@ export type EventPlanProblem =
   | 'unknown_event'
   | 'end_before_start'
   | 'too_short'
+  | 'length_too_short'
   | 'too_long'
   | 'starts_in_past'
   | 'ends_in_past'
@@ -78,6 +80,7 @@ export const EVENT_PLAN_MESSAGES: Record<EventPlanProblem, string> = {
   unknown_event: 'There is no such event.',
   end_before_start: 'An event must end after it starts.',
   too_short: 'An event lasts at least one hour.',
+  length_too_short: 'An event of several weeks must last at least all of its weeks.',
   too_long: 'An event lasts at most four weeks.',
   starts_in_past: 'A new event cannot start in the past.',
   ends_in_past: 'An event cannot be set to end in the past.',
@@ -111,9 +114,13 @@ export function planEventSchedule(
   plan: { definitionId: string; startsAt: Date; endsAt: Date },
   now: Date,
 ): { ok: true; number: number } | { ok: false; problem: EventPlanProblem } {
-  if (!findEventDefinition(plan.definitionId)) return { ok: false, problem: 'unknown_event' };
+  const def = findEventDefinition(plan.definitionId);
+  if (!def) return { ok: false, problem: 'unknown_event' };
   const length = checkLength(plan.startsAt, plan.endsAt);
   if (length) return { ok: false, problem: length };
+  // Ticket 8.3b: every week of a weekly event in full.
+  if (plan.endsAt.getTime() - plan.startsAt.getTime() < eventMinDays(def) * DAY_MS)
+    return { ok: false, problem: 'length_too_short' };
   if (plan.startsAt.getTime() < now.getTime() - 60_000)
     return { ok: false, problem: 'starts_in_past' };
   if (nextEvent(events, now)) return { ok: false, problem: 'one_scheduled' };
@@ -142,6 +149,10 @@ export function planEventEnd<E extends EventWindow>(
   // Ending now may leave an event shorter than an hour; only a longer plan is length-checked.
   const ending = endsAt.getTime() <= now.getTime() + 60_000;
   if (!ending && ms < EVENT_LENGTH_LIMITS.minMs) return { ok: false, problem: 'too_short' };
+  // Ticket 8.3b: moving the end may not cut a weekly event's weeks (ending it now still may).
+  const def = findEventDefinition(event.definitionId);
+  if (!ending && def && ms < eventMinDays(def) * DAY_MS)
+    return { ok: false, problem: 'length_too_short' };
   if (ms > EVENT_LENGTH_LIMITS.maxMs) return { ok: false, problem: 'too_long' };
   const moved = { startsAt: event.startsAt, endsAt };
   if (live(events).some((e) => e.number !== number && overlaps(e, moved)))

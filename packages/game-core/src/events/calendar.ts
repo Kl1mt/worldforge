@@ -1,4 +1,5 @@
 import { findEventDefinition } from './definitions.js';
+import { eventMinDays } from './progress.js';
 import { EVENT_CLOSE_GRACE_MS, EVENT_LENGTH_LIMITS, type EventWindow } from './plan.js';
 
 /**
@@ -11,8 +12,11 @@ import { EVENT_CLOSE_GRACE_MS, EVENT_LENGTH_LIMITS, type EventWindow } from './p
  *
  * - **Paused** (the default, also in production until the owner turns it on): nothing is created
  *   automatically; a waiting event stays on the calendar.
- * - **The next start** is the last event's end plus the gap, but never in the past: a calendar
- *   turned on after a long pause starts the next event at the next full hour.
+ * - **The next start** (ticket 8.3b) is the first Monday 00:00 UTC on or after the last event's
+ *   end plus the gap, and never in the past: a calendar turned on after a long pause starts the
+ *   next event on the coming Monday.
+ * - **Lengths** (ticket 8.3b): an event of several weeks is never given fewer days than its weeks
+ *   (`eventMinDays`), so no week of its tasks is left unopened.
  * - **Manual always wins:** an event the owner schedules by hand replaces an automatic one that
  *   has not begun (the server cancels it); the rotation then continues after the manual event.
  * - **Skip:** the next entry of the rotation is passed over (an automatic event already waiting is
@@ -58,15 +62,36 @@ export const DEFAULT_EVENT_CALENDAR: EventCalendarSettings = {
 };
 
 export type CalendarProblem =
-  'unknown_event' | 'too_many_entries' | 'bad_length' | 'bad_gap' | 'bad_index';
+  | 'unknown_event'
+  | 'too_many_entries'
+  | 'bad_length'
+  | 'length_too_short'
+  | 'bad_gap'
+  | 'bad_index';
 
 export const CALENDAR_MESSAGES: Record<CalendarProblem, string> = {
   unknown_event: 'There is no such event.',
   too_many_entries: `The rotation holds at most ${CALENDAR_LIMITS.maxEntries} events.`,
   bad_length: `An event in the rotation lasts ${CALENDAR_LIMITS.minDays} to ${CALENDAR_LIMITS.maxDays} whole days.`,
+  length_too_short: 'An event of several weeks must last at least all of its weeks.',
   bad_gap: `The gap between events is ${CALENDAR_LIMITS.minGapDays} to ${CALENDAR_LIMITS.maxGapDays} whole days.`,
   bad_index: 'The next event must be one of the rotation.',
 };
+
+/**
+ * Ticket 8.3b: the first rotation entry that is too short for its event's weeks, with the
+ * minimum, or null (for the `length_too_short` refusal's details).
+ */
+export function shortCalendarEntry(
+  rotation: readonly CalendarEntry[],
+): { definitionId: string; minDays: number } | null {
+  for (const e of rotation) {
+    const def = findEventDefinition(e.definitionId);
+    if (def && e.days < eventMinDays(def))
+      return { definitionId: def.id, minDays: eventMinDays(def) };
+  }
+  return null;
+}
 
 /** Problems with calendar settings, or null. */
 export function checkCalendarSettings(s: EventCalendarSettings): CalendarProblem | null {
@@ -75,6 +100,7 @@ export function checkCalendarSettings(s: EventCalendarSettings): CalendarProblem
     if (!findEventDefinition(e.definitionId)) return 'unknown_event';
     if (!Number.isInteger(e.days) || e.days < CALENDAR_LIMITS.minDays) return 'bad_length';
     if (e.days > CALENDAR_LIMITS.maxDays) return 'bad_length';
+    if (e.days < eventMinDays(findEventDefinition(e.definitionId)!)) return 'length_too_short';
   }
   if (
     !Number.isInteger(s.gapDays) ||
@@ -105,14 +131,24 @@ function lastEnd(events: readonly EventWindow[]): Date | null {
   return ends.length === 0 ? null : new Date(Math.max(...ends));
 }
 
+/** A Monday 00:00 UTC (1970-01-05); every Monday midnight is this plus whole weeks. */
+const A_MONDAY_MS = 4 * DAY_MS;
+const WEEK_MS = 7 * DAY_MS;
+
+/** Ticket 8.3b: the first Monday 00:00 UTC at or after `t` (`t` itself if it is one). */
+export function ceilToMonday(t: Date): Date {
+  return new Date(Math.ceil((t.getTime() - A_MONDAY_MS) / WEEK_MS) * WEEK_MS + A_MONDAY_MS);
+}
+
 /**
- * When an automatic event created at `createdAt` starts: the last end plus the gap, but never
- * before the next full hour after `createdAt` (so never in the past).
+ * When an automatic event created at `createdAt` starts: ticket 8.3b, the first **Monday 00:00
+ * UTC** at or after the last end plus the gap (and never before `createdAt`, so never in the
+ * past), so automatic events line up with the ISO weeks of the weekly boss modifiers. Events
+ * scheduled by hand keep any start.
  */
 export function calendarStart(prevEnd: Date | null, gapDays: number, createdAt: Date): Date {
-  const earliest = ceilToHour(createdAt).getTime();
-  const wanted = prevEnd ? prevEnd.getTime() + gapDays * DAY_MS : earliest;
-  return new Date(Math.max(earliest, wanted));
+  const wanted = prevEnd ? prevEnd.getTime() + gapDays * DAY_MS : createdAt.getTime();
+  return ceilToMonday(new Date(Math.max(createdAt.getTime(), wanted)));
 }
 
 export interface CalendarPlan {

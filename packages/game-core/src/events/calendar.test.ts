@@ -4,17 +4,21 @@ import {
   DEFAULT_EVENT_CALENDAR,
   EVENT_CLOSE_GRACE_MS,
   calendarStart,
-  ceilToHour,
+  ceilToMonday,
   checkCalendarSettings,
   clampCalendarIndex,
   nextCalendarEvent,
   planEventSchedule,
   projectCalendar,
+  shortCalendarEntry,
   type EventCalendarSettings,
   type EventWindow,
 } from './index.js';
 
-/** Ticket 8.3: the automatic event calendar (docs/EVENTS.md "The calendar"). Injected clock. */
+/**
+ * Ticket 8.3: the automatic event calendar (docs/EVENTS.md "The calendar"). Injected clock. `t0` is a
+ * Monday 00:00 UTC; ticket 8.3b starts every automatic event on a Monday 00:00 UTC.
+ */
 const HOUR = 60 * 60 * 1000;
 const DAY = 24 * HOUR;
 const t0 = new Date('2031-01-06T00:00:00Z');
@@ -79,6 +83,17 @@ describe('the event calendar (8.3)', () => {
     expect(bad({ gapDays: -1 })).toBe('bad_gap');
     expect(bad({ gapDays: CALENDAR_LIMITS.maxGapDays + 1 })).toBe('bad_gap');
     expect(bad({ nextIndex: 2 })).toBe('bad_index');
+    // Ticket 8.3b: a weekly event gets all of its weeks (the Procession: 4 × 7 days).
+    expect(bad({ rotation: [{ definitionId: 'lanternProcession', days: 27 }] })).toBe(
+      'length_too_short',
+    );
+    expect(shortCalendarEntry([{ definitionId: 'lanternProcession', days: 21 }])).toEqual({
+      definitionId: 'lanternProcession',
+      minDays: 28,
+    });
+    expect(shortCalendarEntry(on.rotation)).toBeNull();
+    // A one-week event keeps the calendar's own minimum (1 day).
+    expect(bad({ rotation: [{ definitionId: 'harvestOfBones', days: 1 }] })).toBeNull();
     expect(bad({ rotation: Array.from({ length: 13 }, () => on.rotation[1]!), nextIndex: 0 })).toBe(
       'too_many_entries',
     );
@@ -88,13 +103,19 @@ describe('the event calendar (8.3)', () => {
     expect(clampCalendarIndex(0, 0)).toBe(0);
   });
 
-  it('the first event starts at the next full hour; each next one at the last end + the gap', () => {
-    expect(ceilToHour(at(1)).getTime()).toBe(at(HOUR).getTime());
-    expect(ceilToHour(t0).getTime()).toBe(t0.getTime());
+  it('8.3b: automatic events start on the first Monday 00:00 UTC on or after the last end + the gap', () => {
+    expect(ceilToMonday(t0).toISOString()).toBe(t0.toISOString());
+    expect(ceilToMonday(at(1)).toISOString()).toBe(at(7 * DAY).toISOString());
+    expect(ceilToMonday(at(-1)).toISOString()).toBe(t0.toISOString());
+    expect(ceilToMonday(at(6 * DAY + 23 * HOUR)).toISOString()).toBe(at(7 * DAY).toISOString());
+    expect(new Date('2031-01-06T00:00:00Z').getUTCDay()).toBe(1);
+    // Turned on mid-week: the coming Monday, never the past.
     const first = nextCalendarEvent(on, [], at(10 * 60_000))!;
     expect(first).toMatchObject({ definitionId: 'lanternProcession', index: 0 });
-    expect(first.startsAt.toISOString()).toBe(at(HOUR).toISOString());
+    expect(first.startsAt.toISOString()).toBe(at(7 * DAY).toISOString());
     expect(first.endsAt.getTime() - first.startsAt.getTime()).toBe(28 * DAY);
+    // Turned on at a Monday 00:00 exactly: that moment.
+    expect(nextCalendarEvent(on, [], t0)!.startsAt.toISOString()).toBe(t0.toISOString());
 
     const events = simulate(on, 5);
     expect(events.map((e) => e.definitionId)).toEqual([
@@ -104,20 +125,43 @@ describe('the event calendar (8.3)', () => {
       'harvestOfBones',
       'lanternProcession',
     ]);
-    for (let i = 1; i < events.length; i += 1) {
-      // The gap, exactly; the default length of each entry, exactly.
-      expect(events[i]!.startsAt.getTime() - events[i - 1]!.endsAt.getTime()).toBe(7 * DAY);
+    for (let i = 0; i < events.length; i += 1) {
+      const start = events[i]!.startsAt;
+      expect(start.getUTCDay(), start.toISOString()).toBe(1);
+      expect(start.getTime() % DAY).toBe(0);
       const want = events[i]!.definitionId === 'harvestOfBones' ? 7 : 28;
-      expect(events[i]!.endsAt.getTime() - events[i]!.startsAt.getTime()).toBe(want * DAY);
+      expect(events[i]!.endsAt.getTime() - start.getTime()).toBe(want * DAY);
+      // Week-long lengths keep every end on a Monday: the gap is exact.
+      if (i > 0) expect(start.getTime() - events[i - 1]!.endsAt.getTime()).toBe(7 * DAY);
     }
   });
 
-  it('a gap of 0 starts the next one the full hour after the close, never overlapping', () => {
+  it('8.3b: a last end exactly on a Monday 00:00 plus a whole-week gap starts exactly then', () => {
+    const last = closedEvent(1, 0, 14 * DAY); // ends Monday t0 + 14 days
+    const next = nextCalendarEvent(on, [last], at(14 * DAY + EVENT_CLOSE_GRACE_MS))!;
+    expect(next.startsAt.toISOString()).toBe(at(21 * DAY).toISOString());
+    // A gap that lands mid-week moves on to the next Monday.
+    const two = nextCalendarEvent({ ...on, gapDays: 2 }, [last], at(15 * DAY))!;
+    expect(two.startsAt.toISOString()).toBe(at(21 * DAY).toISOString());
+    // A gap of 0: the end's own Monday has passed by the close, so the following Monday.
+    const zero = nextCalendarEvent(
+      { ...on, gapDays: 0 },
+      [last],
+      at(14 * DAY + EVENT_CLOSE_GRACE_MS),
+    )!;
+    expect(zero.startsAt.toISOString()).toBe(at(21 * DAY).toISOString());
+    // An end that is not on a Monday (an event ended early by hand): the gap, then the Monday.
+    const early = closedEvent(1, 0, 3 * DAY + 5 * HOUR);
+    const after = nextCalendarEvent(on, [early], at(4 * DAY))!;
+    expect(after.startsAt.toISOString()).toBe(at(14 * DAY).toISOString());
+  });
+
+  it('a gap of 0 never overlaps and never waits more than a week after the close', () => {
     const events = simulate({ ...on, gapDays: 0 }, 4);
     for (let i = 1; i < events.length; i += 1) {
       const gap = events[i]!.startsAt.getTime() - events[i - 1]!.endsAt.getTime();
       expect(gap).toBeGreaterThan(0);
-      expect(gap).toBeLessThanOrEqual(HOUR);
+      expect(gap).toBeLessThanOrEqual(7 * DAY);
     }
   });
 
@@ -151,7 +195,7 @@ describe('the event calendar (8.3)', () => {
     }
   });
 
-  it('pause and resume: nothing while paused; on resume, the gap after the last end or the next hour', () => {
+  it('pause and resume: nothing while paused; on resume, the gap after the last end or the coming Monday', () => {
     const last = closedEvent(1, 0, 7 * DAY);
     const paused = { ...on, paused: true };
     for (const d of [8, 14, 40]) expect(nextCalendarEvent(paused, [last], at(d * DAY))).toBeNull();
@@ -159,10 +203,10 @@ describe('the event calendar (8.3)', () => {
     expect(nextCalendarEvent(on, [last], at(9 * DAY))!.startsAt.toISOString()).toBe(
       at(14 * DAY).toISOString(),
     );
-    // Resumed long after: the next full hour, not the past.
+    // Resumed long after: the coming Monday, not the past.
     const late = at(40 * DAY + 17 * 60_000);
     expect(nextCalendarEvent(on, [last], late)!.startsAt.toISOString()).toBe(
-      at(40 * DAY + HOUR).toISOString(),
+      at(42 * DAY).toISOString(),
     );
     // Resume keeps the rotation where it was.
     expect(nextCalendarEvent({ ...on, nextIndex: 1 }, [last], late)!.definitionId).toBe(
@@ -179,7 +223,8 @@ describe('the event calendar (8.3)', () => {
     const manual = closedEvent(1, 3 * DAY, 5 * DAY);
     const next = nextCalendarEvent({ ...on, nextIndex: 1 }, [manual], at(6 * DAY))!;
     expect(next.definitionId).toBe('harvestOfBones');
-    expect(next.startsAt.toISOString()).toBe(at(12 * DAY).toISOString());
+    // The manual event ended on a Saturday: its end + 7 days, then the Monday after.
+    expect(next.startsAt.toISOString()).toBe(at(14 * DAY).toISOString());
   });
 
   it('projects the next three: the waiting event first, then the rotation from its end', () => {
@@ -196,8 +241,9 @@ describe('the event calendar (8.3)', () => {
       ['rotation', 'lanternProcession', null],
       ['rotation', 'harvestOfBones', null],
     ]);
-    expect(planned[1]!.startsAt.toISOString()).toBe(at(16 * DAY).toISOString());
-    expect(planned[2]!.startsAt.toISOString()).toBe(at((16 + 28 + 7) * DAY).toISOString());
+    // The manual event ends on a Wednesday: + 7 days is a Wednesday, so the Monday after.
+    expect(planned[1]!.startsAt.toISOString()).toBe(at(21 * DAY).toISOString());
+    expect(planned[2]!.startsAt.toISOString()).toBe(at((21 + 28 + 7) * DAY).toISOString());
     // The projection matches what the calendar then creates, step by step.
     const made = simulate(on, 3, at(30 * 60_000));
     const shown = projectCalendar(on, [], at(30 * 60_000));
@@ -206,6 +252,6 @@ describe('the event calendar (8.3)', () => {
     );
     // An empty rotation plans nothing automatic.
     expect(projectCalendar({ ...on, rotation: [] }, [], t0)).toEqual([]);
-    expect(calendarStart(null, 7, at(1)).toISOString()).toBe(at(HOUR).toISOString());
+    expect(calendarStart(null, 7, at(1)).toISOString()).toBe(at(7 * DAY).toISOString());
   });
 });

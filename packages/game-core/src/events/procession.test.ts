@@ -8,6 +8,9 @@ import {
   LANTERN_DEEP_ROAD_LEVEL,
   applyEventProgress,
   eventBounty,
+  eventMinDays,
+  planEventEnd,
+  planEventSchedule,
   eventQuestOpen,
   eventQuestOpensAt,
   eventTallies,
@@ -175,6 +178,27 @@ describe('the Lantern Procession', () => {
       expect(counted).toBe(all);
       expect(bonus).toBe(Math.floor(all / 25));
     }
+  });
+
+  it('8.3b: is never shorter than its four weeks (by hand or by moving its end); ending now is', () => {
+    expect(eventMinDays(proc)).toBe(28);
+    expect(eventMinDays(getEventDefinition('harvestOfBones'))).toBe(0);
+    const plan = (days: number) =>
+      planEventSchedule(
+        [],
+        { definitionId: 'lanternProcession', startsAt: start, endsAt: at(days * DAY) },
+        start,
+      );
+    expect(plan(27)).toEqual({ ok: false, problem: 'length_too_short' });
+    expect(plan(28)).toEqual({ ok: true, number: 1 });
+    const running = [
+      { number: 1, definitionId: 'lanternProcession', startsAt: start, endsAt: at(28 * DAY) },
+    ];
+    expect(planEventEnd(running, 1, at(21 * DAY), at(DAY))).toEqual({
+      ok: false,
+      problem: 'length_too_short',
+    });
+    expect(planEventEnd(running, 1, at(DAY), at(DAY)).ok).toBe(true);
   });
 
   it('the Harvest of Bones keeps every quest open (no weeks, no level gates: 6.6 unchanged)', () => {

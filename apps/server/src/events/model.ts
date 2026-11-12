@@ -3,6 +3,7 @@ import {
   EVENT_CLOSE_GRACE_MS,
   EVENT_PLAN_MESSAGES,
   eventAt,
+  eventMinDays,
   eventQuestOpensAt,
   eventQuestWeek,
   eventStatus,
@@ -219,8 +220,24 @@ export function currentAndNextEvent(list: WorldEvent[], now: Date) {
   return { current: eventAt(list, now) ?? null, next: nextEvent(list, now) ?? null };
 }
 
-function planError(problem: EventPlanProblem): ApiError {
+function planError(problem: EventPlanProblem, definitionId?: string): ApiError {
+  if (problem === 'length_too_short') return lengthTooShort(definitionId ?? '');
   return new ApiError(409, 'event_plan_refused', EVENT_PLAN_MESSAGES[problem], { problem });
+}
+
+/**
+ * Ticket 8.3b: a weekly event given fewer days than its weeks (by hand, by moving its end, or in
+ * the calendar's rotation): `400 length_too_short` with the minimum.
+ */
+export function lengthTooShort(definitionId: string): ApiError {
+  const def = findEventDefinition(definitionId);
+  const minDays = def ? eventMinDays(def) : 0;
+  return new ApiError(
+    400,
+    'length_too_short',
+    `${def?.name ?? 'This event'} runs over ${minDays / 7} weeks, so it must last at least ${minDays} days.`,
+    { definitionId, minDays },
+  );
 }
 
 export interface EventPlanActor {
@@ -255,7 +272,7 @@ export async function scheduleEvent(
       ? await displaceCalendarEventTx(tx, now, actor)
       : null;
     const out = planEventSchedule(await listEvents(tx), plan, now);
-    if (!out.ok) throw planError(out.problem);
+    if (!out.ok) throw planError(out.problem, plan.definitionId);
     const [row] = await tx
       .insert(worldEvents)
       .values({ number: out.number, ...plan, createdAt: now, source: 'manual' })
@@ -287,8 +304,9 @@ export async function setEventEnd(
 ): Promise<WorldEvent> {
   return underPlanLock(db, async (tx) => {
     await actor.guard?.(tx);
-    const out = planEventEnd(await listEvents(tx), number, endsAt, now);
-    if (!out.ok) throw planError(out.problem);
+    const list = await listEvents(tx);
+    const out = planEventEnd(list, number, endsAt, now);
+    if (!out.ok) throw planError(out.problem, list.find((e) => e.number === number)?.definitionId);
     const [row] = await tx
       .update(worldEvents)
       .set({ endsAt })

@@ -266,7 +266,7 @@ deploy/admin.sh events close                      # close ended events and give 
 
 The running server closes an ended event a few minutes after its end and gives any reward still owed, once. In development: `pnpm admin:events …`.
 
-**The automatic calendar (ticket 8.3).** It **starts paused** (also here, after the deploy) and does nothing until you turn it on. Once on, the scheduler puts the next event of your rotation on the calendar when the last one has closed, the gap after its end (never in the past). An event you schedule by hand always wins: it replaces an automatic one that has not begun, and the rotation carries on after it. Same controls as the admin panel's Events tab ("The automatic calendar"):
+**The automatic calendar (ticket 8.3).** It **starts paused** (also here, after the deploy) and does nothing until you turn it on. Once on, the scheduler puts the next event of your rotation on the calendar when the last one has closed, starting on the first Monday 00:00 UTC at least the gap after its end (never in the past). An event of several weeks can't be given fewer days than its weeks (the Lantern Procession: 28); the commands and the panel refuse it with the minimum. An event you schedule by hand always wins: it replaces an automatic one that has not begun, and the rotation carries on after it. Same controls as the admin panel's Events tab ("The automatic calendar"):
 
 ```bash
 deploy/admin.sh events calendar status            # on or paused, the rotation, the gap, the next 3 planned
