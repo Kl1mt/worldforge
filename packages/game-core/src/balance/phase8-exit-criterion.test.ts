@@ -104,7 +104,6 @@ describe('Phase 8 exit 1: Phase 6 content stays relevant next to Region III (tic
           gold: round(deep.gold / marchesTop.gold),
         },
       };
-      console.info(JSON.stringify(record));
       // No deaths: the step up is slower kills, never a wall.
       for (const h of [marches, heroicMarches, deep])
         expect(h.deaths, JSON.stringify(record)).toBe(0);
@@ -225,15 +224,13 @@ describe('Phase 8 exit 2: the event calendar runs on its own (ticket 8.7)', () =
       }
     }
     const covered = list.reduce((s, e) => s + (e.endsAt.getTime() - e.startsAt.getTime()), 0);
-    console.info(
-      JSON.stringify({
-        gapDays,
-        eventsInAYear: list.length,
-        processions: list.filter((e) => e.definitionId === 'lanternProcession').length,
-        daysWithAnEvent: Math.round(covered / DAY),
-      }),
-    );
-    expect(list.length).toBeGreaterThanOrEqual(gapDays >= 7 ? 7 : 8);
+    // Pinned (docs/BALANCE.md "Phase 8 exit criterion"): both events end on a Monday, so any gap of
+    // 0–7 days is a one-week pause: 15 events a year, 8 of them Processions, 273 days with one.
+    expect({
+      events: list.length,
+      processions: list.filter((e) => e.definitionId === 'lanternProcession').length,
+      days: Math.round(covered / DAY),
+    }).toEqual({ events: 15, processions: 8, days: 273 });
   });
 });
 

@@ -211,7 +211,10 @@ async function letters(page) {
   await go(page, '#/inbox');
   await page.getByRole('heading', { name: 'Letters' }).waitFor();
   await page.getByText('A new era: The Lantern Vigil').first().waitFor();
-  await page.getByText(/a stage is done/).first().waitFor();
+  await page
+    .getByText(/a stage is done/)
+    .first()
+    .waitFor();
   await page.getByText('A Legendary find').first().waitFor();
   const badge = page.locator('.purse__letters .new-tag');
   await badge.waitFor();
@@ -255,7 +258,10 @@ async function presets(page) {
   await page.getByRole('button', { name: 'Keep', exact: true }).click();
   await page.getByText('Saved as “Deep runs”.').waitFor();
   await page.getByRole('button', { name: 'Use' }).first().click();
-  await page.getByText(/is now your loot filter/).first().waitFor();
+  await page
+    .getByText(/is now your loot filter/)
+    .first()
+    .waitFor();
   await page.getByRole('button', { name: 'Share' }).first().click();
   const code = page.locator('input[readonly], textarea[readonly]').filter({ hasText: '' });
   const value = await code
@@ -296,7 +302,10 @@ async function barred(page) {
     .waitFor();
   await go(page, '#/throne');
   await page.getByRole('heading', { name: 'The lantern road is dark' }).waitFor();
-  await page.getByText(/level 48/).first().waitFor();
+  await page
+    .getByText(/level 48/)
+    .first()
+    .waitFor();
   await shoot(page, 'p8-11-throne-barred');
 }
 

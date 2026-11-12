@@ -193,6 +193,7 @@ export async function seedPhase8(app: FastifyInstance, db: Database, now: () => 
       itemLevel: 18 + rng.int(0, 3),
       classId: 'mage',
     });
+    if (!item) throw new Error(`seeding Cass's pack: no ${p.rarityId} ${base.id}`);
     await db.insert(itemInstances).values({
       id: uuidv7(real.getTime() - (CASS_PACK.length - i) * 60_000),
       characterId: cass!.characterId,

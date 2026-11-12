@@ -93,6 +93,7 @@ interface AdminEvents {
     rotation: { definitionId: string; days: number }[];
     gapDays: number;
     nextIndex: number;
+    skipToken: string;
     planned: {
       definitionId: string;
       startsAt: string;

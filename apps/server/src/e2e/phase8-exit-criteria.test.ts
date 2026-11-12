@@ -108,7 +108,6 @@ import {
   MIN,
   expectHoldingsMatchAudit,
   holdingsBaseline,
-  newPlayer,
   openInviteOnlyTown,
   playGuildHallStep,
   playHollowDeepStep,

@@ -8,6 +8,7 @@ The balance passes (B-tickets) record their method, before/after tables and deci
 - B.4 (competitive systems): `docs/LEADERBOARDS.md`, `docs/PVP.md` "Balance pass: competitive systems".
 - **B.5 (endgame, Phase 6): below.** Owner decisions on its questions: **B.5b** at the end of the section.
 - **Phase 6 exit criterion (ticket 6.10): at the end.** A record, not a pass: nothing changes. **Ticket 8.1** extends it to the Hollow Reach (its own section below).
+- **Phase 8 exit criterion (ticket 8.7): at the end.** A record, not a pass: nothing changes.
 
 ## B.5: the endgame (Phase 6)
 
@@ -350,3 +351,36 @@ Ticket 8.1 adds Region III's first area, the Pale Marches (40–46, `docs/WORLD.
 - **Its own drops are worth chasing:** the Marches' plain Legendaries +5 (item level 45) kill 1.10–1.32 × as fast at 46 as the same kits at 39 (four kits each), without a new power curve beyond the tier step.
 
 **Open points:** at the area's top (46) a plain item-level-39 kit without class effects can begin to fall (the tool's mage sample: about 7 deaths an hour), the intended gear check before 8.2's second area. Live telemetry (B.6) should confirm the entry pace and the soft cap with real players.
+
+## Phase 8 exit criterion (ticket 8.7)
+
+*The live town has a new endgame region beyond level 40 that keeps Phase 6 content relevant, a self-running calendar of events, better everyday comfort, and a clear going-live checklist. Everything is reconciled, fair and free of pay-to-win.* A record, not a pass: no number changed. game-core `balance/phase8-exit-criterion.test.ts` (fixed seeds, four one-hour settlements per case, Legendary kits +10 from `kits.ts`); server `phase8-no-pay-to-win.test.ts`. The farming numbers here are kit-level means, so they differ a little from 8.1's and 8.2's build searches (`pale-marches-balance.test.ts`, `hollow-deep-balance.test.ts`).
+
+**1. Phase 6 content stays relevant next to Region III.** Class order: warrior / mage / hunter / warlock.
+
+| | warrior | mage | hunter | warlock |
+| --- | --- | --- | --- | --- |
+| Depths Legendaries +10 at 40: Pale Marches ÷ Cinder Depths, kills a minute | 0.90 | 0.91 | 0.86 | 0.91 |
+| … XP an hour | 1.12 | 1.13 | 1.06 | 1.13 |
+| … gold an hour | 1.25 | 1.10 | 1.10 | 1.31 |
+| Heroic Legendaries +10 (item level 37) in the Marches at 40, kills a minute (no deaths) | 8.2 | 7.5 | 8.5 | 7.1 |
+| Marches Legendaries +10 at 46: Hollow Deep ÷ Marches, kills a minute | 0.96 | 0.92 | 0.92 | 0.93 |
+| … XP an hour | 1.12 | 1.07 | 1.08 | 1.09 |
+| … gold an hour | 1.00 | 1.11 | 1.13 | 1.07 |
+
+- **No deaths.** Phase 6's best drops open the Hollow Reach as a step up (slower kills, more XP and gold), and the Marches' best open the Deep the same way.
+- **The Tyrant's Ember** comes only from the Tyrant's Forge, and **the Gravewarden's Seal** only from the crypt (Heroic its top tier); no Region III place drops either. Both still pay for Item Awakening, which also works on tier-5 Legendaries (3 Embers and 2 Seals a piece), and the town needed ten Embers for the lanterns of the deep.
+- **Heroic keeps the best Prismatic odds** (7.5 % against the Hollow Reach's 5 %).
+- Phase 6 drops salvage into the ore and shards the Crownforged Work and tier-5 Forge work spend (8.1, 8.2 extensions of the Phase 6 guard).
+
+**2. The calendar runs on its own.** A year with nobody touching it, from the rotation the exit run uses (the Lantern Procession 28 days, the Harvest of Bones 7):
+- every event starts on a Monday at 00:00 UTC, gets its full length (the Procession all four of its weeks, 8.3b), never overlaps, and follows the rotation in turn;
+- **15 events a year (8 Processions), 273 days with an event**, whatever the gap from 0 to 7 days. Both events end on a Monday, so a gap of 0–7 days always lands on the following Monday: a one-week pause. The gap only matters above a week, or for an event that ends mid-week.
+- The exit run saw it for real: created once at the next Monday, the weeks opening on their boundaries, closed once at the end, the Harvest put on the first Monday at least the gap later, once.
+
+**3. No pay-to-win.**
+- Event tracks grant only catalogue cosmetics (keys `tier`, `tallies`, `cosmeticId`), and the two world modifiers (`killBounty`, `gatherBounty`) hand out a material, never a stat, odds or XP.
+- Cosmetics carry only `id`, `kind`, `name`, `description`, `source`. Hall upgrades carry only `id`, `kind`, `name`, `description`, `price`. Guild honours are catalogue cosmetics.
+- The import scan: no game-core rule (combat, scoring, PvP, loot, dungeons, items, farming, economy, world, quests) imports the cosmetics, guild-hall, guild-season or event modules. On the server, the scores, the boards and the arena import them only for looks (the duel screen's palettes) and the guild roll's recompute check.
+- Invariance: a level-46 hunter's four scores, its stored duel defence (snapshot and bracket Power) are equal before and after its account owns and wears every cosmetic and its guild buys and hangs every hall upgrade.
+
