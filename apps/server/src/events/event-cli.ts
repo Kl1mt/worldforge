@@ -92,12 +92,16 @@ export async function formatEventStatus(db: Database, now: Date): Promise<string
   return lines.join('\n');
 }
 
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+/** "Mon" for an ISO time (UTC). */
+const day = (iso: string) => WEEKDAYS[new Date(iso).getUTCDay()]!;
+
 /** Ticket 8.3: the calendar in plain text; exported for tests. */
 export async function formatCalendarStatus(db: Database, now: Date): Promise<string> {
   const c = await calendarView(db, now);
   const lines = [
     `Calendar: ${c.paused ? 'PAUSED (nothing is created automatically)' : 'running'}${c.saved ? '' : ' (defaults, never saved)'}`,
-    `Gap between events: ${c.gapDays} days. Automatic events created so far: ${c.createdCount}.`,
+    `Gap between events: ${c.gapDays} days; automatic events start on the first Monday 00:00 UTC after it. Automatic events created so far: ${c.createdCount}.`,
     c.rotation.length === 0
       ? 'Rotation: empty.'
       : `Rotation: ${c.rotation
@@ -106,7 +110,7 @@ export async function formatCalendarStatus(db: Database, now: Date): Promise<str
     c.planned.length === 0 ? 'Planned: nothing.' : 'Planned (UTC):',
     ...c.planned.map(
       (p) =>
-        `  ${p.startsAt} → ${p.endsAt}  ${p.name}  ${
+        `  ${day(p.startsAt)} ${p.startsAt} → ${day(p.endsAt)} ${p.endsAt}  ${p.name}  ${
           p.kind === 'scheduled'
             ? `event ${p.number}, on the calendar (${p.source === 'calendar' ? 'automatic' : 'by hand'})`
             : c.paused

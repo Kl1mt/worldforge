@@ -353,7 +353,9 @@ function ScheduleForm({
   const [start, setStart] = useState(toUtcInput(defaultStart));
   const [days, setDays] = useState(String(first?.defaultDays ?? 7));
   const n = Number(days);
-  const valid = def !== undefined && start !== '' && Number.isInteger(n) && n >= 1 && n <= 28;
+  // Ticket 8.3b: a weekly event gets all of its weeks.
+  const minDays = Math.max(1, def?.minDays ?? 1);
+  const valid = def !== undefined && start !== '' && Number.isInteger(n) && n >= minDays && n <= 28;
   // Ticket 8.3: an automatic event waiting may be replaced by hand (manual always wins).
   const replaces = view.next?.source === 'calendar' ? view.next : null;
   if (view.next && !replaces) {
@@ -410,7 +412,14 @@ function ScheduleForm({
             ))}
           </select>
         </div>
-        {def ? <p className="strong__note">{def.tagline}</p> : null}
+        {def ? (
+          <p className="strong__note">
+            {def.tagline}
+            {def.minDays > 0
+              ? ` It runs over ${def.minDays / 7} weeks: at least ${def.minDays} days.`
+              : ''}
+          </p>
+        ) : null}
         <div className="seasoncard__row">
           <label className="field__label caps" htmlFor={`${ids}-start`}>
             Starts (UTC)
@@ -429,7 +438,7 @@ function ScheduleForm({
             id={`${ids}-days`}
             className="field__input seasoncard__weeks"
             type="number"
-            min={1}
+            min={minDays}
             max={28}
             value={days}
             onChange={(e) => setDays(e.target.value)}
