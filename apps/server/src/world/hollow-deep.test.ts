@@ -160,6 +160,9 @@ async function pinWinningSeed(p: Hero) {
 
 describe('the Hollow Deep and the Hollow Throne (ticket 8.2)', () => {
   it('stay closed until the lanterns are lit, whatever the hero’s level and kills', async () => {
+    // Each test sets the flag it needs (no test relies on another's order).
+    await db().delete(worldFlags).where(eq(worldFlags.flagId, 'deepLanternsLit'));
+    app.worldState.invalidate();
     const top = await hero(52, { ...TYRANT_SLAYER, hollowSovereignDefeated: true });
     expect(await deep(top)).toEqual({
       id: 'hollowDeep',

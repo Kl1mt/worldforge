@@ -190,6 +190,33 @@ So good Verge gear beats him at 36–38, not trivially: upgraded Verge Legendari
 
 **B.5 (the endgame balance pass, `docs/BALANCE.md` "B.5", item 2):** his slag turns blades more than spells: `bossScale` resistance × 0.7, armour × 1.2 (`EnemyScale.armor`, new and optional, default 1; health and damage × 1). Over 8 Legendary kits per class the casters had trailed (Legendaries +5 at 38: 92/57/88/82 %, spread 34 points); now 86/76/75/92 % (17), at 36 80/71/68/91 % (was 89/54/78/75 %). The table above is 6.2's single kit per class, whose rolled effects happen to be the mage's worst; its bands still hold. The hunter's best build still kills him in 13–15 s (fastest 11–12 s): an open point for the owner (`docs/BALANCE.md`).
 
+## The Hollow Throne (ticket 8.2)
+
+The Hollow Reach's region boss (`docs/WORLD.md` "the Hollow Deep and the Hollow Throne"), fought like the Forge Tyrant: a **boss-only** run, a 30 s descent down the lantern road, then the Hollow Sovereign. Same engine and rules (`simulateDungeonRun`: snapshot, server-only seed streams, the enrage window drawn per run from its own stream, claim with `Idempotency-Key`, one unclaimed run per account across every dungeon, farming stopped while it runs, replay of the stored run). Data: `DUNGEONS` entry `hollowThrone` (one tier, "The Throne"), enemy `hollowSovereign`. Screen: `#/throne` (the map marker at the Deep's foot, and a link in the Deep's description).
+
+- **Gate:** level 48, the Forge Tyrant slain, and the world flag `deepLanternsLit` (the community's lanterns of the deep; `409 dungeon_locked` with the blockers otherwise).
+- **The boss:** level 52, **magic** damage (the Tyrant's was physical), 2,200 + 580 per level above 1 (31,780 health), `bossScale` resistance × 0.7 and armour × 1.15 (the B.5 levers, set from the start so the casters keep up), enrage drawn per run between **35 and 65 s** for × 2 damage and × 1.4 attack speed, 150 s limit. XP 1,100 + 180 per level above 1.
+- **His mechanics** (`BossMechanics` on the tier; data, **no random draws**: the hero's crits land on the same blows, `dungeon.test.ts`):
+  - **Siphon** (new, `BossMechanics.siphon`, ticket 8.2): each of his blows that lands heals him by **half** the damage it dealt (after mitigation; never above his full health; a `siphon` event after the `enemyAttack`, the first one logged: "The Sovereign drinks your wound…"). A sustain check: a slow fight feeds him, and a sturdy hero with low damage feeds him most. Burns (the weekly "Burning") are not blows and never heal him. No earlier boss has a siphon (asserted).
+  - **Crown-blow:** every fourth blow lands × 2.5 (6.2's `heavyBlow`; on top of the enrage, and it siphons too).
+- **Weekly modifiers apply** (6.3): the tier takes the week's modifier (stored with the run at its start, replayed with it). They cost the best Marches kits 3–8 points of win rate (Marches +10 at 50: 84 % plain, 77–81 % with each modifier; `hollow-deep-balance.test.ts` asserts each costs something and none drops it below 60 %).
+- **Hoard** (its own 20 h cooldown): 2 items from `hollowSovereign` (tier-5 bases at item level 51–53, affix bias 1.4, the late-game Legendary/set/Mythic/Void/Prismatic odds) with the Tyrant's rarity weights (uncommon 500 / rare 3000 / epic 3500 / legendary 700 / mythic 60), 2,000–2,800 gold, and **one Shard of the Hollow Crown** (`bossDrops`). Loot focus *The Sovereign's regalia*: weapons, rings and amulets × 2 (the slots the Tyrant's anvil doesn't favour). Hoard items are stored with the source `hoard:hollowThrone`, so they are **always bound** (T.1, `docs/TRADING.md`); the shard is never tradeable (`UNTRADEABLE_MATERIALS`).
+- **Progress:** a kill sets `characters.progress.hollowSovereignDefeated` (the dungeon's `bossProgress`); it gates nothing, counts for PvE Progress 6 and earns the **Hollow pale** title colour (a milestone cosmetic, CSS only). The admin progress tool (D.4) sets and clears it on test accounts (`hollowSovereignDefeated`, optional in the request), and D.4b grants the title colour at once. Telemetry dimensions `hollowThrone:1`.
+
+**Balance** (`balance/hollow-deep-balance.test.ts` "the Hollow Sovereign"; 4 classes × 4 Legendary kit samples × 12 fixed seeds, no modifier; warrior / mage / hunter / warlock, mean; `tools/balance/hollow-deep.ts boss`):
+
+| Gear | Level 48 | Level 50 | Level 52 | Asserted at 48 and 50 |
+| --- | --- | --- | --- | --- |
+| the Depths' Legendaries +10 (item level 39) | 69/0/54/42 % (41 %) | 42 % | 46 % | below Marches +10 |
+| Marches Legendaries +0 (47) | 35/0/0/4 % (10 %) | 10 % | 11 % | < 25 % |
+| Marches Legendaries +5 (47) | 67/15/29/46 % (39 %) | 43 % | 49 % | 25–65 % |
+| Marches Legendaries +5 (45) | 63/79/44/31 % (54 %) | 55 % | 65 % | 35–75 % |
+| **Marches Legendaries +10 (47)** | 94/71/100/75 % (**85 %**) | **84 %** | 89 % | 70–95 %, every class > 50 % at 50 |
+| the same, awakened | 94/81/100/81 % (89 %) | 88 % | 90 % | — |
+| the Deep's Legendaries +10 (53) | 100 % | 100 % | 100 % | > 95 % |
+
+So good Marches gear beats him from 48, not trivially: upgraded Marches Legendaries win most runs, plain ones about one in ten, and the Deep's own drops win outright. Fights last 35–45 s, so most kills cross the enrage window. **Class spread:** the hunter is strongest, the mage and the warlock weakest (Marches +10 at 50: 69–100 %, a wider spread than the Tyrant's after B.5; the siphon punishes the slower kills). An open point for B.6 with live data.
+
 ## The Heroic crypt (ticket 6.3)
 
 The harder crypt mode the owner asked for (4.11 follow-up, F.1): **tier IV, "Heroic"**, the same Nameless Crypt with harder chambers and a harder Gravewarden, tuned for upgraded Cinderwastes Legendaries. Owner decisions: tier III stays "the Legendary tier"; Heroic pays in **better top-rarity odds, not a new power curve**.

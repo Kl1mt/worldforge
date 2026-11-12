@@ -27,6 +27,8 @@ pnpm --filter @worldforge/server exec tsx ../../tools/balance/awakening.ts build
 # Ticket B.5: the endgame pass (docs/BALANCE.md "B.5"); bosses takes TYRANT_SCALE=res,arm HEROIC_SCALE=res,arm TYRANT_SHELL=… TYRANT_BURN=… to try boss data
 pnpm --filter @worldforge/server exec tsx ../../tools/balance/endgame.ts bosses   # or: pace, loot (HOURS=1500 RUNS=200), forgeward, event, older
 MAX_LEVEL=40 AWAKENED=1 pnpm --filter @worldforge/server exec tsx ../../tools/balance/arena.ts 120 32 20   # 30+ to level 40; POWER=2 ranks by Character Power as before B.5
+# Ticket 8.2: the Hollow Deep and the Hollow Sovereign (docs/BALANCE.md "8.2"); GEAR, LEVELS, RUNS, KITS, MOD=warded …
+pnpm --filter @worldforge/server exec tsx ../../tools/balance/hollow-deep.ts farm   # or: boss, xp, pace (the lanterns of the deep at 1–500 players)
 # Ticket 6.10: the Phase 6 exit criterion (docs/BALANCE.md "Phase 6 exit criterion"), ~1 min
 pnpm --filter @worldforge/server exec tsx ../../tools/balance/phase6-exit.ts   # or: verge, older, materials, variants, awakening, modifiers (KITS, RUNS), bosses
 ```

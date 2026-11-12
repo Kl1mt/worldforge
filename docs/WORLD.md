@@ -17,6 +17,8 @@ Ticket 2.1. Data and pure rules in `packages/game-core/src/world/` (areas, dunge
 | `cinderDepths` (ticket 6.2, the Cinderwastes) | 34–40 | level 34 + Ashen Warden defeated (the Verge's top) | `forgeRevenant` 30, `slagMastiff` 30, `ashflameWisp` 25, `slagColossus` 15 | `ironOre`, `soulShard` (revenants) | tier 4 (35–41), gold × 3 |
 | Dungeon `tyrantsForge` (ticket 6.2) | — (no chambers) | level 36 + Ashen Warden defeated | boss `forgeTyrant` (level 40) | boss drop `tyrantsEmber` | boss hoard only: `forgeTyrant` (39–41) |
 | `paleMarches` (ticket 8.1, the Hollow Reach) | 40–46 | level 40 + Forge Tyrant defeated | `hollowKnight` 30, `reachStalker` 30, `paleChoir` 25, `huskTitan` 15 | `ironOre`, `soulShard` (knights, choir) | tier 5 (41–47), gold × 3.9 |
+| `hollowDeep` (ticket 8.2, the Hollow Reach) | 46–52 | level 46 + Forge Tyrant defeated + world flag `deepLanternsLit` | `hollowSentinel` 30, `deepStalker` 30, `dirgeChoir` 25, `huskColossus` 15 | `ironOre`, `soulShard` (sentinels, choir) | tier 5 (47–53), gold × 4.6 |
+| Dungeon `hollowThrone` (ticket 8.2) | — (no chambers) | level 48 + Forge Tyrant defeated + `deepLanternsLit` | boss `hollowSovereign` (level 52) | boss drop `crownShard` | boss hoard only: `hollowSovereign` (51–53) |
 
 - Each Graumark area overlaps the next by one level step (`next.minLevel = prev.maxLevel − 1`); the area's unlock level is its minimum enemy level. The Ashen Pass starts two levels above the Abbey's top (24 vs 22): crypt tier III (21–24) bridges the gap.
 - Rooms, run timing, the boss enrage and the boss loot (`gravewarden` table, boss-exclusive bases, cooldown) are data on `DungeonDefinition` since ticket 2.5; rules in `docs/DUNGEONS.md`.
@@ -88,6 +90,27 @@ Per level they have about 1.05–1.15 × the Depths' health at about the same da
 **The merchant** stocks the Marches every day for every hero (F.7's floor: a level-40 offer is stocked at 41, the tier-5 bases' first level; `pale-marches-balance.test.ts` and the server test check every outcome, not a lucky seed).
 
 **Older content stays relevant** (asserted in `balance/pale-marches-balance.test.ts` and `phase6-exit-criterion.test.ts`): a level-40 hero in today's best gear (the Depths' Legendaries +10, plain or awakened, the Heroic crypt's, the best Depths build at +10 Void) farms the Marches with no deaths and more XP and gold an hour than the Depths; the Phase 6 drops salvage into the ore and shards the tier-5 Forge spends, and the Marches drop both. Numbers in `docs/COMBAT.md` "The Hollow Reach".
+
+## Region III, the Hollow Reach: the Hollow Deep and the Hollow Throne (ticket 8.2)
+
+The Hollow Reach's second area and its region boss. Area id `hollowDeep`, "The Hollow Deep": the pit below the Pale Marches with no bottom anyone has seen, where the hollow kin are older and something at the bottom wears a crown. Backdrop `area.hollow-depths` (A.17). Map markers at the map's south-west corner below the Marches (`hollowDeep` at 16,196, `hollowThrone` at 104,204).
+
+**Unlock: the first community gate on new content.** Level 46, the Forge Tyrant slain **and the world flag `deepLanternsLit`** (the "Light the Lanterns of the Deep" project, `docs/COMMUNITY.md`). The Throne needs level 48, the Tyrant and the same flag. Unlike 6.7's chain this flag gates content from its release; it is allowed here because nothing live is taken away (the Deep and the Throne are new). `world/hollow-reach-gate.test.ts` (game-core) and `community/deep-lanterns.test.ts` (server) assert that every other area and dungeon tier answers exactly the same with and without the flag at every level and progress. Blockers on the map: "The town must light the lanterns of the deep first." (`WORLD_FLAGS` `lockedText`) plus the usual level and Tyrant lines.
+
+**Foes: older kin, two traits each.** The Deep's four foes are kin of the Marches' (A.17's sprites and attack frames with the Deep's colder tint, `DEEP_VARIANTS` in `apps/web/src/content/assets.ts`, CSS `pixel--tint-deep`; no new art). Each pairs two of 8.1's `EnemyTraits` (build-time numbers, no draws), so no single build answers all four:
+
+| Foe | Kin of | Damage | Traits |
+| --- | --- | --- | --- |
+| Hollow Sentinel (`hollowSentinel`) | the hollow knight | physical, undead | armour pierce 25 %, skill guard 20 % |
+| Deep Stalker (`deepStalker`) | the reach stalker | physical, fast | crit evasion 12 points, armour pierce 12 % |
+| Dirge Choir (`dirgeChoir`) | the pale choir | magic, undead | skill guard 30 %, crit guard 25 % |
+| Husk Colossus (`huskColossus`) | the husk titan | physical, slow | crit guard 40 %, crit evasion 8 points |
+
+About 1.1 × the Marches' foes' health and damage per level, about 1.1 × their XP per kill. **Loot:** tier-5 bases (the Marches' ten; no new base) at item levels 47–53, gold × 4.6; tier-6 affixes as before (no new affix tier). **Materials:** iron ore and soul shards (gathering at the Marches' odds; no new gathering material, since nothing new would have a sink). **The merchant** stocks the Deep's two offers every day at item levels 46–52 (tier 5 starts at 41, so every level it can roll has a base; F.7's lesson, asserted for 30 days × 4 classes).
+
+**The Hollow Throne** (`docs/DUNGEONS.md` "The Hollow Throne"): the Hollow Sovereign (128×128, A.17, his own art untinted) at the bottom of the Deep, a boss-only run like the Tyrant's Forge, with a siphon and a crown-blow. His hoard is always bound and carries a **Shard of the Hollow Crown** (`crownShard`, epic, boss drop, never tradeable; drawn as a soul shard in the Deep's tint), whose one sink is the Crownforged Work recipe (`docs/ECONOMY.md`).
+
+**Older content stays relevant** (`balance/hollow-deep-balance.test.ts`, `phase6-exit-criterion.test.ts` "extended again"): the best Marches gear (its Legendaries +10 at item level 47, plain or awakened) farms the Deep with no deaths at 46, 49 and 52 and more XP and gold an hour than the Marches' top; the Phase 6 and Marches drops salvage into the ore and shards the Deep's Forge spends; the Tyrant's Ember gains a second one-off use (the lanterns' last stage). Numbers in `docs/COMBAT.md` "The Hollow Deep".
 
 ## Enemies
 `EnemyDefinition` adds `undead` (undead drop `soulShard`, ticket 2.3) and `rank` (`normal` or `boss`) to the Phase 1 fields; `damageType` is the damage family (physical → armor, magic → resistance). Each enemy is in exactly one roster. Asset ids are `enemy.<kebab-case id>` (the three Phase 1 enemies keep their existing ids).
@@ -171,7 +194,8 @@ A visible, long-term progression of the town, read from the world flags the comm
 | 1 | The Long Dusk (`longDusk`) | — (a fresh world) | cold blue dusk, bare banner poles | the storehouse needs hands; bar the doors |
 | 2 | The Ashen Siege (`ashenSiege`) | `warehouseRestored` | grey ash light, grey watch pennants | the Warehouse is open; scouts wanted for the pass |
 | 3 | **The Rekindling** (`rekindling`) — **live today** | `ashenPassCleared` | warm ember dusk, ember-red pennants | the pass is open; the Cinderwastes burn; the forgeward fort wants gold and ore |
-| 4 | The Forgeward Age (`forgewardAge`) | `forgewardRaised` | the beacon's brass glow, brass-and-ember banners | the beacon is lit, the Forge works the Tyrant's fire for less; the outpost keeps watch |
+| 4 | The Forgeward Age (`forgewardAge`) | `forgewardRaised` | the beacon's brass glow, brass-and-ember banners | the beacon is lit, the Forge works the Tyrant's fire for less; the outpost keeps watch; the Hollow Deep wants lantern-iron (ticket 8.2) |
+| 5 | The Lantern Vigil (`lanternVigil`, ticket 8.2) | `deepLanternsLit` | cold lantern-light over the street, pale lantern-cloth banners | the lanterns of the deep are lit; a throne waits at the bottom; the lantern smithy works crown-iron for less |
 
 - **Derivation:** `worldEra(flags)` is the **latest** era whose flag is set, so the era only moves forward as projects complete; an older flag cleared by hand doesn't move it back. It is never stored: **live starts in the Rekindling** (the Warehouse and the Ashen Pass are done), so nothing jumps backward on deploy. New eras are appended with a new project's flag; ids are never renamed.
 - **Where it shows** (web `community/Era.tsx`, `era.css`, all classes `hub-era*`): a small "Era of …" title in the town header; a tint and light over the town backdrop and a row of banners along its top edge (CSS gradients and shapes over the existing picture, no new art); the crier's call of the day and the banners' words under the event banner; the Tavern's ambient line under its title. Until the first world poll answers (or after a failed one) the town shows no era and the Tavern its old line.
