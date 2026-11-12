@@ -73,7 +73,7 @@ export async function insertPve(
     classId: 'warrior',
     appearance: { banner: 'ash' },
     level: 40,
-    progress: {},
+    progress: { gravewardenDefeated: false },
   });
   await db.insert(leaderboardEntries).values({
     characterId: id,
