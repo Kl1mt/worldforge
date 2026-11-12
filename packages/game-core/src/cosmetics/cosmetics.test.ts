@@ -85,6 +85,13 @@ describe('the cosmetic catalogue', () => {
       'appearance.lantern-bearer',
       'banner.hollow-procession',
       'title.keeper-of-the-long-road',
+      // Ticket 8.4: guild honours (existing art with code treatments).
+      'banner.guild-renowned',
+      'crest.guild-renowned',
+      'banner.guild-exalted',
+      'crest.guild-exalted',
+      'banner.guild-champion',
+      'crest.guild-champion',
     ];
     expect(COSMETICS.map((c) => c.id).sort()).toEqual([...want].sort());
   });
@@ -125,9 +132,15 @@ describe('the cosmetic catalogue', () => {
   it('has no price and no stats in its definition: only words and a source', () => {
     for (const c of COSMETICS) {
       expect(Object.keys(c).sort()).toEqual(['description', 'id', 'kind', 'name', 'source']);
-      expect(['default', 'event', 'achievement', 'milestone', 'season', 'exchange']).toContain(
-        c.source.kind,
-      );
+      expect([
+        'default',
+        'event',
+        'achievement',
+        'milestone',
+        'season',
+        'exchange',
+        'guildSeason',
+      ]).toContain(c.source.kind);
       // No number anywhere but a milestone's level/tier.
       const json = JSON.stringify(c);
       expect(json).not.toMatch(/\b(price|cost|stats?|power|damage|armou?r|bonus|buy|sell)\b/i);
