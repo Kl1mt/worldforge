@@ -57,6 +57,16 @@ export function eventWeeks(def: EventDefinition): number {
 }
 
 /**
+ * Ticket 8.3b: the fewest whole days an event may last: an event of several weeks gets every week
+ * in full (weeks × 7), so none of its tasks is left unopened; a one-week event has no minimum
+ * beyond the calendar's own (1 hour by hand, 1 day in the rotation).
+ */
+export function eventMinDays(def: EventDefinition): number {
+  const weeks = eventWeeks(def);
+  return weeks > 1 ? weeks * 7 : 0;
+}
+
+/**
  * Ticket 8.3: the event week `at` falls in (1 from the start, 2 from seven days on, …), or 0
  * before the start. Weekly quests open at their week's first moment (the window rule).
  */

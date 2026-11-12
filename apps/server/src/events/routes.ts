@@ -4,6 +4,7 @@ import {
   COSMETICS,
   cosmeticShownToday,
   findCosmetic,
+  eventMinDays,
   eventQuestOpen,
   eventWeekAt,
   findEventDefinition,
@@ -338,12 +339,14 @@ const adminEventsResponse = {
       type: 'array',
       items: {
         type: 'object',
-        required: ['id', 'name', 'tagline', 'defaultDays'],
+        required: ['id', 'name', 'tagline', 'defaultDays', 'minDays'],
         properties: {
           id: { type: 'string' },
           name: { type: 'string' },
           tagline: { type: 'string' },
           defaultDays: { type: 'integer' },
+          /** Ticket 8.3b: the fewest days it may last (its weeks × 7; 0: no minimum). */
+          minDays: { type: 'integer' },
         },
       },
     },
@@ -444,6 +447,7 @@ export async function adminEventsBody(db: Executor, now: Date) {
       name: d.name,
       tagline: d.tagline,
       defaultDays: d.defaultDays,
+      minDays: eventMinDays(d),
     })),
     current: view(current, now),
     next: view(next, now),

@@ -55,10 +55,16 @@ export function EventCalendarPanel({
   const [confirm, setConfirm] = useState<'on' | 'skip' | null>(null);
 
   const name = (id: string) => view.definitions.find((d) => d.id === id)?.name ?? id;
+  // Ticket 8.3b: a weekly event gets all of its weeks (the server refuses less).
+  const minDaysOf = (id: string) =>
+    Math.max(1, view.definitions.find((d) => d.id === id)?.minDays ?? 1);
+  const short = rotation.find((e) => e.days < minDaysOf(e.definitionId));
   const gapN = Number(gap);
   const valid =
     rotation.length <= 12 &&
-    rotation.every((e) => Number.isInteger(e.days) && e.days >= 1 && e.days <= 28) &&
+    rotation.every(
+      (e) => Number.isInteger(e.days) && e.days >= minDaysOf(e.definitionId) && e.days <= 28,
+    ) &&
     Number.isInteger(gapN) &&
     gapN >= 0 &&
     gapN <= 60;
@@ -98,7 +104,7 @@ export function EventCalendarPanel({
       <p className="strong__note">
         {c.paused
           ? 'Nothing is put on the calendar automatically. An event already waiting still begins.'
-          : `When an event closes, the next one in the rotation is put on the calendar, ${c.gapDays === 1 ? 'a day' : `${c.gapDays} days`} after its end. One event at a time, never overlapping.`}{' '}
+          : `When an event closes, the next one in the rotation is put on the calendar for the first Monday (00:00 UTC) at least ${c.gapDays === 1 ? 'a day' : `${c.gapDays} days`} after its end. One event at a time, never overlapping.`}{' '}
         An event you schedule by hand always wins: it replaces an automatic one that has not begun,
         and the rotation carries on after it.
       </p>
@@ -248,7 +254,7 @@ export function EventCalendarPanel({
                   id={`${ids}-days-${i}`}
                   className="field__input evcal__days"
                   type="number"
-                  min={1}
+                  min={minDaysOf(entry.definitionId)}
                   max={28}
                   value={entry.days}
                   onChange={(e) =>
@@ -324,10 +330,16 @@ export function EventCalendarPanel({
             Save the rotation
           </button>
         </div>
+        {short ? (
+          <p className="gate__alert" role="alert">
+            {name(short.definitionId)} runs over {minDaysOf(short.definitionId) / 7} weeks, so it
+            must last at least {minDaysOf(short.definitionId)} days.
+          </p>
+        ) : null}
         <p className="strong__note">
-          Lengths are whole days (1–28); a weekly event shorter than its weeks never opens its last
-          tasks. Events may run across a season boundary: their rewards belong to no season and
-          change no score.
+          Lengths are whole days (1–28); an event of several weeks lasts at least all of its weeks.
+          Automatic events start on a Monday 00:00 UTC, with the weekly boss modifiers. Events may
+          run across a season boundary: their rewards belong to no season and change no score.
         </p>
       </form>
     </section>

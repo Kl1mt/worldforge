@@ -8,6 +8,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import {
   EVENT_CLOSE_GRACE_MS,
   EVENT_WEEK_MS,
+  ceilToMonday,
   getEventDefinition,
   type QuestEvent,
 } from '@worldforge/game-core';
@@ -183,10 +184,20 @@ describe('the automatic calendar (admin panel, injected clock)', () => {
         })
       ).statusCode,
     ).toBe(400);
+    // Ticket 8.3b: a weekly event below its weeks: 400 with the minimum, not saved.
+    const short = await post('/api/admin/events/calendar', {
+      rotation: [{ definitionId: 'lanternProcession', days: 21 }],
+    });
+    expect(short.statusCode).toBe(400);
+    expect(short.json().error).toMatchObject({
+      code: 'length_too_short',
+      details: { definitionId: 'lanternProcession', minDays: 28 },
+    });
+    expect(short.json().error.message).toContain('at least 28 days');
     expect((await readCalendar(w.db)).saved).toBe(false);
   });
 
-  it('on: the first event at the next full hour, its own length; one at a time; then the gap', async () => {
+  it('on: the first event on the coming Monday, its own length; one at a time; then the gap and a Monday', async () => {
     const set = await post('/api/admin/events/calendar', {
       rotation: [
         { definitionId: 'lanternProcession', days: 28 },
@@ -210,44 +221,45 @@ describe('the automatic calendar (admin panel, injected clock)', () => {
     expect(v.next).toMatchObject({ number: 1, source: 'calendar' });
     expect(v.calendar.planned.map((p) => [p.kind, p.definitionId, p.startsAt])).toEqual([
       ['scheduled', 'lanternProcession', iso(BASE)],
-      ['rotation', 'harvestOfBones', iso(BASE + 30 * DAY)],
-      ['rotation', 'lanternProcession', iso(BASE + 35 * DAY)],
+      // 8.3b: the end + the 2-day gap, then the Monday after.
+      ['rotation', 'harvestOfBones', iso(BASE + 35 * DAY)],
+      ['rotation', 'lanternProcession', iso(BASE + 42 * DAY)],
     ]);
     // Under way and in the close's grace: nothing new.
     w.clock.ms = BASE + 10 * DAY;
     expect((await w.tick()).created).toBeNull();
     w.clock.ms = BASE + 28 * DAY + EVENT_CLOSE_GRACE_MS - 1;
     expect((await w.tick()).created).toBeNull();
-    // Closed: the next one, exactly the gap after the end, its own length.
+    // Closed: the next one, the first Monday at least the gap after the end, its own length.
     const after = await runOut(iso(BASE + 28 * DAY));
     expect(after).toMatchObject({ closed: [1], swept: [1], created: 2 });
     const e2 = (await listEvents(w.db)).find((e) => e.number === 2)!;
     expect([e2.definitionId, e2.startsAt.toISOString(), e2.endsAt.toISOString()]).toEqual([
       'harvestOfBones',
-      iso(BASE + 30 * DAY),
-      iso(BASE + 33 * DAY),
+      iso(BASE + 35 * DAY),
+      iso(BASE + 38 * DAY),
     ]);
     // The boundaries of the new event (window rule): it is not under way before its start.
-    w.clock.ms = BASE + 30 * DAY - 1;
+    w.clock.ms = BASE + 35 * DAY - 1;
     expect((await get()).current).toBeNull();
-    w.clock.ms = BASE + 30 * DAY;
+    w.clock.ms = BASE + 35 * DAY;
     expect((await get()).current?.number).toBe(2);
   });
 
-  it('pause and resume: nothing while paused; on resume, the gap after the last end or the next hour', async () => {
+  it('pause and resume: nothing while paused; on resume, the coming Monday', async () => {
     expect((await post('/api/admin/events/calendar', { paused: true })).statusCode).toBe(200);
     // Event 2 still runs out and closes; the paused calendar creates nothing.
-    const out = await runOut(iso(BASE + 33 * DAY));
+    const out = await runOut(iso(BASE + 38 * DAY));
     expect(out).toMatchObject({ closed: [2], created: null });
     w.clock.ms = BASE + 50 * DAY + 17 * MIN;
     expect((await w.tick()).created).toBeNull();
-    // Resumed long after: the next full hour (never in the past), the rotation where it was.
+    // Resumed long after: the coming Monday (never in the past), the rotation where it was.
     await post('/api/admin/events/calendar', { paused: false });
     expect((await w.tick()).created).toBe(3);
     const e3 = (await listEvents(w.db)).find((e) => e.number === 3)!;
     expect([e3.definitionId, e3.startsAt.toISOString()]).toEqual([
       'lanternProcession',
-      iso(BASE + 50 * DAY + HOUR),
+      iso(BASE + 56 * DAY),
     ]);
     expect(await calendarAudits()).toEqual(['set', 'resume', 'pause', 'resume']);
   });
@@ -260,7 +272,7 @@ describe('the automatic calendar (admin panel, injected clock)', () => {
     const e4 = (await listEvents(w.db)).find((e) => e.number === 4)!;
     expect(e4.definitionId).toBe('harvestOfBones');
     // The gap counts from the last event that ran (event 2), never from a cancelled one.
-    expect(e4.startsAt.toISOString()).toBe(iso(BASE + 50 * DAY + HOUR));
+    expect(e4.startsAt.toISOString()).toBe(iso(BASE + 56 * DAY));
     // Event 4 runs out; the step creates the Procession (event 5), which is skipped while paused
     // (a pause keeps a waiting event; skip still cancels it): the Harvest comes next.
     await runOut(e4.endsAt.toISOString());
@@ -305,8 +317,11 @@ describe('the automatic calendar (admin panel, injected clock)', () => {
     const after = await runOut(m.endsAt.toISOString());
     const next = (await listEvents(w.db)).find((e) => e.number === after.created)!;
     expect(next.definitionId).toBe('lanternProcession');
-    // The gap (2 days, set above) after the manual event's end.
-    expect(next.startsAt.getTime()).toBe(m.endsAt.getTime() + 2 * DAY);
+    // The first Monday at least the gap (2 days, set above) after the manual event's end.
+    expect(next.startsAt.toISOString()).toBe(
+      ceilToMonday(new Date(m.endsAt.getTime() + 2 * DAY)).toISOString(),
+    );
+    expect(next.startsAt.getUTCDay()).toBe(1);
     // A manual plan that is refused (here: it starts in the past) rolls the displacement back:
     // the waiting automatic event stays.
     const refused = await post('/api/admin/events', {
@@ -326,6 +341,9 @@ describe('the automatic calendar (admin panel, injected clock)', () => {
       expect(live[i]!.startsAt.getTime()).toBeGreaterThanOrEqual(live[i - 1]!.endsAt.getTime());
     const auto = await calendarEvents(w.db);
     expect(auto.map((e) => e.calendarSlot)).toEqual(auto.map((_, i) => i + 1));
+    // 8.3b: every automatic event starts on a Monday 00:00 UTC.
+    for (const e of auto)
+      expect(e.startsAt.toISOString()).toBe(ceilToMonday(e.startsAt).toISOString());
     const schedules = (await w.db.select().from(auditLog)).filter(
       (a) => a.event === 'event.schedule',
     );
@@ -361,7 +379,9 @@ describe('the calendar from the CLI (deploy/admin.sh events calendar …)', () =
     expect(await run('close')).toContain('The calendar put event 1 on the calendar.');
     const status = await formatCalendarStatus(w.db, w.now());
     expect(status).toContain('event 1, on the calendar (automatic)');
-    expect(status).toContain(`${iso(BASE)} → ${iso(BASE + 5 * DAY)}  Harvest of Bones`);
+    // 8.3b: on a Monday, with the weekdays shown.
+    expect(status).toContain(`Mon ${iso(BASE)} → Sat ${iso(BASE + 5 * DAY)}  Harvest of Bones`);
+    expect(status).toContain('first Monday 00:00 UTC');
     expect(await run('calendar', 'skip')).toContain('Skipped Harvest of Bones (event 1 cancelled)');
     expect(await run('calendar', 'pause')).toContain('PAUSED');
     await expect(run('calendar', 'set')).rejects.toThrow(UsageError);
@@ -526,6 +546,54 @@ describe('the Lantern Procession: weekly unlocks, level gates, rewards exactly o
     expect(await sweepEventRewards(w.db, 1, w.now())).toEqual({ kind: 'already' });
     expect(await w.db.select().from(eventTrackGrants)).toHaveLength(7);
     expect((await reconcileWithAudit(w.db)).filter((x) => !x.ok)).toEqual([]);
+  });
+});
+
+describe('8.3b: a weekly event is never shorter than its weeks', () => {
+  let w: World;
+  beforeAll(async () => {
+    w = await world(BASE - HOUR);
+  });
+  afterAll(() => w.close());
+
+  it('refuses it by hand, by moving the end and in the CLI; ending it now still works', async () => {
+    const admin = await insertAccount(w.db, { role: 'admin', now: w.now() });
+    const schedule = (days: number, definitionId = 'lanternProcession') =>
+      w.call(admin, 'POST', '/api/admin/events', {
+        definitionId,
+        startsAt: iso(BASE),
+        endsAt: iso(BASE + days * DAY),
+      });
+    const short = await schedule(27);
+    expect(short.statusCode).toBe(400);
+    expect(short.json().error).toMatchObject({
+      code: 'length_too_short',
+      details: { definitionId: 'lanternProcession', minDays: 28 },
+    });
+    // A one-week event keeps 6.6's rules (an hour to four weeks).
+    expect((await schedule(1, 'harvestOfBones')).statusCode).toBe(200);
+    await w.call(admin, 'POST', '/api/admin/events/1/cancel');
+    await expect(
+      runEventCommand(
+        w.db,
+        ['schedule', 'lanternProcession', '--start', iso(BASE), '--days', '21'],
+        w.now(),
+      ),
+    ).rejects.toThrow('at least 28 days');
+    expect((await schedule(28)).statusCode).toBe(200);
+    // Bringing the end forward below its weeks is refused; ending it now is not.
+    w.clock.ms = BASE + DAY;
+    const cut = await w.call(admin, 'POST', '/api/admin/events/2/end', {
+      endsAt: iso(BASE + 20 * DAY),
+    });
+    expect(cut.statusCode).toBe(400);
+    expect(cut.json().error.code).toBe('length_too_short');
+    expect((await w.call(admin, 'POST', '/api/admin/events/2/end', {})).statusCode).toBe(200);
+    // The calendar's CLI refuses a short rotation entry with the same words.
+    await expect(
+      runEventCommand(w.db, ['calendar', 'set', '--rotation', 'lanternProcession:14'], w.now()),
+    ).rejects.toThrow('at least 28 days');
+    expect((await readCalendar(w.db)).saved).toBe(false);
   });
 });
 

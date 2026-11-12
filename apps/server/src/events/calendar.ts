@@ -9,6 +9,7 @@ import {
   nextCalendarEvent,
   planEventSchedule,
   projectCalendar,
+  shortCalendarEntry,
   type CalendarEntry,
   type CalendarProblem,
   type EventCalendarSettings,
@@ -19,7 +20,7 @@ import type { Database, Executor, Transaction } from '../db/types.js';
 import { writeAudit } from '../db/audit.js';
 import { ApiError } from '../errors.js';
 import { recordTelemetry } from '../telemetry/record.js';
-import { listEvents, underPlanLock, type EventPlanActor } from './model.js';
+import { lengthTooShort, listEvents, underPlanLock, type EventPlanActor } from './model.js';
 
 /**
  * The automatic event calendar (ticket 8.3, docs/EVENTS.md "The calendar"). game-core decides
@@ -27,6 +28,8 @@ import { listEvents, underPlanLock, type EventPlanActor } from './model.js';
  * every manual plan change), so the calendar and the owner never race:
  * - **Settings** (`event_calendar`, one row; no row = paused with the default rotation): pause,
  *   resume, rotation, gap, skip; every change audited `event.calendar` with before and after.
+ * - **Ticket 8.3b:** automatic events start on a Monday 00:00 UTC (game-core `calendarStart`), and
+ *   a rotation entry shorter than its event's weeks is refused (`400 length_too_short`).
  * - **Creation** (`ensureCalendarEvent`, the scheduler's `eventJobs` step on the leader, 6.9):
  *   when the calendar runs and every event has closed, the next rotation entry is inserted with
  *   `source = 'calendar'` and `calendar_slot = created_count + 1` (unique), and the row's cursor
@@ -126,6 +129,8 @@ export async function updateCalendar(
       nextIndex: clampCalendarIndex(before.settings.nextIndex, rotation.length),
     };
     const problem = checkCalendarSettings(next);
+    if (problem === 'length_too_short')
+      throw lengthTooShort(shortCalendarEntry(rotation)!.definitionId);
     if (problem) throw calendarError(problem);
     await writeCalendar(tx, next, before.createdCount, now, actor.accountId);
     const action =
