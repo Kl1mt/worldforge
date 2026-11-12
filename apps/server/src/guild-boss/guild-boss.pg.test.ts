@@ -368,9 +368,10 @@ describe.skipIf(!url)('real PostgreSQL: the guild boss races safely', () => {
   });
 
   // Ticket 6.10 (docs/PHASE6_EXPLOIT_REVIEW.md F1): a test account fights only for a guild of test
-  // accounts. A real player joining races its attempts: each lands before the join (the real player
-  // was no member, so no stage it breaks pays them) or is refused; never a reward for the player.
-  it('a test account’s attempts racing a real player’s join: landed before it or refused', async () => {
+  // accounts. Ticket 8.7 (docs/PHASE8_EXPLOIT_REVIEW.md F4): a real player may not join such a
+  // guild at all (its stages stay with it). Racing its attempts, in every order: the join is
+  // refused, the attempts all land, and nothing ever reaches the real player.
+  it('a test account’s attempts racing a real player’s join: the join refused in every order', async () => {
     const retries = transactionStats.retries;
     clock = () => SATURDAY;
     const week = guildBossWeek(SATURDAY).key;
@@ -395,13 +396,11 @@ describe.skipIf(!url)('real PostgreSQL: the guild boss races safely', () => {
         round,
       );
       const codes = (await Promise.all(jobs.map((j) => j()))).map(status);
-      expect(codes).toContain(200);
-      const landed = codes.filter((c) => c === 201).length;
-      expect(landed + codes.filter((c) => c === '403 test_account').length).toBe(
-        GUILD_BOSS_ATTEMPTS_PER_WEEK,
-      );
-      // After the join every test-account attempt is refused.
-      expect(status(await attempt(leader, heroes[0]!))).toBe('403 test_account');
+      expect(codes.filter((c) => c === '403 test_guild')).toHaveLength(1);
+      expect(codes.filter((c) => c === 201)).toHaveLength(GUILD_BOSS_ATTEMPTS_PER_WEEK);
+      expect(
+        await db().select().from(guildMembers).where(eq(guildMembers.accountId, real.id)),
+      ).toEqual([]);
       expect(
         await db().select().from(guildBossRewards).where(eq(guildBossRewards.accountId, real.id)),
       ).toEqual([]);
