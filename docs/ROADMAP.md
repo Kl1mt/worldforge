@@ -1382,7 +1382,7 @@ Owner decision (2026-11-11): cosmetics may also be bought for real money later. 
   - no randomized paid items without a legal review (GDD §13.3).
 - Then build: purchases as audited, idempotent grants into the collection book; receipts; admin refund and reversal tools; test-mode payments only in CI; no card data ever touches the server.
 
-### 8.7 Phase 8 hardening & exit — `done (PR #PRNUM)`
+### 8.7 Phase 8 hardening & exit — `done (PR #149)`
 Like 6.10:
 - an exit run over the new region, boss, events calendar, guild seasons and the QoL features, reconciled;
 - a browser run in CI;
