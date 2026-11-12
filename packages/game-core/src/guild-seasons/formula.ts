@@ -15,7 +15,8 @@ import { findCommunityProject, type ProjectResource } from '../world/projects.js
  *   tenth of the gold of a stage = 10), at most 100 per member; the best 20 count: at most 2,000.
  *
  * Order: the total, then the guild boss part, then PvE, then the town works part (`sortKey`,
- * higher first); the server adds "reached first", then the guild id.
+ * higher first); the server adds "reached first" (`guildSeasonReachedAt`, from the facts' own
+ * times since ticket 8.4b), then the guild id.
  *
  * Pure: no clock, no randomness. Who counts (the churn rules) is decided by the server from
  * `GUILD_SEASON_RULES` and recorded in the input, which is stored with every row, so a row can

@@ -58,12 +58,16 @@ export async function insertStage(
   await db.insert(guildBossStages).values({ guildId, week, stage, reachedAt: at, attemptId: id });
 }
 
-/** A hero with a PvE Progress row of `value` milestones (of the version's list). */
+/**
+ * A hero with a PvE Progress row of `value` milestones (of the version's list), reached at
+ * `achievedAt` (default: the wall clock).
+ */
 export async function insertPve(
   db: Database,
   accountId: string,
   value: number,
   formulaVersion = 6,
+  achievedAt = new Date(),
 ) {
   const id = uuidv7();
   await db.insert(characters).values({
@@ -86,8 +90,8 @@ export async function insertPve(
     sortKey: [value, 0, 0],
     inputsHash: 'fixture',
     input: {} as never,
-    achievedAt: new Date(),
-    updatedAt: new Date(),
+    achievedAt,
+    updatedAt: achievedAt,
   });
   return id;
 }
