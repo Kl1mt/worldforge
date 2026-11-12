@@ -770,6 +770,8 @@ async function replayHoldings(
         break;
       // Ticket 4.6: contributions to a community project spend gold and materials.
       case 'community.contribute':
+      // Ticket 8.4: a gift to the guild treasury leaves the hero the same way.
+      case 'guild.treasury_contribute':
         gold -= d.gold!;
         addMaterials(d.materials, -1);
         break;
@@ -4936,4 +4938,88 @@ export async function playSealSinkStep(database: DatabaseHandle, hero: Journey) 
   const checks = await reconcileWithAudit(database.db);
   expect(checks.filter((c) => !c.ok)).toEqual([]);
   return { bought: ['crest.seal-wax', 'title-colour.abbey-silver'], engraving: 'silver:oathworn' };
+}
+
+/**
+ * Ticket 8.4: the guild hall (docs/GUILD_HALLS.md), after `playGuildStep`. The leader farms for a
+ * guild title colour, reads the no-refund notice and is refused without acknowledging it, gives to
+ * the treasury (a replay gives once), the officer buys the colour and hangs it; a stranger sees the
+ * look on the guild's public hall; the member (the officer) sees the guild on the season roll's
+ * "your guild" line, not yet listed (two members, both new). No 5.1 score moves; the hero's purse,
+ * the treasury and the telemetry reconcile with the audit log.
+ */
+export async function playGuildHallStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  hero: Journey,
+  { guildHandle, companion }: Awaited<ReturnType<typeof playGuildStep>>,
+) {
+  const price = 12_000;
+  const scores = async () => {
+    const r = await hero.api('GET', `${hero.base}/scores`);
+    expect(r.statusCode, r.body).toBe(200);
+    return r.json();
+  };
+  const gold = async () =>
+    (await hero.api('GET', '/api/characters'))
+      .json<{ characters: { id: string; gold: number }[] }>()
+      .characters.find((c) => c.id === hero.characterId)!.gold;
+  await hero.farmBestArea();
+  for (let i = 0; i < 400 && (await gold()) < price; i++) {
+    await hero.settle();
+    await hero.equipBetterDrops();
+    await hero.sellJunk(await hero.inventory());
+    await hero.farmBestArea();
+  }
+  expect((await hero.api('POST', `${hero.base}/activity/settle`)).statusCode).toBe(200);
+  const before = await scores();
+  const hall = await hero.api('GET', '/api/guild/hall');
+  expect(hall.statusCode, hall.body).toBe(200);
+  expect(hall.json<{ notice: string }>().notice).toMatch(/never given back/);
+  const offer = [{ resource: 'gold', amount: price }];
+  const refused = await hero.keyed('/api/guild/hall/contribute', {
+    characterId: hero.characterId,
+    offer,
+    acknowledgeNoRefund: false,
+  });
+  expect(refused.statusCode).toBe(422);
+  const key = randomUUID();
+  const body = { characterId: hero.characterId, offer, acknowledgeNoRefund: true };
+  const purse = await gold();
+  const given = await hero.keyed('/api/guild/hall/contribute', body, key);
+  expect(given.statusCode, given.body).toBe(200);
+  const replay = await hero.keyed('/api/guild/hall/contribute', body, key);
+  expect(replay.headers['idempotency-replayed']).toBe('true');
+  expect(await gold()).toBe(purse - price);
+  // The officer spends it on the guild's name colour and hangs it.
+  const bought = await companion.api(
+    'POST',
+    '/api/guild/hall/buy',
+    { upgradeId: 'guild-colour.forge-gold' },
+    { 'idempotency-key': randomUUID() },
+  );
+  expect(bought.statusCode, bought.body).toBe(200);
+  const hung = await companion.api(
+    'POST',
+    '/api/guild/hall/display',
+    { titleColour: 'guild-colour.forge-gold' },
+    { 'idempotency-key': randomUUID() },
+  );
+  expect(hung.statusCode, hung.body).toBe(200);
+  const stranger = await newPlayer(app, 'hallguest@graumark.test', 'Ilse Thorn');
+  const look = await stranger.api('GET', `/api/guilds/${guildHandle}/hall`);
+  expect(look.statusCode, look.body).toBe(200);
+  expect(look.json<{ look: { titleColour: string | null } }>().look.titleColour).toBe(
+    'guild-colour.forge-gold',
+  );
+  const roll = await companion.api('GET', '/api/leaderboards/guilds');
+  expect(roll.statusCode, roll.body).toBe(200);
+  // Cosmetic only.
+  expect(await scores()).toEqual(before);
+  await expectHoldingsMatchAudit(database, hero.characterId);
+  const checks = await reconcileWithAudit(database.db);
+  for (const c of checks.filter((c) => c.check.startsWith('guild '))) {
+    expect(c, c.check).toMatchObject({ ok: true });
+  }
+  return { guildHandle, colour: 'guild-colour.forge-gold' };
 }
