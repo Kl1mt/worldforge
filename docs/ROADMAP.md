@@ -1334,7 +1334,7 @@ Read `docs/EVENTS.md` (incl. B.5b's "longer chase" guidance).
 - An event of several weeks is never given fewer days than its weeks (weeks × 7; the Lantern Procession 28): refused by hand, by moving its end (ending now still works), in the rotation editor and the CLI with `400 length_too_short` and the minimum. A one-week event keeps 6.6's limits.
 - Admin-only (the calendar is paused in production): no patch note, no migration.
 
-### 8.4 Guild seasons & guild halls (vertical) — `done (PR #TBD)`
+### 8.4 Guild seasons & guild halls (vertical) — `done (PR #147)`
 Read `docs/SOCIAL.md` (guilds), `docs/GUILD_BOSS.md`, `docs/LEADERBOARDS.md` (seasons, honours), `docs/COSMETICS.md`.
 - **A guild season ranking:** guild boss progress, community contributions and member PvE Progress, combined in a published, versioned formula. Archived with the 5.3 seasons, with cosmetic guild honours (crest frames and banners via 6.8).
 - **Guild halls:** a guild page with cosmetic upgrades bought from a shared guild treasury the members fund. Cosmetic only: no stats, no drop odds. Audited and reconciled, with B.3-style anti-monopoly caps.
