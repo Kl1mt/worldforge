@@ -5,6 +5,7 @@ import {
   GUILD_ROLE_LABELS,
   PRESENCE_LABELS,
   guildDecision,
+  findGuildHonourTier,
   guildEmblem,
   validatePlayerText,
   type GuildAction,
@@ -12,7 +13,16 @@ import {
   type GuildTarget,
 } from '@worldforge/game-core';
 import type { ApiResult } from '../lib/api';
-import { arenaHref, guildHandleFromHash, guildHref, profileHref } from '../lib/route';
+import {
+  arenaHref,
+  boardHref,
+  guildHandleFromHash,
+  guildHref,
+  profileHref,
+  routeHref,
+} from '../lib/route';
+import { guildHallApi, useLoad } from '../social/guildHall';
+import { HallCrest, backdropClass, guildNameClass } from '../social/HallLook';
 import { formatNumber } from '../lib/format';
 import { useCharacters } from '../characters/CharactersProvider';
 import { useAuth } from '../auth/AuthProvider';
@@ -103,11 +113,37 @@ function NoticeLine({ notice }: { notice: Notice }) {
 
 const nameOf = (p: GuildPerson) => p.displayName ?? 'A player whose name is hidden';
 
-function GuildName({ guild }: { guild: Pick<GuildSummary, 'name' | 'tag'> }) {
+function GuildName({
+  guild,
+  colour,
+}: {
+  guild: Pick<GuildSummary, 'name' | 'tag'>;
+  /** Ticket 8.4: the hall's name colour (a hall upgrade), or none. */
+  colour?: string | null;
+}) {
   return (
     <>
-      {guild.name} <span className="guild-tag">[{guild.tag}]</span>
+      <span className={guildNameClass(colour)}>{guild.name}</span>{' '}
+      <span className="guild-tag">[{guild.tag}]</span>
     </>
+  );
+}
+
+/** Ticket 8.4: a guild's hall look and honours (cosmetic), as public as its profile. */
+function useHallLook(handle: string) {
+  const { state } = useLoad((s) => guildHallApi.look(handle, s), [handle]);
+  return state.kind === 'ready' ? state.value : null;
+}
+
+function HallHonours({ honours }: { honours: { season: number; tier: string; rank: number }[] }) {
+  if (honours.length === 0) return null;
+  return (
+    <p className="guildbanner__meta guild-honours">
+      {honours
+        .slice(0, 3)
+        .map((h) => `Season ${h.season}: ${findGuildHonourTier(h.tier)?.name ?? h.tier}`)
+        .join(' · ')}
+    </p>
   );
 }
 
@@ -656,24 +692,30 @@ function MyGuildPage({
   const can = (action: GuildAction, target?: GuildTarget) =>
     guildDecision(me, action, target) === 'allowed';
   const officer = can('viewRequests');
+  const look = useHallLook(guild.handle);
 
   return (
     <>
-      <header className={`guildbanner guildbanner--${guildEmblem(guild.emblem).id}`}>
+      <header
+        className={`guildbanner guildbanner--${guildEmblem(guild.emblem).id} ${backdropClass(look?.look.backdrop)}`}
+      >
         <div className="guildbanner__cloth">
-          <Crest emblem={guild.emblem} size="lg" />
+          <HallCrest frame={look?.look.crestFrame ?? null} emblem={guild.emblem} />
         </div>
         <div className="guildbanner__intro">
           <p className="caps guildbanner__where">Guild Hall · founded {guild.foundedOn}</p>
           <h1 id="guild-title" className="display guildbanner__title">
-            <GuildName guild={guild} />
+            <GuildName guild={guild} colour={look?.look.titleColour ?? null} />
           </h1>
+          <HallHonours honours={look?.honours ?? []} />
           <p className="guildbanner__meta">
             {guild.memberCount} of 30 sworn · you are {GUILD_ROLE_LABELS[me].toLowerCase()}
             {stale ? ' · could not refresh, showing the last roll' : ''}
           </p>
           <p className="fellowship__fine">
-            <a href={guildHref(guild.handle)}>The guild as others see it</a>
+            <a href={guildHref(guild.handle)}>The guild as others see it</a> ·{' '}
+            <a href={routeHref('treasury')}>The treasury &amp; the hall</a> ·{' '}
+            <a href={boardHref('guilds')}>The guild roll</a>
           </p>
         </div>
       </header>
@@ -1183,6 +1225,7 @@ function Departure({
 // A guild's public profile
 
 function GuildProfileScreen({ handle }: { handle: string }) {
+  const look = useHallLook(handle);
   const [state, setState] = useState<
     | { kind: 'loading' }
     | { kind: 'ready'; profile: GuildProfile }
@@ -1249,15 +1292,18 @@ function GuildProfileScreen({ handle }: { handle: string }) {
   const { guild, members, standing } = state.profile;
   return (
     <section className="guildhall" aria-labelledby="guild-title">
-      <header className={`guildbanner guildbanner--${guildEmblem(guild.emblem).id}`}>
+      <header
+        className={`guildbanner guildbanner--${guildEmblem(guild.emblem).id} ${backdropClass(look?.look.backdrop)}`}
+      >
         <div className="guildbanner__cloth">
-          <Crest emblem={guild.emblem} size="lg" />
+          <HallCrest frame={look?.look.crestFrame ?? null} emblem={guild.emblem} />
         </div>
         <div className="guildbanner__intro">
           <p className="caps guildbanner__where">Guild · founded {guild.foundedOn}</p>
           <h1 id="guild-title" className="display guildbanner__title">
-            <GuildName guild={guild} />
+            <GuildName guild={guild} colour={look?.look.titleColour ?? null} />
           </h1>
+          <HallHonours honours={look?.honours ?? []} />
           <p className="guildbanner__meta">{guild.memberCount} of 30 sworn</p>
           <div className="guildbanner__actions">
             <StandingAction guild={guild} standing={standing} run={run} busy={busy} />

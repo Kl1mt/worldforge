@@ -655,6 +655,47 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
       ],
     ]),
     ['world: era changes', audit('world.era_change', sql`count(*)`), sumRollups(rows, 'world.era')],
+    // Ticket 8.4: guild treasuries take gold and materials from heroes; buys spend the treasury.
+    [
+      'guild treasury: gifts',
+      audit('guild.treasury_contribute', sql`count(*)`),
+      sumRollups(rows, 'guild_treasury.contribute'),
+    ],
+    [
+      'guild treasury: gold given',
+      audit('guild.treasury_contribute', num(sql`data->>'gold'`)),
+      sumRollups(rows, 'gold.out', src('guild_treasury'), 'amount'),
+    ],
+    [
+      'guild treasury: gold given (counter)',
+      audit('guild.treasury_contribute', num(sql`data->>'gold'`)),
+      sumRollups(rows, 'guild_treasury.contribute', () => true, 'amount'),
+    ],
+    [
+      'guild treasury: materials given',
+      bundle('guild.treasury_contribute', sql`a.data->'materials'`),
+      sumRollups(rows, 'material.out', src('guild_treasury'), 'amount'),
+    ],
+    [
+      'guild hall: upgrades bought',
+      audit('guild.hall_buy', sql`count(*)`),
+      sumRollups(rows, 'guild_hall.buy'),
+    ],
+    [
+      'guild hall: treasury gold spent',
+      audit('guild.hall_buy', num(sql`data->>'gold'`)),
+      sumRollups(rows, 'guild_hall.buy', () => true, 'amount'),
+    ],
+    [
+      'guild treasury: forfeits',
+      audit('guild.treasury_forfeit', sql`count(*)`),
+      sumRollups(rows, 'guild_treasury.forfeit'),
+    ],
+    [
+      'guild seasons: honours',
+      audit('guild_season.award', num(sql`data->>'guilds'`)),
+      sumRollups(rows, 'guild_season.award'),
+    ],
     // Warehouse (ticket 4.7): moves are counted per item; upgrades spend gold.
     ...(['deposit', 'withdraw'] as const).map((direction): [string, Promise<number>, number] => [
       `warehouse: items ${direction === 'deposit' ? 'deposited' : 'withdrawn'}`,
@@ -861,6 +902,35 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
           and data->>'kind' = ${kind}`,
     );
   const holdings: [string, Promise<number>, Promise<number>][] = [
+    // Ticket 8.4: guild treasuries hold exactly what members gave, less what buys spent and
+    // disbands forfeited (audit log against the stored treasuries).
+    [
+      'guild treasury: gold held = gifts − buys − forfeits',
+      auditScalar(
+        db,
+        sql`select coalesce(sum(case when event = 'guild.treasury_contribute' then 1 else -1 end
+                 * (data->>'gold')::bigint), 0) as n
+            from audit_log where event in ('guild.treasury_contribute', 'guild.hall_buy',
+                                           'guild.treasury_forfeit')`,
+      ),
+      auditScalar(db, sql`select coalesce(sum(gold), 0) as n from guild_treasuries`),
+    ],
+    [
+      'guild treasury: materials held = gifts − buys − forfeits',
+      auditScalar(
+        db,
+        sql`select coalesce(sum(case when a.event = 'guild.treasury_contribute' then 1 else -1 end
+                 * m.value::bigint), 0) as n
+            from audit_log a, jsonb_each_text(coalesce(a.data->'materials', '{}'::jsonb)) m
+            where a.event in ('guild.treasury_contribute', 'guild.hall_buy',
+                              'guild.treasury_forfeit')`,
+      ),
+      auditScalar(
+        db,
+        sql`select coalesce(sum(m.value::bigint), 0) as n
+            from guild_treasuries t, jsonb_each_text(t.materials) m`,
+      ),
+    ],
     // Ticket 6.6: the reward-track ledger holds exactly the audited grants, and the tracks hold
     // exactly the audited tallies.
     [

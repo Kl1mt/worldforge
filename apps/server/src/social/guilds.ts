@@ -99,7 +99,7 @@ const day = (d: Date) => d.toISOString().slice(0, 10);
 
 /** A guild that exists and that the viewer may see: hidden from players who block, or are blocked
  * by, its leader (a block hides each from the other everywhere; the guild is the leader's). */
-async function visibleGuild(executor: Executor, viewerId: string, handle: string) {
+export async function visibleGuild(executor: Executor, viewerId: string, handle: string) {
   const guild = await guildByHandle(executor, handle);
   if (!guild) return null;
   const leaderId = await guildLeaderId(executor, guild.id);

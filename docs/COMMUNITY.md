@@ -162,6 +162,9 @@ After the commit the route invalidates the world-state cache, so the next read s
 
 The contribution window is the **game-clock UTC day** (`contributionWindow(now)`, the window rule): each `community_contributions` row stores its `day`, written in the transaction that took the gift, so a gift at 23:59 counts on that day and one at 00:01 on the next, with a fresh cap (tested). The board shows `window.resetsAt`. Caps are per stage: a player who gave their share to stage 1 may give to stage 2 the same day once it opens.
 
+## Guild seasons (ticket 8.4)
+What a guild's members give to the town works during a season counts toward the guild's place on the Guild Roll (`LEADERBOARDS.md` "Guild seasons"): a whole need of one resource of a stage is 100 points, at most 100 per member, only gifts from the day after joining. It is read from `community_contributions` (no new column); nothing about giving changes. Guild treasuries (`GUILD_HALLS.md`) follow this file's cap model: a tenth of the whole hall's price per account and UTC day, no over-fill.
+
 ## World state
 
 - **One source of truth:** the `world_flags` table. A flag is written only in the transaction that completes its project (or by the owner's CLI, below), never removed.

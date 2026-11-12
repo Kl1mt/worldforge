@@ -39,6 +39,10 @@ import type {
   BossModifierId,
   EquipmentSlotId,
   GuildRole,
+  GuildHonourTier,
+  GuildSeasonInput,
+  TreasuryMaterial,
+  TreasuryResource,
   GuideState,
   LootFilterRules,
   MaterialId,
@@ -1625,6 +1629,12 @@ export const seasons = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     archivedAt: timestamp('archived_at', { withTimezone: true }),
     awardedAt: timestamp('awarded_at', { withTimezone: true }),
+    /**
+     * Ticket 8.4: the guild roll's final standings were taken (in the archive's transaction; null
+     * on seasons archived before 8.4) and its honours given.
+     */
+    guildArchivedAt: timestamp('guild_archived_at', { withTimezone: true }),
+    guildAwardedAt: timestamp('guild_awarded_at', { withTimezone: true }),
   },
   (t) => [
     check('seasons_window_check', sql`${t.endsAt} > ${t.startsAt}`),
@@ -2496,3 +2506,214 @@ export const reservedNames = pgTable(
 );
 
 export type ReservedName = typeof reservedNames.$inferSelect;
+
+/**
+ * Ticket 8.4: each guild's standing on the season's guild roll (docs/LEADERBOARDS.md "Guild
+ * seasons"), refreshed by the scheduler and on a member's read from stored facts. `value` and
+ * `sort_key` are game-core `guildSeasonScore(input, formula_version)` of the stored `input`;
+ * `inputs_hash` the SHA-256 of its canonical JSON. `achieved_at` (game clock) changes only when
+ * the key does. `members`: the counted members (the board lists guilds with enough of them).
+ */
+export const guildSeasonEntries = pgTable(
+  'guild_season_entries',
+  {
+    season: integer('season')
+      .notNull()
+      .references(() => seasons.number, { onDelete: 'cascade' }),
+    guildId: uuid('guild_id')
+      .notNull()
+      .references(() => guilds.id, { onDelete: 'cascade' }),
+    formulaVersion: integer('formula_version').notNull(),
+    value: bigint('value', { mode: 'number' }).notNull(),
+    sortKey: bigint('sort_key', { mode: 'number' }).array().notNull(),
+    inputsHash: text('inputs_hash').notNull(),
+    input: jsonb('input').$type<GuildSeasonInput>().notNull(),
+    members: integer('members').notNull(),
+    achievedAt: timestamp('achieved_at', { withTimezone: true }).notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.season, t.guildId] }),
+    index('guild_season_entries_rank_idx').on(
+      t.season,
+      sql`${t.sortKey} desc`,
+      t.achievedAt,
+      t.guildId,
+    ),
+    index('guild_season_entries_guild_id_idx').on(t.guildId),
+  ],
+);
+
+/**
+ * Ticket 8.4: the guild roll's final standings, taken once in the season archive's transaction.
+ * Name, tag and emblem are copies as they stood (a later rename keeps the record).
+ */
+export const guildSeasonStandings = pgTable(
+  'guild_season_standings',
+  {
+    season: integer('season')
+      .notNull()
+      .references(() => seasons.number, { onDelete: 'cascade' }),
+    guildId: uuid('guild_id')
+      .notNull()
+      .references(() => guilds.id, { onDelete: 'cascade' }),
+    rank: integer('rank').notNull(),
+    name: text('name').notNull(),
+    tag: text('tag').notNull(),
+    emblem: text('emblem').notNull(),
+    formulaVersion: integer('formula_version').notNull(),
+    value: bigint('value', { mode: 'number' }).notNull(),
+    sortKey: bigint('sort_key', { mode: 'number' }).array().notNull(),
+    inputsHash: text('inputs_hash').notNull(),
+    input: jsonb('input').$type<GuildSeasonInput>().notNull(),
+    members: integer('members').notNull(),
+    achievedAt: timestamp('achieved_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.season, t.guildId] }),
+    uniqueIndex('guild_season_standings_rank_idx').on(t.season, t.rank),
+    index('guild_season_standings_guild_id_idx').on(t.guildId),
+  ],
+);
+
+/**
+ * Ticket 8.4: the honour roll of each ranked guild at the archive (the churn rules: members of
+ * at least 14 days at the season's end who took part). One guild per account (the primary key).
+ */
+export const guildSeasonRosters = pgTable(
+  'guild_season_rosters',
+  {
+    season: integer('season')
+      .notNull()
+      .references(() => seasons.number, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    guildId: uuid('guild_id')
+      .notNull()
+      .references(() => guilds.id, { onDelete: 'cascade' }),
+  },
+  (t) => [
+    primaryKey({ columns: [t.season, t.accountId] }),
+    index('guild_season_rosters_guild_idx').on(t.season, t.guildId),
+  ],
+);
+
+/** Ticket 8.4: guild honours, at most one per guild and season (exactly-once by the key). */
+export const guildSeasonAwards = pgTable(
+  'guild_season_awards',
+  {
+    season: integer('season')
+      .notNull()
+      .references(() => seasons.number, { onDelete: 'cascade' }),
+    guildId: uuid('guild_id')
+      .notNull()
+      .references(() => guilds.id, { onDelete: 'cascade' }),
+    tier: text('tier').$type<GuildHonourTier>().notNull(),
+    rank: integer('rank').notNull(),
+    awardedAt: timestamp('awarded_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.season, t.guildId] }),
+    index('guild_season_awards_guild_id_idx').on(t.guildId),
+    check('guild_season_awards_tier_check', sql`${t.tier} in ('champion', 'exalted', 'renowned')`),
+  ],
+);
+
+/**
+ * Ticket 8.4: a guild's shared treasury (docs/GUILD_HALLS.md): gold and materials its members gave,
+ * spent only on cosmetic hall upgrades. Changes only under the guild's lock. Never refunded; a
+ * disbanded guild's treasury is forfeit (set to nothing, audited).
+ */
+export const guildTreasuries = pgTable(
+  'guild_treasuries',
+  {
+    guildId: uuid('guild_id')
+      .primaryKey()
+      .references(() => guilds.id, { onDelete: 'cascade' }),
+    gold: bigint('gold', { mode: 'number' }).notNull().default(0),
+    materials: jsonb('materials')
+      .$type<Partial<Record<TreasuryMaterial, number>>>()
+      .notNull()
+      .default({}),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [check('guild_treasuries_gold_check', sql`${t.gold} >= 0`)],
+);
+
+/** Ticket 8.4: what each account gave a guild's treasury, per window (UTC day) and resource. */
+export const guildTreasuryGifts = pgTable(
+  'guild_treasury_gifts',
+  {
+    guildId: uuid('guild_id')
+      .notNull()
+      .references(() => guilds.id, { onDelete: 'cascade' }),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    day: date('day', { mode: 'string' }).notNull(),
+    resource: text('resource').$type<TreasuryResource>().notNull(),
+    amount: bigint('amount', { mode: 'number' }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.guildId, t.accountId, t.day, t.resource] }),
+    index('guild_treasury_gifts_account_id_idx').on(t.accountId),
+    check('guild_treasury_gifts_amount_check', sql`${t.amount} > 0`),
+  ],
+);
+
+/** Ticket 8.4: the hall upgrades a guild bought (once each), with what they cost. */
+export const guildHallUpgrades = pgTable(
+  'guild_hall_upgrades',
+  {
+    guildId: uuid('guild_id')
+      .notNull()
+      .references(() => guilds.id, { onDelete: 'cascade' }),
+    upgradeId: text('upgrade_id').notNull(),
+    boughtBy: uuid('bought_by').references(() => accounts.id, { onDelete: 'set null' }),
+    gold: bigint('gold', { mode: 'number' }).notNull(),
+    materials: jsonb('materials').$type<Partial<Record<TreasuryMaterial, number>>>().notNull(),
+    boughtAt: timestamp('bought_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [primaryKey({ columns: [t.guildId, t.upgradeId] })],
+);
+
+/**
+ * Ticket 8.4: the hall's look, one bought upgrade per kind or null (plain). Composite foreign keys
+ * keep it to the guild's own upgrades. No row = plain.
+ */
+export const guildHallDisplays = pgTable(
+  'guild_hall_displays',
+  {
+    guildId: uuid('guild_id')
+      .primaryKey()
+      .references(() => guilds.id, { onDelete: 'cascade' }),
+    hallBanner: text('hall_banner'),
+    crestFrame: text('crest_frame'),
+    backdrop: text('backdrop'),
+    titleColour: text('title_colour'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    foreignKey({
+      name: 'guild_hall_displays_banner_fk',
+      columns: [t.guildId, t.hallBanner],
+      foreignColumns: [guildHallUpgrades.guildId, guildHallUpgrades.upgradeId],
+    }),
+    foreignKey({
+      name: 'guild_hall_displays_crest_fk',
+      columns: [t.guildId, t.crestFrame],
+      foreignColumns: [guildHallUpgrades.guildId, guildHallUpgrades.upgradeId],
+    }),
+    foreignKey({
+      name: 'guild_hall_displays_backdrop_fk',
+      columns: [t.guildId, t.backdrop],
+      foreignColumns: [guildHallUpgrades.guildId, guildHallUpgrades.upgradeId],
+    }),
+    foreignKey({
+      name: 'guild_hall_displays_colour_fk',
+      columns: [t.guildId, t.titleColour],
+      foreignColumns: [guildHallUpgrades.guildId, guildHallUpgrades.upgradeId],
+    }),
+  ],
+);

@@ -13,10 +13,11 @@ import { loadWorldState } from '../community/world-state.js';
 import { checkLeaderboards, type CheckReport } from './check.js';
 import { FormulaVersionSource } from './formulas.js';
 import { refreshAll, type SnapshotDeps } from './snapshot.js';
+import { checkGuildSeasons, refreshGuildSeason } from '../guild-seasons/model.js';
 
 const USAGE = `Usage:
-  pnpm admin:leaderboards check      (recompute every stored row; exit 1 if one is wrong)
-  pnpm admin:leaderboards refresh    (rewrite every hero's rows from current state)`;
+  pnpm admin:leaderboards check      (recompute every stored row, guild roll included; exit 1 if one is wrong)
+  pnpm admin:leaderboards refresh    (rewrite every hero's rows and the guild roll from current state)`;
 
 export function cliDeps(db: Database): SnapshotDeps {
   const formulas = new FormulaVersionSource(db, 0);
@@ -66,9 +67,18 @@ if (isMain) {
       const report = await checkLeaderboards(deps);
       console.log(formatCheck(report));
       if (report.problems.some((p) => p.kind === 'wrong')) process.exitCode = 1;
+      // Ticket 8.4: the guild roll's rows (live and archived) against the guild season formula.
+      const guilds = await checkGuildSeasons(cli.database.db);
+      console.log(`Guild roll: ${guilds.rows} rows, ${guilds.wrong.length} wrong.`);
+      for (const w of guilds.wrong.slice(0, 20))
+        console.log(`  season ${w.season} ${w.table} ${w.guildId}: does not match its formula`);
+      if (guilds.wrong.length > 0) process.exitCode = 1;
     } else {
       const updated = await refreshAll(deps, new Date());
       console.log(`Refreshed: ${updated} heroes changed.`);
+      // Ticket 8.4: and the season's guild roll (every guild, from stored facts).
+      const roll = await refreshGuildSeason(cli.database.db, new Date(), new Date());
+      console.log(`Guild roll: ${roll.updated} of ${roll.refreshed} guilds changed.`);
       console.log(formatCheck(await checkLeaderboards(deps)));
     }
   } catch (err) {

@@ -1,4 +1,4 @@
-# Leaderboards: what is measured (5.1), the boards (5.2), seasons and prestige (5.3), the arena ladder (5.6), balance (B.4)
+# Leaderboards: what is measured (5.1), the boards (5.2), seasons and prestige (5.3), the arena ladder (5.6), balance (B.4), guild seasons (8.4)
 
 GDD §10.2, §16.3; Phase 5 ground rules in `ROADMAP.md`. This ticket defines the four scores, their published formulas and a read-only breakdown on the character screen ("Standing"). Boards, storage and filters are ticket 5.2; seasons 5.3.
 
@@ -159,6 +159,53 @@ A fifth season board, next to the four: the season's rated duel ladder (`GET /ap
 - **Who is ranked:** heroes with at least 10 rated duels in the season (attacking or defending); fewer are "provisional" and appear only under your own place, without a rank. Order: rating, then more rated duels, then the earlier latest duel, then the hero id. Shown in plain words: the rating, its likely range (± 2 deviations) and "provisional", "still settling" or "settled".
 - **Seasons:** a rating lives in one 5.3 season. At the season's end the archive copies the ladder into `season_standings` as metric `arena` (same transaction and lock as the four boards; established heroes, sanctioned accounts left out), and `awardSeason` honours it with the same tiers, exactly once (title noun **Duellist**, the Character Power badge, the tier frames). The next season starts every hero halfway back toward 1,500.
 - **Not a score:** the ladder has no `leaderboard_entries` rows, no formula version of the 5.1 kind and no recompute check; every rating change is stored on its duel (`duels.rating`) and can be recomputed with game-core's `rateDuel`.
+
+## Guild seasons (ticket 8.4)
+
+A sixth roll beside the five: the **Guild Roll** (`#/boards/guilds`), each guild's standing in a 5.3 season. Cosmetic honours only; no guild-vs-guild combat. Code: game-core `guild-seasons/` (`guildSeasonScore`, `GUILD_SEASON_WEIGHTS`, `GUILD_SEASON_RULES`, `GUILD_HONOUR_TIERS`, `guildSeasonAwards`); server `apps/server/src/guild-seasons/` (`model.ts` inputs, refresh, archive, awards, check; `routes.ts` `GET /api/leaderboards/guilds`); web `screens/GuildRoll.tsx`, the guild's place in `TreasuryScreen.tsx`. The hall and treasury: `GUILD_HALLS.md`.
+
+### For players: how a guild is scored (formula version 1)
+Three parts, added up. Everything comes from what the server stored; nothing a browser sends counts.
+- **Guild boss:** every guild boss stage the guild broke during the season: Cracked 20, Staggered 40, Broken 60, Shattered 80, Laid to Rest 100 points. A week with all five stages is 300; an eight-week season at most 2,400.
+- **Members' PvE Progress:** each counted member brings up to 100 points: their best hero's PvE Progress as a share of its milestones (25 of 25 is 100, 20 of 25 is 80). Only the best 20 members count, so at most 2,000.
+- **Town works:** what each counted member gave to the community projects during the season: giving a whole need of one resource of a stage is 100 points (a tenth of a stage's gold, 10). At most 100 points per member; the best 20 count, at most 2,000. (When every project is finished, this part is 0 for everyone.)
+
+The guild with more points is ahead; between equal totals the higher guild boss part, then PvE, then the town works; then whoever got there first. The roll shows each guild's three parts and how many members counted; it names no player.
+
+### Who counts (the churn rules, `GUILD_SEASON_RULES`; abuse-resistant by design)
+- **Counted members:** members of the guild now (at the refresh; at the archive, members then) who joined **at least 7 days** earlier, are not test accounts (D.4) and have no active sanction. A member who leaves or is kicked stops counting at once and takes their part with them; a joiner adds nothing for a week.
+- **Town-works gifts** count only from the **day after the member joined** (and inside the season): a player cannot carry earlier gifts into a new guild.
+- **Guild boss stages** are the guild's own (the damage stays with the guild it was fought for, `GUILD_BOSS.md`), whoever is in it now.
+- **On the roll** only with at least **3 counted members** and a score above 0 (a guild of test accounts has none and never appears). Left off at read time, as 5.2 does for players: a guild whose leader has an active sanction, a guild under a moderator's forced rename, a disbanded guild; on a past season's archive the ranks are kept.
+- **Honours** go to the guild's **honour roll**: members at the archive who had been in the guild **at least 14 days at the season's end**, are not test accounts, have no active sanction then, **and took part** for the guild during the season (a guild boss attempt for it, or a counted town-works gift). So joining a top guild in the last two weeks earns nothing, and an idle alt in a strong guild earns nothing either. One guild per account (5.3's rules and the membership key), so nobody is on two rolls.
+
+### Honours by tier (`GUILD_HONOUR_TIERS`, scaled with the roll like B.4)
+| Tier | Place on the final Guild Roll | Cosmetics for the honour roll (cumulative) |
+|---|---|---|
+| **Champion guild** | 1st | + `banner.guild-champion` Champion guild standard, `crest.guild-champion` Crowned guild crest |
+| **Exalted guild** | top 10 % (at least the top 2, at most the top 3) | + `banner.guild-exalted` Exalted muster banner, `crest.guild-exalted` Brass guild crest |
+| **Renowned guild** | top 30 % (at least the top 3, at most the top 10) | `banner.guild-renowned` Renowned muster banner, `crest.guild-renowned` Pewter guild crest |
+
+A roll of 3 guilds: places 1/2/3; of 10: 1, 2, 3; of 40: 1, 2–3, 4–10. The tiers are never more than the roll's size. The cosmetics are 6.8 catalogue entries (source `guildSeason`, `COSMETICS.md`), the laurel banner and the gilt crest recoloured in CSS (no new art); the guild itself keeps its honour (`guild_season_awards`), shown on its page and on the past season's roll. **Honours change no number in the game.**
+
+### The live roll and the recompute check
+`guild_season_entries` holds one row per season and guild: `formula_version`, `value`, `sort_key` ([total, boss, pve, community]), `inputs_hash` (SHA-256 of the canonical input), the full stored `input` (the stages and each counted member's PvE share and gifts; no account ids), `members`, `achieved_at` (changes only when the key does). Written by `refreshGuildSeason` from stored facts under the season's **shared** lock (like 5.2's refreshes), at the start of every scheduler season step (all guilds), on a member's read of the roll or their hall (their own guild), and by `pnpm admin:leaderboards refresh`. `pnpm admin:leaderboards check` recomputes every live and archived guild row (`checkGuildSeasons`): a value, key or hash that does not match its formula is **wrong** (exit 1). Order: `sort_key` desc, `achieved_at`, guild id (`compareGuildEntries`). Pages of 25; the board-read limit (60 a minute, its own `guildBoards` counter).
+
+### Archive and honours (exactly once, resumable)
+- **Archive:** inside 5.3's `archiveSeason` transaction, under the season's exclusive lock (`archiveGuildSeasonTx`): every guild is scored at the season's end (stages reached before it, members' tenure at it, gifts on days that began inside it), the listed ones ranked 1…n into `guild_season_standings` (name, tag and emblem copied), each ranked guild's honour roll written (`guild_season_rosters`), and `guild_archived_at` set with `archived_at`. Refreshes in flight finish first; none writes after it.
+- **Awards:** `awardGuildSeason` (the scheduler's season step after 5.3's awards; `admin:seasons close`): honours from the standings with game-core `guildSeasonAwards` (deterministic), inserted with `on conflict do nothing` on `(season, guild)`; each roll member's tier cosmetics through `grantCosmeticsTx` (exactly once per account by `cosmetic_unlocks`' key, source `guildSeason:<n>`), in batches; then, in one transaction under the season lock, `guild_awarded_at` is set, `guild_season.award` audited once and telemetry recorded. A crash leaves `guild_awarded_at` null and the next run finishes the same set; several runs at once insert each honour and each cosmetic once (real-PG test, with crashes and a restart mid-award). A season archived before 8.4 (no guild archive) is marked done with nothing.
+
+### Privacy
+No player is named on the roll (counts only). Each guild shows its name, tag, emblem and hall look; the link to its page only where the viewer may see the guild (not blocked either way with its leader, `SOCIAL.md` "Blocks"; tested). A guild under a forced rename is left off (on an archive, shown as "Name withheld"). No account or guild ids in answers (tested).
+
+### Formula versions
+`GUILD_SEASON_FORMULA_VERSION` = 1; every stored row carries its version and can be recomputed (`guildSeasonScore(input, version)`). Change a weight or rule that moves a value: add a version in `GUILD_SEASON_WEIGHTS`, ship it between seasons (6.1's rule), pin it in `guild-seasons.test.ts`. The member PvE part reads each member's PvE Progress row at its own formula version (a share of that version's milestones), so a PvE Progress switch between seasons moves nobody's share unfairly.
+
+### Invariance
+The roll and the hall only read gameplay rows; nothing in the rules imports `guild-seasons/` or `guild-halls/` (the import scan); a hero's 5.1 scores are unchanged by giving, buying, hanging and honours (tests and the journey).
+
+### Owner questions
+(1) Three counted members to be on the roll, 7 days to count and 14 days for honours: right for the live town's guild sizes? All three are data. (2) The weights make the boss part the largest (2,400) beside PvE and the town works (2,000 each); the town-works part is 0 once every project is finished — keep it, or replace it later (e.g. with event marks)?
 
 ## Balance pass: competitive systems (ticket B.4)
 

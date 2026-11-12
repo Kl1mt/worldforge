@@ -1,6 +1,7 @@
 import {
   findAchievement,
   findEventDefinition,
+  findGuildHonourTier,
   findPrestigeTier,
   type CosmeticKind,
   type CosmeticMilestone,
@@ -66,6 +67,10 @@ export function howToEarn(source: CosmeticSource): string {
     }
     case 'exchange':
       return 'Trade Gravewarden’s Seals or Abbey silver for it at the Forge’s exchange.';
+    case 'guildSeason': {
+      const t = findGuildHonourTier(source.minTier);
+      return `Be on the honour roll of a ${t?.name ?? 'top guild'} or better at a season’s end (two weeks in the guild, and taking part).`;
+    }
   }
 }
 
@@ -84,6 +89,8 @@ export function sourceLabel(source: CosmeticSource): string {
       return 'Season';
     case 'exchange':
       return 'Exchange';
+    case 'guildSeason':
+      return 'Guild';
   }
 }
 

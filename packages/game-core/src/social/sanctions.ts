@@ -103,6 +103,10 @@ export const SOCIAL_WRITE_ACTIONS = [
   'presence',
   // Ticket 5.5: a duel (rated or friendly).
   'duel',
+  // Ticket 8.4: the guild hall (treasury gifts, buying and hanging upgrades).
+  'guildTreasury',
+  'guildHallBuy',
+  'guildHallDisplay',
 ] as const;
 export type SocialWriteAction = (typeof SOCIAL_WRITE_ACTIONS)[number] | (string & {});
 
@@ -140,6 +144,10 @@ export const MUTE_EXEMPT: readonly string[] = [
   'guildBossAttempt',
   // Ticket 5.5: a duel carries no text (like the guild boss); a mute is about speech.
   'duel',
+  // Ticket 8.4: the guild hall carries no text; giving, buying and hanging a look reach no one.
+  'guildTreasury',
+  'guildHallBuy',
+  'guildHallDisplay',
 ];
 
 /** The sanction that blocks this social write, if any (suspension first). */

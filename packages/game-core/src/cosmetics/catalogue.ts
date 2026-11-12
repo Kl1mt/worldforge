@@ -1,4 +1,5 @@
 import { PRESTIGE_TIER_IDS, type PrestigeTier } from '../scoring/prestige.js';
+import { guildTierOrder, type GuildHonourTier } from '../guild-seasons/honours.js';
 
 /**
  * The cosmetic catalogue (ticket 6.6 started it, ticket 6.8's collection book completes it;
@@ -50,7 +51,9 @@ export type CosmeticMilestone =
  * - `milestone`: a hero of the account reaches it (level, a boss slain, a crypt tier cleared);
  * - `season`: a season honour of at least `minTier` on any board (5.3);
  * - `exchange`: ticket 6.11, traded at the Forge for Gravewarden's Seals and Abbey silver earned in
- *   play (`COSMETIC_EXCHANGE` in `exchange.ts` holds the price; never real money).
+ *   play (`COSMETIC_EXCHANGE` in `exchange.ts` holds the price; never real money);
+ * - `guildSeason`: ticket 8.4, the guild honours of a season at least `minTier`, for the members on
+ *   the guild's honour roll (docs/LEADERBOARDS.md "Guild honours").
  */
 export type CosmeticSource =
   | { kind: 'default' }
@@ -58,7 +61,8 @@ export type CosmeticSource =
   | { kind: 'achievement'; achievementId: string }
   | { kind: 'milestone'; milestone: CosmeticMilestone }
   | { kind: 'season'; minTier: PrestigeTier }
-  | { kind: 'exchange' };
+  | { kind: 'exchange' }
+  | { kind: 'guildSeason'; minTier: GuildHonourTier };
 
 export interface CosmeticDefinition {
   /** `<kind>.<kebab-case name>`; stored in `cosmetic_unlocks.cosmetic_id`. */
@@ -314,6 +318,49 @@ export const COSMETICS: readonly CosmeticDefinition[] = [
     description: 'For walking the whole Lantern Procession, gate to Hollow.',
     source: { kind: 'event', eventId: 'lanternProcession' },
   },
+  // --- 8.4: guild honours (cumulative by tier; existing art with code treatments) ---
+  {
+    id: 'banner.guild-renowned',
+    kind: 'banner',
+    name: 'Renowned muster banner',
+    description: 'The laurel banner in pewter, carried by a guild of renown.',
+    source: { kind: 'guildSeason', minTier: 'renowned' },
+  },
+  {
+    id: 'crest.guild-renowned',
+    kind: 'crest',
+    name: 'Pewter guild crest',
+    description: 'A pewter rim for the members of a Renowned guild.',
+    source: { kind: 'guildSeason', minTier: 'renowned' },
+  },
+  {
+    id: 'banner.guild-exalted',
+    kind: 'banner',
+    name: 'Exalted muster banner',
+    description: 'The laurel banner in old brass, for one of the season’s foremost guilds.',
+    source: { kind: 'guildSeason', minTier: 'exalted' },
+  },
+  {
+    id: 'crest.guild-exalted',
+    kind: 'crest',
+    name: 'Brass guild crest',
+    description: 'The gilt rim, darkened to brass, for the members of an Exalted guild.',
+    source: { kind: 'guildSeason', minTier: 'exalted' },
+  },
+  {
+    id: 'banner.guild-champion',
+    kind: 'banner',
+    name: 'Champion guild standard',
+    description: 'The laurel banner in crimson and gold: the season’s first guild.',
+    source: { kind: 'guildSeason', minTier: 'champion' },
+  },
+  {
+    id: 'crest.guild-champion',
+    kind: 'crest',
+    name: 'Crowned guild crest',
+    description: 'A gilt rim with a crimson glow, worn by the Champion guild’s members.',
+    source: { kind: 'guildSeason', minTier: 'champion' },
+  },
 ];
 
 const BY_ID = new Map(COSMETICS.map((c) => [c.id, c]));
@@ -390,6 +437,14 @@ export function seasonCosmeticsEarned(tiers: Iterable<PrestigeTier>): string[] {
   if (!Number.isFinite(best)) return [];
   return COSMETICS.filter(
     (c) => c.source.kind === 'season' && best <= tierRank(c.source.minTier),
+  ).map((c) => c.id);
+}
+
+/** Ticket 8.4: the cosmetics a guild honour of `tier` earns (every tier at or below it). */
+export function guildSeasonCosmeticsEarned(tier: GuildHonourTier): string[] {
+  return COSMETICS.filter(
+    (c) =>
+      c.source.kind === 'guildSeason' && guildTierOrder(tier) <= guildTierOrder(c.source.minTier),
   ).map((c) => c.id);
 }
 

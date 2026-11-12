@@ -23,9 +23,23 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.8.2';
+export const GAME_VERSION = '0.8.3';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.8.3',
+    date: '2026-11-20',
+    title: 'Guild seasons and guild halls',
+    new: [
+      'The Guild Roll: a new roll beside the others ranks the guilds each season by what they did together: the guild boss stages they broke, their members’ PvE Progress and what their members gave to the town works. Open it from the Roll of Renown or your Guild Hall; “How the roll is counted” explains every point.',
+      'A new member counts for their guild a week after joining, and a member who leaves stops counting at once. A guild needs three counted members to be on the roll.',
+      'Guild honours at a season’s end: the Champion, Exalted and Renowned guilds, with a guild banner and a guild crest for each, worn like any other keepsake. They go to members who were in the guild for at least two weeks before the season ended and fought the guild boss or gave to the town works for it.',
+      'The guild treasury and the hall: members give gold, timber, raw hide, iron ore, soul shards and Abbey silver to their guild’s treasury, and the leader and officers buy the hall’s looks with it: hall banners, a frame for the guild’s crest, the light in the hall and a colour for the guild’s name. They show on the guild’s page and on the Guild Roll.',
+      'Gifts to the treasury are never given back, not if you leave, are removed, or the guild is disbanded; a disbanded guild’s treasury is lost. The treasury says so before every gift. No one may give more than a tenth of the whole hall’s price in any one thing a day.',
+      'Everything here is for show only: no hall look or honour changes a number in play.',
+    ],
+    tickets: ['8.4'],
+  },
   {
     version: '0.8.2',
     date: '2026-11-19',

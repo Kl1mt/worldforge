@@ -30,6 +30,13 @@ export const ART_TINTS: Readonly<Record<string, string>> = {
   'banner.procession-lantern': 'banner.warden-flame',
   'banner.hollow-procession': 'banner.ember-standard',
   'crest.lantern-brass': 'crest.iron',
+  // Ticket 8.4: guild honours (the laurel banner and the gilt crest, recoloured per tier).
+  'banner.guild-renowned': 'banner.season-laurel',
+  'banner.guild-exalted': 'banner.season-laurel',
+  'banner.guild-champion': 'banner.season-laurel',
+  'crest.guild-renowned': 'crest.gilt',
+  'crest.guild-exalted': 'crest.gilt',
+  'crest.guild-champion': 'crest.gilt',
 };
 
 /** `#rrggbb` → `#rrggbb`. */

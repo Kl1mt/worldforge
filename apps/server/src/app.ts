@@ -31,6 +31,8 @@ import { registerFriends } from './social/friends.js';
 import { registerGuilds } from './social/guilds.js';
 import { registerGuildChat } from './social/guild-chat.js';
 import { registerGuildBoss } from './guild-boss/routes.js';
+import { registerGuildHalls } from './guild-halls/routes.js';
+import { registerGuildSeasons } from './guild-seasons/routes.js';
 import { registerLegal, type LegalOptions } from './legal/routes.js';
 import { registerAdmin, type AdminOptions } from './admin/routes.js';
 import { SchedulerState, type SchedulerJob } from './admin/scheduler-state.js';
@@ -225,6 +227,8 @@ export function buildApp({
       await registerGuilds(api, activityOptions);
       await registerGuildChat(api);
       await registerGuildBoss(api, activityOptions);
+      // Ticket 8.4: guild halls and the guild season roll.
+      await registerGuildHalls(api, activityOptions);
       await registerCommunity(api, activityOptions);
       await registerWarehouse(api, activityOptions);
       await registerShelf(api, activityOptions);
@@ -244,6 +248,7 @@ export function buildApp({
       await registerScores(api, activityOptions.now);
       await registerLeaderboards(api, { now: activityOptions.now, ...leaderboards });
       await registerSeasons(api, { now: activityOptions.now });
+      await registerGuildSeasons(api, activityOptions, { readLimit: leaderboards?.readLimit });
       await registerEvents(api, activityOptions);
       await registerCosmetics(api, { now: activityOptions.now });
       await registerArena(api, activityOptions);

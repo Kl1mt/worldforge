@@ -334,6 +334,17 @@ Ticket 4.11: **a block takes the guild offers it hides with it** (`dropGuildOffe
 
 The weekly guild boss has its own file: `docs/GUILD_BOSS.md` (attempts, the week, stage rewards and who earns them, the permission matrix `guildBossDecision`, locks and races). It uses this file's pieces: attempts are social writes (`guildBossAttempt`, mute-exempt), membership is read under the guild lock, and the damage board hides players blocked either way.
 
+## Guild seasons and guild halls — ticket 8.4
+
+`docs/LEADERBOARDS.md` "Guild seasons" (the Guild Roll, who counts, honours) and `docs/GUILD_HALLS.md` (the treasury and the hall). What concerns this file:
+- **Roles:** giving to the treasury is every member's (`guildHallDecision`); buying and hanging the hall's looks are the leader's and officers'. Account roles stay CLI-only.
+- **Social writes:** `guildTreasury`, `guildHallBuy`, `guildHallDisplay` (rate limited, a suspension blocks them; a mute does not: they carry no text and reach no one). Every change runs under the guild lock, so a gift racing a kick, a leave or a disband lands before it or is refused.
+- **Leaving, kicks, disbanding:** gifts are never refunded (shown before every gift and acknowledged); a member who leaves stops counting for the Guild Roll at once; a disband forfeits the treasury (audited `guild.treasury_forfeit`) in `disbandGuildTx`, for a leader's and a moderator's disband alike.
+- **Privacy:** the Guild Roll names no player; a guild's link follows the guild's visibility (blocked either way with its leader: listed, no link). The hall's look is as public as the guild's profile (`GET /api/guilds/:handle/hall`, `404` where the guild is hidden).
+- **Sanctions:** a guild whose leader has an active sanction, or that is under a forced rename, is left off the roll at read time; a sanctioned member does not count and gets no honours.
+- **Test accounts:** never counted; a test account funds only a guild of test accounts (`403 test_account`).
+- **Audit events:** `guild.treasury_contribute`, `guild.hall_buy`, `guild.hall_display`, `guild.treasury_forfeit`, `guild_season.award`.
+
 ## Guild chat — ticket 4.5
 
 Code: game-core `social/guild-chat.ts` (`guildChatDecision`, `GUILD_CHAT_LIMITS`, tombstones), server `apps/server/src/social/chat-model.ts` (`visibleMessage`, `messageTargetKey`, `latestSeq`) and `guild-chat.ts` (routes), web `social/guildChat.ts` (`useGuildChat`) and `screens/GuildChat.tsx` (the chronicle in the Guild Hall). Table: `guild_messages`, plus `guilds.notice_message_id` (`DATA_MODEL.md`). Endpoints in `API_CONVENTIONS.md`.
