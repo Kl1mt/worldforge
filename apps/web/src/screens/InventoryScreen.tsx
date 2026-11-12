@@ -428,8 +428,8 @@ export function InventoryScreen() {
               </p>
               <p>
                 {free === 0
-                  ? 'New drops that find no room are salvaged for gold the moment they drop. Legendary, Mythic, set and Void drops are kept anyway, beyond the limit.'
-                  : 'Once it is full, new drops that find no room are salvaged for gold the moment they drop (Legendary, Mythic, set and Void drops are kept anyway).'}{' '}
+                  ? 'New drops that find no room are salvaged for gold the moment they drop. Legendary, Mythic, set, Void and Prismatic drops are kept anyway, beyond the limit.'
+                  : 'Once it is full, new drops that find no room are salvaged for gold the moment they drop (Legendary, Mythic, set, Void and Prismatic drops are kept anyway).'}{' '}
                 {sinceBack(tally)}{' '}
                 {tally.filtered > 0
                   ? `Your loot filter handled ${tally.filtered} more for ${formatNumber(tally.filteredGold)} gold; those never need room.`
@@ -598,7 +598,7 @@ export function InventoryScreen() {
                 <p className="stash__free">
                   {free} free {free === 1 ? 'slot' : 'slots'}
                   {free === 0
-                    ? ' · drops that find no room are salvaged for gold, except Legendary, Mythic, set and Void'
+                    ? ' · drops that find no room are salvaged for gold, except Legendary, Mythic, set, Void and Prismatic'
                     : ''}
                 </p>
               ) : null}

@@ -23,9 +23,25 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.8.3';
+export const GAME_VERSION = '0.8.4';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.8.4',
+    date: '2026-11-21',
+    title: 'Letters, presets and other comforts',
+    new: [
+      'Letters: one place for the news that matters to you. Great finds (Legendary, Mythic, set pieces, Void and Prismatic), trade offers and what became of them, duels fought against your defence, event rewards, season and guild honours, the town’s finished works and new eras, and each new version. Open them from the top bar; a number shows how many you have not read. Mark one or all as read, and follow each letter to its place. Letters are kept for 60 days.',
+      'Find things in your pack: search by name, affix, effect or set; sort by rarity, item level, slot, newest, or what would improve on what you wear; and filter by slot, rarity, Void or Prismatic, locked, tradeable or bound, on a trade hold, or awakened. The Warehouse and the account shelf have the same search. Each remembers your last choice.',
+      'Loot filter presets: keep up to five named sets of rules per hero, switch between them with one press, rename or remove them.',
+      'Share a loot filter as a short code. Paste someone’s code to see what it would do before you use it or keep it as a preset.',
+      'Claim all: when two or more Tavern quests and contracts are done, collect every reward at once. If one cannot be paid (a full pack, say), the others still are, and you are told which.',
+    ],
+    changed: [
+      'The pack and the return summary now name Prismatic drops among those always kept when the pack is full.',
+    ],
+    tickets: ['8.5'],
+  },
   {
     version: '0.8.3',
     date: '2026-11-20',

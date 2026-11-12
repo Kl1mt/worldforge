@@ -818,11 +818,7 @@ export async function registerArena(
               kind,
               bracketId,
               outcome:
-                fight.outcome === 'draw'
-                  ? 'draw'
-                  : fight.outcome === 'defender'
-                    ? 'held'
-                    : 'fell',
+                fight.outcome === 'draw' ? 'draw' : fight.outcome === 'defender' ? 'held' : 'fell',
               ...(rating
                 ? {
                     rating: Math.round(

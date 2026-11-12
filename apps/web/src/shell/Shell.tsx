@@ -158,11 +158,14 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
               ) : null}
             </a>
             <a
-              className="purse__friends"
+              className="purse__friends purse__letters"
               href={routeHref('inbox')}
               aria-current={route === 'inbox' ? 'page' : undefined}
             >
-              Letters
+              <span className="purse__letters-mark" aria-hidden="true">
+                ✉
+              </span>
+              <span className="purse__letters-word">Letters</span>
               {unreadLetters ? (
                 <span className="new-tag">
                   {unreadLetters > 99 ? '99+' : unreadLetters}

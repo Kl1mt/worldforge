@@ -1,4 +1,6 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { join } from 'node:path';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { and, asc, eq } from 'drizzle-orm';
@@ -457,5 +459,30 @@ describe('the inbox (ticket 8.5)', () => {
     );
     expect(testDuel.statusCode, testDuel.body).toBe(201);
     expect(await ofKind(defender.who, 'duel.defence')).toHaveLength(1);
+  });
+
+  it('no game rule reads the inbox or the preset codes; the inbox writes only its own table', () => {
+    const files = (root: string) => {
+      const out: string[] = [];
+      const walk = (dir: string) => {
+        for (const f of readdirSync(dir)) {
+          const p = join(dir, f);
+          if (statSync(p).isDirectory()) walk(p);
+          else if (p.endsWith('.ts') && !p.endsWith('.test.ts')) out.push(p);
+        }
+      };
+      walk(root);
+      return out;
+    };
+    const core = join(import.meta.dirname, '../../../../packages/game-core/src');
+    const readers = files(core).filter((p) => /lootFilterCode\.js'/.test(readFileSync(p, 'utf8')));
+    expect(readers.map((p) => p.slice(core.length + 1))).toEqual(['economy/index.ts']);
+    const notify = readFileSync(join(import.meta.dirname, 'notify.ts'), 'utf8');
+    const written = [
+      ...notify.matchAll(
+        /\.(?:insert|update|delete)\((\w+)\)|insert into (\w+)|delete from (\w+)/g,
+      ),
+    ].map((m) => m[1] ?? m[2] ?? m[3]);
+    expect(new Set(written)).toEqual(new Set(['accountNotifications', 'account_notifications']));
   });
 });

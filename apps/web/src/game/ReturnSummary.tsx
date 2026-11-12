@@ -188,7 +188,7 @@ export function ReturnSummaryDialog({ heroName }: { heroName: string }) {
               Pack full: {summary.itemsSalvaged} {summary.itemsSalvaged === 1 ? 'drop' : 'drops'}{' '}
               found no room and {summary.itemsSalvaged === 1 ? 'was' : 'were'} salvaged for{' '}
               {formatNumber(summary.goldSalvaged)} gold ({formatNumber(lootGold)} gold from loot).
-              Legendary, Mythic, set and Void drops are never salvaged this way.
+              Legendary, Mythic, set, Void and Prismatic drops are never salvaged this way.
             </li>
           ) : null}
           {(summary.itemsOverCapacity ?? 0) > 0 ? (
@@ -196,7 +196,7 @@ export function ReturnSummaryDialog({ heroName }: { heroName: string }) {
               Over capacity: {summary.itemsOverCapacity} valuable{' '}
               {summary.itemsOverCapacity === 1 ? 'drop' : 'drops'} found no room and{' '}
               {summary.itemsOverCapacity === 1 ? 'was' : 'were'} kept anyway. Until you make room,
-              only Legendary, Mythic, set and Void drops are kept.
+              only Legendary, Mythic, set, Void and Prismatic drops are kept.
             </li>
           ) : null}
           {summary.cappedMs > 0 ? (
