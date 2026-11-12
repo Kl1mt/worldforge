@@ -2137,6 +2137,11 @@ export async function playHollowDeepStep(
   database: DatabaseHandle,
   hero: Journey,
   now: () => Date,
+  /**
+   * Ticket 8.7: `lit` when the town has already lit the lanterns (the Phase 8 exit run's ten
+   * givers and the owner's stage command); the step then starts at the open Deep.
+   */
+  { lit = false }: { lit?: boolean } = {},
 ) {
   const { api, base, keyed, state } = hero;
   type Board = {
@@ -2152,35 +2157,38 @@ export async function playHollowDeepStep(
   const throneView = async () =>
     (await hero.world()).dungeons.find((d) => d.id === 'hollowThrone')!;
   expect(state.level).toBeGreaterThanOrEqual(getDungeonTier('hollowThrone', 1).unlock.level);
-  expect((await view()).blockers).toEqual([{ kind: 'worldFlag', flag: 'deepLanternsLit' }]);
-  const refused = await api('POST', `${base}/activity`, { areaId: area.id });
-  expect(refused.statusCode).toBe(409);
-  expect((await throneView()).unlocked).toBe(false);
+  if (!lit) await lightTheLanterns();
+  async function lightTheLanterns() {
+    expect((await view()).blockers).toEqual([{ kind: 'worldFlag', flag: 'deepLanternsLit' }]);
+    const refused = await api('POST', `${base}/activity`, { areaId: area.id });
+    expect(refused.statusCode).toBe(409);
+    expect((await throneView()).unlocked).toBe(false);
 
-  // The town lights the lanterns: the hero's share of gold, then the owner's test-setup command.
-  const board = (await api('GET', '/api/community/projects')).json<Board>();
-  const lanterns = board.projects.find((p) => p.id === 'deepLanterns')!;
-  expect(lanterns).toMatchObject({ status: 'open', stageIndex: 0 });
-  const posts = lanterns.stages[0]!;
-  const heroGold = async () =>
-    (await api('GET', '/api/characters'))
-      .json<{ characters: { id: string; gold: number }[] }>()
-      .characters.find((c) => c.id === hero.characterId)!.gold;
-  const held = await heroGold();
-  expect(held).toBeGreaterThanOrEqual(100);
-  const offer = Math.min(held - 50, posts.needs.find((n) => n.resource === 'gold')!.cap);
-  const gave = await keyed('/api/community/projects/deepLanterns/contribute', {
-    characterId: hero.characterId,
-    stageId: posts.id,
-    offer: [{ resource: 'gold', amount: offer }],
-  });
-  expect(gave.statusCode, gave.body).toBe(200);
-  expect(await advanceStage(database.db, 'deepLanterns', now(), { production: true })).toMatch(
-    /^Refused/,
-  );
-  for (let i = 0; i < 3; i++)
-    await advanceStage(database.db, 'deepLanterns', now(), { production: false });
-  app.worldState.invalidate();
+    // The town lights the lanterns: the hero's share of gold, then the owner's test-setup command.
+    const board = (await api('GET', '/api/community/projects')).json<Board>();
+    const lanterns = board.projects.find((p) => p.id === 'deepLanterns')!;
+    expect(lanterns).toMatchObject({ status: 'open', stageIndex: 0 });
+    const posts = lanterns.stages[0]!;
+    const heroGold = async () =>
+      (await api('GET', '/api/characters'))
+        .json<{ characters: { id: string; gold: number }[] }>()
+        .characters.find((c) => c.id === hero.characterId)!.gold;
+    const held = await heroGold();
+    expect(held).toBeGreaterThanOrEqual(100);
+    const offer = Math.min(held - 50, posts.needs.find((n) => n.resource === 'gold')!.cap);
+    const gave = await keyed('/api/community/projects/deepLanterns/contribute', {
+      characterId: hero.characterId,
+      stageId: posts.id,
+      offer: [{ resource: 'gold', amount: offer }],
+    });
+    expect(gave.statusCode, gave.body).toBe(200);
+    expect(await advanceStage(database.db, 'deepLanterns', now(), { production: true })).toMatch(
+      /^Refused/,
+    );
+    for (let i = 0; i < 3; i++)
+      await advanceStage(database.db, 'deepLanterns', now(), { production: false });
+    app.worldState.invalidate();
+  }
   const after = (await api('GET', '/api/world')).json<{
     flags: Record<string, boolean>;
     era: { id: string; title: string };
@@ -4955,7 +4963,20 @@ export async function playGuildHallStep(
   app: FastifyInstance,
   database: DatabaseHandle,
   hero: Journey,
-  { guildHandle, companion }: Awaited<ReturnType<typeof playGuildStep>>,
+  {
+    guildHandle,
+    companion,
+    invite,
+    strangerEmail = 'hallguest@graumark.test',
+    baseline,
+  }: Pick<Awaited<ReturnType<typeof playGuildStep>>, 'guildHandle'> & {
+    companion: Pick<Player, 'api'>;
+    /** Ticket 8.7: the invite code (an invite-only town) and the stranger's address. */
+    invite?: string;
+    strangerEmail?: string;
+    /** Ticket 8.7: a seeded hero's holdings baseline (`holdingsBaseline`). */
+    baseline?: HoldingsBaseline;
+  },
 ) {
   const price = 12_000;
   const scores = async () => {
@@ -5009,7 +5030,7 @@ export async function playGuildHallStep(
     { 'idempotency-key': randomUUID() },
   );
   expect(hung.statusCode, hung.body).toBe(200);
-  const stranger = await newPlayer(app, 'hallguest@graumark.test', 'Ilse Thorn');
+  const stranger = await newPlayer(app, strangerEmail, 'Ilse Thorn', invite);
   const look = await stranger.api('GET', `/api/guilds/${guildHandle}/hall`);
   expect(look.statusCode, look.body).toBe(200);
   expect(look.json<{ look: { titleColour: string | null } }>().look.titleColour).toBe(
@@ -5019,7 +5040,7 @@ export async function playGuildHallStep(
   expect(roll.statusCode, roll.body).toBe(200);
   // Cosmetic only.
   expect(await scores()).toEqual(before);
-  await expectHoldingsMatchAudit(database, hero.characterId);
+  await expectHoldingsMatchAudit(database, hero.characterId, baseline);
   const checks = await reconcileWithAudit(database.db);
   for (const c of checks.filter((c) => c.check.startsWith('guild '))) {
     expect(c, c.check).toMatchObject({ ok: true });
