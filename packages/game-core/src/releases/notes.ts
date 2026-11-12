@@ -23,9 +23,20 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.8.4';
+export const GAME_VERSION = '0.8.5';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.8.5',
+    date: '2026-11-22',
+    title: 'Small fixes after the Hollow Reach',
+    fixed: [
+      'Removing a loot filter preset twice (a slow connection, a second window) no longer removes the next preset as well. If your presets changed in another window, you are asked to look again.',
+      'A preset name with a broken character is refused with a plain message instead of an error.',
+      'Letters about other players’ trade offers and duels against your defence can no longer push your own letters (honours, event rewards, great finds, the town’s news) out of your inbox.',
+    ],
+    tickets: ['8.7'],
+  },
   {
     version: '0.8.4',
     date: '2026-11-21',
