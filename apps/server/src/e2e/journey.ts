@@ -13,6 +13,7 @@ import { randomUUID } from 'node:crypto';
 import { and, eq, inArray, like, or, sql } from 'drizzle-orm';
 import {
   CONTRACT_TEMPLATES,
+  encodeLootFilterCode,
   ceilToMonday,
   GUILD_BOSS_ATTEMPTS_PER_WEEK,
   prestigeTierFor,
@@ -5024,4 +5025,99 @@ export async function playGuildHallStep(
     expect(c, c.check).toMatchObject({ ok: true });
   }
   return { guildHandle, colour: 'guild-colour.forge-gold' };
+}
+
+/**
+ * Ticket 8.5: the quality-of-life pass. The hero takes the Tavern's notices, farms until at least
+ * two are ready and claims them in one request (a retry replays, nothing is paid twice); keeps a
+ * loot-filter preset, shares it as a code, previews the code and uses it, then uses the preset
+ * (each a settled, audited filter change); and reads the inbox (the version's note, the badge's
+ * `304`, mark all read). Presets, codes and the inbox move no score. Reconciled at the end.
+ */
+export async function playQualityOfLifeStep(database: DatabaseHandle, hero: Journey) {
+  const { api, keyed, base } = hero;
+  // The Tavern: take what is offered, then farm until two or more are ready.
+  await hero.visitTavern();
+  const readyOnes = async () => (await hero.board()).quests.filter((q) => q.status === 'ready');
+  await hero.farmBestArea();
+  for (let i = 0; i < 300 && (await readyOnes()).length < 2; i++) {
+    await hero.settle();
+    await hero.equipBetterDrops();
+    await hero.sellJunk(await hero.inventory());
+    await hero.farmBestArea();
+  }
+  const ready = await readyOnes();
+  expect(ready.length).toBeGreaterThanOrEqual(2);
+  const audits = async () =>
+    (
+      await database.db
+        .select({ id: auditLog.id })
+        .from(auditLog)
+        .where(and(eq(auditLog.characterId, hero.characterId), eq(auditLog.event, 'quest.turn_in')))
+    ).length;
+  const before = await audits();
+  const key = randomUUID();
+  const body = { questIds: ready.map((q) => q.id) };
+  const claimed = await keyed(`${base}/quests/turn-in-batch`, body, key);
+  expect(claimed.statusCode, claimed.body).toBe(200);
+  const results = claimed.json<{ results: { questId: string; ok: boolean; code?: string }[] }>()
+    .results;
+  // A reward item into a full pack is the one refusal a ready quest can meet.
+  for (const r of results) if (!r.ok) expect(r.code).toBe('inventory_full');
+  const paid = results.filter((r) => r.ok).length;
+  expect(paid).toBeGreaterThan(0);
+  const replay = await keyed(`${base}/quests/turn-in-batch`, body, key);
+  expect(replay.headers['idempotency-replayed']).toBe('true');
+  expect(replay.json()).toEqual(claimed.json());
+  expect(await audits()).toBe(before + paid);
+  for (const r of results.filter((x) => x.ok)) {
+    const q = ready.find((x) => x.id === r.questId)!;
+    hero.state.turnedIn.push({ kind: q.kind, questId: q.questId, item: null });
+  }
+
+  // Presets and codes: no score moves.
+  const scores = async () => (await api('GET', `${base}/scores`)).json();
+  const scoresBefore = await scores();
+  const junk = {
+    action: 'sell',
+    belowRarity: 'uncommon',
+    wantedAffixes: [],
+    wantedEffects: [],
+    include: [],
+  };
+  const saved = await api('POST', `${base}/loot-filter/presets`, {
+    slot: 0,
+    name: 'Common out',
+    rules: junk,
+  });
+  expect(saved.statusCode, saved.body).toBe(200);
+  const code = encodeLootFilterCode(junk as never);
+  const preview = await api('POST', `${base}/loot-filter/decode`, { code });
+  expect(preview.json()).toMatchObject({ rules: junk, active: true });
+  const used = await api('POST', `${base}/loot-filter`, { code });
+  expect(used.json()).toMatchObject({ rules: junk, active: true });
+  const off = await api('POST', `${base}/loot-filter`, { rules: null });
+  expect(off.json()).toMatchObject({ rules: null });
+  const preset = await api('POST', `${base}/loot-filter`, { preset: 0 });
+  expect(preset.json()).toMatchObject({ rules: junk, presets: [{ name: 'Common out' }] });
+  expect((await api('POST', `${base}/loot-filter`, { rules: null })).statusCode).toBe(200);
+
+  // The inbox: this version's notes; the badge's ETag; all read.
+  const list = await api('GET', '/api/inbox');
+  expect(list.statusCode, list.body).toBe(200);
+  const entries = list.json<{ entries: { kind: string }[]; unread: number }>();
+  expect(entries.entries.some((e) => e.kind === 'release')).toBe(true);
+  const summary = await api('GET', '/api/inbox/summary');
+  const etag = summary.headers.etag as string;
+  expect(
+    (await api('GET', '/api/inbox/summary', undefined, { 'if-none-match': etag })).statusCode,
+  ).toBe(304);
+  const read = await api('POST', '/api/inbox/read', { all: true });
+  expect(read.json()).toMatchObject({ unread: 0 });
+  expect(await scores()).toEqual(scoresBefore);
+
+  await expectHoldingsMatchAudit(database, hero.characterId);
+  const checks = await reconcileWithAudit(database.db);
+  expect(checks.filter((c) => !c.ok)).toEqual([]);
+  return { claimed: paid, presets: 1 };
 }
