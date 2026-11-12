@@ -368,9 +368,10 @@ describe.skipIf(!url)('real PostgreSQL: the guild boss races safely', () => {
   });
 
   // Ticket 6.10 (docs/PHASE6_EXPLOIT_REVIEW.md F1): a test account fights only for a guild of test
-  // accounts. A real player joining races its attempts: each lands before the join (the real player
-  // was no member, so no stage it breaks pays them) or is refused; never a reward for the player.
-  it('a test account’s attempts racing a real player’s join: landed before it or refused', async () => {
+  // accounts. Ticket 8.7 (docs/PHASE8_EXPLOIT_REVIEW.md F4): a real player may not join such a
+  // guild at all (its stages stay with it). Racing its attempts, in every order: the join is
+  // refused, the attempts all land, and nothing ever reaches the real player.
+  it('a test account’s attempts racing a real player’s join: the join refused in every order', async () => {
     const retries = transactionStats.retries;
     clock = () => SATURDAY;
     const week = guildBossWeek(SATURDAY).key;
@@ -395,16 +396,61 @@ describe.skipIf(!url)('real PostgreSQL: the guild boss races safely', () => {
         round,
       );
       const codes = (await Promise.all(jobs.map((j) => j()))).map(status);
-      expect(codes).toContain(200);
-      const landed = codes.filter((c) => c === 201).length;
-      expect(landed + codes.filter((c) => c === '403 test_account').length).toBe(
-        GUILD_BOSS_ATTEMPTS_PER_WEEK,
-      );
-      // After the join every test-account attempt is refused.
-      expect(status(await attempt(leader, heroes[0]!))).toBe('403 test_account');
+      expect(codes.filter((c) => c === '403 test_guild')).toHaveLength(1);
+      expect(codes.filter((c) => c === 201)).toHaveLength(GUILD_BOSS_ATTEMPTS_PER_WEEK);
+      expect(
+        await db().select().from(guildMembers).where(eq(guildMembers.accountId, real.id)),
+      ).toEqual([]);
       expect(
         await db().select().from(guildBossRewards).where(eq(guildBossRewards.accountId, real.id)),
       ).toEqual([]);
+      await expectExact(guild, { [week]: boss.stages[0]!.threshold - 1 });
+    }
+    expect(transactionStats.retries).toBe(retries);
+  });
+
+  // Ticket 8.7: what can still race after F4. The last real member leaves a guild of test
+  // accounts while a test account attempts: each attempt is refused while the real member is in
+  // (6.10's F1) or lands after the leave; a stage it breaks never pays the one who left.
+  it('a test account’s attempts racing the last real member’s leave: refused before, landed after', async () => {
+    const retries = transactionStats.retries;
+    clock = () => SATURDAY;
+    const week = guildBossWeek(SATURDAY).key;
+    for (let round = 0; round < ROUNDS; round++) {
+      const { guild, accounts, heroes } = await guildOf(3);
+      const [leader, tester, real] = accounts as [TestAccount, TestAccount, TestAccount];
+      await setTestAccount(db(), leader.handle, true);
+      await setTestAccount(db(), tester.handle, true);
+      await nearStage(guild, week, 1);
+      const jobs = shuffled(
+        [
+          ...Array.from(
+            { length: GUILD_BOSS_ATTEMPTS_PER_WEEK },
+            () => () => attempt(tester, heroes[1]!),
+          ),
+          () => call(real, 'POST', '/api/guild/leave'),
+        ],
+        round,
+      );
+      const codes = (await Promise.all(jobs.map((j) => j()))).map(status);
+      expect(codes.filter((c) => c === 200)).toHaveLength(1);
+      const landed = codes.filter((c) => c === 201).length;
+      const refused = codes.filter((c) => c === '403 test_account').length;
+      expect(landed + refused).toBe(GUILD_BOSS_ATTEMPTS_PER_WEEK);
+      // Whatever the order, the real member is out and was never paid.
+      expect(
+        await db().select().from(guildMembers).where(eq(guildMembers.accountId, real.id)),
+      ).toEqual([]);
+      expect(
+        await db().select().from(guildBossRewards).where(eq(guildBossRewards.accountId, real.id)),
+      ).toEqual([]);
+      // Now all-test: the guild tests away, and the real player can't come back (F4).
+      expect(
+        status(await call(leader, 'POST', '/api/guild/invites', { handle: real.handle })),
+      ).toBe(200);
+      expect(status(await call(real, 'POST', `/api/guilds/${guild.handle}/invite/accept`))).toBe(
+        '403 test_guild',
+      );
       await expectExact(guild, { [week]: boss.stages[0]!.threshold - 1 });
     }
     expect(transactionStats.retries).toBe(retries);

@@ -50,7 +50,7 @@ Account roles (moderator, admin) stay CLI-only and play no part here.
 - **Disband** (the leader's or a moderator's, `disbandGuildTx`): the treasury is **forfeit** in the disband's transaction: set to nothing, audited `guild.treasury_forfeit` (gold, materials, `byModerator`), counted `guild_treasury.forfeit`. Gifts racing a disband land wholly before it (and are forfeit) or are refused (`404`, no longer a member) — real-PG race, reconciled in every order.
 
 ### Test accounts (D.4)
-A test account gives to, and buys for, only a guild made entirely of test accounts (`403 test_account`, read under the guild lock). A guild of test accounts may use every hall feature for testing; it never appears on the Guild Roll (its members never count).
+A test account gives to, buys for and (ticket 8.7) chooses the display of only a guild made entirely of test accounts (`403 test_account`, read under the guild lock), and a real account may not join such a guild (`403 test_guild`, `docs/GUILD_BOSS.md`). A guild of test accounts may use every hall feature for testing; it never appears on the Guild Roll (its members never count).
 
 ## Reconciliation and telemetry
 `report:telemetry --reconcile` (`reconcileWithAudit`) checks: gifts, gold given (`gold.out guild_treasury` and the counter), materials given (`material.out guild_treasury`), upgrades bought and the treasury gold they spent (`guild_hall.buy`), forfeits, and the holdings: **gold and materials held in all treasuries = gifts − buys − forfeits** in the audit log. The treasury is a sink at the moment of the gift (the gold leaves the economy then; a buy moves nothing out of a hero).

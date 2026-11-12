@@ -177,10 +177,19 @@ async function cancelForCalendar(
  * Skips the calendar's next event: an automatic one waiting to begin is cancelled (the next entry
  * takes its place at the next run); otherwise the rotation passes over its next entry.
  */
+/**
+ * Ticket 8.7: names what a skip would pass over (the cursor, the events created, the waiting one),
+ * so a skip sent twice from one view (a lost answer, two tabs) skips once (`409 calendar_changed`).
+ */
+const skipTokenOf = (nextIndex: number, createdCount: number, waiting: WorldEvent | null) =>
+  `${nextIndex}.${createdCount}.${waiting?.number ?? 0}`;
+
 export async function skipCalendarEvent(
   db: Database,
   now: Date,
   actor: EventPlanActor,
+  /** The view's `skipToken`; the panel always sends it, the CLI (one typed command) may not. */
+  expect?: string,
 ): Promise<{ state: CalendarState; skipped: string; cancelled: number | null }> {
   return underPlanLock(db, async (tx) => {
     await actor.guard?.(tx);
@@ -188,6 +197,13 @@ export async function skipCalendarEvent(
     const s = before.settings;
     if (s.rotation.length === 0) throw calendarError('empty_rotation');
     const waiting = await waitingCalendarEvent(tx, now);
+    if (expect !== undefined && expect !== skipTokenOf(s.nextIndex, before.createdCount, waiting)) {
+      throw new ApiError(
+        409,
+        'calendar_changed',
+        'The calendar changed since you looked (the skip may already have happened). Look again.',
+      );
+    }
     let next = s;
     let skipped: string;
     if (waiting) {
@@ -329,6 +345,8 @@ export interface CalendarView {
   gapDays: number;
   nextIndex: number;
   createdCount: number;
+  /** Ticket 8.7: sent back with a skip (`skipCalendarEvent`'s `expect`). */
+  skipToken: string;
   updatedAt: string | null;
   planned: {
     definitionId: string;
@@ -353,6 +371,11 @@ export async function calendarView(db: Executor, now: Date): Promise<CalendarVie
     gapDays: c.settings.gapDays,
     nextIndex: c.settings.nextIndex,
     createdCount: c.createdCount,
+    skipToken: skipTokenOf(
+      c.settings.nextIndex,
+      c.createdCount,
+      await waitingCalendarEvent(db, now),
+    ),
     updatedAt: c.updatedAt?.toISOString() ?? null,
     planned: planned.map((p) => ({
       definitionId: p.definitionId,
@@ -375,6 +398,7 @@ export const calendarViewSchema = {
     'gapDays',
     'nextIndex',
     'createdCount',
+    'skipToken',
     'updatedAt',
     'planned',
   ],
@@ -396,6 +420,7 @@ export const calendarViewSchema = {
     gapDays: { type: 'integer' },
     nextIndex: { type: 'integer' },
     createdCount: { type: 'integer' },
+    skipToken: { type: 'string' },
     updatedAt: { type: ['string', 'null'] },
     planned: {
       type: 'array',

@@ -261,6 +261,15 @@ describe('guild halls', () => {
     expect(status(await give(tester, hero.id, [{ resource: 'gold', amount: 100 }]))).toBe(
       '403 test_account',
     );
+    // Ticket 8.7: nor choose what a real guild shows (an officer's display write).
+    const shown = await app.inject({
+      method: 'POST',
+      url: '/api/guild/hall/display',
+      payload: { titleColour: null },
+      headers: { 'idempotency-key': randomUUID() },
+      cookies: { [SESSION_COOKIE]: tester.token },
+    });
+    expect(status(shown)).toBe('403 test_account');
     const t1 = await insertAccount(db());
     const t2 = await insertAccount(db());
     await setTestAccount(db(), t1.handle, true);

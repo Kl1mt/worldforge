@@ -595,10 +595,20 @@ export async function registerEventAdmin(
 
   admin.post(
     '/events/calendar/skip',
-    { schema: { response: { 200: adminEventsResponse } } },
+    {
+      schema: {
+        body: {
+          type: ['object', 'null'],
+          additionalProperties: false,
+          properties: { expect: { type: 'string', maxLength: 64 } },
+        },
+        response: { 200: adminEventsResponse },
+      },
+    },
     async (request) => {
       const now = options.now();
-      await skipCalendarEvent(admin.db, now, actor(request.auth!.account.id));
+      const body = request.body as { expect?: string } | null | undefined;
+      await skipCalendarEvent(admin.db, now, actor(request.auth!.account.id), body?.expect);
       return adminEventsBody(admin.db, now);
     },
   );

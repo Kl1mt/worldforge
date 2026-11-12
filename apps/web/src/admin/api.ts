@@ -216,8 +216,12 @@ export const adminApi = {
     rotation?: CalendarEntryInput[];
     gapDays?: number;
   }) => apiRequest<AdminEvents>('/admin/events/calendar', { method: 'POST', body: patch }),
-  skipCalendarEvent: () =>
-    apiRequest<AdminEvents>('/admin/events/calendar/skip', { method: 'POST' }),
+  /** Ticket 8.7: the view's `skipToken`, so a skip sent twice skips once (`calendar_changed`). */
+  skipCalendarEvent: (skipToken: string) =>
+    apiRequest<AdminEvents>('/admin/events/calendar/skip', {
+      method: 'POST',
+      body: { expect: skipToken },
+    }),
   /** Ticket 6.9: the reserved-names store (built in and added by admins). */
   reservedNames: (signal?: AbortSignal) =>
     get<{ names: ReservedNameRow[] }>('/admin/reserved-names', signal),
@@ -348,6 +352,7 @@ export interface AdminEvents {
     gapDays: number;
     nextIndex: number;
     createdCount: number;
+    skipToken: string;
     updatedAt: string | null;
     planned: {
       definitionId: string;

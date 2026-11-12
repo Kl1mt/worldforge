@@ -126,7 +126,7 @@ const renameBodySchema = {
   type: 'object',
   additionalProperties: false,
   required: ['name'],
-  properties: { name: nameSchema },
+  properties: { name: nameSchema, from: { type: 'string', minLength: 1, maxLength: 200 } },
 } as const;
 
 const decodeBodySchema = {
@@ -253,6 +253,15 @@ function presetNotFound(): ApiError {
   return new ApiError(404, 'preset_not_found', 'There is no preset in that slot.');
 }
 
+/** Ticket 8.7: the slot holds another preset than the one meant (the list changed meanwhile). */
+function presetChanged(): ApiError {
+  return new ApiError(
+    409,
+    'preset_changed',
+    'Your presets changed in the meantime. Look at the list again and try once more.',
+  );
+}
+
 export async function registerLootFilter(
   app: FastifyInstance,
   activity: ActivityOptions,
@@ -347,6 +356,18 @@ export async function registerLootFilter(
       schema: { params: characterParamsSchema, body: decodeBodySchema },
     },
     async (request) => {
+      // Ticket 8.7: like every hero route, another account's (or an unknown) hero is a 404.
+      const [own] = await app.db
+        .select({ id: characters.id })
+        .from(characters)
+        .where(
+          and(
+            eq(characters.id, request.params.characterId),
+            eq(characters.accountId, request.auth!.account.id),
+            isNull(characters.deletedAt),
+          ),
+        );
+      if (!own) throw characterNotFound();
       const rules = rulesFromBody({ code: request.body.code });
       return { rules, active: isLootFilterActive(rules) };
     },
@@ -399,7 +420,10 @@ export async function registerLootFilter(
     },
   );
 
-  app.post<{ Params: { characterId: string; slot: number }; Body: { name: string } }>(
+  app.post<{
+    Params: { characterId: string; slot: number };
+    Body: { name: string; from?: string };
+  }>(
     '/characters/:characterId/loot-filter/presets/:slot/rename',
     {
       preHandler: app.requireAccount,
@@ -417,6 +441,10 @@ export async function registerLootFilter(
         const held = await lockPresets(tx, accountId, characterId);
         const current = held.presets[slot];
         if (!current) throw presetNotFound();
+        // Ticket 8.7: `from` names the preset meant (another tab may have moved the slots).
+        if (request.body.from !== undefined && current.name !== request.body.from) {
+          throw presetChanged();
+        }
         const presets = [...held.presets];
         presets[slot] = { ...current, name };
         if (current.name !== name) {
@@ -436,20 +464,39 @@ export async function registerLootFilter(
     },
   );
 
-  app.delete<{ Params: { characterId: string; slot: number } }>(
+  app.delete<{
+    Params: { characterId: string; slot: number };
+    Querystring: { name: string };
+  }>(
     '/characters/:characterId/loot-filter/presets/:slot',
     {
       preHandler: app.requireAccount,
-      schema: { params: presetParamsSchema, response: { 200: responseSchema } },
+      schema: {
+        params: presetParamsSchema,
+        // Ticket 8.7: the delete names the preset it deletes. Deleting moves the later presets
+        // up a slot, so a retried delete by slot alone removed the next one.
+        querystring: {
+          type: 'object',
+          additionalProperties: false,
+          required: ['name'],
+          properties: { name: { type: 'string', minLength: 1, maxLength: 200 } },
+        },
+        response: { 200: responseSchema },
+      },
     },
     async (request): Promise<LootFilterResponse> => {
       const accountId = request.auth!.account.id;
       const { characterId, slot } = request.params;
+      const expected = request.query.name;
       return withTransaction(app.db, async (tx) => {
         const held = await lockPresets(tx, accountId, characterId);
         const current = held.presets[slot];
-        // Repeat-safe by state: deleting an empty slot changes nothing.
-        if (!current) return view(characterId, held.rules, held.presets);
+        if (!current || current.name !== expected) {
+          // Repeat-safe by state: a preset already gone changes nothing; one that moved into
+          // this slot is not the one meant.
+          if (held.presets.some((p) => p.name === expected)) throw presetChanged();
+          return view(characterId, held.rules, held.presets);
+        }
         const presets = held.presets.filter((_, i) => i !== slot);
         await tx
           .update(characters)

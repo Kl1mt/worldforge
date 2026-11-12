@@ -45,6 +45,15 @@ export type InboxKind = (typeof INBOX_KINDS)[number];
 export const INBOX_KEEP = 200;
 /** … and for at most this many days. */
 export const INBOX_KEEP_DAYS = 60;
+/**
+ * Ticket 8.7: kinds another player's action writes, and whose number they choose (a trade offer
+ * sent, a friendly duel fought against the account's defence). At most this many of them are
+ * kept, pruned among themselves first, so a flood never pushes out the account's own letters
+ * (honours, event tiers, drops, the town's news), which are written once.
+ */
+export const INBOX_FROM_OTHERS_KINDS = ['trade.received', 'duel.defence'] as const;
+export const INBOX_KEEP_FROM_OTHERS = 100;
+const othersKinds = sql.raw(INBOX_FROM_OTHERS_KINDS.map((k) => `'${k}'`).join(', '));
 const DAY_MS = 86_400_000;
 
 export interface NotifyInput {
@@ -129,6 +138,11 @@ export async function pruneAccountInbox(
   await executor.execute(sql`
     delete from account_notifications where id in (
       select id from account_notifications where account_id = ${accountId}
+        and kind in (${othersKinds})
+      order by created_at desc, id desc offset ${INBOX_KEEP_FROM_OTHERS})`);
+  await executor.execute(sql`
+    delete from account_notifications where id in (
+      select id from account_notifications where account_id = ${accountId}
       order by created_at desc, id desc offset ${INBOX_KEEP})`);
 }
 
@@ -139,6 +153,17 @@ export async function pruneInboxes(executor: Executor, now: Date): Promise<numbe
     .delete(accountNotifications)
     .where(lt(accountNotifications.createdAt, cutoff))
     .returning({ id: accountNotifications.id });
+  const others = await queryRows<{ id: string }>(
+    executor,
+    sql`
+    delete from account_notifications where id in (
+      select id from (
+        select id, row_number() over (
+          partition by account_id order by created_at desc, id desc) as n
+        from account_notifications where kind in (${othersKinds})) ranked
+      where ranked.n > ${INBOX_KEEP_FROM_OTHERS})
+    returning id`,
+  );
   const over = await queryRows<{ id: string }>(
     executor,
     sql`
@@ -150,7 +175,7 @@ export async function pruneInboxes(executor: Executor, now: Date): Promise<numbe
       where ranked.n > ${INBOX_KEEP})
     returning id`,
   );
-  return old.length + over.length;
+  return old.length + others.length + over.length;
 }
 
 /** Marks entries read (only the account's own; already-read ones keep their time). */

@@ -1259,7 +1259,7 @@ GDD §15 Phase 7 exit, §16.3.
 - A Phase 7 retrospective in this file.
 
 ## Phase 8 — Live game: new content, events & quality of life
-**Status: planned** (tickets written 2026-11-11 by the owner's request; Phase 7 is deferred until later). The GDD plans only to Phase 7, so this phase is the owner's extension. It grows the live game on the browser client.
+**Status: complete** (ticket 8.7; see the Phase 8 retrospective below), with **B.6 open**: the live-data balance pass waits for the town to be live. 8.8 (the cosmetic shop) stays gated on the owner's decisions. Tickets written 2026-11-11 by the owner's request; Phase 7 is deferred until later. The GDD plans only to Phase 7, so this phase is the owner's extension. It grows the live game on the browser client.
 
 **Exit:** the live town has a new endgame region beyond level 40 that keeps Phase 6 content relevant, a self-running calendar of events, better everyday comfort, and a clear "going live" checklist the owner has worked through. Everything is reconciled, fair and free of pay-to-win, as in every earlier phase.
 
@@ -1382,12 +1382,117 @@ Owner decision (2026-11-11): cosmetics may also be bought for real money later. 
   - no randomized paid items without a legal review (GDD §13.3).
 - Then build: purchases as audited, idempotent grants into the collection book; receipts; admin refund and reversal tools; test-mode payments only in CI; no card data ever touches the server.
 
-### 8.7 Phase 8 hardening & exit — `todo`
+### 8.7 Phase 8 hardening & exit — `done (PR #149)`
 Like 6.10:
 - an exit run over the new region, boss, events calendar, guild seasons and the QoL features, reconciled;
 - a browser run in CI;
 - an exploit review (`docs/PHASE8_EXPLOIT_REVIEW.md`) and a rate-limit review;
 - the Phase 8 retrospective.
+- Done:
+  - **The API run:** `apps/server/src/e2e/phase8-exit-criteria.test.ts`, about 8 s of test time (14 s with start-up), 40 game days on one injected clock.
+  - **The browser run:** `tools/e2e/phase8-exit.mjs`, CI job `e2e-phase8`, about 15 s locally. Seed `E2E_SEED_PHASE8=1` (`apps/server/src/e2e/seed-phase8.ts`, tested by `seed-phase8.test.ts`).
+  - **The criterion in numbers:** game-core `balance/phase8-exit-criterion.test.ts` and server `phase8-no-pay-to-win.test.ts`; `docs/BALANCE.md` "Phase 8 exit criterion".
+  - **The exploit review:** `docs/PHASE8_EXPLOIT_REVIEW.md`, seven holes fixed (F1–F7).
+  - **The rate-limit review:** `docs/SOCIAL.md` "Rate limits: the Phase 8 review" and `SECURITY.md`; no value changed.
+  - Journey steps reused with two small options: `playHollowDeepStep(…, { lit })` and `playGuildHallStep`'s invite, stranger and baseline.
+  - Version 0.8.5 (F1–F3). No migration, no gameplay number changed.
+
+### Phase 8 retrospective (ticket 8.7)
+**Exit criterion (Phase 8): met in the code; the "going live" checklist is the owner's.** *The live town has a new endgame region beyond level 40 that keeps Phase 6 content relevant, a self-running calendar of events, better everyday comfort, and a clear going-live checklist the owner has worked through. Everything is reconciled, fair and free of pay-to-win.* The checklist (8.6's readiness tab and `docs/GOING_LIVE.md`) is built and shown in both runs. Working through it is the owner's (below).
+
+**The API run** (`phase8-exit-criteria.test.ts`). One clock starts on a Monday 06:00 UTC derived from the wall clock and runs 40 game days. Fourteen accounts play in an invite-only town; sessions are made to outlive the six weeks, a test setting. Endgame heroes are seeded like the Phase 8 journeys and measured (`holdingsBaseline`). The one rare outcome (a Throne drop worth a letter) is pinned to a stored seed that game-core's replay shows producing it; everything else comes from the server's `crypto` seeds. Covered:
+- **The readiness panel:** Season and the first event "not set", then set. Email "attention" on the test transport. A test letter sent; the typed address is in no audit row.
+- **The lanterns of the deep:** The owner's CLI finishes the town's first three projects. Ten givers each give exactly their first-day tenth (9,000 gold, 120 ore, 50 shards; a larger offer is trimmed, a second gift `409 contribution_capped`). The stage finishes with the tenth gift. The test account is refused (`403 test_account`). The last two stages go by the test-setup command (refused as production first). The era chain is on record without a gap: Ashen Siege → Rekindling → Forgeward Age → Lantern Vigil. Before the lanterns, the Deep and the Throne are refused.
+- **The Pale Marches:** a level-40 hero in Depths gear beats the Tyrant (once in every loop), then farms tier-5 drops. **The Hollow Deep:** a level-50 hero in Marches gear farms it, and the Sovereign falls in 1–2 runs. The hoard is bound, and the crown shard becomes Crownforged Work at the lantern smithy's price.
+- **The calendar:** the owner sets the rotation and turns it on in the admin panel (a player gets the `404`; a 21-day Procession is `400 length_too_short`). The scheduler creates the Lantern Procession once, on the first Monday 00:00. A level-1 hero finishes a week-1 task (tier 1's keepsake once). Weeks 2, 3 and 4 open at their first millisecond and not 1 ms before. The Procession ends on its own and closes once. The calendar puts the Harvest of Bones on the first Monday at least the two-day gap later, once. Every tier is granted exactly once (audit = stored grants). The owner pauses it again.
+- **Guild seasons:** two guilds and a third that disbands.
+  - Churn: a leaver who joins the other guild (its day-1 gift stays behind), a late joiner 13 days before the end (counted, not honoured), and the test account (never counted).
+  - The archive with Season 1: final standings and honours equal game-core's `guildSeasonAwards` (Champion, Exalted). The honour roll is exactly the seven who qualify. Each member's cosmetics are cumulative by tier. A second run of the jobs grants nothing. The recompute check is clean.
+- **The guild hall:** a gift after the no-refund notice (a replayed key gives once), and the officer buys and hangs the name colour while a member and the test account are refused. A big gift is trimmed to the daily cap (23,800). The third guild gives and disbands; its treasury is forfeit once. No score moved.
+- **The inbox:** every source reached the right account.
+  - Sources: a pinned Throne drop, a trade received, accepted, released and voided (by the owner closing trading in the admin panel), a friendly duel against a defence, an event tier, season and guild honours, the town's stages and eras, and the release.
+  - Privacy: the test account's duel reached no one, and another account's letter ids mark nothing.
+- **QoL:** a batch claim of 2–4 Tavern rewards (a replay pays nothing twice), a preset kept, shared and used, five malicious codes refused with nothing changed.
+- **The boards** at Power 3 and PvE Progress 6: every row equals the hero's breakdown, the test hero is on none, and the recompute check is clean.
+- **Valid:**
+  - every hero's holdings equal the audit log;
+  - `reconcileWithAudit` and the real `pnpm report:telemetry -- --reconcile` match in all 144 checks, and telemetry counts the event rewards and the eras exactly;
+  - the privacy guard watched 326 player responses and found no other player's email, account id or hero id;
+  - only the one test account exists.
+- Looped 20× shuffled and once with `WF_CLOCK_SHIFT_DAYS=400`: green.
+
+**The browser run** (`tools/e2e/phase8-exit.mjs`, CI job `e2e-phase8`, about 15 s locally; four accounts side by side; four local passes on fresh servers):
+- the Lantern Vigil; the map's new places and a hero farming the Deep (its scene still); the Throne's door, a run and its reckoning, and the door barred at level 46;
+- the guild hall's gift, buy and hang, and the Guild Roll;
+- the Letters with the badge;
+- the Pack's search, filters and sort; presets and a share code (a broken one refused); Claim all;
+- the admin's calendar turned on (its next three on Mondays at 00:00) and paused again, and the Readiness tab with a test letter.
+
+Not in the browser: mobile widths (each Phase 8 ticket's screenshots covered them), and a whole Procession (the API run covers it).
+
+**The criterion in numbers** (`docs/BALANCE.md` "Phase 8 exit criterion"):
+- **Older content stays relevant.** Depths Legendaries +10 at 40 farm the Marches at × 0.86–0.91 the Depths' kill rate for × 1.06–1.13 the XP and × 1.10–1.31 the gold, with no deaths. Heroic Legendaries clear the Marches' entry at 7–8.5 kills a minute. The Marches' best farm the Deep at × 0.92–0.96 for × 1.07–1.12 the XP.
+- **Phase 6 drops keep their use.** The Ember and the Seals come only from Phase 6 bosses and pay for awakening on tier 5 too. Heroic keeps the best Prismatic odds (7.5 % against 5 %).
+- **The calendar runs on its own:** 15 events a year (8 Processions), 273 days with an event, every start a Monday 00:00, for any gap from 0 to 7 days (both events end on a Monday).
+- **No pay-to-win:**
+  - events grant cosmetics and materials only, and cosmetics, hall upgrades and honours carry no numbers a rule reads;
+  - the import scan is clean;
+  - a hero's scores and duel defence are identical before and after owning and wearing every cosmetic and hanging every hall upgrade.
+
+**What the exploit review found** (`docs/PHASE8_EXPLOIT_REVIEW.md`). Each was fixed with a test that failed first; none created value:
+- **F1:** a retried preset removal removed the next preset. The removal now names it (`409 preset_changed`); patch note.
+- **F2:** a lone surrogate in a preset name was a `500`.
+- **F3:** another player's trade offers or friendly duels could push a player's honours and event letters out of the inbox. Those letters are now capped among themselves.
+- **F4:** a real account could join a guild of test accounts and be paid and ranked on minted guild boss stages (`403 test_guild`).
+- **F5:** a test-account officer could dress a real guild's hall.
+- **F6:** a calendar skip sent twice skipped two events (`skipToken`, `409 calendar_changed`).
+- **F7:** the share-code preview answered for another account's hero.
+
+Checked and holding: Crownforged Work, the Throne, the lanterns' caps and gates, the calendar's exactly-once creation, the Guild Roll's churn rules and exactly-once honours, the treasury's caps, roles and forfeits, inbox privacy and enumeration, malicious share codes, the batch claim's keys, the readiness tab's secrets and the never-stored address, and F.7's floor.
+
+**Rate limits** (`docs/SOCIAL.md` "Rate limits: the Phase 8 review"): no value changed, no class added. The Letters badge polls once a minute per visible tab (3.5 ms, 0.11 % of the request limit). The hall's roll refresh costs what the guild page does.
+
+**What went well.**
+- The Phase 5–6 habit held again: every Phase 8 ticket left a journey step, so the exit run is composition plus seeding. Two steps needed one option each.
+- Server-authoritative, data-driven content made six game weeks an ordinary 8-second test; the calendar's weeks, the season's churn rules and the honours were all checked at their exact boundaries.
+- Boards moved by versions between seasons, and the new region added nothing at or below level 46 (8.1, 8.2 curve pins).
+- The no-pay-to-win promise is now a scan and an invariance test rather than a review line.
+- The reviews found no value bug in the new economy (Crownforged Work, the treasury, the lanterns). The holes sat at the edges again: retries without a name, a test-account path through a shared system, and an inbox cap shared by kinds others control.
+
+**Flakes and stuck queues.**
+- **F.7** (#138) was a real bug behind a flake: a Verge offer silently dropped about 2 % of hero-days. It was fixed in game-core and swept.
+- **F.8** (#142) was a seed assumption in the Phase 1 browser run (the first drop fits the class). A shared helper now keeps farming.
+- **GitHub queues:** Actions runs sometimes sat in "queued" for a long time during Phase 8. A new push started them; no run failed for it.
+- **This ticket's own:** the first exit loop failed once because the Procession's bearer could reach a second Procession tier while farming in week 4. The run now compares the audit with the stored grants. No flake on `main` since F.8.
+
+**Decisions** (owner, Phase 8):
+- **Region III:** the Hollow Reach at 40–52 in two areas plus the Sovereign, gated by a community project on new content only.
+- **Events:** automatic events start on Mondays, and a weekly event keeps all its weeks (8.3b).
+- **Guilds:** guild seasons give cosmetic honours only, and the treasury never refunds.
+- **QoL:** the defaults were built, since no playtest notes had arrived.
+- **8.6 went first** so the town could open while content was built.
+- **Phase 7 is deferred.**
+- **8.8:** cosmetics may be sold later, design first and gated.
+
+**Risks carried forward.**
+- **No live data yet:** Phase 8 was tuned from simulations. **B.6 stays open until the town is live** and its telemetry and the owner's playtest notes exist.
+- **Trading is still closed.** Its live telemetry (T.7's alarm, the Crownforged pieces' place in it) is unseen.
+- **The Guild Roll needs owner decisions:** the tie-break by refresh time and small rolls honouring everyone. Both are accepted for now.
+- **Mobile:** the Phase 8 screens have screenshots at 390 px but no mobile browser run (Phase 7).
+- **One API instance in production** (6.9 made two safe).
+
+**Owner's open items** (the going-live checklist, `docs/GOING_LIVE.md`, the admin panel's Readiness tab):
+- **Choose an SMTP provider** and set it in `deploy/.env`, then send a test letter from the Readiness tab. Players need it to verify, reset passwords and trade.
+- **Update the privacy policy** with the features the tab lists (the public boards and the Guild Roll, emails and the mail provider, the inbox).
+- **Schedule Season 1.** Power 3 and PvE Progress 6 are already in force in a town without a season.
+- **Open trading in the documented launch order** (`docs/TRADING.md`), only after mail works.
+- **Turn on the event calendar** (admin panel → Events) when the first event should run. It stays paused until then; a gap of 0–7 days gives the same one-week pause.
+- **Add staff names** in the Names tab.
+- **B.6 (deferred until live data):** schedule it once the town has run for a few weeks.
+- **Phase 7 (desktop and mobile)** stays deferred.
+- **8.8 (the cosmetic shop)** stays gated on `docs/SHOP.md`'s decisions (what is sold, prices, provider, refunds, VAT and the legal pages).
+- **Send playtest feedback** (`docs/PLAYTEST_FEEDBACK.md` is still the empty template).
+- **Decide the Guild Roll's tie-break and minimum roll size**, and whether the accepted risks in the review should differ.
 
 ## Deployment
 

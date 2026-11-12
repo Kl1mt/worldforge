@@ -167,7 +167,7 @@ export function LootFilterPresets({
                       if (!clean) return;
                       void run(
                         `rename-${p.slot}`,
-                        () => lootFilterApi.renamePreset(heroId, p.slot, clean),
+                        () => lootFilterApi.renamePreset(heroId, p.slot, clean, p.name),
                         `Renamed to “${clean}”.`,
                       ).then((ok) => ok && setRenaming(null));
                     }}
@@ -249,7 +249,7 @@ export function LootFilterPresets({
                     onClick={() =>
                       void run(
                         `delete-${p.slot}`,
-                        () => lootFilterApi.deletePreset(heroId, p.slot),
+                        () => lootFilterApi.deletePreset(heroId, p.slot, p.name),
                         `“${p.name}” was removed.`,
                       )
                     }

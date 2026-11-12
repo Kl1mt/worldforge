@@ -205,6 +205,10 @@ export function normalisePresetName(input: unknown): string | null {
   if (name.length === 0 || [...name].length > LOOT_FILTER_PRESET_NAME_MAX) return null;
   for (const ch of name) {
     const c = ch.codePointAt(0)!;
+    // Ticket 8.7: a lone UTF-16 surrogate can't be stored (the database refuses it in JSON), nor
+    // can a byte-order mark or the soft hyphen hide in a name.
+    if ((c >= 0xd800 && c <= 0xdfff) || c === 0xfeff || c === 0x00ad) return null;
+    if (c >= 0x2060 && c <= 0x2064) return null;
     // Control characters, zero-width marks and bidirectional overrides.
     if (c < 0x20 || (c >= 0x7f && c <= 0x9f)) return null;
     if ((c >= 0x200b && c <= 0x200f) || (c >= 0x202a && c <= 0x202e)) return null;

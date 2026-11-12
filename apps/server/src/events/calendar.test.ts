@@ -93,6 +93,7 @@ interface AdminEvents {
     rotation: { definitionId: string; days: number }[];
     gapDays: number;
     nextIndex: number;
+    skipToken: string;
     planned: {
       definitionId: string;
       startsAt: string;
@@ -288,6 +289,27 @@ describe('the automatic calendar (admin panel, injected clock)', () => {
     expect(c2.settings.rotation[c2.settings.nextIndex]!.definitionId).toBe('lanternProcession');
     expect((await w.tick()).created).toBeNull();
     expect((await calendarAudits()).filter((a) => a === 'skip')).toHaveLength(3);
+  });
+
+  it('a skip sent twice with the view it was made from skips once (ticket 8.7)', async () => {
+    // Nothing waiting (paused): the first skip moves the cursor, the repeat is refused.
+    const before = await readCalendar(w.db);
+    const token = (await get()).calendar.skipToken;
+    const first = await post('/api/admin/events/calendar/skip', { expect: token });
+    expect(first.statusCode, first.body).toBe(200);
+    const again = await post('/api/admin/events/calendar/skip', { expect: token });
+    expect(again.statusCode).toBe(409);
+    expect(again.json<{ error: { code: string } }>().error.code).toBe('calendar_changed');
+    const after = await readCalendar(w.db);
+    expect(after.settings.nextIndex).toBe(
+      (before.settings.nextIndex + 1) % before.settings.rotation.length,
+    );
+    // With the fresh view's token it skips again.
+    const fresh = (await get()).calendar.skipToken;
+    expect(fresh).not.toBe(token);
+    expect((await post('/api/admin/events/calendar/skip', { expect: fresh })).statusCode).toBe(200);
+    const restored = await readCalendar(w.db);
+    expect(restored.settings.nextIndex).toBe(before.settings.nextIndex);
   });
 
   it('manual always wins: it replaces a waiting automatic event, whose entry comes back after it', async () => {

@@ -149,7 +149,8 @@ describe('loot filter presets (ticket 8.5)', () => {
     const gap = await call(q, 'POST', '/loot-filter/presets', { slot: 2, name: 'x', rules: junk });
     expect(gap.statusCode).toBe(422);
     expect(gap.json()).toMatchObject({ error: { code: 'preset_slot_gap', details: { next: 0 } } });
-    for (const name of ['', '   ', 'x'.repeat(25), 'a\u202eb']) {
+    // Ticket 8.7 (F-review): a lone surrogate was a 500 (Postgres refuses it in jsonb).
+    for (const name of ['', '   ', 'x'.repeat(25), 'a\u202eb', 'ab\ud800', '\udc00x', 'a\u2060b']) {
       const bad = await call(q, 'POST', '/loot-filter/presets', { slot: 0, name, rules: junk });
       expect(bad.statusCode, JSON.stringify(name)).toBe(400);
     }
@@ -165,14 +166,14 @@ describe('loot filter presets (ticket 8.5)', () => {
       code: encodeLootFilterCode(junk),
     });
     expect(over.json<LootFilterResponse>().presets[0]).toMatchObject({ name: 'Hunt', rules: junk });
-    const gone = await call(p, 'DELETE', '/loot-filter/presets/2');
+    const gone = await call(p, 'DELETE', '/loot-filter/presets/2?name=Set%202');
     expect(gone.json<LootFilterResponse>().presets.map((x) => x.name)).toEqual([
       'Hunt',
       'Junk out',
       'Set 3',
       'Set 4',
     ]);
-    expect((await call(p, 'DELETE', '/loot-filter/presets/4')).statusCode).toBe(200);
+    expect((await call(p, 'DELETE', '/loot-filter/presets/4?name=gone')).statusCode).toBe(200);
     expect((await call(p, 'POST', '/loot-filter/presets/4/rename', { name: 'y' })).statusCode).toBe(
       404,
     );
@@ -190,6 +191,34 @@ describe('loot filter presets (ticket 8.5)', () => {
       'delete',
     ]);
     expect(await audits(p, 'loot_filter.update')).toHaveLength(0);
+  });
+
+  it('a retried delete or a stale rename never touches another preset (ticket 8.7)', async () => {
+    const p = await newPlayer();
+    for (const [slot, name] of ['P0', 'P1', 'P2', 'P3'].entries()) {
+      await call(p, 'POST', '/loot-filter/presets', { slot, name, rules: junk });
+    }
+    // The delete names what it deletes; a retry (a lost answer, a second tab) changes nothing.
+    const first = await call(p, 'DELETE', '/loot-filter/presets/1?name=P1');
+    expect(first.statusCode, first.body).toBe(200);
+    const again = await call(p, 'DELETE', '/loot-filter/presets/1?name=P1');
+    expect(again.statusCode, again.body).toBe(200);
+    expect(again.json<LootFilterResponse>().presets.map((x) => x.name)).toEqual(['P0', 'P2', 'P3']);
+    // Slot 1 now holds P2: a delete or a rename meant for P1's old slot is refused.
+    const stale = await call(p, 'DELETE', '/loot-filter/presets/2?name=P2');
+    expect(stale.statusCode).toBe(409);
+    expect(stale.json()).toMatchObject({ error: { code: 'preset_changed' } });
+    const rename = await call(p, 'POST', '/loot-filter/presets/2/rename', {
+      name: 'Mine',
+      from: 'P2',
+    });
+    expect(rename.statusCode).toBe(409);
+    // A delete without the name is refused (an old client is told to reload).
+    expect((await call(p, 'DELETE', '/loot-filter/presets/0')).statusCode).toBe(400);
+    const left = (await call(p, 'GET', '/loot-filter')).json<LootFilterResponse>();
+    expect(left.presets.map((x) => x.name)).toEqual(['P0', 'P2', 'P3']);
+    const trail = await audits(p, 'loot_filter.preset');
+    expect(trail.filter((a) => (a.data as { action: string }).action === 'delete')).toHaveLength(1);
   });
 
   it('applies a preset after settling with the old rules, audited', async () => {
@@ -302,7 +331,10 @@ describe('loot filter presets (ticket 8.5)', () => {
     expect(
       (await call(intruder, 'POST', '/loot-filter/presets/0/rename', { name: 'x' })).statusCode,
     ).toBe(404);
-    expect((await call(intruder, 'DELETE', '/loot-filter/presets/0')).statusCode).toBe(404);
+    expect((await call(intruder, 'DELETE', '/loot-filter/presets/0?name=x')).statusCode).toBe(404);
+    // Ticket 8.7: the code preview answers only for the caller's own hero, like every hero route.
+    const code = encodeLootFilterCode(junk);
+    expect((await call(intruder, 'POST', '/loot-filter/decode', { code })).statusCode).toBe(404);
     const mine = (await call(owner, 'GET', '/loot-filter')).json<LootFilterResponse>();
     expect(mine.presets).toEqual([{ slot: 0, name: 'Mine', rules: junk, active: true }]);
     expect(mine.rules).toBeNull();

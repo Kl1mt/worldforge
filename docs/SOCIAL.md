@@ -278,6 +278,39 @@ The busiest Phase 6 screen is a Heroic run in progress: about 38 requests and 37
 
 **Not limited beyond the account class (reviewed, acceptable):** Item Awakening (once per item, a price of days of boss hoards), Tyrantforged Work (an Ember each), dungeon starts and claims (one open run per account), the event join (repeat-safe, one settle), the Forgeward contribution (the daily cap per account and need is the real bound), the cosmetic equips (no text, notify no one: unlike the prestige title they are not social writes; each writes one display row and one audit row, so a loop is bounded by the 300 actions a minute like any action), the collection and event reads, and every admin route (after the not-found `404`; a stolen admin session is limited by the account class, and its writes are audited). The reserved-name check reads the admins' list on every name write (a handful of rows). **Cost at scale:** at the realistic 22–38 requests a minute of an active player, the shared store adds one small unlogged write per request, well under 1 % of the database's work (DEPLOY.md §17); rows of finished windows are deleted by the hourly pruning job.
 
+## Rate limits: the Phase 8 review — ticket 8.7
+
+The same check after Phase 8: what its screens send, the abuse each class stops, and what a counted request costs. **No value changed and no class added.** Phase 8 added two limiters of its own, both as their tickets shipped them:
+- the Guild Roll's board-read counter (`guildBoards`, 60 a minute, 8.4);
+- the readiness tab's test letter (3 an hour per admin, 8.6).
+
+Its one new timer is the inbox badge. Every other Phase 8 request is a read on opening a screen or a click. The exploit review is `docs/PHASE8_EXPLOIT_REVIEW.md`.
+
+**What Phase 8 sends** (one tab; `GET` unless it says so):
+
+| Screen | Requests | Class |
+| --- | --- | --- |
+| Every screen (the top bar) | the Letters badge, `GET /api/inbox/summary`, every 60 s while the tab is visible, at once on becoming visible and after a letter is read; mostly `304` (`ETag`). Hidden tabs stop | account |
+| Letters | the list once on open; *Mark read* / *Mark all read* a `POST` per click (repeat-safe by state) | account |
+| Pack, Warehouse, shelf | search, sort and filters are client-side (no request) | — |
+| Loot filter | presets and codes: one `POST` per click (save, rename, remove, use, read a code) | account (actions) |
+| Tavern | *Claim all* one `POST` (up to 8 notices, `Idempotency-Key`) | account (one action) |
+| The Hollow Reach, the Throne, Crownforged Work | as the Phase 6 places: farming, a run's settle every 2 s while one is on screen, one craft per click | account (actions) |
+| Guild hall (`#/treasury`) | the hall once on open (it refreshes the guild's roll entry); give, buy, hang: a `POST` per click | account; the writes are social writes |
+| Guild Roll (`#/boards/guilds`) | once on open, per page or season | board reads (`guildBoards`) |
+| Admin: Events (calendar), Readiness | on open and per click; a test letter on request | account (after the `404` gate); test letters 3 an hour |
+
+**Measured** (PGlite, in-process; production PostgreSQL is faster per query but adds a network round trip). A badge poll is 3.5 ms: the release-letter check is an in-memory set, then two indexed queries. That is one request a minute per visible tab, 0.11 % of the account request limit; three tabs 0.33 %. The hall read with its roll refresh costs 16.0 ms against the guild page's 16.8 ms (a guild of 30, 200 reads each), so it needs no limiter of its own: it rewrites the entry only when the guild's facts changed, under the season's shared lock, and the archive's exclusive lock queues new readers behind it.
+
+| Class | Value | Phase 8 use | Abuse it stops | Verdict |
+| --- | --- | --- | --- | --- |
+| Account (3.9) | 900 requests, 300 actions a minute | the badge poll, letters, presets, the batch claim, the hall reads, admin tabs | scripted clients; at the cap, 900 badge polls a minute ≈ 3 s of database work a minute per account | keep |
+| Social writes (4.1) | 12 a minute, 240 an hour | treasury gifts, buying and hanging (8.4); friendly duels (unchanged) | treasury and display spam. The duel letters a guildmate can cause at this rate are now capped among themselves (F3) | keep |
+| Trade (T.4) | 20 a minute | unchanged (trading off in production); offer letters capped as above | offer spam | keep |
+| Board reads (5.2) | 60 a minute; boards, ladder and Guild Roll counted apart | the Guild Roll (its viewer refresh included) | scraping every page and season | keep |
+| Test letters (8.6) | 3 an hour per admin | the readiness tab | a stolen admin session as a mail relay (the letter's text is fixed anyway) | keep |
+| Everything else | as in the Phase 6 review | unchanged | — | keep |
+
 ## Race tests
 
 `apps/server/src/social/social.pg.test.ts` (real PostgreSQL, part of `test:pg`, three rounds each in varied orders, asserting only what holds in every order): concurrent duplicate reports on one target; a mute racing the target's social writes; a suspension racing the target's requests; several moderators acting on one report; a role revoke racing the moderator's actions; no deadlock or retry.
@@ -342,7 +375,7 @@ The weekly guild boss has its own file: `docs/GUILD_BOSS.md` (attempts, the week
 - **Leaving, kicks, disbanding:** gifts are never refunded (shown before every gift and acknowledged); a member who leaves stops counting for the Guild Roll at once; a disband forfeits the treasury (audited `guild.treasury_forfeit`) in `disbandGuildTx`, for a leader's and a moderator's disband alike.
 - **Privacy:** the Guild Roll names no player; a guild's link follows the guild's visibility (blocked either way with its leader: listed, no link). The hall's look is as public as the guild's profile (`GET /api/guilds/:handle/hall`, `404` where the guild is hidden).
 - **Sanctions:** a guild whose leader has an active sanction, or that is under a forced rename, is left off the roll at read time; a sanctioned member does not count and gets no honours.
-- **Test accounts:** never counted; a test account funds only a guild of test accounts (`403 test_account`).
+- **Test accounts:** never counted; a test account funds, buys for and dresses only a guild of test accounts (`403 test_account`), and a real account may not join a guild of test accounts only (`403 test_guild`, ticket 8.7).
 - **Audit events:** `guild.treasury_contribute`, `guild.hall_buy`, `guild.hall_display`, `guild.treasury_forfeit`, `guild_season.award`.
 
 ## Guild chat — ticket 4.5

@@ -111,6 +111,22 @@ pnpm --filter @worldforge/web dev
 node tools/e2e/phase6-exit.mjs
 ```
 
+The Phase 8 browser run (ticket 8.7), CI job `e2e-phase8` (~15 s; four accounts side by side), is `tools/e2e/phase8-exit.mjs`:
+- the town in the Lantern Vigil; the map's Pale Marches and Hollow Deep (a hero sets out to farm the Deep, its scene still under automation);
+- the Hollow Throne's door and a run to its reckoning, and the door barred for a level-46 hunter;
+- the guild hall (a gift after the no-refund line, the name colour bought and hung) and the Guild Roll;
+- the Letters (the era's, a stage's and a drop's; the badge; mark all read);
+- the Pack's search, filters and sort, loot-filter presets and a share code (a broken one refused), and the Tavern's "Claim all";
+- the admin's automatic calendar (turned on, the next three on Mondays, paused again) and the Readiness tab with a test letter.
+
+`E2E_SEED_PHASE8=1` completes the town's four works, starts Season 1, founds the guild and seeds three heroes and an admin at start (`apps/server/src/e2e/seed-phase8.ts`, tested by `seed-phase8.test.ts`). It needs a fresh server:
+
+```
+E2E_SEED_PHASE8=1 pnpm --filter @worldforge/server e2e:serve
+pnpm --filter @worldforge/web dev
+node tools/e2e/phase8-exit.mjs
+```
+
 ### Local playtest without Docker (ticket P.1)
 `pnpm playtest` runs `apps/server/src/playtest/serve.ts`: the real `buildApp()` on a PGlite database persisted to `.playtest-data/` (git-ignored), plus the web dev server, for playtesting on a machine without Docker or PostgreSQL. Like the e2e server it is excluded from the production build and refuses `NODE_ENV=production`; auth and rules are unchanged. Optional fast time (`pnpm playtest:fast`, `PLAYTEST_TIME_SCALE`) speeds up only the server's farming clock and never runs it backwards across restarts. User guide and details: `docs/PLAYTEST.md`.
 
