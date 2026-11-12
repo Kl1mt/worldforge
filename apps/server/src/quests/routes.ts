@@ -1,12 +1,19 @@
 import type { FastifyInstance } from 'fastify';
-import { and, eq, isNull } from 'drizzle-orm';
-import { characters, type Character } from '../db/schema.js';
+import { and, eq, gt, isNull } from 'drizzle-orm';
+import { characters, idempotencyKeys, type Character } from '../db/schema.js';
 import type { Transaction } from '../db/types.js';
 import { withTransaction } from '../db/transaction.js';
 import { ApiError } from '../errors.js';
 import { settleActivityTx, type ActivityOptions } from '../activity/settle.js';
 import { characterView } from '../characters/routes.js';
-import { idempotentTransaction } from '../idempotency/index.js';
+import {
+  IDEMPOTENCY_REPLAYED_HEADER,
+  batchItemKey,
+  idempotentTransaction,
+  readIdempotencyKey,
+  requestHash,
+  runIdempotent,
+} from '../idempotency/index.js';
 import { acceptQuestTx, questBoard, turnInQuestTx, type AcceptRequest } from './store.js';
 
 const characterParamsSchema = {
@@ -36,6 +43,29 @@ const acceptBodySchema = {
     rewardSlot: { type: 'string', minLength: 1, maxLength: 16 },
   },
 } as const;
+
+/** Ticket 8.5: at most this many quests in one batch turn-in (a hero holds far fewer). */
+export const TURN_IN_BATCH_MAX = 8;
+
+const batchBodySchema = {
+  type: 'object',
+  required: ['questIds'],
+  additionalProperties: false,
+  properties: {
+    questIds: {
+      type: 'array',
+      minItems: 1,
+      maxItems: TURN_IN_BATCH_MAX,
+      uniqueItems: true,
+      items: { type: 'string', format: 'uuid' },
+    },
+  },
+} as const;
+
+/** One quest's outcome in a batch turn-in: its reward, or why it was not turned in. */
+export type BatchTurnInResult =
+  | { questId: string; ok: true; reward: unknown }
+  | { questId: string; ok: false; status: number; code: string; message: string };
 
 const characterNotFound = () => new ApiError(404, 'not_found', 'No such character.');
 
@@ -168,6 +198,105 @@ export async function registerQuests(
           reward: outcome.reward,
         };
       });
+    },
+  );
+
+  // Ticket 8.5 (docs/QUESTS.md "Claiming several at once"): every ready quest in one request. Each
+  // quest is turned in by the single turn-in's own transaction (`turnInQuestTx`), under its own
+  // stored key derived from the batch's `Idempotency-Key` (`batchItemKey`), so a retry replays
+  // what was done and runs only the rest, and one quest's failure (a full pack, already turned
+  // in) is reported for that quest alone. The batch's answer is stored under its own key last.
+  app.post<{ Params: { characterId: string }; Body: { questIds: string[] } }>(
+    '/characters/:characterId/quests/turn-in-batch',
+    {
+      preHandler: app.requireAccount,
+      schema: { params: characterParamsSchema, body: batchBodySchema },
+    },
+    async (request, reply) => {
+      const accountId = request.auth!.account.id;
+      const { characterId } = request.params;
+      const key = readIdempotencyKey(request);
+      const hash = requestHash(request.method, request.url.split('?')[0]!, request.body);
+      const [done] = await app.db
+        .select()
+        .from(idempotencyKeys)
+        .where(
+          and(
+            eq(idempotencyKeys.accountId, accountId),
+            eq(idempotencyKeys.key, key),
+            gt(idempotencyKeys.expiresAt, activity.now()),
+          ),
+        );
+      if (done && done.requestHash !== hash) {
+        throw new ApiError(
+          409,
+          'idempotency_conflict',
+          'This Idempotency-Key was already used for a different request.',
+        );
+      }
+      if (done) {
+        void reply.header(IDEMPOTENCY_REPLAYED_HEADER, 'true');
+        return reply.code(done.statusCode).send(done.response);
+      }
+      // The hero must be ours before anything runs (the same 404 as every hero route).
+      const [hero] = await app.db
+        .select({ id: characters.id })
+        .from(characters)
+        .where(
+          and(
+            eq(characters.id, characterId),
+            eq(characters.accountId, accountId),
+            isNull(characters.deletedAt),
+          ),
+        );
+      if (!hero) throw characterNotFound();
+      const world = await app.worldState.flags();
+      const switches = await app.gameSettings.tradingSwitches();
+      const results: BatchTurnInResult[] = [];
+      for (const questId of request.body.questIds) {
+        try {
+          const run = await runIdempotent(
+            app.db,
+            { accountId, key: batchItemKey(key, questId), hash, now: activity.now },
+            async (tx) => {
+              const now = activity.now();
+              const character = await lockAndSettle(tx, accountId, characterId, activity);
+              const outcome = await turnInQuestTx(tx, character, questId, {
+                inventoryCapacity: activity.rules.inventory.capacity,
+                now,
+                world,
+                switches,
+              });
+              return { reward: outcome.reward as unknown };
+            },
+          );
+          results.push({ questId, ok: true, reward: run.body.reward });
+        } catch (err) {
+          if (!(err instanceof ApiError)) throw err;
+          results.push({
+            questId,
+            ok: false,
+            status: err.statusCode,
+            code: err.code,
+            message: err.message,
+          });
+        }
+      }
+      const stored = await runIdempotent(
+        app.db,
+        { accountId, key, hash, now: activity.now },
+        async (tx) => {
+          const now = activity.now();
+          const character = await lockAndSettle(tx, accountId, characterId, activity);
+          return {
+            results,
+            quests: await questBoard(tx, character, now, world),
+            character: characterView(character),
+          };
+        },
+      );
+      if (stored.replayed) void reply.header(IDEMPOTENCY_REPLAYED_HEADER, 'true');
+      return reply.code(stored.status).send(stored.body);
     },
   );
 }

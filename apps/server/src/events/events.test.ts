@@ -16,6 +16,7 @@ import {
 import { buildApp } from '../app.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
 import {
+  accountNotifications,
   accounts,
   auditLog,
   characterMaterials,
@@ -426,6 +427,20 @@ describe('an event ending mid-quest; the reward track exactly once', () => {
       'event:1:tier:2',
       'event:1:tier:3',
     ]);
+    // Ticket 8.5: each tier once in the account's inbox, with its keepsake.
+    const notes = await w.db
+      .select()
+      .from(accountNotifications)
+      .where(
+        and(
+          eq(accountNotifications.accountId, who.id),
+          eq(accountNotifications.kind, 'event.reward'),
+        ),
+      );
+    expect(notes.map((n) => (n.data as { tier: number }).tier).sort()).toEqual([1, 2, 3]);
+    expect(notes.map((n) => (n.data as { cosmeticId: string }).cosmeticId).sort()).toEqual(
+      harvest.track.map((t) => t.cosmeticId).sort(),
+    );
     const cos = await w.call(who, 'GET', '/api/account/cosmetics');
     expect(
       cos.json().unlocks.map((u: { id: string; shownToday: boolean }) => [u.id, u.shownToday]),

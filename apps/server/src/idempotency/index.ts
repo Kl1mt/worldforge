@@ -87,10 +87,32 @@ export async function idempotentTransaction<T>(
   const key = readIdempotencyKey(request);
   const path = request.url.split('?')[0]!;
   const hash = requestHash(request.method, path, request.body ?? null);
+  const outcome = await runIdempotent(app.db, { accountId, key, hash, ...options }, fn);
+  void reply.code(outcome.status);
+  if (outcome.replayed) void reply.header(IDEMPOTENCY_REPLAYED_HEADER, 'true');
+  return outcome.body;
+}
+
+export interface IdempotentRun<T> {
+  replayed: boolean;
+  status: number;
+  body: T;
+}
+
+/**
+ * The core of `idempotentTransaction` for one stored key (ticket 8.5 also runs it once per item
+ * of a batch, `batchItemKey`): claims `key` in the transaction that runs `fn`, replays a stored
+ * response, `409 idempotency_conflict` for another `hash`.
+ */
+export async function runIdempotent<T>(
+  db: Database,
+  options: IdempotencyOptions & { accountId: string; key: string; hash: string },
+  fn: (tx: Transaction) => Promise<T>,
+): Promise<IdempotentRun<T>> {
+  const { accountId, key, hash } = options;
   const status = options.status ?? 200;
   const ttlMs = options.ttlMs ?? IDEMPOTENCY_TTL_MS;
-
-  const outcome = await withTransaction(app.db, async (tx) => {
+  return withTransaction(db, async (tx) => {
     const now = options.now();
     const fresh = {
       requestHash: hash,
@@ -123,19 +145,24 @@ export async function idempotentTransaction<T>(
           'This Idempotency-Key was already used for a different request.',
         );
       }
-      return { replayed: true as const, status: stored.statusCode, body: stored.response as T };
+      return { replayed: true, status: stored.statusCode, body: stored.response as T };
     }
     const body = await fn(tx);
     await tx
       .update(idempotencyKeys)
       .set({ statusCode: status, response: body as unknown })
       .where(and(eq(idempotencyKeys.accountId, accountId), eq(idempotencyKeys.key, key)));
-    return { replayed: false as const, status, body };
+    return { replayed: false, status, body };
   });
+}
 
-  void reply.code(outcome.status);
-  if (outcome.replayed) void reply.header(IDEMPOTENCY_REPLAYED_HEADER, 'true');
-  return outcome.body;
+/**
+ * The stored key of one item of a batch request (ticket 8.5): derived from the batch's own key and
+ * the item, so a retried batch replays each item it already did and runs only the rest, and the
+ * same item in two batches with one key is paid once.
+ */
+export function batchItemKey(batchKey: string, item: string): string {
+  return `batch:${createHash('sha256').update(`${batchKey}\n${item}`).digest('hex').slice(0, 48)}`;
 }
 
 /** Deletes expired keys; returns how many. Run periodically (the settlement scheduler does). */
