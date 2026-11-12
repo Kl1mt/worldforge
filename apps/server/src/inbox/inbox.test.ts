@@ -31,6 +31,7 @@ import type { ArenaStateResponse } from '../arena/routes.js';
 import {
   INBOX_KEEP,
   INBOX_KEEP_DAYS,
+  INBOX_KEEP_FROM_OTHERS,
   broadcastTx,
   isDropWorthSeeing,
   notifyDropsTx,
@@ -222,6 +223,39 @@ describe('the inbox (ticket 8.5)', () => {
     expect(rows).toHaveLength(INBOX_KEEP);
     expect((rows[0]!.data as { n: number }).n).toBe(21);
     expect(rows.at(-1)!.kind).toBe('world.era');
+  });
+
+  it('letters other players cause never push out the account’s own (ticket 8.7)', async () => {
+    const a = await insertAccount(db(), { now: now() });
+    const b = await insertAccount(db(), { now: now() });
+    // An honour, then a guildmate's flood of duels against a's defence (friendly duels are open to
+    // any guildmate; 250 letters is about an hour at the social class).
+    await withTransaction(db(), (tx) =>
+      notifyTx(tx, {
+        accountId: a.id,
+        kind: 'season.honours',
+        data: { season: 1 },
+        now: new Date(nowMs - 1_000),
+        dedupeKey: 'season:1',
+      }),
+    );
+    for (let i = 0; i < INBOX_KEEP + 50; i++) {
+      await withTransaction(db(), (tx) =>
+        notifyTx(tx, {
+          accountId: a.id,
+          kind: i % 2 ? 'duel.defence' : 'trade.received',
+          data: { n: i },
+          now: new Date(nowMs + i),
+          from: b.id,
+        }),
+      );
+    }
+    const rows = await rowsOf(a.id);
+    expect(rows.some((r) => r.kind === 'season.honours')).toBe(true);
+    expect(rows.filter((r) => r.kind !== 'season.honours')).toHaveLength(INBOX_KEEP_FROM_OTHERS);
+    // The newest of the flood are the ones kept; the hourly pruning agrees.
+    expect(rows.some((r) => (r.data as { n?: number }).n === INBOX_KEEP + 49)).toBe(true);
+    expect(await pruneInboxes(db(), now())).toBe(0);
   });
 
   it('writes town-wide entries to every account once', async () => {
