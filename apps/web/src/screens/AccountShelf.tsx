@@ -233,6 +233,8 @@ export function AccountShelf() {
                 pack ? (
                   <ItemPicker
                     items={packItems}
+                    queryScreen="shelf-pack"
+                    place="your pack"
                     picked={new Set(placePicks)}
                     onChange={setToPlace}
                     label="Items to place on the account shelf"
@@ -341,6 +343,8 @@ export function AccountShelf() {
           ) : null}
           <ItemPicker
             items={shelved}
+            queryScreen="shelf"
+            place="the account shelf"
             picked={new Set(takePicks)}
             onChange={setToTake}
             label="Items to take out"

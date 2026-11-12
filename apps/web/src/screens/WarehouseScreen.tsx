@@ -252,6 +252,8 @@ export function WarehouseScreen() {
             {pack ? (
               <ItemPicker
                 items={packItems}
+                queryScreen="warehouse-pack"
+                place="your pack"
                 picked={new Set(storePicks)}
                 onChange={setToStore}
                 label="Items to store"
@@ -309,6 +311,8 @@ export function WarehouseScreen() {
             ) : null}
             <ItemPicker
               items={stored}
+              queryScreen="warehouse"
+              place="the shelves"
               picked={new Set(takePicks)}
               onChange={setToTake}
               label="Items to take out"
