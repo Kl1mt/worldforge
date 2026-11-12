@@ -34,6 +34,7 @@ const view = (over: Partial<AdminEvents['calendar']> = {}): AdminEvents => ({
     gapDays: 7,
     nextIndex: 0,
     createdCount: 0,
+    skipToken: '0.0.0',
     updatedAt: null,
     planned: [
       {

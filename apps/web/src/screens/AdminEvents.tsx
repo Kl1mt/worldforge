@@ -167,7 +167,9 @@ export function EventsFolio() {
               busy={busy}
               onSet={(label, patch) => void act(label, () => adminApi.setEventCalendar(patch))}
               onSkip={() =>
-                void act('The next event is skipped.', () => adminApi.skipCalendarEvent())
+                void act('The next event is skipped.', () =>
+                  adminApi.skipCalendarEvent(view.calendar.skipToken),
+                )
               }
             />
             <ScheduleForm
