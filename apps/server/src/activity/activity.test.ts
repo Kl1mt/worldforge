@@ -599,6 +599,7 @@ describe('areas & unlocks (ticket 2.2)', () => {
       ['ashfallVerge', false],
       ['cinderDepths', false],
       ['paleMarches', false],
+      ['hollowDeep', false],
     ]);
     expect(w.areas[4]!.blockers).toEqual([
       { kind: 'level', required: 17 },
@@ -647,6 +648,17 @@ describe('areas & unlocks (ticket 2.2)', () => {
         unlocked: false,
         available: true,
         blockers: [{ kind: 'level', required: 36 }, { kind: 'ashenWardenDefeated' }],
+      },
+      {
+        // Ticket 8.2: the Hollow Throne, behind the Tyrant and the lanterns of the deep.
+        id: 'hollowThrone',
+        unlocked: false,
+        available: true,
+        blockers: [
+          { kind: 'level', required: 48 },
+          { kind: 'forgeTyrantDefeated' },
+          { kind: 'worldFlag', flag: 'deepLanternsLit' },
+        ],
       },
     ]);
     expect((await call(await newPlayer(), 'GET', `/api/characters/${id}/world`)).statusCode).toBe(

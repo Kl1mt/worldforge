@@ -935,6 +935,8 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
             ashenWardenDefeated: { type: 'boolean' },
             // Ticket 6.2: optional (absent = unchanged), so older clients keep working.
             forgeTyrantDefeated: { type: 'boolean' },
+            // Ticket 8.2: likewise optional.
+            hollowSovereignDefeated: { type: 'boolean' },
             reason: reasonSchema,
           },
           ['gravewardenDefeated', 'cryptTierCleared', 'ashenWardenDefeated', 'reason'],
@@ -948,6 +950,7 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
         cryptTierCleared: number;
         ashenWardenDefeated: boolean;
         forgeTyrantDefeated?: boolean;
+        hollowSovereignDefeated?: boolean;
         reason: string;
       };
       const out = await tool(request, reply, async (tx, adminId) => {
@@ -960,6 +963,9 @@ export async function registerAdminTools(admin: FastifyInstance, options: ToolOp
           ashenWardenDefeated: b.ashenWardenDefeated,
           ...(b.forgeTyrantDefeated !== undefined
             ? { forgeTyrantDefeated: b.forgeTyrantDefeated }
+            : {}),
+          ...(b.hollowSovereignDefeated !== undefined
+            ? { hollowSovereignDefeated: b.hollowSovereignDefeated }
             : {}),
         };
         await tx

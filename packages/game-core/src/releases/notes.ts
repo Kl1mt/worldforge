@@ -23,9 +23,29 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.8.0';
+export const GAME_VERSION = '0.8.1';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.8.1',
+    date: '2026-11-18',
+    title: 'Lanterns in the deep',
+    new: [
+      'A new town project: Light the Lanterns of the Deep. It opens once the Forgeward Outpost stands, in three stages, and every stage needs at least ten heroes on its first day. Everyone who helps earns the Lantern-bearer of the Deep deed.',
+      'When the lanterns are lit, the Hollow Deep opens below the Pale Marches for heroes of level 46 who have slain the Forge Tyrant. Its four foes are older kin of the Marches’ foes, each with two tricks instead of one.',
+      'At the bottom of the Deep waits the Hollow Throne, for heroes of level 48. The Hollow Sovereign drinks back part of every blow he lands, and every fourth swing of his crown-blow lands two and a half times as hard. The weekly boss modifier applies to him too.',
+      'His hoard (two pieces of gear, his purse and a Shard of the Hollow Crown, once every 20 hours) is always bound to you. At the Forge, a shard buys a Crownforged Work: a Rare or Epic piece of Hollow Reach gear in the slot you choose.',
+      'A new era for Graumark: the Lantern Vigil begins when the lanterns are lit, and the lantern smithy then works Crownforged Work for a fifth less gold.',
+      'A new title colour, Hollow pale, for the heroes who take the Sovereign’s crown.',
+      'Four new milestones on the PvE Progress board. Like every board change, they start with the next season.',
+    ],
+    changed: [
+      'Levelling now slows down around level 57 instead of 54, as the Deep’s foes go up to level 52.',
+      'Tyrant’s Embers gain a new use: the last stage of the lanterns needs ten of them.',
+      'Good Pale Marches gear is enough to farm the Deep safely and to take on the Sovereign, though not every time; the Deep’s own drops win him far more often.',
+    ],
+    tickets: ['8.2'],
+  },
   {
     version: '0.8.0',
     date: '2026-11-17',

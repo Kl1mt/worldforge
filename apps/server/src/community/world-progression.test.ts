@@ -356,6 +356,7 @@ describe('admin: the era and the chain (ticket 6.7)', () => {
       ['restoreWarehouse', 'complete', 3],
       ['clearAshenPass', 'complete', 3],
       ['forgewardOutpost', 'open', 1],
+      ['deepLanterns', 'locked', 1],
     ]);
     const on = await adminCall('POST', '/api/admin/world/flags/forgewardRaised', {
       set: true,
