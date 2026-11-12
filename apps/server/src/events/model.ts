@@ -3,7 +3,11 @@ import {
   EVENT_CLOSE_GRACE_MS,
   EVENT_PLAN_MESSAGES,
   eventAt,
+  eventQuestOpensAt,
+  eventQuestWeek,
   eventStatus,
+  eventWeekAt,
+  eventWeeks,
   findEventDefinition,
   nextEvent,
   planEventCancel,
@@ -27,6 +31,7 @@ import type { Database, Executor, Transaction } from '../db/types.js';
 import { writeAudit } from '../db/audit.js';
 import { ApiError } from '../errors.js';
 import { recordTelemetry } from '../telemetry/record.js';
+import { displaceCalendarEventTx, ensureCalendarEvent, type EnsureOptions } from './calendar.js';
 
 /**
  * Rotating events (ticket 6.6, docs/EVENTS.md), modelled on 5.3's seasons:
@@ -58,7 +63,20 @@ export interface EventView {
   description: string;
   tallyName: string;
   modifier: { name: string; description: string };
-  quests: { id: string; name: string; description: string; target: number; tallies: number }[];
+  /** Ticket 8.3: `week` (1…), `minLevel` (null: every hero) and when the quest opens. */
+  quests: {
+    id: string;
+    name: string;
+    description: string;
+    target: number;
+    tallies: number;
+    week: number;
+    minLevel: number | null;
+    opensAt: string;
+  }[];
+  /** Ticket 8.3: how many weeks the quest line spans; the week under way (0 before the start). */
+  weeks: number;
+  week: number;
   track: {
     tier: number;
     tallies: number;
@@ -67,6 +85,8 @@ export interface EventView {
   startsAt: string;
   endsAt: string;
   status: EventStatus;
+  /** Ticket 8.3: `manual` or `calendar`. */
+  source: string;
 }
 
 export const eventViewSchema = {
@@ -85,6 +105,9 @@ export const eventViewSchema = {
     'startsAt',
     'endsAt',
     'status',
+    'weeks',
+    'week',
+    'source',
   ],
   properties: {
     number: { type: 'integer' },
@@ -103,13 +126,16 @@ export const eventViewSchema = {
       type: 'array',
       items: {
         type: 'object',
-        required: ['id', 'name', 'description', 'target', 'tallies'],
+        required: ['id', 'name', 'description', 'target', 'tallies', 'week', 'minLevel', 'opensAt'],
         properties: {
           id: { type: 'string' },
           name: { type: 'string' },
           description: { type: 'string' },
           target: { type: 'integer' },
           tallies: { type: 'integer' },
+          week: { type: 'integer' },
+          minLevel: { type: ['integer', 'null'] },
+          opensAt: { type: 'string' },
         },
       },
     },
@@ -138,6 +164,9 @@ export const eventViewSchema = {
     startsAt: { type: 'string' },
     endsAt: { type: 'string' },
     status: { type: 'string' },
+    weeks: { type: 'integer' },
+    week: { type: 'integer' },
+    source: { type: 'string' },
   },
 } as const;
 
@@ -159,7 +188,12 @@ export function eventView(e: WorldEvent, now: Date, cosmetic: CosmeticLookup): E
       description: q.description,
       target: q.objective.count,
       tallies: q.tallies,
+      week: eventQuestWeek(q),
+      minLevel: q.minLevel ?? null,
+      opensAt: eventQuestOpensAt(e.startsAt, q).toISOString(),
     })),
+    weeks: eventWeeks(def),
+    week: Math.min(eventWeeks(def), eventWeekAt(e.startsAt, now)),
     track: def.track.map((t) => ({
       tier: t.tier,
       tallies: t.tallies,
@@ -168,6 +202,7 @@ export function eventView(e: WorldEvent, now: Date, cosmetic: CosmeticLookup): E
     startsAt: e.startsAt.toISOString(),
     endsAt: e.endsAt.toISOString(),
     status: eventStatus(e, now),
+    source: e.source,
   };
 }
 
@@ -196,7 +231,10 @@ export interface EventPlanActor {
   guard?: (tx: Transaction) => Promise<void>;
 }
 
-async function underPlanLock<T>(db: Database, fn: (tx: Transaction) => Promise<T>): Promise<T> {
+export async function underPlanLock<T>(
+  db: Database,
+  fn: (tx: Transaction) => Promise<T>,
+): Promise<T> {
   return withTransaction(db, async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(${lockKey(PLAN_LOCK)})`);
     return fn(tx);
@@ -211,11 +249,16 @@ export async function scheduleEvent(
 ): Promise<WorldEvent> {
   return underPlanLock(db, async (tx) => {
     await actor.guard?.(tx);
+    // Ticket 8.3: manual always wins over an automatic event that has not begun (cancelled, its
+    // rotation entry comes back after this one). Rolled back with the rest if this plan is refused.
+    const displaced = findEventDefinition(plan.definitionId)
+      ? await displaceCalendarEventTx(tx, now, actor)
+      : null;
     const out = planEventSchedule(await listEvents(tx), plan, now);
     if (!out.ok) throw planError(out.problem);
     const [row] = await tx
       .insert(worldEvents)
-      .values({ number: out.number, ...plan, createdAt: now })
+      .values({ number: out.number, ...plan, createdAt: now, source: 'manual' })
       .returning();
     await writeAudit(tx, {
       event: 'event.schedule',
@@ -226,8 +269,10 @@ export async function scheduleEvent(
         definitionId: plan.definitionId,
         startsAt: plan.startsAt.toISOString(),
         endsAt: plan.endsAt.toISOString(),
+        displaced,
       },
     });
+    recordTelemetry(tx, now, [{ metric: 'event.schedule', dims: [plan.definitionId, actor.via] }]);
     return row!;
   });
 }
@@ -472,15 +517,20 @@ export async function sweepEventRewards(
 export interface EventJobReport {
   closed: number[];
   swept: number[];
+  /** Ticket 8.3: the event the calendar created, or null. */
+  created: number | null;
 }
 
-/** The scheduler's event step (and the CLI's `close`): close and sweep every ended event. */
+/**
+ * The scheduler's event step (and the CLI's `close`): close and sweep every ended event, then let
+ * the calendar (8.3) put the next one on the calendar if it runs.
+ */
 export async function runEventJobs(
   db: Database,
   now: Date,
-  options: { graceMs?: number; sweep?: SweepOptions } = {},
+  options: { graceMs?: number; sweep?: SweepOptions; calendar?: EnsureOptions } = {},
 ): Promise<EventJobReport> {
-  const report: EventJobReport = { closed: [], swept: [] };
+  const report: EventJobReport = { closed: [], swept: [], created: null };
   const due = await db
     .select()
     .from(worldEvents)
@@ -501,5 +551,6 @@ export async function runEventJobs(
     const s = await sweepEventRewards(db, e.number, now, options.sweep);
     if (s.kind === 'swept') report.swept.push(e.number);
   }
+  report.created = (await ensureCalendarEvent(db, now, options.calendar))?.number ?? null;
   return report;
 }

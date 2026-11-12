@@ -48,6 +48,9 @@ const KIND_WORD: Record<string, string> = {
   title: 'Title',
   banner: 'Banner style',
   titleColour: 'Title colour',
+  // Ticket 8.3: the Lantern Procession's track has a crest style and a hero appearance.
+  crest: 'Crest style',
+  appearance: 'Hero appearance',
 };
 
 /** The reward track for the account, tier by tier. */
@@ -64,7 +67,9 @@ export function trackLines(event: EventView, track: HeroEvent['track']): TierLin
     where:
       t.cosmetic.kind === 'title'
         ? 'Choose it on your profile, under Season honours, or in the collection book.'
-        : 'Show it from your collection book.',
+        : t.cosmetic.kind === 'appearance'
+          ? 'Dress any of your heroes in it from your collection book.'
+          : 'Show it from your collection book.',
   }));
 }
 
@@ -72,4 +77,55 @@ export function trackLines(event: EventView, track: HeroEvent['track']): TierLin
 export function talliesLine(event: EventView, track: HeroEvent['track']): string {
   const top = event.track.at(-1)?.tallies ?? 0;
   return `${Math.min(track?.tallies ?? 0, top).toLocaleString('en-GB')} of ${top.toLocaleString('en-GB')} ${event.tallyName}`;
+}
+
+const opens = new Intl.DateTimeFormat('en-GB', {
+  weekday: 'long',
+  day: 'numeric',
+  month: 'long',
+});
+
+/** Ticket 8.3: "Opens Monday 16 June" (local time). */
+export function weekOpens(opensAt: string): string {
+  return `Opens ${opens.format(new Date(opensAt))}`;
+}
+
+export interface WeekGroup<Q> {
+  week: number;
+  /** Begun (its tasks advance), under way now, or still to come. */
+  state: 'past' | 'now' | 'later';
+  opensAt: string;
+  quests: { quest: Q; index: number }[];
+}
+
+/**
+ * Ticket 8.3: an event's quests by week, in order. A one-week event (the Harvest) is one group.
+ * `index` is the quest's place in the definition (the hero's progress list).
+ */
+export function questWeeks<Q extends { week: number; opensAt: string }>(event: {
+  week: number;
+  quests: readonly Q[];
+}): WeekGroup<Q>[] {
+  const groups = new Map<number, WeekGroup<Q>>();
+  event.quests.forEach((quest, index) => {
+    const w = quest.week;
+    if (!groups.has(w)) {
+      groups.set(w, {
+        week: w,
+        state: w < event.week ? 'past' : w === event.week ? 'now' : 'later',
+        opensAt: quest.opensAt,
+        quests: [],
+      });
+    }
+    groups.get(w)!.quests.push({ quest, index });
+  });
+  return [...groups.values()].sort((a, b) => a.week - b.week);
+}
+
+/** Ticket 8.3: bonus materials in words, e.g. "3 extra Iron Ore" (empty: none yet). */
+export function bonusWords(bonus: Record<string, number>, name: (id: string) => string): string {
+  return Object.entries(bonus)
+    .filter(([, n]) => n > 0)
+    .map(([id, n]) => `${n.toLocaleString('en-GB')} extra ${name(id)}`)
+    .join(' and ');
 }

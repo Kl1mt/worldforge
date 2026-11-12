@@ -77,6 +77,14 @@ describe('the cosmetic catalogue', () => {
       'crest.seal-wax',
       // Ticket 8.2: the Hollow Sovereign's milestone (CSS only).
       'title-colour.hollow-pale',
+      // Ticket 8.3: the Lantern Procession's track (existing art with code treatments).
+      'title-colour.wick-amber',
+      'banner.procession-lantern',
+      'crest.lantern-brass',
+      'title-colour.deep-lantern',
+      'appearance.lantern-bearer',
+      'banner.hollow-procession',
+      'title.keeper-of-the-long-road',
     ];
     expect(COSMETICS.map((c) => c.id).sort()).toEqual([...want].sort());
   });

@@ -17,7 +17,8 @@ import { heroPaletteSwaps } from './palettes';
  *   plain rim;
  * - **title colours** are code only (CSS, `cosmetics/cosmetics.css`).
  * Ticket 6.11: the exchange's banner and crests reuse A.13's art (`ART_TINTS`), recoloured in CSS
- * (`.cosm-banner--<name>` / `.cosm-crest--<name>` filters); no new art.
+ * (`.cosm-banner--<name>` / `.cosm-crest--<name>` filters); no new art. Ticket 8.3's Lantern
+ * Procession does the same for its two banners and its crest.
  */
 
 /** Ticket 6.11: cosmetics drawn with another style's art and a CSS tint (cosmetics.css). */
@@ -25,6 +26,10 @@ export const ART_TINTS: Readonly<Record<string, string>> = {
   'banner.silvered-seal': 'banner.crypt-seal',
   'crest.abbey-silver': 'crest.iron',
   'crest.seal-wax': 'crest.iron',
+  // Ticket 8.3: the Lantern Procession's banners and crest (recoloured in cosmetics.css).
+  'banner.procession-lantern': 'banner.warden-flame',
+  'banner.hollow-procession': 'banner.ember-standard',
+  'crest.lantern-brass': 'crest.iron',
 };
 
 /** `#rrggbb` → `#rrggbb`. */

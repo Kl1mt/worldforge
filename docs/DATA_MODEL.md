@@ -506,6 +506,12 @@ Migration `0039_world_events` (additive). `docs/EVENTS.md`.
 - `cosmetic_unlocks`: PK `(account_id, cosmetic_id)`, `source` (`event:<n>:tier:<t>`), `granted_at`. Minimal and additive; 6.8's collection book extends it.
 - `prestige_displays.cosmetic_title` (nullable): a title of kind `title` the account unlocked (composite FK `(account_id, cosmetic_title)` → `cosmetic_unlocks`); check: never together with `title_season`.
 
+### event_calendar; world_events.source, calendar_slot — implemented (8.3)
+Migration `0044_event_calendar` (additive: one new table, two new columns with a default / nullable; nothing existing changed). `docs/EVENTS.md` "The calendar".
+- `event_calendar`: one row (`id` = 1, checked): `paused` (default true), `rotation jsonb` (`[{ definitionId, days }]`, in order), `gap_days ≥ 0`, `next_index ≥ 0` (the entry created next), `created_count ≥ 0` (automatic events created so far), `updated_by` (FK accounts, set null; null for the CLI and the scheduler), `updated_at`. No row = game-core's `DEFAULT_EVENT_CALENDAR` (paused). Written only under the events' plan lock.
+- `world_events.source` (`manual` | `calendar`, checked, default `manual`: every event before 8.3), `world_events.calendar_slot` (nullable, **unique**: the calendar's running number `created_count + 1`, the last guard against creating the same automatic event twice).
+- `event_participants.bounty_kills` is now the modifier's **bounty count** of either kind (kills for the Harvest, gathered materials for the Lantern Procession); no column changed.
+
 ### cosmetic_displays, hero_appearances; cosmetic_unlocks sources — implemented (6.8)
 Migration `0041_cosmetic_collection` (additive: two new tables, nothing changed). `docs/COSMETICS.md`.
 - `cosmetic_unlocks.source` gains `achievement:<id>`, `milestone:<character id>`, `season:<n>` and the same with a `backfill:` prefix (text, no schema change). Still exactly once per `(account_id, cosmetic_id)`.

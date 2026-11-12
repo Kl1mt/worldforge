@@ -3432,6 +3432,126 @@ export async function playEventStep(
 }
 
 /**
+ * Ticket 8.3's calendar step (docs/EVENTS.md "The calendar"): the owner finds the calendar paused,
+ * sets the rotation (the Lantern Procession, then the Harvest) and a two-day gap in the admin
+ * panel and turns it on; the scheduler's step puts the Procession on the calendar at the next full
+ * hour (or the gap after the last event, if later), once. The hero joins, farms the Fields until the first week's gathering task is done (the
+ * first keepsake granted once, the lantern-frame ore with it); week 2 opens on its boundary. The
+ * owner ends the Procession early; once it closes, the calendar puts the Harvest on, two days
+ * after the end. The owner pauses the calendar again. Audit and telemetry reconcile.
+ */
+export async function playCalendarStep(
+  app: FastifyInstance,
+  database: DatabaseHandle,
+  hero: Journey,
+  clock: Clock,
+  cast: StepCast & { ownerEmail?: string } = {},
+) {
+  type Calendar = {
+    calendar: { paused: boolean; planned: { definitionId: string; kind: string }[] };
+    current: { number: number; definitionId: string; source: string } | null;
+    next: { number: number; definitionId: string; source: string; startsAt: string } | null;
+  };
+  type HeroEvent = {
+    current: { number: number; name: string; week: number; weeks: number } | null;
+    hero: {
+      quests: { id: string; done: boolean; open: boolean }[];
+      bonus: Record<string, number>;
+    } | null;
+    track: { tallies: number; granted: { tier: number; cosmeticId: string }[] } | null;
+  };
+  const ownerEmail = cast.ownerEmail ?? 'lantern-keeper@graumark.test';
+  const owner = await newPlayer(app, ownerEmail, 'Lantern Keeper', cast.invite);
+  expect(await setAccountRole(database.db, ownerEmail, 'admin')).toMatchObject({ to: 'admin' });
+  const admin = async (method: 'GET' | 'POST', url: string, body?: object) => {
+    const res = await owner.api(method, url, body);
+    expect(res.statusCode, res.body).toBe(200);
+    return res.json<Calendar>();
+  };
+  // Paused until the owner turns it on (also in production).
+  expect((await admin('GET', '/api/admin/events')).calendar.paused).toBe(true);
+  await admin('POST', '/api/admin/events/calendar', {
+    rotation: [
+      { definitionId: 'lanternProcession', days: 28 },
+      { definitionId: 'harvestOfBones', days: 7 },
+    ],
+    gapDays: 2,
+  });
+  const on = await admin('POST', '/api/admin/events/calendar', { paused: false });
+  expect(on.calendar.planned[0]?.definitionId).toBe('lanternProcession');
+
+  // The scheduler's step (the leader's `eventJobs`) creates it once.
+  const tick = () => runEventJobs(database.db, new Date(clock.now()));
+  const made = await tick();
+  expect(made.created).not.toBeNull();
+  expect((await tick()).created).toBeNull();
+  const planned = await admin('GET', '/api/admin/events');
+  expect(planned.next).toMatchObject({ definitionId: 'lanternProcession', source: 'calendar' });
+  const number = planned.next!.number;
+  const startsAt = Date.parse(planned.next!.startsAt);
+  // Never in the past: the gap after the last event's end, or the next full hour.
+  expect(startsAt).toBeGreaterThanOrEqual(clock.now());
+  // The hero rests until then (no settlement spans the offline cap).
+  await hero.api('POST', `${hero.base}/activity/stop`);
+  clock.set(startsAt);
+
+  const event = () =>
+    hero.api('GET', `${hero.base}/event`).then((r) => {
+      expect(r.statusCode, r.body).toBe(200);
+      return r.json<HeroEvent>();
+    });
+  expect((await event()).current).toMatchObject({ number, week: 1, weeks: 4 });
+  const joined = await hero.api('POST', `${hero.base}/event/join`);
+  expect(joined.statusCode, joined.body).toBe(201);
+  const start = await hero.api('POST', `${hero.base}/activity`, { areaId: 'abandonedFields' });
+  expect(start.statusCode, start.body).toBe(201);
+  const wick = 1; // "Wick and Frame": 150 Timber, Ashwort, Raw Hide or Iron Ore.
+  let mine = await event();
+  for (let i = 0; i < 20 && !mine.hero?.quests[wick]?.done; i++) {
+    await hero.settle();
+    mine = await event();
+  }
+  expect(mine.hero?.quests[wick]?.done, 'Wick and Frame done').toBe(true);
+  expect(mine.track?.granted).toContainEqual(
+    expect.objectContaining({ tier: 1, cosmeticId: 'title-colour.wick-amber' }),
+  );
+  // The lantern-frame ore: one per 25 gathered (≥ 150 gathered with the bonus: at least 5).
+  expect(mine.hero!.bonus.ironOre ?? 0).toBeGreaterThanOrEqual(5);
+  // Week 2's tasks are shut until its first moment (1 ms before it, too), then open.
+  expect(mine.hero!.quests.slice(3, 5).map((q) => q.open)).toEqual([false, false]);
+  await hero.api('POST', `${hero.base}/activity/stop`);
+  clock.set(startsAt + 7 * 24 * HOUR - 1);
+  expect((await event()).hero!.quests.slice(3, 5).map((q) => q.open)).toEqual([false, false]);
+  clock.set(startsAt + 7 * 24 * HOUR);
+  const week2 = await event();
+  expect(week2.current?.week).toBe(2);
+  expect(week2.hero!.quests.slice(3, 5).map((q) => q.open)).toEqual([true, true]);
+
+  // The owner ends it early; once it closes the calendar puts the next one on, the gap after.
+  const endAt = clock.now();
+  await admin('POST', `/api/admin/events/${number}/end`, {});
+  clock.set(endAt + 10 * MIN);
+  const closed = await tick();
+  expect(closed.closed).toEqual([number]);
+  expect(closed.created).not.toBeNull();
+  const after = await admin('GET', '/api/admin/events');
+  expect(after.next).toMatchObject({ definitionId: 'harvestOfBones', source: 'calendar' });
+  // Ended at `endAt`: the gap (two days) after it.
+  expect(Date.parse(after.next!.startsAt)).toBe(endAt + 2 * 24 * HOUR);
+  // Nothing earned is lost; the keepsake stays.
+  const unlocks = (await hero.api('GET', '/api/account/cosmetics')).json<{
+    unlocks: { id: string }[];
+  }>().unlocks;
+  expect(unlocks.map((u) => u.id)).toContain('title-colour.wick-amber');
+  expect(
+    (await admin('POST', '/api/admin/events/calendar', { paused: true })).calendar.paused,
+  ).toBe(true);
+  const bad = (await reconcileWithAudit(database.db)).filter((c) => !c.ok);
+  expect(bad).toEqual([]);
+  return { event: number, next: after.next!.number, tallies: mine.track!.tallies };
+}
+
+/**
  * Phase 5 duel step (ticket 5.5, docs/PVP.md "The arena"): two players. Fresh heroes cannot fight
  * rated duels yet, but friends may challenge each other at once (a friendly challenge against the
  * friend's saved defence). Both farm to level 10, set their defences, and the hero fights the rival

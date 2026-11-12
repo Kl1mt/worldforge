@@ -605,3 +605,11 @@
 .hero-portrait[data-banner-style='banner.silvered-seal'] .hero-portrait__device {
   filter: grayscale(1) brightness(1.35) contrast(1.1);
 }
+
+/* Ticket 8.3: the Lantern Procession's banners, tinted like their collection-book swatches. */
+.hero-portrait[data-banner-style='banner.procession-lantern'] .hero-portrait__device {
+  filter: sepia(1) saturate(2.6) hue-rotate(4deg) brightness(1.15);
+}
+.hero-portrait[data-banner-style='banner.hollow-procession'] .hero-portrait__device {
+  filter: grayscale(0.85) brightness(1.5) contrast(0.9);
+}

@@ -1860,15 +1860,56 @@ export const worldEvents = pgTable(
     closedAt: timestamp('closed_at', { withTimezone: true }),
     /** The close's reward sweep finished (every account's tiers checked against its tallies). */
     rewardsSweptAt: timestamp('rewards_swept_at', { withTimezone: true }),
+    /**
+     * Ticket 8.3: who put it on the calendar: `manual` (the admin panel or the CLI; every event
+     * before 8.3) or `calendar` (the automatic rotation).
+     */
+    source: text('source').$type<'manual' | 'calendar'>().notNull().default('manual'),
+    /**
+     * Ticket 8.3: the calendar's running number of the events it created (1, 2, …), unique, so a
+     * repeated or concurrent creation can never insert the same automatic event twice.
+     */
+    calendarSlot: integer('calendar_slot'),
   },
   (t) => [
     check('world_events_window_check', sql`${t.endsAt} > ${t.startsAt}`),
     check('world_events_number_check', sql`${t.number} >= 1`),
+    check('world_events_source_check', sql`${t.source} in ('manual', 'calendar')`),
     index('world_events_window_idx').on(t.startsAt, t.endsAt),
+    uniqueIndex('world_events_calendar_slot_idx').on(t.calendarSlot),
   ],
 );
 
 export type WorldEvent = typeof worldEvents.$inferSelect;
+
+/**
+ * Ticket 8.3: the automatic event calendar (docs/EVENTS.md "The calendar"), one row (`id` 1). No
+ * row means game-core's `DEFAULT_EVENT_CALENDAR` (paused). `rotation`: the events in order with
+ * their lengths; `next_index`: the entry created next; `created_count`: automatic events created
+ * so far (the next one's `world_events.calendar_slot` is `created_count + 1`). Changed only under
+ * the events' plan lock, audited `event.calendar`.
+ */
+export const eventCalendar = pgTable(
+  'event_calendar',
+  {
+    id: integer('id').primaryKey(),
+    paused: boolean('paused').notNull().default(true),
+    rotation: jsonb('rotation').$type<{ definitionId: string; days: number }[]>().notNull(),
+    gapDays: integer('gap_days').notNull(),
+    nextIndex: integer('next_index').notNull().default(0),
+    createdCount: integer('created_count').notNull().default(0),
+    updatedBy: uuid('updated_by').references(() => accounts.id, { onDelete: 'set null' }),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    check('event_calendar_one_row', sql`${t.id} = 1`),
+    check('event_calendar_gap_check', sql`${t.gapDays} >= 0`),
+    check('event_calendar_index_check', sql`${t.nextIndex} >= 0`),
+    check('event_calendar_count_check', sql`${t.createdCount} >= 0`),
+  ],
+);
+
+export type EventCalendarRow = typeof eventCalendar.$inferSelect;
 
 /**
  * Ticket 6.6: a hero taking part in an event (joined in the Tavern). `progress`: one number per

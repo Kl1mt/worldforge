@@ -30,6 +30,13 @@
 .cosm-tint--hollow-pale {
   --cosm-tint: #c9cfd8;
 }
+/* Ticket 8.3: the Lantern Procession's title colours (a lit wick; the lanterns near the Hollow). */
+.cosm-tint--wick-amber {
+  --cosm-tint: #e8b04a;
+}
+.cosm-tint--deep-lantern {
+  --cosm-tint: #7cc6bd;
+}
 .honour.cosm-tint .honour__words,
 .book-swatch__words.cosm-tint {
   color: var(--cosm-tint);
@@ -107,6 +114,24 @@
 .cosm-crest--seal-wax .cosm-crest__frame,
 .cosm-crest--seal-wax .cosm-crestmark__art {
   filter: sepia(1) saturate(4) hue-rotate(-28deg) brightness(0.8);
+}
+/*
+ * Ticket 8.3: the Lantern Procession's keepsakes reuse A.13's art the same way: the Watch's flame
+ * re-dyed lantern gold, the ember standard bleached to the Hollow's pale, the iron rim turned to
+ * dark, sooted brass.
+ */
+.cosm-crest--lantern-brass {
+  --cosm-metal: #9a7a3c;
+}
+.cosm-banner--procession-lantern .cosm-banner__device {
+  filter: sepia(1) saturate(2.6) hue-rotate(4deg) brightness(1.15);
+}
+.cosm-banner--hollow-procession .cosm-banner__device {
+  filter: grayscale(0.85) brightness(1.5) contrast(0.9);
+}
+.cosm-crest--lantern-brass .cosm-crest__frame,
+.cosm-crest--lantern-brass .cosm-crestmark__art {
+  filter: sepia(1) saturate(1.6) hue-rotate(-6deg) brightness(0.85);
 }
 .cosm-crest__well {
   position: absolute;

@@ -363,10 +363,12 @@ function registerSettlementScheduler(
       return `archived ${out.archived.length}, awarded ${out.awarded.length}`;
     });
     await step('eventJobs', async () => {
-      // Ticket 6.6: close every ended event and sweep its reward track.
+      // Ticket 6.6: close every ended event and sweep its reward track. Ticket 8.3: then the
+      // automatic calendar puts the next event on the calendar (on this leader only).
       const out = await runEventJobs(app.db, options.now());
-      if (out.closed.length > 0 || out.swept.length > 0) app.log.info(out, 'event jobs');
-      return `closed ${out.closed.length}, swept ${out.swept.length}`;
+      if (out.closed.length > 0 || out.swept.length > 0 || out.created !== null)
+        app.log.info(out, 'event jobs');
+      return `closed ${out.closed.length}, swept ${out.swept.length}, created ${out.created ?? 'none'}`;
     });
     await step('tradeSweep', async () => {
       // Ticket T.5: offers past their 48 hours expire, holds past their 72 hours release.

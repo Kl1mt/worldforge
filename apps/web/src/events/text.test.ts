@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { talliesLine, timeLeft, trackLines } from './text';
+import { bonusWords, questWeeks, talliesLine, timeLeft, trackLines, weekOpens } from './text';
 import type { EventView } from './api';
 
 const event: EventView = {
@@ -44,6 +44,9 @@ const event: EventView = {
   startsAt: '2030-01-07T00:00:00Z',
   endsAt: '2030-01-14T00:00:00Z',
   status: 'active',
+  weeks: 1,
+  week: 1,
+  source: 'manual',
 };
 
 describe('event words', () => {
@@ -66,5 +69,63 @@ describe('event words', () => {
     expect(trackLines(event, null).map((l) => l.state)).toEqual(['open', 'open', 'open']);
     expect(talliesLine(event, { tallies: 70, granted: [] })).toBe('50 of 50 bone tallies');
     expect(talliesLine(event, null)).toBe('0 of 50 bone tallies');
+  });
+
+  it('ticket 8.3: quests by week, the weeks to come with their day; bonus words', () => {
+    const q = (id: string, week: number) => ({
+      id,
+      name: id,
+      description: '',
+      target: 1,
+      tallies: 1,
+      week,
+      minLevel: null,
+      opensAt: new Date(Date.UTC(2030, 0, 7 + (week - 1) * 7)).toISOString(),
+    });
+    const groups = questWeeks({ week: 2, quests: [q('a', 1), q('b', 1), q('c', 2), q('d', 3)] });
+    expect(groups.map((g) => [g.week, g.state, g.quests.map((x) => x.index)])).toEqual([
+      [1, 'past', [0, 1]],
+      [2, 'now', [2]],
+      [3, 'later', [3]],
+    ]);
+    expect(weekOpens(groups[2]!.opensAt)).toMatch(/^Opens \w+day \d+ January$/);
+    // A one-week event is one group.
+    expect(questWeeks({ week: 1, quests: [q('a', 1), q('b', 1)] })).toHaveLength(1);
+    const name = (id: string) => (id === 'ironOre' ? 'Iron Ore' : id);
+    expect(bonusWords({ ironOre: 3 }, name)).toBe('3 extra Iron Ore');
+    expect(bonusWords({ ironOre: 0 }, name)).toBe('');
+    // The new keepsake kinds have their own words.
+    const lines = trackLines(
+      {
+        ...event,
+        track: [
+          {
+            tier: 1,
+            tallies: 5,
+            cosmetic: {
+              id: 'appearance.x',
+              kind: 'appearance',
+              name: 'A',
+              description: '',
+              shownToday: true,
+            },
+          },
+          {
+            tier: 2,
+            tallies: 9,
+            cosmetic: {
+              id: 'crest.x',
+              kind: 'crest',
+              name: 'C',
+              description: '',
+              shownToday: true,
+            },
+          },
+        ],
+      },
+      null,
+    );
+    expect(lines.map((l) => l.kind)).toEqual(['Hero appearance', 'Crest style']);
+    expect(lines[0]!.where).toContain('heroes');
   });
 });
