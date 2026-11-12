@@ -539,6 +539,11 @@ Migration `0045_guild_seasons_halls` (additive: eight new tables, two new nullab
 - `guild_hall_upgrades` (PK `guild_id, upgrade_id`; `bought_by` → accounts set null, `gold`, `materials`, `bought_at`): bought once per guild.
 - `guild_hall_displays` (`guild_id` PK; `hall_banner`, `crest_frame`, `backdrop`, `title_colour`, each null or one of the guild's own upgrades by composite foreign keys; `updated_at`).
 
+### account_notifications; characters.loot_filter_presets — implemented (8.5)
+Migration `0046_quality_of_life` (additive: one new table, one new column with a default; nothing existing changed). docs/NOTIFICATIONS.md, docs/LOOT.md "Presets and share codes".
+- `account_notifications` (`id` uuid PK; `account_id` → accounts cascade; `kind` text; `data` jsonb (content ids and the account's own ids only); `dedupe_key` text null, unique with `account_id`; `created_at` (the game clock); `read_at` null = unread). Indexes `(account_id, created_at)` (the list and the per-account prune) and `(created_at)` (the age prune). Bounded to the newest 200 per account and 60 days. Written only by `notifyTx` / `broadcastTx` in the reporting transaction.
+- `characters.loot_filter_presets` (jsonb, not null, default `[]`): up to five `{ name, rules }` (game-core `LootFilterPreset`), validated like the filter.
+
 ## Relationships
 
 ```

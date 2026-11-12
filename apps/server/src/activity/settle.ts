@@ -26,6 +26,7 @@ import {
 import { itemBindingColumns, itemEffectColumns } from '../inventory/columns.js';
 import type { Database, Transaction } from '../db/types.js';
 import { withTransaction } from '../db/transaction.js';
+import { notifyDropsTx } from '../inbox/notify.js';
 import { writeAudit } from '../db/audit.js';
 import { recordTelemetry } from '../telemetry/record.js';
 import {
@@ -262,6 +263,15 @@ export async function settleActivityTx(
       createdAt: now,
     }));
     if (rows.length > 0) await tx.insert(itemInstances).values(rows);
+    // Ticket 8.5: drops worth seeing go to the account's inbox, in this transaction.
+    await notifyDropsTx(tx, {
+      accountId: character.accountId,
+      characterId,
+      source: 'farming',
+      placeId: activity.areaId,
+      items: settlement.items,
+      now,
+    });
     await grantGatheringTx(
       tx,
       characterId,

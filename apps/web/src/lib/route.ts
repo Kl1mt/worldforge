@@ -47,6 +47,8 @@ export const GAME_ROUTES = [
   'collection',
   // Ticket 8.4: the guild treasury and the hall's cosmetic upgrades, `#/treasury`.
   'treasury',
+  // Ticket 8.5: the notification inbox ("Letters"), `#/inbox`.
+  'inbox',
 ] as const;
 /** The gate: only shown to visitors without a session. Ticket 5.7: `forgot` (password). */
 export const AUTH_ROUTES = ['login', 'register', 'forgot'] as const;

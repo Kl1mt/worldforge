@@ -30,6 +30,7 @@ import {
 import { buildApp } from '../app.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
 import {
+  accountNotifications,
   accounts,
   auditLog,
   blocks,
@@ -549,6 +550,14 @@ describe('award runs are resumable', () => {
     expect(awards).toHaveLength(48);
     expect(new Set(awards.map((a) => `${a.accountId}:${a.metric}`)).size).toBe(48);
     expect(await w.db.select().from(prestigeDisplays)).toHaveLength(12);
+    // Ticket 8.5: one inbox entry per honoured account, written with the awards, once.
+    const notes = await w.db
+      .select()
+      .from(accountNotifications)
+      .where(eq(accountNotifications.kind, 'season.honours'));
+    expect(notes).toHaveLength(12);
+    expect(new Set(notes.map((n) => n.accountId)).size).toBe(12);
+    expect(notes.every((n) => (n.data as { season: number }).season === 1)).toBe(true);
     const standings = await w.db.select().from(seasonStandings);
     expect([...computeAwards(standings)].sort(byAward)).toEqual(
       awards

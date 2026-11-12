@@ -32,6 +32,7 @@ import { withTransaction } from '../db/transaction.js';
 import type { Database, Executor, Transaction } from '../db/types.js';
 import { grantSeasonTx } from '../cosmetics/grant.js';
 import { bumpCacheVersion } from '../shared/cache-sync.js';
+import { notifyTx } from '../inbox/notify.js';
 import { writeAudit } from '../db/audit.js';
 import { ApiError } from '../errors.js';
 import { notTestOrDeleted } from '../admin/eligibility.js';
@@ -554,6 +555,14 @@ export async function awardSeason(
     }
     for (const [accountId, tiers] of tiersByAccount) {
       await grantSeasonTx(tx, accountId, number, tiers, now);
+      // Ticket 8.5: the season's honours in the account's inbox (once).
+      await notifyTx(tx, {
+        accountId,
+        kind: 'season.honours',
+        data: { season: number, tiers: [...tiers] },
+        now,
+        dedupeKey: `season:${number}`,
+      });
     }
     await tx.update(seasons).set({ awardedAt: now }).where(eq(seasons.number, number));
     const [counted] = await queryRows<{ n: number }>(

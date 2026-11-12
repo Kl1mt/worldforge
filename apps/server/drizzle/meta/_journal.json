@@ -323,6 +323,13 @@
       "when": 1794473299143,
       "tag": "0045_guild_seasons_halls",
       "breakpoints": true
+    },
+    {
+      "idx": 46,
+      "version": "7",
+      "when": 1794494589465,
+      "tag": "0046_quality_of_life",
+      "breakpoints": true
     }
   ]
 }

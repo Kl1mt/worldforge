@@ -1,5 +1,6 @@
 import { sql } from 'drizzle-orm';
 import { worldEra, type WorldFlags } from '@worldforge/game-core';
+import { broadcastTx } from '../inbox/notify.js';
 import { writeAudit } from '../db/audit.js';
 import type { Transaction } from '../db/types.js';
 import { recordTelemetry } from '../telemetry/record.js';
@@ -33,6 +34,8 @@ export async function recordEraChange(
   const to = worldEra(after).id;
   if (from === to) return null;
   await writeAudit(tx, { event: 'world.era_change', data: { from, to, ...cause } });
+  // Ticket 8.5: every account's inbox (once per era).
+  await broadcastTx(tx, { kind: 'world.era', data: { from, to }, now, dedupeKey: `era:${to}` });
   recordTelemetry(tx, now, [{ metric: 'world.era', dims: [from, to] }]);
   return { from, to };
 }

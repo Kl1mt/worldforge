@@ -32,6 +32,7 @@ import { BoardsScreen } from './screens/BoardsScreen';
 import { TradingScreen } from './screens/TradingScreen';
 import { ArenaScreen } from './screens/ArenaScreen';
 import { NotesRoute } from './notes/NotesRoute';
+import { InboxScreen } from './inbox/InboxScreen';
 import { isStaff } from '@worldforge/game-core';
 import { TavernScreen } from './screens/TavernScreen';
 import { CharacterScreen } from './screens/CharacterScreen';
@@ -146,6 +147,7 @@ function Routes() {
             {route === 'arena' ? <ArenaScreen /> : null}
             {route === 'trading' ? <TradingScreen /> : null}
             {route === 'collection' ? <CollectionScreen /> : null}
+            {route === 'inbox' ? <InboxScreen /> : null}
           </Shell>
         </OnboardingProvider>
       </QuestsProvider>

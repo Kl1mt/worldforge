@@ -25,6 +25,8 @@ import { routeHref } from '../lib/route';
 import { useOnboarding } from '../onboarding/OnboardingProvider';
 import { MaterialsTab } from './MaterialsTab';
 import { LootFilterPanel } from './LootFilterPanel';
+import { ItemQueryBar, NothingMatches, useItemQuery } from '../inventory/ItemQueryBar';
+import { activeFilterCount, applyItemQuery } from '../inventory/query';
 import './inventory.css';
 
 type Filter = 'all' | RarityId;
@@ -85,7 +87,10 @@ export function InventoryScreen() {
   // Ticket 4.7: the banner points to the Warehouse once the town has restored it.
   const warehouseOpen = worldFlags?.warehouseRestored === true;
   const [tab, setTab] = useState<Tab>('items');
-  const [filter, setFilter] = useState<Filter>('all');
+  // Ticket 8.5: search, sort and filters, remembered for the Pack; the rarity row is its rarity.
+  const { query, update: updateQuery, clear: clearQuery } = useItemQuery('pack');
+  const filter: Filter = query.rarity === 'any' ? 'all' : query.rarity;
+  const setFilter = (f: Filter) => updateQuery({ rarity: f === 'all' ? 'any' : f });
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [busy, setBusy] = useState<'equip' | 'discard' | 'lock' | 'sell' | 'salvage' | null>(null);
   // Ticket 3.7: several items at once (sell or salvage), locked ones excluded.
@@ -114,9 +119,15 @@ export function InventoryScreen() {
     return map;
   }, [items]);
 
-  const visible = filter === 'all' ? items : items.filter((i) => i.rarity === filter);
+  const visible = useMemo(
+    () => applyItemQuery(items, query, { equipped, classId: hero.classId }),
+    [items, query, equipped, hero.classId],
+  );
+  // Narrowed by anything but the rarity row (which has its own empty state and counts).
+  const searched = query.text.trim() !== '' || activeFilterCount({ ...query, rarity: 'any' }) > 0;
+  const narrowed = searched || filter !== 'all';
   const sockets = Math.max(MIN_SOCKETS, Math.ceil(items.length / columns) * columns);
-  const emptySockets = filter === 'all' ? Math.max(0, sockets - items.length) : 0;
+  const emptySockets = narrowed ? 0 : Math.max(0, sockets - items.length);
   const free = Math.max(0, CAPACITY - items.length);
   const over = Math.max(0, items.length - CAPACITY);
   // The selection falls back to the first visible item (e.g. after equipping the selected one).
@@ -302,6 +313,8 @@ export function InventoryScreen() {
         </a>
       </div>
     );
+  } else if (visible.length === 0 && searched) {
+    stash = <NothingMatches onClear={clearQuery} />;
   } else if (visible.length === 0) {
     stash = (
       <div className="stash__empty">
@@ -415,8 +428,8 @@ export function InventoryScreen() {
               </p>
               <p>
                 {free === 0
-                  ? 'New drops that find no room are salvaged for gold the moment they drop. Legendary, Mythic, set and Void drops are kept anyway, beyond the limit.'
-                  : 'Once it is full, new drops that find no room are salvaged for gold the moment they drop (Legendary, Mythic, set and Void drops are kept anyway).'}{' '}
+                  ? 'New drops that find no room are salvaged for gold the moment they drop. Legendary, Mythic, set, Void and Prismatic drops are kept anyway, beyond the limit.'
+                  : 'Once it is full, new drops that find no room are salvaged for gold the moment they drop (Legendary, Mythic, set, Void and Prismatic drops are kept anyway).'}{' '}
                 {sinceBack(tally)}{' '}
                 {tally.filtered > 0
                   ? `Your loot filter handled ${tally.filtered} more for ${formatNumber(tally.filteredGold)} gold; those never need room.`
@@ -454,6 +467,18 @@ export function InventoryScreen() {
                 </p>
               ) : null}
             </div>
+          ) : null}
+
+          {ready && items.length > 0 ? (
+            <ItemQueryBar
+              query={query}
+              update={updateQuery}
+              clear={clearQuery}
+              shown={visible.length}
+              total={items.length}
+              place="the pack"
+              rarity={false}
+            />
           ) : null}
 
           <div className="pack__filters" role="group" aria-label="Filter by rarity">
@@ -506,7 +531,7 @@ export function InventoryScreen() {
                     setPicked(new Set(visible.filter((i) => !i.locked).map((i) => i.id)));
                   }}
                 >
-                  {filter === 'all'
+                  {filter === 'all' || searched
                     ? 'All shown'
                     : `All ${RARITIES.find((r) => r.id === filter)?.name}`}
                 </button>
@@ -569,11 +594,11 @@ export function InventoryScreen() {
               }}
             >
               {stash}
-              {ready && filter === 'all' && items.length > 0 ? (
+              {ready && !narrowed && items.length > 0 ? (
                 <p className="stash__free">
                   {free} free {free === 1 ? 'slot' : 'slots'}
                   {free === 0
-                    ? ' · drops that find no room are salvaged for gold, except Legendary, Mythic, set and Void'
+                    ? ' · drops that find no room are salvaged for gold, except Legendary, Mythic, set, Void and Prismatic'
                     : ''}
                 </p>
               ) : null}

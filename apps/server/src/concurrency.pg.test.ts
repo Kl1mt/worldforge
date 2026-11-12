@@ -861,6 +861,74 @@ describe.skipIf(!url)('real PostgreSQL concurrency', () => {
       expect(q!.status).toBe('turnedIn');
     });
 
+    // Ticket 8.5: a batch turn-in against single turn-ins (and a second batch with the same key)
+    // of the same quests: whichever wins each quest, every quest is paid exactly once.
+    it('pays each quest once when a batch races single turn-ins', async () => {
+      const p = await newPlayer();
+      const id = await newCharacter(p);
+      expect(
+        (
+          await call(p, 'POST', `/api/characters/${id}/quests`, {
+            kind: 'story',
+            questId: 'furrowsOfTheDead',
+          })
+        ).statusCode,
+      ).toBe(201);
+      for (const slot of [0, 1, 2]) {
+        const res = await call(p, 'POST', `/api/characters/${id}/quests`, {
+          kind: 'contract',
+          slot,
+        });
+        expect(res.statusCode).toBe(201);
+      }
+      const held = await database.db
+        .select()
+        .from(characterQuests)
+        .where(eq(characterQuests.characterId, id));
+      expect(held).toHaveLength(4);
+      for (const q of held) {
+        await database.db
+          .update(characterQuests)
+          .set({ progress: q.objectives.map((o) => ('count' in o ? o.count : 1)) })
+          .where(eq(characterQuests.id, q.id));
+      }
+      const [start] = await database.db.select().from(characters).where(eq(characters.id, id));
+      const questIds = held.map((q) => q.id);
+      const retriesBefore = transactionStats.retries;
+      const runBatch = (key: string) =>
+        app.inject({
+          method: 'POST',
+          url: `/api/characters/${id}/quests/turn-in-batch`,
+          headers: { 'idempotency-key': key },
+          payload: { questIds },
+          cookies: { [SESSION_COOKIE]: p.token },
+        });
+      const responses = await Promise.all([
+        runBatch('race-batch-0001'),
+        runBatch('race-batch-0001'),
+        runBatch('race-batch-0002'),
+        ...held.map((q, i) => turnIn(p, id, q.id, `race-single-${i}-key`)),
+      ]);
+      for (const r of responses) expect([200, 409]).toContain(r.statusCode);
+      const [batchA, batchA2, batchB] = responses.map((r) => r.json());
+      // The same batch key gives one answer.
+      expect(batchA2).toEqual(batchA);
+      // Each quest: exactly one success across the batches' fresh runs and the singles.
+      const singles = responses.slice(3);
+      for (const [i, q] of held.entries()) {
+        const wins =
+          [batchA, batchB].filter(
+            (b) =>
+              (b.results as { questId: string; ok: boolean }[]).find((r) => r.questId === q.id)!.ok,
+          ).length + (singles[i]!.statusCode === 200 ? 1 : 0);
+        expect(wins, q.questId).toBe(1);
+      }
+      expect(await turnInAudits(id)).toHaveLength(4);
+      const [end] = await database.db.select().from(characters).where(eq(characters.id, id));
+      expect(end!.gold).toBe(start!.gold + held.reduce((sum, q) => sum + q.reward.gold, 0));
+      expect(transactionStats.retries).toBe(retriesBefore);
+    });
+
     it('settles racing turn-ins credit kills to the quest once and grant once', async () => {
       const { p, id } = await farmer();
       const accepted = await call(p, 'POST', `/api/characters/${id}/quests`, {

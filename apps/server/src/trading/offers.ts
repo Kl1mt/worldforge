@@ -46,6 +46,7 @@ import {
 import type { Database, Executor, Transaction } from '../db/types.js';
 import { withTransaction } from '../db/transaction.js';
 import { uuidv7 } from '../db/uuid.js';
+import { notifyTx } from '../inbox/notify.js';
 import { writeAudit } from '../db/audit.js';
 import { ApiError } from '../errors.js';
 import type { ActivityOptions } from '../activity/settle.js';
@@ -619,6 +620,14 @@ export async function sendOffer(
       materialsAfter: pick(materialsAfter, give.materials),
     },
   });
+  // Ticket 8.5: the receiver's inbox (never from a test account or across a block).
+  await notifyTx(tx, {
+    accountId: receiver.id,
+    kind: 'trade.received',
+    data: { offerId },
+    now,
+    from: me.id,
+  });
   return offerId;
 }
 
@@ -789,6 +798,21 @@ export async function endOffer(
       materialsAfter: pick(materialsAfter, sides.give.materials),
     },
   });
+  if (end === 'void') {
+    // Ticket 8.5: both sides learn the offer was voided (by a switch, a sanction or staff).
+    const reason = detail.cause ?? 'switch';
+    for (const [accountId, side] of [
+      [offer.senderAccountId, 'sent'],
+      [offer.receiverAccountId, 'received'],
+    ] as const) {
+      await notifyTx(tx, {
+        accountId,
+        kind: 'trade.voided',
+        data: { offerId: offer.id, reason, side },
+        now,
+      });
+    }
+  }
 }
 
 /** Cancel (the sender) or decline (the receiver). Past its expiry, the offer expires instead. */
@@ -1293,6 +1317,14 @@ export async function acceptOffer(
       },
     },
   });
+  // Ticket 8.5: the sender's inbox.
+  await notifyTx(tx, {
+    accountId: offer.senderAccountId,
+    kind: 'trade.accepted',
+    data: { offerId: offer.id },
+    now,
+    from: me.id,
+  });
   recordTelemetry(tx, now, tradeTelemetry(kind, giveRows, askRows, sides));
 }
 
@@ -1397,6 +1429,13 @@ export async function releaseHold(tx: Transaction, holdId: string, now: Date): P
       items: row.itemIds,
       heldUntil: row.heldUntil.toISOString(),
     },
+  });
+  // Ticket 8.5: what the account received is its own to use now.
+  await notifyTx(tx, {
+    accountId: row.accountId,
+    kind: 'trade.released',
+    data: { offerId: row.offerId, items: row.itemIds.length, gold: row.gold },
+    now,
   });
   return 1;
 }

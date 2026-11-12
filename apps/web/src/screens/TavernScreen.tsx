@@ -256,7 +256,7 @@ function BossWeekNotice() {
 export function TavernScreen() {
   const phone = useMediaQuery(PHONE_QUERY);
   const quests = useQuests();
-  const { board, busy, error, lastReward } = quests;
+  const { board, busy, error, lastReward, lastBatch } = quests;
   const { newQuests } = useOnboarding();
   // Ticket 6.7: the Tavern's ambient line follows the world era (the old line until it is known).
   const era = useWorldEra();
@@ -314,6 +314,44 @@ export function TavernScreen() {
             {lastReward.levelsGained > 0 ? ` · level up!` : ''}
             {lastReward.item ? ' · the reward item is in your pack' : ''}
           </p>
+          <button type="button" className="btn" onClick={quests.dismissReward}>
+            Dismiss
+          </button>
+        </div>
+      ) : null}
+      {lastBatch ? (
+        <div className="tavern__paid" role="status">
+          <p>
+            <span className="caps">Paid out</span>{' '}
+            <strong>
+              {lastBatch.claimed} {lastBatch.claimed === 1 ? 'reward' : 'rewards'} claimed
+            </strong>
+            {lastBatch.claimed > 0
+              ? `: +${formatNumber(lastBatch.xp)} XP, +${formatNumber(lastBatch.gold)} gold`
+              : ''}
+            {lastBatch.levelsGained > 0 ? ' · level up!' : ''}
+            {lastBatch.items > 0
+              ? ` · ${lastBatch.items === 1 ? 'the reward item is' : `${lastBatch.items} reward items are`} in your pack`
+              : ''}
+          </p>
+          {lastBatch.failed.length > 0 ? (
+            <ul className="tavern__unpaid">
+              {lastBatch.failed.map((f) => {
+                const q =
+                  board.kind === 'ready'
+                    ? board.value.quests.find((x) => x.id === f.questId)
+                    : undefined;
+                return (
+                  <li key={f.questId}>
+                    <strong>
+                      {q ? questTitle(q.kind, q.questId, q.objectives[0]) : 'A quest'}
+                    </strong>
+                    : {f.message}
+                  </li>
+                );
+              })}
+            </ul>
+          ) : null}
           <button type="button" className="btn" onClick={quests.dismissReward}>
             Dismiss
           </button>
@@ -433,6 +471,24 @@ export function TavernScreen() {
             <h2 id="quests-title" className="rule-heading">
               Your quests
             </h2>
+            {(() => {
+              // Ticket 8.5: every finished quest and contract in one go.
+              const ready = board.value.quests.filter((q) => q.status === 'ready');
+              return ready.length >= 2 ? (
+                <div className="quests__claim-all">
+                  <p>{ready.length} rewards are ready to collect.</p>
+                  <button
+                    type="button"
+                    className="btn btn--brass"
+                    disabled={busy !== null}
+                    aria-busy={busy === 'batch'}
+                    onClick={() => void quests.turnInAll(ready.map((q) => q.id))}
+                  >
+                    {busy === 'batch' ? 'Collecting…' : `Claim all ${ready.length}`}
+                  </button>
+                </div>
+              ) : null;
+            })()}
             {board.value.quests.length === 0 ? (
               <div className="quests__empty">
                 <p className="display">Nothing in hand.</p>

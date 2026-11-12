@@ -86,11 +86,20 @@ export interface LootFilterTally {
   materials: Partial<Record<MaterialId, number>>;
 }
 
-/** `GET/POST …/loot-filter` (ticket 3.7). */
+/** Ticket 8.5: a saved loot-filter preset. */
+export interface LootFilterPresetState {
+  slot: number;
+  name: string;
+  rules: LootFilterRules | null;
+  active: boolean;
+}
+
+/** `GET/POST …/loot-filter` (ticket 3.7; 8.5 adds the presets). */
 export interface LootFilterState {
   characterId: string;
   rules: LootFilterRules | null;
   active: boolean;
+  presets: LootFilterPresetState[];
 }
 
 export interface ActivityState {
@@ -244,6 +253,39 @@ export const lootFilterApi = {
     f?: typeof fetch,
   ): Promise<ApiResult<LootFilterState>> =>
     apiRequest(`${c(id)}/loot-filter`, { method: 'POST', body: { rules } }, f),
+  /** Ticket 8.5: apply a saved preset, or a share code (the server reads the code itself). */
+  apply: (
+    id: string,
+    from: { preset: number } | { code: string },
+    f?: typeof fetch,
+  ): Promise<ApiResult<LootFilterState>> =>
+    apiRequest(`${c(id)}/loot-filter`, { method: 'POST', body: from }, f),
+  /** Ticket 8.5: the server's reading of a share code, for the preview (writes nothing). */
+  decode: (
+    id: string,
+    code: string,
+    f?: typeof fetch,
+  ): Promise<ApiResult<{ rules: LootFilterRules; active: boolean }>> =>
+    apiRequest(`${c(id)}/loot-filter/decode`, { method: 'POST', body: { code } }, f),
+  savePreset: (
+    id: string,
+    preset: { slot: number; name: string } & ({ rules: LootFilterRules | null } | { code: string }),
+    f?: typeof fetch,
+  ): Promise<ApiResult<LootFilterState>> =>
+    apiRequest(`${c(id)}/loot-filter/presets`, { method: 'POST', body: preset }, f),
+  renamePreset: (
+    id: string,
+    slot: number,
+    name: string,
+    f?: typeof fetch,
+  ): Promise<ApiResult<LootFilterState>> =>
+    apiRequest(
+      `${c(id)}/loot-filter/presets/${slot}/rename`,
+      { method: 'POST', body: { name } },
+      f,
+    ),
+  deletePreset: (id: string, slot: number, f?: typeof fetch): Promise<ApiResult<LootFilterState>> =>
+    apiRequest(`${c(id)}/loot-filter/presets/${slot}`, { method: 'DELETE' }, f),
 };
 
 /** Merchant and forge (ticket 2.6). */
@@ -690,6 +732,13 @@ export function describeGameFailure(error: Pick<ApiFailure, 'code'>): string {
       return 'Your hero is not experienced enough for this recipe yet.';
     case 'inventory_full':
       return 'The pack is full. Sell or salvage something first.';
+    // Ticket 8.5: loot-filter presets and share codes.
+    case 'invalid_filter_code':
+      return 'That share code cannot be read. Check that it was copied whole.';
+    case 'preset_not_found':
+      return 'That preset is gone. The list has been refreshed.';
+    case 'preset_slot_gap':
+      return 'Save into the next free preset slot.';
     // Ticket 4.7: the Warehouse.
     case 'warehouse_closed':
       return 'The Warehouse is not open yet. The town must restore it first (Town works).';

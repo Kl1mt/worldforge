@@ -19,6 +19,7 @@ import { useLogout } from './useLogout';
 import { useStanding } from '../social/useStanding';
 import { describeSanction } from '../social/api';
 import { useFriends } from '../social/friends';
+import { useInboxUnread } from '../inbox/useInbox';
 import '../social/social.css';
 import './shell.css';
 
@@ -76,6 +77,8 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
   // Ticket 4.3: requests waiting at the door, on the Friends link (polled every 2 minutes).
   const { state: friends } = useFriends(120_000);
   const waiting = friends.kind === 'ready' ? friends.view.incoming.length : 0;
+  // Ticket 8.5: unread letters (the summary, every minute while the tab is visible, ETag).
+  const unreadLetters = useInboxUnread();
   const mainRef = useRef<HTMLElement>(null);
   const first = useRef(true);
 
@@ -151,6 +154,22 @@ export function Shell({ route, children }: { route: GameRoute; children: ReactNo
                   <span className="visually-hidden">
                     {waiting === 1 ? ' request waiting' : ' requests waiting'}
                   </span>
+                </span>
+              ) : null}
+            </a>
+            <a
+              className="purse__friends purse__letters"
+              href={routeHref('inbox')}
+              aria-current={route === 'inbox' ? 'page' : undefined}
+            >
+              <span className="purse__letters-mark" aria-hidden="true">
+                ✉
+              </span>
+              <span className="purse__letters-word">Letters</span>
+              {unreadLetters ? (
+                <span className="new-tag">
+                  {unreadLetters > 99 ? '99+' : unreadLetters}
+                  <span className="visually-hidden"> unread</span>
                 </span>
               ) : null}
             </a>

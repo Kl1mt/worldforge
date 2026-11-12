@@ -14,6 +14,7 @@ import { guildSeasonCosmeticsEarned, guildSeasonScore } from '@worldforge/game-c
 import { buildApp } from '../app.js';
 import { DEFAULT_ACTIVITY_OPTIONS } from '../activity/settle.js';
 import {
+  accountNotifications,
   auditLog,
   blocks,
   cosmeticUnlocks,
@@ -363,6 +364,15 @@ describe('guild season roll', () => {
       .where(and(eq(auditLog.event, 'cosmetic.grant'), eq(auditLog.accountId, a!.id)));
     expect(grants).toHaveLength(6);
     expect(await awardGuildSeason(db(), 1, now())).toEqual({ kind: 'already' });
+    // Ticket 8.5: the honoured member's inbox has the honour once, the late joiner's nothing.
+    const notes = await db()
+      .select()
+      .from(accountNotifications)
+      .where(eq(accountNotifications.kind, 'guild.honours'));
+    expect(notes.filter((n) => n.accountId === a!.id).map((n) => n.data)).toEqual([
+      { season: 1, tier: 'champion' },
+    ]);
+    expect(notes.filter((n) => n.accountId === late.id)).toEqual([]);
     // The archive is read for season 1 now, with the tier.
     const past = await board(a!, '?season=1');
     expect(past.season.number).toBe(1);

@@ -370,3 +370,25 @@ a.purse__who:hover .purse__class {
     padding: var(--space-2) 0;
   }
 }
+
+/* Ticket 8.5: the Letters link; on phones only its envelope mark (the word stays for readers). */
+.purse__letters-mark {
+  display: none;
+  font-size: var(--text-lg);
+  line-height: 1;
+}
+
+@media (max-width: 520px) {
+  .purse__letters-mark {
+    display: inline;
+  }
+
+  .purse__letters-word {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+}
