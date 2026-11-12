@@ -342,7 +342,7 @@ The weekly guild boss has its own file: `docs/GUILD_BOSS.md` (attempts, the week
 - **Leaving, kicks, disbanding:** gifts are never refunded (shown before every gift and acknowledged); a member who leaves stops counting for the Guild Roll at once; a disband forfeits the treasury (audited `guild.treasury_forfeit`) in `disbandGuildTx`, for a leader's and a moderator's disband alike.
 - **Privacy:** the Guild Roll names no player; a guild's link follows the guild's visibility (blocked either way with its leader: listed, no link). The hall's look is as public as the guild's profile (`GET /api/guilds/:handle/hall`, `404` where the guild is hidden).
 - **Sanctions:** a guild whose leader has an active sanction, or that is under a forced rename, is left off the roll at read time; a sanctioned member does not count and gets no honours.
-- **Test accounts:** never counted; a test account funds only a guild of test accounts (`403 test_account`).
+- **Test accounts:** never counted; a test account funds, buys for and dresses only a guild of test accounts (`403 test_account`), and a real account may not join a guild of test accounts only (`403 test_guild`, ticket 8.7).
 - **Audit events:** `guild.treasury_contribute`, `guild.hall_buy`, `guild.hall_display`, `guild.treasury_forfeit`, `guild_season.award`.
 
 ## Guild chat — ticket 4.5

@@ -503,6 +503,8 @@ export async function registerGuildHalls(
         const mine = await lockedMembership(tx, me);
         decide(mine ? mine.member.role : 'none', 'display');
         const guild = mine!.guild;
+        // Ticket 8.7: like buying, a test account chooses only a test guild's look.
+        await refuseTestAccountInRealGuild(tx, me, guild.id);
         const owned = new Set((await ownedUpgrades(tx, guild.id)).map((x) => x.upgradeId));
         for (const k of GUILD_HALL_KINDS) {
           if (!(k in body)) continue;

@@ -29,6 +29,7 @@ import {
 } from '../db/schema.js';
 import type { Executor, Transaction } from '../db/types.js';
 import { writeAudit } from '../db/audit.js';
+import { queryRows } from '../db/query.js';
 import { uuidv7 } from '../db/uuid.js';
 import { checkNewName } from '../names/checks.js';
 import { ApiError } from '../errors.js';
@@ -570,6 +571,29 @@ async function auditGuild(
   await writeAudit(tx, { event, accountId, data });
 }
 
+/**
+ * Ticket 8.7 (docs/PHASE8_EXPLOIT_REVIEW.md F4): a guild whose members are all test accounts may
+ * fight the guild boss with minted heroes (6.10's F1), and the stages it breaks stay with the guild
+ * (the week's total, the season's guild roll). A real account may not join it, so minted damage
+ * never pays or ranks a real player. A test account joining a real guild is fine: it can't fight
+ * there. Read under the guild lock that every membership change takes.
+ */
+async function refuseRealJoiningTestGuild(tx: Transaction, guildId: string, accountId: string) {
+  const [row] = await queryRows<{ joiner_test: boolean; real_members: number }>(
+    tx,
+    sql`select (select is_test from accounts where id = ${accountId}) as joiner_test,
+      (select count(*)::int from guild_members m join accounts a on a.id = m.account_id
+        where m.guild_id = ${guildId} and not a.is_test) as real_members`,
+  );
+  if (row && !row.joiner_test && row.real_members === 0) {
+    throw new ApiError(
+      403,
+      'test_guild',
+      'This guild is made of test accounts only, so it can’t take in players.',
+    );
+  }
+}
+
 /** Adds `accountId` to the guild (under the guild's and the joiner's locks) and drops the
  * joiner's other invites and applications. Checks the cap. */
 async function join(
@@ -580,6 +604,7 @@ async function join(
   now: Date,
 ) {
   if ((await memberCount(tx, guild.id)) >= GUILD_LIMITS.members) refuse(GUILD_LIMIT_REFUSALS.full);
+  await refuseRealJoiningTestGuild(tx, guild.id, accountId);
   await tx
     .insert(guildMembers)
     .values({ accountId, guildId: guild.id, role: 'member', joinedAt: now });
