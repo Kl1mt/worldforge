@@ -5,7 +5,6 @@
  * only) and begins the Lantern Vigil; test accounts are refused; the window rule holds at a stage
  * completion; every contribution reconciles.
  */
-import { randomUUID } from 'node:crypto';
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from 'vitest';
 import type { FastifyInstance } from 'fastify';
 import { and, eq, sql } from 'drizzle-orm';

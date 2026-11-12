@@ -628,6 +628,16 @@
           "id": "paleMarches",
           "x": 18,
           "y": 120
+        },
+        {
+          "id": "hollowDeep",
+          "x": 16,
+          "y": 196
+        },
+        {
+          "id": "hollowThrone",
+          "x": 104,
+          "y": 204
         }
       ]
     },

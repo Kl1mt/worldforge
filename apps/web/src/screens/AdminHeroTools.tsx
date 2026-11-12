@@ -395,11 +395,14 @@ export function ProgressTool(ctx: HeroCtx) {
   const [tier, setTier] = useState(hero.progress.cryptTierCleared ?? 0);
   const [ashen, setAshen] = useState(hero.progress.ashenWardenDefeated ?? false);
   const [tyrant, setTyrant] = useState(hero.progress.forgeTyrantDefeated ?? false);
+  // Ticket 8.2: the Hollow Sovereign (opens nothing; PvE Progress and a title colour read it).
+  const [sovereign, setSovereign] = useState(hero.progress.hollowSovereignDefeated ?? false);
   const next: WorldProgress = {
     gravewardenDefeated: grave,
     cryptTierCleared: tier,
     ashenWardenDefeated: ashen,
     forgeTyrantDefeated: tyrant,
+    hollowSovereignDefeated: sovereign,
   };
   const before = opens(hero.level, hero.progress);
   const after = opens(hero.level, next);
@@ -409,7 +412,8 @@ export function ProgressTool(ctx: HeroCtx) {
     grave === hero.progress.gravewardenDefeated &&
     tier === (hero.progress.cryptTierCleared ?? 0) &&
     ashen === (hero.progress.ashenWardenDefeated ?? false) &&
-    tyrant === (hero.progress.forgeTyrantDefeated ?? false);
+    tyrant === (hero.progress.forgeTyrantDefeated ?? false) &&
+    sovereign === (hero.progress.hollowSovereignDefeated ?? false);
   const yes = (b: boolean) => (b ? 'yes' : 'no');
   const review = () =>
     openWrit(
@@ -420,6 +424,7 @@ export function ProgressTool(ctx: HeroCtx) {
           `Crypt tier cleared: ${TIER_NAMES[hero.progress.cryptTierCleared ?? 0]} → ${TIER_NAMES[tier]}`,
           `Ashen Warden defeated: ${yes(hero.progress.ashenWardenDefeated ?? false)} → ${yes(ashen)}`,
           `Forge Tyrant defeated: ${yes(hero.progress.forgeTyrantDefeated ?? false)} → ${yes(tyrant)}`,
+          `Hollow Sovereign defeated: ${yes(hero.progress.hollowSovereignDefeated ?? false)} → ${yes(sovereign)}`,
           gained.length > 0 ? `Opens: ${gained.join('; ')}.` : 'Opens nothing new at this level.',
           ...(lost.length > 0 ? [`Closes: ${lost.join('; ')}.`] : []),
         ],
@@ -432,6 +437,7 @@ export function ProgressTool(ctx: HeroCtx) {
               cryptTierCleared: tier,
               ashenWardenDefeated: ashen,
               forgeTyrantDefeated: tyrant,
+              hollowSovereignDefeated: sovereign,
               reason,
             }),
             (a) => `World progress set.${boardsNote(a)}`,
@@ -465,6 +471,14 @@ export function ProgressTool(ctx: HeroCtx) {
       <label className="adt-check">
         <input type="checkbox" checked={tyrant} onChange={(e) => setTyrant(e.target.checked)} />
         Forge Tyrant defeated
+      </label>
+      <label className="adt-check">
+        <input
+          type="checkbox"
+          checked={sovereign}
+          onChange={(e) => setSovereign(e.target.checked)}
+        />
+        Hollow Sovereign defeated
       </label>
       <p className="adt-dim">
         At level {hero.level} this opens: {after.length > 0 ? after.join('; ') : 'nothing'}.

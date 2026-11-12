@@ -14,9 +14,10 @@ export interface SpriteAsset {
    * Drawn tinted: `cinder`, a stand-in for art still to be made (`ART_STAND_INS`, ticket 6.1);
    * `ember`, a forge-tempered variant of existing art (`ART_VARIANTS`, ticket 6.2); `heroic`, the
    * Heroic crypt's treatment of its own art (`heroicSprite`, ticket 6.3); `hollow`, a stand-in for
-   * Hollow Reach art still to be made (`HOLLOW_STAND_INS`, ticket 8.1).
+   * Hollow Reach art still to be made (`HOLLOW_STAND_INS`, ticket 8.1); `deep`, the Hollow Deep's
+   * older kin of the Marches' art (`DEEP_VARIANTS`, ticket 8.2).
    */
-  tint?: 'cinder' | 'ember' | 'heroic' | 'hollow';
+  tint?: 'cinder' | 'ember' | 'heroic' | 'hollow' | 'deep';
   /**
    * Ticket A.14: a frame sheet. The file is one row of `frames` frames, each `width` × `height`
    * (so the PNG is `frames × width` wide); `PixelSprite` shows one frame at a time.
@@ -421,6 +422,28 @@ export const ART_VARIANTS: Readonly<Record<string, AssetId>> = {
  */
 export const HOLLOW_STAND_INS: Readonly<Record<string, AssetId>> = {};
 
+/**
+ * Ticket 8.2: the Hollow Deep's foes are older kin of the Pale Marches' (A.17's sprites and attack
+ * frames) drawn with the Deep's treatment, a colder, darker tint (`pixel--tint-deep`), by design
+ * (no new art); the Sovereign's crown shard is a soul shard gone grey. Like `ART_VARIANTS`, this
+ * is the art, not a placeholder.
+ */
+export const DEEP_VARIANTS: Readonly<Record<string, AssetId>> = {
+  'enemy.hollow-sentinel': 'enemy.hollow-knight',
+  'enemy.hollow-sentinel-attack': 'enemy.hollow-knight-attack',
+  'enemy.deep-stalker': 'enemy.reach-stalker',
+  'enemy.deep-stalker-attack': 'enemy.reach-stalker-attack',
+  'enemy.dirge-choir': 'enemy.pale-choir',
+  'enemy.dirge-choir-attack': 'enemy.pale-choir-attack',
+  'enemy.husk-colossus': 'enemy.husk-titan',
+  'enemy.husk-colossus-attack': 'enemy.husk-titan-attack',
+  'material.crown-shard': 'material.soul-shard',
+};
+
+/** One sprite object per variant (callers may compare sprites by identity). */
+const DEEP_SPRITES: ReadonlyMap<string, SpriteAsset> = new Map(
+  Object.entries(DEEP_VARIANTS).map(([id, target]) => [id, { ...ASSETS[target], tint: 'deep' }]),
+);
 /** One sprite object per variant (callers may compare sprites by identity). */
 const VARIANT_SPRITES: ReadonlyMap<string, SpriteAsset> = new Map(
   Object.entries(ART_VARIANTS).map(([id, target]) => [id, { ...ASSETS[target], tint: 'ember' }]),
@@ -433,13 +456,15 @@ const HOLLOW_SPRITES: ReadonlyMap<string, SpriteAsset> = new Map(
 );
 
 /**
- * A registered sprite by a content asset id; else its ember variant (`ART_VARIANTS`, ticket 6.2);
+ * A registered sprite by a content asset id; else its ember variant (`ART_VARIANTS`, ticket 6.2) or
+ * its Deep variant (`DEEP_VARIANTS`, ticket 8.2);
  * else its Hollow Reach stand-in (`HOLLOW_STAND_INS`, ticket 8.1); else its tinted stand-in
  * (`ART_STAND_INS`); else `null` when the art does not exist (yet).
  */
 export function findSprite(id: string): SpriteAsset | null {
   if (Object.hasOwn(ASSETS, id)) return ASSETS[id as AssetId];
   if (Object.hasOwn(ART_VARIANTS, id)) return VARIANT_SPRITES.get(id)!;
+  if (Object.hasOwn(DEEP_VARIANTS, id)) return DEEP_SPRITES.get(id)!;
   if (Object.hasOwn(HOLLOW_STAND_INS, id)) return HOLLOW_SPRITES.get(id)!;
   const standIn = Object.hasOwn(ART_STAND_INS, id) ? ART_STAND_INS[id] : undefined;
   return standIn ? { ...ASSETS[standIn], tint: 'cinder' } : null;

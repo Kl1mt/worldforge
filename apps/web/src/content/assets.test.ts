@@ -20,6 +20,7 @@ import {
   bannerStyleAsset,
   crestStyleAsset,
   ART_VARIANTS,
+  DEEP_VARIANTS,
   heroicSprite,
   ASSETS,
   SEASON_FRAME_TIERS,
@@ -140,6 +141,29 @@ describe('Cinderwastes art (tickets 6.1, A.11, A.15)', () => {
     const tyrant = getEnemy('forgeTyrant');
     expect(findSprite(tyrant.assetId)).toEqual(ASSETS['enemy.forge-tyrant']);
     expect(findSprite(getMaterial('tyrantsEmber').icon)!.tint).toBe('ember');
+  });
+
+  it('draws the Hollow Deep’s foes and the crown shard as Deep variants of A.17’s art (ticket 8.2)', () => {
+    const deep = getArea('hollowDeep');
+    expect(findSprite(deep.assetId)).toEqual(ASSETS['area.hollow-depths']);
+    for (const e of deep.enemies) {
+      const id = getEnemy(e.enemyId).assetId;
+      expect(Object.hasOwn(ASSETS, id), `${id} has no file of its own`).toBe(false);
+      const sprite = findSprite(id)!;
+      expect(sprite.tint, id).toBe('deep');
+      expect(sprite.path, id).toBe(ASSETS[DEEP_VARIANTS[id]!].path);
+      // Its attack frames are its Marches kin's, tinted the same way.
+      const kin = enemyAttackSheet(DEEP_VARIANTS[id]!)!;
+      expect(kin).not.toBeNull();
+      expect(enemyAttackSheet(id)).toMatchObject({ path: kin.path, tint: 'deep' });
+    }
+    for (const target of Object.values(DEEP_VARIANTS))
+      expect(Object.hasOwn(ASSETS, target), target).toBe(true);
+    // The region boss has his own art (A.17), untinted, and the throne the Deep's backdrop.
+    expect(findSprite(getEnemy('hollowSovereign').assetId)).toEqual(
+      ASSETS['enemy.hollow-sovereign'],
+    );
+    expect(findSprite(getMaterial('crownShard').icon)!.tint).toBe('deep');
   });
 
   it('keeps the ember-tinted stand-in only as a fallback for art still missing', () => {
@@ -287,7 +311,8 @@ describe('heraldry art (A.8)', () => {
    * placeholder for them. Remove an id as soon as its icon lands (A.9 drew the 4.6 project deeds).
    */
   // A.13 drew the Forgeward Outpost's mark (6.7), so every deed has its icon again.
-  const AWAITING_ART = new Set<string>([]);
+  // Ticket 8.2: the lanterns of the deep's mark shows the wax-seal placeholder until it is drawn.
+  const AWAITING_ART = new Set<string>(['deepLanternBearer']);
 
   it('has a 32×32 icon for every achievement', () => {
     for (const a of ACHIEVEMENTS) {

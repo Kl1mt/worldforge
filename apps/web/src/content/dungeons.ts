@@ -6,7 +6,7 @@ import type { GameRoute } from '../lib/route';
  * share one screen (`DungeonScreen`); only these lines differ.
  */
 export interface DungeonWords {
-  route: Extract<GameRoute, 'crypt' | 'watch' | 'tyrant'>;
+  route: Extract<GameRoute, 'crypt' | 'watch' | 'tyrant' | 'throne'>;
   /** "the crypt", in running text. */
   place: string;
   loading: string;
@@ -51,6 +51,8 @@ export interface DungeonWords {
   shellBroken?: string;
   /** Ticket 6.2: a heavy blow lands (`enemyAttack` with `heavy`); `{damage}` is the hit. */
   heavyBlow?: string;
+  /** Ticket 8.2: the boss drinks back part of a blow (`siphon`); `{amount}` is the heal. */
+  siphon?: string;
   won: string;
   lost: string;
   /** Another hero of the account is in this dungeon. */
@@ -169,6 +171,48 @@ export const DUNGEON_WORDS: Readonly<Record<DungeonId, DungeonWords>> = {
     lost: 'The Tyrant keeps his forge. You crawl back up through the slag.',
     otherHero: 'Another of your heroes is in the forge. Switch to them to finish that run.',
   },
+  // Ticket 8.2: the Hollow Reach's region boss at the bottom of the Hollow Deep.
+  hollowThrone: {
+    route: 'throne',
+    place: 'the throne',
+    loading: 'Climbing down the lantern road…',
+    waiting:
+      'The Hollow Throne. At the bottom of the deep the last lantern gutters; the Hollow Sovereign sits and waits.',
+    inside: 'At the throne',
+    logTitle: 'Echoes from the deep',
+    logEmpty: 'Dust falls from far above. Something on the throne breathes in, slowly.',
+    doorTitle: 'Before you descend',
+    barredTitle: 'The lantern road is dark',
+    runTitle: 'At the throne',
+    runNote: 'The fight before the throne plays out on its own.',
+    enter: 'Descend to the throne',
+    entering: 'Descending…',
+    again: 'Descend again',
+    clearedLine: 'The throne stands empty. The crown lies broken in the dust.',
+    fallenLine: 'Your hero has fallen in the dark. The Sovereign settles back on his throne.',
+    reckoning: 'The throne’s reckoning',
+    wonTitle: 'The Hollow Sovereign falls',
+    lostTitle: 'The Sovereign keeps his throne',
+    hoard:
+      'The Sovereign’s hoard: two pieces of his regalia, his purse and a Shard of the Hollow Crown, once per 20 hours. Hoard items are always bound to you.',
+    hoardBack: 'The Sovereign’s hoard returns {when}. You can still fight him.',
+    leaving:
+      'Your hero leaves the fields while at the throne. A fall costs nothing but the climb down.',
+    bossShort: 'The Sovereign',
+    approach: 'the lantern road',
+    hoardWon: 'A shard of his crown is yours, and his hoard with it.',
+    bossStands: 'The Sovereign stands. A fall costs nothing but the climb down.',
+    mechanics:
+      'He drinks back half of every blow he lands, so a slow fight feeds him, and every fourth swing of his crown-blow lands two and a half times as hard.',
+    bossEnter: 'The throne room. The Hollow Sovereign rises, and the dark rises with him.',
+    enrage: 'The crown flares white! The Sovereign’s blows fall faster and harder.',
+    heavyBlow: 'The Sovereign’s crown-blow lands for {damage}!',
+    siphon:
+      'The Sovereign drinks your wound: he heals {amount}, and every blow he lands will feed him.',
+    won: 'The Hollow Sovereign crumbles from his throne. The dark lets go.',
+    lost: 'The Sovereign keeps his throne. You crawl back up the lantern road.',
+    otherHero: 'Another of your heroes is at the throne. Switch to them to finish that run.',
+  },
 };
 
 /** The dungeon of a screen route. */
@@ -176,4 +220,5 @@ export const DUNGEON_OF_ROUTE = {
   crypt: 'namelessCrypt',
   watch: 'ashenWatch',
   tyrant: 'tyrantsForge',
+  throne: 'hollowThrone',
 } as const satisfies Record<DungeonWords['route'], DungeonId>;

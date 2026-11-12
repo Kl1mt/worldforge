@@ -10,6 +10,8 @@ export const GAME_ROUTES = [
   'watch',
   // Ticket 6.2: the Tyrant's Forge (the Cinderwastes' region boss). `forge` is the town's Forge.
   'tyrant',
+  // Ticket 8.2: the Hollow Throne (the Hollow Reach's region boss).
+  'throne',
   'character',
   'inventory',
   'tavern',

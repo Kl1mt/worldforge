@@ -183,6 +183,8 @@ export interface CryptLogContext {
   dungeonId?: DungeonId;
   /** Ticket 6.3: a burn was already logged (only the first one gets a line). */
   burned?: boolean;
+  /** Ticket 8.2: a siphon was already logged (only the first one gets a line). */
+  siphoned?: boolean;
 }
 
 /**
@@ -245,6 +247,15 @@ export function cryptLogLine(e: DungeonEvent, ctx: CryptLogContext): CryptLogLin
         : null;
     case 'shellBroken':
       return words.shellBroken ? { t: e.t, tone: 'boss', text: words.shellBroken } : null;
+    // Ticket 8.2: the Sovereign's siphon (the first one only; every landed blow feeds him).
+    case 'siphon':
+      if (ctx.siphoned || !words.siphon) return null;
+      ctx.siphoned = true;
+      return {
+        t: e.t,
+        tone: 'boss',
+        text: words.siphon.replace('{amount}', formatNumber(e.amount)),
+      };
     // Ticket 6.3: the weekly boss modifier (Burning: the first burn only; it ticks every few s).
     case 'burn':
       if (ctx.burned) return null;

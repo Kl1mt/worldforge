@@ -35,7 +35,7 @@ import { isStaff } from '@worldforge/game-core';
 import { TavernScreen } from './screens/TavernScreen';
 import { CharacterScreen } from './screens/CharacterScreen';
 import { CharactersScreen } from './screens/CharactersScreen';
-import { CryptScreen, TyrantScreen, WatchScreen } from './screens/CryptScreen';
+import { CryptScreen, ThroneScreen, TyrantScreen, WatchScreen } from './screens/CryptScreen';
 import { ForgeScreen } from './screens/ForgeScreen';
 import { HubScreen } from './screens/HubScreen';
 import { InventoryScreen } from './screens/InventoryScreen';
@@ -125,6 +125,7 @@ function Routes() {
             {route === 'crypt' ? <CryptScreen /> : null}
             {route === 'watch' ? <WatchScreen /> : null}
             {route === 'tyrant' ? <TyrantScreen /> : null}
+            {route === 'throne' ? <ThroneScreen /> : null}
             {route === 'tavern' ? <TavernScreen /> : null}
             {route === 'forge' ? <ForgeScreen /> : null}
             {route === 'merchant' ? <MerchantScreen /> : null}
