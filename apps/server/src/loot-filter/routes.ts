@@ -356,6 +356,18 @@ export async function registerLootFilter(
       schema: { params: characterParamsSchema, body: decodeBodySchema },
     },
     async (request) => {
+      // Ticket 8.7: like every hero route, another account's (or an unknown) hero is a 404.
+      const [own] = await app.db
+        .select({ id: characters.id })
+        .from(characters)
+        .where(
+          and(
+            eq(characters.id, request.params.characterId),
+            eq(characters.accountId, request.auth!.account.id),
+            isNull(characters.deletedAt),
+          ),
+        );
+      if (!own) throw characterNotFound();
       const rules = rulesFromBody({ code: request.body.code });
       return { rules, active: isLootFilterActive(rules) };
     },
