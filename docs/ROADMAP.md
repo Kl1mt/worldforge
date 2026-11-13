@@ -704,6 +704,11 @@ Not in this phase (owner decisions, Phase 4 follow-ups): content above level 28 
 
 **Order** (one or two sessions at a time): 5.1 → 5.2 → 5.3 and A.10 (parallel) → 5.4 → 5.5 → 5.6 → B.4 → 5.7 → T.1 → T.2 → T.3 → T.4 → T.5 → T.6 → T.7 → 5.8.
 
+
+### F.9 Community race test: the UTC midnight flake — `done (PR #152)`
+The `migrations` job (real Postgres) failed on the docs-only PR #151 in `community.pg.test.ts` › "one account racing from several heroes gives exactly its cap" with `expected 2300 to be 800`, while the run crossed 00:00 UTC.
+- **Cause: the wall clock, not a bug.** The contribution caps are per UTC day, and the test's app ran on the wall clock. A round that started before midnight gave one day's cap before it and more after it, and the test sums the account's gifts over all days. Reproduced with a clock crossing midnight mid-round (`expected 1400 to be 800`).
+- **Fix:** the file's app clock is injected at noon UTC of the current day (derived, not hard-coded, per `CLAUDE.md` "Dates"), so a round never straddles a day. No assertion changed. Looped 20× shuffled and once with the clock shifted 400 days: green. The other real-Postgres files on the wall clock assert no per-day caps.
 ### 5.1 Scoring model & published formulas (game-core + docs) — `done (PR #82)`
 GDD: §10.2, §16.3. Read `docs/COMBAT.md`, `docs/LOOT.md`, `docs/EFFECTS.md`, the balance and build suites.
 - Versioned, data-driven formulas in game-core: **Character Level** (level, then XP within the level as tie-breaker), **Gear Score** (equipped items only: item level, rarity, upgrade level, Void; documented weights), **Character Power** (a broader snapshot: a deterministic combat evaluation against fixed reference opponents, so builds count, not just numbers) and **PvE Progress** (an ordered list of milestones: areas, crypt tiers, the Warden's Watch, guild boss stages).
