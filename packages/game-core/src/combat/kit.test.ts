@@ -41,6 +41,10 @@ import { kit as commonKit, legendaryKit, upgraded } from '../balance/kits.js';
 import { withSkillsPrototype } from '../balance/loadouts.js';
 import { equipmentModifiers, DEFAULT_ACTIVITY_CONFIG, DEFAULT_LOOT_CONFIG } from '../index.js';
 
+// Heavy cases (CLAUDE.md "Time": a bound well above the slow case). Measured locally: the per-fight
+// agreement 0.15–4.6 s per class and loadout (the hunter's boss loadout, whose crit refunds split
+// the exact distribution's states, is the slowest), the per-window one about 6 s; CI runners are
+// slower, so 120 s leaves more than 20× headroom without weakening any check.
 const SLOW = { timeout: 120_000 };
 
 /** Ticket 9.1: the skills prototype (docs/SKILLS.md). */
@@ -430,7 +434,7 @@ describe('the two simulations agree under kits', () => {
       ['boss loadout', full[c]],
       ['farming loadout', farmingLoadout[c]],
     ] as const) {
-      it(`per fight: ${c}, ${name}, a Hollow Deep foe and the Hollow Sovereign`, () => {
+      it(`per fight: ${c}, ${name}, a Hollow Deep foe and the Hollow Sovereign`, SLOW, () => {
         const s = stats(c, 49, 47);
         for (const [enemy, level, fragments] of [
           ['hollowSentinel', 49, 0],
