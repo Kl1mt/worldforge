@@ -1,3 +1,4 @@
+import { accountOfflineCapMs } from '../account-growth/routes.js';
 import type { FastifyInstance } from 'fastify';
 import { and, eq, isNull, ne } from 'drizzle-orm';
 import {
@@ -164,7 +165,8 @@ export async function registerActivities(
         character: characterView(row.character),
         // How long farming keeps counting without the client (GDD §9.1), for the "what
         // continues offline" note (ticket 2.7).
-        offlineCapMs: options.offlineCapMs,
+        // Ticket 9.4: the account's cap (the base plus its earned steps).
+        offlineCapMs: await accountOfflineCapMs(app, accountId, options.offlineCapMs),
       };
     },
   );

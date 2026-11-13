@@ -23,9 +23,23 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.8.6';
+export const GAME_VERSION = '0.9.0';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.9.0',
+    date: '2026-11-22',
+    title: 'More heroes, longer vigils',
+    new: [
+      'Earn more hero slots by playing: a third slot when any of your heroes reaches level 28, and a fourth when one of them clears the Heroic crypt. A fifth will come with the town’s next great work. Slots you earn are yours for good.',
+      'Your hero keeps farming longer while you are away: from 3 hours up to 4, 5, 6 and finally 8 hours, one step for each deed: reaching level 10, defeating the Gravewarden, clearing the crypt at tier III, and slaying the Ashen Warden. A new step counts from the moment you earn it.',
+      'Your account page shows your hero slots and hours away: what you have earned, what comes next and how to get it. The hero list shows the next locked slot and what opens it.',
+    ],
+    changed: [
+      'Heroes who already reached these deeds before today get their slots and hours at once.',
+    ],
+    tickets: ['9.4'],
+  },
   {
     version: '0.8.6',
     date: '2026-11-22',

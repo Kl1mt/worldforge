@@ -330,6 +330,13 @@
       "when": 1794494589465,
       "tag": "0046_quality_of_life",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "7",
+      "when": 1794531638149,
+      "tag": "0047_account_growth",
+      "breakpoints": true
     }
   ]
 }

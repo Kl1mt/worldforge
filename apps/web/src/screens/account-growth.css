@@ -1,0 +1,174 @@
+/* Ticket 9.4: the account screen's muster ledger (slots and offline hours). Scoped to `.muster-ledger`. */
+
+.muster-ledger {
+  margin-top: var(--space-5);
+  padding: var(--space-5);
+}
+
+.muster-ledger__wait {
+  margin: 0;
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.muster-ledger__part + .muster-ledger__part {
+  margin-top: var(--space-5);
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--iron-500);
+}
+
+.muster-ledger__sub {
+  margin: 0 0 var(--space-2);
+  color: var(--bone-100);
+  font-size: var(--text-md);
+}
+
+.muster-ledger__lede {
+  margin: 0 0 var(--space-3);
+  max-width: 62ch;
+  color: var(--text-muted);
+}
+
+/* Slots: one line per slot, a lozenge pip like the muster roll's empty niche. */
+.muster-ledger__slots {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.muster-ledger__slot {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.muster-ledger__pip {
+  width: 12px;
+  height: 12px;
+  margin-top: 5px;
+  transform: rotate(45deg);
+  box-shadow: 0 0 0 2px var(--outline-dark);
+  background: var(--ink-900);
+  border: 1px dashed var(--iron-500);
+}
+
+.muster-ledger__slot--open .muster-ledger__pip {
+  background: var(--brass-400);
+  border: 0;
+}
+
+.muster-ledger__slot--next .muster-ledger__pip {
+  border: 1px solid var(--brass-400);
+}
+
+.muster-ledger__slot-name {
+  display: grid;
+  color: var(--text);
+  font-weight: 600;
+}
+
+.muster-ledger__slot--locked .muster-ledger__slot-name,
+.muster-ledger__slot--sealed .muster-ledger__slot-name {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.muster-ledger__slot-how {
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+  font-weight: 400;
+}
+
+.muster-ledger__slot--next .muster-ledger__slot-how {
+  color: var(--brass-300);
+}
+
+.muster-ledger__slot--sealed .muster-ledger__slot-how {
+  font-style: italic;
+}
+
+/* Hours away: a strip of steps, the lit ones brass, the current one an ember. */
+.muster-ledger__steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0;
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  list-style: none;
+  font-family: var(--font-display, inherit);
+}
+
+.muster-ledger__step {
+  position: relative;
+  min-width: 3.25rem;
+  padding: var(--space-1) var(--space-3);
+  border: 1px solid var(--iron-500);
+  border-left-width: 0;
+  background: var(--ink-900);
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.muster-ledger__step:first-child {
+  border-left-width: 1px;
+}
+
+.muster-ledger__step--lit {
+  background: var(--brass-700);
+  color: var(--bone-100);
+}
+
+.muster-ledger__step--now {
+  background: var(--brass-600);
+  box-shadow: inset 0 -3px 0 var(--ember-glow);
+  color: var(--ember-core);
+  font-weight: 700;
+}
+
+.muster-ledger__deeds {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.muster-ledger__deed {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--space-3);
+}
+
+.muster-ledger__seal {
+  width: 12px;
+  height: 12px;
+  margin-top: 5px;
+  transform: rotate(45deg);
+  background: var(--brass-500);
+  box-shadow: 0 0 0 2px var(--outline-dark);
+}
+
+.muster-ledger__seal--ok {
+  background: var(--moss-400);
+}
+
+.muster-ledger__deed-text {
+  margin: 0;
+  color: var(--text);
+}
+
+.muster-ledger__deed-when {
+  margin: 0;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+.muster-ledger__fine {
+  margin: var(--space-4) 0 0;
+  max-width: 62ch;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}

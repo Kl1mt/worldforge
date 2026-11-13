@@ -28,3 +28,4 @@ export * from './events/index.js';
 export * from './cosmetics/index.js';
 export * from './guild-seasons/index.js';
 export * from './guild-halls/index.js';
+export * from './account/index.js';
