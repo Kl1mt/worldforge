@@ -142,7 +142,7 @@ The class is selected permanently at character creation. Classes differ through 
 | Character attributes | Global world contribution / unlocks |
 | Personal activity progress | Potential shared storage |
 
-The initial account has **two character slots**. Additional slots may later be earned through achievements, gameplay, or community projects. Monetization, if ever introduced, must not create competitive pay-to-win advantages.
+The initial account has **two character slots**. Additional slots may later be earned through achievements, gameplay, or community projects (ROADMAP 9.4), and may also be bought in the later shop (owner decision 2026-11-12, ROADMAP 8.8). Monetization, if ever introduced, must not create competitive pay-to-win advantages.
 
 ## 6. Combat and Activities
 
@@ -360,6 +360,7 @@ A cosmetic-only draw system is a possible later feature. A daily free draw was p
 - Do not sell direct competitive drop-rate advantages.
 - Defer monetization until the core game is fun, stable, and has a clear content cadence.
 - **Owner decision (2026-11-11):** a cosmetic shop where cosmetics can also be bought for real money is planned for later (ROADMAP 8.8). Cosmetics only: never stats, power, drop odds or competitive advantage.
+- **Owner decision (2026-11-12):** the shop may later also sell extra character slots (beyond the earned ones) and Shrine draws, and everything stays earnable in play. Paid random draws need the legal review below first. Offline hours, power, stats and drop odds are never sold.
 - If randomized paid cosmetics are ever considered, review applicable platform rules and regional consumer-protection requirements before implementation.
 
 ## 14. Core Gameplay Loop
