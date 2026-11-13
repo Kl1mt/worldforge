@@ -211,11 +211,32 @@ function RosterView({ roster, onCreate }: { roster: Roster; onCreate: () => void
             </div>
           </li>
         ))}
+        {roster.slots.locked ? (
+          <li className="muster__slot muster__slot--locked">
+            <div className="muster__card muster__card--empty muster__card--locked">
+              <span className="muster__niche muster__niche--empty" aria-hidden="true">
+                <span className="muster__lozenge muster__lozenge--locked" />
+              </span>
+              <span className="muster__plaque">
+                <span className="muster__name display">Locked slot</span>
+                <span className="muster__line">
+                  {roster.slots.locked.available
+                    ? roster.slots.locked.description
+                    : 'Opens with the town’s next great work, not yet proclaimed.'}
+                </span>
+                <a className="muster__how" href={routeHref('account')}>
+                  Every slot and how to earn it
+                </a>
+              </span>
+            </div>
+          </li>
+        ) : null}
       </ul>
 
       {empties === 0 ? (
         <p className="hall__fine">
-          All {total} slots are filled. More slots will be earned through play in a later season.
+          All {total} slots are filled.
+          {roster.slots.locked ? ' The locked slot above opens through play.' : ''}
         </p>
       ) : null}
     </section>

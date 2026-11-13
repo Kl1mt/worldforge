@@ -2753,3 +2753,34 @@ export const accountNotifications = pgTable(
     uniqueIndex('account_notifications_dedupe_idx').on(t.accountId, t.dedupeKey),
   ],
 );
+
+/**
+ * Ticket 9.4 (docs/ACCOUNTS.md): what an account has earned beyond the start, character slots
+ * (`kind = 'slot'`) and offline-cap steps (`kind = 'offline'`). One row per grant, written in the
+ * transaction of the event that earned it (or by the backfill), audited (`account.grow`) and never
+ * removed. `grant_id` is the game-core rule id for earned grants (at most once per account by the
+ * primary key); `source` says where it came from (the rule id; `shop` reserved for 8.8, whose
+ * grants would use their own `grant_id`, so no migration is needed). `granted_at` is the moment
+ * it counts from (the offline cap never pays back time lost before it).
+ */
+export const accountGrowthGrants = pgTable(
+  'account_growth_grants',
+  {
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    grantId: text('grant_id').notNull(),
+    kind: text('kind').$type<'slot' | 'offline'>().notNull(),
+    source: text('source').notNull(),
+    /** The hero whose deed earned it; null for a later shop grant or a deleted hero. */
+    characterId: uuid('character_id').references(() => characters.id, { onDelete: 'set null' }),
+    backfill: boolean('backfill').notNull().default(false),
+    grantedAt: timestamp('granted_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.accountId, t.grantId] }),
+    check('account_growth_grants_kind_check', sql`${t.kind} in ('slot', 'offline')`),
+  ],
+);
+
+export type AccountGrowthGrant = typeof accountGrowthGrants.$inferSelect;

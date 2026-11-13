@@ -33,7 +33,7 @@ Status: **partly implemented.** Tables marked *implemented* exist in `apps/serve
 | email           | text        | stored trimmed as entered; unique on `lower(email)`          |
 | display_name    | text        | unique on `lower(display_name)`; ticket 6.9: `display_name_skeleton` (game-core `nameSkeleton`, indexed, null until the backfill) — a new or changed name may not share it with another account |
 | password_hash   | text        | argon2id PHC string (`$argon2id$v=19$m=19456,t=2,p=1$…`), written by 1.2 |
-| character_slots | smallint    | default 2 (GDD §5.3), `CHECK (>= 0)`; per account, so slots can be granted later |
+| character_slots | smallint    | default 2 (GDD §5.3), `CHECK (>= 0)`; the base per account; earned slots are `account_growth_grants` rows on top (ticket 9.4) |
 | active_character_id | uuid FK? | → `characters.id` `ON DELETE SET NULL`; the last selected character (ticket 1.3). Only ever set to one of the account's own characters (checked by the server) |
 | guide           | jsonb       | default `{"steps":[],"dismissed":false}`; first-session guide (ticket 2.7): game-core `GuideState` (steps seen done, in guide order, and whether it was closed). UI state only, grants nothing; per account so it follows the player across devices |
 | role            | text        | ticket 4.1: `player` (default) / `moderator` / `admin`, `CHECK`. Written only by `pnpm admin:role` (`docs/SOCIAL.md`) |
@@ -90,7 +90,7 @@ Written only by `pnpm admin:invite` (create, revoke) and by registration in `REG
 | Column         | Type        | Notes                                            |
 | -------------- | ----------- | ------------------------------------------------ |
 | id             | uuid PK     | UUIDv7                                           |
-| account_id     | uuid FK     | → `accounts.id` `ON DELETE CASCADE`, indexed. Count ≤ `accounts.character_slots`, enforced by the server under a `SELECT … FOR UPDATE` lock on the account row |
+| account_id     | uuid FK     | → `accounts.id` `ON DELETE CASCADE`, indexed. Live heroes ≤ `accounts.character_slots` plus the account's slot grants (ticket 9.4, `account_growth_grants`), enforced by the server under a `SELECT … FOR UPDATE` lock on the account row |
 | name           | text        | trimmed as entered; unique on `lower(name)` across all accounts. Rules in game-core `validateCharacterName` (3–16 ASCII letters, one `'` or `-` between parts, a few reserved names); ticket 6.9: `name_skeleton` (indexed), new names may not share it with another hero |
 | class_id       | text        | game-core `ClassId`, validated by the server, immutable after creation. No DB `CHECK`, so adding a class needs no migration |
 | appearance     | jsonb       | game-core `CharacterAppearance`: `{ banner }` (`ash`/`ember`/`moss`/`dusk`) |
@@ -543,6 +543,12 @@ Migration `0045_guild_seasons_halls` (additive: eight new tables, two new nullab
 Migration `0046_quality_of_life` (additive: one new table, one new column with a default; nothing existing changed). docs/NOTIFICATIONS.md, docs/LOOT.md "Presets and share codes".
 - `account_notifications` (`id` uuid PK; `account_id` → accounts cascade; `kind` text; `data` jsonb (content ids and the account's own ids only); `dedupe_key` text null, unique with `account_id`; `created_at` (the game clock); `read_at` null = unread). Indexes `(account_id, created_at)` (the list and the per-account prune) and `(created_at)` (the age prune). Bounded to the newest 200 per account and 60 days. Written only by `notifyTx` / `broadcastTx` in the reporting transaction.
 - `characters.loot_filter_presets` (jsonb, not null, default `[]`): up to five `{ name, rules }` (game-core `LootFilterPreset`), validated like the filter.
+
+### account_growth_grants — implemented (9.4)
+Migration `0047_account_growth` (additive: one new table; nothing existing changed). docs/ACCOUNTS.md.
+- `account_growth_grants`: PK `(account_id, grant_id)`; `account_id` → accounts cascade; `grant_id` text (the game-core rule id for earned grants: `level28`, `heroicCrypt`, `community`, `offlineLevel10`, …; a later shop grant uses its own id); `kind` (`slot` | `offline`, checked); `source` text, no check (the rule id; `shop` reserved for 8.8, so a shop source needs no migration); `character_id` (the earning hero, FK set null); `backfill` boolean (default false); `granted_at` (the moment it counts from). Written only by `grantAccountGrowthTx` (`on conflict do nothing`, audited `account.grow`), never updated or deleted.
+- The slot total is `accounts.character_slots` (the base, default 2; unchanged column) plus the account's `kind = 'slot'` rows. `characters.progress` and `level` are read, nothing added.
+- Backfill `account-growth:<hash>` in `data_backfills` (docs/DEPLOY.md "Data backfills").
 
 ## Relationships
 

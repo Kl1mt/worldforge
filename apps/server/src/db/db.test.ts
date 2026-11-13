@@ -67,6 +67,7 @@ describe('migrations', () => {
     );
     expect(rows.map((r) => r.table_name)).toEqual([
       'account_achievements',
+      'account_growth_grants',
       'account_notifications',
       'account_presence',
       'account_shelf_materials',

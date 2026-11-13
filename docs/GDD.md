@@ -142,7 +142,7 @@ The class is selected permanently at character creation. Classes differ through 
 | Character attributes | Global world contribution / unlocks |
 | Personal activity progress | Potential shared storage |
 
-The initial account has **two character slots**. Additional slots may later be earned through achievements, gameplay, or community projects (ROADMAP 9.4), and may also be bought in the later shop (owner decision 2026-11-12, ROADMAP 8.8). Monetization, if ever introduced, must not create competitive pay-to-win advantages.
+The initial account has **two character slots**. Additional slots may later be earned through achievements, gameplay, or community projects (ROADMAP 9.4), and may also be bought in the later shop (owner decision 2026-11-12, ROADMAP 8.8). **Ticket 9.4 (owner defaults, 2026-11-13):** a 3rd slot when any hero of the account reaches level 28, a 4th when a hero clears the Heroic crypt, a 5th from the town's next community project (a seam until that project exists). Account-bound, never removed; each grant records its source (`docs/ACCOUNTS.md`). Monetization, if ever introduced, must not create competitive pay-to-win advantages.
 
 ## 6. Combat and Activities
 
@@ -239,7 +239,7 @@ Items should not scale indefinitely. Strong items may remain useful for a meanin
 ### 9.1 Offline Progress
 When a player is away, the selected character continues to make progress in the selected farming activity. On return, the player receives a summary of earned experience, gold, resources, and eligible loot.
 
-Offline progress is calculated or validated server-side. **Decided (v0.3): the offline accumulation cap starts at 3 hours** and is a configurable server value. The cap is intended to be raised later through player progression (for example upgrades, achievements, or account milestones); the exact upgrade path is still open. Offline progress should be useful and predictable, not a punishment for absence.
+Offline progress is calculated or validated server-side. **Decided (v0.3): the offline accumulation cap starts at 3 hours** and is a configurable server value. The cap is raised through player progression. **Ticket 9.4 (owner default, 2026-11-13):** four account deeds (a hero at level 10, the Gravewarden defeated, crypt tier III cleared, the Ashen Warden slain) raise it 3 → 4 → 5 → 6 → 8 hours; each step counts from the moment it is earned and never pays back time already lost. The offline cap is never sold (`docs/ACCOUNTS.md`). Offline progress should be useful and predictable, not a punishment for absence.
 
 ### 9.2 Active Play Advantages
 - Active sessions can be more efficient than offline farming.
@@ -525,7 +525,7 @@ Track aggregate metrics such as session frequency, offline return rates, area ef
 | Exact equipment slot count | **Decided (v0.3):** 12 slots (head, shoulders, chest, hands, legs, feet, neck, ring ×2, weapon, off-hand, relic). |
 | Authentication | **Decided (v0.3):** real account registration and login from Phase 1. |
 | Final tech stack and hosting | Decide in Phase 0 after evaluating browser, desktop, and future mobile needs. |
-| Offline accumulation cap | **Decided (v0.3):** 3 hours to start, server-configurable; to be upgradeable through progression later (upgrade path open). |
+| Offline accumulation cap | **Decided (v0.3):** 3 hours to start, server-configurable. **Ticket 9.4 (owner default, 2026-11-13):** upgradeable per account through four deeds, 3 → 4 → 5 → 6 → 8 hours, from the moment each is earned; never sold. See `docs/ACCOUNTS.md`. |
 | Combat timing and formulas | Open; prototype and test in Phase 1. |
 | Drop rates and affix ranges | Open; data-driven and tuned through telemetry. |
 | Full-pack overflow | **Decided (owner, ticket B.2):** ordinary drops that find no room are salvaged to gold; Legendary, Mythic, set and Void drops are kept beyond the pack's capacity (the loot filter's opted-in categories still apply first). See `docs/FARMING.md`. |

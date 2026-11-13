@@ -16,6 +16,7 @@ import { writeAudit } from '../db/audit.js';
 import { uuidv7 } from '../db/uuid.js';
 import { checkNewName } from '../names/checks.js';
 import { ApiError } from '../errors.js';
+import { characterSlotTotal, nextLockedSlot } from '../account-growth/grant.js';
 
 /** The public character shape (docs/API_CONVENTIONS.md). */
 export interface CharacterView {
@@ -75,7 +76,20 @@ const listResponseSchema = {
     slots: {
       type: 'object',
       required: ['used', 'total'],
-      properties: { used: { type: 'integer' }, total: { type: 'integer' } },
+      properties: {
+        used: { type: 'integer' },
+        total: { type: 'integer' },
+        // Ticket 9.4: the next slot still to earn (null when every earnable one is earned).
+        locked: {
+          type: ['object', 'null'],
+          required: ['source', 'description', 'available'],
+          properties: {
+            source: { type: 'string' },
+            description: { type: 'string' },
+            available: { type: 'boolean' },
+          },
+        },
+      },
     },
     activeCharacterId: { type: ['string', 'null'] },
   },
@@ -124,9 +138,13 @@ export async function registerCharacters(app: FastifyInstance): Promise<void> {
         .from(characters)
         .where(and(eq(characters.accountId, account.id), isNull(characters.deletedAt)))
         .orderBy(asc(characters.createdAt), asc(characters.id));
+      const [total, locked] = await Promise.all([
+        characterSlotTotal(app.db, account),
+        nextLockedSlot(app.db, account.id),
+      ]);
       return {
         characters: rows.map(characterView),
-        slots: { used: rows.length, total: account.characterSlots },
+        slots: { used: rows.length, total, locked },
         activeCharacterId: account.activeCharacterId,
       };
     },
@@ -156,8 +174,9 @@ export async function registerCharacters(app: FastifyInstance): Promise<void> {
       try {
         const character = await withTransaction(app.db, async (tx) => {
           // Lock the account row so concurrent creations count slots one at a time.
+          // Admin deletions and restores take the same lock, so a free slot is counted once.
           const [locked] = await tx
-            .select({ slots: accounts.characterSlots })
+            .select({ id: accounts.id, characterSlots: accounts.characterSlots })
             .from(accounts)
             .where(eq(accounts.id, accountId))
             .for('no key update');
@@ -165,9 +184,11 @@ export async function registerCharacters(app: FastifyInstance): Promise<void> {
             .select({ n: count() })
             .from(characters)
             .where(and(eq(characters.accountId, accountId), isNull(characters.deletedAt)));
-          if (!locked || (used?.n ?? 0) >= locked.slots) {
+          // Ticket 9.4: the base plus the account's earned slots.
+          const total = locked ? await characterSlotTotal(tx, locked) : 0;
+          if ((used?.n ?? 0) >= total) {
             throw new ApiError(422, 'no_free_slot', 'Every character slot is taken.', {
-              slots: { used: used?.n ?? 0, total: locked?.slots ?? 0 },
+              slots: { used: used?.n ?? 0, total },
             });
           }
 

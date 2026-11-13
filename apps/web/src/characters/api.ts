@@ -15,8 +15,16 @@ export interface Character {
 
 export interface Roster {
   characters: Character[];
-  slots: { used: number; total: number };
+  /** Ticket 9.4: `locked` is the next slot still to earn (null once every one is earned). */
+  slots: { used: number; total: number; locked?: LockedSlot | null };
   activeCharacterId: string | null;
+}
+
+export interface LockedSlot {
+  source: string;
+  description: string;
+  /** False for a slot no hero can earn yet. */
+  available: boolean;
 }
 
 export interface CreateCharacterInput {

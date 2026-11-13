@@ -21,7 +21,8 @@ So each cycle index is simulated in exactly one area, a player cannot dodge a lo
 
 ## Time and the offline cap
 - Credited window = `[settled_at, min(now, last_seen_at + OFFLINE_CAP_SECONDS)]`, server clock only. Later time earns nothing and is reported as `cappedMs`. `settled_at` then moves to `now`.
-- Client contact (start, settle, stop) moves `last_seen_at` to `now` after settling. While the client keeps settling, nothing is capped. A player who is away earns at most 3 h (`OFFLINE_CAP_SECONDS`, default 10800) however many scheduled settlements happen.
+- Client contact (start, settle, stop) moves `last_seen_at` to `now` after settling. While the client keeps settling, nothing is capped. A player who is away earns at most the account's cap however many scheduled settlements happen: 3 h (`OFFLINE_CAP_SECONDS`, default 10800, the base) plus the steps the account earned.
+- **Ticket 9.4: the cap grows per account** (docs/ACCOUNTS.md "The offline cap"): four account deeds raise it 3 → 4 → 5 → 6 → 8 h. `OFFLINE_CAP_SECONDS` stays the base. A step counts from the moment it is earned: earned while the cap still runs, it extends this absence; earned after the cap ran out, it starts with the next contact and never pays back time already lost (game-core `offlineCapEndMs`, read by the settlement on the server only). The offline cap is never sold.
 - **Active vs offline (Phase 1 rule):** the reward rate is the same. Active play is "more efficient" only because it never hits the cap. Active-only bonuses come with later activities (GDD §9.2).
 - `unusedMs` (an unfinished cycle at the window end) is stored as `carry_ms` and added to the next window. No time is lost or awarded twice.
 

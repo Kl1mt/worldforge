@@ -87,7 +87,7 @@ const body = (overrides: object = {}) => ({
 
 interface ListBody {
   characters: CharacterView[];
-  slots: { used: number; total: number };
+  slots: { used: number; total: number; locked: object | null };
   activeCharacterId: string | null;
 }
 
@@ -103,7 +103,16 @@ describe('characters API', () => {
     expect(res.statusCode).toBe(200);
     expect(res.json()).toEqual({
       characters: [],
-      slots: { used: 0, total: 2 },
+      // Ticket 9.4: the next slot to earn.
+      slots: {
+        used: 0,
+        total: 2,
+        locked: {
+          source: 'level28',
+          description: 'Raise any hero of the account to level 28.',
+          available: true,
+        },
+      },
       activeCharacterId: null,
     });
   });
@@ -124,7 +133,15 @@ describe('characters API', () => {
 
     const listed = (await list(p)).json<ListBody>();
     expect(listed.characters).toEqual([character]);
-    expect(listed.slots).toEqual({ used: 1, total: 2 });
+    expect(listed.slots).toEqual({
+      used: 1,
+      total: 2,
+      locked: {
+        source: 'level28',
+        description: 'Raise any hero of the account to level 28.',
+        available: true,
+      },
+    });
     expect(listed.activeCharacterId).toBe(character.id);
 
     const audits = await database.db
@@ -213,7 +230,16 @@ describe('characters API', () => {
       .where(eq(accounts.id, p.accountId));
     for (let i = 0; i < 3; i++) expect((await create(p, body())).statusCode).toBe(201);
     expect((await create(p, body())).statusCode).toBe(422);
-    expect((await list(p)).json<ListBody>().slots).toEqual({ used: 3, total: 3 });
+    // An admin's base of 3 (the column) still counts; the earned slots come on top (ticket 9.4).
+    expect((await list(p)).json<ListBody>().slots).toEqual({
+      used: 3,
+      total: 3,
+      locked: {
+        source: 'level28',
+        description: 'Raise any hero of the account to level 28.',
+        available: true,
+      },
+    });
   });
 
   it('selects one of the account’s characters', async () => {

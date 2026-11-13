@@ -41,9 +41,13 @@ import { uuidv7 } from '../db/uuid.js';
 import { changeMaterialsTx, grantGatheringTx, loadProfessions } from '../materials/store.js';
 import { recordQuestEventsTx } from '../quests/store.js';
 import { recordEventProgressTx } from '../events/progress.js';
+import { offlineCapEndTx } from '../account-growth/grant.js';
 
 export interface ActivityOptions {
-  /** Offline accumulation cap (GDD §9.1: 3 h, `OFFLINE_CAP_SECONDS`). */
+  /**
+   * Base offline accumulation cap (GDD §9.1: 3 h, `OFFLINE_CAP_SECONDS`). Ticket 9.4: each
+   * account adds its earned steps on top (`offlineCapEndTx`, docs/ACCOUNTS.md).
+   */
   offlineCapMs: number;
   /** Scheduled settlement interval; 0 disables the scheduler (`SETTLE_INTERVAL_SECONDS`). */
   settleIntervalMs: number;
@@ -153,7 +157,8 @@ export interface SettleOutcome {
  * and the activity row (in that order) so concurrent settlements serialise and the second one sees
  * the first one's `settled_at` — the same span of time can never be credited twice.
  *
- * Credited time is `[settled_at, min(now, last_seen_at + offlineCap)]`; anything later is forfeited
+ * Credited time is `[settled_at, min(now, capEnd)]` with `capEnd = last_seen_at + offlineCap` plus
+ * the account's earned steps (ticket 9.4, `offlineCapEndMs`); anything later is forfeited
  * (reported as `cappedMs`). `touch` marks client contact: it moves `last_seen_at` to `now` after the
  * settlement, so time while the client keeps settling is never capped.
  */
@@ -179,7 +184,13 @@ export async function settleActivityTx(
   const now = options.now();
   const nowMs = now.getTime();
   const settledMs = activity.settledAt.getTime();
-  const capEndMs = activity.lastSeenAt.getTime() + options.offlineCapMs;
+  // Ticket 9.4: the account's offline deeds raise the cap from the moment each was earned. The
+  // grants are read only when the base cap is reached (they can only move the end later).
+  const baseCapEndMs = activity.lastSeenAt.getTime() + options.offlineCapMs;
+  const capEndMs =
+    nowMs <= baseCapEndMs
+      ? baseCapEndMs
+      : await offlineCapEndTx(tx, character.accountId, activity.lastSeenAt, options.offlineCapMs);
   const endMs = Math.max(settledMs, Math.min(nowMs, capEndMs));
   const creditedMs = endMs - settledMs;
   const cappedMs = Math.max(0, nowMs - Math.max(settledMs, capEndMs));
