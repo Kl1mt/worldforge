@@ -60,13 +60,16 @@ interface ContributeBody {
 }
 
 describe.skipIf(!url)('real PostgreSQL: community projects race safely', () => {
+  // The daily caps are per UTC day. On the wall clock, a round started just before midnight
+  // gave one cap before it and another after it (F.9). Noon of today keeps every round in one day.
+  const NOON = new Date(Math.floor(Date.now() / 86_400_000) * 86_400_000 + 43_200_000);
   let database: DatabaseHandle;
   let app: FastifyInstance;
   let contribute: ReturnType<typeof contributeCall>;
 
   beforeAll(async () => {
     database = await createPostgresTestDatabase(url!, { poolMax: N * 3 + 2 });
-    app = buildApp({ database, activity: { ...DEFAULT_ACTIVITY_OPTIONS } });
+    app = buildApp({ database, activity: { ...DEFAULT_ACTIVITY_OPTIONS, now: () => NOON } });
     await app.ready();
     contribute = contributeCall(app);
   });
@@ -90,7 +93,7 @@ describe.skipIf(!url)('real PostgreSQL: community projects race safely', () => {
   async function seedStage(stageIndex: number, stageId: string, delivered: Record<string, number>) {
     await db()
       .insert(communityProjects)
-      .values({ projectId: WAREHOUSE.id, stageIndex, updatedAt: new Date() });
+      .values({ projectId: WAREHOUSE.id, stageIndex, updatedAt: NOON });
     for (const [resource, amount] of Object.entries(delivered)) {
       await db()
         .insert(communityProjectProgress)
