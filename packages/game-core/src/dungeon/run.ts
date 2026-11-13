@@ -11,11 +11,25 @@ import {
   DEFAULT_COMBAT_CONFIG,
   attackHit,
   buildEncounter,
+  kitAttack,
   rollEncounter,
   thornsDamage,
+  type AttackHit,
   type CombatConfig,
   type EncounterSetup,
+  type SkillContext,
 } from '../combat/encounter.js';
+import {
+  kitAfterAttack,
+  kitBlow,
+  kitPulse,
+  kitStart,
+  pulseAt,
+  shadowCompare,
+  skillsPrototypeMode,
+  withoutKit,
+  type Loadout,
+} from '../combat/kit.js';
 import { MAX_LEVEL, applyXp, xpToNextLevel } from '../combat/progression.js';
 import type { QuestEvent } from '../quests/events.js';
 import { DEFAULT_LOOT_CONFIG, getLootTable, type LootConfig } from '../loot/config.js';
@@ -141,6 +155,8 @@ export interface DungeonRunInput {
    * Null or absent = none: the run is exactly what it was before 6.3.
    */
   bossModifier?: BossModifierId | null;
+  /** Ticket 9.1 (prototype): the hero's loadout; read only while the skills prototype is on. */
+  loadout?: Loadout | null;
 }
 
 export interface DungeonRunOptions {
@@ -242,6 +258,38 @@ export function resolveDungeonFight(
   mechanics?: BossMechanics,
   phaseClockMs?: number,
 ): { kind: 'kill' | 'death' | 'timeout'; offsetMs: number; health: number } {
+  // Ticket 9.1: the shadow replay fights a default-loadout kit twice, with and without the kit.
+  if (setup.kit?.isDefault && skillsPrototypeMode() === 'shadow') {
+    const today = withoutKit(setup);
+    const twin = createRng(rng.state);
+    const todayLog: DungeonEvent[] = [];
+    const before = log.length;
+    const a = fightOnce(today, health, twin, startMs, todayLog, enrage, mechanics, phaseClockMs);
+    const b = fightOnce(setup, health, rng, startMs, log, enrage, mechanics, phaseClockMs);
+    shadowCompare(
+      'resolveDungeonFight',
+      [a, twin.state, todayLog],
+      [b, rng.state, log.slice(before)],
+    );
+    return b;
+  }
+  return fightOnce(setup, health, rng, startMs, log, enrage, mechanics, phaseClockMs);
+}
+
+function fightOnce(
+  setup: EncounterSetup,
+  health: number,
+  rng: Rng,
+  startMs: number,
+  log: DungeonEvent[],
+  enrage?: ResolvedEnrage,
+  mechanics?: BossMechanics,
+  phaseClockMs?: number,
+): { kind: 'kill' | 'death' | 'timeout'; offsetMs: number; health: number } {
+  // Ticket 9.1: the loadout's kit (absent: no pulses, every step as before).
+  const kit = setup.kit;
+  let kitState = kit ? kitStart(kit) : null;
+  let nextPulse = kit?.pulses ? pulseAt(1) : Infinity;
   let enemyHealth = setup.enemyHealth;
   let hp = health;
   let attack = 1;
@@ -304,23 +352,38 @@ export function resolveDungeonFight(
     const p = attack * setup.playerIntervalMs;
     const e = nextEnemy;
     const b = nextBurn;
-    const next = Math.min(p, e, b);
+    const q = nextPulse;
+    const next = Math.min(p, e, b, q);
     if (enrage && !enraged && next >= enrage.atMs && enrage.atMs <= setup.maxFightMs) {
       enraged = true;
       log.push({ t: startMs + enrage.atMs, type: 'enrage' });
     }
     if (phased && next <= setup.maxFightMs) phases(next);
-    if (p <= setup.maxFightMs && p <= e && p <= b) {
-      const hit = attackHit(setup, attack, prevCrit, hp, enemyHealth);
+    if (p <= setup.maxFightMs && p <= e && p <= b && p <= q) {
+      const { hit, action }: { hit: AttackHit; action: number } = kit
+        ? kitAttack(setup, kitState!, attack, p, prevCrit, hp, enemyHealth)
+        : { hit: attackHit(setup, attack, prevCrit, hp, enemyHealth), action: -2 };
       const crit = rng.chance(hit.critChance);
       prevCrit = crit && !hit.surged;
       const damage = dealt(crit ? hit.crit : hit.normal);
       enemyHealth = Math.max(0, enemyHealth - damage);
       log.push({ t: startMs + p, type: 'attack', damage, crit, skill: hit.skill, enemyHealth });
       if (enemyHealth <= 0) return { kind: 'kill', offsetMs: p, health: hp };
+      if (kit?.active) kitState = kitAfterAttack(kit, kitState!, action, crit, p);
       breakShell(startMs + p);
       if (phased) phases(p);
       attack++;
+    } else if (q <= setup.maxFightMs && q <= e && q <= b) {
+      // Ticket 9.1: the fight's pulse (damage over time; not logged in the prototype).
+      const { damage, state } = kitPulse(kit!, kitState!);
+      kitState = state;
+      if (damage > 0) {
+        enemyHealth = Math.max(0, enemyHealth - dealt(damage));
+        if (enemyHealth <= 0) return { kind: 'kill', offsetMs: q, health: hp };
+        breakShell(startMs + q);
+        if (phased) phases(q);
+      }
+      nextPulse = q + pulseAt(1);
     } else if (e <= setup.maxFightMs && e <= b) {
       const strong = enrage !== undefined && e >= enrage.atMs;
       blows++;
@@ -339,6 +402,7 @@ export function resolveDungeonFight(
         ...(heavy ? { heavy: true as const } : {}),
       });
       if (hp <= 0) return { kind: 'death', offsetMs: e, health: 0 };
+      if (kit?.active) kitState = kitBlow(kit, kitState!);
       if (siphon && damage > 0 && enemyHealth < setup.enemyHealth) {
         const amount = Math.min(
           setup.enemyHealth - enemyHealth,
@@ -407,6 +471,11 @@ export function simulateDungeonRun(
   // Bloodrush stacks (ticket 3.2): a run starts without a streak; walking between rooms lets
   // stacks fade (one per `decayMs` out of combat).
   let momentum = 0;
+  // Ticket 9.1: Soul Fragments carried from fight to fight (a run starts without any).
+  const kitOn = skillsPrototypeMode() !== 'off';
+  let fragments = 0;
+  const skillContext = (): SkillContext | undefined =>
+    kitOn ? { loadout: input.loadout ?? null, fragments } : undefined;
   const effectContext = (idleMs: number) =>
     effects ? { effects, momentum: momentumAfterIdle(momentum, idleMs, effects) } : undefined;
   const encounterModifiers = {
@@ -458,6 +527,8 @@ export function simulateDungeonRun(
     });
     const outcome = resolveDungeonFight(setup, health, rng, startMs, events, enrage, mechanics);
     now = startMs + outcome.offsetMs;
+    if (setup.kit?.active && setup.kit.rules.carryOnKill > 0)
+      fragments = outcome.kind === 'kill' ? setup.kit.rules.carryOnKill : 0;
     health = outcome.health;
     const won = outcome.kind === 'kill';
     encounters.push({
@@ -526,6 +597,7 @@ export function simulateDungeonRun(
             combat,
             encounterModifiers,
             context,
+            skillContext(),
           )
         : rollEncounter(
             rng,
@@ -536,6 +608,7 @@ export function simulateDungeonRun(
             combat,
             encounterModifiers,
             context,
+            skillContext(),
           );
       if (!fight(setup, rng, r, context?.momentum ?? 0)) {
         alive = false;
@@ -584,6 +657,7 @@ export function simulateDungeonRun(
       combat,
       encounterModifiers,
       context,
+      skillContext(),
     );
     const setup: EncounterSetup = {
       ...built,
@@ -692,6 +766,7 @@ function rollScaledEncounter(
   config: CombatConfig,
   modifiers?: Parameters<typeof rollEncounter>[6],
   effects?: Parameters<typeof rollEncounter>[7],
+  skills?: SkillContext,
 ): EncounterSetup {
   const entry = rng.weighted(area.enemies, (e) => e.weight);
   const spread = config.enemyLevelSpread;
@@ -706,6 +781,7 @@ function rollScaledEncounter(
     config,
     modifiers,
     effects,
+    skills,
   );
 }
 

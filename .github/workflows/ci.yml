@@ -49,6 +49,11 @@ jobs:
             run: pnpm --filter @worldforge/game-core test
           - name: web
             run: pnpm --filter @worldforge/web test
+          # Skills replay (ticket 9.1): every game-core suite with the skills prototype in shadow
+          # mode, so each fight runs through the loadout rules with the default loadout and again
+          # with today's rules, and must match bit for bit (tools/vitest/skills-prototype.mjs).
+          - name: game-core skills replay
+            run: WF_SKILLS_PROTOTYPE=shadow pnpm --filter @worldforge/game-core test
           - name: server 1/2
             run: pnpm --filter @worldforge/server exec vitest run --shard=1/2
           - name: server 2/2

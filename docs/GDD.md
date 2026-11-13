@@ -165,6 +165,8 @@ Additional modifiers may include boss damage, experience gain, gold find, item f
 ### 6.3 Skills and Builds
 Each class has skills that execute automatically during combat and passive effects. Players choose a loadout outside combat. Skills may provide single-target damage, area damage, damage over time, defensive utility, or synergies with specific stats and item effects. New skills unlock through level progression and later content.
 
+*Phase 9 defaults (owner-approved 2026-11-13; design and prototype in `docs/SKILLS.md`, ticket 9.1; built in 9.2 after the owner's decisions):* each class has six active skills and four passives unlocked from level 1 to 36, plus two taught by later bosses (the Forge Tyrant, the Hollow Sovereign); a loadout holds three actives (slot 1 the class skill on its cadence, slots 2–3 resource spenders) and one passive, with three presets per hero, switched outside combat (the activity settles first). The default loadout is today's class skill alone and fights exactly as before. Damage over time is the Warlock's identity, with one burn for the Mage and one bleed for the Hunter. Area damage has no target in one-on-one fights and is not used.
+
 ### 6.4 Activity Types
 - **Area farming:** repeatable automatic combat and baseline progression.
 - **Quests and contracts:** structured objectives with targeted rewards.

@@ -1,4 +1,4 @@
-# Balance measurements (tickets B.2, 4.8, B.3, 5.4, 5.6, B.4, T.7, 6.1, 6.2, 6.5, B.5, 6.10)
+# Balance measurements (tickets B.2, 4.8, B.3, 5.4, 5.6, B.4, T.7, 6.1, 6.2, 6.5, B.5, 6.10, 9.1)
 
 Dev scripts behind the before/after tables in `docs/COMBAT.md`, `docs/DUNGEONS.md`, `docs/EFFECTS.md`, `docs/PVP.md` and `docs/LEADERBOARDS.md`. Not run in CI (the guards are `packages/game-core/src/balance/*.test.ts`). Run from the repo root:
 
@@ -31,6 +31,8 @@ MAX_LEVEL=40 AWAKENED=1 pnpm --filter @worldforge/server exec tsx ../../tools/ba
 pnpm --filter @worldforge/server exec tsx ../../tools/balance/hollow-deep.ts farm   # or: boss, xp, pace (the lanterns of the deep at 1–500 players)
 # Ticket 6.10: the Phase 6 exit criterion (docs/BALANCE.md "Phase 6 exit criterion"), ~1 min
 pnpm --filter @worldforge/server exec tsx ../../tools/balance/phase6-exit.ts   # or: verge, older, materials, variants, awakening, modifiers (KITS, RUNS), bosses
+# Ticket 9.1: skills, resources and loadouts with game-core's prototype (docs/SKILLS.md), ~30 s; CLASSES, JOBS, TOP, COMPLETE=1
+pnpm --filter @worldforge/server exec tsx ../../tools/balance/loadouts.ts search   # or: jobs (the replay), cost (3 h/8 h), pvp (KEEP=0.5, SEEDS), power
 ```
 
 To compare with another revision, run them in a worktree of it (`git worktree add`).

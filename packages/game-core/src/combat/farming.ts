@@ -8,8 +8,20 @@ import {
   type StatBlock,
 } from './characterStats.js';
 import {
+  kitAfterAttack,
+  kitBlow,
+  kitPulse,
+  kitStart,
+  pulseAt,
+  shadowCompare,
+  skillsPrototypeMode,
+  withoutKit,
+  type Loadout,
+} from './kit.js';
+import {
   DEFAULT_COMBAT_CONFIG,
   attackHit,
+  kitAttack,
   rollEncounter,
   thornsDamage,
   type CombatConfig,
@@ -36,6 +48,11 @@ export interface FarmingCharacter {
   health?: number;
   /** Bloodrush stacks after the last committed cycle (ticket 3.2); default 0. */
   momentum?: number;
+  /**
+   * Ticket 9.1 (prototype): Soul Fragments the last kill left for the next fight (warlock; read
+   * only while the skills prototype is on, with a loadout that uses them).
+   */
+  soulFragments?: number;
 }
 
 /**
@@ -66,6 +83,8 @@ export interface FarmingInput {
   modifiers?: EncounterModifiers;
   /** Combined effects of the equipped items (ticket 3.2, `combineEffects`). */
   effects?: CombatEffects;
+  /** Ticket 9.1 (prototype): the hero's loadout; read only while the skills prototype is on. */
+  loadout?: Loadout | null;
   areaId: AreaId;
   /** Server-derived seed. Never accept a seed from the client. */
   seed: number | string;
@@ -132,6 +151,11 @@ export interface FarmingResult {
   maxHealth: number;
   /** Bloodrush stacks after the last committed cycle; carry it into the next window. */
   momentum: number;
+  /**
+   * Ticket 9.1 (prototype): Soul Fragments for the next fight; carry it into the next window. Only
+   * present when a kit carries fragments (never with the switch off or the default loadout).
+   */
+  soulFragments?: number;
   /** Most recent events (detailed simulation only; empty for the aggregate one). */
   events: CombatEvent[];
   /** Older events dropped to respect `maxEvents`. */
@@ -248,6 +272,10 @@ function runFarming(
   // Bloodrush stacks after the last committed cycle (ticket 3.2). Only committed cycles change it,
   // so a window cut short leaves it as it was and the next settlement replays the same fight.
   let momentum = effects ? Math.max(0, input.character.momentum ?? 0) : 0;
+  // Ticket 9.1: Soul Fragments carried between fights (only an active kit reads or changes them).
+  const kitOn = skillsPrototypeMode() !== 'off';
+  let fragments = kitOn ? Math.max(0, Math.floor(input.character.soulFragments ?? 0)) : 0;
+  let carries = false;
 
   const maxCycles = input.maxCycles ?? Infinity;
   for (;;) {
@@ -273,6 +301,7 @@ function runFarming(
       config,
       input.modifiers,
       effects ? { effects, momentum: fightMomentum } : undefined,
+      kitOn ? { loadout: input.loadout ?? null, fragments } : undefined,
     );
     buffer?.push({
       t: fightStart,
@@ -299,6 +328,10 @@ function runFarming(
     if (effects)
       momentum =
         outcome.kind === 'kill' ? Math.min(effects.bloodrush.maxStacks, fightMomentum + 1) : 0;
+    if (setup.kit?.active && setup.kit.rules.carryOnKill > 0) {
+      carries = true;
+      fragments = outcome.kind === 'kill' ? setup.kit.rules.carryOnKill : 0;
+    }
     if (outcome.kind === 'kill') {
       health = Math.min(stats.health, health + healOnKill(stats.health));
       kills++;
@@ -346,6 +379,7 @@ function runFarming(
     health,
     maxHealth: stats.health,
     momentum,
+    ...(carries ? { soulFragments: fragments } : {}),
     events: [],
     eventsDropped: 0,
   };
@@ -361,6 +395,92 @@ export function resolveFightDetailed(
   rng: Rng,
   startMs = 0,
   log: CombatEvent[] | null = null,
+): FightOutcome {
+  if (!setup.kit) return resolveFightToday(setup, health, rng, startMs, log);
+  if (setup.kit.isDefault && skillsPrototypeMode() === 'shadow') {
+    const today = withoutKit(setup);
+    const twin = createRng(rng.state);
+    const todayLog: CombatEvent[] | null = log ? [] : null;
+    const before = log?.length ?? 0;
+    const a = resolveFightToday(today, health, twin, startMs, todayLog);
+    const b = resolveFightKit(setup, health, rng, startMs, log);
+    shadowCompare(
+      'resolveFightDetailed',
+      [a, twin.state, todayLog],
+      [b, rng.state, log?.slice(before) ?? null],
+    );
+    return b;
+  }
+  return resolveFightKit(setup, health, rng, startMs, log);
+}
+
+/**
+ * Ticket 9.1: one fight under a kit, attack by attack. The timeline adds the fight's pulses
+ * (damage over time, timed resources) between the hero's attacks and the enemy's blows: hero
+ * first, then the pulse, then the enemy on equal times. With an inactive kit there are no pulses
+ * and every step is `resolveFightToday`'s.
+ */
+function resolveFightKit(
+  setup: EncounterSetup,
+  health: number,
+  rng: Rng,
+  startMs: number,
+  log: CombatEvent[] | null,
+): FightOutcome {
+  const kit = setup.kit!;
+  let st = kitStart(kit);
+  let enemyHealth = setup.enemyHealth;
+  let hp = health;
+  let attack = 1;
+  let enemyAttack = 1;
+  let pulse = 1;
+  let enemyHits = 0;
+  let prevCrit = false;
+  const thorns = thornsDamage(setup);
+  for (;;) {
+    const p = attack * setup.playerIntervalMs;
+    const e = enemyAttack * setup.enemyIntervalMs;
+    const q = kit.pulses ? pulseAt(pulse) : Infinity;
+    if (p <= setup.maxFightMs && p <= e && p <= q) {
+      const { hit, action } = kitAttack(setup, st, attack, p, prevCrit, hp, enemyHealth);
+      const crit = rng.chance(hit.critChance);
+      prevCrit = crit && !hit.surged;
+      const damage = crit ? hit.crit : hit.normal;
+      enemyHealth -= damage;
+      log?.push({ t: startMs + p, type: 'attack', damage, crit, skill: hit.skill });
+      if (enemyHealth <= 0) return { kind: 'kill', offsetMs: p, enemyHits };
+      if (kit.active) st = kitAfterAttack(kit, st, action, crit, p);
+      attack++;
+    } else if (q <= setup.maxFightMs && q <= e) {
+      const { damage, state } = kitPulse(kit, st);
+      st = state;
+      enemyHealth -= damage;
+      if (enemyHealth <= 0) return { kind: 'kill', offsetMs: q, enemyHits };
+      pulse++;
+    } else if (e <= setup.maxFightMs) {
+      const damage = Math.min(hp, setup.enemyHit);
+      hp -= damage;
+      enemyHits++;
+      log?.push({ t: startMs + e, type: 'enemyAttack', damage });
+      if (hp <= 0) return { kind: 'death', offsetMs: e, enemyHits };
+      if (kit.active) st = kitBlow(kit, st);
+      if (thorns > 0) {
+        enemyHealth -= thorns;
+        if (enemyHealth <= 0) return { kind: 'kill', offsetMs: e, enemyHits };
+      }
+      enemyAttack++;
+    } else {
+      return { kind: 'timeout', offsetMs: setup.maxFightMs, enemyHits };
+    }
+  }
+}
+
+function resolveFightToday(
+  setup: EncounterSetup,
+  health: number,
+  rng: Rng,
+  startMs: number,
+  log: CombatEvent[] | null,
 ): FightOutcome {
   let enemyHealth = setup.enemyHealth;
   let hp = health;
