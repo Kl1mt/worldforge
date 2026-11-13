@@ -1562,7 +1562,7 @@ Checked and holding: Crownforged Work, the Throne, the lanterns' caps and gates,
 6. B.7
 7. 9.6
 
-### 9.1 Skills, resources & loadouts: design & prototype (design + game-core) — `todo`
+### 9.1 Skills, resources & loadouts: design & prototype (design + game-core) — `done (PR #154)`
 Read GDD §5.2, §6.3, `docs/COMBAT.md`, `docs/BALANCE.md`, `docs/PVP.md` ("normalisation"), `docs/LEADERBOARDS.md` ("formula changes"), `docs/EFFECTS.md`.
 - **`docs/SKILLS.md`:**
   - each class's resource rules;
