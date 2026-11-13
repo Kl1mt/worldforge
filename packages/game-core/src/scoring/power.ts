@@ -1,3 +1,4 @@
+import { skillsPrototypeMode, type Loadout } from '../combat/kit.js';
 import { isClassId, type ClassId } from '../classes.js';
 import { DEFAULT_ACTIVITY_CONFIG } from '../activity/config.js';
 import { equipmentModifiers, type EquippedItem } from '../activity/equipment.js';
@@ -182,6 +183,11 @@ export interface PowerInput {
   classId: ClassId;
   level: number;
   equipment: readonly EquippedItem[];
+  /**
+   * Ticket 9.1 (prototype, the proposed Power 4): the loadout the Proving Grounds read (the hero's
+   * saved defence loadout). Read only while the skills prototype is on.
+   */
+  loadout?: Loadout | null;
 }
 
 /** One trial, one seed: the points before rounding. */
@@ -238,6 +244,7 @@ function runTrial(
         combat,
         encounterModifiers,
         effects ? { effects, momentum: fightMomentum } : undefined,
+        skillsPrototypeMode() !== 'off' ? { loadout: input.loadout ?? null } : undefined,
       ),
       ...(isChampion ? { maxFightMs: config.championFightMs } : {}),
     };

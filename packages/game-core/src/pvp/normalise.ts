@@ -1,3 +1,4 @@
+import type { Loadout } from '../combat/kit.js';
 import { getClass, isClassId, type ClassId } from '../classes.js';
 import { DEFAULT_ACTIVITY_CONFIG } from '../activity/config.js';
 import { equipmentModifiers, type EquippedItem } from '../activity/equipment.js';
@@ -70,6 +71,12 @@ export interface PvpConfig {
    * reference has none, so this is the same pull toward the reference).
    */
   effectKeep: number;
+  /**
+   * Ticket 9.1 (prototype, proposed for `PVP_RULES_VERSION` 3): the share of a loadout's extra
+   * damage a duel keeps (spenders' and damage over time's), like `effectKeep` for items. Read only
+   * while the skills prototype is on; absent = `PVP_V3_SKILL_KEEP`.
+   */
+  skillKeep?: number;
   referenceKit: PvpReferenceKit;
   /** Reference level per bracket id. */
   referenceLevels: Readonly<Record<string, number>>;
@@ -229,6 +236,11 @@ export interface PvpFighterInput {
   classId: ClassId;
   level: number;
   equipment: readonly EquippedItem[];
+  /**
+   * Ticket 9.1 (prototype): the fighter's loadout (a defence snapshot carries the loadout saved
+   * with it). Read only while the skills prototype is on.
+   */
+  loadout?: Loadout | null;
 }
 
 /** A fighter after normalisation: what the duel engine fights with. */

@@ -19,6 +19,7 @@ import { DEFAULT_ACTIVITY_CONFIG, type ActivityConfig } from './config.js';
 import { equipmentModifiers, type EquippedItem } from './equipment.js';
 import { createDropPlacer, type FilteredDrop } from './placement.js';
 import type { LootFilterRules } from '../economy/lootFilter.js';
+import type { Loadout } from '../combat/kit.js';
 
 export interface SettleFarmingInput {
   character: FarmingCharacter;
@@ -50,6 +51,8 @@ export interface SettleFarmingInput {
    * it under the character lock). Null or absent = no filter: the result is exactly as before.
    */
   lootFilter?: LootFilterRules | null;
+  /** Ticket 9.1 (prototype): the hero's loadout; read only while the skills prototype is on. */
+  loadout?: Loadout | null;
 }
 
 export interface SettleFarmingOptions {
@@ -85,6 +88,8 @@ export interface FarmingSettlement {
   maxHealth: number;
   /** Bloodrush stacks at the window end (ticket 3.2); carry it into the next settlement. */
   momentum: number;
+  /** Ticket 9.1 (prototype): Soul Fragments carried to the next window (only with a kit that uses them). */
+  soulFragments?: number;
   /** Gold dropped by kills (after gold find). */
   goldLooted: number;
   /** Gold from items salvaged because the inventory was full. */
@@ -165,6 +170,7 @@ export function settleFarming(
         xp: first.xp,
         health: first.health,
         momentum: first.momentum,
+        ...(first.soulFragments !== undefined ? { soulFragments: first.soulFragments } : {}),
       },
       professions: first.professions,
       firstCycle: input.firstCycle + first.encounters,
@@ -195,6 +201,7 @@ export function settleFarming(
     health: second.health,
     maxHealth: second.maxHealth,
     momentum: second.momentum,
+    ...(second.soulFragments !== undefined ? { soulFragments: second.soulFragments } : {}),
     goldLooted: first.goldLooted + second.goldLooted,
     goldSalvaged: first.goldSalvaged + second.goldSalvaged,
     items: [...first.items, ...second.items],
@@ -256,6 +263,7 @@ function settleSegment(
       durationMs: input.durationMs,
       firstCycle: input.firstCycle,
       ...(maxCycles !== undefined ? { maxCycles } : {}),
+      ...(input.loadout ? { loadout: input.loadout } : {}),
     },
     {
       config: combat,
@@ -319,6 +327,7 @@ function settleSegment(
     health: r.health,
     maxHealth: r.maxHealth,
     momentum: r.momentum,
+    ...(r.soulFragments !== undefined ? { soulFragments: r.soulFragments } : {}),
     goldLooted,
     goldSalvaged,
     items,

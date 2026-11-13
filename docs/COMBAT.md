@@ -7,7 +7,7 @@ The server (ticket 1.6) is the only caller that may award results; it derives th
 - `world/enemies.ts`: all enemies of Graumark (ticket 2.1 added the Phase 2 areas, the crypt and the Gravewarden; see `docs/WORLD.md`). Each stat is `base + perLevel · (level − 1)`; `damageType` picks the defense that mitigates it.
 - `world/areas.ts`: the five areas with level ranges, spawn weights, unlock rules and loot tables (`docs/WORLD.md`). Abandoned Fields: enemy levels 1–6, spawn weights 50 / 35 / 15.
 - `combat/characterStats.ts`: per-class base stats and per-level growth (`CLASS_STAT_PROFILES`).
-- `combat/skills.ts`: one auto-skill per class that replaces every n-th basic attack (Heavy Strike, Firebolt, Aimed Shot, Shadow Bolt). No resource costs yet.
+- `combat/skills.ts`: one auto-skill per class that replaces every n-th basic attack (Heavy Strike, Firebolt, Aimed Shot, Shadow Bolt). No resource costs yet. Ticket 9.1 added the Phase 9 skills, resources and passives as content next to it, read only by the prototype (`docs/SKILLS.md`).
 - `combat/encounter.ts`: `DEFAULT_COMBAT_CONFIG` holds every tunable (search time, regeneration, respawn delay, fight timeout, mitigation and XP-penalty constants).
 
 ## Stats
@@ -266,5 +266,5 @@ Hero-vs-hero duels run on this engine (`buildEncounter`, `attackHit`, `thornsDam
 ## Open points
 - Balance is tuned (ticket B.1, above) against simulations; the owner's playtest feedback may still move it. Keep `src/balance/balance.test.ts` green when adding content.
 - Item stats are only an input; the loot module (ticket 1.5) produces them.
-- Damage over time, resources and skill loadouts come in later phases.
+- Damage over time, resources and skill loadouts: designed and prototyped in ticket 9.1 behind a switch that is off (`docs/SKILLS.md`, `combat/kit.ts`); with it off every rule above is unchanged. 9.2 builds them after the owner's yes.
 - Windows shorter than a cycle return no progress; carry `unusedMs` forward (with per-cycle RNG this never changes the result).

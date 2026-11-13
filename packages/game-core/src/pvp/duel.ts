@@ -4,9 +4,24 @@ import {
   DEFAULT_COMBAT_CONFIG,
   attackHit,
   buildEncounter,
+  kitAttack,
   thornsDamage,
+  type AttackHit,
   type EncounterSetup,
 } from '../combat/encounter.js';
+import {
+  kitAfterAttack,
+  kitBlow,
+  kitPulse,
+  kitStart,
+  pulseAt,
+  PVP_V3_SKILL_KEEP,
+  shadowCompare,
+  skillsPrototypeMode,
+  withoutKit,
+  type KitState,
+  type Loadout,
+} from '../combat/kit.js';
 import { hasCombatEffects } from '../effects/resolve.js';
 import { createRng } from '../rng.js';
 import type { StatBlock } from '../combat/characterStats.js';
@@ -141,6 +156,7 @@ function duelSetup(
   target: PvpFighter,
   bracket: PvpBracket,
   config: PvpConfig,
+  loadout?: Loadout | null,
 ): EncounterSetup {
   const level = bracket.referenceLevel;
   const blend = (f: PvpFighter): PvpFighter => {
@@ -160,6 +176,12 @@ function duelSetup(
     DEFAULT_COMBAT_CONFIG,
     { skillDamage: attacker.skillDamage },
     fx ? { effects: fx, momentum: 0 } : undefined,
+    skillsPrototypeMode() !== 'off'
+      ? {
+          loadout: loadout ?? null,
+          pvp: { skillKeep: config.skillKeep ?? PVP_V3_SKILL_KEEP, effectKeep: config.effectKeep },
+        }
+      : undefined,
   );
 }
 
@@ -196,9 +218,45 @@ export function simulateDuel(input: DuelInput, config: PvpConfig = DEFAULT_PVP_C
     defender: normaliseFighter(input.defender, bracket, config),
   };
   const setups: Record<DuelSide, EncounterSetup> = {
-    challenger: duelSetup(fighters.challenger, fighters.defender, bracket, config),
-    defender: duelSetup(fighters.defender, fighters.challenger, bracket, config),
+    challenger: duelSetup(
+      fighters.challenger,
+      fighters.defender,
+      bracket,
+      config,
+      input.challenger.loadout,
+    ),
+    defender: duelSetup(
+      fighters.defender,
+      fighters.challenger,
+      bracket,
+      config,
+      input.defender.loadout,
+    ),
   };
+  // Ticket 9.1: the shadow replay plays a duel of two default loadouts again without the kits.
+  if (
+    skillsPrototypeMode() === 'shadow' &&
+    setups.challenger.kit?.isDefault &&
+    setups.defender.kit?.isDefault
+  ) {
+    const today = duelLoop(input, config, bracket, fighters, {
+      challenger: withoutKit(setups.challenger),
+      defender: withoutKit(setups.defender),
+    });
+    const kit = duelLoop(input, config, bracket, fighters, setups);
+    shadowCompare('simulateDuel', today, kit);
+    return kit;
+  }
+  return duelLoop(input, config, bracket, fighters, setups);
+}
+
+function duelLoop(
+  input: DuelInput,
+  config: PvpConfig,
+  bracket: PvpBracket,
+  fighters: Record<DuelSide, PvpFighter>,
+  setups: Record<DuelSide, EncounterSetup>,
+): DuelResult {
   const rngs = {
     challenger: createRng(`${input.seed}:challenger`),
     defender: createRng(`${input.seed}:defender`),
@@ -230,10 +288,39 @@ export function simulateDuel(input: DuelInput, config: PvpConfig = DEFAULT_PVP_C
   let reason: DuelEndReason = 'defeat';
   let end = config.maxDuelMs;
   const nextAt = (side: DuelSide) => attack[side] * setups[side].playerIntervalMs;
+  // Ticket 9.1: each side's kit (absent: no pulses, every step as before).
+  const kits: Record<DuelSide, KitState | null> = {
+    challenger: setups.challenger.kit ? kitStart(setups.challenger.kit) : null,
+    defender: setups.defender.kit ? kitStart(setups.defender.kit) : null,
+  };
+  const pulsing = setups.challenger.kit?.pulses || setups.defender.kit?.pulses;
+  let pulse = 1;
 
   while (outcome === null) {
     const tc = nextAt('challenger');
     const td = nextAt('defender');
+    const tq = pulsing ? pulseAt(pulse) : Infinity;
+    if (tq < Math.min(tc, td) && tq <= config.maxDuelMs) {
+      // The fight's pulse: each side's damage over time ticks on the other (initiative first).
+      for (const side of [initiative, other(initiative)]) {
+        const kit = setups[side].kit;
+        if (!kit?.active || !kits[side] || outcome !== null) continue;
+        const { damage, state } = kitPulse(kit, kits[side]!);
+        kits[side] = state;
+        if (damage <= 0) continue;
+        const target = other(side);
+        const dealt = Math.min(hp[target], scaled(damage, tq));
+        hp[target] -= dealt;
+        tally[side].damageDealt += dealt;
+        if (hp[target] <= 0) {
+          events.push({ t: tq, type: 'defeat', side: target });
+          outcome = side;
+          end = tq;
+        }
+      }
+      pulse++;
+      continue;
+    }
     const t = Math.min(tc, td);
     if (t > config.maxDuelMs) break;
     if (!suddenLogged && t > suddenAt && suddenAt < config.maxDuelMs) {
@@ -243,9 +330,14 @@ export function simulateDuel(input: DuelInput, config: PvpConfig = DEFAULT_PVP_C
     const side: DuelSide = tc === td ? initiative : tc < td ? 'challenger' : 'defender';
     const target = other(side);
     const setup = setups[side];
-    const hit = attackHit(setup, attack[side], prevCrit[side], hp[side], hp[target]);
+    const { hit, action }: { hit: AttackHit; action: number } = kits[side]
+      ? kitAttack(setup, kits[side]!, attack[side], t, prevCrit[side], hp[side], hp[target])
+      : { hit: attackHit(setup, attack[side], prevCrit[side], hp[side], hp[target]), action: -2 };
     const crit = rngs[side].chance(hit.critChance);
     prevCrit[side] = crit && !hit.surged;
+    if (setup.kit?.active) kits[side] = kitAfterAttack(setup.kit, kits[side]!, action, crit, t);
+    const struck = setups[target].kit;
+    if (struck?.active) kits[target] = kitBlow(struck, kits[target]!);
     const spread = config.damageSpread;
     const luck = spread > 0 ? 1 - spread + 2 * spread * rngs[side].next() : 1;
     const rolled = crit ? hit.crit : hit.normal;

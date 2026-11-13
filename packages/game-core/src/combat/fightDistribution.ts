@@ -1,6 +1,18 @@
 import type { Rng } from '../rng.js';
 import type { EncounterSetup, FightOutcome } from './encounter.js';
-import { attackHit, dependsOnHeroHealth, hitsToDie, thornsDamage } from './encounter.js';
+import { attackHit, dependsOnHeroHealth, hitsToDie, kitAttack, thornsDamage } from './encounter.js';
+import {
+  kitAfterAttack,
+  kitBlow,
+  kitPulse,
+  kitStart,
+  kitStateKey,
+  pulseAt,
+  shadowCompare,
+  skillsPrototypeMode,
+  withoutKit,
+  type KitState,
+} from './kit.js';
 
 /** One way the enemy can die: when, after how many enemy hits, and how likely. */
 export interface KillEvent {
@@ -26,6 +38,18 @@ export interface KillEvent {
  * `health` is the hero's health at the fight start; it only matters for health-dependent effects.
  */
 export function killDistribution(setup: EncounterSetup, health: number): KillEvent[] {
+  if (setup.kit) {
+    const kit = killDistributionKit(setup, health);
+    if (setup.kit.isDefault && skillsPrototypeMode() === 'shadow') {
+      const today = withoutKit(setup);
+      shadowCompare('killDistribution', killDistributionToday(today, health), kit);
+    }
+    return kit;
+  }
+  return killDistributionToday(setup, health);
+}
+
+function killDistributionToday(setup: EncounterSetup, health: number): KillEvent[] {
   const events: KillEvent[] = [];
   const thorns = thornsDamage(setup);
   const tracksCrit = (setup.effects?.skillSurge ?? 0) > 0;
@@ -87,6 +111,121 @@ export function killDistribution(setup: EncounterSetup, health: number): KillEve
   return events;
 }
 
+interface KitDpState {
+  p: number;
+  dealt: number;
+  flag: number;
+  kit: KitState;
+}
+
+/**
+ * Ticket 9.1: the exact distribution under a kit — the state-machine dynamic program. The state
+ * adds the kit's state (resource, cooldowns, damage-over-time ticks left, "unhit") to the damage
+ * dealt and the previous-crit flag; every transition is deterministic except the crit roll, so
+ * equal states still merge. The timeline merges hero attacks, the fight's pulses (damage over time,
+ * timed resources) and enemy blows (thorns, Rage, Focus), in that order on equal times. The hero's
+ * health stays closed-form: no skill heals or shields (docs/SKILLS.md), so death is still decided
+ * by `sampleFight`. With an inactive kit (the default loadout) the steps, merges and sums are
+ * exactly `killDistribution`'s, so the result is bit-identical (asserted by the shadow replay).
+ */
+function killDistributionKit(setup: EncounterSetup, health: number): KillEvent[] {
+  const kit = setup.kit!;
+  const events: KillEvent[] = [];
+  const thorns = thornsDamage(setup);
+  const tracksCrit = (setup.effects?.skillSurge ?? 0) > 0;
+  const blows = thorns > 0 || kit.listensToBlows;
+  const pulses = kit.pulses;
+  const start = kitStart(kit);
+  const keyOf = (dealt: number, flag: number, st: KitState) =>
+    kit.active ? `${dealt * 2 + flag}|${kitStateKey(st)}` : `${dealt * 2 + flag}`;
+  let states = new Map<string, KitDpState>([
+    [keyOf(0, 0, start), { p: 1, dealt: 0, flag: 0, kit: start }],
+  ]);
+  const add = (
+    next: Map<string, KitDpState>,
+    dealt: number,
+    flag: number,
+    st: KitState,
+    pq: number,
+  ) => {
+    const k = keyOf(dealt, flag, st);
+    const prev = next.get(k);
+    if (prev) prev.p += pq;
+    else next.set(k, { p: pq, dealt, flag, kit: st });
+  };
+  let attack = 1;
+  let enemyAttack = 1;
+  let pulse = 1;
+  while (states.size > 0) {
+    const p = attack * setup.playerIntervalMs;
+    const e = blows ? enemyAttack * setup.enemyIntervalMs : Infinity;
+    const q = pulses ? pulseAt(pulse) : Infinity;
+    if (p <= setup.maxFightMs && p <= e && p <= q) {
+      const hitsBefore = Math.ceil(p / setup.enemyIntervalMs) - 1;
+      const heroHealth = Math.max(0, health - hitsBefore * setup.enemyHit);
+      const event: KillEvent = { offsetMs: p, enemyHits: hitsBefore, probability: 0, attack };
+      const next = new Map<string, KitDpState>();
+      for (const s of states.values()) {
+        const remaining = setup.enemyHealth - s.dealt;
+        const { hit, action } = kitAttack(
+          setup,
+          s.kit,
+          attack,
+          p,
+          s.flag === 1,
+          heroHealth,
+          remaining,
+        );
+        const outcomes: [number, number, number, boolean][] = [
+          [hit.normal, 1 - hit.critChance, 0, false],
+          [hit.crit, hit.critChance, tracksCrit && !hit.surged ? 1 : 0, true],
+        ];
+        for (const [damage, q0, flag, crit] of outcomes) {
+          if (q0 <= 0) continue;
+          const total = s.dealt + damage;
+          const pq = s.p * q0;
+          if (total >= setup.enemyHealth) {
+            event.probability += pq;
+          } else {
+            const st = kit.active ? kitAfterAttack(kit, s.kit, action, crit, p) : s.kit;
+            add(next, total, flag, st, pq);
+          }
+        }
+      }
+      events.push(event);
+      states = next;
+      attack++;
+    } else if (q <= setup.maxFightMs && q <= e) {
+      const hitsBefore = Math.ceil(q / setup.enemyIntervalMs) - 1;
+      const event: KillEvent = { offsetMs: q, enemyHits: hitsBefore, probability: 0, attack: 0 };
+      const next = new Map<string, KitDpState>();
+      for (const s of states.values()) {
+        const { damage, state } = kitPulse(kit, s.kit);
+        const total = s.dealt + damage;
+        if (total >= setup.enemyHealth) event.probability += s.p;
+        else add(next, total, s.flag, state, s.p);
+      }
+      if (event.probability > 0) events.push(event);
+      states = next;
+      pulse++;
+    } else if (blows && e <= setup.maxFightMs) {
+      const event: KillEvent = { offsetMs: e, enemyHits: enemyAttack, probability: 0, attack: 0 };
+      const next = new Map<string, KitDpState>();
+      for (const s of states.values()) {
+        const total = s.dealt + thorns;
+        if (total >= setup.enemyHealth) event.probability += s.p;
+        else add(next, total, s.flag, kit.active ? kitBlow(kit, s.kit) : s.kit, s.p);
+      }
+      if (event.probability > 0) events.push(event);
+      states = next;
+      enemyAttack++;
+    } else {
+      break;
+    }
+  }
+  return events;
+}
+
 /**
  * P(kill on attack n) for n = 1…floor(maxFightMs / playerIntervalMs); index 0 is unused. Only
  * hero-attack kills (thorns kills are left out); kept for tests and tooling.
@@ -118,9 +257,13 @@ export function distributionKey(s: EncounterSetup, health?: number): string {
     s.skill.crit,
     s.skill.critChance,
   ].join('|');
-  if (!s.effects) return key;
+  // Ticket 9.1: an active kit depends on its loadout, its start and the enemy's rhythm too.
+  const kit = s.kit?.active
+    ? `|kit:${s.kit.key}|${s.kit.start}|${s.kit.dealt}|${s.kit.critDamage}|${s.kit.critChance}|${s.enemyIntervalMs}|${s.enemyHit}`
+    : '';
+  if (!s.effects) return key + kit;
   const hp = dependsOnHeroHealth(s) ? `|hp:${health}` : '';
-  return `${key}|${s.enemyIntervalMs}|${s.enemyHit}|${JSON.stringify(s.effects)}${hp}`;
+  return `${key}|${s.enemyIntervalMs}|${s.enemyHit}|${JSON.stringify(s.effects)}${hp}${kit}`;
 }
 
 /**

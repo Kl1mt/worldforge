@@ -6,6 +6,19 @@ import { STAT_LIMITS, type StatBlock } from './characterStats.js';
 import { AUTO_SKILLS } from './skills.js';
 import { hasCombatEffects } from '../effects/resolve.js';
 import type { CombatEffects } from '../effects/types.js';
+import {
+  compileKit,
+  kitSpenderFor,
+  kitSpenderMultiplier,
+  resolveLoadout,
+  shadowCompare,
+  skillsPrototypeMode,
+  withoutKit,
+  type KitState,
+  type Loadout,
+  type ResolvedLoadout,
+  type SetupKit,
+} from './kit.js';
 
 /** Tunables shared by the detailed and the aggregate simulation. */
 export interface CombatConfig {
@@ -107,6 +120,11 @@ export interface EncounterSetup {
    * `skill`, exactly as before effects existed. Read hits through `attackHit`.
    */
   effects?: SetupEffects;
+  /**
+   * Ticket 9.1: the hero's loadout compiled for this fight. Only present while the skills
+   * prototype is on (`setSkillsPrototype`); absent, every fight is exactly today's.
+   */
+  kit?: SetupKit;
 }
 
 /**
@@ -172,10 +190,39 @@ export function attackHit(
   const opener = attack === 1 && fx.skillOpener > 0;
   const surged = !scheduled && !opener && prevCrit && fx.skillSurge > 0;
   const skill = scheduled || opener || surged;
-  let multiplier = skill ? fx.skillMultiplier : 1;
+  return priceHit(
+    fx,
+    skill,
+    surged,
+    opener,
+    heroHealth,
+    enemyHealth,
+    skill ? fx.skillMultiplier : 1,
+    skill ? fx.skillBonusCrit : 0,
+    skill,
+  );
+}
+
+/**
+ * Prices a hit under effects. `base` and `bonusCrit` are the hit's own multiplier and crit bonus;
+ * class-skill effects (rage, rot) apply only when `classSkill` (ticket 9.1: the core skill in
+ * slot 1, never a spender).
+ */
+function priceHit(
+  fx: SetupEffects,
+  skill: boolean,
+  surged: boolean,
+  opener: boolean,
+  heroHealth: number,
+  enemyHealth: number,
+  base: number,
+  bonusCrit: number,
+  classSkill: boolean,
+): AttackHit {
+  let multiplier = base;
   if (surged) multiplier *= fx.skillSurge;
   if (opener) multiplier *= 1 + fx.skillOpener;
-  if (skill && fx.skillRage > 0) {
+  if (classSkill && fx.skillRage > 0) {
     const missingDeciles = Math.floor((10 * (fx.maxHealth - heroHealth)) / fx.maxHealth);
     multiplier *= 1 + fx.skillRage * Math.max(0, missingDeciles);
   }
@@ -184,13 +231,52 @@ export function attackHit(
     multiplier *= 1 + fx.fortitudeBonus;
   }
   const hit = fx.dealt * multiplier;
-  const rot = skill && fx.skillRot > 0 ? Math.min(hit, fx.skillRot * enemyHealth) : 0;
+  const rot = classSkill && fx.skillRot > 0 ? Math.min(hit, fx.skillRot * enemyHealth) : 0;
   return {
     skill,
     surged,
     normal: hitDamage(hit + rot),
     crit: hitDamage(hit * fx.critDamage + fx.raw * multiplier * fx.critBurn + rot),
-    critChance: Math.min(1, Math.max(0, fx.critChance + (skill ? fx.skillBonusCrit : 0))),
+    critChance: Math.min(1, Math.max(0, fx.critChance + bonusCrit)),
+  };
+}
+
+/**
+ * Ticket 9.1: what the hero's attack does under a kit. The core skill fires exactly as today's
+ * class skill (`attackHit`: its cadence, an opener, a surge); otherwise the first ready spender in
+ * slot order replaces the basic attack. `action`: −2 basic attack, −1 core skill, i ≥ 0 spender i.
+ */
+export function kitAttack(
+  setup: EncounterSetup,
+  state: KitState,
+  attack: number,
+  t: number,
+  prevCrit: boolean,
+  heroHealth: number,
+  enemyHealth: number,
+): { hit: AttackHit; action: number } {
+  const kit = setup.kit!;
+  const today = attackHit(setup, attack, prevCrit, heroHealth, enemyHealth);
+  if (today.skill || !kit.active) return { hit: today, action: today.skill ? -1 : -2 };
+  const i = kitSpenderFor(kit, state, attack, t, enemyHealth);
+  if (i < 0) return { hit: today, action: -2 };
+  const m = kitSpenderMultiplier(kit, state, i);
+  const bonusCrit = kit.spenders[i]!.bonusCrit;
+  const fx = setup.effects;
+  if (fx)
+    return {
+      hit: priceHit(fx, true, false, false, heroHealth, enemyHealth, m, bonusCrit, false),
+      action: i,
+    };
+  return {
+    hit: {
+      skill: true,
+      surged: false,
+      normal: hitDamage(kit.dealt * m),
+      crit: hitDamage(kit.dealt * m * kit.critDamage),
+      critChance: Math.min(1, Math.max(0, kit.critChance + bonusCrit)),
+    },
+    action: i,
   };
 }
 
@@ -244,6 +330,7 @@ export function rollEncounter(
   config: CombatConfig,
   modifiers?: EncounterModifiers,
   effects?: EncounterEffectContext,
+  skills?: SkillContext,
 ): EncounterSetup {
   const entry = rng.weighted(area.enemies, (e) => e.weight);
   const spread = config.enemyLevelSpread;
@@ -258,9 +345,27 @@ export function rollEncounter(
     config,
     modifiers,
     effects,
+    skills,
   );
 }
 
+/** Ticket 9.1: the loadout input of an encounter (read only while the prototype is on). */
+export interface SkillContext {
+  loadout?: Loadout | null;
+  /** Warlock: Soul Fragments brought into this fight (left by the last kill). */
+  fragments?: number;
+  /**
+   * Duels (the `PVP_RULES_VERSION` 3 proposal): the share of a loadout's extra damage kept, and
+   * the share of a passive's damage-taken change (`effectKeep`); a passive's damage bonuses are off.
+   */
+  pvp?: { skillKeep: number; effectKeep: number };
+}
+
+/**
+ * Builds the fixed numbers of an encounter. Ticket 9.1: while the skills prototype is on, the
+ * hero's loadout (`skills`, default when absent) sets the class skill (slot 1), the passive's
+ * constant modifiers and the compiled kit; off, `skills` is never read.
+ */
 export function buildEncounter(
   enemy: EnemyDefinition,
   enemyLevel: number,
@@ -270,13 +375,55 @@ export function buildEncounter(
   config: CombatConfig,
   modifiers?: EncounterModifiers,
   context?: EncounterEffectContext,
+  skills?: SkillContext,
+): EncounterSetup {
+  const mode = skillsPrototypeMode();
+  const args = [
+    enemy,
+    enemyLevel,
+    classId,
+    characterLevel,
+    stats,
+    config,
+    modifiers,
+    context,
+  ] as const;
+  if (mode === 'off') return buildEncounterWith(...args);
+  const resolved = resolveLoadout(classId, skills?.loadout);
+  const setup = buildEncounterWith(...args, resolved, skills?.fragments ?? 0, skills?.pvp);
+  if (mode === 'shadow' && resolved.isDefault) {
+    shadowCompare('buildEncounter', buildEncounterWith(...args), withoutKit(setup));
+  }
+  return setup;
+}
+
+function buildEncounterWith(
+  enemy: EnemyDefinition,
+  enemyLevel: number,
+  classId: ClassId,
+  characterLevel: number,
+  stats: StatBlock,
+  config: CombatConfig,
+  modifiers?: EncounterModifiers,
+  context?: EncounterEffectContext,
+  loadout?: ResolvedLoadout,
+  fragments = 0,
+  pvp?: { skillKeep: number; effectKeep: number },
 ): EncounterSetup {
   const e = enemyStatsAtLevel(enemy, enemyLevel);
+  // Ticket 9.1: a passive's constant modifiers (none for the default loadout: nothing changes).
+  const passive = loadout?.passive;
   const fx = context && hasCombatEffects(context.effects) ? context.effects : undefined;
   const cls = getClass(classId);
-  const skillDef = AUTO_SKILLS[classId];
+  const skillDef = loadout ? loadout.core : AUTO_SKILLS[classId];
 
-  const playerRaw = cls.primaryDamage === 'physical' ? stats.physicalDamage : stats.magicDamage;
+  const ownRaw = cls.primaryDamage === 'physical' ? stats.physicalDamage : stats.magicDamage;
+  const passiveDamage =
+    passive && !pvp
+      ? (passive.damage ?? 0) +
+        (enemy.rank === 'boss' ? (passive.bossDamage ?? 0) : (passive.normalDamage ?? 0))
+      : 0;
+  const playerRaw = passiveDamage !== 0 ? ownRaw * (1 + passiveDamage) : ownRaw;
   const enemyDefense = cls.primaryDamage === 'physical' ? e.armor : e.resistance;
   // Boss slayer (ticket 3.2) adds to the boss-damage affix; + 0 leaves the number unchanged.
   const bossBonus =
@@ -289,7 +436,9 @@ export function buildEncounter(
   const playerDefense =
     (enemy.damageType === 'physical' ? stats.armor : stats.resistance) *
     (pierce > 0 ? 1 - pierce : 1);
-  const taken = e.damage * (1 - mitigation(playerDefense, enemyLevel, config));
+  const mitigated = e.damage * (1 - mitigation(playerDefense, enemyLevel, config));
+  const takenShare = (passive?.damageTaken ?? 0) * (pvp ? pvp.effectKeep : 1);
+  const taken = takenShare !== 0 ? mitigated * (1 + takenShare) : mitigated;
 
   const critDamage =
     traits?.critGuard !== undefined
@@ -327,7 +476,7 @@ export function buildEncounter(
     playerIntervalMs: attackIntervalMs(attackSpeed),
     auto: profile(1, 0),
     skill: profile(skillMultiplier, skillDef.bonusCritChance),
-    skillEvery: skillDef.everyNthAttack,
+    skillEvery: skillDef.everyNthAttack!,
     xpReward: Math.round(
       e.xp * xpLevelFactor(characterLevel, enemyLevel, config) * (1 + bonusOf(modifiers?.xpGain)),
     ),
@@ -357,6 +506,14 @@ export function buildEncounter(
       thornsDamage: fx.thorns > 0 ? hitDamage(thornsRaw) : 0,
       thornsRaw,
     };
+  }
+  if (loadout) {
+    setup.kit = compileKit(
+      loadout,
+      { dealt, critDamage, critChance, enemyHealth: e.health },
+      fragments,
+      pvp?.skillKeep ?? 1,
+    );
   }
   return setup;
 }
