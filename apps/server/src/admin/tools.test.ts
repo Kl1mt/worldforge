@@ -1343,6 +1343,8 @@ describe('guard: soft-deleted heroes are hidden on every hero read', () => {
     'inventory/binding-backfill.ts': 'data backfill over every row',
     'achievements/backfill.ts': 'data backfill over every row',
     'cosmetics/backfill.ts': 'data backfill over every row (6.8: as the achievements)',
+    'account-growth/backfill.ts':
+      'data backfill over every row (9.4: a deleted hero’s deeds count)',
     'leaderboards/snapshot.ts': 'checks deletedAt on the row it read',
     'names/checks.ts': 'hero names stay unique across deleted heroes (6.9: look-alikes too)',
   };

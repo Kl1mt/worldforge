@@ -5,6 +5,7 @@ import { routeHref } from '../lib/route';
 import { describeSanction, describeSocialFailure, formatWhen, socialApi } from '../social/api';
 import { ReportDialog } from '../social/ReportDialog';
 import { useStanding } from '../social/useStanding';
+import { AccountGrowthPanel } from './AccountGrowthPanel';
 import { SecurityPanel } from './SecurityPanel';
 import { TradingPanel } from './TradingPanel';
 import './gate.css';
@@ -88,6 +89,8 @@ export function AccountScreen() {
               />
             ) : null}
           </div>
+          {/* Ticket 9.4: hero slots and offline hours, earned in play. */}
+          <AccountGrowthPanel />
           {/* Ticket 5.7: email verification, email change, other devices. */}
           <SecurityPanel />
           {/* Ticket T.4: where you stand for trading (trading itself may still be closed). */}

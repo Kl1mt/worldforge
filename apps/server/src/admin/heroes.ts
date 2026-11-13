@@ -1,3 +1,4 @@
+import { characterSlotTotal } from '../account-growth/grant.js';
 import { and, asc, count, eq, isNotNull, isNull, lt, sql } from 'drizzle-orm';
 import { validateCharacterName } from '@worldforge/game-core';
 import {
@@ -226,9 +227,11 @@ export async function restoreHero(
     .select({ n: count() })
     .from(characters)
     .where(and(eq(characters.accountId, account.id), isNull(characters.deletedAt)));
-  if ((used?.n ?? 0) >= account.characterSlots) {
+  // Ticket 9.4: the base plus the account's earned slots, under the account lock above.
+  const total = await characterSlotTotal(tx, account);
+  if ((used?.n ?? 0) >= total) {
     throw new ApiError(409, 'no_free_slot', 'Every hero slot of this account is taken.', {
-      slots: { used: used?.n ?? 0, total: account.characterSlots },
+      slots: { used: used?.n ?? 0, total },
     });
   }
   const state = hero.deletion;

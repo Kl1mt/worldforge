@@ -20,6 +20,7 @@ import {
 import { writeAudit } from '../db/audit.js';
 import { grantForAchievementsTx, grantMilestonesTx } from '../cosmetics/grant.js';
 import type { Executor } from '../db/types.js';
+import { grantAccountGrowthTx } from '../account-growth/grant.js';
 
 /**
  * Server-side achievement awarding (ticket 4.2, docs/SOCIAL.md "Achievements").
@@ -240,5 +241,7 @@ export async function refreshAchievements(
   // Evaluated first: `cosmetics?.push(...)` would skip its argument (and the grant) without a sink.
   const milestones = await grantMilestonesTx(executor, character, now);
   cosmetics?.push(...milestones);
+  // Ticket 9.4: character slots and offline steps from the same hero row (docs/ACCOUNTS.md).
+  await grantAccountGrowthTx(executor, character, now);
   return awarded;
 }

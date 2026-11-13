@@ -3,6 +3,7 @@
 import { loadConfig, requireDatabaseUrl } from '../config.js';
 import { backfillAchievements } from '../achievements/backfill.js';
 import { backfillCosmetics } from '../cosmetics/backfill.js';
+import { backfillAccountGrowthAll } from '../account-growth/backfill.js';
 import { createPostgresDatabase } from './client.js';
 import { makeLimiterTablesUnlogged } from '../shared/limit-store.js';
 import { MIGRATIONS_FOLDER, migrateDatabase } from './migrate.js';
@@ -28,6 +29,13 @@ try {
     cosmetics.ran
       ? `Backfill ${cosmetics.id}: ${cosmetics.granted} cosmetics for ${cosmetics.accounts} accounts`
       : `Backfill ${cosmetics.id}: already done`,
+  );
+  // Ticket 9.4: character slots and offline steps earned before account growth.
+  const growth = await backfillAccountGrowthAll(database.db);
+  console.log(
+    growth.ran
+      ? `Backfill ${growth.id}: ${growth.granted} grants for ${growth.accounts} accounts`
+      : `Backfill ${growth.id}: already done`,
   );
 } catch (err) {
   console.error('Migration failed:', err);

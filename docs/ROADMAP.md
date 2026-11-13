@@ -1611,7 +1611,7 @@ Read GDD §5.2, §6.3, `docs/COMBAT.md`, `docs/BALANCE.md`, `docs/PVP.md` ("norm
 - Power and PvE Progress: a new milestone for each skill quest is a new PvE Progress version between seasons, or none if 9.1 decides so.
 - Journey step; patch notes; `docs/SKILLS.md`, `QUESTS.md`, `EFFECTS.md`.
 
-### 9.4 Account growth: character slots & offline cap (vertical) — `todo`
+### 9.4 Account growth: character slots & offline cap (vertical) — `done (PR #153)`
 Read GDD §5.3, §9.1, §17 (offline cap), `docs/FARMING.md` ("the offline cap"), `docs/COMMUNITY.md`.
 - **Earned character slots** (defaults above):
   - granted once, audited, idempotent, account-bound, never removed;

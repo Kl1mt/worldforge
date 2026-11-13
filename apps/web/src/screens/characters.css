@@ -214,6 +214,44 @@
   color: var(--text-dim);
 }
 
+/* Ticket 9.4: the next slot still to earn. A shut alcove: iron bars over the niche, a sealed
+   lozenge, and how to open it. */
+.muster__slot--locked .muster__plaque {
+  border-top-color: var(--iron-700);
+  background: var(--texture-grain), var(--ink-900);
+}
+
+.muster__slot--locked .muster__name {
+  color: var(--text-dim);
+}
+
+.muster__slot--locked .muster__niche--empty {
+  background:
+    repeating-linear-gradient(
+      to right,
+      transparent 0 26px,
+      rgb(99 91 83 / 0.55) 26px 30px,
+      transparent 30px 34px
+    ),
+    linear-gradient(to bottom, #120e0c, #0b0908 70%);
+}
+
+.muster__lozenge--locked {
+  border: 2px solid var(--iron-600);
+  background: var(--ink-950);
+}
+
+.muster__slot--locked .muster__line {
+  max-width: 28ch;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.muster__how {
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+}
+
 .muster__gold {
   display: inline-flex;
   align-items: center;
@@ -523,6 +561,14 @@
 
   .muster__slot--empty .muster__plaque {
     border-left-color: var(--iron-600);
+  }
+
+  .muster__slot--locked .muster__plaque {
+    border-left-color: var(--iron-700);
+  }
+
+  .muster__slot--locked .muster__line {
+    text-align: left;
   }
 
   .muster__slot--active .muster__plaque {

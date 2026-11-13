@@ -1,3 +1,4 @@
+import { characterSlotTotal } from '../account-growth/grant.js';
 import { and, asc, desc, eq, gt, inArray, isNull, or, sql } from 'drizzle-orm';
 import {
   CONTRACTS_PER_DAY,
@@ -366,7 +367,8 @@ export async function accountFile(
     createdAt: account.createdAt.toISOString(),
     testAccount: account.isTest,
     emailVerified: account.emailVerifiedAt !== null,
-    characterSlots: account.characterSlots,
+    // Ticket 9.4: the slot total (base plus earned slots).
+    characterSlots: await characterSlotTotal(db, account),
     sessions: sessionCount?.n ?? 0,
     loginLockedForMs: options.loginLockedForMs,
     shelf: {
