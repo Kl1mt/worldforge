@@ -234,7 +234,20 @@ A loadout moves Power by at most 2 % (it clears trials faster; nobody newly fail
 - **Power and fragments:** the Proving Grounds start every fight without fragments (no carry between their four fights); 9.2 carries them like a crypt run if the owner wants the warlock's farming tool to count there.
 - **Cost:** up to 1.8 × today's settlement for a loadout (8 h ≤ 70 ms); fine today, watched in 9.2's telemetry.
 
-## Owner questions (recommendations first)
+## Owner questions: decided (2026-11-15)
+**The owner said yes to all ten on 2026-11-15, each with the recommended answer** (built in 9.2):
+1. effects that name "the class skill" read slot 1;
+2. slot 1 holds a core skill, slots 2–3 spenders;
+3. the mage's boss gain is accepted (no retune);
+4. the 6–16 % sidegrade size is kept;
+5. no healing or shielding skills;
+6. PvP version 3 keeps half of a skill's extra damage, and passives' damage bonuses are PvE only;
+7. Power 4 reads the saved defence loadout, switched at the end of the season under way;
+8. Soul Fragments carry between fights and are stored with the activity;
+9. an active from the Forge Tyrant and a passive from the Hollow Sovereign (taught by the kill flags; 9.3 adds the skill quests);
+10. unlock levels 1–36 for actives and 8–32 for passives.
+
+The questions as they were asked (recommendations first):
 1. **Effects that name "the class skill" read slot 1.** *Recommended: yes* (built so): today's items keep their meaning; with the alternative core skill in slot 1 they boost that one, and tooltips say "your class skill (slot 1)". Alternative: only today's skill counts (the alternative core loses every class-skill effect: it would never be picked with them).
 2. **Slot 1 must hold a core skill (the cadence), slots 2–3 spenders.** *Recommended: yes*: it keeps the default exactly today's and the effects' meaning; a spender in slot 1 would need its own cadence rules.
 3. **The mage's boss gain from loadouts** (win rates at the Heroic and the Tyrant up 20+ points in one kit). *Recommended: accept* (it closes B.5's class gap); alternative: Mana Shield −6 % → −4 % and Meteor 220 % → 200 % (re-measure in 9.2).
