@@ -22,10 +22,15 @@ export function useLoadoutInForce(characterId: string): LoadoutInForce | null {
     const abort = new AbortController();
     void apiRequest<LoadoutInForce>(`/characters/${characterId}/skills`, {
       signal: abort.signal,
-    }).then((r) => {
-      if (abort.signal.aborted) return;
-      setState(r.ok ? r.value : { inForce: { actives: [], passive: null }, soulFragments: 0 });
-    });
+    }).then(
+      (r) => {
+        if (abort.signal.aborted) return;
+        setState(r.ok ? r.value : { inForce: { actives: [], passive: null }, soulFragments: 0 });
+      },
+      () => {
+        // Aborted (left the screen or switched heroes): nothing to show.
+      },
+    );
     return () => abort.abort();
   }, [characterId]);
   return state;
