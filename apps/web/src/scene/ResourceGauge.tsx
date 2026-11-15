@@ -76,15 +76,21 @@ export function useResourceGauge(
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [classId, loadoutKey],
   );
-  const [value, setValue] = useState(() => motion.snapshot());
-  useEffect(() => setValue(motion.snapshot()), [motion]);
+  // A new loadout starts the bar afresh (state from props, derived during render like A.18's meter).
+  const [seen, setSeen] = useState(() => ({ motion, value: motion.snapshot() }));
+  if (seen.motion !== motion) setSeen({ motion, value: motion.snapshot() });
+  const value = seen.motion === motion ? seen.value : motion.snapshot();
 
   const onBeat = useCallback(
     (beat: SceneBeat, at: number) => {
       if (motion.beat(beat, at)) {
         const s = motion.snapshot();
         // Only the value redraws the meter (at most a few times a second).
-        setValue((prev) => (prev.value === s.value && prev.max === s.max ? prev : s));
+        setSeen((prev) =>
+          prev.motion !== motion || (prev.value.value === s.value && prev.value.max === s.max)
+            ? prev
+            : { motion, value: s },
+        );
       }
     },
     [motion],
