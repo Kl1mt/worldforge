@@ -2,6 +2,8 @@ import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import {
   ACHIEVEMENTS,
+  ACTIVE_SKILLS,
+  PASSIVE_SKILLS,
   AREAS,
   CLASS_IDS,
   GUILD_EMBLEMS,
@@ -31,6 +33,8 @@ import {
   classPortrait,
   findSprite,
   seasonFrameAsset,
+  skillAssetName,
+  skillIcon,
   titleBadgeAsset,
   type SpriteAsset,
 } from './assets';
@@ -566,5 +570,40 @@ describe('Hollow Reach art (A.17)', () => {
       paths.add(sprite!.path);
     }
     expect(paths.size).toBe(Object.keys(TIER5).length);
+  });
+});
+
+describe('skill icons (A.18)', () => {
+  const skills = [...ACTIVE_SKILLS, ...PASSIVE_SKILLS];
+  const pngSize = (path: string) => {
+    const bytes = readFileSync(new URL(`../../public${path}`, import.meta.url));
+    return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+  };
+
+  it('names an icon after the skill id in kebab case', () => {
+    expect(skillAssetName('heavyStrike')).toBe('heavy-strike');
+    expect(skillAssetName('firebolt')).toBe('firebolt');
+    expect(skillAssetName('hollowCovenant')).toBe('hollow-covenant');
+  });
+
+  it('gives every skill of every class, the later-content ones included, its own 32×32 icon', () => {
+    // 9.1: six actives and four passives by level, plus the Tyrant's and the Sovereign's, per class.
+    expect(skills).toHaveLength(CLASS_IDS.length * 12);
+    const paths = new Set<string>();
+    for (const s of skills) {
+      const sprite = skillIcon(s.id);
+      expect(sprite, s.id).toMatchObject({ width: 32, height: 32 });
+      expect(sprite?.tint, s.id).toBeUndefined();
+      expect(pngSize(sprite!.path), s.id).toEqual({ width: 32, height: 32 });
+      const entry = manifest.assets.find((m) => m.id === `skill.${skillAssetName(s.id)}`);
+      expect(entry?.kind, s.id).toBe('skill');
+      paths.add(sprite!.path);
+    }
+    expect(paths.size).toBe(skills.length);
+    expect(Object.keys(ASSETS).filter((id) => id.startsWith('skill.'))).toHaveLength(skills.length);
+  });
+
+  it('returns null for a skill without art, so the Skills screen can fall back', () => {
+    expect(skillIcon('noSuchSkill')).toBeNull();
   });
 });

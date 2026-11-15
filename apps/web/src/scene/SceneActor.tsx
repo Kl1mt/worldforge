@@ -1,3 +1,4 @@
+import type { ClassId } from '@worldforge/game-core';
 import type { CSSProperties, ReactNode, Ref } from 'react';
 import './scene-anim.css';
 
@@ -11,8 +12,9 @@ const FOE_BOB_MS = [2300, 2700, 2500, 2900];
  *   .scene-anim__actor (root, `actorRef`) — the idle breath (CSS only, never touched by JS)
  *     .scene-anim__fade — defeat and respawn (opacity)
  *       .scene-anim__act — the actor's own attack (the hero's strike or frames, a foe's lunge)
- *         .scene-anim__hit — being struck (flash and knock-back), the level-up glow
- *           the sprite
+ *         .scene-anim__fx — A.18: skill effects (the hero's cast flash, a foe's damage over time)
+ *           .scene-anim__hit — being struck (flash and knock-back), the level-up glow
+ *             the sprite
  *
  * The scene driver finds the layers under the root and sets one beat class per layer. Every
  * className here is constant, so a React re-render never wipes a class the driver set. Motion
@@ -22,6 +24,7 @@ export function SceneActor({
   role,
   index = 0,
   framed = false,
+  cast,
   actorRef,
   children,
 }: {
@@ -30,6 +33,8 @@ export function SceneActor({
   index?: number;
   /** The actor attacks with a frame sheet instead of a lunge. */
   framed?: boolean;
+  /** A.18: the hero's class, which colours its cast flash (brass without one). */
+  cast?: ClassId;
   actorRef?: Ref<HTMLSpanElement>;
   children: ReactNode;
 }) {
@@ -40,12 +45,21 @@ export function SceneActor({
           ['--bob-ms' as string]: `${FOE_BOB_MS[index % FOE_BOB_MS.length]}ms`,
           ['--bob-delay' as string]: `${-(index * 700 + 350)}ms`,
         };
-  const rootClass = `scene-anim__actor scene-anim__actor--${role}${framed ? ' scene-anim__actor--framed' : ''}`;
+  const rootClass = [
+    'scene-anim__actor',
+    `scene-anim__actor--${role}`,
+    framed ? 'scene-anim__actor--framed' : '',
+    cast ? `scene-anim__actor--cast-${cast}` : '',
+  ]
+    .filter(Boolean)
+    .join(' ');
   return (
     <span className={rootClass} style={bob} ref={actorRef}>
       <span className="scene-anim__fade">
         <span className="scene-anim__act">
-          <span className="scene-anim__hit">{children}</span>
+          <span className="scene-anim__fx">
+            <span className="scene-anim__hit">{children}</span>
+          </span>
         </span>
       </span>
     </span>

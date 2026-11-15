@@ -55,6 +55,12 @@ const guildEmblem = (name: string): SpriteAsset => ({
   height: 32,
 });
 
+const skill = (name: string): SpriteAsset => ({
+  path: `/assets/skills/${name}.png`,
+  width: 32,
+  height: 32,
+});
+
 const badge = (name: string): SpriteAsset => ({
   path: `/assets/badges/${name}.png`,
   width: 32,
@@ -377,12 +383,63 @@ export const ASSETS = {
   'item.reachwalker-sabatons': item('reachwalker-sabatons'),
   'item.requiem-locket': item('requiem-locket'),
   'item.hollow-signet': item('hollow-signet'),
+  // Skill icons (A.18): one per game-core skill (`ACTIVE_SKILLS`, `PASSIVE_SKILLS`, ticket 9.1),
+  // `skill.<kebab-case skill id>`; `skillIcon(id)` finds one by the skill's own id.
+  'skill.heavy-strike': skill('heavy-strike'),
+  'skill.shield-slam': skill('shield-slam'),
+  'skill.charge': skill('charge'),
+  'skill.rend': skill('rend'),
+  'skill.execute': skill('execute'),
+  'skill.earthsplitter': skill('earthsplitter'),
+  'skill.forgebreaker': skill('forgebreaker'),
+  'skill.unyielding': skill('unyielding'),
+  'skill.berserker': skill('berserker'),
+  'skill.battle-rhythm': skill('battle-rhythm'),
+  'skill.juggernaut': skill('juggernaut'),
+  'skill.hollow-wrath': skill('hollow-wrath'),
+  'skill.firebolt': skill('firebolt'),
+  'skill.arcane-bolt': skill('arcane-bolt'),
+  'skill.pyroblast': skill('pyroblast'),
+  'skill.scorch': skill('scorch'),
+  'skill.shatter': skill('shatter'),
+  'skill.meteor': skill('meteor'),
+  'skill.emberstorm': skill('emberstorm'),
+  'skill.mana-well': skill('mana-well'),
+  'skill.arcane-power': skill('arcane-power'),
+  'skill.mana-shield': skill('mana-shield'),
+  'skill.deep-reserves': skill('deep-reserves'),
+  'skill.kindling': skill('kindling'),
+  'skill.aimed-shot': skill('aimed-shot'),
+  'skill.quick-shot': skill('quick-shot'),
+  'skill.first-blood': skill('first-blood'),
+  'skill.serrated-arrow': skill('serrated-arrow'),
+  'skill.kill-shot': skill('kill-shot'),
+  'skill.volley': skill('volley'),
+  'skill.true-shot': skill('true-shot'),
+  'skill.steady-aim': skill('steady-aim'),
+  'skill.predator': skill('predator'),
+  'skill.skirmisher': skill('skirmisher'),
+  'skill.eagle-eye': skill('eagle-eye'),
+  'skill.hollow-mark': skill('hollow-mark'),
+  'skill.shadow-bolt': skill('shadow-bolt'),
+  'skill.corruption': skill('corruption'),
+  'skill.soul-burn': skill('soul-burn'),
+  'skill.agony': skill('agony'),
+  'skill.drain-soul': skill('drain-soul'),
+  'skill.doom': skill('doom'),
+  'skill.soul-harvest': skill('soul-harvest'),
+  'skill.dark-pact': skill('dark-pact'),
+  'skill.malice': skill('malice'),
+  'skill.demon-skin': skill('demon-skin'),
+  'skill.soul-siphon': skill('soul-siphon'),
+  'skill.hollow-covenant': skill('hollow-covenant'),
 } as const satisfies Record<string, SpriteAsset>;
 
 export type AssetId = keyof typeof ASSETS;
 export type ItemAssetId = Extract<AssetId, `item.${string}`>;
 export type EnemyAssetId = Extract<AssetId, `enemy.${string}`>;
 export type MaterialAssetId = Extract<AssetId, `material.${string}`>;
+export type SkillAssetId = Extract<AssetId, `skill.${string}`>;
 
 export function asset(id: AssetId): SpriteAsset {
   return ASSETS[id];
@@ -577,4 +634,18 @@ export type CrestStyleId = (typeof CREST_STYLE_IDS)[number];
 export function crestStyleAsset(id: string): CrestStyleSprite | null {
   if (!(CREST_STYLE_IDS as readonly string[]).includes(id)) return null;
   return ASSETS[id as CrestStyleId];
+}
+
+/** A.18: a game-core skill id (`heavyStrike`) as its asset name (`heavy-strike`). */
+export function skillAssetName(skillId: string): string {
+  return skillId.replace(/(?<!^)([A-Z])/g, '-$1').toLowerCase();
+}
+
+/**
+ * Ticket A.18: a skill's 32×32 icon by its game-core id (`ACTIVE_SKILLS` / `PASSIVE_SKILLS`, e.g.
+ * `heavyStrike` → `skill.heavy-strike`), or `null` when it has no art; the Skills screen (9.2)
+ * then draws its own fallback.
+ */
+export function skillIcon(skillId: string): SpriteAsset | null {
+  return findSprite(`skill.${skillAssetName(skillId)}`);
 }

@@ -7,7 +7,7 @@ import {
   type SceneMotion,
 } from './motion';
 import { startSceneDriver, type ActorLayers, type SceneDriver } from './sceneDriver';
-import { cuesSince, planFor, SceneLoop } from './sceneLoop';
+import { cuesSince, planFor, SceneLoop, type SceneSkill } from './sceneLoop';
 
 /** Ticket A.14: `full`, `reduced` or `off` for this browser (see `motion.ts`). */
 export function useSceneMotion(): SceneMotion {
@@ -22,8 +22,18 @@ export function layersOf(root: ParentNode | null): ActorLayers | null {
   return {
     fade: root.querySelector<HTMLElement>(':scope > .scene-anim__fade'),
     act: root.querySelector<HTMLElement>('.scene-anim__act'),
+    fx: root.querySelector<HTMLElement>('.scene-anim__fx'),
     hit: root.querySelector<HTMLElement>('.scene-anim__hit'),
   };
+}
+
+/** The skill back from its key (`castEvery/dot/ticks`); null for none. */
+function parseSkillKey(key: string): SceneSkill | null {
+  if (!key) return null;
+  const [every, dot, ticks] = key.split('/');
+  const castEvery = Number(every);
+  if (!dot) return { castEvery };
+  return { castEvery, dot: dot as NonNullable<SceneSkill['dot']>, ticks: Number(ticks) };
 }
 
 /** The browser's clock, sped up or slowed by `rate` (A.14c: the gallery's 0.25× – 1×). */
@@ -53,8 +63,15 @@ export function useSceneAnimation(options: {
   chronicle?: readonly { id: string; kind: string }[];
   /** A.14c: the loop's speed (the admin gallery's slow motion); 1 everywhere else. */
   rate?: number;
+  /**
+   * A.18: the hero's skill as the scene shows it (`sceneSkillOf`): cast flashes and damage-over-
+   * time ticks. Absent, the loop is A.14's. Give the cast colour to the hero's `SceneActor`.
+   */
+  skill?: SceneSkill | null;
 }) {
-  const { active, motion, foes, attackSpeed, framed, framedFoes, chronicle } = options;
+  const { active, motion, foes, attackSpeed, framed, framedFoes, chronicle, skill } = options;
+  // A stable key, so an equal skill object doesn't restart the loop.
+  const skillKey = skill ? `${skill.castEvery}/${skill.dot ?? ''}/${skill.ticks ?? ''}` : '';
   const rate = options.rate ?? 1;
   // A stable key, so a new array with the same content doesn't restart the loop.
   const framedKey = (framedFoes ?? []).map((f) => (f ? '1' : '0')).join('');
@@ -91,6 +108,7 @@ export function useSceneAnimation(options: {
         foes,
         framed: framed === true,
         framedFoes: [...framedKey].map((c) => c === '1'),
+        skill: parseSkillKey(skillKey),
       }),
       Math.random,
     );
@@ -111,7 +129,7 @@ export function useSceneAnimation(options: {
       d.stop();
       driver.current = null;
     };
-  }, [running, speed, foes, framed, framedKey, rate]);
+  }, [running, speed, foes, framed, framedKey, rate, skillKey]);
 
   const head = chronicle?.[0]?.id ?? null;
   useEffect(() => {

@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest';
+import { ACTIVE_SKILLS, CLASS_IDS } from '@worldforge/game-core';
 import {
   CADENCE_MAX_MS,
+  DOT_KINDS,
+  TICK_MS,
+  dotKindOf,
+  sceneSkillOf,
   CADENCE_MIN_MS,
   FRAMED_IMPACT_MS,
   LUNGE_IMPACT_MS,
@@ -200,5 +205,120 @@ describe('cuesSince', () => {
 
   it('replays nothing when the screen has just opened', () => {
     expect(cuesSince(log, null)).toEqual([]);
+  });
+});
+
+describe('scene skills: casts and damage over time (A.18)', () => {
+  const seeds = Array.from({ length: 120 }, (_, i) => i + 1);
+  const skillOf = (seed: number) => ({
+    castEvery: 2 + (seed % 3),
+    dot: DOT_KINDS[seed % 3]!,
+    ticks: seed % 2 === 0 ? 4 : 10,
+  });
+
+  it('wakes for every beat: none is handed out after its time (with or without a skill)', () => {
+    // Before A.18, a far respawn at the head of the queue let the swings due before it pile up,
+    // and the driver dropped them as late: the hero stood still while a foe was down.
+    for (const seed of seeds) {
+      for (const foes of [1, 2, 3]) {
+        for (const skill of [null, skillOf(seed)]) {
+          const loop = new SceneLoop(planFor({ attackSpeed: 1, foes, skill }), seededRandom(seed));
+          for (let i = 0; i < 300; i++) {
+            const now = loop.nextAt();
+            for (const b of loop.advance(now)) expect(b.at, `seed ${seed}`).toBe(now);
+          }
+        }
+      }
+    }
+  });
+
+  it('adds casts and ticks without changing anything else the loop plays', () => {
+    for (const seed of seeds) {
+      const plain = run(
+        new SceneLoop(planFor({ attackSpeed: 1, foes: 3 }), seededRandom(seed)),
+        60_000,
+      );
+      const withSkill = run(
+        new SceneLoop(
+          planFor({ attackSpeed: 1, foes: 3, skill: skillOf(seed) }),
+          seededRandom(seed),
+        ),
+        60_000,
+      ).filter((b) => b.beat.kind !== 'heroCast' && b.beat.kind !== 'foeTick');
+      expect(withSkill, `seed ${seed}`).toEqual(plain);
+    }
+  });
+
+  it('casts on every n-th swing, at the swing', () => {
+    for (const seed of seeds) {
+      const skill = skillOf(seed);
+      const beats = run(
+        new SceneLoop(planFor({ attackSpeed: 1, foes: 3, skill }), seededRandom(seed)),
+        40_000,
+      );
+      let swings = 0;
+      beats.forEach(({ at, beat }, i) => {
+        if (beat.kind !== 'heroStrike') return;
+        swings += 1;
+        const cast = beats[i - 1];
+        const casts = cast?.beat.kind === 'heroCast' && cast.at === at;
+        expect(casts, `seed ${seed} swing ${swings}`).toBe(swings % skill.castEvery === 0);
+      });
+      expect(swings).toBeGreaterThan(15);
+    }
+  });
+
+  it('ticks once a second after the blow, at most its ticks per cast, never on a fallen foe', () => {
+    let total = 0;
+    for (const seed of seeds) {
+      const skill = skillOf(seed);
+      const plan = planFor({ attackSpeed: 1, foes: 3, skill });
+      const beats = run(new SceneLoop(plan, seededRandom(seed)), 60_000);
+      const down = new Set<number>();
+      /** Per foe: the blow of the last cast on it and the ticks since. */
+      const dots = new Map<number, { from: number; ticks: number }>();
+      let lastCastAt = -1;
+      let ticks = 0;
+      for (const { at, beat } of beats) {
+        if (beat.kind === 'heroCast') lastCastAt = at;
+        if (beat.kind === 'heroStrike' && lastCastAt === at) {
+          dots.set(beat.foe, { from: at + plan.impactMs, ticks: 0 });
+        }
+        if (beat.kind === 'foeFall') down.add(beat.foe);
+        if (beat.kind === 'foeRise') down.delete(beat.foe);
+        if (beat.kind !== 'foeTick') continue;
+        ticks += 1;
+        expect(beat.dot).toBe(skill.dot);
+        expect(down.has(beat.foe), `seed ${seed}: a tick on a fallen foe`).toBe(false);
+        const dot = dots.get(beat.foe)!;
+        dot.ticks += 1;
+        expect(dot.ticks, `seed ${seed}`).toBeLessThanOrEqual(skill.ticks);
+        expect(at - dot.from, `seed ${seed}`).toBe(dot.ticks * TICK_MS);
+      }
+      total += ticks;
+    }
+    // Falls cut damage over time short; over all seeds there are still plenty of ticks.
+    expect(total).toBeGreaterThan(seeds.length * 5);
+  });
+
+  it("reads a game-core skill: a core skill's cadence, its class's look of damage over time", () => {
+    expect(CLASS_IDS.map(dotKindOf)).toEqual(['bleed', 'burn', 'bleed', 'shadow']);
+    for (const skill of ACTIVE_SKILLS) {
+      const scene = sceneSkillOf(skill);
+      expect(scene.castEvery, skill.id).toBe(skill.everyNthAttack ?? 4);
+      if (skill.dot)
+        expect(scene, skill.id).toMatchObject({
+          dot: dotKindOf(skill.classId),
+          ticks: skill.dot.ticks,
+        });
+      else expect(scene.dot, skill.id).toBeUndefined();
+    }
+    // The Mage's Scorch burns, the Warlock's Agony is shadow, Rend and Serrated Arrow bleed.
+    const byId = (id: string) => sceneSkillOf(ACTIVE_SKILLS.find((s) => s.id === id)!);
+    expect(byId('scorch')).toEqual({ castEvery: 3, dot: 'burn', ticks: 4 });
+    expect(byId('agony')).toEqual({ castEvery: 3, dot: 'shadow', ticks: 4 });
+    expect(byId('rend').dot).toBe('bleed');
+    expect(byId('serratedArrow').dot).toBe('bleed');
+    expect(byId('heavyStrike')).toEqual({ castEvery: 4 });
   });
 });

@@ -1,4 +1,4 @@
-import type { SceneBeat, SceneCue, SceneLoop } from './sceneLoop';
+import type { DotKind, SceneBeat, SceneCue, SceneLoop } from './sceneLoop';
 
 /**
  * Ticket A.14: drives a `SceneLoop` with ONE timer and turns its beats into CSS classes on the
@@ -28,6 +28,9 @@ export interface ActorElement {
 export interface ActorLayers {
   fade: ActorElement | null;
   act: ActorElement | null;
+  /** A.18: skill effects (the hero's cast flash, a foe's damage-over-time tick). Optional, so
+   * callers that build layers by hand keep working; a missing layer shows nothing. */
+  fx?: ActorElement | null;
   hit: ActorElement | null;
 }
 
@@ -48,6 +51,12 @@ export type LayerName = keyof ActorLayers;
 export const LAYER_CLASSES = {
   fade: ['scene-anim--down', 'scene-anim--rise'],
   act: ['scene-anim--strike', 'scene-anim--lunge'],
+  fx: [
+    'scene-anim--cast',
+    'scene-anim--tick-burn',
+    'scene-anim--tick-bleed',
+    'scene-anim--tick-shadow',
+  ],
   hit: ['scene-anim--hit', 'scene-anim--heavy', 'scene-anim--hurt', 'scene-anim--glow'],
 } as const satisfies Record<LayerName, readonly string[]>;
 
@@ -60,9 +69,17 @@ export const BEAT_CLASS = {
   heroGlow: { layer: 'hit', cls: 'scene-anim--glow' },
   foeFall: { layer: 'fade', cls: 'scene-anim--down' },
   foeRise: { layer: 'fade', cls: 'scene-anim--rise' },
+  heroCast: { layer: 'fx', cls: 'scene-anim--cast' },
+  // The class depends on the kind of damage over time (`tickClass`); this is burn's.
+  foeTick: { layer: 'fx', cls: 'scene-anim--tick-burn' },
 } as const satisfies Record<SceneBeat['kind'], { layer: LayerName; cls: string }>;
 
 export const HEAVY_CLASS = 'scene-anim--heavy';
+
+/** A.18: the fx class of a damage-over-time tick. */
+export function tickClass(dot: DotKind): string {
+  return `scene-anim--tick-${dot}`;
+}
 export const DOWN_CLASS = BEAT_CLASS.foeFall.cls;
 
 /**
@@ -94,6 +111,7 @@ function actorOf(beat: SceneBeat, actors: SceneActors): ActorLayers | null | und
     case 'heroStrike':
     case 'heroHit':
     case 'heroGlow':
+    case 'heroCast':
       return actors.hero;
     default:
       return actors.foes[beat.foe];
@@ -109,15 +127,20 @@ export function applyBeat(beat: SceneBeat, actors: SceneActors) {
     case 'foeHit':
       play(actor.hit, 'hit', cls, beat.heavy ? HEAVY_CLASS : undefined);
       return;
+    case 'foeTick':
+      play(actor.fx, 'fx', tickClass(beat.dot));
+      return;
     case 'foeFall':
-      // The foe is gone: its attack and its last blow end with it.
+      // The foe is gone: its attack, its last blow and its damage over time end with it.
       clear(actor.act, 'act');
+      clear(actor.fx, 'fx');
       clear(actor.hit, 'hit');
       play(actor.fade, 'fade', cls);
       return;
     case 'foeRise':
       // A fresh foe: nothing of the last one carries over.
       clear(actor.act, 'act');
+      clear(actor.fx, 'fx');
       clear(actor.hit, 'hit');
       play(actor.fade, 'fade', cls);
       return;
@@ -201,6 +224,8 @@ export function startSceneDriver(options: {
         life.down = false;
         life.hit = false;
         applyBeat(beat, current);
+      } else if (beat.kind === 'foeTick' && lifeOf(beat.foe).down) {
+        continue; // A.18: nothing ticks on a foe that is gone
       } else if (onTime) {
         if (beat.kind === 'foeHit') {
           // Only a blow that can be seen counts (a foe without its element shows nothing).

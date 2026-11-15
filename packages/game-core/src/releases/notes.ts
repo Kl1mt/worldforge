@@ -23,9 +23,18 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.9.0';
+export const GAME_VERSION = '0.9.1';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.9.1',
+    date: '2026-11-22',
+    title: 'Steadier fights in the field',
+    fixed: [
+      'In an area with several foes, your hero no longer stands idle for a moment while a fallen foe is rising: they keep fighting the others, as they should.',
+    ],
+    tickets: ['A.18'],
+  },
   {
     version: '0.9.0',
     date: '2026-11-22',

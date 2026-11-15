@@ -9,6 +9,7 @@
 .scene-anim__actor,
 .scene-anim__fade,
 .scene-anim__act,
+.scene-anim__fx,
 .scene-anim__hit {
   display: block;
   flex: none;
@@ -228,6 +229,284 @@
   }
 }
 
+/* ── Skill effects (ticket A.18) ──────────────────────────────────────────
+   On the __fx layer (between the actor's own attack and being struck), one beat class at a time.
+   A one-art-pixel outline drawn with four hard drop shadows, and a few sparks or motes: whole
+   sprite pixels (`--px`), box shadows on a pseudo-element, stepped, never blurred. */
+.scene-anim__fx {
+  position: relative;
+}
+
+.scene-anim__fx::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  /* Sparks and motes are 2 × 2 art pixels, so they read on a 128 px hero at ×1. */
+  width: calc(var(--px, 1px) * 2);
+  height: calc(var(--px, 1px) * 2);
+  margin-left: calc(var(--px, 1px) * -1);
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Cast colours per class: --fx-a the outline, --fx-b the flare and the sparks. Brass without a
+   class (any actor may cast in the gallery). */
+.scene-anim__actor {
+  --fx-a: #9a7a3c;
+  --fx-b: #e3c98a;
+}
+
+.scene-anim__actor--cast-warrior {
+  --fx-a: #8e2a2c;
+  --fx-b: #e07a3c;
+}
+
+.scene-anim__actor--cast-mage {
+  --fx-a: #5a4fb0;
+  --fx-b: #9fc0e6;
+}
+
+.scene-anim__actor--cast-hunter {
+  --fx-a: #5f7a46;
+  --fx-b: #cfd8a4;
+}
+
+.scene-anim__actor--cast-warlock {
+  --fx-a: #5e3a8c;
+  --fx-b: #b98ee0;
+}
+
+/* The hero casts: the class colour rings the sprite and flares, while eight sparks burst outward
+   in three steps (560 ms). It plays alongside the strike, on its own layer. */
+.scene-anim .scene-anim__fx.scene-anim--cast {
+  animation: scene-anim-cast 560ms;
+}
+
+.scene-anim .scene-anim__fx.scene-anim--cast::after {
+  animation: scene-anim-cast-sparks 560ms;
+}
+
+@keyframes scene-anim-cast {
+  0% {
+    filter: drop-shadow(var(--px, 1px) 0 0 var(--fx-a))
+      drop-shadow(calc(var(--px, 1px) * -1) 0 0 var(--fx-a))
+      drop-shadow(0 var(--px, 1px) 0 var(--fx-a))
+      drop-shadow(0 calc(var(--px, 1px) * -1) 0 var(--fx-a));
+    animation-timing-function: steps(1, end);
+  }
+  20% {
+    filter: brightness(1.3) drop-shadow(var(--px, 1px) 0 0 var(--fx-b))
+      drop-shadow(calc(var(--px, 1px) * -1) 0 0 var(--fx-b))
+      drop-shadow(0 var(--px, 1px) 0 var(--fx-b))
+      drop-shadow(0 calc(var(--px, 1px) * -1) 0 var(--fx-b));
+    animation-timing-function: steps(1, end);
+  }
+  45% {
+    filter: drop-shadow(var(--px, 1px) 0 0 var(--fx-a))
+      drop-shadow(calc(var(--px, 1px) * -1) 0 0 var(--fx-a))
+      drop-shadow(0 var(--px, 1px) 0 var(--fx-a))
+      drop-shadow(0 calc(var(--px, 1px) * -1) 0 var(--fx-a));
+    animation-timing-function: steps(1, end);
+  }
+  70%,
+  100% {
+    filter: none;
+  }
+}
+
+@keyframes scene-anim-cast-sparks {
+  0% {
+    opacity: 1;
+    box-shadow:
+      calc(var(--px, 1px) * 20) 0 var(--fx-b),
+      calc(var(--px, 1px) * -10) 0 var(--fx-b),
+      0 calc(var(--px, 1px) * 20) var(--fx-b),
+      0 calc(var(--px, 1px) * -10) var(--fx-b),
+      calc(var(--px, 1px) * 14) calc(var(--px, 1px) * 14) var(--fx-a),
+      calc(var(--px, 1px) * -7) calc(var(--px, 1px) * 14) var(--fx-a),
+      calc(var(--px, 1px) * 14) calc(var(--px, 1px) * -7) var(--fx-a),
+      calc(var(--px, 1px) * -7) calc(var(--px, 1px) * -7) var(--fx-a);
+    animation-timing-function: steps(1, end);
+  }
+  30% {
+    opacity: 1;
+    box-shadow:
+      calc(var(--px, 1px) * 32) 0 var(--fx-b),
+      calc(var(--px, 1px) * -16) 0 var(--fx-b),
+      0 calc(var(--px, 1px) * 32) var(--fx-b),
+      0 calc(var(--px, 1px) * -16) var(--fx-b),
+      calc(var(--px, 1px) * 22) calc(var(--px, 1px) * 22) var(--fx-b),
+      calc(var(--px, 1px) * -11) calc(var(--px, 1px) * 22) var(--fx-b),
+      calc(var(--px, 1px) * 22) calc(var(--px, 1px) * -11) var(--fx-b),
+      calc(var(--px, 1px) * -11) calc(var(--px, 1px) * -11) var(--fx-b);
+    animation-timing-function: steps(1, end);
+  }
+  60% {
+    opacity: 1;
+    box-shadow:
+      calc(var(--px, 1px) * 44) 0 var(--fx-a),
+      calc(var(--px, 1px) * -21) 0 var(--fx-a),
+      0 calc(var(--px, 1px) * 44) var(--fx-a),
+      0 calc(var(--px, 1px) * -21) var(--fx-a),
+      calc(var(--px, 1px) * 31) calc(var(--px, 1px) * 31) var(--fx-a),
+      calc(var(--px, 1px) * -15) calc(var(--px, 1px) * 31) var(--fx-a),
+      calc(var(--px, 1px) * 31) calc(var(--px, 1px) * -15) var(--fx-a),
+      calc(var(--px, 1px) * -15) calc(var(--px, 1px) * -15) var(--fx-a);
+    animation-timing-function: steps(1, end);
+  }
+  85%,
+  100% {
+    opacity: 0;
+    box-shadow: none;
+  }
+}
+
+/* Damage over time ticks on a foe (one per second): a one-pixel outline in the effect's colour
+   and a few motes. Burn rises in ember, bleed drips crimson, shadow curls up in violet. */
+.scene-anim .scene-anim__fx.scene-anim--tick-burn {
+  --tick-a: #b4532a;
+  --tick-b: #f0b45a;
+}
+
+.scene-anim .scene-anim__fx.scene-anim--tick-bleed {
+  --tick-a: #6e1a22;
+  --tick-b: #b8333a;
+}
+
+.scene-anim .scene-anim__fx.scene-anim--tick-shadow {
+  --tick-a: #3e2560;
+  --tick-b: #9a72c8;
+}
+
+.scene-anim .scene-anim__fx.scene-anim--tick-burn,
+.scene-anim .scene-anim__fx.scene-anim--tick-bleed,
+.scene-anim .scene-anim__fx.scene-anim--tick-shadow {
+  animation: scene-anim-tick 450ms;
+}
+
+.scene-anim .scene-anim__fx.scene-anim--tick-burn::after {
+  animation: scene-anim-motes-burn 450ms;
+}
+
+.scene-anim .scene-anim__fx.scene-anim--tick-bleed::after {
+  animation: scene-anim-motes-bleed 450ms;
+}
+
+.scene-anim .scene-anim__fx.scene-anim--tick-shadow::after {
+  animation: scene-anim-motes-shadow 450ms;
+}
+
+@keyframes scene-anim-tick {
+  0% {
+    filter: drop-shadow(var(--px, 1px) 0 0 var(--tick-a))
+      drop-shadow(calc(var(--px, 1px) * -1) 0 0 var(--tick-a))
+      drop-shadow(0 var(--px, 1px) 0 var(--tick-a))
+      drop-shadow(0 calc(var(--px, 1px) * -1) 0 var(--tick-a));
+    animation-timing-function: steps(1, end);
+  }
+  40%,
+  100% {
+    filter: none;
+  }
+}
+
+@keyframes scene-anim-motes-burn {
+  0% {
+    opacity: 1;
+    box-shadow:
+      calc(var(--px, 1px) * -6) calc(var(--px, 1px) * 2) var(--tick-b),
+      calc(var(--px, 1px) * 5) 0 var(--tick-a),
+      calc(var(--px, 1px) * -1) calc(var(--px, 1px) * -4) var(--tick-b),
+      calc(var(--px, 1px) * 8) calc(var(--px, 1px) * -6) var(--tick-a);
+    animation-timing-function: steps(1, end);
+  }
+  33% {
+    opacity: 1;
+    box-shadow:
+      calc(var(--px, 1px) * -6) calc(var(--px, 1px) * -2) var(--tick-b),
+      calc(var(--px, 1px) * 5) calc(var(--px, 1px) * -4) var(--tick-b),
+      calc(var(--px, 1px) * -1) calc(var(--px, 1px) * -8) var(--tick-a),
+      calc(var(--px, 1px) * 8) calc(var(--px, 1px) * -10) var(--tick-b);
+    animation-timing-function: steps(1, end);
+  }
+  66% {
+    opacity: 1;
+    box-shadow:
+      calc(var(--px, 1px) * -5) calc(var(--px, 1px) * -6) var(--tick-a),
+      calc(var(--px, 1px) * 4) calc(var(--px, 1px) * -8) var(--tick-a),
+      calc(var(--px, 1px) * 0) calc(var(--px, 1px) * -12) var(--tick-a),
+      calc(var(--px, 1px) * 7) calc(var(--px, 1px) * -14) var(--tick-a);
+    animation-timing-function: steps(1, end);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes scene-anim-motes-bleed {
+  0% {
+    opacity: 1;
+    box-shadow:
+      calc(var(--px, 1px) * -4) calc(var(--px, 1px) * -2) var(--tick-b),
+      calc(var(--px, 1px) * 3) 0 var(--tick-b),
+      calc(var(--px, 1px) * 7) calc(var(--px, 1px) * -4) var(--tick-a);
+    animation-timing-function: steps(1, end);
+  }
+  33% {
+    opacity: 1;
+    box-shadow:
+      calc(var(--px, 1px) * -4) calc(var(--px, 1px) * 2) var(--tick-b),
+      calc(var(--px, 1px) * 3) calc(var(--px, 1px) * 3) var(--tick-a),
+      calc(var(--px, 1px) * 7) 0 var(--tick-b);
+    animation-timing-function: steps(1, end);
+  }
+  66% {
+    opacity: 1;
+    box-shadow:
+      calc(var(--px, 1px) * -4) calc(var(--px, 1px) * 6) var(--tick-a),
+      calc(var(--px, 1px) * 3) calc(var(--px, 1px) * 7) var(--tick-a),
+      calc(var(--px, 1px) * 7) calc(var(--px, 1px) * 5) var(--tick-a);
+    animation-timing-function: steps(1, end);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes scene-anim-motes-shadow {
+  0% {
+    opacity: 1;
+    box-shadow:
+      calc(var(--px, 1px) * -7) calc(var(--px, 1px) * 3) var(--tick-a),
+      calc(var(--px, 1px) * 6) calc(var(--px, 1px) * 1) var(--tick-b),
+      calc(var(--px, 1px) * -2) calc(var(--px, 1px) * -3) var(--tick-b),
+      calc(var(--px, 1px) * 3) calc(var(--px, 1px) * -7) var(--tick-a);
+    animation-timing-function: steps(1, end);
+  }
+  33% {
+    opacity: 1;
+    box-shadow:
+      calc(var(--px, 1px) * -8) calc(var(--px, 1px) * -1) var(--tick-b),
+      calc(var(--px, 1px) * 7) calc(var(--px, 1px) * -3) var(--tick-a),
+      calc(var(--px, 1px) * -3) calc(var(--px, 1px) * -7) var(--tick-a),
+      calc(var(--px, 1px) * 4) calc(var(--px, 1px) * -11) var(--tick-b);
+    animation-timing-function: steps(1, end);
+  }
+  66% {
+    opacity: 1;
+    box-shadow:
+      calc(var(--px, 1px) * -7) calc(var(--px, 1px) * -5) var(--tick-a),
+      calc(var(--px, 1px) * 6) calc(var(--px, 1px) * -7) var(--tick-a),
+      calc(var(--px, 1px) * -2) calc(var(--px, 1px) * -11) var(--tick-b),
+      calc(var(--px, 1px) * 3) calc(var(--px, 1px) * -15) var(--tick-a);
+    animation-timing-function: steps(1, end);
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 /* Belt and braces: base.css already stops all animation for reduced motion, and the scene never
    gets `.scene-anim` then. The one exception is the admin animation gallery once the admin pressed
    Play (`.scene-anim--forced`, ticket A.14c). */
@@ -235,6 +514,8 @@
   .scene-anim:not(.scene-anim--forced) .scene-anim__actor,
   .scene-anim:not(.scene-anim--forced) .scene-anim__fade,
   .scene-anim:not(.scene-anim--forced) .scene-anim__act,
+  .scene-anim:not(.scene-anim--forced) .scene-anim__fx,
+  .scene-anim:not(.scene-anim--forced) .scene-anim__fx::after,
   .scene-anim:not(.scene-anim--forced) .scene-anim__hit,
   .scene-anim:not(.scene-anim--forced) .pixel-sheet__strip {
     animation: none !important;
