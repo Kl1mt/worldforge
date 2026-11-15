@@ -337,6 +337,13 @@
       "when": 1794531638149,
       "tag": "0047_account_growth",
       "breakpoints": true
+    },
+    {
+      "idx": 48,
+      "version": "7",
+      "when": 1794780793290,
+      "tag": "0048_groovy_penance",
+      "breakpoints": true
     }
   ]
 }

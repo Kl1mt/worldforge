@@ -2,6 +2,7 @@ import type { FastifyInstance } from 'fastify';
 import { and, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import {
   computeScores,
+  snapshotLoadout,
   type ScoredItem,
   type Scores,
   type ScoringInput,
@@ -9,6 +10,7 @@ import {
 } from '@worldforge/game-core';
 import {
   characters,
+  duelDefences,
   guildBossAttempts,
   guildBossRewards,
   itemInstances,
@@ -69,6 +71,13 @@ export async function scoringInput(
     .from(itemInstances)
     .where(and(eq(itemInstances.characterId, hero.id), isNotNull(itemInstances.equippedSlot)));
   const equipment: ScoredItem[] = rows.map((r) => ({ ...r, slot: r.slot! }));
+  // Ticket 9.2 (Power 4, owner decision 7): the loadout saved with the hero's duel defence; none
+  // (no defence, or the default saved) leaves the input exactly as before.
+  const [defence] = await db
+    .select({ snapshot: duelDefences.snapshot })
+    .from(duelDefences)
+    .where(eq(duelDefences.characterId, hero.id));
+  const loadout = defence ? snapshotLoadout(defence.snapshot) : null;
   return {
     classId: hero.classId,
     level: hero.level,
@@ -77,6 +86,7 @@ export async function scoringInput(
     progress: hero.progress,
     world: await app.worldState.flags(),
     guildBossStage: await heroGuildBossStage(db, hero),
+    ...(loadout ? { loadout } : {}),
   };
 }
 

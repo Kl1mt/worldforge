@@ -46,6 +46,7 @@ import type {
   TreasuryResource,
   GuideState,
   LootFilterRules,
+  Loadout,
   MaterialId,
   ProfessionId,
   QuestObjective,
@@ -316,6 +317,12 @@ export const characters = pgTable(
      * Written only by `POST …/warehouse/upgrade` under the character lock.
      */
     warehouseLevel: integer('warehouse_level').notNull().default(0),
+    /**
+     * Ticket 9.2 (docs/SKILLS.md): the loadout preset in force (1–3, `character_loadouts`). A
+     * preset without a row is the default loadout, so a hero who never chose one fights as before.
+     * Written only by `POST …/skills/preset` after settling with the old loadout.
+     */
+    loadoutPreset: smallint('loadout_preset').notNull().default(1),
     /** Optimistic-concurrency counter for later value-changing writes. */
     version: integer('version').notNull().default(0),
     /**
@@ -342,6 +349,7 @@ export const characters = pgTable(
       .on(t.deletedAt)
       .where(sql`${t.deletedAt} is not null`),
     check('characters_deleted_check', sql`(${t.deletedAt} is null) = (${t.deleteReason} is null)`),
+    check('characters_loadout_preset_check', sql`${t.loadoutPreset} between 1 and 3`),
     uniqueIndex('characters_name_lower_key').on(sql`lower(${t.name})`),
     index('characters_name_skeleton_idx').on(t.nameSkeleton),
     check('characters_level_check', sql`${t.level} >= 1`),
@@ -549,6 +557,8 @@ export interface FarmState {
    * Absent when the activity ended between cycles.
    */
   areaId?: AreaId;
+  /** Ticket 9.2: Soul Fragments the last kill left (warlock with a chosen loadout); absent = 0. */
+  soulFragments?: number;
 }
 
 /**
@@ -640,6 +650,11 @@ export const activities = pgTable(
      * settlements like health, so how often the client settles cannot change it.
      */
     momentum: integer('momentum').notNull().default(0),
+    /**
+     * Ticket 9.2: Soul Fragments the last kill left for the next fight (a warlock whose loadout
+     * uses them; owner decision 8). Carried across settlements like momentum; 0 otherwise.
+     */
+    soulFragments: integer('soul_fragments').notNull().default(0),
     summary: jsonb('summary').$type<ActivitySummary>().notNull(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -650,8 +665,34 @@ export const activities = pgTable(
     check('activities_settlement_seq_check', sql`${t.settlementSeq} >= 0`),
     check('activities_cycle_index_check', sql`${t.cycleIndex} >= 0`),
     check('activities_momentum_check', sql`${t.momentum} >= 0`),
+    check('activities_soul_fragments_check', sql`${t.soulFragments} >= 0`),
   ],
 );
+
+/**
+ * Ticket 9.2 (docs/SKILLS.md "Loadouts"): a hero's saved loadout presets (1–3). Additive: a hero
+ * without a row for a preset reads the default loadout there. `actives` holds three slots (slot 1
+ * a core skill, slots 2–3 spenders or null), `passive` one passive or null; validated by game-core
+ * `validateLoadout` with the hero's unlocks on save and again before every fight reads it.
+ */
+export const characterLoadouts = pgTable(
+  'character_loadouts',
+  {
+    characterId: uuid('character_id')
+      .notNull()
+      .references(() => characters.id, { onDelete: 'cascade' }),
+    preset: smallint('preset').notNull(),
+    actives: jsonb('actives').$type<(string | null)[]>().notNull(),
+    passive: text('passive'),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.characterId, t.preset] }),
+    check('character_loadouts_preset_check', sql`${t.preset} between 1 and 3`),
+  ],
+);
+
+export type CharacterLoadout = typeof characterLoadouts.$inferSelect;
 
 /**
  * Materials a character holds (ticket 2.3). One row per material with a quantity; materials stack
@@ -846,6 +887,11 @@ export interface DungeonRunSnapshot {
     /** Ticket 6.5b; absent in snapshots taken before it (no item was awakened then). */
     awakening?: ItemAwakening | null;
   }[];
+  /**
+   * Ticket 9.2: the hero's loadout at the start (absent: the default loadout, and every run or
+   * attempt from before 9.2 replays as it was).
+   */
+  loadout?: Loadout;
 }
 
 /**

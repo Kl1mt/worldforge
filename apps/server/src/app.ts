@@ -24,6 +24,7 @@ import { registerForge } from './forge/routes.js';
 import { pruneIdempotencyKeys } from './idempotency/index.js';
 import { registerQuests } from './quests/routes.js';
 import { registerLootFilter } from './loot-filter/routes.js';
+import { registerSkills } from './skills/routes.js';
 import { registerInbox } from './inbox/routes.js';
 import { pruneInboxes } from './inbox/notify.js';
 import { registerSafety } from './social/routes.js';
@@ -222,6 +223,7 @@ export function buildApp({
       await registerForge(api, activityOptions);
       await registerQuests(api, activityOptions);
       await registerLootFilter(api, activityOptions);
+      await registerSkills(api, activityOptions);
       await registerInbox(api, activityOptions.now);
       await registerSafety(api);
       await registerProfiles(api);

@@ -658,6 +658,9 @@ export async function registerArena(
         kind: DuelKind;
       };
       await app.socialWriteLimit(me, reply);
+      // Ticket 9.2: the duel rules in force now (version 3 reads loadouts; it takes over only
+      // between seasons, so a running season's ladder is fought under one version).
+      const rulesVersion = await app.formulaVersions.pvpRulesAt(activity.now());
       return idempotentTransaction<{ duel: DuelView }>(
         app,
         request,
@@ -723,6 +726,7 @@ export async function registerArena(
             defender: duelFighter(defence.snapshot),
             seed,
             bracketId,
+            rulesVersion,
           });
           // Ticket 5.6: both ratings move inside this transaction (season, pair, hero locks).
           const rating =

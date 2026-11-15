@@ -1,3 +1,4 @@
+import { activeLoadout, withLoadout } from '../skills/store.js';
 import { and, count, eq, isNotNull, sql } from 'drizzle-orm';
 import { randomBytes } from 'node:crypto';
 import {
@@ -72,7 +73,14 @@ export async function heroSnapshot(tx: Executor, hero: Character): Promise<Guild
     })
     .from(itemInstances)
     .where(and(eq(itemInstances.characterId, hero.id), isNotNull(itemInstances.equippedSlot)));
-  return { classId: hero.classId, level: hero.level, xp: hero.experience, equipment };
+  return {
+    classId: hero.classId,
+    level: hero.level,
+    xp: hero.experience,
+    equipment,
+    // Ticket 9.2: the loadout in force fights the attempt (stored with it).
+    ...withLoadout(hero.classId, await activeLoadout(tx, hero)),
+  };
 }
 
 /** Attempts the account made in a week (in any guild). */

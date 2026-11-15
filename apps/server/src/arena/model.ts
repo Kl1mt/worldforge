@@ -1,3 +1,4 @@
+import { activeLoadout, heroFacts } from '../skills/store.js';
 import { heroPalettes } from '../cosmetics/display.js';
 import { and, asc, count, eq, inArray, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import {
@@ -172,6 +173,9 @@ export async function heroDuelSnapshot(tx: Executor, hero: Character): Promise<D
     xp: hero.experience,
     name: hero.name,
     equipment,
+    // Ticket 9.2: the loadout in force is saved with the snapshot (a defence keeps it).
+    loadout: await activeLoadout(tx, hero),
+    progress: heroFacts(hero).progress,
   });
 }
 

@@ -3,7 +3,11 @@ import { eq, sql } from 'drizzle-orm';
 import {
   formulaVersionsAt,
   normaliseFormulaSchedule,
+  normalisePvpRulesPlan,
   planFormulaSwitches,
+  planPvpRulesSwitch,
+  pvpRulesVersionAt,
+  type PvpRulesSwitch,
   type FormulaSwitch,
   type FormulaVersions,
 } from '@worldforge/game-core';
@@ -79,6 +83,50 @@ export async function ensureFormulaSchedule(
 }
 
 /**
+ * Ticket 9.2: the duel rules plan (`PVP_RULES_VERSION` between seasons, 5.3's rule), stored in
+ * `game_settings` under `arena.rules` (`{ switches }`, game-core `PvpRulesSwitch`), planned once
+ * like the formula switches (advisory lock, audited `arena.rules_schedule`). No migration.
+ */
+export const PVP_RULES_SCHEDULE_KEY = 'arena.rules';
+
+export async function loadPvpRulesPlan(db: Executor): Promise<PvpRulesSwitch[]> {
+  const [row] = await db
+    .select({ value: gameSettings.value })
+    .from(gameSettings)
+    .where(eq(gameSettings.key, PVP_RULES_SCHEDULE_KEY));
+  return normalisePvpRulesPlan(row?.value?.switches);
+}
+
+export async function ensurePvpRulesPlan(db: Database, now: Date): Promise<PvpRulesSwitch[]> {
+  const current = await loadPvpRulesPlan(db);
+  if (planPvpRulesSwitch(current, await seasonWindows(db), now).length === 0) return current;
+  return withTransaction(db, async (tx) => {
+    await tx.execute(
+      sql`select pg_advisory_xact_lock(hashtextextended(${'arena:rules-schedule'}, 0))`,
+    );
+    const plan = await loadPvpRulesPlan(tx);
+    const added = planPvpRulesSwitch(plan, await seasonWindows(tx), now);
+    if (added.length === 0) return plan;
+    const next = [...plan, ...added];
+    const [row] = await tx
+      .select({ version: gameSettings.version })
+      .from(gameSettings)
+      .where(eq(gameSettings.key, PVP_RULES_SCHEDULE_KEY));
+    const value = { switches: next } as unknown as Record<string, unknown>;
+    await tx
+      .insert(gameSettings)
+      .values({ key: PVP_RULES_SCHEDULE_KEY, value, version: 1, updatedAt: now })
+      .onConflictDoUpdate({
+        target: gameSettings.key,
+        set: { value, version: (row?.version ?? 0) + 1, updatedAt: now },
+      });
+    await writeAudit(tx, { event: 'arena.rules_schedule', data: { added } });
+    await bumpCacheVersion(tx, 'formulas');
+    return next;
+  });
+}
+
+/**
  * The versions in force at a game-clock moment, from a cached copy of the plan and the season
  * windows (refreshed every `ttlMs` of the real clock, and at once after `invalidate()`, which the
  * season plan routes call). The comparison with `now` is made on every call, so the switch happens
@@ -87,6 +135,7 @@ export async function ensureFormulaSchedule(
 export class FormulaVersionSource {
   private cached: {
     schedule: FormulaSwitch[];
+    pvpRules: PvpRulesSwitch[];
     seasons: Awaited<ReturnType<typeof seasonWindows>>;
     loadedAt: number;
   } | null = null;
@@ -97,12 +146,29 @@ export class FormulaVersionSource {
     private readonly clock: () => number = Date.now,
   ) {}
 
-  async at(now: Date): Promise<FormulaVersions> {
+  private async load(now: Date) {
     if (!this.cached || this.clock() - this.cached.loadedAt >= this.ttlMs) {
       const { schedule } = await ensureFormulaSchedule(this.db, now);
-      this.cached = { schedule, seasons: await seasonWindows(this.db), loadedAt: this.clock() };
+      const pvpRules = await ensurePvpRulesPlan(this.db, now);
+      this.cached = {
+        schedule,
+        pvpRules,
+        seasons: await seasonWindows(this.db),
+        loadedAt: this.clock(),
+      };
     }
-    return formulaVersionsAt(this.cached.schedule, this.cached.seasons, now);
+    return this.cached;
+  }
+
+  async at(now: Date): Promise<FormulaVersions> {
+    const c = await this.load(now);
+    return formulaVersionsAt(c.schedule, c.seasons, now);
+  }
+
+  /** Ticket 9.2: the duel rules version in force at a game-clock moment (`simulateDuel`). */
+  async pvpRulesAt(now: Date): Promise<number> {
+    const c = await this.load(now);
+    return pvpRulesVersionAt(c.pvpRules, c.seasons, now);
   }
 
   invalidate(): void {

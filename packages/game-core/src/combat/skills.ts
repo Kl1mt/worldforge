@@ -51,10 +51,10 @@ export const AUTO_SKILLS: Readonly<Record<ClassId, AutoSkillDefinition>> = {
 };
 
 /* ------------------------------------------------------------------------------------------------
- * Ticket 9.1: skills, resources and loadouts (design prototype, `docs/SKILLS.md`).
+ * Tickets 9.1/9.2: skills, resources and loadouts (`docs/SKILLS.md`).
  *
- * Content only. The rules live in `combat/kit.ts` and act only while the prototype switch is on
- * (`setSkillsPrototype`); it is off, so nothing here changes a fight yet (9.2 switches it on).
+ * Content only. The rules live in `combat/kit.ts`; in play since 9.2 (`live`): a hero's chosen
+ * loadout fights with them, the default loadout exactly as before.
  * ---------------------------------------------------------------------------------------------- */
 
 /**

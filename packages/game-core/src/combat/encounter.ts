@@ -10,9 +10,11 @@ import {
   compileKit,
   kitSpenderFor,
   kitSpenderMultiplier,
+  isDefaultLoadout,
   resolveLoadout,
   shadowCompare,
   skillsPrototypeMode,
+  validateLoadout,
   withoutKit,
   type KitState,
   type Loadout,
@@ -121,8 +123,8 @@ export interface EncounterSetup {
    */
   effects?: SetupEffects;
   /**
-   * Ticket 9.1: the hero's loadout compiled for this fight. Only present while the skills
-   * prototype is on (`setSkillsPrototype`); absent, every fight is exactly today's.
+   * Tickets 9.1/9.2: the hero's loadout compiled for this fight. In play (`live`) only a chosen,
+   * non-default loadout compiles into one; absent, every fight is exactly today's.
    */
   kit?: SetupKit;
 }
@@ -389,6 +391,18 @@ export function buildEncounter(
     context,
   ] as const;
   if (mode === 'off') return buildEncounterWith(...args);
+  if (mode === 'live') {
+    // Ticket 9.2: the default loadout (and, defensively, an invalid one) is today's path: no kit.
+    const l = skills?.loadout;
+    if (!l || isDefaultLoadout(classId, l) || validateLoadout(classId, l).length > 0)
+      return buildEncounterWith(...args);
+    return buildEncounterWith(
+      ...args,
+      resolveLoadout(classId, l),
+      skills?.fragments ?? 0,
+      skills?.pvp,
+    );
+  }
   const resolved = resolveLoadout(classId, skills?.loadout);
   const setup = buildEncounterWith(...args, resolved, skills?.fragments ?? 0, skills?.pvp);
   if (mode === 'shadow' && resolved.isDefault) {

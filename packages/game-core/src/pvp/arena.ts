@@ -1,4 +1,10 @@
 import type { ClassId } from '../classes.js';
+import {
+  effectiveLoadout,
+  isDefaultLoadout,
+  type Loadout,
+  type LoadoutHero,
+} from '../combat/kit.js';
 import type { Relation } from '../social/relations.js';
 import { checkEquipment, type ItemRejection, type ScoredItem } from '../scoring/equipment.js';
 import type { EquippedItem } from '../activity/equipment.js';
@@ -50,6 +56,12 @@ export interface DuelSnapshot {
   heroName: string;
   equipment: ScoredItem[];
   rejected: ItemRejection[];
+  /**
+   * Ticket 9.2: the loadout saved with the snapshot (the hero's loadout in force when it was set,
+   * checked against the hero's unlocks then). Absent: the default loadout (every snapshot before
+   * 9.2, and every hero who never chose one).
+   */
+  loadout?: Loadout;
 }
 
 export function duelSnapshot(hero: {
@@ -58,8 +70,15 @@ export function duelSnapshot(hero: {
   xp: number;
   name: string;
   equipment: readonly ScoredItem[];
+  /** Ticket 9.2: the hero's loadout and the facts its unlocks read (invalid or default: none). */
+  loadout?: Loadout | null;
+  progress?: LoadoutHero['progress'];
 }): DuelSnapshot {
   const checked = checkEquipment(hero.classId, hero.equipment);
+  const loadout = effectiveLoadout(hero.classId, hero.loadout, {
+    level: hero.level,
+    ...(hero.progress ? { progress: hero.progress } : {}),
+  });
   return {
     classId: hero.classId,
     level: hero.level,
@@ -67,7 +86,25 @@ export function duelSnapshot(hero: {
     heroName: hero.name,
     equipment: checked.filter((c) => c.rejection === null).map((c) => ({ ...c.item })),
     rejected: checked.flatMap((c) => (c.rejection ? [c.rejection] : [])),
+    ...(isDefaultLoadout(hero.classId, loadout)
+      ? {}
+      : { loadout: { actives: [...loadout.actives], passive: loadout.passive ?? null } }),
   };
+}
+
+/**
+ * Ticket 9.2: a stored snapshot's loadout, checked again (never trusted): valid for the class and
+ * unlocked at the snapshot's level (the deeds were checked when it was saved), else the default.
+ */
+export function snapshotLoadout(snapshot: DuelSnapshot): Loadout | null {
+  const l = snapshot.loadout;
+  if (!l) return null;
+  const facts = {
+    level: snapshot.level,
+    progress: { forgeTyrantDefeated: true, hollowSovereignDefeated: true },
+  };
+  const checked = effectiveLoadout(snapshot.classId, l, facts);
+  return isDefaultLoadout(snapshot.classId, checked) ? null : checked;
 }
 
 /**
@@ -78,7 +115,13 @@ export function duelFighter(snapshot: DuelSnapshot): PvpFighterInput {
   const equipment: EquippedItem[] = checkEquipment(snapshot.classId, snapshot.equipment).flatMap(
     (c) => (c.equipped ? [c.equipped] : []),
   );
-  return { classId: snapshot.classId, level: snapshot.level, equipment };
+  const loadout = snapshotLoadout(snapshot);
+  return {
+    classId: snapshot.classId,
+    level: snapshot.level,
+    equipment,
+    ...(loadout ? { loadout } : {}),
+  };
 }
 
 /** The bracket a rated duel is fought in: the challenger's (the defence must be in it too). */

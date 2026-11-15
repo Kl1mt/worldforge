@@ -34,9 +34,17 @@ import { LEVEL_BRACKETS, type LevelBracket } from '../scoring/boards.js';
  * differently for the same input (a factor, a bracket, a reference, the engine or a combat rule
  * the duel runs through): 5.5/5.6 store it with every duel. `pvp.test.ts` pins a log hash.
  */
-export const PVP_RULES_VERSION = 2;
+export const PVP_RULES_VERSION = 3;
 // 2 (ticket 6.1): the 30+ reference kit wears the Cinderwastes' tier-4 bases (item level 29) and
 // the 30+ class factors were re-fitted; brackets 1–29 duel exactly as in version 1.
+// 3 (ticket 9.2): duels read both fighters' loadouts (a defence's saved one) and keep half of a
+// skill's extra damage (`skillKeep`); passives' damage bonuses are PvE only. Two default loadouts
+// duel exactly as in version 2. Takes over between seasons (`pvpRulesVersionAt`).
+
+/** Every duel rules version `simulateDuel` can still fight (stored duels keep theirs). */
+export const SUPPORTED_PVP_RULES_VERSIONS: readonly number[] = [2, 3];
+/** The version in force before the 9.2 plan began (what production ran). */
+export const PVP_RULES_BASELINE = 2;
 
 /** A PvP bracket: a 5.2 leaderboard bracket plus its reference hero. */
 export interface PvpBracket extends LevelBracket {

@@ -22,7 +22,7 @@ const season = (number: number, from: number, to: number) => ({
 describe('formula versions between seasons (ticket 6.1)', () => {
   it('knows the baseline and the newest versions', () => {
     expect(FORMULA_BASELINE).toEqual({ level: 1, gearScore: 2, power: 1, pveProgress: 1 });
-    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 2, power: 3, pveProgress: 6 });
+    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 2, power: 4, pveProgress: 6 });
     expect(formulaVersionsAt([], [], t0)).toEqual(FORMULA_BASELINE);
   });
 
@@ -30,7 +30,7 @@ describe('formula versions between seasons (ticket 6.1)', () => {
     const seasons = [season(1, -60, -4), season(2, 3, 59)];
     const plan = planFormulaSwitches([], seasons, t0);
     expect(plan.map((s) => [s.metric, s.from, s.to, s.afterSeason])).toEqual([
-      ['power', 1, 3, null],
+      ['power', 1, 4, null],
       ['pveProgress', 1, 6, null],
     ]);
     expect(formulaVersionsAt(plan, seasons, t0)).toEqual(FORMULA_VERSIONS);
@@ -121,7 +121,7 @@ describe('formula versions between seasons (ticket 6.1)', () => {
     const v6 = { ...FORMULA_VERSIONS, power: 2, pveProgress: 4 };
     const stored = planFormulaSwitches([], seasons.slice(0, 1), at(-100), v6);
     expect(formulaVersionsAt(stored, seasons, t0)).toEqual(v6);
-    const v81 = { ...FORMULA_VERSIONS, pveProgress: 5 };
+    const v81 = { ...FORMULA_VERSIONS, power: 3, pveProgress: 5 };
     const added = planFormulaSwitches(stored, seasons, t0, v81);
     expect(added.map((s) => [s.metric, s.from, s.to, s.afterSeason])).toEqual([
       ['power', 2, 3, 3],
@@ -142,25 +142,40 @@ describe('formula versions between seasons (ticket 6.1)', () => {
       season(4, 53, 109),
     ];
     const v6 = { ...FORMULA_VERSIONS, power: 2, pveProgress: 4 };
-    const v81 = { ...FORMULA_VERSIONS, pveProgress: 5 };
+    const v81 = { ...FORMULA_VERSIONS, power: 3, pveProgress: 5 };
+    const v82 = { ...FORMULA_VERSIONS, power: 3 };
     const stored = planFormulaSwitches([], seasons.slice(0, 1), at(-100), v6);
     // 8.1's switches wait for season 3 …
     const s81 = [...stored, ...planFormulaSwitches(stored, seasons, t0, v81)];
     // … and 8.2 ships in that same season: version 6 follows version 5 at the same end.
-    const added = planFormulaSwitches(s81, seasons, at(10));
+    const added = planFormulaSwitches(s81, seasons, at(10), v82);
     expect(added.map((s) => [s.metric, s.from, s.to, s.afterSeason])).toEqual([
       ['pveProgress', 5, 6, 3],
     ]);
     const plan = [...s81, ...added];
     expect(formulaVersionsAt(plan, seasons, at(51))).toEqual(v6);
-    expect(formulaVersionsAt(plan, seasons, at(52))).toEqual(FORMULA_VERSIONS);
+    expect(formulaVersionsAt(plan, seasons, at(52))).toEqual(v82);
     // 8.1 already in force (season 3 over), 8.2 shipped in season 4: it waits for season 4's end.
-    const late = planFormulaSwitches(s81, seasons, at(60));
+    const late = planFormulaSwitches(s81, seasons, at(60), v82);
     expect(late.map((s) => [s.from, s.to, s.afterSeason])).toEqual([[5, 6, 4]]);
     expect(formulaVersionsAt([...s81, ...late], seasons, at(60))).toEqual(v81);
-    expect(formulaVersionsAt([...s81, ...late], seasons, at(109))).toEqual(FORMULA_VERSIONS);
+    expect(formulaVersionsAt([...s81, ...late], seasons, at(109))).toEqual(v82);
     // Planning again adds nothing.
-    expect(planFormulaSwitches(plan, seasons, at(20))).toEqual([]);
+    expect(planFormulaSwitches(plan, seasons, at(20), v82)).toEqual([]);
+  });
+
+  it('adds 9.2’s Power 4 after 8.2’s plan, at the end of the season under way', () => {
+    const seasons = [season(1, -120, -60), season(2, -60, -4), season(3, -4, 52)];
+    const v82 = { ...FORMULA_VERSIONS, power: 3 };
+    // Production: everything through 8.2 in force (Power 3, PvE Progress 6).
+    const stored = planFormulaSwitches([], seasons.slice(0, 1), at(-100), v82);
+    expect(formulaVersionsAt(stored, seasons, t0)).toEqual(v82);
+    const added = planFormulaSwitches(stored, seasons, t0);
+    expect(added.map((s) => [s.metric, s.from, s.to, s.afterSeason])).toEqual([['power', 3, 4, 3]]);
+    const plan = [...stored, ...added];
+    expect(formulaVersionsAt(plan, seasons, at(51))).toEqual(v82);
+    expect(formulaVersionsAt(plan, seasons, at(52))).toEqual(FORMULA_VERSIONS);
+    expect(planFormulaSwitches(plan, seasons, at(60))).toEqual([]);
   });
 
   it('computes every supported version and refuses others', () => {
@@ -174,13 +189,16 @@ describe('formula versions between seasons (ticket 6.1)', () => {
     };
     expect(computeScore('power', input, 1).formulaVersion).toBe(1);
     expect(computeScore('power', input, 2).formulaVersion).toBe(2);
-    expect(computeScore('power', input).formulaVersion).toBe(3);
+    expect(computeScore('power', input, 3).formulaVersion).toBe(3);
+    expect(computeScore('power', input).formulaVersion).toBe(4);
+    // Ticket 9.2: the default loadout scores exactly Power 3.
+    expect(computeScore('power', input).value).toBe(computeScore('power', input, 3).value);
     expect(computeScore('pveProgress', input, 1).value).toBe(7);
     expect(computeScore('pveProgress', input, 2).value).toBe(8);
     expect(computeScore('pveProgress', input, 3).value).toBe(8);
     expect(computeScore('pveProgress', { ...input, level: 34 }, 3).value).toBe(11);
     expect(() => computeScore('gearScore', input, 1)).toThrow(RangeError);
-    expect(() => computeScore('power', input, 4)).toThrow(RangeError);
+    expect(() => computeScore('power', input, 5)).toThrow(RangeError);
     expect(computeScore('pveProgress', { ...input, level: 34 }, 4).value).toBe(11);
     expect(computeScore('pveProgress', { ...input, level: 34 }, 5).value).toBe(11);
     expect(computeScore('pveProgress', { ...input, level: 34 }, 6).value).toBe(11);

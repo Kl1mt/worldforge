@@ -43,8 +43,8 @@ const plainKit = (c: ClassId, level: number, k: number): EquippedItem[] =>
       }));
 
 describe('duels apply the awakened effect (no duel rule changed)', () => {
-  it('the duel rules keep version 2', () => {
-    expect(PVP_RULES_VERSION).toBe(2);
+  it('the duel rules keep version 2 (9.2: version 3 only adds loadouts)', () => {
+    expect(PVP_RULES_VERSION).toBe(3);
   });
 
   for (const [label, level] of [

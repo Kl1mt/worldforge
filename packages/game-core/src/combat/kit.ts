@@ -13,24 +13,26 @@ import {
 } from './skills.js';
 
 /**
- * Ticket 9.1: the skill-loadout prototype (`docs/SKILLS.md`). Pure rules for resources, cooldowns
- * and damage over time on the fight's timeline, read by both farming simulations, dungeon and boss
- * fights, and duels. **Off by default**: with the switch off, no encounter carries a kit and every
- * fight is exactly today's (no loadout is even read).
+ * Tickets 9.1 and 9.2: skill loadouts (`docs/SKILLS.md`). Pure rules for resources, cooldowns and
+ * damage over time on the fight's timeline, read by both farming simulations, dungeon and boss
+ * fights, and duels.
  *
  * Modes:
- * - `off` (default): today's rules; loadouts are ignored.
- * - `on`: every encounter carries a kit, the hero's loadout or, without one, the default loadout
- *   (today's class skill alone); the fight runs through the kit rules.
+ * - `live` (in play since 9.2): a hero's chosen loadout compiles into a kit; **the default loadout
+ *   (today's class skill alone) compiles into none**, so it runs today's code path bit for bit and
+ *   costs what it cost before. An invalid loadout falls back to the default (server authority:
+ *   the server validates on save and before every settlement, so this never happens in play).
+ * - `off`: today's rules; loadouts are never read (9.1's prototype state, kept for tools).
+ * - `on`: every encounter carries a kit, the default loadout's too (measurements, tests).
  * - `shadow`: as `on`, and every fight whose loadout is the default one is resolved a second time
  *   with today's rules and must match bit for bit (outcome, RNG draws, log, exact distribution),
  *   or the call throws. `WF_SKILLS_PROTOTYPE=shadow pnpm --filter @worldforge/game-core test` runs
  *   every existing suite like that: the default-loadout replay.
  */
-export type SkillsPrototypeMode = 'off' | 'on' | 'shadow';
+export type SkillsPrototypeMode = 'off' | 'live' | 'on' | 'shadow';
 
-/** The switch's state in play: off (9.2 switches it on after the owner's yes). */
-export const DEFAULT_SKILLS_PROTOTYPE_MODE: SkillsPrototypeMode = 'off';
+/** The switch's state in play: `live` since ticket 9.2 (the owner's yes of 2026-11-15). */
+export const DEFAULT_SKILLS_PROTOTYPE_MODE: SkillsPrototypeMode = 'live';
 
 let prototypeMode: SkillsPrototypeMode = DEFAULT_SKILLS_PROTOTYPE_MODE;
 
@@ -38,14 +40,13 @@ export function skillsPrototypeMode(): SkillsPrototypeMode {
   return prototypeMode;
 }
 
-/** Test and tooling only (9.1); the server never calls it, so the switch stays off in play. */
+/** Tests and tooling only; the server never calls it, so play runs in `live`. */
 export function setSkillsPrototype(mode: SkillsPrototypeMode): void {
-  if (mode !== 'off' && mode !== 'on' && mode !== 'shadow')
+  if (mode !== 'off' && mode !== 'live' && mode !== 'on' && mode !== 'shadow')
     throw new RangeError(`Unknown skills prototype mode: ${String(mode)}`);
   prototypeMode = mode;
 }
 
-/** A replay mismatch: the default loadout did not fight exactly like today. */
 export class SkillsReplayMismatch extends Error {
   constructor(where: string, detail: string) {
     super(`Skills replay mismatch in ${where}: ${detail}`);
@@ -67,8 +68,8 @@ export function shadowCompare(where: string, legacy: unknown, kit: unknown): voi
 }
 
 /**
- * Ticket 9.1: the proposed duel normalisation of loadouts (`PVP_RULES_VERSION` 3, docs/SKILLS.md
- * "PvP"): a duel keeps this share of a spender's and a damage over time's extra damage, and a
+ * Tickets 9.1/9.2: the duel normalisation of loadouts (`PVP_RULES_VERSION` 3, docs/SKILLS.md
+ * "PvP", owner decision 6): a duel keeps this share of a spender's and a damage over time's extra damage, and a
  * passive's damage bonuses are PvE only (its damage-taken change counts × `effectKeep`).
  */
 export const PVP_V3_SKILL_KEEP = 0.5;
@@ -164,6 +165,31 @@ export function isDefaultLoadout(classId: ClassId, loadout: Loadout): boolean {
   return loadoutKey(loadout) === loadoutKey(defaultLoadout(classId));
 }
 
+/**
+ * Ticket 9.2: the loadout as telemetry groups it (kills a minute and boss times per class and
+ * loadout, for B.7): `default` for the default loadout or none, else e.g.
+ * `rend+execute+earthsplitter:juggernaut`.
+ */
+export function loadoutTelemetryKey(classId: ClassId, loadout?: Loadout | null): string {
+  if (!loadout || isDefaultLoadout(classId, loadout)) return 'default';
+  // Telemetry dimensions are content ids (`[A-Za-z0-9_:+.-]`): skills joined by `+`, then `:` passive.
+  return `${loadout.actives.map((a) => a ?? '-').join('+')}:${loadout.passive ?? '-'}`;
+}
+
+/**
+ * Ticket 9.2: a stored loadout as the fights read it: valid for the class and unlocked for the
+ * hero, else the default (server authority: never throws on stored data).
+ */
+export function effectiveLoadout(
+  classId: ClassId,
+  loadout: Loadout | null | undefined,
+  hero: LoadoutHero,
+): Loadout {
+  if (!loadout || validateLoadout(classId, loadout, hero).length > 0)
+    return defaultLoadout(classId);
+  return loadout;
+}
+
 /** What `buildEncounter` reads from a loadout before it prices hits. */
 export interface ResolvedLoadout {
   classId: ClassId;
@@ -221,6 +247,8 @@ export interface KitSpender {
 /** A loadout compiled against one encounter (`EncounterSetup.kit`). */
 export interface SetupKit {
   key: string;
+  /** The core skill in slot 1 (ticket 9.2: named in the fight logs). */
+  coreId: string;
   isDefault: boolean;
   /** Resources, cooldowns and pulses matter (a spender or a damage over time is slotted). */
   active: boolean;
@@ -310,6 +338,7 @@ export function compileKit(
       : resolvedStart(resolved.classId, rules);
   return {
     key: resolved.key,
+    coreId: resolved.core.id,
     isDefault: resolved.isDefault,
     active,
     pulses:
@@ -449,4 +478,14 @@ export function withoutKit<T extends { kit?: SetupKit }>(setup: T): Omit<T, 'kit
   const copy = { ...setup };
   delete copy.kit;
   return copy;
+}
+
+/**
+ * Ticket 9.2: the skill an attack used, for the fight logs (`action` as in `kitAfterAttack`):
+ * the core's or a spender's id, undefined for a basic attack. Only kits of a chosen loadout log
+ * it, so a default-loadout log is exactly today's.
+ */
+export function kitActionSkill(kit: SetupKit, action: number): string | undefined {
+  if (kit.isDefault || action === -2) return undefined;
+  return action === -1 ? kit.coreId : kit.spenders[action]?.id;
 }

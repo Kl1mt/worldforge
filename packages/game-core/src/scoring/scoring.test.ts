@@ -86,7 +86,7 @@ describe('determinism', () => {
   // ambient state). If one moves, a formula changed: bump its `FORMULA_VERSIONS` entry and update
   // the pin and docs/LEADERBOARDS.md in the same change (5.2 recomputes stored values on a bump).
   it('pins the values of reference heroes (bump FORMULA_VERSIONS when one moves)', () => {
-    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 2, power: 3, pveProgress: 6 });
+    expect(FORMULA_VERSIONS).toEqual({ level: 1, gearScore: 2, power: 4, pveProgress: 6 });
     const pinned = CLASS_IDS.map((classId) => {
       // Ticket 6.1: the version-1 pins, computed at version 1 (unchanged by 6.1).
       const s = computeScores(hero({ classId, equipment: kit(classId, 19, 'rare', 3) }), {
@@ -485,7 +485,7 @@ describe('Character Power', () => {
         powerScore(c, 34, kit(c, 27, 'epic', 10)).value,
       );
     }
-    expect(() => powerScore('mage', 10, [], 4)).toThrow(RangeError);
+    expect(() => powerScore('mage', 10, [], 5)).toThrow(RangeError);
   });
 
   it('version 3 (8.1) is version 2 plus the trials at 42 and 46', () => {

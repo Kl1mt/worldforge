@@ -16,6 +16,7 @@ import {
   kitStart,
   pulseAt,
   PVP_V3_SKILL_KEEP,
+  kitActionSkill,
   shadowCompare,
   skillsPrototypeMode,
   withoutKit,
@@ -29,6 +30,7 @@ import type { EnemyDefinition, EnemyId } from '../world/enemies.js';
 import {
   DEFAULT_PVP_CONFIG,
   PVP_RULES_VERSION,
+  SUPPORTED_PVP_RULES_VERSIONS,
   findPvpBracket,
   normaliseFighter,
   pvpReferenceStats,
@@ -76,7 +78,11 @@ export type DuelEvent =
       crit: boolean;
       skill: boolean;
       health: number;
+      /** Ticket 9.2: the skill of a chosen loadout's attack (absent: today's log). */
+      skillId?: string;
     }
+  /** Ticket 9.2: `side`'s damage over time ticked on the other; `health` is the target's after. */
+  | { t: number; type: 'tick'; side: DuelSide; damage: number; health: number }
   /** `side`'s thorns hurt the fighter who just struck them; `health` is the striker's. */
   | { t: number; type: 'thorns'; side: DuelSide; damage: number; health: number }
   /** Sudden death began: every blow grows stronger from here on. */
@@ -96,6 +102,12 @@ export interface DuelInput {
    * toward this one (e.g. a friendly challenge).
    */
   bracketId?: string;
+  /**
+   * Ticket 9.2: the duel rules to fight under (`SUPPORTED_PVP_RULES_VERSIONS`; default the newest,
+   * `PVP_RULES_VERSION`). The server passes the version in force (`pvpRulesVersionAt`): version 3
+   * reads both loadouts (`skillKeep`), version 2 never does (every hero fights as today).
+   */
+  rulesVersion?: number;
 }
 
 export interface DuelSideResult {
@@ -157,6 +169,7 @@ function duelSetup(
   bracket: PvpBracket,
   config: PvpConfig,
   loadout?: Loadout | null,
+  rulesVersion: number = PVP_RULES_VERSION,
 ): EncounterSetup {
   const level = bracket.referenceLevel;
   const blend = (f: PvpFighter): PvpFighter => {
@@ -176,7 +189,7 @@ function duelSetup(
     DEFAULT_COMBAT_CONFIG,
     { skillDamage: attacker.skillDamage },
     fx ? { effects: fx, momentum: 0 } : undefined,
-    skillsPrototypeMode() !== 'off'
+    skillsPrototypeMode() !== 'off' && rulesVersion >= 3
       ? {
           loadout: loadout ?? null,
           pvp: { skillKeep: config.skillKeep ?? PVP_V3_SKILL_KEEP, effectKeep: config.effectKeep },
@@ -212,6 +225,9 @@ function resolveBracket(input: DuelInput, config: PvpConfig): PvpBracket {
 export function simulateDuel(input: DuelInput, config: PvpConfig = DEFAULT_PVP_CONFIG): DuelResult {
   if (typeof input.seed !== 'string' || input.seed.length === 0)
     throw new RangeError('A duel needs a server seed.');
+  const rulesVersion = input.rulesVersion ?? PVP_RULES_VERSION;
+  if (!SUPPORTED_PVP_RULES_VERSIONS.includes(rulesVersion))
+    throw new RangeError(`Unsupported PvP rules version: ${rulesVersion}`);
   const bracket = resolveBracket(input, config);
   const fighters: Record<DuelSide, PvpFighter> = {
     challenger: normaliseFighter(input.challenger, bracket, config),
@@ -224,6 +240,7 @@ export function simulateDuel(input: DuelInput, config: PvpConfig = DEFAULT_PVP_C
       bracket,
       config,
       input.challenger.loadout,
+      rulesVersion,
     ),
     defender: duelSetup(
       fighters.defender,
@@ -231,6 +248,7 @@ export function simulateDuel(input: DuelInput, config: PvpConfig = DEFAULT_PVP_C
       bracket,
       config,
       input.defender.loadout,
+      rulesVersion,
     ),
   };
   // Ticket 9.1: the shadow replay plays a duel of two default loadouts again without the kits.
@@ -239,19 +257,20 @@ export function simulateDuel(input: DuelInput, config: PvpConfig = DEFAULT_PVP_C
     setups.challenger.kit?.isDefault &&
     setups.defender.kit?.isDefault
   ) {
-    const today = duelLoop(input, config, bracket, fighters, {
+    const today = duelLoop(input, rulesVersion, config, bracket, fighters, {
       challenger: withoutKit(setups.challenger),
       defender: withoutKit(setups.defender),
     });
-    const kit = duelLoop(input, config, bracket, fighters, setups);
+    const kit = duelLoop(input, rulesVersion, config, bracket, fighters, setups);
     shadowCompare('simulateDuel', today, kit);
     return kit;
   }
-  return duelLoop(input, config, bracket, fighters, setups);
+  return duelLoop(input, rulesVersion, config, bracket, fighters, setups);
 }
 
 function duelLoop(
   input: DuelInput,
+  rulesVersion: number,
   config: PvpConfig,
   bracket: PvpBracket,
   fighters: Record<DuelSide, PvpFighter>,
@@ -312,6 +331,8 @@ function duelLoop(
         const dealt = Math.min(hp[target], scaled(damage, tq));
         hp[target] -= dealt;
         tally[side].damageDealt += dealt;
+        if (!kit.isDefault)
+          events.push({ t: tq, type: 'tick', side, damage: dealt, health: hp[target] });
         if (hp[target] <= 0) {
           events.push({ t: tq, type: 'defeat', side: target });
           outcome = side;
@@ -350,7 +371,12 @@ function duelLoop(
     if (crit) tally[side].crits++;
     tally[side].damageDealt += damage;
     attack[side]++;
-    events.push({ t, type: 'attack', side, damage, crit, skill: hit.skill, health: hp[target] });
+    const skillId = setup.kit ? kitActionSkill(setup.kit, action) : undefined;
+    events.push(
+      skillId
+        ? { t, type: 'attack', side, damage, crit, skill: hit.skill, health: hp[target], skillId }
+        : { t, type: 'attack', side, damage, crit, skill: hit.skill, health: hp[target] },
+    );
     if (hp[target] <= 0) {
       events.push({ t, type: 'defeat', side: target });
       outcome = side;
@@ -389,7 +415,7 @@ function duelLoop(
     ...tally[side],
   });
   return {
-    rulesVersion: PVP_RULES_VERSION,
+    rulesVersion,
     bracketId: bracket.id,
     outcome,
     reason,
