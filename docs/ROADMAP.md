@@ -1594,7 +1594,7 @@ Read GDD §5.2, §6.3, `docs/COMBAT.md`, `docs/BALANCE.md`, `docs/PVP.md` ("norm
 - **Tests:** the default-loadout replay of every balance suite, the two simulations' agreement per loadout, switching mid-settlement, presets, the defence snapshot, the board versions at the season boundary (real PG), and a journey step `playSkillsStep`.
 - Docs: `docs/SKILLS.md` (done state), `COMBAT.md`, `PVP.md`, `LEADERBOARDS.md`, `TELEMETRY.md`, `DATA_MODEL.md`. Patch notes.
 
-### A.18 Skill icons & effect animations — `done (PR #TBD)`
+### A.18 Skill icons & effect animations — `done (PR #155)`
 - One icon per skill (10 per class, 40 in all, plus the later-content skills), 32 px, in the existing icon style, with a contact sheet in `art/`.
 - **Code animations** in the combat scene (like A.14):
   - a skill cast flash per class;
