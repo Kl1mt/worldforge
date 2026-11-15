@@ -1579,7 +1579,7 @@ Read GDD §5.2, §6.3, `docs/COMBAT.md`, `docs/BALANCE.md`, `docs/PVP.md` ("norm
 - **Boards:** a proposed Power version 4 (the Proving Grounds read the hero's best loadout or the default one; **recommended:** the hero's saved defence loadout, so it can't be gamed per trial) and when it takes over.
 - **Owner questions** listed at the end of the doc, with recommendations. Nothing ships before the owner's yes (9.2).
 
-### 9.2 Skills, resources & loadouts build (vertical, only after the owner's yes on 9.1) — `todo`
+### 9.2 Skills, resources & loadouts build (vertical, only after the owner's yes on 9.1) — `done (PR #156)`
 - **game-core:** the 9.1 rules switched on, data-driven skills in `combat/skills.ts`, resources on the combat timeline, damage over time in both simulations, loadouts validated (class, unlock level, slots).
 - **Server:**
   - loadouts and presets per hero, set by an idempotent call that settles first and is audited;

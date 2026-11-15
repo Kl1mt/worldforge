@@ -468,6 +468,7 @@ export async function registerGuildBoss(
             equipment: snapshot.equipment,
             seed: attemptSeed(secret, week, attemptNo),
             bossModifier,
+            ...(snapshot.loadout ? { loadout: snapshot.loadout } : {}),
           });
           const id = uuidv7();
           await tx.insert(guildBossAttempts).values({

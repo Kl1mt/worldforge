@@ -3,6 +3,7 @@ import { packItemsWhere } from '../inventory/routes.js';
 import type { FastifyInstance } from 'fastify';
 import { and, count, desc, eq, gt, isNotNull, isNull, sql } from 'drizzle-orm';
 import {
+  loadoutTelemetryKey,
   RARITY_IDS,
   hoardSource,
   DUNGEON_IDS,
@@ -59,6 +60,7 @@ import {
 } from '../telemetry/counts.js';
 import type { TelemetryCount } from '../telemetry/record.js';
 import { uuidv7 } from '../db/uuid.js';
+import { activeLoadout, withLoadout } from '../skills/store.js';
 import { ApiError } from '../errors.js';
 import { characterView, type CharacterView } from '../characters/routes.js';
 import {
@@ -279,6 +281,8 @@ export function replayRun(
     lootFilter,
     // Ticket 6.3: the run's own stored modifier (null for runs from before it: as they were).
     bossModifier: run.bossModifier ?? null,
+    // Ticket 9.2: the loadout saved with the run (absent: the default, as every older run).
+    ...(run.snapshot.loadout ? { loadout: run.snapshot.loadout } : {}),
   });
 }
 
@@ -329,6 +333,18 @@ export function claimTelemetry(
       dims: [context, won, r.bossLoot ? 'hoard' : 'no_hoard'],
     },
     { metric: 'boss_modifier.run', dims: [modifier, context, won] },
+    // Ticket 9.2: boss fight times per class and loadout (for B.7), when the run reached the boss.
+    ...r.encounters
+      .filter((e) => e.room === null)
+      .map((e): TelemetryCount => ({
+        metric: 'skills.boss',
+        dims: [
+          run.snapshot.classId,
+          loadoutTelemetryKey(run.snapshot.classId, run.snapshot.loadout),
+          `${context}:${e.outcome === 'kill' ? 'won' : 'lost'}`,
+        ],
+        amount: Math.round((e.endMs - e.startMs) / 1000),
+      })),
     ...[...byRarity].map(([rarity, n]): TelemetryCount => ({
       metric: 'boss_modifier.hoard',
       dims: [modifier, context, rarity],
@@ -611,6 +627,8 @@ export async function registerDungeons(
             level: character.level,
             xp: character.experience,
             equipment: equipped,
+            // Ticket 9.2: the loadout in force at the start fights the whole run.
+            ...withLoadout(character.classId, await activeLoadout(tx, character)),
           },
           bossLootEligible: ready === null,
           startedAt: now,

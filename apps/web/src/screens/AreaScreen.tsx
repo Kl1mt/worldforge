@@ -31,6 +31,7 @@ import { OfflineNote } from '../onboarding/OfflineNote';
 import { useOnboarding } from '../onboarding/OnboardingProvider';
 import { QuestTracker } from '../quests/QuestTracker';
 import { SceneActor } from '../scene/SceneActor';
+import { useLoadoutInForce, useResourceGauge } from '../scene/ResourceGauge';
 import { useSceneAnimation, useSceneMotion } from '../scene/useSceneAnimation';
 import { Trail } from '../shell/Trail';
 import './area.css';
@@ -152,7 +153,16 @@ function Scene({ view, phone, farming }: { view: AreaView; phone: boolean; farmi
   const sheet = classAttackSheet(hero.classId);
   // Ticket 6.8: the hero's appearance (a palette swap of its frames, own colours if none).
   const palette = appearancePalette(useHeroPalette(hero.id), hero.classId);
+  // Ticket 9.2: the class resource moves with the scene's beats, under the loadout in force.
+  // A.18 draws the meter, the cast flash and the ticks; the loadout in force drives them.
+  const { gauge, onBeat, skill } = useResourceGauge(
+    hero.classId,
+    useLoadoutInForce(hero.id),
+    motion === 'full',
+  );
   const { heroRef, foeRef } = useSceneAnimation({
+    onBeat,
+    skill,
     active: farming,
     motion,
     foes: foes.length,
@@ -203,7 +213,7 @@ function Scene({ view, phone, farming }: { view: AreaView; phone: boolean; farmi
           style={{ ['--px' as string]: `${spriteScale}px` }}
         >
           <div className="scene__hero">
-            <SceneActor role="hero" framed={sheet !== null} actorRef={heroRef}>
+            <SceneActor role="hero" framed={sheet !== null} actorRef={heroRef} cast={hero.classId}>
               <PixelSprite
                 sprite={sheet ?? classPortrait(hero.classId)}
                 fallback={classPortrait(hero.classId)}
@@ -252,6 +262,7 @@ function Scene({ view, phone, farming }: { view: AreaView; phone: boolean; farmi
           ) : (
             <span className="scene__hud-wait">Health …</span>
           )}
+          {gauge}
           <LabeledMeter
             current={hero.experience}
             max={xpToNext}

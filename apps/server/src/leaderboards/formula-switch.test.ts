@@ -219,7 +219,13 @@ describe('formula versions between seasons (ticket 6.1)', () => {
         pveProgress: 2,
       });
       expect((await loadFormulaSchedule(fresh.db)).slice(3)).toEqual([
-        expect.objectContaining({ metric: 'power', from: 2, to: 3, afterSeason: 2 }),
+        // 9.2's Power 4 follows the same plan: the newest version in one switch.
+        expect.objectContaining({
+          metric: 'power',
+          from: 2,
+          to: FORMULA_VERSIONS.power,
+          afterSeason: 2,
+        }),
         expect.objectContaining({
           metric: 'pveProgress',
           from: 3,
@@ -318,7 +324,12 @@ describe('formula versions between seasons (ticket 6.1)', () => {
       const v6 = { ...FORMULA_VERSIONS, power: 2, pveProgress: 4 };
       expect(await app2.formulaVersions.at(at())).toEqual(v6);
       expect((await loadFormulaSchedule(fresh.db)).slice(4)).toEqual([
-        expect.objectContaining({ metric: 'power', from: 2, to: 3, afterSeason: 3 }),
+        expect.objectContaining({
+          metric: 'power',
+          from: 2,
+          to: FORMULA_VERSIONS.power,
+          afterSeason: 3,
+        }),
         expect.objectContaining({
           metric: 'pveProgress',
           from: 4,
@@ -353,7 +364,9 @@ describe('formula versions between seasons (ticket 6.1)', () => {
         value: 19,
       });
       const power = await row('power');
-      expect(power.formulaVersion).toBe(3);
+      // Power 3 (and, since 9.2, Power 4 in the same switch: version 3 read with the defence
+      // loadout; this hero has none, so it scores exactly version 3).
+      expect(power.formulaVersion).toBe(FORMULA_VERSIONS.power);
       // Version 3 = version 2 + the trials at 42 and 46: never lower.
       expect(power.value).toBeGreaterThanOrEqual(powerV2);
       expect(computeScore('power', power.input, 3).value).toBe(power.value);
@@ -428,6 +441,8 @@ describe('formula versions between seasons (ticket 6.1)', () => {
       expect(await app2.formulaVersions.at(at())).toEqual(v6);
       // The new switch follows 8.1's at the same season end.
       expect((await loadFormulaSchedule(fresh.db)).slice(6)).toEqual([
+        // Ticket 9.2: Power 4 chains onto 8.1's pending Power 3 at the same end.
+        expect.objectContaining({ metric: 'power', from: 3, to: 4, afterSeason: 3 }),
         expect.objectContaining({ metric: 'pveProgress', from: 5, to: 6, afterSeason: 3 }),
       ]);
       await refreshHeroScores(deps2, hero.id, at());

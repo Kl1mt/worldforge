@@ -20,6 +20,7 @@ import {
   type SkillContext,
 } from '../combat/encounter.js';
 import {
+  kitActionSkill,
   kitAfterAttack,
   kitBlow,
   kitPulse,
@@ -87,7 +88,11 @@ export type DungeonEvent =
       crit: boolean;
       skill: boolean;
       enemyHealth: number;
+      /** Ticket 9.2: the skill of a chosen loadout's attack (absent: today's log). */
+      skillId?: string;
     }
+  /** Ticket 9.2: damage over time ticked on the fight's pulse (chosen loadouts only). */
+  | { t: number; type: 'tick'; damage: number; enemyHealth: number }
   /** Ticket 6.2: `heavy` marks a boss's heavy blow (`BossMechanics.heavyBlow`); absent otherwise. */
   | { t: number; type: 'enemyAttack'; damage: number; health: number; heavy?: true }
   /** Ticket 6.2: the boss's shell broke (`BossMechanics.shell`). */
@@ -367,18 +372,25 @@ function fightOnce(
       prevCrit = crit && !hit.surged;
       const damage = dealt(crit ? hit.crit : hit.normal);
       enemyHealth = Math.max(0, enemyHealth - damage);
-      log.push({ t: startMs + p, type: 'attack', damage, crit, skill: hit.skill, enemyHealth });
+      const skillId = kit ? kitActionSkill(kit, action) : undefined;
+      log.push(
+        skillId
+          ? { t: startMs + p, type: 'attack', damage, crit, skill: hit.skill, enemyHealth, skillId }
+          : { t: startMs + p, type: 'attack', damage, crit, skill: hit.skill, enemyHealth },
+      );
       if (enemyHealth <= 0) return { kind: 'kill', offsetMs: p, health: hp };
       if (kit?.active) kitState = kitAfterAttack(kit, kitState!, action, crit, p);
       breakShell(startMs + p);
       if (phased) phases(p);
       attack++;
     } else if (q <= setup.maxFightMs && q <= e && q <= b) {
-      // Ticket 9.1: the fight's pulse (damage over time; not logged in the prototype).
+      // Tickets 9.1/9.2: the fight's pulse (damage over time; logged for chosen loadouts).
       const { damage, state } = kitPulse(kit!, kitState!);
       kitState = state;
       if (damage > 0) {
-        enemyHealth = Math.max(0, enemyHealth - dealt(damage));
+        const tick = dealt(damage);
+        enemyHealth = Math.max(0, enemyHealth - tick);
+        if (!kit!.isDefault) log.push({ t: startMs + q, type: 'tick', damage: tick, enemyHealth });
         if (enemyHealth <= 0) return { kind: 'kill', offsetMs: q, health: hp };
         breakShell(startMs + q);
         if (phased) phases(q);

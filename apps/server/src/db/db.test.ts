@@ -78,6 +78,7 @@ describe('migrations', () => {
       'audit_log',
       'blocks',
       'cache_versions',
+      'character_loadouts',
       'character_materials',
       'character_professions',
       'character_quests',

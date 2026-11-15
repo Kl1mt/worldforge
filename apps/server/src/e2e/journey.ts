@@ -12,6 +12,8 @@ import type { FastifyInstance, LightMyRequestResponse } from 'fastify';
 import { randomUUID } from 'node:crypto';
 import { and, eq, inArray, like, or, sql } from 'drizzle-orm';
 import {
+  ACTIVE_SKILLS,
+  AUTO_SKILLS,
   CONTRACT_TEMPLATES,
   encodeLootFilterCode,
   ceilToMonday,
@@ -5141,4 +5143,78 @@ export async function playQualityOfLifeStep(database: DatabaseHandle, hero: Jour
   const checks = await reconcileWithAudit(database.db);
   expect(checks.filter((c) => !c.ok)).toEqual([]);
   return { claimed: paid, presets: 1 };
+}
+
+/**
+ * Ticket 9.2: skills and loadouts. A fresh hero farms until its first spender unlocks (level 5),
+ * reads the Skills screen's data (the default loadout everywhere, locked skills listed), saves a
+ * loadout into the preset in force (the server settles first), farms with it, keeps a second
+ * preset, switches to it and back (idempotent). Holdings still equal the audit log and the rollups reconcile.
+ */
+export async function playSkillsStep(database: DatabaseHandle, hero: Journey) {
+  const url = `${hero.base}/skills`;
+  type Skills = {
+    classId: ClassId;
+    activePreset: number;
+    inForce: { actives: (string | null)[]; passive: string | null };
+    presets: { preset: number; isDefault: boolean }[];
+    unlocked: string[];
+  };
+  const read = async () => {
+    const res = await hero.api('GET', url);
+    expect(res.statusCode, res.body).toBe(200);
+    return res.json<Skills>();
+  };
+  const first = await read();
+  expect(first.activePreset).toBe(1);
+  expect(first.presets.every((p) => p.isDefault)).toBe(true);
+  const classId = first.classId;
+  const core = AUTO_SKILLS[classId].id;
+  expect(first.inForce).toEqual({ actives: [core, null, null], passive: null });
+  const spender = ACTIVE_SKILLS.find(
+    (s) => s.classId === classId && s.kind === 'spender' && s.unlock.level === 5,
+  )!;
+
+  await hero.farmBestArea();
+  for (let i = 0; i < 60 && hero.state.level < 5; i++) await hero.settle();
+  expect(hero.state.level).toBeGreaterThanOrEqual(5);
+  expect((await read()).unlocked).toContain(spender.id);
+
+  const chosen = { actives: [core, spender.id, null], passive: null };
+  const saved = await hero.api('PUT', `${url}/presets/1`, chosen);
+  expect(saved.statusCode, saved.body).toBe(200);
+  expect(saved.json<Skills>().inForce).toEqual(chosen);
+  // A skill above the hero's level is refused in plain words.
+  const locked = ACTIVE_SKILLS.find((s) => s.classId === classId && s.unlock.level === 36)!;
+  const refused = await hero.api('PUT', `${url}/presets/2`, {
+    actives: [core, locked.id, null],
+    passive: null,
+  });
+  expect(refused.statusCode).toBe(400);
+  expect(refused.json<{ error: { code: string } }>().error.code).toBe('invalid_loadout');
+
+  // It fights with the new loadout from here on.
+  await hero.settle();
+  await hero.farmBestArea();
+  await hero.settle();
+
+  // A second preset (the default), switched to and back; switching twice writes once.
+  const toDefault = await hero.api('POST', `${url}/preset`, { preset: 2 });
+  expect(toDefault.json<Skills>().inForce).toEqual({ actives: [core, null, null], passive: null });
+  const back = await hero.api('POST', `${url}/preset`, { preset: 1 });
+  expect(back.json<Skills>()).toMatchObject({ activePreset: 1, inForce: chosen });
+  await hero.api('POST', `${url}/preset`, { preset: 1 });
+  const switches = await database.db
+    .select()
+    .from(auditLog)
+    .where(
+      and(eq(auditLog.event, 'skills.loadout_switch'), eq(auditLog.characterId, hero.characterId)),
+    );
+  expect(switches).toHaveLength(2);
+
+  await hero.settle();
+  await expectHoldingsMatchAudit(database, hero.characterId);
+  const checks = await reconcileWithAudit(database.db);
+  expect(checks.filter((c) => !c.ok)).toEqual([]);
+  return { level: hero.state.level, loadout: chosen };
 }

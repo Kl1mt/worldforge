@@ -1,3 +1,4 @@
+import { isDefaultLoadout, type Loadout } from '../combat/kit.js';
 import type { ClassId } from '../classes.js';
 import type { WorldFlags } from '../world/projects.js';
 import type { WorldProgress } from '../world/unlocks.js';
@@ -28,6 +29,11 @@ export interface ScoringInput {
   world?: WorldFlags;
   /** See `PveProgressInput.guildBossStage`. */
   guildBossStage: number;
+  /**
+   * Ticket 9.2: the hero's saved defence loadout (Power 4 reads it; absent or null: the default
+   * loadout). Earlier Power versions and the other metrics never read it.
+   */
+  loadout?: Loadout | null;
 }
 
 export interface Scores {
@@ -51,7 +57,15 @@ export function metricInput(metric: ScoreMetric, input: ScoringInput): unknown {
     case 'gearScore':
       return { classId: input.classId, equipment: input.equipment };
     case 'power':
-      return { classId: input.classId, level: input.level, equipment: input.equipment };
+      // Ticket 9.2: a chosen loadout joins the slice; the default leaves it exactly as before.
+      return input.loadout && !isDefaultLoadout(input.classId, input.loadout)
+        ? {
+            classId: input.classId,
+            level: input.level,
+            equipment: input.equipment,
+            loadout: { actives: input.loadout.actives, passive: input.loadout.passive ?? null },
+          }
+        : { classId: input.classId, level: input.level, equipment: input.equipment };
     case 'pveProgress':
       return {
         level: input.level,
@@ -80,7 +94,7 @@ export function computeScore(
     case 'gearScore':
       return gearScore(input.classId, input.equipment);
     case 'power':
-      return powerScore(input.classId, input.level, input.equipment, version);
+      return powerScore(input.classId, input.level, input.equipment, version, input.loadout);
     case 'pveProgress':
       return pveProgressScore(
         {

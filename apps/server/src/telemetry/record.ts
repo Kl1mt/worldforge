@@ -87,6 +87,13 @@ export const TELEMETRY_METRICS = [
   'guild_hall.buy',
   'guild_treasury.forfeit',
   'guild_season.award',
+  // Ticket 9.2: skills and loadouts (for B.7). `skills.farm` (class, loadout, area): events =
+  // kills, amount = simulated seconds, one per settlement. `skills.boss` (class, loadout,
+  // `<dungeon>:<tier>:won|lost`): events = boss fights, amount = their seconds. `skills.loadout`
+  // (class, loadout, `save|switch`): loadout changes. `default` names the default loadout.
+  'skills.farm',
+  'skills.boss',
+  'skills.loadout',
 ] as const;
 export type TelemetryMetric = (typeof TELEMETRY_METRICS)[number];
 

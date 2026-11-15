@@ -982,8 +982,9 @@ describe('Phase 8 exit criteria', () => {
     expect((await checkGuildSeasons(db)).wrong).toEqual([]);
     expect(GUILD_SEASON_RULES).toMatchObject({ countAfterDays: 7, honourAfterDays: 14 });
 
-    // The boards: the versions in force are the current ones (Power 3, PvE Progress 6).
-    expect(FORMULA_VERSIONS).toMatchObject({ power: 3, pveProgress: 6 });
+    // The boards: the versions in force are the current ones (Power 3, PvE Progress 6; since 9.2
+    // Power 4, which scores a hero without a defence loadout exactly as Power 3).
+    expect(FORMULA_VERSIONS).toMatchObject({ power: 4, pveProgress: 6 });
     expect(await app.formulaVersions.at(now())).toEqual(FORMULA_VERSIONS);
     await sweepLeaderboards(snapshotDeps(app), now(), { batch: 200, cursor: null });
     const players = [marcher, delver, bearer, ...givers];

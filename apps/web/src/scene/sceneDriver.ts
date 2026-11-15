@@ -181,8 +181,10 @@ export function startSceneDriver(options: {
   loop: SceneLoop;
   actors: () => SceneActors;
   clock: DriverClock;
+  /** Ticket 9.2: every beat that played, with its scene time (the resource bar follows them). */
+  onBeat?: (beat: SceneBeat, at: number) => void;
 }): SceneDriver {
-  const { loop, actors, clock } = options;
+  const { loop, actors, clock, onBeat } = options;
   const origin = clock.now();
   let handle: unknown = null;
   let running = true;
@@ -218,6 +220,7 @@ export function startSceneDriver(options: {
         if (life.down || !life.hit) continue; // no visible blow in this life: no fade
         life.down = true;
         applyBeat(beat, current);
+        onBeat?.(beat, at);
       } else if (beat.kind === 'foeRise') {
         const life = lifeOf(beat.foe);
         if (!life.down) continue; // its fall was dropped: the foe never left
@@ -232,6 +235,7 @@ export function startSceneDriver(options: {
           if (current.foes[beat.foe]?.hit) lifeOf(beat.foe).hit = true;
         }
         applyBeat(beat, current);
+        onBeat?.(beat, at);
       }
     }
   };

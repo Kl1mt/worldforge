@@ -36,6 +36,25 @@ describe('crypt client', () => {
     expect(lines.some((l) => /Skill for/.test(l.text))).toBe(false);
   });
 
+  it('ticket 9.2: a chosen loadout names each cast and logs its damage over time', () => {
+    const run = simulateDungeonRun({
+      dungeonId: 'namelessCrypt',
+      character: { classId: 'warlock', level: 23, xp: 0 },
+      seed: 'web-ticks',
+      bossLootEligible: true,
+      inventoryCount: 0,
+      loadout: { actives: ['agony', 'corruption', 'soulBurn'], passive: null },
+    });
+    const lines = cryptLog(run.events, run.totalRooms, 'warlock');
+    expect(lines.some((l) => /^Your curse eats at the \S.*a second\.$/.test(l.text))).toBe(true);
+    expect(lines.some((l) => /^(Agony|Corruption|Soul Burn) (hits|crits) /.test(l.text))).toBe(
+      true,
+    );
+    // One "eats at" line per fight at most: never a line every second.
+    const spawns = run.events.filter((e) => e.type === 'spawn').length;
+    expect(lines.filter((l) => /eats at/.test(l.text)).length).toBeLessThanOrEqual(spawns);
+  });
+
   it('names the boss without a doubled article', () => {
     const lines = cryptLog(
       [

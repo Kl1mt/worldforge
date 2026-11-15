@@ -6,6 +6,7 @@ import { hasCombatEffects } from '../effects/resolve.js';
 import { deriveCharacterStats } from '../combat/characterStats.js';
 import { DEFAULT_COMBAT_CONFIG, buildEncounter, type CombatConfig } from '../combat/encounter.js';
 import { MAX_LEVEL } from '../combat/progression.js';
+import type { Loadout } from '../combat/kit.js';
 import { DEFAULT_LOOT_CONFIG, type LootConfig } from '../loot/config.js';
 import { createRng } from '../rng.js';
 import {
@@ -47,6 +48,8 @@ export interface GuildBossAttemptInput {
    * absent = none: the attempt is exactly what it was before 6.3.
    */
   bossModifier?: BossModifierId | null;
+  /** Ticket 9.2: the hero's loadout at the attempt (stored with it; absent: the default). */
+  loadout?: Loadout | null;
 }
 
 export interface GuildBossAttemptOptions {
@@ -62,7 +65,7 @@ export interface GuildBossAttemptResult {
   bossLevel: number;
   /** Ticket 6.3: the modifier it was fought with; absent without one (the pre-6.3 result). */
   bossModifier?: BossModifierId;
-  /** Damage dealt (attacks and thorns). */
+  /** Damage dealt (attacks, thorns and, ticket 9.2, damage over time). */
   damage: number;
   /** What it adds to the guild's total (`countedDamage`: capped per attempt). */
   counted: number;
@@ -125,6 +128,7 @@ export function simulateGuildBossAttempt(
       bossDamage: modifiers.bossDamage,
     },
     effects ? { effects, momentum: 0 } : undefined,
+    input.loadout ? { loadout: input.loadout } : undefined,
   );
   const setup = {
     ...built,
@@ -160,7 +164,7 @@ export function simulateGuildBossAttempt(
       damage += e.damage;
       hits++;
       if (e.crit) crits++;
-    } else if (e.type === 'thorns') damage += e.damage;
+    } else if (e.type === 'thorns' || e.type === 'tick') damage += e.damage;
   }
   const end: GuildBossAttemptEnd = outcome.kind === 'death' ? 'fell' : 'endured';
   return {

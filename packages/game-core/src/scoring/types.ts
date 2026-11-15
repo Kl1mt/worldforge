@@ -20,9 +20,10 @@ export const FORMULA_VERSIONS: FormulaVersions = {
   gearScore: 2,
   /**
    * 2 (ticket 6.1): trials at levels 30 and 34 added (22 trials). 3 (ticket 8.1): trials at 42 and
-   * 46, the Pale Marches (24).
+   * 46, the Pale Marches (24). 4 (ticket 9.2): version 3's trials read with the hero's saved
+   * defence loadout.
    */
-  power: 3,
+  power: 4,
   /**
    * 2 (ticket 6.1): the Cinderwastes' three milestones added (13). 3 (ticket 6.2): the Cinder
    * Depths and the Forge Tyrant, four more (17). 4 (ticket 6.3): the Heroic crypt cleared (18).
@@ -47,7 +48,7 @@ export const FORMULA_BASELINE: FormulaVersions = {
 export const SUPPORTED_FORMULA_VERSIONS: Readonly<Record<ScoreMetric, readonly number[]>> = {
   level: [1],
   gearScore: [2],
-  power: [1, 2, 3],
+  power: [1, 2, 3, 4],
   pveProgress: [1, 2, 3, 4, 5, 6],
 };
 

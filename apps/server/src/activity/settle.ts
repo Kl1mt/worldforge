@@ -8,6 +8,7 @@ import {
   RARITY_IDS,
   filteredTotals,
   questEventsFromSettlement,
+  loadoutTelemetryKey,
   settleFarming,
   type ActivityConfig,
   type FarmingSettlement,
@@ -42,6 +43,7 @@ import { changeMaterialsTx, grantGatheringTx, loadProfessions } from '../materia
 import { recordQuestEventsTx } from '../quests/store.js';
 import { recordEventProgressTx } from '../events/progress.js';
 import { offlineCapEndTx } from '../account-growth/grant.js';
+import { activeLoadout, chosen } from '../skills/store.js';
 
 export interface ActivityOptions {
   /**
@@ -136,6 +138,8 @@ export async function endActivityTx(tx: Transaction, activity: Activity): Promis
     cycleIndex: activity.cycleIndex,
     health: activity.health,
     momentum: activity.momentum,
+    // Ticket 9.2: the warlock's Soul Fragments wait with the hero like momentum.
+    ...(activity.soulFragments > 0 ? { soulFragments: activity.soulFragments } : {}),
     // A cycle was in progress: it stays bound to its area (ticket 2.2).
     ...(activity.carryMs > 0 ? { areaId: activity.areaId } : {}),
   };
@@ -232,6 +236,10 @@ export async function settleActivityTx(
     const professionsBefore = await loadProfessions(tx, characterId);
 
     const seq = activity.settlementSeq + 1;
+    // Ticket 9.2: the loadout in force for this whole window, read under the character lock (a
+    // switch settles first with the old one) and checked against the hero's unlocks.
+    const loadout = await activeLoadout(tx, character);
+    const chosenLoadout = chosen(character.classId, loadout);
     settlement = settleFarming(
       {
         character: {
@@ -240,6 +248,7 @@ export async function settleActivityTx(
           xp: character.experience,
           ...(activity.health !== null ? { health: activity.health } : {}),
           momentum: activity.momentum,
+          soulFragments: activity.soulFragments,
         },
         equipment: equipped,
         areaId: activity.areaId,
@@ -252,6 +261,7 @@ export async function settleActivityTx(
         // Ticket 3.7: the rules in force for this whole window, read with the locked row. A
         // filter change settles first (with the old rules), so no window mixes two sets.
         lootFilter: character.lootFilter,
+        ...(chosenLoadout ? { loadout: chosenLoadout } : {}),
       },
       { activity: options.rules },
     );
@@ -337,6 +347,8 @@ export async function settleActivityTx(
       carryMs: settlement.unusedMs,
       health: settlement.health,
       momentum: settlement.momentum,
+      // Ticket 9.2: only a loadout that uses fragments reports them; any other leaves none.
+      soulFragments: settlement.soulFragments ?? 0,
     });
     if (settlement.switched) {
       // The cycle in progress finished in the old area; the character travelled on (ticket 2.2).
@@ -450,6 +462,14 @@ export async function settleActivityTx(
         {
           metric: 'farming.settle',
           dims: [area],
+          amount: Math.round(settlement.simulatedMs / 1000),
+        },
+        // Ticket 9.2: kills a minute per class and loadout (for B.7): events = kills, amount =
+        // simulated seconds.
+        {
+          metric: 'skills.farm',
+          dims: [character.classId, loadoutTelemetryKey(character.classId, loadout), area],
+          events: settlement.kills,
           amount: Math.round(settlement.simulatedMs / 1000),
         },
         ...rolledDropCounts('farming', area, settlement),

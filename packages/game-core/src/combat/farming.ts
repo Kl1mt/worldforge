@@ -8,6 +8,7 @@ import {
   type StatBlock,
 } from './characterStats.js';
 import {
+  kitActionSkill,
   kitAfterAttack,
   kitBlow,
   kitPulse,
@@ -118,7 +119,10 @@ export interface CycleRecord {
 /** Compact combat log entry; `t` is milliseconds since the start of the window. */
 export type CombatEvent =
   | { t: number; type: 'spawn'; enemyId: EnemyId; enemyLevel: number }
-  | { t: number; type: 'attack'; damage: number; crit: boolean; skill: boolean }
+  /** Ticket 9.2: `skillId` names the skill of a chosen loadout's attack (absent: today's log). */
+  | { t: number; type: 'attack'; damage: number; crit: boolean; skill: boolean; skillId?: string }
+  /** Ticket 9.2: damage over time ticked on the fight's pulse (chosen loadouts only). */
+  | { t: number; type: 'tick'; damage: number }
   | { t: number; type: 'enemyAttack'; damage: number }
   | { t: number; type: 'kill'; enemyId: EnemyId; xp: number }
   | { t: number; type: 'timeout'; enemyId: EnemyId }
@@ -447,7 +451,12 @@ function resolveFightKit(
       prevCrit = crit && !hit.surged;
       const damage = crit ? hit.crit : hit.normal;
       enemyHealth -= damage;
-      log?.push({ t: startMs + p, type: 'attack', damage, crit, skill: hit.skill });
+      const skillId = kitActionSkill(kit, action);
+      log?.push(
+        skillId
+          ? { t: startMs + p, type: 'attack', damage, crit, skill: hit.skill, skillId }
+          : { t: startMs + p, type: 'attack', damage, crit, skill: hit.skill },
+      );
       if (enemyHealth <= 0) return { kind: 'kill', offsetMs: p, enemyHits };
       if (kit.active) st = kitAfterAttack(kit, st, action, crit, p);
       attack++;
@@ -455,6 +464,7 @@ function resolveFightKit(
       const { damage, state } = kitPulse(kit, st);
       st = state;
       enemyHealth -= damage;
+      if (damage > 0 && !kit.isDefault) log?.push({ t: startMs + q, type: 'tick', damage });
       if (enemyHealth <= 0) return { kind: 'kill', offsetMs: q, enemyHits };
       pulse++;
     } else if (e <= setup.maxFightMs) {

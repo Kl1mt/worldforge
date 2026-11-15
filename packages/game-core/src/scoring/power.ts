@@ -102,6 +102,11 @@ export interface PowerConfig {
   /** Extra points for a cleared trial: `speedPoints · max(0, 1 − time / parMs)`. */
   speedPoints: number;
   parMs: number;
+  /**
+   * Ticket 9.2 (Power 4): the trials read the hero's loadout (`PowerInput.loadout`, the saved
+   * defence loadout). Absent (versions 1–3): every hero fights with today's class skill alone.
+   */
+  readsLoadout?: boolean;
 }
 
 /** Version 1 (ticket 5.1): 20 trials at levels 4, 8, … 80. */
@@ -120,6 +125,18 @@ export const DEFAULT_POWER_CONFIG: Readonly<PowerConfig> = {
   speedPoints: 100,
   parMs: 120_000,
 };
+
+/** Version 3's config (ticket 8.1; version 4 reuses it). */
+function powerV3Config(): Readonly<PowerConfig> {
+  const v2 = [...RUNGS_V1, 30, 34];
+  const rungs = [...v2, 42, 46].sort((a, b) => a - b);
+  const seeds = rungs.map((level) => {
+    const v1 = RUNGS_V1.indexOf(level);
+    if (v1 >= 0) return `power:v1:${v1}`;
+    return v2.includes(level) ? `power:v2:L${level}` : `power:v3:L${level}`;
+  });
+  return { ...DEFAULT_POWER_CONFIG, rungs, seeds };
+}
 
 /**
  * Ticket 6.1: every Power version's config, so a stored row of any version can be recomputed and
@@ -142,16 +159,10 @@ export const POWER_CONFIGS: Readonly<Record<number, Readonly<PowerConfig>>> = {
   // Ticket 8.1: trials at 42 and 46 (the Pale Marches' middle and top; 40 and 44 exist), so the
   // Hollow Reach's gear shows: 24 trials, at most 4,800. Every other trial keeps version 2's seed,
   // so version 3 = version 2 + the two new trials.
-  3: (() => {
-    const v2 = [...RUNGS_V1, 30, 34];
-    const rungs = [...v2, 42, 46].sort((a, b) => a - b);
-    const seeds = rungs.map((level) => {
-      const v1 = RUNGS_V1.indexOf(level);
-      if (v1 >= 0) return `power:v1:${v1}`;
-      return v2.includes(level) ? `power:v2:L${level}` : `power:v3:L${level}`;
-    });
-    return { ...DEFAULT_POWER_CONFIG, rungs, seeds };
-  })(),
+  3: powerV3Config(),
+  // Ticket 9.2: version 3's trials, seeds and points, read with the hero's saved defence loadout
+  // (owner decision 7). A hero with the default loadout scores exactly their version-3 Power.
+  4: { ...powerV3Config(), readsLoadout: true },
 };
 
 /** The config of a Power version (throws for one that never existed). */
@@ -184,8 +195,8 @@ export interface PowerInput {
   level: number;
   equipment: readonly EquippedItem[];
   /**
-   * Ticket 9.1 (prototype, the proposed Power 4): the loadout the Proving Grounds read (the hero's
-   * saved defence loadout). Read only while the skills prototype is on.
+   * Ticket 9.2 (Power 4): the loadout the Proving Grounds read (the hero's saved defence loadout;
+   * absent: the default). Versions 1–3 never read it.
    */
   loadout?: Loadout | null;
 }
@@ -244,7 +255,9 @@ function runTrial(
         combat,
         encounterModifiers,
         effects ? { effects, momentum: fightMomentum } : undefined,
-        skillsPrototypeMode() !== 'off' ? { loadout: input.loadout ?? null } : undefined,
+        config.readsLoadout && skillsPrototypeMode() !== 'off'
+          ? { loadout: input.loadout ?? null }
+          : undefined,
       ),
       ...(isChampion ? { maxFightMs: config.championFightMs } : {}),
     };
@@ -261,7 +274,8 @@ function runTrial(
     const share = config.fightShares[k]! * config.clearPoints;
     if (outcome.kind !== 'kill') {
       let dealt = 0;
-      for (const e of log) if (e.type === 'attack' || e.type === 'thorns') dealt += e.damage;
+      for (const e of log)
+        if (e.type === 'attack' || e.type === 'thorns' || e.type === 'tick') dealt += e.damage;
       progress += share * Math.min(1, dealt / setup.enemyHealth);
       return { won, cleared: false, timeMs: now, progress };
     }
@@ -327,11 +341,16 @@ export function powerScore(
   level: number,
   equipment: readonly ScoredItem[],
   version: number = POWER_FORMULA_VERSION,
+  /** Ticket 9.2: the saved defence loadout (Power 4; null or absent: the default). */
+  loadout?: Loadout | null,
 ): Score {
   const config = powerConfig(version);
   const checked = checkEquipment(classId, equipment);
   const counted = checked.flatMap((c) => (c.equipped ? [c.equipped] : []));
-  const result = characterPower({ classId, level, equipment: counted }, version);
+  const result = characterPower(
+    { classId, level, equipment: counted, ...(loadout ? { loadout } : {}) },
+    version,
+  );
   const lines: ScoreLine[] = result.trials.map((t) => ({
     id: `trial:${t.level}`,
     label: `Trial ${t.level}`,

@@ -1,0 +1,425 @@
+/* Ticket 9.2: the Skills screen, a hero's skill book with its loadout set into an iron bar. */
+.skills {
+  margin-top: var(--space-6);
+  display: grid;
+  gap: var(--space-4);
+}
+
+.skills__state {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--bg-sunken);
+  color: var(--text-dim);
+}
+
+/* ── The resource: a coloured edge and its rule in one line ─────────────── */
+.skills__resource {
+  --res: var(--rage);
+  display: flex;
+  align-items: stretch;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4) var(--space-2) 0;
+  background: var(--bg-sunken);
+  color: var(--text-muted);
+}
+
+.skills__resource p {
+  margin: 0;
+  align-self: center;
+}
+
+.skills__resource .caps {
+  margin-right: var(--space-1);
+  color: var(--res);
+}
+
+.skills__res-mark {
+  width: 4px;
+  flex: none;
+  background: var(--res);
+}
+
+.skills__resource--mage {
+  --res: var(--arcane-blue);
+}
+.skills__resource--hunter {
+  --res: var(--moss-400);
+}
+.skills__resource--warlock {
+  --res: var(--arcane-violet);
+}
+
+/* ── Presets: three bookmarks along the top of the page ─────────────────── */
+.skills__presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  border-bottom: 1px solid var(--brass-700);
+}
+
+.skills__tab {
+  display: grid;
+  gap: 2px;
+  min-width: 150px;
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--outline-dark);
+  border-bottom: 0;
+  background: linear-gradient(to bottom, var(--iron-700), var(--iron-800));
+  color: var(--text-dim);
+  text-align: left;
+  cursor: pointer;
+}
+
+.skills__tab .display {
+  font-size: var(--text-lg);
+}
+
+.skills__tab:hover {
+  color: var(--text);
+}
+
+.skills__tab[aria-selected='true'] {
+  background: var(--bg-sunken);
+  color: var(--accent-strong);
+  box-shadow: inset 0 2px 0 var(--brass-500);
+}
+
+.skills__tab-note {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+.skills__tab--force .skills__tab-note {
+  color: var(--brass-400);
+}
+
+.skills__tab--force .skills__tab-note::before {
+  content: '◆ ';
+}
+
+.skills__editor {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.skills__warn,
+.skills__problems {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--crimson-400);
+  background: rgb(184 73 63 / 0.1);
+  color: var(--bone-200);
+  font-size: var(--text-sm);
+}
+
+/* ── The loadout: four sockets in an iron bar ───────────────────────────── */
+.skills__sockets {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1fr);
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-3);
+  list-style: none;
+  background: linear-gradient(to bottom, var(--iron-800), var(--ink-900));
+  box-shadow:
+    0 0 0 1px var(--outline-dark),
+    inset 0 0 0 1px var(--iron-600);
+}
+
+.socket {
+  position: relative;
+}
+
+.socket--passive {
+  margin-left: var(--space-3);
+  padding-left: var(--space-3);
+  border-left: 1px solid var(--iron-600);
+}
+
+.socket__pick {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  column-gap: var(--space-3);
+  align-items: center;
+  width: 100%;
+  padding: var(--space-2);
+  border: 1px solid transparent;
+  background: none;
+  color: var(--text);
+  text-align: left;
+  cursor: pointer;
+}
+
+.socket__pick > :first-child {
+  grid-row: span 2;
+}
+
+.socket__pick:hover {
+  border-color: var(--iron-600);
+}
+
+.socket__pick[aria-pressed='true'] {
+  border-color: var(--brass-600);
+  box-shadow: inset 0 -2px 0 var(--brass-500);
+}
+
+.socket__label {
+  align-self: end;
+}
+
+.socket__name {
+  align-self: start;
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  overflow-wrap: anywhere;
+}
+
+.socket--empty .socket__name {
+  color: var(--text-faint);
+  font-style: italic;
+}
+
+.socket__clear {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--outline-dark);
+  background: var(--iron-800);
+  color: var(--text-dim);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.socket__clear:hover {
+  color: var(--crimson-400);
+}
+
+/* ── Icons: the art (A.18) once it exists, else a framed initial ────────── */
+.skill-glyph {
+  --edge: var(--brass-500);
+  display: grid;
+  place-items: center;
+  flex: none;
+  background:
+    radial-gradient(circle at 50% 40%, rgb(255 255 255 / 0.05), transparent 70%), var(--ink-900);
+  box-shadow:
+    0 0 0 1px var(--outline-dark),
+    inset 0 0 0 1px var(--edge),
+    inset 0 0 0 3px var(--ink-900),
+    inset 0 0 0 4px rgb(0 0 0 / 0.4);
+  color: var(--edge);
+  font-family: var(--font-display);
+  font-size: 1.1em;
+  line-height: 1;
+}
+
+.socket .skill-glyph {
+  font-size: var(--text-2xl);
+}
+
+.skill-glyph--spender {
+  --edge: var(--crimson-400);
+}
+
+.skill-glyph--passive {
+  --edge: var(--moss-400);
+  border-radius: 50%;
+}
+
+.skill-glyph--empty {
+  --edge: var(--iron-600);
+  background: var(--ink-950);
+}
+
+.skill-glyph__art {
+  flex: none;
+  box-shadow: 0 0 0 1px var(--outline-dark);
+}
+
+/* ── The book: three columns of skills ─────────────────────────────────── */
+.skills__book {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-5);
+}
+
+.skills__group h3 {
+  margin: 0 0 var(--space-1);
+  color: var(--brass-400);
+}
+
+.skills__hint {
+  margin: 0 0 var(--space-2);
+  color: var(--text-faint);
+  font-size: var(--text-sm);
+}
+
+.skills__group ul {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.skill {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+  padding: var(--space-3) var(--space-2);
+  border-top: 1px solid var(--line);
+}
+
+.skill--fits {
+  background: rgb(163 130 74 / 0.05);
+}
+
+.skill--chosen {
+  box-shadow: inset 2px 0 0 var(--brass-500);
+}
+
+.skill__text {
+  display: grid;
+  gap: 2px;
+}
+
+.skill__text p {
+  margin: 0;
+}
+
+.skill__name {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-2);
+}
+
+.skill__name .display {
+  font-size: var(--text-lg);
+  color: var(--text);
+}
+
+.skill__tag {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--brass-400);
+}
+
+.skill__facts {
+  color: var(--accent);
+  font-size: var(--text-sm);
+}
+
+.skill__desc {
+  color: var(--text-muted);
+  font-size: var(--text-sm);
+}
+
+.skill__unlock {
+  color: var(--text-faint);
+  font-size: var(--text-xs);
+}
+
+.skill__act {
+  grid-column: 2;
+}
+
+.skill__lock {
+  font-size: var(--text-xs);
+  letter-spacing: var(--tracking-caps);
+  text-transform: uppercase;
+  color: var(--text-faint);
+}
+
+/* Locked skills stay in the book, faded, with what opens them. */
+.skill--locked .skill-glyph {
+  --edge: var(--iron-500);
+  filter: grayscale(1);
+  opacity: 0.55;
+}
+
+.skill--locked .skill-glyph__art {
+  filter: grayscale(1) brightness(0.6);
+}
+
+.skill--locked .skill__name .display,
+.skill--locked .skill__facts,
+.skill--locked .skill__desc {
+  color: var(--text-faint);
+}
+
+.skill__unlock--locked {
+  color: var(--bone-300);
+  font-style: italic;
+}
+
+/* ── Actions and the fine print ────────────────────────────────────────── */
+.skills__actions {
+  display: grid;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--brass-700);
+}
+
+.skills__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.skills__force {
+  color: var(--brass-400);
+  font-size: var(--text-sm);
+}
+
+.skills__notice {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-left: 2px solid var(--moss-400);
+  background: rgb(138 144 112 / 0.08);
+  font-size: var(--text-sm);
+  color: var(--bone-200);
+}
+
+.skills__notice--error {
+  border-left-color: var(--crimson-400);
+  background: rgb(184 73 63 / 0.1);
+}
+
+.skills__fine {
+  margin: 0;
+  max-width: 76ch;
+  color: var(--text-dim);
+  font-size: var(--text-sm);
+}
+
+@media (max-width: 1080px) {
+  .skills__book {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 760px) {
+  .skills__sockets {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  }
+
+  .socket--passive {
+    margin-left: 0;
+    padding-left: 0;
+    border-left: 0;
+  }
+
+  .skills__tab {
+    min-width: 0;
+    flex: 1;
+  }
+}

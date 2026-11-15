@@ -8,7 +8,13 @@ import type {
   QuestEvent,
   UnlockBlocker,
 } from '@worldforge/game-core';
-import { AUTO_SKILLS, getDungeon, getEnemy, type ClassId } from '@worldforge/game-core';
+import {
+  AUTO_SKILLS,
+  getActiveSkill,
+  getDungeon,
+  getEnemy,
+  type ClassId,
+} from '@worldforge/game-core';
 import type { Character } from '../characters/api';
 import { DUNGEON_WORDS } from '../content/dungeons';
 import { formatNumber } from '../lib/format';
@@ -185,7 +191,17 @@ export interface CryptLogContext {
   burned?: boolean;
   /** Ticket 8.2: a siphon was already logged (only the first one gets a line). */
   siphoned?: boolean;
+  /** Ticket 9.2: this fight's damage over time already has its line (the first tick only). */
+  ticked?: boolean;
 }
+
+/** Ticket 9.2: what a class's damage over time is called in the log. */
+export const DOT_SUBJECT: Record<ClassId, string> = {
+  warrior: 'The bleed',
+  mage: 'The burn',
+  hunter: 'The bleed',
+  warlock: 'Your curse',
+};
 
 /**
  * The combat log of a run, oldest first: hit lines name the class skill (or "Your strike") and
@@ -204,7 +220,10 @@ export function cryptLog(
   const ctx: CryptLogContext = { totalRooms, classId, foe, dungeonId };
   const lines: CryptLogLine[] = [];
   for (const e of events) {
-    if (e.type === 'spawn') ctx.foe = e.enemyId;
+    if (e.type === 'spawn') {
+      ctx.foe = e.enemyId;
+      ctx.ticked = false;
+    }
     const line = cryptLogLine(e, ctx);
     if (line) lines.push(line);
   }
@@ -231,13 +250,31 @@ export function cryptLogLine(e: DungeonEvent, ctx: CryptLogContext): CryptLogLin
       };
     case 'attack': {
       if (!e.crit && !e.skill) return null;
-      const subject = e.skill ? AUTO_SKILLS[ctx.classId].name : 'Your strike';
+      // Ticket 9.2: a chosen loadout names each cast's skill; the default log reads as before.
+      const subject = e.skillId
+        ? (getActiveSkill(e.skillId)?.name ?? AUTO_SKILLS[ctx.classId].name)
+        : e.skill
+          ? AUTO_SKILLS[ctx.classId].name
+          : 'Your strike';
       const target = ctx.foe ? foeObject(ctx.foe) : 'the foe';
       const verb = e.crit ? 'crits' : 'hits';
       return {
         t: e.t,
         tone: 'hit',
         text: `${subject} ${verb} ${target} for ${formatNumber(e.damage)}${e.crit ? '!' : '.'}`,
+      };
+    }
+    case 'tick': {
+      // Ticket 9.2: damage over time: its first tick in a fight, and the tick that finishes a foe.
+      const target = ctx.foe ? foeObject(ctx.foe) : 'the foe';
+      if (e.enemyHealth <= 0)
+        return { t: e.t, tone: 'hit', text: `${DOT_SUBJECT[ctx.classId]} finishes ${target}.` };
+      if (ctx.ticked) return null;
+      ctx.ticked = true;
+      return {
+        t: e.t,
+        tone: 'hit',
+        text: `${DOT_SUBJECT[ctx.classId]} eats at ${target}: ${formatNumber(e.damage)} a second.`,
       };
     }
     case 'enemyAttack':

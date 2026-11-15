@@ -1,12 +1,12 @@
-# Skills, resources and loadouts (ticket 9.1: design and prototype)
+# Skills, resources and loadouts (tickets 9.1 design, 9.2 build)
 
-**Status: design and game-core prototype, behind a switch that is off.** Nothing here reaches players until the owner says yes (9.2 builds it). With the switch off, no encounter carries a loadout and every game number is exactly today's (no patch note, no server change, no migration in 9.1).
+**Status: in play since ticket 9.2** (the owner's yes to all ten questions, 2026-11-15, "Owner questions: decided" below). A hero's chosen loadout fights with the rules here; **a hero who never opens the Skills screen fights exactly as before** (the default loadout runs today's code path, no kit). 9.1 designed and prototyped it behind a switch; 9.2 switched it to `live` and built the server, the web and the versions ("9.2: what was built").
 
 GDD §5.2 (each class's resource drives its skills), §6.3 (skills run automatically, a loadout is picked outside combat, new skills unlock with levels and later content). Owner defaults approved 2026-11-13 (`docs/ROADMAP.md` Phase 9): a loadout of three actives and one passive, six actives and four passives per class unlocked from level 1 to about 40, three presets, damage over time for the Warlock (and one each for the Mage and the Hunter), two later-content skills per class, and the default loadout is today's.
 
 Code: content `packages/game-core/src/combat/skills.ts` (`RESOURCE_RULES`, `ACTIVE_SKILLS`, `PASSIVE_SKILLS`), rules `combat/kit.ts`, read by `buildEncounter`, both farming simulations (`combat/farming.ts`, `combat/fightDistribution.ts`), dungeon and boss fights (`dungeon/run.ts`, also the guild boss and the Proving Grounds), and duels (`pvp/duel.ts`). Measurements: `tools/balance/loadouts.ts`; guards `combat/kit.test.ts`, `balance/loadouts.test.ts`.
 
-## For players (draft for 9.2's Skills screen)
+## For players (the Skills screen's words)
 Your hero fights on their own, and now you choose how. Each class has a resource that fills and empties as the fight goes: a Warrior's **Rage** grows with every blow given and taken, a Mage's **Mana** starts full and slowly comes back, a Hunter's **Focus** builds while nothing hits them and crits give some back, and a Warlock gathers **Soul Fragments** from fallen foes and from their curses.
 
 Pick three skills and one passive outside combat. The first slot holds your class skill, the blow that lands every few attacks as it always has; the other two spend your resource when it is ready. New skills unlock as you level and when you fell the Forge Tyrant and the Hollow Sovereign. Some loadouts clear fields fastest, others bring bosses down sooner; none is best at everything. Save up to three loadouts and switch between them when you're not in a fight. If you never open the Skills screen, your hero fights exactly as before.
@@ -21,7 +21,7 @@ All deterministic: gains come from attacks landed, blows taken and the fight's p
 | Hunter | Focus | 0–100, starts at 20 | +15 on a pulse with no blow taken since the last one, +5 per crit | Focus shots |
 | Warlock | Soul Fragments | 0–3, starts with what the **last kill left** (2; 0 after a death or a timeout) | +1 on a pulse in which a curse ticks | shadow skills (Soul Burn, Drain Soul, Soul Harvest) |
 
-Passives add to these rules (Deep Reserves: 40 more Mana; Dark Pact: a kill leaves 3 fragments; Soul Siphon: hold 5, two per curse pulse). The Warlock's fragments are the only resource carried between fights (like bloodrush stacks, `momentum`): `FarmingCharacter.soulFragments` in, `FarmingResult.soulFragments` out, and a crypt run starts at 0 and carries them room to room. 9.2 stores them with the activity (additive columns, default 0).
+Passives add to these rules (Deep Reserves: 40 more Mana; Dark Pact: a kill leaves 3 fragments; Soul Siphon: hold 5, two per curse pulse). The Warlock's fragments are the only resource carried between fights (like bloodrush stacks, `momentum`): `FarmingCharacter.soulFragments` in, `FarmingResult.soulFragments` out, and a crypt run starts at 0 and carries them room to room. Since 9.2 they are stored with the activity (`activities.soul_fragments`, `farm_state.soulFragments`, default 0).
 
 ## The skills
 Six actives by level (1, 5, 12, 20, 28, 36) and one taught by the **Forge Tyrant's fall** (Phase 6 content: older bosses gain a use); four passives by level (8, 16, 24, 32) and one taught by the **Hollow Sovereign's fall** (Phase 8). Today's skill is each class's first active, with today's numbers (read from `AUTO_SKILLS`). Multipliers are of the class's primary damage, like today's skill.
@@ -220,10 +220,16 @@ The Proving Grounds read **the hero's saved defence loadout** (the ticket's reco
 
 A loadout moves Power by at most 2 % (it clears trials faster; nobody newly fails one), so ranks move only among close heroes. **Power 4** is a version bump all the same (a new input can change the value): planned by the server the first time it sees it and in force at the end of the season under way (6.1's schedule); a hero with the default loadout keeps exactly their Power 3 value, so the 5.2 sweep only recomputes heroes who saved a loadout. Gear Score, Level and PvE Progress don't read loadouts. Matchmaking's bracket Power 4 (above) is separate.
 
-## What 9.2 builds (after the owner's yes)
+## What 9.2 was to build (the plan; done, see "9.2: what was built")
 - **game-core:** the switch on in play; the default loadout keeps today's code path (no kit), so its cost and its numbers are today's; telemetry fields by loadout.
 - **Server:** `character_loadouts` (hero, preset 1–3, active preset, actives, passive; additive, a hero without one reads the default), `activities.soul_fragments` / `farm_state.soul_fragments` (default 0), the loadout and preset calls (settle first, idempotent, audited), the defence snapshot's loadout, Power 4 and `PVP_RULES_VERSION` 3 between seasons, telemetry by loadout (kills/min and boss times per class and loadout, for B.7).
 - **Web:** the Skills screen (locked skills shown with their unlock, plain descriptions with game-core's numbers), the moving resource bar, ticks in the log and the scene (the prototype logs no tick events: `DungeonEvent`/`CombatEvent` stay as they are).
+
+## 9.2: what was built
+- **game-core.** `setSkillsPrototype` modes `off | live | on | shadow`, default **`live`**: a non-default, valid loadout compiles into a kit; the default (or an invalid one, defensively) builds no kit, so its numbers and its cost are today's. Every game-core suite runs in `live` (the default-loadout replay of every balance suite), and CI's "skills replay" job still runs them all in `shadow` (each default fight resolved both ways: all 1,474 tests pass, no mismatch). `combat/skills-live.test.ts`: the default loadout in `live` equals the switch off in both farming simulations, the crypt, a boss, the guild boss and duels; a chosen loadout in `live` equals 9.1's kit path (`on`) everywhere, so 9.1's agreement tests, measurements and guards carry over unchanged (the before/after tables above are 9.2's numbers); the two simulations agree per loadout in play (boss and farming loadout of every class, 100 seeds × 15 min, 4 standard errors). Logs: chosen loadouts add `tick` events (`CombatEvent`, `DungeonEvent`, `DuelEvent`) and name each cast (`skillId`); the default log is unchanged. `effectiveLoadout` (stored loadout → the one a fight reads), `loadoutTelemetryKey`, `snapshotLoadout`, the guild boss reads a loadout (ticks count as damage).
+- **Versions.** `PVP_RULES_VERSION` 3 and Power 4, both between seasons (`docs/PVP.md` "9.2", `docs/LEADERBOARDS.md` "Power 4").
+- **Server.** `character_loadouts`, `characters.loadout_preset`, `activities.soul_fragments` (`docs/DATA_MODEL.md`); `GET/PUT/POST …/skills` (`docs/API_CONVENTIONS.md`), settle first, idempotent by state, audited; settlement, crypt runs, guild boss attempts, duel snapshots and Power's input read the loadout in force (crypt and guild boss snapshots and defences keep theirs); telemetry `skills.farm`, `skills.boss`, `skills.loadout` (`docs/TELEMETRY.md`). Tests: `skills/skills.test.ts` (validation, settle first and switching mid-settlement predicted window by window, presets, idempotency, never-trusted rows, fragments across settlements and stop/start, the defence snapshot and Power 4's input, duel rules 2 → 3 at the season's end), `skills/skills.pg.test.ts` (real PostgreSQL at the boundary), the journey step `playSkillsStep` (`e2e/skills-journey.test.ts`).
+- **Web.** The Skills section on the character page (the resource rule, the 3 + 1 slots, three presets, every skill with its unlock, locked ones shown, plain numbers from game-core, "your class skill (slot 1)"); the moving resource bar in the farming scene (`scene/resourceMotion.ts`: game-core's resource rules applied to the scene's beats, cosmetic like the scene loop), with a damage-over-time mark that flashes on each tick; ticks and skill names in the crypt and duel logs. Skill icons come from A.18; until then each skill shows a framed initial (`skill.<id>` is looked up first).
 
 ## Risks and limits
 - **The mage at bosses:** a few percent of damage turns its lost Heroic and Tyrant fights into wins (71 → 92 %, 73 → 96 % in this kit). Fairer between classes (B.5's spread shrinks), but a real move at those bosses; owner question 3.
@@ -231,10 +237,26 @@ A loadout moves Power by at most 2 % (it clears trials faster; nobody newly fail
 - **Small farming spreads at the Hollow Deep** for the warlock and the hunter (best × 1.06–1.07): long fights favour no single tool; the boss side carries their choice.
 - **Measurements on single reference kits** (B.2-style); B.7 re-measures on telemetry by loadout after 9.2.
 - **PvP numbers** come from Legendary kits, not B.4's fairness fixtures; 9.2 re-runs the arena bands.
-- **Power and fragments:** the Proving Grounds start every fight without fragments (no carry between their four fights); 9.2 carries them like a crypt run if the owner wants the warlock's farming tool to count there.
+- **Power and fragments:** the Proving Grounds start every fight without fragments (no carry between their four fights), as built.
+- **Power 4 below the Legendary tier (9.2's measurement):** level-24 rare kits gain × 1.04–1.07 with a strong boss loadout (level-34 Legendaries × 1.00–1.02, as 9.1 measured); still a re-ranking among close heroes.
+- **Bracket Power 4 not built:** matchmaking's bracket Power still ignores a defence's loadout (proposed above); a loadout edge in duels is at most a small one at half keep, B.7 decides with telemetry.
+- **Skill icons and effect animations** are A.18's (parallel); the web shows placeholders until then.
 - **Cost:** up to 1.8 × today's settlement for a loadout (8 h ≤ 70 ms); fine today, watched in 9.2's telemetry.
 
-## Owner questions (recommendations first)
+## Owner questions: decided (2026-11-15)
+**The owner said yes to all ten on 2026-11-15, each with the recommended answer** (built in 9.2):
+1. effects that name "the class skill" read slot 1;
+2. slot 1 holds a core skill, slots 2–3 spenders;
+3. the mage's boss gain is accepted (no retune);
+4. the 6–16 % sidegrade size is kept;
+5. no healing or shielding skills;
+6. PvP version 3 keeps half of a skill's extra damage, and passives' damage bonuses are PvE only;
+7. Power 4 reads the saved defence loadout, switched at the end of the season under way;
+8. Soul Fragments carry between fights and are stored with the activity;
+9. an active from the Forge Tyrant and a passive from the Hollow Sovereign (taught by the kill flags; 9.3 adds the skill quests);
+10. unlock levels 1–36 for actives and 8–32 for passives.
+
+The questions as they were asked (recommendations first):
 1. **Effects that name "the class skill" read slot 1.** *Recommended: yes* (built so): today's items keep their meaning; with the alternative core skill in slot 1 they boost that one, and tooltips say "your class skill (slot 1)". Alternative: only today's skill counts (the alternative core loses every class-skill effect: it would never be picked with them).
 2. **Slot 1 must hold a core skill (the cadence), slots 2–3 spenders.** *Recommended: yes*: it keeps the default exactly today's and the effects' meaning; a spender in slot 1 would need its own cadence rules.
 3. **The mage's boss gain from loadouts** (win rates at the Heroic and the Tyrant up 20+ points in one kit). *Recommended: accept* (it closes B.5's class gap); alternative: Mana Shield −6 % → −4 % and Meteor 220 % → 200 % (re-measure in 9.2).

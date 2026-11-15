@@ -11,6 +11,7 @@ import {
   buildEncounter,
   createRng,
   defaultLoadout,
+  loadoutKey,
   deriveCharacterStats,
   deriveEquippedStats,
   kitAfterAttack,
@@ -98,8 +99,33 @@ const farmInput = (
 };
 
 describe('the switch (9.1)', () => {
-  it('is off by default; off, no encounter carries a kit and a loadout changes nothing', () => {
-    expect(DEFAULT_SKILLS_PROTOTYPE_MODE).toBe('off');
+  it('is live in play (9.2): a chosen loadout carries a kit, the default loadout none', () => {
+    expect(DEFAULT_SKILLS_PROTOTYPE_MODE).toBe('live');
+    withSkillsPrototype(() => {
+      expect(skillsPrototypeMode()).toBe('live');
+      const build = (loadout: Loadout | null) =>
+        buildEncounter(
+          getEnemy('risenFarmhand'),
+          3,
+          'warrior',
+          3,
+          deriveEquippedStats('warrior', 3, []),
+          DEFAULT_COMBAT_CONFIG,
+          undefined,
+          undefined,
+          { loadout },
+        );
+      expect(build(full.warrior).kit?.key).toBe(loadoutKey(full.warrior));
+      // The default loadout (and no loadout) is today's path: no kit at all, the same setup.
+      expect(build(defaultLoadout('warrior')).kit).toBeUndefined();
+      expect(build(null)).toEqual(build(defaultLoadout('warrior')));
+      // An invalid loadout falls back to the default (server authority), never throws in play.
+      const bad: Loadout = { actives: ['shieldSlam', null, null], passive: null };
+      expect(build(bad)).toEqual(build(null));
+    }, 'live');
+  });
+
+  it('off, no encounter carries a kit and a loadout changes nothing', () => {
     withSkillsPrototype(() => {
       expect(skillsPrototypeMode()).toBe('off');
       const setup = buildEncounter(

@@ -153,23 +153,32 @@ describe('duels', () => {
     // Recompute with `hash(simulateDuel(lateDuel(seed)))` after a deliberate rules change, and
     // bump PVP_RULES_VERSION so 5.5 can tell stored duels of the old rules apart.
     // Version 2 (ticket 6.1): only the 30+ bracket changed; the 20–29 pins are version 1's.
-    expect(PVP_RULES_VERSION).toBe(2);
+    // Version 3 (ticket 9.2): duels read loadouts; two default loadouts duel exactly as in
+    // version 2 (and version 1 in 20–29): the whole result, with only the stored version moved on.
+    expect(PVP_RULES_VERSION).toBe(3);
     const pinned: Record<string, string> = {
       'det:1': '613985dff82a41ce',
       'det:2': '67626f0715c65f80',
     };
     for (const [seed, h] of Object.entries(pinned)) {
-      // The whole version-1 result, with only the stored version moved on.
       const r = simulateDuel(lateDuel(seed));
-      expect(r.rulesVersion).toBe(2);
+      expect(r.rulesVersion).toBe(3);
       expect(hash({ ...r, rulesVersion: 1 }), seed).toBe(h);
+      // Fought under version 2 (the server's choice until the season ends): the same duel.
+      expect(simulateDuel({ ...lateDuel(seed), rulesVersion: 2 })).toEqual({
+        ...r,
+        rulesVersion: 2,
+      });
     }
     const top = (seed: string): DuelInput => ({
       challenger: fighter('hunter', 32, sampleBuild('hunter', 31, 1)),
       defender: fighter('warlock', 33, sampleBuild('warlock', 32, 2)),
       seed,
     });
-    expect(hash(simulateDuel(top('det:30'))), '30+').toBe('a450cde846945e0d');
+    expect(hash({ ...simulateDuel(top('det:30')), rulesVersion: 2 }), '30+').toBe(
+      'a450cde846945e0d',
+    );
+    expect(() => simulateDuel({ ...top('det:30'), rulesVersion: 1 })).toThrow(RangeError);
   });
 
   it('write a consistent log: health follows the blows, and the end matches the result', () => {

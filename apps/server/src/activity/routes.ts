@@ -285,6 +285,7 @@ export async function registerActivities(
             carryMs: 0,
             health: farmState.health,
             momentum: farmState.momentum ?? 0,
+            soulFragments: farmState.soulFragments ?? 0,
             summary: emptySummary(now),
             updatedAt: now,
           })
