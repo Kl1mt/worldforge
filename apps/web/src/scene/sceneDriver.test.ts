@@ -9,14 +9,22 @@ import {
   LATE_BEAT_MS,
   applyBeat,
   startSceneDriver,
+  tickClass,
   type ActorElement,
   type ActorLayers,
   type DriverClock,
   type LayerName,
 } from './sceneDriver';
-import { SceneLoop, planFor, seededRandom, type SceneBeat } from './sceneLoop';
+import {
+  DOT_KINDS,
+  SceneLoop,
+  planFor,
+  seededRandom,
+  type SceneBeat,
+  type SceneSkill,
+} from './sceneLoop';
 
-const LAYERS: LayerName[] = ['fade', 'act', 'hit'];
+const LAYERS: LayerName[] = ['fade', 'act', 'fx', 'hit'];
 
 /** A fake element: a real class set, nothing else. */
 /** Every class add on every fake element, in order (A.14c: the visible history of a run). */
@@ -41,11 +49,15 @@ function element(): ActorElement & { classes: Set<string> } {
   return el;
 }
 
-type FakeActor = { [K in LayerName]: ReturnType<typeof element> };
+type FakeActor = { [K in LayerName]-?: ReturnType<typeof element> };
 
 function actor(): FakeActor {
-  return { fade: element(), act: element(), hit: element() };
+  return { fade: element(), act: element(), fx: element(), hit: element() };
 }
+
+/** The class a beat sets on its layer (A.18: a tick's depends on its kind). */
+const beatClass = (beat: SceneBeat) =>
+  beat.kind === 'foeTick' ? tickClass(beat.dot) : BEAT_CLASS[beat.kind].cls;
 
 const classesOf = (a: FakeActor) => LAYERS.flatMap((l) => [...a[l].classes]);
 
@@ -132,8 +144,9 @@ function cssRules(): CssRule[] {
     for (const raw of m[1]!.split(',')) {
       const sel = raw.trim();
       if (sel.endsWith('.pixel-sheet__strip')) continue; // the strip, not a layer
+      if (sel.includes('::')) continue; // A.18: a layer's sparks, not the layer itself
       const last = sel.split(/\s+/).at(-1)!;
-      const layer = /scene-anim__(fade|act|hit)\b/.exec(last)?.[1];
+      const layer = /scene-anim__(fade|act|fx|hit)\b/.exec(last)?.[1];
       if (!layer) continue; // the breath on the root
       rules.push({
         role: /__actor--hero/.test(sel) ? 'hero' : /__actor--foe/.test(sel) ? 'foe' : null,
@@ -143,7 +156,7 @@ function cssRules(): CssRule[] {
             ? true
             : null,
         layer,
-        states: [...last.matchAll(/\.(scene-anim--[a-z]+)/g)].map((x) => x[1]!),
+        states: [...last.matchAll(/\.(scene-anim--[a-z-]+)/g)].map((x) => x[1]!),
         animation: anim[1]!,
       });
     }
@@ -186,6 +199,10 @@ function expected(beat: SceneBeat, framed: boolean): { layer: LayerName; animati
       return { layer: 'fade', animation: 'scene-anim-fall' };
     case 'foeRise':
       return { layer: 'fade', animation: 'scene-anim-rise' };
+    case 'heroCast':
+      return { layer: 'fx', animation: 'scene-anim-cast' };
+    case 'foeTick':
+      return { layer: 'fx', animation: 'scene-anim-tick' };
   }
 }
 
@@ -268,13 +285,23 @@ describe('scene sync over many respawns (A.14b)', () => {
    * carries two beat classes. Over many seeds and two minutes each (dozens of kills per seed), so
    * a foe's tenth life must animate exactly like its first.
    */
-  function checkRun(seed: number, foes: number, framed: boolean, stall = false) {
+  function checkRun(
+    seed: number,
+    foes: number,
+    framed: boolean,
+    stall = false,
+    skill?: SceneSkill,
+  ) {
     const lives = new Map<number, number>();
     const time = fakeClock();
     const hero = actor();
     const line = Array.from({ length: foes }, actor);
-    const loop = new SceneLoop(planFor({ attackSpeed: 1.1, foes, framed }), seededRandom(seed));
+    const loop = new SceneLoop(
+      planFor({ attackSpeed: 1.1, foes, framed, skill: skill ?? null }),
+      seededRandom(seed),
+    );
     let checked = 0;
+    const kinds = new Map<string, number>();
     const pending: SceneBeat[] = [];
     const advance = loop.advance.bind(loop);
     loop.advance = (now) => {
@@ -300,7 +327,12 @@ describe('scene sync over many respawns (A.14b)', () => {
           const rose = history
             .slice(seen)
             .some((h) => h.el === foe.fade && h.cls === BEAT_CLASS.foeRise.cls);
-          if (rose) expect([...foe.act.classes, ...foe.hit.classes], `seed ${seed}`).toEqual([]);
+          if (rose) {
+            expect(
+              [...foe.act.classes, ...foe.fx.classes, ...foe.hit.classes],
+              `seed ${seed}`,
+            ).toEqual([]);
+          }
         }
       }
       for (const [key, beat] of newest) {
@@ -309,11 +341,12 @@ describe('scene sync over many respawns (A.14b)', () => {
         const want = expected(beat, framed);
         const el = (index < 0 ? hero : line[index]!)[want.layer];
         // A late one-shot beat may have been dropped; an applied beat must run its own animation.
-        if (!el.classes.has(BEAT_CLASS[beat.kind].cls)) continue;
+        if (!el.classes.has(beatClass(beat))) continue;
         expect(running(role, framed, want.layer, el.classes), `seed ${seed} ${beat.kind}`).toBe(
           want.animation,
         );
         checked++;
+        kinds.set(beat.kind, (kinds.get(beat.kind) ?? 0) + 1);
       }
       for (const a of [hero, ...line]) {
         for (const layer of LAYERS) {
@@ -333,8 +366,24 @@ describe('scene sync over many respawns (A.14b)', () => {
       else time.tick(100);
       verify();
     }
-    return { checked, lives };
+    return { checked, lives, kinds };
   }
+
+  it('plays casts and damage-over-time ticks on their own layer through many lives (A.18)', () => {
+    for (const dot of DOT_KINDS) {
+      for (let seed = 1; seed <= 6; seed++) {
+        for (const framed of [false, true]) {
+          const { kinds } = checkRun(seed, 3, framed, seed % 3 === 0, {
+            castEvery: 3,
+            dot,
+            ticks: 4,
+          });
+          expect(kinds.get('heroCast'), `${dot} seed ${seed}`).toBeGreaterThan(10);
+          expect(kinds.get('foeTick'), `${dot} seed ${seed}`).toBeGreaterThan(10);
+        }
+      }
+    }
+  }, 60_000);
 
   it("plays each beat's own animation after any number of respawns", () => {
     for (let seed = 1; seed <= 40; seed++) {
@@ -398,7 +447,8 @@ describe('scene sync over many respawns (A.14b)', () => {
       expect(classesOf(hero)).toEqual(classesOf(refHero));
       line.forEach((foe, i) => expect(classesOf(foe)).toEqual(classesOf(refLine[i]!)));
     }
-  });
+    // A.18: like its neighbours, a few seconds of CPU; no default 5 s limit under a loaded runner.
+  }, 60_000);
 
   it('models the cascade: a stale rise beat the newest hit before A.14b, and cannot now', () => {
     // The old layout: one element per actor carried rise, lunge and hit at once and the later
@@ -418,12 +468,15 @@ describe('no fade without a visible blow (A.14c)', () => {
    * so it was dropped while the fall still played. The rule now: a foe fades only after a blow
    * showed in its current life, and rises only after a fade that played.
    */
-  function run(seed: number, foes: number, hitchEvery: number) {
+  function run(seed: number, foes: number, hitchEvery: number, skill?: SceneSkill) {
     history = [];
     const time = fakeClock();
     const hero = actor();
     const line = Array.from({ length: foes }, actor);
-    const loop = new SceneLoop(planFor({ attackSpeed: 1.2, foes }), seededRandom(seed));
+    const loop = new SceneLoop(
+      planFor({ attackSpeed: 1.2, foes, skill: skill ?? null }),
+      seededRandom(seed),
+    );
     const driver = startSceneDriver({
       loop,
       clock: time.clock,
@@ -448,6 +501,8 @@ describe('no fade without a visible blow (A.14c)', () => {
       let down = false;
       for (const { el, cls } of history) {
         if (el === foe.hit && cls === BEAT_CLASS.foeHit.cls) hitThisLife = true;
+        // A.18: nothing ticks on a foe that is gone.
+        if (el === foe.fx) expect(down, `seed ${seed}: foe ${i} ticked while down`).toBe(false);
         if (el !== foe.fade) continue;
         if (cls === DOWN_CLASS) {
           expect(hitThisLife, `seed ${seed}: foe ${i} faded with no blow in this life`).toBe(true);
@@ -470,6 +525,15 @@ describe('no fade without a visible blow (A.14c)', () => {
     for (let seed = 1; seed <= 60; seed++) falls += run(seed, 3, 0.04);
     // Plenty of foes still fall: the rule drops only the fades that had no blow.
     expect(falls).toBeGreaterThan(60 * 8);
+  }, 60_000);
+
+  it('holds with casts and damage over time, and nothing ticks on a fallen foe (A.18)', () => {
+    let falls = 0;
+    for (let seed = 1; seed <= 30; seed++) {
+      falls += run(seed, 3, 0.04, { castEvery: 3, dot: DOT_KINDS[seed % 3]!, ticks: 4 });
+      run(seed, 1, 0.15, { castEvery: 4, dot: 'shadow', ticks: 10 });
+    }
+    expect(falls).toBeGreaterThan(30 * 8);
   }, 60_000);
 
   it('holds for a single foe (the crypt) with heavy hitches', () => {

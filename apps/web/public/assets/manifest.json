@@ -2653,6 +2653,534 @@
       "prompt": "dark fantasy pixel art item icons, one item per icon, hollowed bone-pale gear of the Hollow Reach: long sword of pale bleached steel with a hollow fuller and a ribcage crossguard; sceptre of pale bone with a hollow cage at its head holding a wisp of cold mist; longbow of bleached bone and pale sinew; tall kite shield of pale bone plates with a hollow round hole at its centre; closed helm of pale bone-grey steel shaped like a hollow-eyed skull mask; pale bone-grey plate cuirass with a hollow ribbed chest; gauntlets of pale bone plates with long fingers; pale steel greaves with rib-like bone plates; pendant on a chain holding a hollow bone cage with a faint mist light; ring of pale bone with a small cold pale stone, bleached bone, pale grey steel, grey mist, faint cold blue-white accents, muted desaturated palette, transparent background",
       "source": "art/source/pixellab/icons-tier5-01/edits/53-clean.png",
       "slot": "ring"
+    },
+    {
+      "id": "skill.heavy-strike",
+      "path": "/assets/skills/heavy-strike.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warrior combat techniques in dark iron, worn leather and deep crimson: two-handed iron warhammer swung down with a crimson impact burst; dented iron heater shield slamming forward; armoured iron boot charging with a dust trail; notched sword blade dripping crimson blood; executioner's axe above a cracked skull; greatsword driven into cracked splitting ground; blackened forge hammer with ember-orange cracks; iron tower shield braced upright; snarling iron helm with crimson eye slits; war drum with two crossed drumsticks; massive spiked iron pauldron; bone-white gauntlet clenched in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warrior-01/edits/04-clean.png"
+    },
+    {
+      "id": "skill.shield-slam",
+      "path": "/assets/skills/shield-slam.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warrior combat techniques in dark iron, worn leather and deep crimson: two-handed iron warhammer swung down with a crimson impact burst; dented iron heater shield slamming forward; armoured iron boot charging with a dust trail; notched sword blade dripping crimson blood; executioner's axe above a cracked skull; greatsword driven into cracked splitting ground; blackened forge hammer with ember-orange cracks; iron tower shield braced upright; snarling iron helm with crimson eye slits; war drum with two crossed drumsticks; massive spiked iron pauldron; bone-white gauntlet clenched in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warrior-01/edits/11-clean.png"
+    },
+    {
+      "id": "skill.charge",
+      "path": "/assets/skills/charge.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warrior combat techniques in dark iron, worn leather and deep crimson: two-handed iron warhammer swung down with a crimson impact burst; dented iron heater shield slamming forward; armoured iron boot charging with a dust trail; notched sword blade dripping crimson blood; executioner's axe above a cracked skull; greatsword driven into cracked splitting ground; blackened forge hammer with ember-orange cracks; iron tower shield braced upright; snarling iron helm with crimson eye slits; war drum with two crossed drumsticks; massive spiked iron pauldron; bone-white gauntlet clenched in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warrior-01/edits/20-clean.png"
+    },
+    {
+      "id": "skill.rend",
+      "path": "/assets/skills/rend.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warrior combat techniques in dark iron, worn leather and deep crimson: two-handed iron warhammer swung down with a crimson impact burst; dented iron heater shield slamming forward; armoured iron boot charging with a dust trail; notched sword blade dripping crimson blood; executioner's axe above a cracked skull; greatsword driven into cracked splitting ground; blackened forge hammer with ember-orange cracks; iron tower shield braced upright; snarling iron helm with crimson eye slits; war drum with two crossed drumsticks; massive spiked iron pauldron; bone-white gauntlet clenched in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warrior-01/edits/25-clean.png"
+    },
+    {
+      "id": "skill.execute",
+      "path": "/assets/skills/execute.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warrior combat techniques in dark iron, worn leather and deep crimson: two-handed iron warhammer swung down with a crimson impact burst; dented iron heater shield slamming forward; armoured iron boot charging with a dust trail; notched sword blade dripping crimson blood; executioner's axe above a cracked skull; greatsword driven into cracked splitting ground; blackened forge hammer with ember-orange cracks; iron tower shield braced upright; snarling iron helm with crimson eye slits; war drum with two crossed drumsticks; massive spiked iron pauldron; bone-white gauntlet clenched in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warrior-01/edits/33-clean.png"
+    },
+    {
+      "id": "skill.earthsplitter",
+      "path": "/assets/skills/earthsplitter.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warrior combat techniques in dark iron, worn leather and deep crimson: two-handed iron warhammer swung down with a crimson impact burst; dented iron heater shield slamming forward; armoured iron boot charging with a dust trail; notched sword blade dripping crimson blood; executioner's axe above a cracked skull; greatsword driven into cracked splitting ground; blackened forge hammer with ember-orange cracks; iron tower shield braced upright; snarling iron helm with crimson eye slits; war drum with two crossed drumsticks; massive spiked iron pauldron; bone-white gauntlet clenched in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warrior-01/edits/30-clean.png"
+    },
+    {
+      "id": "skill.forgebreaker",
+      "path": "/assets/skills/forgebreaker.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warrior combat techniques in dark iron, worn leather and deep crimson: two-handed iron warhammer swung down with a crimson impact burst; dented iron heater shield slamming forward; armoured iron boot charging with a dust trail; notched sword blade dripping crimson blood; executioner's axe above a cracked skull; greatsword driven into cracked splitting ground; blackened forge hammer with ember-orange cracks; iron tower shield braced upright; snarling iron helm with crimson eye slits; war drum with two crossed drumsticks; massive spiked iron pauldron; bone-white gauntlet clenched in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warrior-01/edits/42-clean.png"
+    },
+    {
+      "id": "skill.unyielding",
+      "path": "/assets/skills/unyielding.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warrior combat techniques in dark iron, worn leather and deep crimson: two-handed iron warhammer swung down with a crimson impact burst; dented iron heater shield slamming forward; armoured iron boot charging with a dust trail; notched sword blade dripping crimson blood; executioner's axe above a cracked skull; greatsword driven into cracked splitting ground; blackened forge hammer with ember-orange cracks; iron tower shield braced upright; snarling iron helm with crimson eye slits; war drum with two crossed drumsticks; massive spiked iron pauldron; bone-white gauntlet clenched in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warrior-01/edits/49-clean.png"
+    },
+    {
+      "id": "skill.berserker",
+      "path": "/assets/skills/berserker.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warrior combat techniques in dark iron, worn leather and deep crimson: two-handed iron warhammer swung down with a crimson impact burst; dented iron heater shield slamming forward; armoured iron boot charging with a dust trail; notched sword blade dripping crimson blood; executioner's axe above a cracked skull; greatsword driven into cracked splitting ground; blackened forge hammer with ember-orange cracks; iron tower shield braced upright; snarling iron helm with crimson eye slits; war drum with two crossed drumsticks; massive spiked iron pauldron; bone-white gauntlet clenched in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warrior-01/edits/53-clean.png"
+    },
+    {
+      "id": "skill.battle-rhythm",
+      "path": "/assets/skills/battle-rhythm.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warrior combat techniques in dark iron, worn leather and deep crimson: two-handed iron warhammer swung down with a crimson impact burst; dented iron heater shield slamming forward; armoured iron boot charging with a dust trail; notched sword blade dripping crimson blood; executioner's axe above a cracked skull; greatsword driven into cracked splitting ground; blackened forge hammer with ember-orange cracks; iron tower shield braced upright; snarling iron helm with crimson eye slits; war drum with two crossed drumsticks; massive spiked iron pauldron; bone-white gauntlet clenched in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warrior-01/edits/56-clean.png"
+    },
+    {
+      "id": "skill.juggernaut",
+      "path": "/assets/skills/juggernaut.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warrior combat techniques in dark iron, worn leather and deep crimson: two-handed iron warhammer swung down with a crimson impact burst; dented iron heater shield slamming forward; armoured iron boot charging with a dust trail; notched sword blade dripping crimson blood; executioner's axe above a cracked skull; greatsword driven into cracked splitting ground; blackened forge hammer with ember-orange cracks; iron tower shield braced upright; snarling iron helm with crimson eye slits; war drum with two crossed drumsticks; massive spiked iron pauldron; bone-white gauntlet clenched in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warrior-01/edits/59-clean.png"
+    },
+    {
+      "id": "skill.hollow-wrath",
+      "path": "/assets/skills/hollow-wrath.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warrior combat techniques in dark iron, worn leather and deep crimson: two-handed iron warhammer swung down with a crimson impact burst; dented iron heater shield slamming forward; armoured iron boot charging with a dust trail; notched sword blade dripping crimson blood; executioner's axe above a cracked skull; greatsword driven into cracked splitting ground; blackened forge hammer with ember-orange cracks; iron tower shield braced upright; snarling iron helm with crimson eye slits; war drum with two crossed drumsticks; massive spiked iron pauldron; bone-white gauntlet clenched in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warrior-01/edits/62-clean.png"
+    },
+    {
+      "id": "skill.firebolt",
+      "path": "/assets/skills/firebolt.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, mage spells in aged brass, restrained arcane violet and blue, and ember orange: small fireball with a trailing flame; violet arcane orb ringed with runes; large roaring fireball; flame licking up from scorched cracked ground; shattered ice crystal in sharp shards; falling flaming meteor rock; swirling vortex of embers; old stone well brimming with blue water; open spellbook with violet runes rising; blue rune ward circle like a shield; blue mana crystal in an aged brass setting; bundle of kindling sticks with a small flame, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-mage-01/edits/02-clean.png"
+    },
+    {
+      "id": "skill.arcane-bolt",
+      "path": "/assets/skills/arcane-bolt.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, mage spells in aged brass, restrained arcane violet and blue, and ember orange: small fireball with a trailing flame; violet arcane orb ringed with runes; large roaring fireball; flame licking up from scorched cracked ground; shattered ice crystal in sharp shards; falling flaming meteor rock; swirling vortex of embers; old stone well brimming with blue water; open spellbook with violet runes rising; blue rune ward circle like a shield; blue mana crystal in an aged brass setting; bundle of kindling sticks with a small flame, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-mage-01/edits/08-clean.png"
+    },
+    {
+      "id": "skill.pyroblast",
+      "path": "/assets/skills/pyroblast.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, mage spells in aged brass, restrained arcane violet and blue, and ember orange: small fireball with a trailing flame; violet arcane orb ringed with runes; large roaring fireball; flame licking up from scorched cracked ground; shattered ice crystal in sharp shards; falling flaming meteor rock; swirling vortex of embers; old stone well brimming with blue water; open spellbook with violet runes rising; blue rune ward circle like a shield; blue mana crystal in an aged brass setting; bundle of kindling sticks with a small flame, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-mage-01/edits/04-clean.png"
+    },
+    {
+      "id": "skill.scorch",
+      "path": "/assets/skills/scorch.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, mage spells in aged brass, restrained arcane violet and blue, and ember orange: small fireball with a trailing flame; violet arcane orb ringed with runes; large roaring fireball; flame licking up from scorched cracked ground; shattered ice crystal in sharp shards; falling flaming meteor rock; swirling vortex of embers; old stone well brimming with blue water; open spellbook with violet runes rising; blue rune ward circle like a shield; blue mana crystal in an aged brass setting; bundle of kindling sticks with a small flame, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-mage-01/edits/07-clean.png"
+    },
+    {
+      "id": "skill.shatter",
+      "path": "/assets/skills/shatter.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, mage spells in aged brass, restrained arcane violet and blue, and ember orange: small fireball with a trailing flame; violet arcane orb ringed with runes; large roaring fireball; flame licking up from scorched cracked ground; shattered ice crystal in sharp shards; falling flaming meteor rock; swirling vortex of embers; old stone well brimming with blue water; open spellbook with violet runes rising; blue rune ward circle like a shield; blue mana crystal in an aged brass setting; bundle of kindling sticks with a small flame, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-mage-01/edits/34-clean.png"
+    },
+    {
+      "id": "skill.meteor",
+      "path": "/assets/skills/meteor.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, mage spells in aged brass, restrained arcane violet and blue, and ember orange: small fireball with a trailing flame; violet arcane orb ringed with runes; large roaring fireball; flame licking up from scorched cracked ground; shattered ice crystal in sharp shards; falling flaming meteor rock; swirling vortex of embers; old stone well brimming with blue water; open spellbook with violet runes rising; blue rune ward circle like a shield; blue mana crystal in an aged brass setting; bundle of kindling sticks with a small flame, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-mage-01/edits/17-clean.png"
+    },
+    {
+      "id": "skill.emberstorm",
+      "path": "/assets/skills/emberstorm.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, mage spells in aged brass, restrained arcane violet and blue, and ember orange: small fireball with a trailing flame; violet arcane orb ringed with runes; large roaring fireball; flame licking up from scorched cracked ground; shattered ice crystal in sharp shards; falling flaming meteor rock; swirling vortex of embers; old stone well brimming with blue water; open spellbook with violet runes rising; blue rune ward circle like a shield; blue mana crystal in an aged brass setting; bundle of kindling sticks with a small flame, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-mage-01/edits/25-clean.png"
+    },
+    {
+      "id": "skill.mana-well",
+      "path": "/assets/skills/mana-well.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, mage spells in aged brass, restrained arcane violet and blue, and ember orange: small fireball with a trailing flame; violet arcane orb ringed with runes; large roaring fireball; flame licking up from scorched cracked ground; shattered ice crystal in sharp shards; falling flaming meteor rock; swirling vortex of embers; old stone well brimming with blue water; open spellbook with violet runes rising; blue rune ward circle like a shield; blue mana crystal in an aged brass setting; bundle of kindling sticks with a small flame, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-mage-01/edits/56-clean.png"
+    },
+    {
+      "id": "skill.arcane-power",
+      "path": "/assets/skills/arcane-power.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, mage spells in aged brass, restrained arcane violet and blue, and ember orange: small fireball with a trailing flame; violet arcane orb ringed with runes; large roaring fireball; flame licking up from scorched cracked ground; shattered ice crystal in sharp shards; falling flaming meteor rock; swirling vortex of embers; old stone well brimming with blue water; open spellbook with violet runes rising; blue rune ward circle like a shield; blue mana crystal in an aged brass setting; bundle of kindling sticks with a small flame, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-mage-01/edits/41-clean.png"
+    },
+    {
+      "id": "skill.mana-shield",
+      "path": "/assets/skills/mana-shield.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, mage spells in aged brass, restrained arcane violet and blue, and ember orange: small fireball with a trailing flame; violet arcane orb ringed with runes; large roaring fireball; flame licking up from scorched cracked ground; shattered ice crystal in sharp shards; falling flaming meteor rock; swirling vortex of embers; old stone well brimming with blue water; open spellbook with violet runes rising; blue rune ward circle like a shield; blue mana crystal in an aged brass setting; bundle of kindling sticks with a small flame, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-mage-01/edits/51-clean.png"
+    },
+    {
+      "id": "skill.deep-reserves",
+      "path": "/assets/skills/deep-reserves.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, mage spells in aged brass, restrained arcane violet and blue, and ember orange: small fireball with a trailing flame; violet arcane orb ringed with runes; large roaring fireball; flame licking up from scorched cracked ground; shattered ice crystal in sharp shards; falling flaming meteor rock; swirling vortex of embers; old stone well brimming with blue water; open spellbook with violet runes rising; blue rune ward circle like a shield; blue mana crystal in an aged brass setting; bundle of kindling sticks with a small flame, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-mage-01/edits/50-clean.png"
+    },
+    {
+      "id": "skill.kindling",
+      "path": "/assets/skills/kindling.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, mage spells in aged brass, restrained arcane violet and blue, and ember orange: small fireball with a trailing flame; violet arcane orb ringed with runes; large roaring fireball; flame licking up from scorched cracked ground; shattered ice crystal in sharp shards; falling flaming meteor rock; swirling vortex of embers; old stone well brimming with blue water; open spellbook with violet runes rising; blue rune ward circle like a shield; blue mana crystal in an aged brass setting; bundle of kindling sticks with a small flame, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-mage-01/edits/59-clean.png"
+    },
+    {
+      "id": "skill.aimed-shot",
+      "path": "/assets/skills/aimed-shot.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, hunter techniques in old wood, worn leather, weathered iron and desaturated green: arrow nocked on a drawn longbow; two fletched arrows flying side by side; iron arrowhead with a single drop of blood; jagged barbed serrated arrowhead; arrow piercing a skull; rain of arrows falling from above; arrow embedded in the centre of a round target; watchful hawk eye; snarling grey wolf head; two crossed hunting knives; eagle head in profile; bone-white arrowhead in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-hunter-01/edits/08-clean.png"
+    },
+    {
+      "id": "skill.quick-shot",
+      "path": "/assets/skills/quick-shot.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, hunter techniques in old wood, worn leather, weathered iron and desaturated green: arrow nocked on a drawn longbow; two fletched arrows flying side by side; iron arrowhead with a single drop of blood; jagged barbed serrated arrowhead; arrow piercing a skull; rain of arrows falling from above; arrow embedded in the centre of a round target; watchful hawk eye; snarling grey wolf head; two crossed hunting knives; eagle head in profile; bone-white arrowhead in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-hunter-01/edits/09-clean.png"
+    },
+    {
+      "id": "skill.first-blood",
+      "path": "/assets/skills/first-blood.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, hunter techniques in old wood, worn leather, weathered iron and desaturated green: arrow nocked on a drawn longbow; two fletched arrows flying side by side; iron arrowhead with a single drop of blood; jagged barbed serrated arrowhead; arrow piercing a skull; rain of arrows falling from above; arrow embedded in the centre of a round target; watchful hawk eye; snarling grey wolf head; two crossed hunting knives; eagle head in profile; bone-white arrowhead in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-hunter-01/edits/39-clean.png"
+    },
+    {
+      "id": "skill.serrated-arrow",
+      "path": "/assets/skills/serrated-arrow.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, hunter techniques in old wood, worn leather, weathered iron and desaturated green: arrow nocked on a drawn longbow; two fletched arrows flying side by side; iron arrowhead with a single drop of blood; jagged barbed serrated arrowhead; arrow piercing a skull; rain of arrows falling from above; arrow embedded in the centre of a round target; watchful hawk eye; snarling grey wolf head; two crossed hunting knives; eagle head in profile; bone-white arrowhead in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-hunter-01/edits/11-clean.png"
+    },
+    {
+      "id": "skill.kill-shot",
+      "path": "/assets/skills/kill-shot.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, hunter techniques in old wood, worn leather, weathered iron and desaturated green: arrow nocked on a drawn longbow; two fletched arrows flying side by side; iron arrowhead with a single drop of blood; jagged barbed serrated arrowhead; arrow piercing a skull; rain of arrows falling from above; arrow embedded in the centre of a round target; watchful hawk eye; snarling grey wolf head; two crossed hunting knives; eagle head in profile; bone-white arrowhead in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-hunter-01/edits/12-clean.png"
+    },
+    {
+      "id": "skill.volley",
+      "path": "/assets/skills/volley.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, hunter techniques in old wood, worn leather, weathered iron and desaturated green: arrow nocked on a drawn longbow; two fletched arrows flying side by side; iron arrowhead with a single drop of blood; jagged barbed serrated arrowhead; arrow piercing a skull; rain of arrows falling from above; arrow embedded in the centre of a round target; watchful hawk eye; snarling grey wolf head; two crossed hunting knives; eagle head in profile; bone-white arrowhead in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-hunter-01/edits/13-clean.png"
+    },
+    {
+      "id": "skill.true-shot",
+      "path": "/assets/skills/true-shot.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, hunter techniques in old wood, worn leather, weathered iron and desaturated green: arrow nocked on a drawn longbow; two fletched arrows flying side by side; iron arrowhead with a single drop of blood; jagged barbed serrated arrowhead; arrow piercing a skull; rain of arrows falling from above; arrow embedded in the centre of a round target; watchful hawk eye; snarling grey wolf head; two crossed hunting knives; eagle head in profile; bone-white arrowhead in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-hunter-01/edits/14-clean.png"
+    },
+    {
+      "id": "skill.steady-aim",
+      "path": "/assets/skills/steady-aim.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, hunter techniques in old wood, worn leather, weathered iron and desaturated green: arrow nocked on a drawn longbow; two fletched arrows flying side by side; iron arrowhead with a single drop of blood; jagged barbed serrated arrowhead; arrow piercing a skull; rain of arrows falling from above; arrow embedded in the centre of a round target; watchful hawk eye; snarling grey wolf head; two crossed hunting knives; eagle head in profile; bone-white arrowhead in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-hunter-01/edits/32-clean.png"
+    },
+    {
+      "id": "skill.predator",
+      "path": "/assets/skills/predator.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, hunter techniques in old wood, worn leather, weathered iron and desaturated green: arrow nocked on a drawn longbow; two fletched arrows flying side by side; iron arrowhead with a single drop of blood; jagged barbed serrated arrowhead; arrow piercing a skull; rain of arrows falling from above; arrow embedded in the centre of a round target; watchful hawk eye; snarling grey wolf head; two crossed hunting knives; eagle head in profile; bone-white arrowhead in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-hunter-01/edits/33-clean.png"
+    },
+    {
+      "id": "skill.skirmisher",
+      "path": "/assets/skills/skirmisher.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, hunter techniques in old wood, worn leather, weathered iron and desaturated green: arrow nocked on a drawn longbow; two fletched arrows flying side by side; iron arrowhead with a single drop of blood; jagged barbed serrated arrowhead; arrow piercing a skull; rain of arrows falling from above; arrow embedded in the centre of a round target; watchful hawk eye; snarling grey wolf head; two crossed hunting knives; eagle head in profile; bone-white arrowhead in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-hunter-01/edits/16-clean.png"
+    },
+    {
+      "id": "skill.eagle-eye",
+      "path": "/assets/skills/eagle-eye.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, hunter techniques in old wood, worn leather, weathered iron and desaturated green: arrow nocked on a drawn longbow; two fletched arrows flying side by side; iron arrowhead with a single drop of blood; jagged barbed serrated arrowhead; arrow piercing a skull; rain of arrows falling from above; arrow embedded in the centre of a round target; watchful hawk eye; snarling grey wolf head; two crossed hunting knives; eagle head in profile; bone-white arrowhead in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-hunter-01/edits/34-clean.png"
+    },
+    {
+      "id": "skill.hollow-mark",
+      "path": "/assets/skills/hollow-mark.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, hunter techniques in old wood, worn leather, weathered iron and desaturated green: arrow nocked on a drawn longbow; two fletched arrows flying side by side; iron arrowhead with a single drop of blood; jagged barbed serrated arrowhead; arrow piercing a skull; rain of arrows falling from above; arrow embedded in the centre of a round target; watchful hawk eye; snarling grey wolf head; two crossed hunting knives; eagle head in profile; bone-white arrowhead in pale cold mist, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-hunter-01/edits/44-clean.png"
+    },
+    {
+      "id": "skill.shadow-bolt",
+      "path": "/assets/skills/shadow-bolt.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warlock shadow magic in near-black, bone and restrained violet: dark violet shadow orb trailing smoke; withered hand dripping violet rot; violet flame consuming a ghostly soul wisp; screaming face in violet smoke; ghostly wisp drawn out of a skull; hourglass with violet sand and a skull; reaper scythe with violet souls; contract parchment sealed with a violet sigil; cursed dagger with violet runes; scaled horned demon hide; brass vial of swirling violet souls; bone-white tome bound in pale chain, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warlock-01/edits/05-clean.png"
+    },
+    {
+      "id": "skill.corruption",
+      "path": "/assets/skills/corruption.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warlock shadow magic in near-black, bone and restrained violet: dark violet shadow orb trailing smoke; withered hand dripping violet rot; violet flame consuming a ghostly soul wisp; screaming face in violet smoke; ghostly wisp drawn out of a skull; hourglass with violet sand and a skull; reaper scythe with violet souls; contract parchment sealed with a violet sigil; cursed dagger with violet runes; scaled horned demon hide; brass vial of swirling violet souls; bone-white tome bound in pale chain, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warlock-01/edits/12-clean.png"
+    },
+    {
+      "id": "skill.soul-burn",
+      "path": "/assets/skills/soul-burn.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warlock shadow magic in near-black, bone and restrained violet: dark violet shadow orb trailing smoke; withered hand dripping violet rot; violet flame consuming a ghostly soul wisp; screaming face in violet smoke; ghostly wisp drawn out of a skull; hourglass with violet sand and a skull; reaper scythe with violet souls; contract parchment sealed with a violet sigil; cursed dagger with violet runes; scaled horned demon hide; brass vial of swirling violet souls; bone-white tome bound in pale chain, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warlock-01/edits/16-clean.png"
+    },
+    {
+      "id": "skill.agony",
+      "path": "/assets/skills/agony.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warlock shadow magic in near-black, bone and restrained violet: dark violet shadow orb trailing smoke; withered hand dripping violet rot; violet flame consuming a ghostly soul wisp; screaming face in violet smoke; ghostly wisp drawn out of a skull; hourglass with violet sand and a skull; reaper scythe with violet souls; contract parchment sealed with a violet sigil; cursed dagger with violet runes; scaled horned demon hide; brass vial of swirling violet souls; bone-white tome bound in pale chain, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warlock-01/edits/26-clean.png"
+    },
+    {
+      "id": "skill.drain-soul",
+      "path": "/assets/skills/drain-soul.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warlock shadow magic in near-black, bone and restrained violet: dark violet shadow orb trailing smoke; withered hand dripping violet rot; violet flame consuming a ghostly soul wisp; screaming face in violet smoke; ghostly wisp drawn out of a skull; hourglass with violet sand and a skull; reaper scythe with violet souls; contract parchment sealed with a violet sigil; cursed dagger with violet runes; scaled horned demon hide; brass vial of swirling violet souls; bone-white tome bound in pale chain, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warlock-01/edits/28-clean.png"
+    },
+    {
+      "id": "skill.doom",
+      "path": "/assets/skills/doom.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warlock shadow magic in near-black, bone and restrained violet: dark violet shadow orb trailing smoke; withered hand dripping violet rot; violet flame consuming a ghostly soul wisp; screaming face in violet smoke; ghostly wisp drawn out of a skull; hourglass with violet sand and a skull; reaper scythe with violet souls; contract parchment sealed with a violet sigil; cursed dagger with violet runes; scaled horned demon hide; brass vial of swirling violet souls; bone-white tome bound in pale chain, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warlock-01/edits/33-clean.png"
+    },
+    {
+      "id": "skill.soul-harvest",
+      "path": "/assets/skills/soul-harvest.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warlock shadow magic in near-black, bone and restrained violet: dark violet shadow orb trailing smoke; withered hand dripping violet rot; violet flame consuming a ghostly soul wisp; screaming face in violet smoke; ghostly wisp drawn out of a skull; hourglass with violet sand and a skull; reaper scythe with violet souls; contract parchment sealed with a violet sigil; cursed dagger with violet runes; scaled horned demon hide; brass vial of swirling violet souls; bone-white tome bound in pale chain, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warlock-01/edits/37-clean.png"
+    },
+    {
+      "id": "skill.dark-pact",
+      "path": "/assets/skills/dark-pact.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warlock shadow magic in near-black, bone and restrained violet: dark violet shadow orb trailing smoke; withered hand dripping violet rot; violet flame consuming a ghostly soul wisp; screaming face in violet smoke; ghostly wisp drawn out of a skull; hourglass with violet sand and a skull; reaper scythe with violet souls; contract parchment sealed with a violet sigil; cursed dagger with violet runes; scaled horned demon hide; brass vial of swirling violet souls; bone-white tome bound in pale chain, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warlock-01/edits/42-clean.png"
+    },
+    {
+      "id": "skill.malice",
+      "path": "/assets/skills/malice.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warlock shadow magic in near-black, bone and restrained violet: dark violet shadow orb trailing smoke; withered hand dripping violet rot; violet flame consuming a ghostly soul wisp; screaming face in violet smoke; ghostly wisp drawn out of a skull; hourglass with violet sand and a skull; reaper scythe with violet souls; contract parchment sealed with a violet sigil; cursed dagger with violet runes; scaled horned demon hide; brass vial of swirling violet souls; bone-white tome bound in pale chain, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warlock-01/edits/53-clean.png"
+    },
+    {
+      "id": "skill.demon-skin",
+      "path": "/assets/skills/demon-skin.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warlock shadow magic in near-black, bone and restrained violet: dark violet shadow orb trailing smoke; withered hand dripping violet rot; violet flame consuming a ghostly soul wisp; screaming face in violet smoke; ghostly wisp drawn out of a skull; hourglass with violet sand and a skull; reaper scythe with violet souls; contract parchment sealed with a violet sigil; cursed dagger with violet runes; scaled horned demon hide; brass vial of swirling violet souls; bone-white tome bound in pale chain, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warlock-01/edits/30-clean.png"
+    },
+    {
+      "id": "skill.soul-siphon",
+      "path": "/assets/skills/soul-siphon.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warlock shadow magic in near-black, bone and restrained violet: dark violet shadow orb trailing smoke; withered hand dripping violet rot; violet flame consuming a ghostly soul wisp; screaming face in violet smoke; ghostly wisp drawn out of a skull; hourglass with violet sand and a skull; reaper scythe with violet souls; contract parchment sealed with a violet sigil; cursed dagger with violet runes; scaled horned demon hide; brass vial of swirling violet souls; bone-white tome bound in pale chain, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warlock-01/edits/58-clean.png"
+    },
+    {
+      "id": "skill.hollow-covenant",
+      "path": "/assets/skills/hollow-covenant.png",
+      "kind": "skill",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warlock shadow magic in near-black, bone and restrained violet: dark violet shadow orb trailing smoke; withered hand dripping violet rot; violet flame consuming a ghostly soul wisp; screaming face in violet smoke; ghostly wisp drawn out of a skull; hourglass with violet sand and a skull; reaper scythe with violet souls; contract parchment sealed with a violet sigil; cursed dagger with violet runes; scaled horned demon hide; brass vial of swirling violet souls; bone-white tome bound in pale chain, muted desaturated palette, transparent background",
+      "source": "art/source/pixellab/icons-skills-warlock-01/edits/59-clean.png"
     }
   ]
 }

@@ -1,9 +1,19 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { CLASS_IDS, ENEMIES } from '@worldforge/game-core';
+import { CLASS_IDS, ENEMIES, RESOURCE_RULES } from '@worldforge/game-core';
 import { ASSETS, classAttackSheet, enemyAttackSheet } from '../content/assets';
 import { adminLocation, routeHiddenFor } from '../lib/route';
-import { filterCatalogue, galleryCatalogue, galleryImages, nameFromAssetId } from './gallery';
+import { dotKindOf } from '../scene/sceneLoop';
+import {
+  filterCatalogue,
+  galleryCatalogue,
+  galleryImages,
+  gallerySkills,
+  nameFromAssetId,
+  nextSampleValue,
+  sampleStart,
+  skillTarget,
+} from './gallery';
 
 const catalogue = galleryCatalogue();
 const shownEnemyAssets = new Set(catalogue.groups.flatMap((g) => g.enemies.map((e) => e.assetId)));
@@ -150,5 +160,51 @@ describe('the Heroic treatment in the gallery (ticket 6.3)', () => {
     }
     expect(heroic.backdrops[0]!.sprite?.tint).toBe('heroic');
     expect(plain.enemies.every((e) => e.still?.tint === undefined)).toBe(true);
+  });
+});
+
+describe('skills in the gallery (A.18)', () => {
+  const classes = gallerySkills();
+
+  it("lists every class's twelve skills with their icons, and a damage-over-time skill each", () => {
+    expect(classes.map((c) => c.classId)).toEqual([...CLASS_IDS]);
+    for (const c of classes) {
+      expect(c.skills, c.classId).toHaveLength(12);
+      expect(
+        c.skills.filter((s) => s.kind === 'passive'),
+        c.classId,
+      ).toHaveLength(5);
+      for (const s of c.skills) expect(s.icon, s.id).not.toBeNull();
+      // The later-content skills are labelled by the boss that teaches them.
+      expect(c.skills.map((s) => s.unlock)).toContain('Forge Tyrant');
+      expect(c.skills.map((s) => s.unlock)).toContain('Hollow Sovereign');
+      expect(c.dotSkill.dot, c.classId).toBe(dotKindOf(c.classId));
+    }
+  });
+
+  it('runs a resource sample that stays in range and both fills and spends', () => {
+    for (const classId of CLASS_IDS) {
+      const max = RESOURCE_RULES[classId].max;
+      let value = sampleStart(classId);
+      let spent = false;
+      let gains = 0;
+      let spends = 0;
+      for (let i = 0; i < 60; i++) {
+        const next = nextSampleValue(classId, value, spent);
+        expect(next, classId).toBeGreaterThanOrEqual(0);
+        expect(next, classId).toBeLessThanOrEqual(max);
+        spent = next < value;
+        if (next > value) gains++;
+        if (spent) spends++;
+        value = next;
+      }
+      expect(gains, classId).toBeGreaterThan(5);
+      expect(spends, classId).toBeGreaterThan(2);
+    }
+  });
+
+  it('picks a foe with art as the target of the ticks', () => {
+    const target = skillTarget(galleryCatalogue());
+    expect(target?.sprite.path).toMatch(/^\/assets\/enemies\//);
   });
 });

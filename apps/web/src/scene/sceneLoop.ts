@@ -8,6 +8,8 @@
  * a request.
  */
 
+import type { ClassId } from '@worldforge/game-core';
+
 /** One visual event. `foe` is an index into the scene's line of foes. */
 export type SceneBeat =
   | { kind: 'heroStrike'; foe: number }
@@ -16,7 +18,38 @@ export type SceneBeat =
   | { kind: 'heroHit' }
   | { kind: 'foeFall'; foe: number }
   | { kind: 'foeRise'; foe: number }
-  | { kind: 'heroGlow' };
+  | { kind: 'heroGlow' }
+  // A.18: the hero casts a skill (a flash in the class's colours), and a damage over time ticks
+  // on a foe. The loop plays them only when the plan carries a `skill` (none = today's loop).
+  | { kind: 'heroCast' }
+  | { kind: 'foeTick'; foe: number; dot: DotKind };
+
+/** A.18: the three looks of damage over time (`docs/SKILLS.md`): Mage burn, Warrior and Hunter
+ * bleed, Warlock shadow (curses). */
+export type DotKind = 'burn' | 'bleed' | 'shadow';
+export const DOT_KINDS: readonly DotKind[] = ['burn', 'bleed', 'shadow'];
+
+/** A.18: the look of a class's damage over time (`docs/SKILLS.md`): the Mage's burns, the
+ * Warlock's curses are shadow, the Warrior's and the Hunter's wounds bleed. */
+export function dotKindOf(classId: ClassId): DotKind {
+  if (classId === 'mage') return 'burn';
+  if (classId === 'warlock') return 'shadow';
+  return 'bleed';
+}
+
+/** A.18: the fight's pulse (game-core `PULSE_MS`): damage over time ticks once a second. */
+export const TICK_MS = 1_000;
+
+/**
+ * A.18: what the hero's skill looks like in the loop (cosmetic, never the server's numbers): every
+ * `castEvery`-th swing is a cast; with `dot`, its blow leaves `ticks` ticks on the target, one per
+ * `TICK_MS` (a recast refreshes them, a fall ends them).
+ */
+export interface SceneSkill {
+  castEvery: number;
+  dot?: DotKind;
+  ticks?: number;
+}
 
 /** Something the chronicle reported since the last settle (flavour only, never exact). */
 export type SceneCue = 'kill' | 'level' | 'death';
@@ -32,6 +65,8 @@ export interface ScenePlan {
   respawnMs: number;
   /** Number of foes in the line (0 = an empty room: the hero only breathes). */
   foes: number;
+  /** A.18: casts and damage over time; absent, the loop is exactly A.14's. */
+  skill?: SceneSkill;
 }
 
 /** A code lunge reaches the foe at 40 % of its 450 ms (scene-anim.css `scene-anim-lunge`). */
@@ -58,6 +93,8 @@ export function planFor(input: {
   framed?: boolean;
   /** A.14b: which foes strike with a frame sheet (their blow lands later too). */
   framedFoes?: readonly boolean[];
+  /** A.18: the hero's skill as the scene shows it (see `SceneSkill`). */
+  skill?: SceneSkill | null;
 }): ScenePlan {
   const speed = input.attackSpeed;
   const raw =
@@ -71,7 +108,29 @@ export function planFor(input: {
     ),
     respawnMs: Math.max(1_600, cadenceMs * 1.25),
     foes: Math.max(0, Math.floor(input.foes)),
+    ...(input.skill ? { skill: normaliseSkill(input.skill) } : {}),
   };
+}
+
+/**
+ * A.18: how the scene shows a game-core skill (`ActiveSkillDefinition`): a core skill casts on its
+ * own cadence, anything else every 4th swing; a skill with damage over time leaves its ticks in
+ * its class's look. Cosmetic only: the scene never shows the fight's real numbers.
+ */
+export function sceneSkillOf(skill: {
+  classId: ClassId;
+  everyNthAttack?: number;
+  dot?: { ticks: number };
+}): SceneSkill {
+  const castEvery = skill.everyNthAttack ?? 4;
+  if (!skill.dot) return { castEvery };
+  return { castEvery, dot: dotKindOf(skill.classId), ticks: skill.dot.ticks };
+}
+
+function normaliseSkill(skill: SceneSkill): SceneSkill {
+  const castEvery = Math.max(1, Math.floor(skill.castEvery) || 1);
+  if (!skill.dot) return { castEvery };
+  return { castEvery, dot: skill.dot, ticks: Math.max(1, Math.floor(skill.ticks ?? 4) || 4) };
 }
 
 export interface ScheduledBeat {
@@ -99,6 +158,8 @@ export class SceneLoop {
   private readonly down = new Map<number, number>();
   /** The chronicle reported a kill: the next blow fells the target. */
   private pendingKill = false;
+  /** A.18: swings so far (every `skill.castEvery`-th is a cast). */
+  private swings = 0;
 
   constructor(plan: ScenePlan, random: Random, startAt = 0) {
     this.plan = plan;
@@ -119,7 +180,9 @@ export class SceneLoop {
   nextAt(): number {
     if (this.plan.foes === 0) return this.queue[0]?.at ?? Infinity;
     this.fill();
-    return this.queue[0]!.at;
+    // A.18: wake for the next swing too. A queue headed by a far beat (a respawn, a tick) would
+    // otherwise only fill the swings due before it once it came, and play them late.
+    return Math.min(this.queue[0]!.at, this.nextSwing);
   }
 
   /** Every beat due at or before `now`, in time order, with the time it was scheduled for. */
@@ -153,6 +216,13 @@ export class SceneLoop {
     this.queue.splice(i, 0, entry);
   }
 
+  /** A.18: removes `foe`'s queued ticks due at or after `from`. */
+  private dropTicks(foe: number, from: number) {
+    this.queue = this.queue.filter(
+      (e) => !(e.beat.kind === 'foeTick' && e.beat.foe === foe && e.at >= from),
+    );
+  }
+
   private standing(at: number): number[] {
     const out: number[] = [];
     for (let i = 0; i < this.plan.foes; i++) {
@@ -174,15 +244,29 @@ export class SceneLoop {
     }
     const foe = this.target;
     const impact = at + this.plan.impactMs;
+    // A.18: no random draw here, so a plan with a skill keeps the same rhythm and kills.
+    const skill = this.plan.skill;
+    this.swings += 1;
+    const casts = skill !== undefined && this.swings % skill.castEvery === 0;
+    if (casts) this.push(at, { kind: 'heroCast' });
     this.push(at, { kind: 'heroStrike', foe });
     this.hitsLeft -= 1;
     const fells = this.hitsLeft <= 0 || this.pendingKill;
     this.push(impact, { kind: 'foeHit', foe, heavy: fells || this.random() < 0.15 });
+    if (casts && skill.dot) {
+      // No stacking: a recast on the same foe refreshes its ticks.
+      this.dropTicks(foe, -Infinity);
+      for (let k = 1; k <= (skill.ticks ?? 4); k++) {
+        this.push(impact + k * TICK_MS, { kind: 'foeTick', foe, dot: skill.dot });
+      }
+    }
 
     if (fells) {
       this.pendingKill = false;
       const fallAt = impact + 200;
       const riseAt = fallAt + this.plan.respawnMs;
+      // A fallen foe's damage over time ends with it.
+      this.dropTicks(foe, fallAt);
       this.push(fallAt, { kind: 'foeFall', foe });
       this.push(riseAt, { kind: 'foeRise', foe });
       this.down.set(foe, riseAt);
