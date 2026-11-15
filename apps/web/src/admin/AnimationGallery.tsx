@@ -13,13 +13,17 @@ import {
   filterCatalogue,
   galleryCatalogue,
   galleryImages,
+  gallerySkills,
+  skillTarget,
   type GalleryCatalogue,
+  type GallerySkillClass,
   type GalleryEnemy,
   type GalleryHero,
 } from './gallery';
 import '../screens/area.css';
 import { VariantPreview } from './VariantPreview';
 import { PalettePreview } from './PalettePreview';
+import { SkillEffectsPreview } from './SkillEffectsPreview';
 import './animation-gallery.css';
 
 /** One sprite frame at 12 fps: what "Step" advances a paused animation by. */
@@ -43,7 +47,18 @@ export function AnimationGallery() {
   const [breath, setBreath] = useState(true);
   const [query, setQuery] = useState('');
   const shown = useMemo(() => filterCatalogue(catalogue, query), [catalogue, query]);
-  const images = useImages(useMemo(() => galleryImages(catalogue), [catalogue]));
+  const skills = useMemo(() => gallerySkills(), []);
+  // A.18: the tick target: the first foe with art.
+  const target = useMemo(() => skillTarget(catalogue), [catalogue]);
+  const images = useImages(
+    useMemo(
+      () => [
+        ...galleryImages(catalogue),
+        ...skills.flatMap((c) => c.skills.flatMap((s) => (s.icon ? [s.icon.path] : []))),
+      ],
+      [catalogue, skills],
+    ),
+  );
   const root = useRef<HTMLDivElement>(null);
   usePlayback(root, playing, speed);
   const forced = armed && motion !== 'full';
@@ -139,8 +154,18 @@ export function AnimationGallery() {
 
       <ScenePreview
         catalogue={catalogue}
+        skills={skills}
         armed={armed}
         motionFull={motion === 'full'}
+        rate={speed}
+      />
+
+      <SkillEffectsPreview
+        classes={skills}
+        heroes={catalogue.heroes}
+        target={target}
+        scale={scale}
+        armed={armed}
         rate={speed}
       />
 
@@ -349,11 +374,13 @@ function SpriteCard({
  */
 function ScenePreview({
   catalogue,
+  skills,
   armed,
   motionFull,
   rate,
 }: {
   catalogue: GalleryCatalogue;
+  skills: GallerySkillClass[];
   armed: boolean;
   motionFull: boolean;
   rate: number;
@@ -378,6 +405,8 @@ function ScenePreview({
     (first?.enemies ?? []).slice(0, 3).map((e) => `${first!.id}/${e.key}`),
   );
   const [running, setRunning] = useState(false);
+  // A.18: the hero casts its damage-over-time core skill (cast flashes and ticks in the loop).
+  const [withSkills, setWithSkills] = useState(true);
   const [ref, width] = useElementWidth<HTMLDivElement>(768);
   const phone = useMediaQuery(PHONE_QUERY);
   const ids = useId();
@@ -401,6 +430,7 @@ function ScenePreview({
     framed: hero.sheet !== null,
     framedFoes: foes.map((f) => f.sheet !== null),
     rate,
+    skill: withSkills ? (skills.find((c) => c.classId === hero.classId)?.dotSkill ?? null) : null,
   });
 
   const setFoe = (slot: number, id: string) =>
@@ -467,6 +497,14 @@ function ScenePreview({
         ))}
         <button
           type="button"
+          className="btn"
+          aria-pressed={withSkills}
+          onClick={() => setWithSkills((w) => !w)}
+        >
+          Skills
+        </button>
+        <button
+          type="button"
           className={`btn${running ? '' : ' btn--brass'}`}
           onClick={() => setRunning((r) => !r)}
           disabled={!armed && !motionFull}
@@ -493,7 +531,12 @@ function ScenePreview({
           )}
           <div className="scene__ground" style={{ ['--px' as string]: `${spriteScale}px` }}>
             <div className="scene__hero">
-              <SceneActor role="hero" framed={hero.sheet !== null} actorRef={heroRef}>
+              <SceneActor
+                role="hero"
+                framed={hero.sheet !== null}
+                cast={hero.classId}
+                actorRef={heroRef}
+              >
                 <PixelSprite
                   sprite={hero.sheet ?? hero.still}
                   fallback={hero.still}

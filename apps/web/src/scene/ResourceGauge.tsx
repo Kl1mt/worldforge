@@ -1,8 +1,9 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import type { ClassId } from '@worldforge/game-core';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AUTO_SKILLS, getActiveSkill, getClass, type ClassId } from '@worldforge/game-core';
 import { apiRequest } from '../lib/api';
-import { RESOURCE_LABEL, ResourceMotion, type MotionLoadout } from './resourceMotion';
-import type { SceneBeat } from './sceneLoop';
+import { ResourceMeter } from './ResourceMeter';
+import { ResourceMotion, type MotionLoadout } from './resourceMotion';
+import { sceneSkillOf, type SceneBeat, type SceneSkill } from './sceneLoop';
 
 /** Ticket 9.2: the part of `GET /characters/:id/skills` the scene reads. */
 interface LoadoutInForce {
@@ -11,8 +12,9 @@ interface LoadoutInForce {
 }
 
 /**
- * The loadout the hero fights with now (for the scene's resource bar). A failed read falls back to
- * the default loadout: the bar is flavour, the Skills screen shows the real state and its errors.
+ * The loadout the hero fights with now (for the scene's resource bar and skill effects). A failed
+ * read falls back to the default loadout: the scene is flavour, the Skills screen shows the real
+ * state and its errors.
  */
 export function useLoadoutInForce(characterId: string): LoadoutInForce | null {
   const [state, setState] = useState<LoadoutInForce | null>(null);
@@ -29,93 +31,73 @@ export function useLoadoutInForce(characterId: string): LoadoutInForce | null {
   return state;
 }
 
-const variantOf: Record<ClassId, string> = {
-  warrior: 'rage',
-  mage: 'mana',
-  hunter: 'focus',
-  warlock: 'soul',
-};
+/**
+ * The scene's view of a loadout (A.18's `SceneSkill`): the class skill in slot 1 sets the cast
+ * rhythm; its damage over time, or else a spender's, the ticks shown on the foe.
+ */
+export function sceneSkillOfLoadout(classId: ClassId, loadout: MotionLoadout | null): SceneSkill {
+  const skills = (loadout?.actives ?? []).flatMap((id) => {
+    const s = id ? getActiveSkill(id) : undefined;
+    return s && s.classId === classId ? [s] : [];
+  });
+  const core = skills.find((s) => s.kind === 'core');
+  const dot = core?.dot ?? skills.find((s) => s.dot)?.dot;
+  return sceneSkillOf({
+    classId,
+    everyNthAttack: core?.everyNthAttack ?? AUTO_SKILLS[classId].everyNthAttack,
+    ...(dot ? { dot } : {}),
+  });
+}
 
 /**
- * The resource bar in the scene's HUD ("Rage 62 / 100"). It follows the scene's beats through a
- * `ResourceMotion` and writes the DOM directly (no React render per beat, like the scene driver).
- * Returns the element and the beat listener to pass to `useSceneAnimation`.
+ * Ticket 9.2: the class resource in the scene's HUD ("Rage 62 / 100"), drawn by A.18's
+ * `ResourceMeter`. Its value follows the scene's beats through a `ResourceMotion` (game-core's
+ * resource rules under the loadout in force), so it only *suggests* the fight like the scene loop.
+ * Returns the meter, the beat listener for `useSceneAnimation` and the scene's skill plan.
  */
 export function useResourceGauge(
   classId: ClassId,
   loadout: LoadoutInForce | null,
-): { gauge: React.ReactNode; onBeat: (beat: SceneBeat, at: number) => void } {
-  const motion = useRef<ResourceMotion | null>(null);
-  const fill = useRef<HTMLSpanElement | null>(null);
-  const value = useRef<HTMLSpanElement | null>(null);
-  const meter = useRef<HTMLDivElement | null>(null);
-  const tick = useRef<HTMLSpanElement | null>(null);
-  const lastTicks = useRef(0);
-
-  // The bar's elements are written only here (React renders them once, without dynamic content).
-  const paint = useCallback((m: ResourceMotion) => {
-    const s = m.snapshot();
-    const pct = s.max > 0 ? (s.value / s.max) * 100 : 0;
-    fill.current?.style.setProperty('--value', `${pct}%`);
-    if (value.current) value.current.textContent = `${Math.round(s.value)} / ${s.max}`;
-    meter.current?.setAttribute('aria-valuenow', String(Math.round(s.value)));
-    meter.current?.setAttribute('aria-valuemax', String(s.max));
-    const t = tick.current;
-    if (t) {
-      t.classList.toggle('scene__dot--on', s.ticking);
-      if (s.ticks !== lastTicks.current) {
-        lastTicks.current = s.ticks;
-        // Restart the tick's flash (reading offsetWidth flushes the style).
-        t.classList.remove('scene__dot--tick');
-        void t.offsetWidth;
-        t.classList.add('scene__dot--tick');
-      }
-    }
-  }, []);
-
+  animate: boolean,
+): {
+  gauge: React.ReactNode;
+  onBeat: (beat: SceneBeat, at: number) => void;
+  skill: SceneSkill;
+} {
   const loadoutKey = loadout ? JSON.stringify(loadout.inForce) : '';
-  useEffect(() => {
-    motion.current = new ResourceMotion(
-      classId,
-      loadout?.inForce ?? null,
-      loadout?.soulFragments ?? 0,
-    );
-    lastTicks.current = 0;
-    paint(motion.current);
+  const motion = useMemo(
+    () => new ResourceMotion(classId, loadout?.inForce ?? null, loadout?.soulFragments ?? 0),
     // Only a new loadout (or class) rebuilds the bar.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [classId, loadoutKey, paint]);
+    [classId, loadoutKey],
+  );
+  const [value, setValue] = useState(() => motion.snapshot());
+  useEffect(() => setValue(motion.snapshot()), [motion]);
 
   const onBeat = useCallback(
     (beat: SceneBeat, at: number) => {
-      const m = motion.current;
-      if (m && m.beat(beat, at)) paint(m);
+      if (motion.beat(beat, at)) {
+        const s = motion.snapshot();
+        // Only the value redraws the meter (at most a few times a second).
+        setValue((prev) => (prev.value === s.value && prev.max === s.max ? prev : s));
+      }
     },
-    [paint],
+    [motion],
+  );
+  const skill = useMemo(
+    () => sceneSkillOfLoadout(classId, loadout?.inForce ?? null),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [classId, loadoutKey],
   );
 
-  const label = RESOURCE_LABEL[classId];
   const gauge = (
-    <div className="meter-field scene__resource">
-      <div className="meter-field__text" aria-hidden="true">
-        <span className="meter-field__name">
-          {label}{' '}
-          <span ref={tick} className="scene__dot" title="Damage over time">
-            ✦
-          </span>
-        </span>
-        <span className="meter-field__value" ref={value} />
-      </div>
-      <div
-        ref={meter}
-        className={`meter meter--${variantOf[classId]}`}
-        role="meter"
-        aria-label={label}
-        aria-valuemin={0}
-      >
-        <span ref={fill} />
-      </div>
-    </div>
+    <ResourceMeter
+      resource={getClass(classId).resource}
+      current={value.value}
+      max={value.max}
+      animate={animate}
+      className="scene__resource"
+    />
   );
-  return { gauge, onBeat };
+  return { gauge, onBeat, skill };
 }

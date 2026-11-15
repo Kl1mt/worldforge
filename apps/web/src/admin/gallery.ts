@@ -1,6 +1,9 @@
 import {
+  ACTIVE_SKILLS,
   AREAS,
   CLASS_IDS,
+  PASSIVE_SKILLS,
+  RESOURCE_RULES,
   CLASS_STAT_PROFILES,
   DUNGEONS,
   GUILD_BOSSES,
@@ -8,6 +11,7 @@ import {
   getEnemy,
   type ClassId,
   type EnemyId,
+  type ResourceId,
 } from '@worldforge/game-core';
 import {
   ASSETS,
@@ -16,8 +20,10 @@ import {
   enemyAttackSheet,
   findSprite,
   heroicSprite,
+  skillIcon,
   type SpriteAsset,
 } from '../content/assets';
+import { sceneSkillOf, type SceneSkill } from '../scene/sceneLoop';
 
 /**
  * Ticket A.14c: the admin animation gallery's catalogue. Every hero class, every enemy (by the
@@ -214,3 +220,101 @@ export function filterCatalogue(catalogue: GalleryCatalogue, query: string): Gal
 /** The gallery's playback speeds and sprite scales. */
 export const GALLERY_SPEEDS = [0.25, 0.5, 1] as const;
 export const GALLERY_SCALES = [1, 2, 4] as const;
+
+/* ── Skills (ticket A.18) ─────────────────────────────────────────────── */
+
+export interface GallerySkill {
+  id: string;
+  name: string;
+  kind: 'core' | 'spender' | 'passive';
+  /** "Lv 12", "Forge Tyrant", "Hollow Sovereign". */
+  unlock: string;
+  icon: SpriteAsset | null;
+}
+
+export interface GallerySkillClass {
+  classId: ClassId;
+  name: string;
+  resource: ResourceId;
+  /** The class's core skill with damage over time (Rend, Scorch, Serrated Arrow, Agony). */
+  dotSkill: SceneSkill;
+  skills: GallerySkill[];
+}
+
+function unlockLabel(unlock: { level: number; deed?: string }): string {
+  if (unlock.deed === 'forgeTyrantDefeated') return 'Forge Tyrant';
+  if (unlock.deed) return 'Hollow Sovereign';
+  return `Lv ${unlock.level}`;
+}
+
+/** Every class's twelve skills (`docs/SKILLS.md` order) with their icons, from game-core only. */
+export function gallerySkills(): GallerySkillClass[] {
+  return CLASS_IDS.map((classId) => {
+    const actives = ACTIVE_SKILLS.filter((s) => s.classId === classId);
+    const passives = PASSIVE_SKILLS.filter((s) => s.classId === classId);
+    const dot = actives.find((s) => s.kind === 'core' && s.dot) ?? actives[0]!;
+    return {
+      classId,
+      name: getClass(classId).name,
+      resource: getClass(classId).resource,
+      dotSkill: sceneSkillOf(dot),
+      skills: [
+        ...actives.map((s) => ({
+          id: s.id,
+          name: s.name,
+          kind: s.kind,
+          unlock: unlockLabel(s.unlock),
+          icon: skillIcon(s.id),
+        })),
+        ...passives.map((s) => ({
+          id: s.id,
+          name: s.name,
+          kind: 'passive' as const,
+          unlock: unlockLabel(s.unlock),
+          icon: skillIcon(s.id),
+        })),
+      ],
+    };
+  });
+}
+
+/**
+ * A.18: a sample of each resource moving, for the gallery's meters (cosmetic, not the fight's
+ * rules): each step it gains `gain`, or spends `cost` once it can (Soul Burn spends every fragment).
+ * From game-core: the Warrior's Shield Slam (50 Rage) on +4 Rage a blow given and taken, the
+ * Mage's Arcane Bolt (30 Mana) on +3 a second, the Hunter's Quick Shot (25 Focus) on +15 an
+ * unhit pulse, the Warlock's Soul Burn on +1 a curse pulse.
+ */
+export const RESOURCE_SAMPLES: Readonly<
+  Record<ClassId, { gain: number; cost: number; all?: boolean }>
+> = {
+  warrior: { gain: 8, cost: 50 },
+  mage: { gain: 6, cost: 30 },
+  hunter: { gain: 15, cost: 25 },
+  warlock: { gain: 1, cost: 3, all: true },
+};
+
+/** The sample's starting value: the class's own start of a fight (`RESOURCE_RULES`). */
+export function sampleStart(classId: ClassId): number {
+  const r = RESOURCE_RULES[classId];
+  return r.start === 'full' ? r.max : r.start;
+}
+
+/** The sample's next value. A step after a spend always gains, so both moves show. */
+export function nextSampleValue(classId: ClassId, value: number, spentLast: boolean): number {
+  const { gain, cost, all } = RESOURCE_SAMPLES[classId];
+  const max = RESOURCE_RULES[classId].max;
+  if (!spentLast && value >= cost) return all ? 0 : value - cost;
+  return Math.min(max, value + gain);
+}
+
+/** A.18: the target of the gallery's ticks: the first foe with art (null without any). */
+export function skillTarget(
+  catalogue: GalleryCatalogue,
+): { name: string; sprite: SpriteAsset } | null {
+  for (const g of catalogue.groups) {
+    const e = g.enemies.find((x) => x.still);
+    if (e?.still) return { name: e.name, sprite: e.still };
+  }
+  return null;
+}

@@ -7,7 +7,7 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | Path | Contents |
 |---|---|
 | `art/source/pixellab/<batch>/` | Raw generator output, unedited: `NN.png`, `_contact-sheet.png`, `_job.json` (prompt, size, seed, job id). Never served. |
-| `apps/web/public/assets/{items,enemies,characters,areas,hub,map,materials,achievements,guild-emblems,frames,badges,banners,crests}/` | Curated picks at **native resolution**, kebab-case names (`iron-helm.png`). |
+| `apps/web/public/assets/{items,enemies,characters,areas,hub,map,materials,achievements,guild-emblems,frames,badges,banners,crests,skills}/` | Curated picks at **native resolution**, kebab-case names (`iron-helm.png`). |
 | `apps/web/public/assets/manifest.json` | One entry per curated asset (see below). |
 | `art/preview-phase-0.png` | Combined preview of all curated Phase 0 assets. |
 | `art/preview-class-portraits.png` | The four class portraits side by side at ×3. |
@@ -22,6 +22,7 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | `art/preview-hero-frames.png` | The four hero attack loops (A.14): raw PixelLab frames above the cleaned sheet, per class, at ×2. Rebuild with `python3 tools/art/hero_frames.py`. |
 | `art/preview-cinderwastes.png` | The Cinderwastes enemies at ×1 and ×2 next to the cinder hound and ember golem, the Forge Tyrant next to the Ashen Warden, both backdrops next to the Ashen Pass, and the enemies over the Cinderwastes (A.11). Rebuild with `python3 tools/art/preview_cinderwastes.py`. |
 | `art/preview-hollow-reach.png` | The Hollow Reach enemies at ×1 and ×2 next to the cinder revenant and ash colossus, their attack sheets at ×2, the Hollow Sovereign next to the Forge Tyrant, both backdrops next to the Cinderwastes and the Cinder Depths, and the foes and the boss over their backdrops (A.17). Rebuild with `python3 tools/art/preview_hollow_reach.py`. |
+| `art/preview-skill-icons.png` | The 48 skill icons (A.18), per class in `docs/SKILLS.md` order at ×2 over ×1, above a row of item and achievement icons for scale. Rebuild with `python3 tools/art/skill_icons.py`. |
 | `art/preview-tier5-icons.png` | The ten tier-5 item icons (A.17) at ×1 and ×2 next to their tier-4 counterparts, then inside every rarity frame, Void and Prismatic (the game's own frame CSS). Rebuild with `node tools/art/preview_tier5_icons.mjs`. |
 | `art/preview-tier4-icons.png` | The ten tier-4 item icons (A.15) at ×1 and ×2 next to their tier-3 counterparts, then inside every rarity frame and the Void treatment (the game's own frame CSS). Rebuild with `node tools/art/preview_tier4_icons.mjs`. |
 | `art/preview-prismatic.png` | The Prismatic treatment (A.12): icons of tiers 1–4, Mythics and set pieces in the Legendary, Mythic and set frames, each plain, Void and Prismatic, at ×2 and ×1 (the game's own frame CSS, the sweep at rest). Rebuild with `node tools/art/preview_prismatic.mjs` (`--gif <dir>` also films Void's motion next to Prismatic's shimmer, A.12b). |
@@ -37,6 +38,7 @@ Curated files are byte-for-byte copies of a raw variant. Do not hand-edit them i
 | Kind | Native size | Notes |
 |---|---|---|
 | Item icon | 32×32 | Transparent background, object centred, roughly 45° for weapons. |
+| Skill icon | 32×32 | Same pixel scale as item icons: one emblematic object or effect per skill. |
 | Achievement icon, guild emblem | 32×32 | Same pixel scale as item icons. Emblems are a single charge, upright and centred. |
 | Season frame | 64×64 | Transparent outside and inside the bands. Fixed layout (not 9-slice): content fills the 36×36 window at (14, 14) and the frame is drawn on top. |
 | Banner style | 32×32 | Same pixel scale as the A.8 heraldry: a dark cloth banner on an iron crossbar with one charge. |
@@ -143,7 +145,7 @@ It uses only the async flow: it POSTs, then polls `GET /background-jobs/{id}` ev
 ```
 
 - `id` is `<kind>.<kebab-name>` and stays stable once referenced by content data.
-- `kind` is one of `item | material | enemy | character | area | hub | map | achievement | guild-emblem | frame | badge | banner | crest`.
+- `kind` is one of `item | material | enemy | character | area | hub | map | achievement | guild-emblem | frame | badge | banner | crest | skill`.
 - `frames` (frame sheets only): the number of frames in the row; `size` is one frame's size, so the PNG is `frames × width` wide.
 - `lead` (frame sheets only, A.14b): pixels of strike room in each frame before the sprite, on its facing side; the frame is the still's width plus `lead`, and the UI pulls the sheet back by `lead × scale`.
 - The optional fields are `slot` (items, using the GDD §7.1 slot family: `weapon`, `offhand`, `head`, `chest`, `hands`, `feet`, `neck`, `ring`) and `facing` (sprites).
@@ -231,6 +233,15 @@ The world map came out with opaque white pixels along its burnt edge (about 1,15
 - A web test checks that every name resolves to a manifest entry and a file of its Cinderwastes peer's size, that no foe needs mirroring, that the four common foes have left-facing 8-frame sheets and the boss none, and that every tier-5 base has its own 32×32 icon of its slot.
 - Preview: `art/preview-hollow-reach.png`, `art/preview-tier5-icons.png`, and the raw grid in `art/preview-enemy-frames.png`.
 - **Ticket 8.2 (no new art):** the Hollow Deep draws `area.hollow-depths`, the Throne the same backdrop and the Sovereign untinted. The Deep's four foes (`enemy.hollow-sentinel`, `enemy.deep-stalker`, `enemy.dirge-choir`, `enemy.husk-colossus`, with `-attack` sheets) and the crown shard (`material.crown-shard`) are drawn as their Marches kin and the soul shard with the Deep's tint (`DEEP_VARIANTS`, CSS `pixel--tint-deep`: colder and darker, a bruised violet in the grey), like 6.2's ember kin. The lanterns' deed (`achievement.deep-lantern-bearer`) awaits an icon and shows the wax-seal placeholder; the Hollow pale title colour is CSS.
+
+## Skill icons (ticket A.18)
+
+- One 32×32 icon per game-core skill (`ACTIVE_SKILLS`, `PASSIVE_SKILLS`, ticket 9.1): six actives and four passives per class plus the two later-content skills (the Forge Tyrant's active and the Hollow Sovereign's passive), 48 in all, at `/assets/skills/<kebab id>.png`, manifest `skill.<kebab id>` (`heavyStrike` → `skill.heavy-strike`), kind `skill`. The web app finds one with `skillIcon(skillId)` (`content/assets.ts`), which returns `null` for a skill without art so the Skills screen (9.2) can draw its own fallback.
+- The look is the achievement icons': one emblematic object or effect per skill on a transparent ground, in the class's materials: the Warrior's dark iron, leather and crimson (a hammer blow, a shield, an executioner's axe, a war drum), the Mage's brass, restrained violet and blue and its fire (bolts, a meteor, a rune ward, a mana well), the Hunter's wood, leather and moss (bows, arrowheads, a hawk's eye, a wolf), the Warlock's near-black, bone and violet (a shadow orb, a screaming wraith, an hourglass, a soul vial). The later-content skills carry their bosses' looks: Forgebreaker an ember-cracked hammer, three of the Sovereign's passives bone-white and pale (a pale gauntlet, a mist-wrapped arrow, a chained bone tome; the Mage's Kindling is a bundle of sticks with a small flame).
+- **Jobs** (4, no regeneration, 40 generations, balance 1,233 → 1,193): `icons-skills-warrior-01`, `-mage-01`, `-hunter-01`, `-warlock-01`, each the class's twelve subjects in one prompt with the style image `achievements/first-legendary.png`. The variants came back in subject order, about five per skill, and every skill had a usable one. Picks are listed in `tools/art/skill_icons.py` (`PICKS`); Charge's first pick (a front-on greave) read as armour, so it is the boot in stride (`20`).
+- Cleanup (`tools/art/skill_icons.py`, saved as `icons-skills-<class>-01/edits/NN-clean.png`): A.15's, alpha 0/255 with RGB 0 under transparent pixels, and ember highlights above value 0.86 compressed towards it, so the Mage's fire sits with the rest of the set. Greys, outline and hue are untouched.
+- A web test checks that every game-core skill has its own 32×32 file and a `skill` manifest entry, and that an unknown skill gives `null`. The admin animation gallery shows them per class with their unlock.
+- Preview: `art/preview-skill-icons.png`.
 
 ## Achievement & guild heraldry icons (ticket A.8)
 

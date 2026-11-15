@@ -1,0 +1,206 @@
+/* ── Class resource meter (ticket A.18) ───────────────────────────────────
+   Rage, Mana, Focus: a bar in ten notches; Soul Fragments: pips. The change animations run only
+   with `.resource-meter--anim` (full motion), stepped like the scene, and never under reduced
+   motion unless the admin gallery forces motion (`.scene-anim--forced`). */
+
+.resource-meter {
+  --res-fill: var(--rage);
+  --res-back: var(--rage-back);
+  --res-light: #f0b070;
+  display: grid;
+  gap: 2px;
+}
+
+.resource-meter--mana {
+  --res-fill: #4f72a8;
+  --res-back: #121b2b;
+  --res-light: #a9c6ec;
+}
+
+.resource-meter--focus {
+  --res-fill: #8a9a52;
+  --res-back: #1b2012;
+  --res-light: #dfe6a8;
+}
+
+.resource-meter--soulFragments {
+  --res-fill: #8458b4;
+  --res-back: #1d1428;
+  --res-light: #d2b2f2;
+}
+
+.resource-meter__track {
+  position: relative;
+  height: 8px;
+  background: var(--res-back);
+  box-shadow: 0 0 0 1px var(--outline-dark);
+}
+
+/* Ten notches over the bar, one every 10 %. */
+.resource-meter__track--bar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: repeating-linear-gradient(
+    to right,
+    transparent 0 calc(10% - 1px),
+    rgb(7 6 5 / 0.55) calc(10% - 1px) 10%
+  );
+  pointer-events: none;
+}
+
+.resource-meter__fill {
+  display: block;
+  height: 100%;
+  width: var(--value);
+  background: var(--res-fill);
+  box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18);
+}
+
+.resource-meter--full .resource-meter__fill {
+  box-shadow:
+    inset 0 1px 0 rgb(255 255 255 / 0.3),
+    inset 0 -1px 0 var(--res-light);
+}
+
+.resource-meter__slice {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Filling: the bar steps up to the new value, and the slice just gained flares, then settles. */
+.resource-meter--anim .resource-meter__fill {
+  transition: width 240ms steps(3, end);
+}
+
+.resource-meter--anim .resource-meter__slice--gain {
+  background: var(--res-light);
+  animation: resource-gain 520ms;
+}
+
+@keyframes resource-gain {
+  0% {
+    opacity: 0.95;
+    animation-timing-function: steps(1, end);
+  }
+  40% {
+    opacity: 0.55;
+    animation-timing-function: steps(1, end);
+  }
+  70%,
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Spending: the bar drops at once; the spent slice flashes bright and burns away from its far
+   edge in three steps. */
+.resource-meter--anim .resource-meter__slice--spend {
+  background: var(--res-light);
+  transform-origin: left center;
+  animation: resource-spend 600ms;
+}
+
+@keyframes resource-spend {
+  0% {
+    opacity: 1;
+    transform: scaleX(1);
+    animation-timing-function: steps(1, end);
+  }
+  20% {
+    opacity: 1;
+    background: var(--bone-100, #e8dcc4);
+    transform: scaleX(1);
+    animation-timing-function: steps(1, end);
+  }
+  45% {
+    opacity: 0.85;
+    transform: scaleX(0.66);
+    animation-timing-function: steps(1, end);
+  }
+  70% {
+    opacity: 0.6;
+    transform: scaleX(0.33);
+    animation-timing-function: steps(1, end);
+  }
+  100% {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+}
+
+/* Soul Fragments: one pip per fragment. */
+.resource-meter__track--pips {
+  display: flex;
+  gap: 3px;
+  height: 10px;
+  background: none;
+  box-shadow: none;
+}
+
+.resource-meter__pip {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  background: var(--res-back);
+  box-shadow: 0 0 0 1px var(--outline-dark);
+  transform: rotate(45deg) scale(0.8);
+}
+
+.resource-meter__pip--on {
+  background: var(--res-fill);
+  box-shadow:
+    0 0 0 1px var(--outline-dark),
+    inset 1px 1px 0 var(--res-light);
+}
+
+.resource-meter--anim .resource-meter__pip--gained {
+  animation: resource-pip-gain 480ms;
+}
+
+.resource-meter--anim .resource-meter__pip--spent {
+  animation: resource-pip-spend 520ms;
+}
+
+@keyframes resource-pip-gain {
+  0% {
+    background: var(--res-light);
+    transform: rotate(45deg) scale(1.2);
+    animation-timing-function: steps(1, end);
+  }
+  40% {
+    background: var(--res-light);
+    transform: rotate(45deg) scale(1);
+    animation-timing-function: steps(1, end);
+  }
+  100% {
+    transform: rotate(45deg) scale(0.8);
+  }
+}
+
+@keyframes resource-pip-spend {
+  0% {
+    background: var(--bone-100, #e8dcc4);
+    transform: rotate(45deg) scale(1.1);
+    animation-timing-function: steps(1, end);
+  }
+  35% {
+    background: var(--res-light);
+    transform: rotate(45deg) scale(0.9);
+    animation-timing-function: steps(1, end);
+  }
+  70% {
+    background: var(--res-fill);
+    transform: rotate(45deg) scale(0.8);
+    animation-timing-function: steps(1, end);
+  }
+  100% {
+    transform: rotate(45deg) scale(0.8);
+  }
+}
+
+/* Reduced motion: base.css stops every animation and transition, except inside the admin gallery
+   once its Play forces motion (`.scene-anim--forced`). */

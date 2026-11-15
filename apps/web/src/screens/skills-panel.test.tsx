@@ -80,10 +80,10 @@ describe('Skills panel', () => {
     expect(html).toContain('cannot be fielded (Shield Slam is locked)');
   });
 
-  it('draws a framed initial while the skill art does not exist', () => {
+  it('draws the skill’s A.18 icon, and a framed empty slot without a skill', () => {
     const html = renderToStaticMarkup(<SkillGlyph skill={getActiveSkill('shieldSlam')!} />);
-    expect(html).toContain('skill-glyph--spender');
-    expect(html).toContain('>S<');
+    expect(html).toContain('skill-glyph__art');
+    expect(html).not.toContain('skill-glyph--spender');
     expect(renderToStaticMarkup(<SkillGlyph skill={null} />)).toContain('skill-glyph--empty');
   });
 });

@@ -1594,13 +1594,14 @@ Read GDD §5.2, §6.3, `docs/COMBAT.md`, `docs/BALANCE.md`, `docs/PVP.md` ("norm
 - **Tests:** the default-loadout replay of every balance suite, the two simulations' agreement per loadout, switching mid-settlement, presets, the defence snapshot, the board versions at the season boundary (real PG), and a journey step `playSkillsStep`.
 - Docs: `docs/SKILLS.md` (done state), `COMBAT.md`, `PVP.md`, `LEADERBOARDS.md`, `TELEMETRY.md`, `DATA_MODEL.md`. Patch notes.
 
-### A.18 Skill icons & effect animations — `todo`
+### A.18 Skill icons & effect animations — `done (PR #155)`
 - One icon per skill (10 per class, 40 in all, plus the later-content skills), 32 px, in the existing icon style, with a contact sheet in `art/`.
 - **Code animations** in the combat scene (like A.14):
   - a skill cast flash per class;
   - damage-over-time ticks (burn, bleed, shadow);
   - the resource bar filling and spending.
 - Shown in the admin Animations gallery. Frugal with PixelLab generations.
+- Done. **Icons:** 48 (12 per class, the Tyrant's and the Sovereign's included), `skill.<kebab id>`, `skillIcon(id)` with `null` for missing art; 4 jobs, no regeneration, 40 generations; contact sheet `art/preview-skill-icons.png` (`docs/ASSET_GUIDELINES.md` "Skill icons"). **Animations** (`docs/DESIGN_SYSTEM.md` "Skill effects"): a fourth actor layer `.scene-anim__fx` with a cast flash per class and burn, bleed and shadow ticks, played by the loop only with a `skill` plan (`sceneSkillOf`, `useSceneAnimation({ skill })`, `SceneActor cast`), so the player's scene is unchanged until 9.2 passes one; `ResourceMeter` (bar or pips, fill and spend). Tests: the cascade model over casts and ticks, no tick on a fallen foe under hitches, a skill plan changes nothing else in the loop. **Fix found on the way:** `SceneLoop.nextAt` only woke for the queue's head, so with several foes the swings due while one was down were handed out late and dropped (about one beat in five); it now wakes for the next swing too (0 late in the probe). **Gallery:** a Skills section per class (icons, Cast, Cast + its damage over time, the three ticks, the meter with Fill, Spend and a sample run) and a Skills switch on the scene preview. Probe `tools/screenshots/skill-effects.mjs`. Version 0.9.1.
 
 ### 9.3 Later-content skills & skill quests (vertical) — `todo`
 - The two later-content skills per class (9.1) unlocked through **skill quests** in the Tavern, from Phase 6 and 8 content, e.g.:

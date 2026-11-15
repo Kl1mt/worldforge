@@ -23,18 +23,18 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.9.1';
+export const GAME_VERSION = '0.9.2';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
   {
-    version: '0.9.1',
+    version: '0.9.2',
     date: '2026-11-22',
     title: 'Skills and loadouts',
     new: [
       'Skills: every class now has six skills and four passives to choose from, unlocked from level 1 to 36, and two more taught by felling the Forge Tyrant and the Hollow Sovereign. Open the Skills section on your hero’s page to see them all, with what each does and when it unlocks.',
       'Pick a loadout: your class skill in the first slot, two more skills that spend your resource when they are ready, and one passive. Save up to three loadouts and switch between them. Some clear fields faster, others bring bosses down sooner; none is best at everything.',
       'Your class resource now fills and empties in the fight: a Warrior’s Rage grows with every blow given and taken, a Mage’s Mana starts full and comes back, a Hunter’s Focus builds while nothing hits them, and a Warlock gathers Soul Fragments from fallen foes and from their curses. Watch it move beside your health.',
-      'Bleeds, burns and curses: some skills keep hurting a foe every second. The crypt’s log and the duel log show them, and a mark beside your resource flickers while they tick.',
+      'Bleeds, burns and curses: some skills keep hurting a foe every second. The crypt’s log and the duel log show them, and you can see them tick on the foe in the field.',
     ],
     changed: [
       'If you never open the Skills section, your hero fights exactly as before.',
@@ -42,6 +42,15 @@ export const PATCH_NOTES: readonly PatchNote[] = [
       'When the season under way ends, duels start to count your loadout (a skill keeps half its extra damage there, and passives that add damage do nothing in duels), and the Power board starts to read the loadout saved with your arena defence. Until then both stay as they are.',
     ],
     tickets: ['9.2'],
+  },
+  {
+    version: '0.9.1',
+    date: '2026-11-22',
+    title: 'Steadier fights in the field',
+    fixed: [
+      'In an area with several foes, your hero no longer stands idle for a moment while a fallen foe is rising: they keep fighting the others, as they should.',
+    ],
+    tickets: ['A.18'],
   },
   {
     version: '0.9.0',

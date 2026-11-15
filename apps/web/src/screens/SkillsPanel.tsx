@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { LOADOUT_PRESETS } from '@worldforge/game-core';
-import { findSprite } from '../content/assets';
+import { skillIcon } from '../content/assets';
 import { PixelSprite } from '../components/PixelSprite';
 import type { Load } from '../game/GameProvider';
 import {
@@ -38,7 +38,7 @@ type Notice = { kind: 'ok' | 'error'; text: string };
 const SLOTS: SlotIndex[] = [0, 1, 2, PASSIVE_SLOT];
 
 /**
- * A skill's icon: its `skill.<id>` art once ticket A.18 registers it, else a framed glyph (the
+ * A skill's icon: its A.18 art (`skillIcon`), else a framed glyph (the
  * name's initial, edged by kind) so the screen never shows a broken image.
  */
 export function SkillGlyph({
@@ -48,7 +48,7 @@ export function SkillGlyph({
   skill: SkillDefinition | null;
   scale?: number;
 }) {
-  const sprite = skill ? findSprite(`skill.${skill.id}`) : null;
+  const sprite = skill ? skillIcon(skill.id) : null;
   if (skill && sprite) {
     return <PixelSprite sprite={sprite} scale={scale} alt="" className="skill-glyph__art" />;
   }
