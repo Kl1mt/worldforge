@@ -1,5 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
-import type { ClassId, DuelEvent, DuelOutcome, ItemRejection } from '@worldforge/game-core';
+import {
+  getActiveSkill,
+  type ClassId,
+  type DuelEvent,
+  type DuelOutcome,
+  type ItemRejection,
+} from '@worldforge/game-core';
 import { apiRequest, type ApiFailure, type ApiResult } from '../lib/api';
 import { describeSocialFailure } from './api';
 import type { RatingStanding, RatingView } from './ladder';
@@ -268,7 +274,21 @@ export function duelLogLines(
           t: e.t,
           tone: tone(e.side),
           crit: e.crit,
-          text: `${names[e.side]} ${e.skill ? 'uses the class skill' : 'strikes'} for ${e.damage}${e.crit ? ' (critical)' : ''}. ${names[other(e.side)]}: ${e.health} left.`,
+          text: `${names[e.side]} ${
+            e.skillId
+              ? `uses ${getActiveSkill(e.skillId)?.name ?? 'a skill'}`
+              : e.skill
+                ? 'uses the class skill'
+                : 'strikes'
+          } for ${e.damage}${e.crit ? ' (critical)' : ''}. ${names[other(e.side)]}: ${e.health} left.`,
+        });
+        break;
+      // Ticket 9.2: damage over time ticks on the fight's pulse.
+      case 'tick':
+        out.push({
+          t: e.t,
+          tone: tone(e.side),
+          text: `Damage over time from ${names[e.side]}: ${e.damage}. ${names[other(e.side)]}: ${e.health} left.`,
         });
         break;
       case 'thorns':

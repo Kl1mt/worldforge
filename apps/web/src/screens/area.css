@@ -296,6 +296,67 @@
   font-size: 11px;
 }
 
+/* Ticket 9.2: the class resource in the HUD (Rage, Mana, Focus, Soul Fragments) and the damage
+   over time mark: lit while a damage over time runs, flashing on every tick. */
+.scene__resource .meter {
+  height: 6px;
+}
+
+.meter--mana {
+  --fill: var(--arcane-blue);
+  --back: #10182a;
+}
+
+.meter--focus {
+  --fill: var(--brass-300);
+  --back: var(--ink-900);
+}
+
+.meter--soul {
+  --fill: var(--arcane-violet);
+  --back: #1a1428;
+}
+
+.scene__resource .meter > span {
+  transition: width 240ms ease-out;
+}
+
+.scene__dot {
+  display: inline-block;
+  color: var(--text-faint);
+  opacity: 0;
+  transition: opacity 200ms;
+}
+
+.scene__dot--on {
+  opacity: 0.9;
+  color: var(--rage);
+}
+
+.scene__dot--tick {
+  animation: scene-dot-tick 420ms ease-out;
+}
+
+@keyframes scene-dot-tick {
+  0% {
+    transform: scale(1.6);
+    filter: brightness(1.8);
+  }
+  100% {
+    transform: scale(1);
+    filter: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scene__resource .meter > span {
+    transition: none;
+  }
+  .scene__dot--tick {
+    animation: none;
+  }
+}
+
 /* ── Chronicle (combat log) ───────────────────────────────────────────── */
 /* Desktop: the column spans the scene and the row below it, but never sets their height.
    The Chronicle sizes to its entries and is capped at the column height (then scrolls),

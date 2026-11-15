@@ -7,7 +7,7 @@ import {
   type SceneMotion,
 } from './motion';
 import { startSceneDriver, type ActorLayers, type SceneDriver } from './sceneDriver';
-import { cuesSince, planFor, SceneLoop } from './sceneLoop';
+import { cuesSince, planFor, SceneLoop, type SceneBeat } from './sceneLoop';
 
 /** Ticket A.14: `full`, `reduced` or `off` for this browser (see `motion.ts`). */
 export function useSceneMotion(): SceneMotion {
@@ -53,6 +53,8 @@ export function useSceneAnimation(options: {
   chronicle?: readonly { id: string; kind: string }[];
   /** A.14c: the loop's speed (the admin gallery's slow motion); 1 everywhere else. */
   rate?: number;
+  /** Ticket 9.2: called for every beat that played (the resource bar); never restarts the loop. */
+  onBeat?: (beat: SceneBeat, at: number) => void;
 }) {
   const { active, motion, foes, attackSpeed, framed, framedFoes, chronicle } = options;
   const rate = options.rate ?? 1;
@@ -61,6 +63,10 @@ export function useSceneAnimation(options: {
   const hero = useRef<HTMLElement | null>(null);
   const foeEls = useRef<(HTMLElement | null)[]>([]);
   const driver = useRef<SceneDriver | null>(null);
+  const beatListener = useRef(options.onBeat);
+  useEffect(() => {
+    beatListener.current = options.onBeat;
+  });
   const seen = useRef<string | null>(null);
 
   const heroRef = useCallback((el: HTMLElement | null) => {
@@ -97,6 +103,7 @@ export function useSceneAnimation(options: {
     const d = startSceneDriver({
       loop,
       clock: browserClock(rate),
+      onBeat: (beat, at) => beatListener.current?.(beat, at),
       actors: () => ({
         hero: layersOf(hero.current),
         foes: foeEls.current.slice(0, foes).map((el) => layersOf(el ?? null)),
