@@ -550,6 +550,13 @@ Migration `0047_account_growth` (additive: one new table; nothing existing chang
 - The slot total is `accounts.character_slots` (the base, default 2; unchanged column) plus the account's `kind = 'slot'` rows. `characters.progress` and `level` are read, nothing added.
 - Backfill `account-growth:<hash>` in `data_backfills` (docs/DEPLOY.md "Data backfills").
 
+### character_loadouts; characters.loadout_preset; activities.soul_fragments — implemented (9.2)
+- `character_loadouts` (hero, `preset` 1–3, `actives` jsonb of three slots, `passive`, `updated_at`; PK hero + preset, cascade): a hero's saved loadout presets (docs/SKILLS.md "Loadouts"). Additive: **no row is the default loadout**, and saving the default deletes the row, so a hero who never chose stores exactly what it stored before 9.2. Validated by game-core `validateLoadout` with the hero's level and deeds on save and again by `effectiveLoadout` whenever a fight reads it.
+- `characters.loadout_preset` (smallint 1–3, default 1): the preset in force. Written by `POST …/skills/preset` after settling.
+- `activities.soul_fragments` (default 0, ≥ 0) and `FarmState.soulFragments`: the warlock's Soul Fragments the last kill left, carried across settlements and stop/start like momentum (owner decision 8).
+- jsonb snapshots, no migration: `DungeonRunSnapshot.loadout` (crypt runs and guild boss attempts), `DuelSnapshot.loadout` (defences and duels); absent = the default loadout, as every older row.
+- `game_settings` key `arena.rules`: the duel rules plan (docs/PVP.md "9.2").
+
 ## Relationships
 
 ```

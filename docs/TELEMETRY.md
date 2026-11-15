@@ -141,3 +141,10 @@ Ticket 6.11: `reconcileWithAudit` also checks **`forge: engraves`, `forge: engra
 
 ## Guild treasuries and seasons (ticket 8.4)
 `reconcileWithAudit` adds: `guild treasury: gifts`, `… gold given` (against `gold.out guild_treasury` and the counter), `… materials given`, `guild hall: upgrades bought`, `… treasury gold spent`, `guild treasury: forfeits`, `guild seasons: honours`, and two holdings checks: **gold and materials held in all treasuries = gifts − buys − forfeits** in the audit log (`guild.treasury_contribute`, `guild.hall_buy`, `guild.treasury_forfeit`). Test accounts give only to guilds of test accounts; their gifts go to `telemetry_daily_test` like all their play, and the reconciliation sums both tables.
+
+## Skills and loadouts (ticket 9.2)
+For B.7's re-measure on live data. Dimension `default` is the default loadout; a chosen one reads `<slot1>+<slot2>+<slot3>:<passive>` (`-` for empty; game-core `loadoutTelemetryKey`).
+- `skills.farm` (class, loadout, area): one per settlement; **events = kills, amount = simulated seconds**, so kills a minute per class and loadout = 60 × events ÷ amount.
+- `skills.boss` (class, loadout, `<dungeon>:<tier>:won|lost`): one per crypt claim that reached the boss; amount = the boss fight's seconds (the loadout is the run's snapshot's).
+- `skills.loadout` (class, loadout, `save|switch`): loadout changes, mirroring the `skills.loadout_save` and `skills.loadout_switch` audit rows.
+These carry no value, so the reconciliation has nothing to balance for them.

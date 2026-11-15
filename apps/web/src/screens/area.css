@@ -302,17 +302,17 @@
   height: 6px;
 }
 
-.meter--mana {
+.meter.meter--mana {
   --fill: var(--arcane-blue);
   --back: #10182a;
 }
 
-.meter--focus {
+.meter.meter--focus {
   --fill: var(--brass-300);
   --back: var(--ink-900);
 }
 
-.meter--soul {
+.meter.meter--soul {
   --fill: var(--arcane-violet);
   --back: #1a1428;
 }

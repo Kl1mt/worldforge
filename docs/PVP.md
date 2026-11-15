@@ -370,3 +370,12 @@ No PvP rule changed: `PVP_RULES_VERSION` stays 2, bracket Power stays 3 (duel Po
 | 30–46, every +10 Void kit awakened | 3.3 % | 1.2 % | 66 % | 0.2 % | 2.5 % | 0 |
 
 Inside B.5's bands (≤ 9 % / ≤ 5 %), which the new tests assert unchanged; duel Power reads the tier-5 kits as the duel does, so no bump of bracket Power or matchmaking was needed, and nothing was loosened.
+
+## 9.2: duel rules version 3 (skill loadouts)
+Owner decision 6 (2026-11-15, `docs/SKILLS.md` "PvP"). **`PVP_RULES_VERSION` 3:** duels read both fighters' loadouts (the challenger's loadout in force, the defender's saved with the defence snapshot, `DuelSnapshot.loadout`, checked again on read by `snapshotLoadout`) and keep half of a skill's extra damage (`skillKeep` 0.5: a spender's multiplier `1 + (m − 1) × 0.5`, a damage over time's ticks × 0.5, consume-all bonuses × 0.5); a passive's damage bonuses are PvE only and its damage-taken change counts × `effectKeep`. Two default loadouts duel exactly as in version 2 (the pinned hashes hold with only the version field moved on). The log adds `tick` events and names each cast (`skillId`) for chosen loadouts.
+
+**Between seasons (5.3's rule).** `simulateDuel` takes `rulesVersion` (2 or 3, `SUPPORTED_PVP_RULES_VERSIONS`); version 2 never reads a loadout. The server plans the switch like the board formulas (game-core `pvp/rulesSchedule.ts`, `game_settings` key `arena.rules`, advisory lock, audited `arena.rules_schedule`): the first time it sees version 3 during a season, the switch waits for that season's end (between seasons: at once). Every duel stores the version it was fought under and replays from it (`skills.test.ts`, `skills.pg.test.ts`: version 2 to the season's last millisecond, version 3 from its end).
+
+**A defence keeps its loadout** until the owner refreshes it (like its items); switching the hero's loadout changes nothing a challenger meets. Bracket Power (matchmaking) stays version 3: its expected-value duel reads `attackHit` and ignores a kit, so a defence's loadout does not move its matchmaking Power (SKILLS.md's bracket Power 4 is left for B.7, see "Risks").
+
+**Measured** (`combat/skills-live.test.ts`, 80 duels per class, level 32–33 Legendaries +5, every class's boss loadout against the same kit on the default): the chosen loadout's win share stays below 88 % (9.1's sweep: the best loadouts 69–82 % against the default at half).

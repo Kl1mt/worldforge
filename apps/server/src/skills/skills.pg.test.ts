@@ -174,7 +174,7 @@ describe.skipIf(!url)('real PostgreSQL: skills versions at the season boundary (
     expect(after.value).toBe(computeScore('power', after.input, 4).value);
     // The trials, seeds and points are Power 3's: without the loadout the input scores exactly
     // Power 3 (how far a loadout moves Power is measured in docs/SKILLS.md, not pinned here).
-    const { loadout: _chosen, ...plain } = after.input;
+    const plain = { ...after.input, loadout: null };
     expect(computeScore('power', plain, 4).value).toBe(computeScore('power', plain, 3).value);
   });
 });

@@ -360,7 +360,7 @@ describe('the duel defence and Power 4', () => {
     const [h] = await db().select().from(characters).where(eq(characters.id, p.hero.id));
     const input = await scoringInput(app, db(), h!);
     expect(input.loadout).toEqual(l);
-    const { loadout: _l, ...without } = input;
+    const without = { ...input, loadout: null };
     expect(computeScore('power', input, 3)).toEqual(computeScore('power', without, 3));
     // Refreshed on the default loadout: no loadout in the snapshot, and Power 4 = Power 3.
     expect((await api.setDefence(p.who, p.hero.id)).statusCode).toBe(200);
