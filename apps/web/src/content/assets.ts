@@ -547,6 +547,22 @@ export function prestigeSprite(name: string): SpriteAsset | null {
   return null;
 }
 
+/**
+ * Ticket 9.5: a companion's idle sheet (`companion.<name>`, the cosmetic's own id; A.19 draws them
+ * with two frames), or null while its art is missing (the book and the scenes draw a plain wisp).
+ */
+export function companionSprite(cosmeticId: string): SpriteAsset | null {
+  return cosmeticId.startsWith('companion.') ? findSprite(cosmeticId) : null;
+}
+
+/**
+ * Ticket 9.5: the lit Summoning Shrine (`hub.shrine`, A.19), or null while it is missing (the
+ * square's own art stands, the Shrine screen draws a plain altar).
+ */
+export function shrineSprite(): SpriteAsset | null {
+  return findSprite('hub.shrine');
+}
+
 /** The full-body portrait for a class (`character.<classId>`), used wherever a hero is drawn. */
 export function classPortrait(classId: ClassId): SpriteAsset {
   return ASSETS[`character.${classId}`];
@@ -632,8 +648,10 @@ export type CrestStyleId = (typeof CREST_STYLE_IDS)[number];
  * `CREST_STYLE_WINDOW` at the same integer scale; `null` for an id with no art (draw the bare crest).
  */
 export function crestStyleAsset(id: string): CrestStyleSprite | null {
-  if (!(CREST_STYLE_IDS as readonly string[]).includes(id)) return null;
-  return ASSETS[id as CrestStyleId];
+  if ((CREST_STYLE_IDS as readonly string[]).includes(id)) return ASSETS[id as CrestStyleId];
+  // Ticket 9.5: a later crest's own frame (A.19's Shrine crest) slots in by its manifest key.
+  const own = id.startsWith('crest.') ? findSprite(id) : null;
+  return own ? { ...own, window: CREST_STYLE_WINDOW } : null;
 }
 
 /** A.18: a game-core skill id (`heavyStrike`) as its asset name (`heavy-strike`). */

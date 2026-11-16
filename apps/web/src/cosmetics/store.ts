@@ -67,6 +67,12 @@ export function useCollection(): CollectionLoad {
   return load;
 }
 
+/** Ticket 9.5: the companion the account shows beside its active hero (null: none, or not known). */
+export function useCompanion(): string | null {
+  const load = useCollection();
+  return load.kind === 'ready' ? (load.value.equipped.companion ?? null) : null;
+}
+
 /** The appearance a hero of this account wears (null: own colours, or not known yet). */
 export function useHeroPalette(characterId: string): string | null {
   const load = useCollection();

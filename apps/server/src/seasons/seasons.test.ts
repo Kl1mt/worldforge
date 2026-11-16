@@ -827,9 +827,11 @@ describe('cosmetic only (invariance)', () => {
         readFileSync(p, 'utf8'),
       ),
     );
-    // Ticket 6.8: the cosmetic catalogue reads the tier names (season honours earn cosmetics).
+    // Ticket 6.8: the cosmetic catalogue reads the tier names (season honours earn cosmetics);
+    // ticket 9.5: so does the Shrine (season honours earn draws). Both are cosmetic only.
     expect(importers.map((p) => p.slice(root.length + 1)).sort()).toEqual([
       'cosmetics/catalogue.ts',
+      'cosmetics/shrine.ts',
       'scoring/index.ts',
     ]);
   });

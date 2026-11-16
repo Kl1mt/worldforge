@@ -102,13 +102,16 @@ describe.skipIf(!url)('real PostgreSQL: the Shrine pays every draw once', () => 
         .where(eq(shrineAccounts.accountId, a.id));
       expect(before!.marks).toBe(26);
       const tasks = [
-        ...Array.from({ length: N }, () => () =>
-          withTransaction(db(), (tx) => buyWithMarksTx(tx, a.id, rare, now)),
+        ...Array.from(
+          { length: N },
+          () => () => withTransaction(db(), (tx) => buyWithMarksTx(tx, a.id, rare, now)),
         ),
-        ...Array.from({ length: N }, (_, i) => () =>
-          withTransaction(db(), (tx) =>
-            grantPlayDrawsTx(tx, { accountId: a.id, key: `test:pg:${i % 2}`, count: 1, now }),
-          ),
+        ...Array.from(
+          { length: N },
+          (_, i) => () =>
+            withTransaction(db(), (tx) =>
+              grantPlayDrawsTx(tx, { accountId: a.id, key: `test:pg:${i % 2}`, count: 1, now }),
+            ),
         ),
         () => withTransaction(db(), (tx) => drawTx(tx, a.id, now, seed)),
       ];

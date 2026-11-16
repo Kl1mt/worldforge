@@ -213,7 +213,17 @@
 }
 
 .scene__hero {
+  position: relative;
   margin-bottom: calc(var(--px) * -6);
+}
+
+/* Ticket 9.5: the account's companion, at the hero's feet on its leading side (towards the foes). */
+.scene__companion {
+  position: absolute;
+  left: calc(100% - var(--px) * 6);
+  bottom: calc(var(--px) * 8);
+  z-index: 0;
+  pointer-events: none;
 }
 
 /* Wider screens: sprites share the backdrop's density, so the ground needs less inset. */

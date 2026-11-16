@@ -33,7 +33,10 @@ describe('the Shrine pool', () => {
       expect(c.source.kind, c.id).toBe('shrine');
     }
     for (const r of SHRINE_RARITIES) {
-      expect(SHRINE_POOL.some((e) => e.rarity === r), r).toBe(true);
+      expect(
+        SHRINE_POOL.some((e) => e.rarity === r),
+        r,
+      ).toBe(true);
     }
   });
 

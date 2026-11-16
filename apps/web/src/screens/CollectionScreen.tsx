@@ -1,7 +1,13 @@
 import { useEffect, useId, useState } from 'react';
 import { findCosmetic, type ClassId } from '@worldforge/game-core';
 import { useActiveCharacter } from '../characters/CharactersProvider';
-import { BannerStyle, CrestRim, HeroLook, titleColourClass } from '../cosmetics/Cosmetics';
+import {
+  BannerStyle,
+  Companion,
+  CrestRim,
+  HeroLook,
+  titleColourClass,
+} from '../cosmetics/Cosmetics';
 import { cosmeticsApi, type Collection, type CollectionEntry } from '../cosmetics/api';
 import {
   accountSlot,
@@ -316,6 +322,8 @@ function Swatch({
       return <span className={`book-swatch__words ${titleColourClass(entry.id)}`}>Aa</span>;
     case 'title':
       return <span className="book-swatch__words">❦</span>;
+    case 'companion':
+      return <Companion id={entry.id} scale={2} />;
   }
 }
 
@@ -336,6 +344,7 @@ function Preview({
   const crest = entry.kind === 'crest' ? entry.id : book.equipped.crest;
   const colour = entry.kind === 'titleColour' ? entry.id : book.equipped.titleColour;
   const title = entry.kind === 'title' ? entry.id : book.equipped.cosmeticTitle;
+  const companion = entry.kind === 'companion' ? entry.id : book.equipped.companion;
   return (
     <figure className="book-preview" aria-label={`Preview: ${hero.name} with ${entry.name}`}>
       <div className="book-preview__stand">
@@ -348,6 +357,7 @@ function Preview({
             alt={`${hero.name} in ${findCosmetic(palette ?? '')?.name ?? 'their own colours'}`}
           />
         </CrestRim>
+        <Companion id={companion} scale={2} className="book-preview__companion" />
       </div>
       <figcaption className="book-preview__caption">
         <span className="display">{hero.name}</span>

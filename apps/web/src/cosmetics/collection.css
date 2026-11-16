@@ -155,8 +155,11 @@
 }
 .book-preview__stand {
   display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
   align-items: flex-end;
   gap: 0.75rem;
+  max-width: 100%;
 }
 .book-preview__caption {
   display: grid;

@@ -52,6 +52,7 @@ Each entry: `id` (`<kind>.<name>`, stored in `cosmetic_unlocks`, never renamed o
 | `banner.guild-renowned` / `crest.guild-renowned` | banner / crest | guild season: Renowned guild or better (8.4; the laurel banner and the gilt crest in pewter) |
 | `banner.guild-exalted` / `crest.guild-exalted` | banner / crest | guild season: Exalted guild or better (8.4; in old brass) |
 | `banner.guild-champion` / `crest.guild-champion` | banner / crest | guild season: Champion guild (8.4; crimson and gold) |
+| `companion.*` (ten), `crest.votive-ash`, `banner.votive-veil`, `appearance.candlelight`, `title-colour.votive-gold`, `title-colour.shrine-ember` | companion, crest, banner, appearance, title colour | shrine: drawn or bought with marks (9.5, `docs/SHRINE.md`) |
 
 **Adding one:** append a definition with a source the server already grants (above), list its art for an art ticket, and add words if the source is new. The next deploy's backfill grants it to accounts that already earned it (the backfill id hashes every id and source).
 
@@ -104,6 +105,11 @@ Nothing in game-core's rules imports `cosmetics/` (an import scan); the no-effec
 - Journey: `playCollectionStep` (after the event step in `event-journey.test.ts`), then `playSealSinkStep` (6.11).
 - Ticket 6.11: game-core `cosmetics/cosmetics.test.ts` (offers, prices, epithets, refusals), `balance/seal-flow.test.ts` (awakening's pace unchanged); server `forge/seal-sinks.test.ts` (prices, hold rule, exactly once, refusals, invariance, reconciliation, test accounts) and `seal-sinks.pg.test.ts`; web `screens/economy/seal-sinks.test.tsx`.
 - web `cosmetics/cosmetics.test.tsx`: palettes for every look and class, own colours until drawn, banner and crest art and the plain fallbacks, title colours on season and cosmetic titles, the book's filters and what is worn, the words.
+
+## The Reward Shrine and companions (ticket 9.5)
+- **Companions** are a sixth kind (`companion`, account-wide, `cosmetic_displays.companion`): a small animal or wisp shown beside the active hero in the area and crypt scenes and in the book's mirror. No stats; the 8.7 no-pay-to-win test wears one. Art is A.19's `companion.<name>` (the cosmetic's own id) in the asset manifest, a two-frame idle played in CSS; without it (or if it fails to load) a small wisp is drawn in code.
+- **Source `shrine`** (`{ kind: 'shrine', rarity }`): fifteen entries (ten companions, the Votive-ash crest, the Votive veil banner, the Candlelight appearance, the Votive gold and Shrine ember title colours) come only from the Reward Shrine: drawn, or bought with Shrine marks. Grants go through `grantCosmeticsTx` with source `shrine:draw:<draw id>` or `shrine:marks`. The banner, crest and appearance are A.19's palette variants (plain fallbacks until drawn; a later crest's own frame slots in by its manifest key); the title colours are CSS. The backfill grants nothing from this source. Odds, pools and rules: `docs/SHRINE.md`.
+- API: `POST /api/account/cosmetics/equip` takes `companion`; the collection's `equipped` carries it.
 
 ## Open points (owner)
 - The mapping of each cosmetic to its source is a first pass (see the table); change any source by editing the catalogue (the backfill reruns, nothing granted is taken back).

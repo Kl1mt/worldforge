@@ -559,6 +559,15 @@ Migration `0047_account_growth` (additive: one new table; nothing existing chang
 - jsonb snapshots, no migration: `DungeonRunSnapshot.loadout` (crypt runs and guild boss attempts), `DuelSnapshot.loadout` (defences and duels); absent = the default loadout, as every older row.
 - `game_settings` key `arena.rules`: the duel rules plan (docs/PVP.md "9.2").
 
+### shrine_accounts, shrine_draw_grants, shrine_draws, shrine_purchases; cosmetic_displays.companion — implemented (9.5)
+The Reward Shrine (`docs/SHRINE.md`), migration `0050` (additive). Cosmetic only; no gameplay row is touched.
+- **shrine_accounts** (`account_id` PK → accounts, cascade): `daily_through` (int, the last UTC day number the free bank accrued through), `marks` (int ≥ 0, Shrine marks held), `created_at`. Every Shrine write locks it `for update` first.
+- **shrine_draw_grants** (`id` uuid PK): `account_id` → accounts (cascade), `source` (`daily | play | shop`, check; `shop` reserved for ROADMAP 8.8, written by nothing yet), `source_key` (`daily:<YYYY-MM-DD>`, `event:<n>:tier:<t>`, `achievement:<id>`, `season:<n>`; unique with the account), `count` (> 0), `character_id` → characters (set null), `granted_at`.
+- **shrine_draws** (`id` uuid PK): `account_id` (cascade; indexed with `drawn_at`), `spent_source` (`daily | play | shop`), `seed` (the `crypto` seed; game-core `drawShrine` replays it), `cosmetic_id`, `rarity`, `outcome` (`grant | marks`), `marks` (≥ 0), `drawn_at`.
+- **shrine_purchases** (`account_id`, `cosmetic_id`) PK: `price` (> 0, marks), `bought_at`.
+- **cosmetic_displays.companion** (text, null = none): composite FK `(account_id, companion)` → `cosmetic_unlocks`, like the banner.
+- Invariants (`reconcileShrine`): draws = grant draws + marks draws; marks = Σ draws.marks − Σ purchases.price; per source, draws spent ≤ Σ grants.count.
+
 ## Relationships
 
 ```

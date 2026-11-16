@@ -1,5 +1,6 @@
 import { appearancePalette } from '../content/appearance';
-import { useHeroPalette } from '../cosmetics/store';
+import { useCompanion, useHeroPalette } from '../cosmetics/store';
+import { Companion } from '../cosmetics/Cosmetics';
 import {
   MAX_LEVEL,
   getArea,
@@ -153,6 +154,7 @@ function Scene({ view, phone, farming }: { view: AreaView; phone: boolean; farmi
   const sheet = classAttackSheet(hero.classId);
   // Ticket 6.8: the hero's appearance (a palette swap of its frames, own colours if none).
   const palette = appearancePalette(useHeroPalette(hero.id), hero.classId);
+  const companion = useCompanion();
   // Ticket 9.2: the class resource moves with the scene's beats, under the loadout in force.
   // A.18 draws the meter, the cast flash and the ticks; the loadout in force drives them.
   const { gauge, onBeat, skill } = useResourceGauge(
@@ -213,6 +215,7 @@ function Scene({ view, phone, farming }: { view: AreaView; phone: boolean; farmi
           style={{ ['--px' as string]: `${spriteScale}px` }}
         >
           <div className="scene__hero">
+            <Companion id={companion} scale={spriteScale} className="scene__companion" />
             <SceneActor role="hero" framed={sheet !== null} actorRef={heroRef} cast={hero.classId}>
               <PixelSprite
                 sprite={sheet ?? classPortrait(hero.classId)}

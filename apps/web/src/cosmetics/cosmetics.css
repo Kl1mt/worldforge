@@ -106,6 +106,10 @@
 .cosm-crest--seal-wax {
   --cosm-metal: #8f2f2a;
 }
+/* Ticket 9.5: the Shrine's crest (A.19's frame; without it, an ash-grey rim). */
+.cosm-crest--votive-ash {
+  --cosm-metal: #8a8478;
+}
 .cosm-banner--silvered-seal .cosm-banner__device,
 .cosm-crest--abbey-silver .cosm-crest__frame,
 .cosm-crest--abbey-silver .cosm-crestmark__art {
@@ -212,4 +216,69 @@
 .cosm-crest--guild-champion .cosm-crest__frame,
 .cosm-crest--guild-champion .cosm-crestmark__art {
   filter: saturate(1.4) drop-shadow(0 0 2px #9b2226);
+}
+
+/* Ticket 9.5: companions. A.19's idle sheet plays two frames slowly; without art, a small wisp. */
+.cosm-companion {
+  position: relative;
+  display: inline-block;
+  overflow: hidden;
+  flex: none;
+}
+
+.cosm-companion__strip {
+  display: block;
+  animation: cosm-companion-idle 1.1s steps(var(--frames, 2), end) infinite;
+}
+
+@keyframes cosm-companion-idle {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-100%);
+  }
+}
+
+.cosm-companion--plain {
+  overflow: visible;
+}
+
+.cosm-companion__wisp {
+  position: absolute;
+  inset: 20%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #f3dfa6 0 30%, #c98d3a 55%, transparent 72%);
+  box-shadow: 0 0 6px 2px rgb(201 141 58 / 45%);
+  animation: cosm-companion-bob 2.4s ease-in-out infinite;
+}
+
+.cosm-companion--hollow-wisp .cosm-companion__wisp {
+  background: radial-gradient(circle, #d9ecff 0 30%, #6f8fb8 55%, transparent 72%);
+  box-shadow: 0 0 6px 2px rgb(111 143 184 / 45%);
+}
+
+@keyframes cosm-companion-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-18%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cosm-companion__strip,
+  .cosm-companion__wisp {
+    animation: none;
+  }
+}
+
+/* Ticket 9.5: the Shrine's title colours (CSS only). */
+.cosm-tint--votive-gold {
+  --cosm-tint: #e2c27a;
+}
+.cosm-tint--shrine-ember {
+  --cosm-tint: #c65a3a;
 }

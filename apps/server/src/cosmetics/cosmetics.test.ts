@@ -345,7 +345,12 @@ describe('equip and the book', () => {
     expect(replay.headers['idempotency-replayed']).toBe('true');
     // Partial change keeps the other slots; null = plain.
     const partial = await post(a, '/api/account/cosmetics/equip', { crest: null });
-    expect(partial.json().equipped).toEqual({ ...body, crest: null, cosmeticTitle: null, companion: null });
+    expect(partial.json().equipped).toEqual({
+      ...body,
+      crest: null,
+      cosmeticTitle: null,
+      companion: null,
+    });
 
     // Per hero: an owned appearance, the default, and refusals.
     const url = `/api/characters/${hero.id}/appearance`;

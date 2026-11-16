@@ -30,11 +30,13 @@ export interface Collection {
     crest: string | null;
     titleColour: string | null;
     cosmeticTitle: string | null;
+    /** Ticket 9.5: the companion beside the active hero (null = none). */
+    companion: string | null;
   };
   heroes: CollectionHero[];
 }
 
-export type AccountSlot = 'banner' | 'crest' | 'titleColour';
+export type AccountSlot = 'banner' | 'crest' | 'titleColour' | 'companion';
 
 const key = () =>
   typeof crypto !== 'undefined' && 'randomUUID' in crypto
