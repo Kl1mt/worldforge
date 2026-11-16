@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, full body, small companion creatures in side view facing right, one creature each: an ember newt, a small salamander with charcoal-black skin and dim orange ember cracks along its back and tail; a cinder pup, a stocky slag-hound whelp of cooled black slag and grey ash with faint ember cracks and small glowing eyes, muted desaturated palette, near-black outline, transparent background",
+  "style_image": "apps/web/public/assets/enemies/slag-hound.png",
+  "job_id": "0971e541-7fa6-4f92-8cfa-cd5b39077da7",
+  "created_at": "2026-11-16T02:59:52.515010+00:00",
+  "seed": 591846097,
+  "generations": 10.0,
+  "count": 64,
+  "width": 32,
+  "height": 32
+}

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Hero appearance palettes (ticket A.13): extract each class sprite's palette and design the
-four themed swaps (ticket 8.3 adds a fifth, the Lantern Procession's "lantern-bearer"). No
+four themed swaps (ticket 8.3 adds a fifth, the Lantern Procession's "lantern-bearer"; A.19 the
+Reward Shrine's "candlelight"). No
 generations: this is palette work.
 
 Every class portrait and its attack sheet share one palette (A.14 snapped the frames to the
@@ -29,7 +30,7 @@ ROOT = Path(__file__).resolve().parents[2]
 CHARS = ROOT / "apps/web/public/assets/characters"
 TS = ROOT / "apps/web/src/content/palettes.ts"
 CLASSES = ["warrior", "mage", "hunter", "warlock"]
-PALETTES = ["ashen", "ember", "grave-moss", "midnight", "lantern-bearer"]
+PALETTES = ["ashen", "ember", "grave-moss", "midnight", "lantern-bearer", "candlelight"]
 
 # Colours deliberately left alone besides the near-black outline: faces and hands (skin), and the
 # warlock's bone mask and skull, so every look is still the same hero.
@@ -144,6 +145,14 @@ THEMES = {
         "metal": (34, 46, 0.42, 0.50, 0.95),
         "leather": (24, 32, 0.34, 0.30, 0.80),
         "accent": (36, 44, 0.85, 0.75, 1.15),
+    },
+    # Ticket A.19, the Reward Shrine's "Candlelight" (9.5): gear warmed to wax and gold. Warm
+    # wax-tan cloth, candle-gold metal, dark wax-brown leather, flame-gold glints.
+    "candlelight": {
+        "cloth": (30, 42, 0.36, 0.28, 1.05),
+        "metal": (38, 48, 0.50, 0.42, 1.05),
+        "leather": (20, 28, 0.38, 0.30, 0.80),
+        "accent": (40, 48, 0.62, 0.46, 1.18),
     },
 }
 # Midnight's silver trim: the bright half of the metal ramp is lifted, the dark half pressed down.

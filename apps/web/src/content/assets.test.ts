@@ -27,6 +27,9 @@ import {
   CREST_STYLE_WINDOW,
   bannerStyleAsset,
   crestStyleAsset,
+  COMPANION_IDS,
+  companionSprite,
+  litShrine,
   ART_VARIANTS,
   DEEP_VARIANTS,
   heroicSprite,
@@ -44,6 +47,7 @@ import {
   titleBadgeAsset,
   type SpriteAsset,
 } from './assets';
+import { HUB_HOTSPOTS } from './world';
 
 interface ManifestEntry {
   id: string;
@@ -466,6 +470,7 @@ describe('cosmetic art (A.13)', () => {
       'banner.season-laurel',
       'banner.warden-flame',
       'banner.ember-standard',
+      'banner.votive-veil',
     ]);
     for (const id of BANNER_STYLE_IDS) {
       const sprite = bannerStyleAsset(id);
@@ -478,7 +483,13 @@ describe('cosmetic art (A.13)', () => {
   });
 
   it('resolves every crest style to a 48×56 frame around the md crest window', () => {
-    expect(CREST_STYLE_IDS).toEqual(['crest.iron', 'crest.gilt', 'crest.bone', 'crest.ember']);
+    expect(CREST_STYLE_IDS).toEqual([
+      'crest.iron',
+      'crest.gilt',
+      'crest.bone',
+      'crest.ember',
+      'crest.votive-ash',
+    ]);
     for (const id of CREST_STYLE_IDS) {
       const sprite = crestStyleAsset(id);
       expect(sprite, id).toMatchObject({ width: 48, height: 56, window: CREST_STYLE_WINDOW });
@@ -611,5 +622,48 @@ describe('skill icons (A.18)', () => {
 
   it('returns null for a skill without art, so the Skills screen can fall back', () => {
     expect(skillIcon('noSuchSkill')).toBeNull();
+  });
+});
+
+describe('Reward Shrine art (A.19)', () => {
+  const pngSize = (path: string) => {
+    const bytes = readFileSync(new URL(`../../public${path}`, import.meta.url));
+    return { width: bytes.readUInt32BE(16), height: bytes.readUInt32BE(20) };
+  };
+
+  it('draws the lit shrine exactly over the hub’s summoningShrine hotspot', () => {
+    const shrine = litShrine();
+    const spot = HUB_HOTSPOTS.find((h) => h.id === 'summoningShrine')!;
+    expect({ x: shrine.x, y: shrine.y, width: shrine.width, height: shrine.height }).toEqual({
+      x: spot.x,
+      y: spot.y,
+      width: spot.width,
+      height: spot.height,
+    });
+    expect(pngSize(shrine.path)).toEqual({ width: spot.width, height: spot.height });
+    const entry = manifest.assets.find((m) => m.id === 'hub.shrine') as
+      (ManifestEntry & { hotspot?: string }) | undefined;
+    expect(entry?.kind).toBe('hub');
+    expect(entry?.hotspot).toBe('summoningShrine');
+  });
+
+  it('gives every companion a two-frame 32×32 idle facing right, by its cosmetic id', () => {
+    expect(COMPANION_IDS).toHaveLength(10);
+    const paths = new Set<string>();
+    for (const id of COMPANION_IDS) {
+      const sprite = companionSprite(id);
+      expect(sprite, id).toMatchObject({ width: 32, height: 32, frames: 2, facing: 'right' });
+      expect(sprite?.tint, id).toBeUndefined();
+      expect(pngSize(sprite!.path), id).toEqual({ width: 64, height: 32 });
+      expect(manifest.assets.find((m) => m.id === id)?.kind, id).toBe('companion');
+      paths.add(sprite!.path);
+    }
+    expect(paths.size).toBe(COMPANION_IDS.length);
+    expect(Object.keys(ASSETS).filter((id) => id.startsWith('companion.'))).toEqual([
+      ...COMPANION_IDS,
+    ]);
+    // Another kind or an unknown companion has no companion art.
+    expect(companionSprite('companion.no-such-pet')).toBeNull();
+    expect(companionSprite('skill.heavy-strike')).toBeNull();
   });
 });

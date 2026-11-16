@@ -3181,6 +3181,176 @@
       },
       "prompt": "dark fantasy pixel art skill icons, one emblematic object per icon, warlock shadow magic in near-black, bone and restrained violet: dark violet shadow orb trailing smoke; withered hand dripping violet rot; violet flame consuming a ghostly soul wisp; screaming face in violet smoke; ghostly wisp drawn out of a skull; hourglass with violet sand and a skull; reaper scythe with violet souls; contract parchment sealed with a violet sigil; cursed dagger with violet runes; scaled horned demon hide; brass vial of swirling violet souls; bone-white tome bound in pale chain, muted desaturated palette, transparent background",
       "source": "art/source/pixellab/icons-skills-warlock-01/edits/59-clean.png"
+    },
+    {
+      "id": "hub.shrine",
+      "path": "/assets/hub/shrine-lit.png",
+      "kind": "hub",
+      "size": {
+        "width": 18,
+        "height": 34
+      },
+      "prompt": "(no generation) the hub's own pixels inside the summoningShrine hotspot, lit: candle flames, warm light falling off from them, a violet rune in the slab",
+      "source": "art/source/pixellab/hub-graumark-01/edits/shrine-lit.png (cut from 00.png at the summoningShrine hotspot, x 366, y 112, 18 x 34; tools/art/shrine_lit.py)",
+      "hotspot": "summoningShrine"
+    },
+    {
+      "id": "banner.votive-veil",
+      "path": "/assets/banners/votive-veil.png",
+      "kind": "banner",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "prompt": "(no generation) palette variant of banner.warden-flame: the slate cloth lifted to a smoke-grey veil, the flame in candle gold",
+      "source": "apps/web/public/assets/banners/warden-flame.png recoloured by role, luma kept (tools/art/shrine_variants.py)"
+    },
+    {
+      "id": "crest.votive-ash",
+      "path": "/assets/crests/crest-votive-ash.png",
+      "kind": "crest",
+      "size": {
+        "width": 48,
+        "height": 56
+      },
+      "prompt": "(no generation) palette variant of crest.iron: the iron band paled to ash grey, the plates and bolts in candle brass",
+      "source": "apps/web/public/assets/crests/crest-iron.png recoloured by role, luma kept (tools/art/shrine_variants.py)",
+      "window": {
+        "x": 4,
+        "y": 4,
+        "width": 40,
+        "height": 48
+      }
+    },
+    {
+      "id": "companion.grave-moth",
+      "path": "/assets/companions/grave-moth.png",
+      "kind": "companion",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "frames": 2,
+      "prompt": "dark fantasy pixel art, full body, small companion animals in side view facing right, one creature each: a black raven, a grey alley cat with amber eyes, a small rust-red fox, a barn owl, a warty marsh toad, a bat with folded leathery wings, a lean grey rat, a pale dusk moth, weathered and scruffy, muted desaturated palette, near-black outline, transparent background",
+      "source": "art/source/pixellab/companions-animals-01/edits/57-idle.png (a pale dusk moth: raw 57.png; frame 1 bobbing (the sprite rises 1 px); tools/art/companions.py)",
+      "facing": "right"
+    },
+    {
+      "id": "companion.bone-rat",
+      "path": "/assets/companions/bone-rat.png",
+      "kind": "companion",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "frames": 2,
+      "prompt": "dark fantasy pixel art, full body, small companion animals in side view facing right, one creature each: a black raven, a grey alley cat with amber eyes, a small rust-red fox, a barn owl, a warty marsh toad, a bat with folded leathery wings, a lean grey rat, a pale dusk moth, weathered and scruffy, muted desaturated palette, near-black outline, transparent background",
+      "source": "art/source/pixellab/companions-animals-01/edits/51-idle.png (a lean rat, paled to bone: raw 51.png, recoloured (bone); frame 1 breathing (the body above the feet sinks 1 px); tools/art/companions.py)",
+      "facing": "right"
+    },
+    {
+      "id": "companion.bog-toad",
+      "path": "/assets/companions/bog-toad.png",
+      "kind": "companion",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "frames": 2,
+      "prompt": "dark fantasy pixel art, full body, small companion animals in side view facing right, one creature each: a black raven, a grey alley cat with amber eyes, a small rust-red fox, a barn owl, a warty marsh toad, a bat with folded leathery wings, a lean grey rat, a pale dusk moth, weathered and scruffy, muted desaturated palette, near-black outline, transparent background",
+      "source": "art/source/pixellab/companions-animals-01/edits/33-idle.png (a warty marsh toad: raw 33.png; frame 1 breathing (the body above the feet sinks 1 px); tools/art/companions.py)",
+      "facing": "right"
+    },
+    {
+      "id": "companion.ash-raven",
+      "path": "/assets/companions/ash-raven.png",
+      "kind": "companion",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "frames": 2,
+      "prompt": "dark fantasy pixel art, full body, small companion animals in side view facing right, one creature each: a black raven, a grey alley cat with amber eyes, a small rust-red fox, a barn owl, a warty marsh toad, a bat with folded leathery wings, a lean grey rat, a pale dusk moth, weathered and scruffy, muted desaturated palette, near-black outline, transparent background",
+      "source": "art/source/pixellab/companions-animals-01/edits/03-idle.png (a raven, its black greyed to ash: raw 03.png, recoloured (ash); frame 1 breathing (the body above the feet sinks 1 px); tools/art/companions.py)",
+      "facing": "right"
+    },
+    {
+      "id": "companion.candle-wisp",
+      "path": "/assets/companions/candle-wisp.png",
+      "kind": "companion",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "frames": 2,
+      "prompt": "dark fantasy pixel art, small floating companion spirits, one each: a pale blue-white will-o'-wisp flame, an amber candle-flame wisp, a violet soul wisp with a curling tail, a tiny ghostly hound pup, a little hooded lantern spirit, a small bone-white skull wisp with a cold flame, soft dim glow, muted desaturated palette, near-black outline, transparent background",
+      "source": "art/source/pixellab/companions-wisps-01/edits/10-idle.png (an amber candle-flame wisp: raw 10.png; frame 1 bobbing (the sprite rises 1 px); tools/art/companions.py)",
+      "facing": "right"
+    },
+    {
+      "id": "companion.crypt-cat",
+      "path": "/assets/companions/crypt-cat.png",
+      "kind": "companion",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "frames": 2,
+      "prompt": "dark fantasy pixel art, full body, small companion animals in side view facing right, one creature each: a black raven, a grey alley cat with amber eyes, a small rust-red fox, a barn owl, a warty marsh toad, a bat with folded leathery wings, a lean grey rat, a pale dusk moth, weathered and scruffy, muted desaturated palette, near-black outline, transparent background",
+      "source": "art/source/pixellab/companions-animals-01/edits/10-idle.png (the grey cat turned black, one ear torn: raw 10.png, recoloured (black-cat); frame 1 breathing (the body above the feet sinks 1 px); tools/art/companions.py)",
+      "facing": "right"
+    },
+    {
+      "id": "companion.ember-newt",
+      "path": "/assets/companions/ember-newt.png",
+      "kind": "companion",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "frames": 2,
+      "prompt": "dark fantasy pixel art, full body, small companion creatures in side view facing right, one creature each: an ember newt, a small salamander with charcoal-black skin and dim orange ember cracks along its back and tail; a cinder pup, a stocky slag-hound whelp of cooled black slag and grey ash with faint ember cracks and small glowing eyes, muted desaturated palette, near-black outline, transparent background",
+      "source": "art/source/pixellab/companions-cinder-01/edits/27-idle.png (an ember newt: raw 27.png; frame 1 breathing (the body above the feet sinks 1 px); tools/art/companions.py)",
+      "facing": "right"
+    },
+    {
+      "id": "companion.barrow-owl",
+      "path": "/assets/companions/barrow-owl.png",
+      "kind": "companion",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "frames": 2,
+      "prompt": "dark fantasy pixel art, full body, small companion animals in side view facing right, one creature each: a black raven, a grey alley cat with amber eyes, a small rust-red fox, a barn owl, a warty marsh toad, a bat with folded leathery wings, a lean grey rat, a pale dusk moth, weathered and scruffy, muted desaturated palette, near-black outline, transparent background",
+      "source": "art/source/pixellab/companions-animals-01/edits/24-idle.png (a barn owl: raw 24.png; frame 1 breathing (the body above the feet sinks 1 px); tools/art/companions.py)",
+      "facing": "right"
+    },
+    {
+      "id": "companion.hollow-wisp",
+      "path": "/assets/companions/hollow-wisp.png",
+      "kind": "companion",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "frames": 2,
+      "prompt": "dark fantasy pixel art, small floating companion spirits, one each: a pale blue-white will-o'-wisp flame, an amber candle-flame wisp, a violet soul wisp with a curling tail, a tiny ghostly hound pup, a little hooded lantern spirit, a small bone-white skull wisp with a cold flame, soft dim glow, muted desaturated palette, near-black outline, transparent background",
+      "source": "art/source/pixellab/companions-wisps-01/edits/00-idle.png (a pale blue-white will-o'-wisp: raw 00.png; frame 1 bobbing (the sprite rises 1 px); tools/art/companions.py)",
+      "facing": "right"
+    },
+    {
+      "id": "companion.cinder-pup",
+      "path": "/assets/companions/cinder-pup.png",
+      "kind": "companion",
+      "size": {
+        "width": 32,
+        "height": 32
+      },
+      "frames": 2,
+      "prompt": "dark fantasy pixel art, full body, small companion creatures in side view facing right, one creature each: an ember newt, a small salamander with charcoal-black skin and dim orange ember cracks along its back and tail; a cinder pup, a stocky slag-hound whelp of cooled black slag and grey ash with faint ember cracks and small glowing eyes, muted desaturated palette, near-black outline, transparent background",
+      "source": "art/source/pixellab/companions-cinder-01/edits/05-idle.png (a slag-hound whelp: raw 05.png, mirrored; frame 1 breathing (the body above the feet sinks 1 px); tools/art/companions.py)",
+      "facing": "right"
     }
   ]
 }

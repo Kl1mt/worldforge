@@ -110,6 +110,19 @@ const crestStyle = (name: string): CrestStyleSprite => ({
   window: CREST_STYLE_WINDOW,
 });
 
+/**
+ * Ticket A.19: a Shrine companion (cosmetic, ticket 9.5), a 32×32 two-frame idle stored facing
+ * right (toward the foes): frame 0 is the still, frame 1 breathes or bobs one pixel. It stands
+ * beside the hero at the scene's sprite scale, so it reads at a quarter of the hero's height.
+ */
+const companion = (name: string): SpriteAsset => ({
+  path: `/assets/companions/${name}.png`,
+  width: 32,
+  height: 32,
+  facing: 'right',
+  frames: 2,
+});
+
 const enemy = (name: string, facing: 'front' | 'left' | 'right', size = 64): SpriteAsset => ({
   path: `/assets/enemies/${name}.png`,
   width: size,
@@ -433,6 +446,24 @@ export const ASSETS = {
   'skill.demon-skin': skill('demon-skin'),
   'skill.soul-siphon': skill('soul-siphon'),
   'skill.hollow-covenant': skill('hollow-covenant'),
+  // The Reward Shrine (A.19). The lit shrine is the hub's own `summoningShrine` hotspot rectangle,
+  // lit; draw it over the hub at the hotspot's position and the hub's scale (`litShrine()`).
+  'hub.shrine': { path: '/assets/hub/shrine-lit.png', width: 18, height: 34 },
+  // The Shrine's banner and crest (ticket 9.5's pool): palette variants of A.13's art
+  // (tools/art/shrine_variants.py).
+  'banner.votive-veil': bannerStyle('votive-veil'),
+  'crest.votive-ash': crestStyle('votive-ash'),
+  // Companions (A.19): ticket 9.5's companion cosmetics, the asset id is the cosmetic id.
+  'companion.grave-moth': companion('grave-moth'),
+  'companion.bone-rat': companion('bone-rat'),
+  'companion.bog-toad': companion('bog-toad'),
+  'companion.ash-raven': companion('ash-raven'),
+  'companion.candle-wisp': companion('candle-wisp'),
+  'companion.crypt-cat': companion('crypt-cat'),
+  'companion.ember-newt': companion('ember-newt'),
+  'companion.barrow-owl': companion('barrow-owl'),
+  'companion.hollow-wisp': companion('hollow-wisp'),
+  'companion.cinder-pup': companion('cinder-pup'),
 } as const satisfies Record<string, SpriteAsset>;
 
 export type AssetId = keyof typeof ASSETS;
@@ -628,6 +659,8 @@ export const BANNER_STYLE_IDS = [
   'banner.season-laurel',
   'banner.warden-flame',
   'banner.ember-standard',
+  // A.19: the Reward Shrine's (ticket 9.5).
+  'banner.votive-veil',
 ] as const;
 export type BannerStyleId = (typeof BANNER_STYLE_IDS)[number];
 
@@ -640,7 +673,14 @@ export function bannerStyleAsset(id: string): SpriteAsset | null {
 }
 
 /** Crest styles (A.13), plainest first. */
-export const CREST_STYLE_IDS = ['crest.iron', 'crest.gilt', 'crest.bone', 'crest.ember'] as const;
+export const CREST_STYLE_IDS = [
+  'crest.iron',
+  'crest.gilt',
+  'crest.bone',
+  'crest.ember',
+  // A.19: the Reward Shrine's (ticket 9.5).
+  'crest.votive-ash',
+] as const;
 export type CrestStyleId = (typeof CREST_STYLE_IDS)[number];
 
 /**
@@ -666,4 +706,39 @@ export function skillAssetName(skillId: string): string {
  */
 export function skillIcon(skillId: string): SpriteAsset | null {
   return findSprite(`skill.${skillAssetName(skillId)}`);
+}
+
+/**
+ * Ticket A.19: the companions drawn, by cosmetic id: ticket 9.5's pool (game-core `COSMETICS` of
+ * kind `companion`). Each id is also its asset id.
+ */
+export const COMPANION_IDS = [
+  'companion.grave-moth',
+  'companion.bone-rat',
+  'companion.bog-toad',
+  'companion.ash-raven',
+  'companion.candle-wisp',
+  'companion.crypt-cat',
+  'companion.ember-newt',
+  'companion.barrow-owl',
+  'companion.hollow-wisp',
+  'companion.cinder-pup',
+] as const;
+
+/**
+ * Ticket A.19: a companion's two-frame idle (32×32 frames, facing right) by its cosmetic id
+ * (`companion.grave-moth`), or `null` without art (draw a fallback). Draw it with `PixelSprite` at
+ * the scene's sprite scale, beside the hero, never mirrored.
+ */
+export function companionSprite(cosmeticId: string): SpriteAsset | null {
+  return cosmeticId.startsWith('companion.') ? findSprite(cosmeticId) : null;
+}
+
+/**
+ * Ticket A.19: the lit Summoning Shrine and where it goes: the hub's `summoningShrine` hotspot (its
+ * `x`, `y` in native hub pixels; the art is exactly the hotspot's size). Multiply by the hub's
+ * integer scale like the hotspots.
+ */
+export function litShrine(): SpriteAsset & { x: number; y: number } {
+  return { ...ASSETS['hub.shrine'], x: 366, y: 112 };
 }
