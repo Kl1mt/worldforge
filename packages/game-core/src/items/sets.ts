@@ -29,6 +29,12 @@ export interface SetDefinition {
   pieces: readonly string[];
   /** In ascending piece count. */
   bonuses: readonly SetBonusDefinition[];
+  /**
+   * Ticket 9.3: a set granted by quests only (the Masters' Lessons): no loot table rolls its
+   * pieces (`setPiecePool` leaves it out), and each piece also rolls a Legendary effect of its
+   * own base's pool (the skill-aware ones), unlike the drop sets' pieces.
+   */
+  questOnly?: boolean;
 }
 
 export const ITEM_SETS: readonly SetDefinition[] = [
@@ -78,6 +84,15 @@ export const ITEM_SETS: readonly SetDefinition[] = [
       { pieces: 4, effectId: 'bloodmoon-long-hunt' },
     ],
   },
+  // Ticket 9.3: the skill quests' two rewards (docs/QUESTS.md "Skill quests").
+  {
+    id: 'masters-lessons',
+    name: 'The Masters’ Lessons',
+    theme: 'Taught by the fallen: sharper skills, deeper wounds.',
+    pieces: ['masters-ember-band', 'masters-hollow-torc'],
+    bonuses: [{ pieces: 2, effectId: 'lessons-mastery' }],
+    questOnly: true,
+  },
 ];
 
 const SETS_BY_ID = new Map(ITEM_SETS.map((s) => [s.id, s]));
@@ -97,12 +112,14 @@ export function setForBase(baseId: string): SetDefinition | undefined {
  * class, all of them.
  */
 export function setPiecePool(itemLevel: number, classId?: ClassId): string[] {
-  return ITEM_SETS.flatMap((s) => s.pieces).filter((id) => {
-    const base = getItemBase(id);
-    return (
-      base.minItemLevel <= itemLevel && (classId === undefined || canClassUseItem(base, classId))
-    );
-  });
+  return ITEM_SETS.filter((s) => s.questOnly !== true)
+    .flatMap((s) => s.pieces)
+    .filter((id) => {
+      const base = getItemBase(id);
+      return (
+        base.minItemLevel <= itemLevel && (classId === undefined || canClassUseItem(base, classId))
+      );
+    });
 }
 
 /** Item fields set counting reads. `variant` is deliberately not one of them. */

@@ -25,6 +25,11 @@ import type { ItemSlotKind } from '../items/bases.js';
  * - `skillOpener`: the first attack of every fight is the class skill with + `bonus` damage.
  * - `skillRot`: the class skill adds `fraction` × the enemy's remaining health (at most the
  *   skill's own damage), so it shines against big health pools.
+ * - Ticket 9.3, skill-aware (they act only on a chosen loadout's kit: the default loadout has no
+ *   spender, no damage over time and no cost, so they change nothing for it):
+ *   - `skillSpender`: the skills in slots 2 and 3 deal + `bonus` (like a passive's spender bonus);
+ *   - `skillDot`: damage over time ticks + `bonus`;
+ *   - `skillThrift`: the skills in slots 2 and 3 cost `reduction` less (rounded, at least 1).
  */
 export type EffectComponent =
   | { type: 'critBurn'; bonus: number }
@@ -37,7 +42,10 @@ export type EffectComponent =
   | { type: 'skillRage'; perDecile: number }
   | { type: 'skillSurge'; power: number }
   | { type: 'skillOpener'; bonus: number }
-  | { type: 'skillRot'; fraction: number };
+  | { type: 'skillRot'; fraction: number }
+  | { type: 'skillSpender'; bonus: number }
+  | { type: 'skillDot'; bonus: number }
+  | { type: 'skillThrift'; reduction: number };
 
 export type EffectComponentType = EffectComponent['type'];
 
@@ -65,6 +73,11 @@ export interface EffectDefinition {
   slots?: readonly ItemSlotKind[];
   weight?: number;
   classId?: ClassId;
+  /**
+   * Ticket 9.3: a Legendary effect that rolls only on these bases (and they roll only such
+   * effects), so every older base's pool, and every draw on it, is unchanged.
+   */
+  bases?: readonly string[];
   components: readonly EffectComponentSpec[];
   /** Tooltip text; `{0}`, `{1}` … are the components' formatted parameters (see `describeEffect`). */
   text: string;
@@ -98,6 +111,13 @@ export interface CombatEffects {
   skillSurge: number;
   skillOpener: number;
   skillRot: number;
+  /**
+   * Ticket 9.3 (skill-aware, read only by a loadout's kit). Absent when off, so every object
+   * without them is exactly the pre-9.3 one.
+   */
+  skillSpender?: number;
+  skillDot?: number;
+  skillThrift?: number;
 }
 
 /** Upper bounds of the combined effects (several sources of one mechanic add up to these). */
@@ -114,4 +134,7 @@ export interface EffectCaps {
   skillSurge: number;
   skillOpener: number;
   skillRot: number;
+  skillSpender: number;
+  skillDot: number;
+  skillThrift: number;
 }

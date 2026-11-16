@@ -66,8 +66,8 @@ export interface LoadoutBossJob {
   runs: number;
 }
 
-const tyrant = { forgeTyrantDefeated: true };
-const all = { forgeTyrantDefeated: true, hollowSovereignDefeated: true };
+const tyrant = { forgeTyrantSkillLearned: true };
+const all = { forgeTyrantSkillLearned: true, hollowSovereignSkillLearned: true };
 
 export const FARM_JOBS: readonly LoadoutFarmJob[] = [
   {
@@ -140,7 +140,7 @@ export const BOSS_JOBS: readonly LoadoutBossJob[] = [
     tier: 1,
     level: 50,
     gear: (c) => upgraded(legendaryKit(c, 47), 10),
-    hero: { level: 50, progress: { ...tyrant, hollowSovereignDefeated: true } },
+    hero: { level: 50, progress: { ...tyrant, hollowSovereignSkillLearned: true } },
     runs: 48,
   },
 ];

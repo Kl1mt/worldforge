@@ -620,7 +620,8 @@ describe('balance (ticket B.1)', () => {
     });
 
     it('its tier-4 bases beat their tier-3 counterparts by about a tenth at the same item level', () => {
-      const t4 = ITEM_BASES.filter((x) => x.tier === 4);
+      // Ticket 9.3: the skill quests' unique ring is not an area base.
+      const t4 = ITEM_BASES.filter((x) => x.tier === 4 && !x.unique);
       expect(t4.length).toBe(10);
       for (const base of t4) {
         const t3 = ITEM_BASES.find(
@@ -1698,7 +1699,8 @@ describe('balance (ticket B.1)', () => {
     it('full set bonuses move the crypt but do not trivialise the Gravewarden', () => {
       const crypt = getDungeonTier('namelessCrypt', 1);
       for (const c of CLASS_IDS) {
-        for (const set of ITEM_SETS) {
+        // Ticket 9.3: the Masters' Lessons acts on a chosen loadout only (no bonus for this hero).
+        for (const set of ITEM_SETS.filter((x) => x.questOnly !== true)) {
           const bonus = set.bonuses.map((b) => bonusRing(b.effectId));
           const label = `${c} ${set.id}`;
           // A naked hero never wins, whatever bonuses it has.

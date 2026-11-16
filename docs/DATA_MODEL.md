@@ -256,8 +256,8 @@ Quests a character accepted (story chain and daily contracts, `docs/QUESTS.md`).
 | ------------- | ----------- | ----------------------------------------------------------------------- |
 | id            | uuid PK     | UUIDv7; the id the client turns in                                      |
 | character_id  | uuid FK     | → `characters.id` `ON DELETE CASCADE`                                   |
-| kind          | text        | `story` / `contract` (`CHECK`)                                          |
-| quest_id      | text        | game-core `StoryQuestId`, or the `ContractTemplate` id                  |
+| kind          | text        | `story` / `contract` / `skill` (`CHECK`; `skill` since 9.3, migration 0049 widened the check) |
+| quest_id      | text        | game-core `StoryQuestId`, the `ContractTemplate` id, or (9.3) a `SkillQuestId` |
 | contract_day  | text        | contracts only: UTC day `YYYY-MM-DD` (`CHECK`: set iff contract)        |
 | contract_slot | smallint    | contracts only: board slot 0–2                                          |
 | objectives    | jsonb       | game-core `QuestObjective[]`, copied at acceptance                      |
@@ -267,7 +267,9 @@ Quests a character accepted (story chain and daily contracts, `docs/QUESTS.md`).
 | accepted_at   | timestamptz |                                                                         |
 | turned_in_at  | timestamptz |                                                                         |
 
-Partial unique indexes: `(character_id, quest_id) WHERE kind = 'story'` (a story quest once), `(character_id, contract_day, contract_slot) WHERE kind = 'contract'` (a slot once a day). Progress is written only by settlement / dungeon events under the character lock; turn-in locks the row and flips the status in the reward transaction.
+Partial unique indexes: `(character_id, quest_id) WHERE kind = 'story'` (a story quest once), `(character_id, quest_id) WHERE kind = 'skill'` (ticket 9.3: a skill quest once), `(character_id, contract_day, contract_slot) WHERE kind = 'contract'` (a slot once a day). Progress is written only by settlement / dungeon events under the character lock; turn-in locks the row and flips the status in the reward transaction.
+
+**Ticket 9.3 (skill quests, `docs/QUESTS.md` "Skill quests").** A skill quest's row stores `reward: { xp: 0, gold: 0, materials: {}, item }` (the Masters' Lessons piece); its material cost is content (`SKILL_QUESTS[].cost`), read and paid at the turn-in. Turning one in sets a deed flag in `characters.progress` (jsonb, no new column): `forgeTyrantSkillLearned` or `hollowSovereignSkillLearned`, which the later-content skills' unlock reads (`SkillUnlock.deed`). **Migration 0049** (additive: a new partial unique index, the kind `CHECK` widened by drop-and-add, and two data statements) keeps 9.2's skills: every hero whose progress had `forgeTyrantDefeated` (or `hollowSovereignDefeated`) gets the matching `…SkillLearned` flag and one `skill.kept` audit row (`data: { deed, via: 'migration 0049', rule: '9.2 kill flag' }`). Each statement skips heroes that already have the flag, so running it twice changes nothing and writes no second audit row (tested: `quests/skill-quests.test.ts`). A migration rather than a start-up backfill: it runs before the new server answers, so no settlement ever reads a kept skill as locked.
 
 ### idempotency_keys — implemented (2.6)
 Stored responses of requests sent with an `Idempotency-Key` header (`apps/server/src/idempotency/`, `docs/API_CONVENTIONS.md`).

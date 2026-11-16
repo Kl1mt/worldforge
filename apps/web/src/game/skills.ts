@@ -251,11 +251,12 @@ export function skillFacts(skill: SkillDefinition): string {
 }
 
 const DEED_TEXT: Record<NonNullable<SkillDefinition['unlock']['deed']>, string> = {
-  forgeTyrantDefeated: 'Taught by the Forge Tyrant’s fall',
-  hollowSovereignDefeated: 'Taught by the Hollow Sovereign’s fall',
+  // Ticket 9.3: taught by the skill quests at the Tavern (a boss kill and an older boss's material).
+  forgeTyrantSkillLearned: 'Taught by the Tyrant’s Lesson (Tavern)',
+  hollowSovereignSkillLearned: 'Taught by the Sovereign’s Lesson (Tavern)',
 };
 
-/** "Unlocks at level 12", or "Taught by the Forge Tyrant’s fall · level 36". */
+/** "Unlocks at level 12", or "Taught by the Tyrant’s Lesson (Tavern) · level 36". */
 export function unlockText(skill: SkillDefinition): string {
   const { level, deed } = skill.unlock;
   return deed ? `${DEED_TEXT[deed]} · level ${level}` : `Unlocks at level ${level}`;

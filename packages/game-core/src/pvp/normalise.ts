@@ -287,6 +287,10 @@ export function pvpEffects(fx: CombatEffects, effectKeep: number): CombatEffects
     skillSurge: fx.skillSurge,
     skillOpener: scale(fx.skillOpener),
     skillRot: scale(fx.skillRot),
+    // Ticket 9.3: skill-aware bonuses keep `effectKeep` like every bonus (absent when off).
+    ...(fx.skillSpender ? { skillSpender: scale(fx.skillSpender) } : {}),
+    ...(fx.skillDot ? { skillDot: scale(fx.skillDot) } : {}),
+    ...(fx.skillThrift ? { skillThrift: scale(fx.skillThrift) } : {}),
   };
 }
 

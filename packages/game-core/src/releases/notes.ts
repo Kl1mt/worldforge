@@ -23,9 +23,24 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.9.2';
+export const GAME_VERSION = '0.9.3';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.9.3',
+    date: '2026-11-22',
+    title: 'The masters’ lessons',
+    new: [
+      'Skill quests at the Tavern: Brother Ansgar teaches the skills the Forge Tyrant and the Hollow Sovereign fought with. Take the Tyrant’s Lesson from level 36 or the Sovereign’s Lesson from level 46, fell that boss once more, and bring two Gravewarden’s Seals (for the Tyrant’s Lesson) or two Tyrant’s Embers (for the Sovereign’s Lesson). Your class learns its skill for good, once per hero.',
+      'Each lesson also gives a Legendary: the Ember Band and the Hollow Torc of the Masters. Their powers work with your chosen skills (sharper skills in your second and third slots, deeper bleeds, burns and curses, or cheaper skills), and worn together they grant one more.',
+    ],
+    changed: [
+      'Heroes who had already felled the Forge Tyrant or the Hollow Sovereign keep the skill that fall taught them. They can still take the lesson for its Legendary.',
+      'The two skills are no longer taught by the kill alone: heroes who fell those bosses from now on learn them through the lessons.',
+      'If you never open the Skills section, the new Legendaries’ powers do nothing for you: your hero fights exactly as before.',
+    ],
+    tickets: ['9.3'],
+  },
   {
     version: '0.9.2',
     date: '2026-11-22',

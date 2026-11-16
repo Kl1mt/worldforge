@@ -8,11 +8,17 @@ import {
   CLASS_IDS,
   GUILD_EMBLEMS,
   ITEM_BASES,
+  SKILL_QUEST_BASES,
   PRESTIGE_METRICS,
   getArea,
   getEnemy,
   getMaterial,
 } from '@worldforge/game-core';
+
+/** Area bases by tier (ticket 9.3: the skill quests' reward bases borrow icons until drawn). */
+const QUEST_BASES: readonly string[] = SKILL_QUEST_BASES;
+const tierBases = (tier: number) =>
+  ITEM_BASES.filter((b) => b.tier === tier && !QUEST_BASES.includes(b.id));
 import {
   ART_STAND_INS,
   HOLLOW_STAND_INS,
@@ -95,7 +101,7 @@ describe('Cinderwastes art (tickets 6.1, A.11, A.15)', () => {
   });
 
   it('gives every tier-4 base its own 32×32 icon file (A.15), not a tinted tier-3 one', () => {
-    const tier4 = ITEM_BASES.filter((b) => b.tier === 4);
+    const tier4 = tierBases(4);
     expect(tier4).toHaveLength(10);
     const files = new Set<string>();
     const lowerTierFiles = new Set(
@@ -219,9 +225,9 @@ describe('Hollow Reach art (ticket 8.1, A.17)', () => {
   });
 
   it('gives every tier-5 base an icon: A.17’s own once drawn, else its tier-4 counterpart', () => {
-    const tier5 = ITEM_BASES.filter((b) => b.tier === 5);
+    const tier5 = tierBases(5);
     expect(tier5).toHaveLength(10);
-    const tier4 = ITEM_BASES.filter((b) => b.tier === 4);
+    const tier4 = tierBases(4);
     for (const base of tier5) {
       expect(base.icon, base.id).toBe(`item.${base.id}`);
       const sprite = findSprite(base.icon)!;

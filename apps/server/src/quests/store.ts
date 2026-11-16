@@ -34,6 +34,15 @@ import {
   type WorldFlags,
   type WorldProgress,
   type TradingSwitches,
+  SKILL_QUESTS,
+  getSkillQuest,
+  isSkillQuestId,
+  skillQuestBlockers,
+  skillQuestLearned,
+  skillQuestMissing,
+  skillTaughtBy,
+  type SkillQuestBlocker,
+  type SkillQuestId,
 } from '@worldforge/game-core';
 import {
   characterMaterials,
@@ -50,6 +59,7 @@ import { writeAudit } from '../db/audit.js';
 import { recordTelemetry } from '../telemetry/record.js';
 import { dropCounts, goldIn, materialCounts, xpIn } from '../telemetry/counts.js';
 import { uuidv7 } from '../db/uuid.js';
+import { changeMaterialsTx, loadMaterialBundle } from '../materials/store.js';
 import { ApiError } from '../errors.js';
 // Type-only: a value import would close a cycle (settlement → quests → inventory → settlement).
 import { itemView, type ItemView, packItemsWhere } from '../inventory/routes.js';
@@ -141,6 +151,28 @@ export interface QuestBoardResponse {
     active: number;
     maxActive: number;
   };
+  /** Ticket 9.3: the skill quests (docs/QUESTS.md "Skill quests"), in content order. */
+  skills: SkillQuestOfferView[];
+}
+
+export interface SkillQuestOfferView {
+  questId: SkillQuestId;
+  /** The boss whose fall it asks for. */
+  bossId: string;
+  /** The skill it teaches this hero's class. */
+  skill: { id: string; name: string; kind: 'active' | 'passive'; level: number };
+  /** Paid at the turn-in, and what the hero still lacks of it now. */
+  cost: Partial<Record<MaterialId, number>>;
+  missing: Partial<Record<MaterialId, number>>;
+  /** The Legendary it grants (its effect rolls at the turn-in). */
+  item: { baseId: string; rarityId: string; itemLevel: number };
+  /** `available` (can be taken), `locked` (blockers), `active` (held), `turnedIn`. */
+  state: 'available' | 'locked' | 'active' | 'turnedIn';
+  blockers: SkillQuestBlocker[];
+  /** The hero knows the skill (by this quest, or kept from before the skill quests). */
+  learned: boolean;
+  /** The held or turned-in quest row, if any. */
+  questRowId: string | null;
 }
 
 /**
@@ -209,6 +241,30 @@ export async function questBoard(
     rows.filter((r) => r.kind === 'contract' && r.contractDay === day).map((r) => r.contractSlot),
   );
   const offers = dailyContracts(character.id, day, character.level, character.progress, world);
+  const held = await loadMaterialBundle(db, character.id);
+  const skills = SKILL_QUESTS.map((q): SkillQuestOfferView => {
+    const row = rows.find((r) => r.kind === 'skill' && r.questId === q.id);
+    const blockers = skillQuestBlockers(q, character.level);
+    const taught = skillTaughtBy(q, character.classId);
+    return {
+      questId: q.id,
+      bossId: q.bossId,
+      skill: { ...taught, kind: q.skillKind },
+      cost: q.cost.materials,
+      missing: skillQuestMissing(q, held),
+      item: { ...q.item },
+      state: row
+        ? row.status === 'turnedIn'
+          ? 'turnedIn'
+          : 'active'
+        : blockers.length > 0
+          ? 'locked'
+          : 'available',
+      blockers,
+      learned: skillQuestLearned(q, character.progress),
+      questRowId: row?.id ?? null,
+    };
+  });
   return {
     characterId: character.id,
     day,
@@ -242,13 +298,17 @@ export async function questBoard(
       active: rows.filter((r) => r.kind === 'contract' && r.status === 'active').length,
       maxActive: MAX_ACTIVE_CONTRACTS,
     },
+
+    skills,
   };
 }
 
 export type AcceptRequest =
   | { kind: 'story'; questId: string }
   /** `rewardSlot` (ticket 3.6): the item slot chosen for a contract that offers one. */
-  | { kind: 'contract'; slot: number; rewardSlot?: string };
+  | { kind: 'contract'; slot: number; rewardSlot?: string }
+  /** Ticket 9.3: a skill quest, once per hero, from the quest's level. */
+  | { kind: 'skill'; questId: string };
 
 /**
  * Accepts a story quest or one of today's contracts. The character must be locked and settled
@@ -268,7 +328,27 @@ export async function acceptQuestTx(
     .where(eq(characterQuests.characterId, character.id))
     .for('update');
   let values: typeof characterQuests.$inferInsert;
-  if (request.kind === 'story') {
+  if (request.kind === 'skill') {
+    if (!isSkillQuestId(request.questId)) throw new ApiError(404, 'not_found', 'No such quest.');
+    const def = getSkillQuest(request.questId);
+    if (rows.some((r) => r.kind === 'skill' && r.questId === def.id)) {
+      throw new ApiError(409, 'quest_already_accepted', 'You already took this quest.');
+    }
+    const blockers = skillQuestBlockers(def, character.level);
+    if (blockers.length > 0) {
+      throw new ApiError(422, 'quest_locked', 'You cannot take this quest yet.', { blockers });
+    }
+    values = {
+      id: uuidv7(),
+      characterId: character.id,
+      kind: 'skill',
+      questId: def.id,
+      objectives: [...def.objectives],
+      progress: initialProgress(def.objectives),
+      reward: { xp: 0, gold: 0, materials: {}, item: { ...def.item } },
+      acceptedAt: now,
+    };
+  } else if (request.kind === 'story') {
     if (!isStoryQuestId(request.questId)) {
       throw new ApiError(404, 'not_found', 'No such quest.');
     }
@@ -451,6 +531,21 @@ export async function turnInQuestTx(
     }
   }
   const { reward } = quest;
+  // Ticket 9.3: a skill quest's cost (an older boss's material) is held at the turn-in and paid in
+  // this transaction (the character row is locked), and its deed flag is set below.
+  const skill =
+    quest.kind === 'skill' && isSkillQuestId(quest.questId)
+      ? getSkillQuest(quest.questId)
+      : undefined;
+  if (skill) {
+    const missing = skillQuestMissing(skill, await loadMaterialBundle(tx, character.id));
+    if (Object.keys(missing).length > 0) {
+      throw new ApiError(422, 'quest_materials_missing', 'Bring what the quest asks for first.', {
+        missing,
+        cost: skill.cost.materials,
+      });
+    }
+  }
 
   let item: ItemView | null = null;
   let itemSeed: number | null = null;
@@ -522,10 +617,19 @@ export async function turnInQuestTx(
       });
   }
 
+  if (skill) {
+    const paid = Object.fromEntries(
+      Object.entries(skill.cost.materials).map(([id, n]) => [id, -n]),
+    ) as Partial<Record<MaterialId, number>>;
+    await changeMaterialsTx(tx, character.id, paid, now);
+  }
+  const learnedBefore = skill ? skillQuestLearned(skill, character.progress) : false;
+
   const levelled = applyXp({ level: character.level, xp: character.experience }, reward.xp);
   const [updatedCharacter] = await tx
     .update(characters)
     .set({
+      ...(skill ? { progress: { ...character.progress, [skill.teaches]: true } } : {}),
       level: levelled.level,
       experience: levelled.xp,
       gold: sql`${characters.gold} + ${reward.gold}`,
@@ -544,7 +648,9 @@ export async function turnInQuestTx(
     tx,
     updatedCharacter!,
     [
-      quest.kind === 'story' ? 'storyQuestsTurnedIn' : 'contractsTurnedIn',
+      ...(quest.kind === 'skill'
+        ? []
+        : ([quest.kind === 'story' ? 'storyQuestsTurnedIn' : 'contractsTurnedIn'] as const)),
       'maxCharacterLevel',
       ...(item ? (['maxRarity'] as const) : []),
     ],
@@ -573,9 +679,17 @@ export async function turnInQuestTx(
       item: item
         ? { id: item.id, baseId: item.baseId, rarityId: item.rarityId, seed: itemSeed }
         : null,
+      ...(skill
+        ? {
+            teaches: skill.teaches,
+            skillId: skillTaughtBy(skill, character.classId).id,
+            materialsPaid: skill.cost.materials,
+            learnedBefore,
+          }
+        : {}),
     },
   });
-  const source = quest.kind === 'story' ? 'quest' : 'contract';
+  const source = quest.kind === 'contract' ? 'contract' : 'quest';
   recordTelemetry(tx, now, [
     {
       metric: 'quest.reward',
@@ -589,6 +703,8 @@ export async function turnInQuestTx(
     ...goldIn(source, quest.questId, reward.gold),
     ...xpIn(source, quest.questId, reward.xp),
     ...materialCounts('material.in', source, reward.materials),
+    // Ticket 9.3: the older boss's material a skill quest takes (a sink for old hoards).
+    ...(skill ? materialCounts('material.out', 'skill_quest', skill.cost.materials) : []),
   ]);
   return { character: updatedCharacter!, quest: updatedQuest!, reward: granted };
 }

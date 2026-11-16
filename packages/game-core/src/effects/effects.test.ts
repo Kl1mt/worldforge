@@ -259,7 +259,10 @@ describe('Legendary and Mythic generation', () => {
       }
       // Every effect possible for the class shows up, including its class effect.
       const possible = EFFECTS.filter(
-        (e) => e.kind === 'legendary' && (e.classId === undefined || e.classId === classId),
+        (e) =>
+          e.kind === 'legendary' &&
+          e.bases === undefined &&
+          (e.classId === undefined || e.classId === classId),
       );
       for (const e of possible) expect(seen, `${classId} ${e.id}`).toContain(e.id);
     }

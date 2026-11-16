@@ -1,6 +1,6 @@
-# Skills, resources and loadouts (tickets 9.1 design, 9.2 build)
+# Skills, resources and loadouts (tickets 9.1 design, 9.2 build, 9.3 skill quests)
 
-**Status: in play since ticket 9.2** (the owner's yes to all ten questions, 2026-11-15, "Owner questions: decided" below). A hero's chosen loadout fights with the rules here; **a hero who never opens the Skills screen fights exactly as before** (the default loadout runs today's code path, no kit). 9.1 designed and prototyped it behind a switch; 9.2 switched it to `live` and built the server, the web and the versions ("9.2: what was built").
+**Status: in play since ticket 9.2** (the owner's yes to all ten questions, 2026-11-15, "Owner questions: decided" below). A hero's chosen loadout fights with the rules here; **a hero who never opens the Skills screen fights exactly as before** (the default loadout runs today's code path, no kit). 9.1 designed and prototyped it behind a switch; 9.2 switched it to `live` and built the server, the web and the versions ("9.2: what was built"); 9.3 teaches the two later-content skills through skill quests at the Tavern and adds skill-aware Legendaries ("9.3: skill quests").
 
 GDD §5.2 (each class's resource drives its skills), §6.3 (skills run automatically, a loadout is picked outside combat, new skills unlock with levels and later content). Owner defaults approved 2026-11-13 (`docs/ROADMAP.md` Phase 9): a loadout of three actives and one passive, six actives and four passives per class unlocked from level 1 to about 40, three presets, damage over time for the Warlock (and one each for the Mage and the Hunter), two later-content skills per class, and the default loadout is today's.
 
@@ -9,7 +9,7 @@ Code: content `packages/game-core/src/combat/skills.ts` (`RESOURCE_RULES`, `ACTI
 ## For players (the Skills screen's words)
 Your hero fights on their own, and now you choose how. Each class has a resource that fills and empties as the fight goes: a Warrior's **Rage** grows with every blow given and taken, a Mage's **Mana** starts full and slowly comes back, a Hunter's **Focus** builds while nothing hits them and crits give some back, and a Warlock gathers **Soul Fragments** from fallen foes and from their curses.
 
-Pick three skills and one passive outside combat. The first slot holds your class skill, the blow that lands every few attacks as it always has; the other two spend your resource when it is ready. New skills unlock as you level and when you fell the Forge Tyrant and the Hollow Sovereign. Some loadouts clear fields fastest, others bring bosses down sooner; none is best at everything. Save up to three loadouts and switch between them when you're not in a fight. If you never open the Skills screen, your hero fights exactly as before.
+Pick three skills and one passive outside combat. The first slot holds your class skill, the blow that lands every few attacks as it always has; the other two spend your resource when it is ready. New skills unlock as you level, and two more are taught at the Tavern: fell the Forge Tyrant or the Hollow Sovereign once more and bring an older boss's spoils to the forge-scholar. Some loadouts clear fields fastest, others bring bosses down sooner; none is best at everything. Save up to three loadouts and switch between them when you're not in a fight. If you never open the Skills screen, your hero fights exactly as before.
 
 ## Resources (`RESOURCE_RULES`)
 All deterministic: gains come from attacks landed, blows taken and the fight's pulse (once a second); the only random input is a crit, as today. A resource never heals or shields (see "The two simulations").
@@ -24,7 +24,7 @@ All deterministic: gains come from attacks landed, blows taken and the fight's p
 Passives add to these rules (Deep Reserves: 40 more Mana; Dark Pact: a kill leaves 3 fragments; Soul Siphon: hold 5, two per curse pulse). The Warlock's fragments are the only resource carried between fights (like bloodrush stacks, `momentum`): `FarmingCharacter.soulFragments` in, `FarmingResult.soulFragments` out, and a crypt run starts at 0 and carries them room to room. Since 9.2 they are stored with the activity (`activities.soul_fragments`, `farm_state.soulFragments`, default 0).
 
 ## The skills
-Six actives by level (1, 5, 12, 20, 28, 36) and one taught by the **Forge Tyrant's fall** (Phase 6 content: older bosses gain a use); four passives by level (8, 16, 24, 32) and one taught by the **Hollow Sovereign's fall** (Phase 8). Today's skill is each class's first active, with today's numbers (read from `AUTO_SKILLS`). Multipliers are of the class's primary damage, like today's skill.
+Six actives by level (1, 5, 12, 20, 28, 36) and one taught by the **Forge Tyrant** (Phase 6 content: older bosses gain a use); four passives by level (8, 16, 24, 32) and one taught by the **Hollow Sovereign** (Phase 8). Since 9.3 both are taught by a skill quest (a fresh kill of that boss and an older boss's material, "9.3: skill quests"); 9.2 taught them by the kill flag. Today's skill is each class's first active, with today's numbers (read from `AUTO_SKILLS`). Multipliers are of the class's primary damage, like today's skill.
 
 Two kinds of active:
 - **Core** (slot 1): fires on every n-th attack, exactly like today's class skill. Each class has two: today's and one with damage over time (unlocked at 20) that hits softer up front and more over time.
@@ -231,6 +231,15 @@ A loadout moves Power by at most 2 % (it clears trials faster; nobody newly fail
 - **Server.** `character_loadouts`, `characters.loadout_preset`, `activities.soul_fragments` (`docs/DATA_MODEL.md`); `GET/PUT/POST …/skills` (`docs/API_CONVENTIONS.md`), settle first, idempotent by state, audited; settlement, crypt runs, guild boss attempts, duel snapshots and Power's input read the loadout in force (crypt and guild boss snapshots and defences keep theirs); telemetry `skills.farm`, `skills.boss`, `skills.loadout` (`docs/TELEMETRY.md`). Tests: `skills/skills.test.ts` (validation, settle first and switching mid-settlement predicted window by window, presets, idempotency, never-trusted rows, fragments across settlements and stop/start, the defence snapshot and Power 4's input, duel rules 2 → 3 at the season's end), `skills/skills.pg.test.ts` (real PostgreSQL at the boundary), the journey step `playSkillsStep` (`e2e/skills-journey.test.ts`).
 - **Web.** The Skills section on the character page (the resource rule, the 3 + 1 slots, three presets, every skill with its unlock, locked ones shown, plain numbers from game-core, "your class skill (slot 1)"); the moving resource bar in the farming scene (`scene/resourceMotion.ts`: game-core's resource rules applied to the scene's beats, cosmetic like the scene loop), with a damage-over-time mark that flashes on each tick; ticks and skill names in the crypt and duel logs. Skill icons come from A.18; until then each skill shows a framed initial (`skill.<id>` is looked up first).
 
+## 9.3: skill quests
+**The unlock.** `SkillUnlock.deed` is now the skill quest's flag (`forgeTyrantSkillLearned`, `hollowSovereignSkillLearned` in `characters.progress`), no longer the kill flag; the level gate stays (36 and 46). The quests (`SKILL_QUESTS`, docs/QUESTS.md "Skill quests"): **the Tyrant's Lesson** (level 36: a fresh Forge Tyrant kill and 2 Gravewarden's Seals) teaches the Tyrant active; **the Sovereign's Lesson** (level 46: a fresh Hollow Sovereign kill and 2 Tyrant's Embers) the Sovereign passive. Server-authoritative (accept and turn-in on the server, the kill from the dungeon claim's own event, the material checked and paid in the turn-in's transaction), idempotent (the quest row's state, the turn-in's `Idempotency-Key`, a partial unique index) and audited (`quest.turn_in` with `teaches`, `skillId`, `materialsPaid`).
+
+**Heroes who learned a skill under 9.2 keep it: a migration (0049), not a start-up backfill.** Every hero whose progress had the kill flag gets the quest's flag, with a `skill.kept` audit row; each statement skips heroes that already have it, so running it twice changes nothing (tested). Chosen over 9.4's start-up backfill because a migration runs before the new server answers: a start-up backfill runs after the server is listening, so for a few seconds a kept skill would read as locked and a settlement would fight that window with the default loadout. The rule kept is the deed alone (the kill flag), not "the deed and the level": a level-35 hero who felled the Tyrant keeps the deed and fields the skill at 36, as under 9.2. The kept heroes can still take the lesson for its Legendary.
+
+**Skill-aware effects** (docs/EFFECTS.md "Skill-aware effects"): Practiced Hand, Festering Craft and Deep Wellspring, and the Masters' Lessons set bonus, on the two quest rewards only (new bases); they act on a chosen loadout's kit and do nothing for the default loadout (the replay holds: the default loadout's numbers are today's, and `noEffects`'s hashes and every balance suite are unchanged). Measured: +2–7 % on 9.1's leading loadouts; the pieces are a sidegrade to a Legendary kit.
+
+**Power and PvE Progress: no new version.** Recommended and built: the skill quests are **not** a PvE Progress milestone. The kills they ask for are already milestones (16 "The Forge Tyrant defeated", the Hollow Sovereign's in version 5), the material is a cost, and a milestone for a turn-in would only count the same deed twice; adding one would need PvE Progress version 6 and a season boundary for no new information. So no board formula, version or season changes. Power 4 already reads the defence loadout: a hero who learns a skill and saves it with the defence moves as any loadout change does (9.2). PvE Progress's input slice reads `progress`, so a turn-in recomputes it once, to the same value.
+
 ## Risks and limits
 - **The mage at bosses:** a few percent of damage turns its lost Heroic and Tyrant fights into wins (71 → 92 %, 73 → 96 % in this kit). Fairer between classes (B.5's spread shrinks), but a real move at those bosses; owner question 3.
 - **Low levels:** before 36 the farming and boss leaders can coincide (fewer spenders unlocked); choice grows with levels.
@@ -242,6 +251,8 @@ A loadout moves Power by at most 2 % (it clears trials faster; nobody newly fail
 - **Bracket Power 4 not built:** matchmaking's bracket Power still ignores a defence's loadout (proposed above); a loadout edge in duels is at most a small one at half keep, B.7 decides with telemetry.
 - **Skill icons and effect animations** are A.18's (parallel); the web shows placeholders until then.
 - **Cost:** up to 1.8 × today's settlement for a loadout (8 h ≤ 70 ms); fine today, watched in 9.2's telemetry.
+- **9.3, the deploy window:** migration 0049 keeps every kill flag present when it runs. A hero who fells a boss on the old server after the migration but before the new one answers would need the lesson (seconds in a normal deploy; `docs/DEPLOY.md` migrates and then starts).
+- **9.3, the quest rewards' icons** borrow the Wispfire Band's and the Requiem Locket's until an art ticket draws them.
 
 ## Owner questions: decided (2026-11-15)
 **The owner said yes to all ten on 2026-11-15, each with the recommended answer** (built in 9.2):
@@ -253,7 +264,7 @@ A loadout moves Power by at most 2 % (it clears trials faster; nobody newly fail
 6. PvP version 3 keeps half of a skill's extra damage, and passives' damage bonuses are PvE only;
 7. Power 4 reads the saved defence loadout, switched at the end of the season under way;
 8. Soul Fragments carry between fights and are stored with the activity;
-9. an active from the Forge Tyrant and a passive from the Hollow Sovereign (taught by the kill flags; 9.3 adds the skill quests);
+9. an active from the Forge Tyrant and a passive from the Hollow Sovereign (taught by the kill flags in 9.2; by the skill quests since 9.3, the 9.2 learners kept);
 10. unlock levels 1–36 for actives and 8–32 for passives.
 
 The questions as they were asked (recommendations first):

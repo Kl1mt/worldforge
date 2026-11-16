@@ -62,6 +62,14 @@ export interface WorldProgress {
    * never fought him.
    */
   hollowSovereignDefeated?: boolean;
+  /**
+   * Ticket 9.3: the Tyrant's Lesson (a skill quest, docs/QUESTS.md "Skill quests") is turned in:
+   * the class's Forge Tyrant active is learned. Heroes who had felled the Tyrant before 9.3 got
+   * it from migration 0049 (9.2's kill-flag rule, kept). Absent otherwise.
+   */
+  forgeTyrantSkillLearned?: boolean;
+  /** Ticket 9.3: the Sovereign's Lesson is turned in: the Hollow Sovereign passive (as above). */
+  hollowSovereignSkillLearned?: boolean;
 }
 
 /** The deepest crypt tier cleared (ticket 3.6); a pre-3.6 Gravewarden kill counts as tier I. */

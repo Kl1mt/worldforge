@@ -57,11 +57,13 @@ const legendaryOnly: LootConfig = {
 
 describe('set content (ticket 3.3)', () => {
   it('has 2–3 sets of 4–6 named pieces on their own bases, one piece per slot kind', () => {
-    expect(ITEM_SETS.length).toBeGreaterThanOrEqual(2);
-    expect(ITEM_SETS.length).toBeLessThanOrEqual(3);
+    // Ticket 9.3: the quest-only Masters' Lessons (two pieces) is checked on its own below.
+    const DROP_SETS = ITEM_SETS.filter((s) => s.questOnly !== true);
+    expect(DROP_SETS.length).toBeGreaterThanOrEqual(2);
+    expect(DROP_SETS.length).toBeLessThanOrEqual(3);
     const allPieces = ITEM_SETS.flatMap((s) => s.pieces);
     expect(new Set(allPieces).size).toBe(allPieces.length);
-    for (const set of ITEM_SETS) {
+    for (const set of DROP_SETS) {
       expect(set.pieces.length, set.id).toBeGreaterThanOrEqual(4);
       expect(set.pieces.length, set.id).toBeLessThanOrEqual(6);
       const slots = set.pieces.map((p) => getItemBase(p).slot);
@@ -281,7 +283,11 @@ describe('set piece generation', () => {
       )!;
       if (item.setId) counts.set(item.baseId, (counts.get(item.baseId) ?? 0) + 1);
     }
-    const all = ITEM_SETS.flatMap((s) => s.pieces);
+    // Ticket 9.3: quest-only pieces never drop.
+    const all = ITEM_SETS.filter((s) => s.questOnly !== true).flatMap((s) => s.pieces);
+    for (const id of ITEM_SETS.filter((s) => s.questOnly).flatMap((s) => s.pieces)) {
+      expect(counts.get(id) ?? 0, id).toBe(0);
+    }
     for (const id of all) {
       expect(counts.get(id) ?? 0, id).toBeGreaterThan(((n * SET_SHARE) / all.length) * 0.7);
       expect(counts.get(id) ?? 0, id).toBeLessThan(((n * SET_SHARE) / all.length) * 1.3);
@@ -299,11 +305,12 @@ describe('set piece generation', () => {
   it('a requested set base is always its set piece, deterministically', () => {
     for (const set of ITEM_SETS) {
       for (const id of set.pieces) {
-        const item = generateItem({ seed: 42, itemLevel: 16, baseId: id, rarityId: 'common' })!;
+        const itemLevel = Math.max(16, getItemBase(id).minItemLevel);
+        const item = generateItem({ seed: 42, itemLevel, baseId: id, rarityId: 'common' })!;
         expect(item).toEqual(
-          generateItem({ seed: 42, itemLevel: 16, baseId: id, rarityId: 'common' })!,
+          generateItem({ seed: 42, itemLevel, baseId: id, rarityId: 'common' })!,
         );
-        expect(generateItem({ seed: 42, itemLevel: 16, baseId: id })!.rarityId).toBe('legendary');
+        expect(generateItem({ seed: 42, itemLevel, baseId: id })!.rarityId).toBe('legendary');
         expect(item.setId).toBe(set.id);
         expect(item.rarityId).toBe('legendary');
         expect(item.affixes).toHaveLength(DEFAULT_LOOT_CONFIG.rarities.legendary.affixCount);

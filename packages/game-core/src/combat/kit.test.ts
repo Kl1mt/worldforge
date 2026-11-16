@@ -181,8 +181,10 @@ describe('skills and loadouts (content)', () => {
       expect(passives.filter((s) => !s.unlock.deed).map((s) => s.unlock.level)).toEqual([
         8, 16, 24, 32,
       ]);
-      expect(actives.filter((s) => s.unlock.deed === 'forgeTyrantDefeated')).toHaveLength(1);
-      expect(passives.filter((s) => s.unlock.deed === 'hollowSovereignDefeated')).toHaveLength(1);
+      expect(actives.filter((s) => s.unlock.deed === 'forgeTyrantSkillLearned')).toHaveLength(1);
+      expect(passives.filter((s) => s.unlock.deed === 'hollowSovereignSkillLearned')).toHaveLength(
+        1,
+      );
       expect(actives.filter((s) => s.kind === 'core')).toHaveLength(2);
       // Today's skill is the first core skill, with today's numbers.
       const today = AUTO_SKILLS[c];
@@ -230,7 +232,7 @@ describe('skills and loadouts (content)', () => {
       validateLoadout(
         'warrior',
         { actives: ['heavyStrike', 'forgebreaker'] },
-        { level: 50, progress: { forgeTyrantDefeated: true } },
+        { level: 50, progress: { forgeTyrantSkillLearned: true } },
       ),
     ).toEqual([]);
     expect(validateLoadout('warrior', { actives: ['heavyStrike'], passive: 'malice' })).toContain(

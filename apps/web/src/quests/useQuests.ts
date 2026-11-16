@@ -35,7 +35,8 @@ export interface QuestsState {
   busy: string | null;
   error: string | null;
   /** The last successful turn-in, until dismissed. */
-  lastReward: (TurnInResult['reward'] & { questId: string; kind: 'story' | 'contract' }) | null;
+  lastReward:
+    (TurnInResult['reward'] & { questId: string; kind: 'story' | 'contract' | 'skill' }) | null;
   accept: (intent: AcceptIntent) => Promise<void>;
   turnIn: (questRowId: string) => Promise<void>;
   /** Ticket 8.5: claim every listed (ready) quest in one request. */
@@ -86,7 +87,7 @@ function useQuestsState(characterId: string): QuestsState {
 
   const accept = useCallback(
     async (intent: AcceptIntent) => {
-      const tag = intent.kind === 'story' ? intent.questId : `slot:${intent.slot}`;
+      const tag = intent.kind === 'contract' ? `slot:${intent.slot}` : intent.questId;
       setBusy(tag);
       setError(null);
       const res = await questsApi.accept(characterId, intent);
@@ -122,7 +123,12 @@ function useQuestsState(characterId: string): QuestsState {
           kind: quest?.kind ?? 'story',
         });
         // Items and materials live in the game state; fetch them again.
-        if (res.value.reward.item || Object.keys(res.value.reward.materials).length > 0) {
+        // Ticket 9.3: a skill quest also took materials and taught a skill.
+        if (
+          res.value.reward.item ||
+          Object.keys(res.value.reward.materials).length > 0 ||
+          quest?.kind === 'skill'
+        ) {
           reloadGame();
         }
         return;
