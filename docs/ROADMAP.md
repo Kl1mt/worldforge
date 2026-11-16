@@ -1629,7 +1629,7 @@ Read GDD §5.3, §9.1, §17 (offline cap), `docs/FARMING.md` ("the offline cap")
   - slot creation racing a deletion (real PG).
 - `docs/FARMING.md`, a new `docs/ACCOUNTS.md` and `DATA_MODEL.md`. Patch notes. Migration (additive).
 
-### 9.5 The Reward Shrine & companions (vertical) — `todo`
+### 9.5 The Reward Shrine & companions (vertical) — `done (PR #159)`
 Read GDD §13.1–13.3, `docs/COSMETICS.md`, `docs/EVENTS.md`.
 - **`docs/SHRINE.md`:** the odds, the pools, the duplicate rule, the banked free draws and where extra draws come from.
 - **The Shrine (game-core + server):**
@@ -1644,6 +1644,7 @@ Read GDD §13.1–13.3, `docs/COSMETICS.md`, `docs/EVENTS.md`.
 - **Web:** the Shrine opens the hub's locked "Summoning Shrine" hotspot (2.2), with a draw animation, the odds one click away, the marks shop, and the companion picker in the collection book.
 - **Tests:** a reconciliation (draws = grants + marks, marks = earned − spent), a replayed draw key pays once, the bank's limit at its edges, and odds measured over many seeds against the published table.
 - Journey step; patch notes; `COSMETICS.md`, `TELEMETRY.md`, `DATA_MODEL.md`. Migration (additive).
+- Done (`docs/SHRINE.md`). **Pool:** 15 Shrine-only keepsakes in the catalogue (source `shrine`, with a rarity): ten companions (`companion.<name>`, a new account-wide kind shown beside the hero in the area and crypt scenes), a crest, a banner, an appearance (A.19's variants; plain fallbacks until drawn) and two CSS title colours. **Odds:** common 70 %, rare 25 %, hallowed 5 %, uniform within a rarity; game-core `drawShrine(seed)` from a stored `crypto` seed. Duplicates give 2 / 5 / 15 marks; marks buy a chosen keepsake for 10 / 25 / 75. **Draws:** one free draw a UTC day, banked up to 7 (starting the day before the account was made, so older accounts open with 7); play draws from event tiers (1), live deeds (1) and season honours (1–4 by best tier); `shop` is reserved and granted by nothing. Migration `0050` (additive): `shrine_accounts` (lock row), `shrine_draw_grants` (unique source key), `shrine_draws`, `shrine_purchases`, `cosmetic_displays.companion`. Reconciled (`reconcileShrine`, four `reconcileWithAudit` checks); test accounts' telemetry goes to the test table. Web: the hub's Summoning Shrine opens `#/shrine` (draw reveal, odds, marks shop, latest draws), the book's Companions tab. Tests: the published odds against game-core, the bank at its edges, a replayed draw key, real-PG races (`shrine.pg.test.ts`), 8.7's no-pay-to-win test with a companion and draws, journey `playShrineStep`. Probe `tools/screenshots/shrine.mjs`. Version 0.9.4.
 
 ### A.19 Shrine & companion art — `todo`
 - The Shrine's hub art (the lit shrine in place of the locked one).
