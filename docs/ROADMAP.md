@@ -1379,7 +1379,7 @@ Plus `docs/GOING_LIVE.md`, a step-by-step checklist for the owner. **No secrets 
 - Re-check every Phase 6 and 8 band with real players.
 - Before/after tables; data-only changes where possible.
 
-### 8.8 Cosmetic shop (real money) — design first, gated — `todo`
+### 8.8 Cosmetic shop (real money) — design first, gated — design `done (PR #162)`, build waits on the owner's answers
 Owner decision (2026-11-11): cosmetics may also be bought for real money later. GDD §13.3 still applies: never power, stats, drop odds or competitive advantage.
 - **Design first** (`docs/SHOP.md`), and owner decisions before building:
   - which cosmetics are sold, and whether earned-only ones such as season honours and event keepsakes stay earn-only;
@@ -1390,6 +1390,7 @@ Owner decision (2026-11-11): cosmetics may also be bought for real money later. 
   - no randomized paid items without a legal review (GDD §13.3).
   - **Owner decision (2026-11-12):** the shop may also sell **extra character slots** (beyond the earned ones of 9.4) and **Shrine draws** (9.5). Draws are randomized, so they need the legal review above; the fallback is selling Shrine marks or chosen cosmetics directly. Never offline hours, power, stats or drop odds.
 - Then build: purchases as audited, idempotent grants into the collection book; receipts; admin refund and reversal tools; test-mode payments only in CI; no card data ever touches the server.
+- **Design done (PR #162):** `docs/SHOP.md` gives options and recommendations for what is sold, prices and currency (direct euro prices, no premium currency), the provider (a merchant of record recommended), refunds and reversals, an EU/German legal checklist for a lawyer, the build plan (8.8a orders and grants with a fake provider, 8.8b admin tools and the readiness item, 8.8c the real provider, gated on the owner's provider account and the legal answers) and the fairness guards. **The build waits on the owner's answers** to its 14 owner questions.
 
 ### 8.7 Phase 8 hardening & exit — `done (PR #149)`
 Like 6.10:
