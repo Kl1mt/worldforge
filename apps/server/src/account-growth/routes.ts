@@ -90,7 +90,7 @@ export async function accountOfflineCapMs(
   baseMs: number,
 ): Promise<number> {
   const grants = await loadGrowthGrants(app.db, accountId);
-  return offlineCapMs(baseMs, grants.filter((g) => g.kind === 'offline').length);
+  return offlineCapMs(baseMs, grants.filter(isOfflineDeed).length);
 }
 
 export async function registerAccountGrowth(
