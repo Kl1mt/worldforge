@@ -1645,11 +1645,12 @@ Read GDD §13.1–13.3, `docs/COSMETICS.md`, `docs/EVENTS.md`.
 - **Tests:** a reconciliation (draws = grants + marks, marks = earned − spent), a replayed draw key pays once, the bank's limit at its edges, and odds measured over many seeds against the published table.
 - Journey step; patch notes; `COSMETICS.md`, `TELEMETRY.md`, `DATA_MODEL.md`. Migration (additive).
 
-### A.19 Shrine & companion art — `todo`
+### A.19 Shrine & companion art — `done (PR #158)`
 - The Shrine's hub art (the lit shrine in place of the locked one).
 - **8–12 companions**, small pixel animals and wisps in the setting's dark-fantasy palette, each with a two-frame idle.
 - Palette variants for a few Shrine-only appearances, banners and crests.
 - A contact sheet in `art/`; frugal with generations.
+- Done. Art for 9.5 on its ids (`docs/ASSET_GUIDELINES.md` "The Reward Shrine & companions"). **The lit shrine** `hub.shrine` (18×34, exactly the hub's `summoningShrine` hotspot, cut from the hub and lit in code: candle flames, falling warm light, a violet rune; `litShrine()`). **Ten companions** `companion.<name>` = 9.5's cosmetic ids (grave moth, bone rat, bog toad, ash raven, candle wisp, crypt cat, ember newt, barrow owl, Hollow wisp, cinder pup): 32×32 two-frame idles facing right, frame 1 a 1-px breath or bob in code; three recoloured to 9.5's descriptions (`companionSprite(id)`). **Palette variants** of existing art on 9.5's ids: `appearance.candlelight` (a sixth `hero_palettes.py` theme), `banner.votive-veil` and `crest.votive-ash` (recoloured files, not CSS tints). 3 jobs, no regeneration, 30 generations (1,193 → 1,163). Contact sheet `art/preview-shrine.png`; Companions section in the admin Animations gallery. No player-visible change on its own, so no patch note.
 
 ### B.7 Balance pass: skills & loadouts — `todo`
 - Run after 9.2 and 9.3, with live telemetry by loadout if the town is open (otherwise simulations, as B.5).

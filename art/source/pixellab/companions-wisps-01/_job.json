@@ -1,0 +1,11 @@
+{
+  "prompt": "dark fantasy pixel art, small floating companion spirits, one each: a pale blue-white will-o'-wisp flame, an amber candle-flame wisp, a violet soul wisp with a curling tail, a tiny ghostly hound pup, a little hooded lantern spirit, a small bone-white skull wisp with a cold flame, soft dim glow, muted desaturated palette, near-black outline, transparent background",
+  "style_image": "apps/web/public/assets/enemies/abbey-wraith.png",
+  "job_id": "90e6eaf1-5e26-4233-ac1e-cfd07b954694",
+  "created_at": "2026-11-16T02:52:36.417931+00:00",
+  "seed": 556810904,
+  "generations": 10.0,
+  "count": 64,
+  "width": 32,
+  "height": 32
+}

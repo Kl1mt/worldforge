@@ -23,6 +23,7 @@ import {
 import '../screens/area.css';
 import { VariantPreview } from './VariantPreview';
 import { PalettePreview } from './PalettePreview';
+import { CompanionPreview } from './CompanionPreview';
 import { SkillEffectsPreview } from './SkillEffectsPreview';
 import './animation-gallery.css';
 
@@ -175,6 +176,8 @@ export function AnimationGallery() {
       />
 
       <PalettePreview scale={scale} />
+
+      <CompanionPreview scale={scale} />
 
       {shown.heroes.length === 0 && shown.groups.length === 0 ? (
         <div className="anim-gallery__empty" role="status">

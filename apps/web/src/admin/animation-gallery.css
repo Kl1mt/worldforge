@@ -345,3 +345,19 @@
 .anim-gallery__resource {
   max-width: 22rem;
 }
+
+/*
+ * Ticket A.19: the Companions section. The idle plays its two frames slowly while the gallery is
+ * armed and Idle breath is on (whole frames, integer scale); the shrine card shows the hub's cold
+ * shrine (a window on the hub) above the lit one.
+ */
+.anim-gallery__companion {
+  justify-items: start;
+}
+.scene-anim:not(.anim-gallery--still) .anim-gallery__companion-idle .pixel-sheet__strip {
+  animation: scene-anim-sheet 1100ms steps(2, end) infinite;
+}
+.anim-gallery__shrine {
+  display: block;
+  overflow: hidden;
+}
