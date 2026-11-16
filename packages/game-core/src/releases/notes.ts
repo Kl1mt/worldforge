@@ -23,9 +23,18 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.9.4';
+export const GAME_VERSION = '0.9.5';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.9.5',
+    date: '2026-11-23',
+    title: 'Skills balance',
+    changed: [
+      'Deep Reserves (Mage passive) now grants 25 more Mana instead of 40. Together with the masters’ lessons it made one set of skills the best choice for both farming and bosses; now farming and boss fights each have their own best loadouts again.',
+    ],
+    tickets: ['B.7'],
+  },
   {
     version: '0.9.4',
     date: '2026-11-22',

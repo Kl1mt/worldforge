@@ -91,7 +91,7 @@ describe('skills wording (ticket 9.2)', () => {
       '+2 Rage per blow taken',
     ]);
     expect(passiveFacts(passive('manaShield'))).toEqual(['−6 % damage taken', '−1 Mana a second']);
-    expect(skillFacts(passive('deepReserves'))).toBe('+40 Mana at most');
+    expect(skillFacts(passive('deepReserves'))).toBe('+25 Mana at most');
     expect(skillFacts(passive('darkPact'))).toBe(
       '+4 % damage to foes that are not bosses · +1 Soul Fragments kept from a kill',
     );

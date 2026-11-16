@@ -192,7 +192,13 @@ function duelSetup(
     skillsPrototypeMode() !== 'off' && rulesVersion >= 3
       ? {
           loadout: loadout ?? null,
-          pvp: { skillKeep: config.skillKeep ?? PVP_V3_SKILL_KEEP, effectKeep: config.effectKeep },
+          pvp: {
+            skillKeep:
+              config.skillKeepByClass?.[bracket.id]?.[attacker.classId] ??
+              config.skillKeep ??
+              PVP_V3_SKILL_KEEP,
+            effectKeep: config.effectKeep,
+          },
         }
       : undefined,
   );

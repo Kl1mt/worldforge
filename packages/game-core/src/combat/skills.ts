@@ -574,8 +574,10 @@ export const PASSIVE_SKILLS: readonly PassiveSkillDefinition[] = [
     name: 'Deep Reserves',
     classId: 'mage',
     unlock: { level: 32 },
-    modifiers: { resource: { max: 40 } },
-    description: '40 more Mana, and every fight starts with it full.',
+    // Ticket B.7: 40 → 25 (with the skill quests' rewards, Firebolt + Emberstorm + Arcane Bolt
+    // on Deep Reserves led both farming and the Hollow Sovereign; docs/BALANCE.md "B.7").
+    modifiers: { resource: { max: 25 } },
+    description: '25 more Mana, and every fight starts with it full.',
   },
   {
     id: 'kindling',
