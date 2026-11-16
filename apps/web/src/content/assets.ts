@@ -579,14 +579,6 @@ export function prestigeSprite(name: string): SpriteAsset | null {
 }
 
 /**
- * Ticket 9.5: a companion's idle sheet (`companion.<name>`, the cosmetic's own id; A.19 draws them
- * with two frames), or null while its art is missing (the book and the scenes draw a plain wisp).
- */
-export function companionSprite(cosmeticId: string): SpriteAsset | null {
-  return cosmeticId.startsWith('companion.') ? findSprite(cosmeticId) : null;
-}
-
-/**
  * Ticket 9.5: the lit Summoning Shrine (`hub.shrine`, A.19), or null while it is missing (the
  * square's own art stands, the Shrine screen draws a plain altar).
  */
