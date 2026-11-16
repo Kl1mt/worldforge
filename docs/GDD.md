@@ -357,6 +357,8 @@ Cosmetics are separate from character power. Potential content includes full cha
 ### 13.2 Cosmetic Reward Shrine
 A cosmetic-only draw system is a possible later feature. A daily free draw was proposed, with a non-expiring claim opportunity so missing a day does not destroy the reward. Additional attempts could be earned through gameplay. No gameplay power should be attached to cosmetic draws.
 
+**Ticket 9.5:** the Summoning Shrine is open (`docs/SHRINE.md`): one free draw a day, banked up to 7; extra draws from event tiers, deeds and season honours; duplicates become Shrine marks that buy a chosen keepsake; the odds are published. Its pool holds companions (a new cosmetic kind, shown beside the hero in the fight) and Shrine-only looks. Nothing sells draws: paid draws wait for 8.8's legal review, and every draw grant records its source (`daily`, `play`, later `shop`).
+
 ### 13.3 Monetization Principles
 - Do not monetize core power progression in a pay-to-win manner.
 - Do not sell direct competitive drop-rate advantages.

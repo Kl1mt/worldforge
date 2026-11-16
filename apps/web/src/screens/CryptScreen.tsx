@@ -1,5 +1,6 @@
 import { appearancePalette } from '../content/appearance';
-import { useHeroPalette } from '../cosmetics/store';
+import { useCompanion, useHeroPalette } from '../cosmetics/store';
+import { Companion } from '../cosmetics/Cosmetics';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   getClass,
@@ -177,6 +178,7 @@ function CryptScene({
   const sheet = classAttackSheet(hero.classId);
   // Ticket 6.8: the hero's appearance (a palette swap of its frames, own colours if none).
   const palette = appearancePalette(useHeroPalette(hero.id), hero.classId);
+  const companion = useCompanion();
   const { heroRef, foeRef } = useSceneAnimation({
     active: fighting && foe !== null,
     motion,
@@ -215,6 +217,9 @@ function CryptScene({
           style={{ ['--px' as string]: `${spriteScale}px` }}
         >
           <div className="scene__hero">
+            {progress ? (
+              <Companion id={companion} scale={spriteScale} className="scene__companion" />
+            ) : null}
             {progress ? (
               <SceneActor role="hero" framed={sheet !== null} actorRef={heroRef}>
                 <PixelSprite

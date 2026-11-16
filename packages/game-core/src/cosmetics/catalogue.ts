@@ -20,9 +20,12 @@ import { guildTierOrder, type GuildHonourTier } from '../guild-seasons/honours.j
  * - `banner`: the banner style behind the account's heroes (per account);
  * - `crest`: the frame of the account's crest on profiles, boards and rosters (per account);
  * - `titleColour`: the colour of the title the account shows (per account);
- * - `title`: a title shown beside the name (chosen in Season honours, 5.3 / 6.6).
+ * - `title`: a title shown beside the name (chosen in Season honours, 5.3 / 6.6);
+ * - `companion`: ticket 9.5, a small animal or wisp shown beside the active hero in the combat
+ *   scene (per account, one at a time). No stats: it is drawn, never read by a rule.
  */
-export type CosmeticKind = 'appearance' | 'banner' | 'crest' | 'titleColour' | 'title';
+export type CosmeticKind =
+  'appearance' | 'banner' | 'crest' | 'titleColour' | 'title' | 'companion';
 
 export const COSMETIC_KINDS: readonly CosmeticKind[] = [
   'appearance',
@@ -30,6 +33,7 @@ export const COSMETIC_KINDS: readonly CosmeticKind[] = [
   'crest',
   'titleColour',
   'title',
+  'companion',
 ];
 
 /** Where an equipped cosmetic of a kind lives: on one hero, or on the whole account. */
@@ -53,7 +57,9 @@ export type CosmeticMilestone =
  * - `exchange`: ticket 6.11, traded at the Forge for Gravewarden's Seals and Abbey silver earned in
  *   play (`COSMETIC_EXCHANGE` in `exchange.ts` holds the price; never real money);
  * - `guildSeason`: ticket 8.4, the guild honours of a season at least `minTier`, for the members on
- *   the guild's honour roll (docs/LEADERBOARDS.md "Guild honours").
+ *   the guild's honour roll (docs/LEADERBOARDS.md "Guild honours");
+ * - `shrine`: ticket 9.5, the Reward Shrine's pool (`shrine.ts`): drawn at the Shrine with draws
+ *   earned in play (a free one a day), or bought with Shrine marks. `rarity` sets its odds.
  */
 export type CosmeticSource =
   | { kind: 'default' }
@@ -62,7 +68,11 @@ export type CosmeticSource =
   | { kind: 'milestone'; milestone: CosmeticMilestone }
   | { kind: 'season'; minTier: PrestigeTier }
   | { kind: 'exchange' }
-  | { kind: 'guildSeason'; minTier: GuildHonourTier };
+  | { kind: 'guildSeason'; minTier: GuildHonourTier }
+  | { kind: 'shrine'; rarity: ShrineRarity };
+
+/** Ticket 9.5: the Shrine's rarities, commonest first (odds in `shrine.ts`, docs/SHRINE.md). */
+export type ShrineRarity = 'common' | 'rare' | 'hallowed';
 
 export interface CosmeticDefinition {
   /** `<kind>.<kebab-case name>`; stored in `cosmetic_unlocks.cosmetic_id`. */
@@ -360,6 +370,114 @@ export const COSMETICS: readonly CosmeticDefinition[] = [
     name: 'Crowned guild crest',
     description: 'A gilt rim with a crimson glow, worn by the Champion guild’s members.',
     source: { kind: 'guildSeason', minTier: 'champion' },
+  },
+  // --- 9.5: the Reward Shrine's pool (docs/SHRINE.md). Companions are a new kind (A.19 draws
+  // them: manifest `companion.<name>`, a two-frame idle); the banner, crest and appearance are
+  // A.19's Shrine-only palette variants (plain fallbacks until drawn), the title colours CSS. ---
+  {
+    id: 'companion.grave-moth',
+    kind: 'companion',
+    name: 'Grave moth',
+    description: 'A dusty moth that follows lantern-light down into the crypts.',
+    source: { kind: 'shrine', rarity: 'common' },
+  },
+  {
+    id: 'companion.bone-rat',
+    kind: 'companion',
+    name: 'Bone rat',
+    description: 'A pale rat that has learned the dead drop crumbs too.',
+    source: { kind: 'shrine', rarity: 'common' },
+  },
+  {
+    id: 'companion.bog-toad',
+    kind: 'companion',
+    name: 'Bog toad',
+    description: 'A squat toad from the Marches, warty, patient and unimpressed.',
+    source: { kind: 'shrine', rarity: 'common' },
+  },
+  {
+    id: 'companion.ash-raven',
+    kind: 'companion',
+    name: 'Ash raven',
+    description: 'A grey-winged raven that rides the smoke off the Verge.',
+    source: { kind: 'shrine', rarity: 'common' },
+  },
+  {
+    id: 'companion.candle-wisp',
+    kind: 'companion',
+    name: 'Candle wisp',
+    description: 'A small flame that slipped its wick at the Shrine and never went back.',
+    source: { kind: 'shrine', rarity: 'rare' },
+  },
+  {
+    id: 'companion.crypt-cat',
+    kind: 'companion',
+    name: 'Crypt cat',
+    description: 'A black cat with one torn ear, keeper of no one’s tomb.',
+    source: { kind: 'shrine', rarity: 'rare' },
+  },
+  {
+    id: 'companion.ember-newt',
+    kind: 'companion',
+    name: 'Ember newt',
+    description: 'A newt that sleeps in forge-coals and wakes still glowing.',
+    source: { kind: 'shrine', rarity: 'rare' },
+  },
+  {
+    id: 'companion.barrow-owl',
+    kind: 'companion',
+    name: 'Barrow owl',
+    description: 'A round-eyed owl from the burial mounds, silent as the stones.',
+    source: { kind: 'shrine', rarity: 'rare' },
+  },
+  {
+    id: 'companion.hollow-wisp',
+    kind: 'companion',
+    name: 'Hollow wisp',
+    description: 'A cold blue light out of the Hollow Reach, humming a tune no one taught it.',
+    source: { kind: 'shrine', rarity: 'hallowed' },
+  },
+  {
+    id: 'companion.cinder-pup',
+    kind: 'companion',
+    name: 'Cinder pup',
+    description: 'A slag-hound whelp, small enough to carry and too warm to.',
+    source: { kind: 'shrine', rarity: 'hallowed' },
+  },
+  {
+    id: 'title-colour.votive-gold',
+    kind: 'titleColour',
+    name: 'Votive gold',
+    description: 'Your title in the gold of the Shrine’s offering-candles.',
+    source: { kind: 'shrine', rarity: 'common' },
+  },
+  {
+    id: 'crest.votive-ash',
+    kind: 'crest',
+    name: 'Votive-ash crest',
+    description: 'A crest rim dusted with the Shrine’s ash.',
+    source: { kind: 'shrine', rarity: 'common' },
+  },
+  {
+    id: 'title-colour.shrine-ember',
+    kind: 'titleColour',
+    name: 'Shrine ember',
+    description: 'Your title in the low red of a coal on the Shrine’s altar.',
+    source: { kind: 'shrine', rarity: 'rare' },
+  },
+  {
+    id: 'banner.votive-veil',
+    kind: 'banner',
+    name: 'Votive veil',
+    description: 'A banner of the grey veils hung over the Shrine’s niches.',
+    source: { kind: 'shrine', rarity: 'rare' },
+  },
+  {
+    id: 'appearance.candlelight',
+    kind: 'appearance',
+    name: 'Candlelight',
+    description: 'Gear warmed to wax and gold by long nights at the Shrine.',
+    source: { kind: 'shrine', rarity: 'hallowed' },
   },
 ];
 

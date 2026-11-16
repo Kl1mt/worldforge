@@ -94,6 +94,13 @@ export const TELEMETRY_METRICS = [
   'skills.farm',
   'skills.boss',
   'skills.loadout',
+  // Ticket 9.5: the Reward Shrine. `shrine.grant` (source `daily|play|shop`, what earned it:
+  // `daily|event|season|achievement`): amount = draws granted. `shrine.draw` (spent source, rarity,
+  // `grant|marks`): events = draws, amount = marks paid. `shrine.buy` (rarity, kind): amount =
+  // marks spent. Test accounts' rows go to `telemetry_daily_test` like all their play.
+  'shrine.grant',
+  'shrine.draw',
+  'shrine.buy',
 ] as const;
 export type TelemetryMetric = (typeof TELEMETRY_METRICS)[number];
 

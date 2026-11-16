@@ -23,9 +23,26 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.9.3';
+export const GAME_VERSION = '0.9.4';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.9.4',
+    date: '2026-11-22',
+    title: 'The Summoning Shrine',
+    new: [
+      'The Summoning Shrine in the town square is lit. Draw keepsakes for your collection book: companions, a banner, a crest, title colours and a new look for your heroes. They change how you are seen, never how you fight.',
+      'One free draw every day. Draws you have not used are kept, up to seven, so a missed day is never lost.',
+      'More draws come from play: each reward tier of an event, each deed you earn, and your honours at a season’s end.',
+      'A keepsake you already have turns into Shrine marks. Spend marks at the Shrine on the keepsake you choose.',
+      'The odds of every keepsake are shown at the Shrine, one click away.',
+      'Companions: small animals and wisps that walk beside your hero in the fight. Choose one in the collection book, under Companions.',
+    ],
+    changed: [
+      'Nothing at the Shrine is sold: every draw is earned in play or comes free each day.',
+    ],
+    tickets: ['9.5'],
+  },
   {
     version: '0.9.3',
     date: '2026-11-22',

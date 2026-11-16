@@ -60,6 +60,7 @@ import { runEventJobs } from './events/model.js';
 import { registerEvents } from './events/routes.js';
 import { registerCosmetics } from './cosmetics/routes.js';
 import { registerAccountGrowth } from './account-growth/routes.js';
+import { registerShrine } from './shrine/routes.js';
 import { WorldStateCache } from './community/world-state.js';
 import { GameSettingsCache, SettingsEvents } from './settings/store.js';
 import { SanctionEvents } from './social/sanctions.js';
@@ -258,6 +259,7 @@ export function buildApp({
       await registerEvents(api, activityOptions);
       await registerCosmetics(api, { now: activityOptions.now });
       await registerAccountGrowth(api, activityOptions);
+      await registerShrine(api, { now: activityOptions.now });
       await registerArena(api, activityOptions);
       if (testRoutes) await testRoutes(api);
 

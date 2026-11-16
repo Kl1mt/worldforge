@@ -1,5 +1,6 @@
 import { and, count, eq, inArray, isNotNull, max } from 'drizzle-orm';
 import {
+  SHRINE_PLAY_DRAWS,
   RARITY_IDS,
   achievementsEarned,
   cryptTierCleared,
@@ -17,6 +18,7 @@ import {
   communityProjects,
   itemInstances,
 } from '../db/schema.js';
+import { grantPlayDrawsTx } from '../shrine/model.js';
 import { writeAudit } from '../db/audit.js';
 import { grantForAchievementsTx, grantMilestonesTx } from '../cosmetics/grant.js';
 import type { Executor } from '../db/types.js';
@@ -215,6 +217,19 @@ export async function awardAchievements(
     awarded,
   );
   cosmetics?.push(...granted);
+  // Ticket 9.5: a deed earned in play also earns a Shrine draw (live awards only: the backfill
+  // records old deeds, it does not pay draws for them).
+  if (ctx.source === 'live') {
+    for (const achievementId of awarded) {
+      await grantPlayDrawsTx(executor, {
+        accountId: ctx.accountId,
+        characterId: ctx.characterId,
+        key: `achievement:${achievementId}`,
+        count: SHRINE_PLAY_DRAWS.deed,
+        now: ctx.now,
+      });
+    }
+  }
   return awarded;
 }
 

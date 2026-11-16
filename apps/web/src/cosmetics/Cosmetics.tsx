@@ -1,7 +1,12 @@
 import { useState, type ReactNode } from 'react';
 import { findCosmetic, type ClassId } from '@worldforge/game-core';
 import { PixelSprite } from '../components/PixelSprite';
-import { CREST_STYLE_WINDOW, classPortrait, type SpriteAsset } from '../content/assets';
+import {
+  CREST_STYLE_WINDOW,
+  classPortrait,
+  companionSprite,
+  type SpriteAsset,
+} from '../content/assets';
 import { appearancePalette, bannerStyleSprite, crestStyleSprite } from '../content/appearance';
 import './cosmetics.css';
 
@@ -14,7 +19,9 @@ import './cosmetics.css';
  *   cloth without art;
  * - `CrestRim` / `CrestMark`: the crest style's frame around content (profiles) or a small mark
  *   (rows); a plain rim in the style's metal without art;
- * - `titleColourClass`: the shown title's colour (CSS only, never art).
+ * - `titleColourClass`: the shown title's colour (CSS only, never art);
+ * - `Companion` (ticket 9.5): a companion's two-frame idle (A.19's `companion.<name>`); a small
+ *   plain wisp drawn in code without art.
  */
 
 const suffix = (id: string) => id.slice(id.indexOf('.') + 1);
@@ -173,6 +180,66 @@ export function CrestMark({ id }: { id: string | null | undefined }) {
           onError={art.onError}
         />
       ) : null}
+    </span>
+  );
+}
+
+/**
+ * Ticket 9.5: a companion (`companion.<name>`): A.19's idle sheet from the asset manifest, played
+ * by CSS (`.cosm-companion`, two frames); without art, or if it fails to load, a small wisp drawn
+ * in code. Cosmetic only: nothing reads it but the eye. Renders nothing for no companion.
+ */
+export function Companion({
+  id,
+  scale,
+  className,
+}: {
+  id: string | null | undefined;
+  scale: number;
+  className?: string;
+}) {
+  const c = id ? findCosmetic(id) : undefined;
+  const art = useArt(c?.kind === 'companion' ? companionSprite(c.id) : null);
+  if (!c || c.kind !== 'companion') return null;
+  const s = Math.max(1, Math.floor(scale));
+  const classes = ['cosm-companion', `cosm-companion--${suffix(c.id)}`, className]
+    .filter(Boolean)
+    .join(' ');
+  if (!art.sprite) {
+    return (
+      <span
+        className={`${classes} cosm-companion--plain`}
+        style={{ width: 12 * s, height: 12 * s }}
+        role="img"
+        aria-label={c.name}
+        data-cosmetic={c.id}
+      >
+        <span className="cosm-companion__wisp" aria-hidden="true" />
+      </span>
+    );
+  }
+  const frames = art.sprite.frames && art.sprite.frames > 1 ? Math.floor(art.sprite.frames) : 1;
+  return (
+    <span
+      className={classes}
+      style={{
+        width: art.sprite.width * s,
+        height: art.sprite.height * s,
+        ['--frames' as string]: frames,
+      }}
+      role="img"
+      aria-label={c.name}
+      data-cosmetic={c.id}
+    >
+      <img
+        className={`pixel${frames > 1 ? ' cosm-companion__strip' : ''}`}
+        src={art.sprite.path}
+        alt=""
+        width={art.sprite.width * s * frames}
+        height={art.sprite.height * s}
+        draggable={false}
+        onError={art.onError}
+      />
     </span>
   );
 }

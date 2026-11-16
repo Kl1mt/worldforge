@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from 'react';
 import { getArea } from '@worldforge/game-core';
 import { useActiveCharacter } from '../characters/CharactersProvider';
-import { asset } from '../content/assets';
+import { asset, shrineSprite } from '../content/assets';
 import { HUB_HOTSPOTS, type BuildingId, type Hotspot } from '../content/world';
 import { PixelSprite } from '../components/PixelSprite';
 import { useElementWidth } from '../components/useElementWidth';
@@ -35,7 +35,7 @@ const BUILDINGS: Record<BuildingId, Building> = {
   tavern: { route: 'tavern', purpose: 'Quests, contracts and notices.' },
   guildHall: { route: 'guild', purpose: 'Found a guild, or find one to join.' },
   warehouse: { route: null, purpose: 'Storage, once the town mends the doors (Town works).' },
-  summoningShrine: { route: null, purpose: 'The shrine is cold for now.' },
+  summoningShrine: { route: 'shrine', purpose: 'Draw keepsakes: one free draw every day.' },
 };
 
 /** Hotspots in reading order for keyboards and the signpost: the map table first. */
@@ -115,6 +115,47 @@ function ArenaSlip() {
         Enter the arena
       </a>
     </section>
+  );
+}
+
+/**
+ * Ticket 9.5: the Summoning Shrine is lit. A.19's lit shrine (`hub.shrine`) stands over the
+ * square's cold one, foot to foot; until it is drawn, a candle glow in code marks it.
+ */
+function LitShrine({ scale, left }: { scale: number; left: number }) {
+  const spot = HUB_HOTSPOTS.find((h) => h.id === 'summoningShrine')!;
+  const art = shrineSprite();
+  const [failed, setFailed] = useState(false);
+  if (art && !failed) {
+    const cx = spot.x + spot.width / 2;
+    return (
+      <img
+        className="hub__shrine pixel"
+        src={art.path}
+        alt=""
+        aria-hidden="true"
+        width={art.width * scale}
+        height={art.height * scale}
+        draggable={false}
+        onError={() => setFailed(true)}
+        style={{
+          left: left + Math.round(cx - art.width / 2) * scale,
+          top: (spot.y + spot.height - art.height) * scale,
+        }}
+      />
+    );
+  }
+  return (
+    <span
+      className="hub__shrine-glow"
+      aria-hidden="true"
+      style={{
+        left: left + spot.x * scale,
+        top: spot.y * scale,
+        width: spot.width * scale,
+        height: spot.height * scale,
+      }}
+    />
   );
 }
 
@@ -205,6 +246,7 @@ export function HubScreen() {
             style={{ left }}
           />
           <EraOverlay era={era} />
+          <LitShrine scale={scale} left={left} />
           {ORDERED.map((h) => {
             const b = buildings[h.id];
             const cx = (h.x + h.width / 2) / HUB.width;

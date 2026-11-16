@@ -34,6 +34,8 @@ export function isWorn(entry: CollectionEntry, c: Collection, heroId: string | n
       return c.equipped.titleColour === entry.id;
     case 'title':
       return c.equipped.cosmeticTitle === entry.id;
+    case 'companion':
+      return c.equipped.companion === entry.id;
   }
 }
 
@@ -42,6 +44,10 @@ export function counts(entries: readonly CollectionEntry[]): { owned: number; to
 }
 
 /** The account slot an entry is worn in (appearances are per hero; titles go through honours). */
-export function accountSlot(kind: CosmeticKind): 'banner' | 'crest' | 'titleColour' | null {
-  return kind === 'banner' || kind === 'crest' || kind === 'titleColour' ? kind : null;
+export function accountSlot(
+  kind: CosmeticKind,
+): 'banner' | 'crest' | 'titleColour' | 'companion' | null {
+  return kind === 'banner' || kind === 'crest' || kind === 'titleColour' || kind === 'companion'
+    ? kind
+    : null;
 }

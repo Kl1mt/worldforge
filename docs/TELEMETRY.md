@@ -150,3 +150,9 @@ For B.7's re-measure on live data. Dimension `default` is the default loadout; a
 - `skills.boss` (class, loadout, `<dungeon>:<tier>:won|lost`): one per crypt claim that reached the boss; amount = the boss fight's seconds (the loadout is the run's snapshot's).
 - `skills.loadout` (class, loadout, `save|switch`): loadout changes, mirroring the `skills.loadout_save` and `skills.loadout_switch` audit rows.
 These carry no value, so the reconciliation has nothing to balance for them.
+
+## The Reward Shrine (ticket 9.5)
+- `shrine.grant` (source `daily | play | shop`, what earned it: `daily | event | season | achievement`): amount = draws granted, mirroring `shrine.grant` audit rows.
+- `shrine.draw` (spent source, rarity, `grant | marks`): events = draws, amount = marks a duplicate paid.
+- `shrine.buy` (rarity, kind): events = keepsakes bought with marks, amount = marks spent.
+Test accounts draw like anyone; their rows go to `telemetry_daily_test` (D.4), so the balance report never counts their draws. `reconcileWithAudit` checks `shrine: draws granted`, `shrine: draws`, `shrine: duplicate marks` and `shrine: marks spent`.

@@ -6,9 +6,17 @@ import {
   type CosmeticKind,
   type CosmeticMilestone,
   type CosmeticSource,
+  type ShrineRarity,
 } from '@worldforge/game-core';
 
 /** Ticket 6.8: the collection book's words (docs/COSMETICS.md). */
+
+/** Ticket 9.5: the Shrine's rarities in plain words. */
+export const RARITY_WORDS: Record<ShrineRarity, string> = {
+  common: 'common',
+  rare: 'rare',
+  hallowed: 'hallowed',
+};
 
 export const KIND_LABELS: Record<CosmeticKind, { one: string; many: string }> = {
   appearance: { one: 'Appearance', many: 'Appearances' },
@@ -16,6 +24,7 @@ export const KIND_LABELS: Record<CosmeticKind, { one: string; many: string }> = 
   crest: { one: 'Crest', many: 'Crests' },
   titleColour: { one: 'Title colour', many: 'Title colours' },
   title: { one: 'Title', many: 'Titles' },
+  companion: { one: 'Companion', many: 'Companions' },
 };
 
 /** The book's tabs, in order. */
@@ -25,6 +34,7 @@ export const BOOK_KINDS: readonly CosmeticKind[] = [
   'crest',
   'titleColour',
   'title',
+  'companion',
 ];
 
 function milestoneText(m: CosmeticMilestone): string {
@@ -71,6 +81,8 @@ export function howToEarn(source: CosmeticSource): string {
       const t = findGuildHonourTier(source.minTier);
       return `Be on the honour roll of a ${t?.name ?? 'top guild'} or better at a season’s end (two weeks in the guild, and taking part).`;
     }
+    case 'shrine':
+      return `Draw it at the Summoning Shrine (${RARITY_WORDS[source.rarity]}), or buy it there with Shrine marks.`;
   }
 }
 
@@ -91,6 +103,8 @@ export function sourceLabel(source: CosmeticSource): string {
       return 'Exchange';
     case 'guildSeason':
       return 'Guild';
+    case 'shrine':
+      return 'Shrine';
   }
 }
 

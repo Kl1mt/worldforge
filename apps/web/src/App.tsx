@@ -1,3 +1,4 @@
+import { ShrineScreen } from './screens/ShrineScreen';
 import { CollectionScreen } from './screens/CollectionScreen';
 import { useEffect } from 'react';
 import { AuthProvider, useAuth } from './auth/AuthProvider';
@@ -147,6 +148,7 @@ function Routes() {
             {route === 'arena' ? <ArenaScreen /> : null}
             {route === 'trading' ? <TradingScreen /> : null}
             {route === 'collection' ? <CollectionScreen /> : null}
+            {route === 'shrine' ? <ShrineScreen /> : null}
             {route === 'inbox' ? <InboxScreen /> : null}
           </Shell>
         </OnboardingProvider>

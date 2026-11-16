@@ -49,6 +49,8 @@ export const GAME_ROUTES = [
   'treasury',
   // Ticket 8.5: the notification inbox ("Letters"), `#/inbox`.
   'inbox',
+  // Ticket 9.5: the Reward Shrine, `#/shrine` (draws, odds, the marks shop).
+  'shrine',
 ] as const;
 /** The gate: only shown to visitors without a session. Ticket 5.7: `forgot` (password). */
 export const AUTH_ROUTES = ['login', 'register', 'forgot'] as const;

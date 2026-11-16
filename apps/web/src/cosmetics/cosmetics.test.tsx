@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { CLASS_IDS, COSMETICS, findCosmetic } from '@worldforge/game-core';
-import { ART_TINTS, appearancePalette } from '../content/appearance';
+import {
+  ART_TINTS,
+  appearancePalette,
+  bannerStyleSprite,
+  crestStyleSprite,
+} from '../content/appearance';
 import { HeroPortrait } from '../characters/HeroPortrait';
 import { ShownTitle } from '../social/Prestige';
 import { BannerStyle, CrestMark, CrestRim, HeroLook, titleColourClass } from './Cosmetics';
@@ -17,6 +22,8 @@ describe('palettes (A.13) on every class', () => {
       for (const classId of CLASS_IDS) {
         const swap = appearancePalette(c.id, classId);
         if (c.id === 'appearance.default') expect(swap).toBeNull();
+        // Ticket 9.5: a Shrine look's palette is A.19's; until it lands the hero wears its own.
+        else if (c.source.kind === 'shrine' && swap === null) continue;
         else {
           expect(swap?.size, `${c.id} ${classId}`).toBeGreaterThan(0);
           for (const [from, to] of swap!) {
@@ -57,13 +64,25 @@ describe('banner and crest art (A.13), and the fallbacks without it', () => {
   it('draws the art of every banner and crest style', () => {
     // Ticket 6.11: the exchange's styles draw another style's art, tinted (`ART_TINTS`).
     const art = (id: string) => ART_TINTS[id] ?? id;
+    // Ticket 9.5: the Shrine's banner and crest are A.19's art: until it lands, the plain fallback.
+    const pending = (id: string) =>
+      findCosmetic(id)!.source.kind === 'shrine' &&
+      (id.startsWith('banner.') ? bannerStyleSprite(id) : crestStyleSprite(id)) === null;
     for (const c of COSMETICS.filter((x) => x.kind === 'banner')) {
       const html = renderToStaticMarkup(<BannerStyle id={c.id} scale={2} />);
+      if (pending(c.id)) {
+        expect(html, c.id).toContain('cosm-banner--plain');
+        continue;
+      }
       expect(html, c.id).toContain(`/assets/banners/${art(c.id).slice('banner.'.length)}.png`);
       expect(html).not.toContain('cosm-banner--plain');
     }
     for (const c of COSMETICS.filter((x) => x.kind === 'crest')) {
       const html = renderToStaticMarkup(<CrestRim id={c.id}>x</CrestRim>);
+      if (pending(c.id)) {
+        expect(html, c.id).toContain('cosm-crest--plain');
+        continue;
+      }
       expect(html, c.id).toContain(`/assets/crests/crest-${art(c.id).slice('crest.'.length)}.png`);
       expect(html).toContain('width="96"'); // 48 px at ×2
     }
@@ -139,6 +158,7 @@ describe('the book', () => {
       crest: null,
       titleColour: null,
       cosmeticTitle: null,
+      companion: null,
     },
     heroes: [
       { id: 'h1', name: 'Hadwin', classId: 'warrior', banner: 'ash', palette: null },
@@ -157,8 +177,8 @@ describe('the book', () => {
         .sort(),
     ).toEqual(['appearance.default', 'banner.harvest-sheaf']);
     // Four crests earned in play, two from the exchange (6.11), one from the Procession (8.3),
-    // three from guild honours (8.4).
-    expect(filterEntries(book.entries, 'crest', 'locked')).toHaveLength(10);
+    // three from guild honours (8.4), one from the Shrine (9.5).
+    expect(filterEntries(book.entries, 'crest', 'locked')).toHaveLength(11);
     expect(counts(book.entries)).toEqual({ owned: 2, total: COSMETICS.length });
   });
 
@@ -180,7 +200,7 @@ describe('the book', () => {
       expect(words.length, c.id).toBeGreaterThan(10);
       expect(words).not.toMatch(/undefined|\[object/);
       expect(sourceLabel(c.source)).toMatch(
-        /^(Default|Event|Deed|Milestone|Season|Exchange|Guild)$/,
+        /^(Default|Event|Deed|Milestone|Season|Exchange|Guild|Shrine)$/,
       );
     }
     expect(howToEarn(findCosmetic('appearance.ashen')!.source)).toBe('Bring a hero to level 40.');
@@ -195,6 +215,7 @@ describe('the book', () => {
       'Crests',
       'Title colours',
       'Titles',
+      'Companions',
     ]);
     expect(equipFailure('not_owned')).toContain('not earned');
   });

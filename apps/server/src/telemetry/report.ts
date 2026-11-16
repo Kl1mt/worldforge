@@ -583,6 +583,23 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
       bundle('cosmetic.exchange', sql`a.data->'materials'`),
       sumRollups(rows, 'material.out', src('cosmetic_exchange'), 'amount'),
     ],
+    // Ticket 9.5: the Reward Shrine (draws granted, drawn, marks from duplicates, marks spent).
+    [
+      'shrine: draws granted',
+      audit('shrine.grant', num(sql`data->>'count'`)),
+      sumRollups(rows, 'shrine.grant', undefined, 'amount'),
+    ],
+    ['shrine: draws', audit('shrine.draw', sql`count(*)`), sumRollups(rows, 'shrine.draw')],
+    [
+      'shrine: duplicate marks',
+      audit('shrine.draw', num(sql`data->>'marks'`)),
+      sumRollups(rows, 'shrine.draw', undefined, 'amount'),
+    ],
+    [
+      'shrine: marks spent',
+      audit('shrine.buy', num(sql`data->>'price'`)),
+      sumRollups(rows, 'shrine.buy', undefined, 'amount'),
+    ],
     [
       'forge: upgrade successes',
       audit('forge.upgrade', sql`count(*)`, sql`(data->>'success')::boolean`),
