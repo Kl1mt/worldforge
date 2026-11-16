@@ -127,6 +127,21 @@ pnpm --filter @worldforge/web dev
 node tools/e2e/phase8-exit.mjs
 ```
 
+The Phase 9 browser run (ticket 9.6), CI job `e2e-phase9` (~13 s locally; two accounts side by side), is `tools/e2e/phase9-exit.mjs`:
+- a warlock's Skills screen: Soul Fragments explained, Agony (damage over time) as the class skill, two spenders and a passive saved as Loadout I, a locked skill shown, the default Loadout II put in force and Loadout I again;
+- her scene's resource bar while she farms, and her duel defence saved (it keeps the loadout in force);
+- a warrior's account page (three slots, one filled; 8 hours away) and the muster roll's locked slot;
+- the Tyrant's Lesson turned in at the Tavern, and its skill saved in a loadout;
+- the Shrine (a draw revealed, the odds opened, no paid draw) and his companion shown from the collection book, beside him in the area scene.
+
+`E2E_SEED_PHASE9=1` seeds the two accounts at start (`apps/server/src/e2e/seed-phase9.ts`, tested by `seed-phase9.test.ts`): the lesson's fresh kill filled in and its Seals given, the account's deeds granted by the server's grant function, and one Shrine draw pinned to a companion seed. It needs a fresh server:
+
+```
+E2E_SEED_PHASE9=1 pnpm --filter @worldforge/server e2e:serve
+pnpm --filter @worldforge/web dev
+node tools/e2e/phase9-exit.mjs
+```
+
 ### Local playtest without Docker (ticket P.1)
 `pnpm playtest` runs `apps/server/src/playtest/serve.ts`: the real `buildApp()` on a PGlite database persisted to `.playtest-data/` (git-ignored), plus the web dev server, for playtesting on a machine without Docker or PostgreSQL. Like the e2e server it is excluded from the production build and refuses `NODE_ENV=production`; auth and rules are unchanged. Optional fast time (`pnpm playtest:fast`, `PLAYTEST_TIME_SCALE`) speeds up only the server's farming clock and never runs it backwards across restarts. User guide and details: `docs/PLAYTEST.md`.
 

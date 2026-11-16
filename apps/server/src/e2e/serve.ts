@@ -41,6 +41,12 @@
  *   a level-46 hunter the Throne's door still bars (Brynja Coldwick `p8-brynja@`), a level-22 mage
  *   with a mixed pack and three ready Tavern notices (Cass Wenhallow `p8-cass@`) and an admin
  *   (Mira Castellane `p8-mira@`), password `ashes-and-iron-42`. The calendar stays paused.
+ * - with `E2E_SEED_PHASE9=1` (ticket 9.6, `tools/e2e/phase9-exit.mjs`) the Phase 9 run's accounts
+ *   (`seed-phase9.ts`): a level-30 warlock on the default loadout with no duel defence (Aud
+ *   Morrowgrave `p9-aud@graumark.test`) and a level-38 warrior whose Tyrant's Lesson is ready to
+ *   turn in, whose account has earned its third slot and 8 offline hours, and who owns one
+ *   companion with six free Shrine draws left (Torvald Emberhand `p9-torvald@`), password
+ *   `ashes-and-iron-42`.
  * Auth, validation and rate limits are unchanged.
  *
  *   pnpm --filter @worldforge/server e2e:serve
@@ -57,6 +63,7 @@ import { createMemoryMailer } from '../mail/mailer.js';
 import { seedPhase5 } from './seed-phase5.js';
 import { seedPhase6 } from './seed-phase6.js';
 import { seedPhase8 } from './seed-phase8.js';
+import { seedPhase9 } from './seed-phase9.js';
 
 if (process.env.NODE_ENV === 'production') {
   console.error('src/e2e/serve.ts is a test server and does not run with NODE_ENV=production.');
@@ -155,6 +162,7 @@ if (seedTest) {
 if (process.env.E2E_SEED_PHASE5 === '1') await seedPhase5(app, database.db, now);
 if (process.env.E2E_SEED_PHASE6 === '1') await seedPhase6(app, database.db, now);
 if (process.env.E2E_SEED_PHASE8 === '1') await seedPhase8(app, database.db, now);
+if (process.env.E2E_SEED_PHASE9 === '1') await seedPhase9(app, database.db, now);
 
 await app.listen({ host: config.host, port: config.port });
 app.log.warn(
