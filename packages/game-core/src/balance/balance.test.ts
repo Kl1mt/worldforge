@@ -1386,7 +1386,9 @@ describe('balance (ticket B.1)', () => {
           }
         }
       }
-    });
+      // About 3 s of simulation alone; the default 5 s ran out on a loaded CI runner. Same
+      // explicit budget as the other heavy balance tests (prismatic-balance.test.ts).
+    }, 60_000);
 
     it('a Mythic in its slot is a big upgrade that still keeps the bands', () => {
       for (const c of CLASS_IDS) {
