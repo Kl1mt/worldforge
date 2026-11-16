@@ -355,8 +355,8 @@ describe('resources, cooldowns and damage over time on the timeline', () => {
   it('compiles resources from the class rules and the passive', () => {
     expect(setupWith('mage', { actives: ['firebolt', 'pyroblast'] }).kit!.start).toBe(100);
     const deep = setupWith('mage', { actives: ['firebolt', 'pyroblast'], passive: 'deepReserves' });
-    expect(deep.kit!.start).toBe(140);
-    expect(deep.kit!.rules.max).toBe(140);
+    expect(deep.kit!.start).toBe(125);
+    expect(deep.kit!.rules.max).toBe(125);
     expect(setupWith('warrior', { actives: ['heavyStrike', 'shieldSlam'] }).kit!.start).toBe(0);
     expect(setupWith('hunter', { actives: ['aimedShot', 'quickShot'] }).kit!.start).toBe(20);
     // Fragments: what the last kill left, within the cap.

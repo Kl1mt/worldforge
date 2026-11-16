@@ -85,6 +85,12 @@ export interface PvpConfig {
    * while the skills prototype is on; absent = `PVP_V3_SKILL_KEEP`.
    */
   skillKeep?: number;
+  /**
+   * Ticket B.7 (measurement only, unset in `DEFAULT_PVP_CONFIG`, so no duel moves): a per-bracket,
+   * per-class share in place of `skillKeep`, for the owner question on duel class balance with
+   * loadouts (docs/BALANCE.md "B.7"). A future rules version would set it.
+   */
+  skillKeepByClass?: Readonly<Record<string, Readonly<Partial<Record<ClassId, number>>>>>;
   referenceKit: PvpReferenceKit;
   /** Reference level per bracket id. */
   referenceLevels: Readonly<Record<string, number>>;

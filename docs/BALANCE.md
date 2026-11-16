@@ -6,9 +6,143 @@ The balance passes (B-tickets) record their method, before/after tables and deci
 - B.2 (loot depth, economy): `docs/COMBAT.md`, `docs/ECONOMY.md` "Balance pass: loot depth & economy", `docs/DUNGEONS.md`.
 - B.3 (top end, social economy): `docs/ECONOMY.md`, `docs/COMMUNITY.md`, `docs/DUNGEONS.md`.
 - B.4 (competitive systems): `docs/LEADERBOARDS.md`, `docs/PVP.md` "Balance pass: competitive systems".
+- **B.7 (skills and loadouts, Phase 9): below, first.** Owner questions at its end.
 - **B.5 (endgame, Phase 6): below.** Owner decisions on its questions: **B.5b** at the end of the section.
 - **Phase 6 exit criterion (ticket 6.10): at the end.** A record, not a pass: nothing changes. **Ticket 8.1** extends it to the Hollow Reach (its own section below).
 - **Phase 8 exit criterion (ticket 8.7): at the end.** A record, not a pass: nothing changes.
+
+## B.7: skills and loadouts (Phase 9)
+
+**Simulations only.** The town is not live, so there is no telemetry by loadout yet (9.2 records it: `skills.farm`, `skills.boss`). Like B.5, everything below is game-core from fixed seeds (`tools/balance/skills-balance.ts`; guards `balance/skills-balance.test.ts` (PvE, ~2 min) and `balance/skills-pvp-balance.test.ts` (PvP and matchmaking, ~20 s)), never the live site. A later pass should check these numbers against real loadout telemetry.
+
+**Method.** B.7 widens 9.1's measurements three ways:
+- **three kit samples** instead of one: every loadout a hero can field is scored over `legendarySample` 0–2 on 9.1's seven jobs, so no loadout leads on one kit's luck with its effects;
+- **9.3's skill-aware Legendaries**: the quest ring and torc at +10, each class's best effect pair (9.3's measurement), in place of the kit's ring and neck, at the top tier;
+- **the older bands re-run on each class's leaders**: the loadout a search finds best for that job and level (on the search's own seeds, then measured on the band's seeds, so no band is fitted to its own luck; pinned in `B7_LEADERS`). A boss leader is the best loadout a hero can field before that boss's own skill is taught.
+
+Owner decisions respected (2026-11-15): the mage's boss gain is accepted, the 6–16 % sidegrade size is kept, no healing or shield skills. The default loadout is untouched: every change below acts only on a chosen loadout, and CI's skills replay (every game-core suite in `shadow`) still passes.
+
+### Changes at a glance
+
+| What | Before | After | Why |
+|---|---|---|---|
+| Deep Reserves (mage passive, level 32) | +40 Mana | **+25 Mana** | with the skill quests' rewards, Firebolt + Emberstorm + Arcane Bolt / Deep Reserves led both farming and the Hollow Sovereign (within 2 % of both bests) |
+
+Data only (`combat/skills.ts`). No Power, PvE Progress, Gear Score, bracket Power or matchmaking version, no `PVP_RULES_VERSION` bump (Deep Reserves unlocks at 32, above the 30+ reference level, and no pinned duel reads it), no migration. Version 0.9.5. Everything else measured below is unchanged, and three bands that break are **owner questions** (end of this section), because each fix runs into an owner decision or needs a version change.
+
+### 1. Viable loadouts, and none leads both kinds of job
+
+Over three kit samples (default → best, × factor, distinct viable loadouts within 7 % of the best):
+
+| Job | Warrior | Mage | Hunter | Warlock |
+|---|---|---|---|---|
+| Ashen Pass 26 (k/min) | 11.1 → 12.1 (× 1.09) · 16 | 11.5 → 13.0 (× 1.13) · 21 | 16.0 → 17.0 (× 1.07) · 16 | 11.4 → 12.8 (× 1.12) · 9 |
+| Cinder Depths 37 (k/min) | 7.8 → 8.8 (× 1.13) · 23 | 7.6 → 8.7 (× 1.15) · 50 | 10.6 → 11.7 (× 1.10) · 47 | 8.1 → 8.9 (× 1.10) · 39 |
+| Hollow Deep 49 (k/min) | 6.9 → 7.9 (× 1.14) · 41 | 6.4 → 7.4 (× 1.15) · 86 | 9.0 → 9.7 (× 1.08) · 87 | 7.1 → 7.6 (× 1.08) · 83 |
+| Gravewarden III 23 (s) | 30.2 → 28.5 (× 1.06) · 13 | 31.5 → 29.2 (× 1.08) · 11 | 27.9 → 25.2 (× 1.11) · 6 | 27.7 → 25.5 (× 1.08) · 11 |
+| Heroic 34 (s) | 43.6 → 38.5 (× 1.13) · 24 | 50.1 → 40.4 (× 1.24) · 17 | 35.8 → 30.1 (× 1.19) · 16 | 34.3 → 31.6 (× 1.09) · 32 |
+| Forge Tyrant 38 (s) | 41.1 → 35.8 (× 1.15) · 31 | 47.7 → 36.6 (× 1.30) · 42 | 32.1 → 25.5 (× 1.26) · 15 | 33.1 → 29.3 (× 1.13) · 44 |
+| Hollow Sovereign 50 (s) | 57.1 → 39.2 (× 1.46) · 10 | 54.6 → 42.2 (× 1.29) · 29 | 38.9 → 29.9 (× 1.30) · 30 | 60.8 → 44.1 (× 1.38) · 6 |
+
+- **At least three viable loadouts per class and job: yes** (6–87 distinct).
+- **Sidegrade size:** farming × 1.07–1.15, inside the kept 6–16 %. Boss times above × 1.2 are wins replacing losses at 150 s: over samples 1–2 the default loses more Sovereign fights (wins 80–97 %) than 9.1's kit did, and the leaders win 93–100 %. Over won fights the gains are 9.1's (see 2 for what this does to the boss bands).
+- **No loadout leads both** at the full tiers (Depths 37 × Tyrant 38, Deep 49 × Sovereign 50) for any class; each leader trails the other job's best by 4.8–26.9 %. Below 36 (Pass 26 × Gravewarden III, Depths × Heroic 34, the intersection of level-34 loadouts) some classes' farming and boss leaders coincide or come within 2 % (warrior, mage and hunter at Pass 26 × Gravewarden III; mage and warlock at Depths × Heroic 34) (two to four spenders unlocked): measured, not asserted, as 9.1 decided ("choice opens up with levels").
+- **With 9.3's quest rewards** (Deep 49 × Sovereign 50): before B.7 the mage's **Firebolt, Emberstorm, Arcane Bolt / Deep Reserves** sat within 2 % of both bests (farming 7.31 against 7.43 k/min, the Sovereign 40.0 against 39.4 s; on samples 3–5 3.0 % behind farming and the best at the boss): a generalist. Deep Reserves was the hub: with Practiced Hand's spender bonus, 40 more Mana made it the best passive for both jobs. Measured at +30: still within 2 %; at **+25**: 1.9 % behind farming and 3.9 % at the boss, no loadout leads both. Every other class: none before or after.
+
+| Mage, quest rewards, samples 0–2 | Deep Reserves +40 | +25 |
+|---|---|---|
+| Best farming (Deep 49) | 7.43 (Pyroblast, Arcane Bolt / Deep Reserves) | 7.38 (Pyroblast, Shatter / Arcane Power) |
+| Best at the Sovereign 50 | 39.4 s (Meteor, Shatter / Deep Reserves) | 39.6 s (Meteor, Emberstorm / Kindling) |
+| Firebolt, Emberstorm, Arcane Bolt / Deep Reserves | 7.31 · 40.0 s (leads both) | 7.24 · 41.1 s |
+| Plain kit, best farming · boss | 7.39 · 42.2 s | 7.39 · 42.2 s (unchanged: no plain leader uses it) |
+| Viable (7 %): farming · boss | 136 · 49 | 164 · 50 |
+
+The best loadouts move by under 1 %, so the sidegrade size is unchanged; Deep Reserves stays viable on both jobs. Its other reader is the mage's duel leader from level 36 (Meteor, Arcane Bolt / Deep Reserves before; Pyroblast, Meteor after), measured in 4.
+
+### 2. The Phase 6 and 8 bands on the leaders
+
+Win rates warrior / mage / hunter / warlock, default (today, unchanged) → each class's boss leader.
+
+**B.5's class spread** (endgame-balance, 8 Legendary kits at item level 33 × 12 runs): **holds.**
+
+| | +0 | +5 | +10 |
+|---|---|---|---|
+| Tyrant 36 | 41/19/28/31 (22) → 75/51/57/76 (25) | 80/71/68/91 (23) → 97/85/93/96 (11) | 95–100 → 99–100 |
+| Tyrant 38 | 58/29/34/47 (29) → 81/59/68/82 (23) | 86/76/75/92 (17) → 98/92/97/97 (6) | 95–100 → 100 |
+| Heroic 32 | 47/24/26/50 (26) → 67/39/53/68 (29) | 78/66/67/85 (20) → 93/79/85/96 (17) | 94–100 → 98–100 |
+| Heroic 34 | 52/31/33/58 (27) → 76/46/56/71 (30) | 85/72/70/91 (21) → 97/82/89/96 (15) | 95–100 → 99–100 |
+| Heroic 36 | 63/41/40/65 (25) → 81/61/74/83 (22) | 89/79/77/94 (17) → 100/89/95/97 (11) | 97–100 → 100 |
+
+Bands: +5 ≥ 60 % per class and ≤ 25 points apart, +0 ≤ 33 apart, +10 ≥ 90 %, every upgrade pays: all hold, and the spread at +5 shrinks. A class on its leader against another on the default can be 23–57 points apart (that is the loadout's value, not a class gap).
+
+**6.3's Heroic crypt** (heroic-balance, `legendaryKit` 33, 16 runs, mean): **the "lesser gear does not" ceilings break.**
+
+| Level | epic +10 (≤ 10 %) | Legendary (15–60 %) | +5 (≤ 85 %) | +10 (≥ 85 %) |
+|---|---|---|---|---|
+| 32 | 0 → **11 %** | 34 → 59 % | 73 → 78 % | 97 → 100 % |
+| 35 | 6 → **16 %** | 45 → **72 %** | 78 → 84 % | 100 → 100 % |
+
+**8.2's Hollow Sovereign** (hollow-deep-balance, 4 kits × 12 runs, mean; leaders with the Tyrant's active, not the Sovereign's passive): **the "not trivially" ceilings break.**
+
+| | Band (default) | 48: default → leaders | 50: default → leaders |
+|---|---|---|---|
+| Marches +0 | < 25 % | 10 → 23 % | 10 → 24 % |
+| Marches +5 | 25–65 % | 39 → **70 %** | 43 → **73 %** |
+| Marches 45 +5 | 35–75 % | 54 → **78 %** | 55 → **89 %** |
+| Marches +10 | 70–95 % | 85 → **95 %** | 84 → **97 %** |
+| Deep +10 | > 95 % | 100 → 100 % | 100 → 100 % |
+| Depths +10 | < Marches +10 | 41 → 57 % | 42 → 65 % |
+
+Every upgrade still pays, the Deep's own gear still wins every run, the Depths' best stays behind the Marches' (and gains a real chance: older gear keeps more value), every class wins more than half at Marches +10 (69–100 %). The Sovereign's passive (taught after his fall) changes no leader. **Why the ceilings break:** a boss loadout's 6–16 % faster kill is worth about one +5 upgrade at the steep bosses (the siphon and the crown-blow punish slow kills). Both tables are owner question 1.
+
+**Held on the leaders:**
+- **6.3's modifiers** (crypt II/III, Heroic, the Warden, the Tyrant): each costs 0–6 points, none more than 30, none makes a boss easier.
+- **B.5's Warded** is not the hardest modifier (crypt III 0.27 → 0.58 against 0.53–0.58 for the others; the Warden 0.56 → 0.75 against 0.69–0.75).
+- **4.9's guild boss** (boss leaders at the members' levels): every guild reaches the same stage as before (1 / 1 / 2 / 4 / 3 for the five rosters); the per-attempt cap holds the top.
+- **Farming (8.1, 8.2, 8.7):** the Deep at 46/49/52 in Marches Legendaries +10: no deaths, 7.4–10.4 kills a minute (default 6.6–9.7, band 6–11), damage share ≤ 0.16; the Marches at 40 in the Depths' or Heroic Legendaries +10: no deaths, 7.6–10.5; at 46 in the Depths' +10 the default warlock dies 0.3 times an hour (unchanged), its leader none.
+- **B.5's XP pacing** (farming leaders): 2.3–5.0 h a level from 28 to 39, 28 → 40 in 35–47 h (default 38–52 h), 47 → 48 18–24 h: about a tenth faster, inside every band.
+
+### 3. PvP under duel rules 3
+
+Each hero on its class's duel leader (the loadout with the best mean against every class's default, at the bracket's reference level). The default loadout's duels are version 2's, bit for bit (the pinned hashes).
+
+| Bracket | Class matchups, both default (band 40–60 %, classes 45–55 %) | Both on their leader | One class on its leader, the others default |
+|---|---|---|---|
+| 1–9 | 46–55 % · 49–51 % | **41–75 % · 38–66 %** | 49–70 % |
+| 10–19 | 46–54 % · 48–51 % | **44–66 % · 43–58 %** | 62–73 % |
+| 20–29 | 43–57 % · 49–51 % | **34–58 % · 43–57 %** | 62–70 % |
+| 30+ | 41–59 % · 50–51 % | **39.7–56 %** · 46–54 % | 67–73 % |
+
+- **Class matchups: break with loadouts** (owner question 2). The warrior's Rage builds from blows given and taken, the mage starts full; the hunter's Focus only builds while unhit and the warlock starts a duel without fragments, so in duels the warrior and the mage gain more from a loadout than the hunter and the warlock. 30+ misses by one pair (hunter–warrior 39.7 %).
+- **5.4's 25 % gear rule holds:** every gear step on the leaders within ±5 points of the default's (51–100 %, ≤ 98 % from common up); a loadout against the default in the same kit wins 47–72 %, less than the biggest gear steps (89–97 %).
+- **The ±25 % luck rule holds:** ticks take no luck roll, and they are 0–1 % of all duel damage; duels last a median 6.8–8 s, none reached the time limit.
+- **Fresh heroes:** on their own leader against typical heroes on theirs, 10+ keeps 5.4's minimum (10–19 11–32 %, mean 18 %; 20–29 27–41 %, 34 %; 30+ 39–64 %, 51 %); 1–9 falls from 4–13 % to 3–10 % (unrated). **A fresh hero who keeps the default** against typical leaders falls to 7–15 % (mean 11 %) in 10–19 and 13–25 % (18 %) in 20–29: the Skills screen matters from level 10 (reported; the screen already shows every unlocked skill).
+
+### 4. Matchmaking with loadouts
+
+Bracket Power does not read loadouts (9.2 left bracket Power 4 to B.7). arena-fairness's population (120 heroes, 32 duels a pair), 90 %+ / 95 %+ favourites (band ≤ 9 % / ≤ 5 %), mean favourite (≤ 72 %):
+
+| | Everyone default (today) | Everyone on their leader | Every second hero on their leader | A random loadout each |
+|---|---|---|---|---|
+| 10–19 | 2.3 / 0.5 % · 66 % | 5.5 / 1.8 % · 68 % | 5.7 / 2.0 % · 67 % | 6.2 / 2.3 % · 68 % |
+| 20–29 | 3.3 / 0.7 % · 66 % | 3.5 / 0.8 % · 67 % | 2.8 / 1.0 % · 66 % | **16.7 / 6.2 % · 72 %** |
+| 30+ (30–35) | 3.2 / 1.0 % · 64 % | 2.3 / 0.7 % · 65 % | **9.2** / 3.5 % · 70 % | **14.7 / 6.8 % · 72 %** |
+| 30+ to 52 | 2.2 / 0.8 % · 65 % | 3.5 / 0.2 % · 67 % | **11.3** / 2.5 % · **73 %** | **16.7 / 6.2 % · 73 %** |
+| 30+ to 52, awakened | 2.0 / 0.8 % · 65 % | 4.0 / 0.2 % · 67 % | **11.8** / 3.0 % · **73 %** | **16.7 / 6.5 % · 73 %** |
+
+Inside the bands while loadouts are uniform; **a mixed population breaks 30+** (owner question 3). "Random" is the worst case (it includes weak picks such as empty slots); the real mix is for telemetry to show. Lists stay full, none empty.
+
+### Owner questions
+
+1. **Boss ceilings with loadouts** (6.3's Heroic, 8.2's Sovereign). *Recommended: accept,* and read those ceilings as the default loadout's (unchanged and still asserted); B.7's guard asserts the leaders' measured values so they cannot slip further. A boss loadout is then worth about a +5 upgrade at the steep bosses; Phase 9's exit asks for loadouts that are viable for bosses, and older gear gains (the Depths' best at the Sovereign 42 → 57–65 %). Alternatives: (a) shrink the bosses' share of skill damage (timed nukes and boss passives × ~0.75; cuts the boss sidegrade to ~4–10 %, against decision 4); (b) make the bosses harder (moves every default hero, against Phase 9's "the default fights exactly as today").
+2. **Duel class balance with loadouts** (3). *Recommended: a `PVP_RULES_VERSION` 4 at the next season boundary* with a per-class skill keep in place of the uniform half (decision 6), fitted on both metas (everyone default stays as today by construction). Measured (`skills-balance.ts tune`, measurement-only `PvpConfig.skillKeepByClass`, unset in play): 10–19 with warrior 0.4, mage 0.4, warlock 0.7 (hunter 0.5) gives pairs 46–54 % and classes 48–52 % on the leaders; 1–9 needs mage 0.2, warlock 0.8 (45–57 %); 20–29 found no fit by keep alone (best pairs 38–59 % or 44–64 %: the hunter's Focus starves when hit) and would need a duel-only resource rule (e.g. Focus also on a pulse while hit) or its class factor refitted with it, in the version 4 ticket. Alternative: wait for telemetry (version 3 is in force from the town's first season; the default meta is balanced).
+3. **Bracket Power 4** (4). *Recommended: build it* (9.1's design: the expected-value duel prices the defence loadout's spenders from a crit-free replay of its resource, cooldown and condition rules, stored with the defence, recomputed when the loadout changes). It ranks nothing on a board, so it can switch at once (no season boundary), like B.5's bracket Power 3. Alternative: wait for telemetry on how mixed real defences are.
+4. **Levels 32–35:** with two to four spenders the mage's and warlock's farming and Heroic leaders coincide within 1.5–2.5 %. *Recommended: accept* (9.1's rule: choice opens up with levels).
+
+### Risks
+- Single-source measurements: fixed seeds and reference kits, not players; the leaders are picked against defaults, not against each other's best answer.
+- The leaders are pinned (`B7_LEADERS`); a skill change must re-run `skills-balance.ts leaders`.
+- 9.1's tables in `docs/SKILLS.md` predate Deep Reserves +25 (only its cost row reads it).
 
 ## B.5: the endgame (Phase 6)
 

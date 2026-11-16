@@ -1,4 +1,4 @@
-# Balance measurements (tickets B.2, 4.8, B.3, 5.4, 5.6, B.4, T.7, 6.1, 6.2, 6.5, B.5, 6.10, 9.1)
+# Balance measurements (tickets B.2, 4.8, B.3, 5.4, 5.6, B.4, T.7, 6.1, 6.2, 6.5, B.5, 6.10, 9.1, B.7)
 
 Dev scripts behind the before/after tables in `docs/COMBAT.md`, `docs/DUNGEONS.md`, `docs/EFFECTS.md`, `docs/PVP.md` and `docs/LEADERBOARDS.md`. Not run in CI (the guards are `packages/game-core/src/balance/*.test.ts`). Run from the repo root:
 
@@ -33,6 +33,9 @@ pnpm --filter @worldforge/server exec tsx ../../tools/balance/hollow-deep.ts far
 pnpm --filter @worldforge/server exec tsx ../../tools/balance/phase6-exit.ts   # or: verge, older, materials, variants, awakening, modifiers (KITS, RUNS), bosses
 # Ticket 9.1: skills, resources and loadouts with game-core's prototype (docs/SKILLS.md), ~30 s; CLASSES, JOBS, TOP, COMPLETE=1
 pnpm --filter @worldforge/server exec tsx ../../tools/balance/loadouts.ts search   # or: jobs (the replay), cost (3 h/8 h), pvp (KEEP=0.5, SEEDS), power
+# Ticket B.7: skills & loadouts balance pass (docs/BALANCE.md "B.7"): 9.1's search on three kit samples, the older bands on the leaders, PvP and matchmaking with loadouts
+pnpm --filter @worldforge/server exec tsx ../../tools/balance/skills-balance.ts search   # ~2 min; VARIANT=quest (9.3's rewards), JOBS, CLASSES, SAMPLES=0,1,2
+pnpm --filter @worldforge/server exec tsx ../../tools/balance/skills-balance.ts bands    # or: more (6.3, guild boss), pvp (BRACKETS, PARTS), arena (SCEN), tune (KEEPS), leaders; PASSIVE_PATCH='{"deepReserves":{"resource":{"max":25}}}' tries a passive
 ```
 
 To compare with another revision, run them in a worktree of it (`git worktree add`).

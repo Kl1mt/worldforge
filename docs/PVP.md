@@ -379,3 +379,9 @@ Owner decision 6 (2026-11-15, `docs/SKILLS.md` "PvP"). **`PVP_RULES_VERSION` 3:*
 **A defence keeps its loadout** until the owner refreshes it (like its items); switching the hero's loadout changes nothing a challenger meets. Bracket Power (matchmaking) stays version 3: its expected-value duel reads `attackHit` and ignores a kit, so a defence's loadout does not move its matchmaking Power (SKILLS.md's bracket Power 4 is left for B.7, see "Risks").
 
 **Measured** (`combat/skills-live.test.ts`, 80 duels per class, level 32–33 Legendaries +5, every class's boss loadout against the same kit on the default): the chosen loadout's win share stays below 88 % (9.1's sweep: the best loadouts 69–82 % against the default at half).
+
+## B.7: duels and matchmaking with loadouts
+Measured in the skills and loadouts pass (`docs/BALANCE.md` "B.7", sections 3 and 4; guard `balance/skills-pvp-balance.test.ts`). **No duel rule changed** (`PVP_RULES_VERSION` stays 3; bracket Power 3, matchmaking 4). With every hero on its class's best duel loadout:
+- **5.4's gear rule (keep 0.25) and luck (±25 %) hold:** gear steps within ±5 points of the default's; a loadout against the default in the same kit wins 47–72 %, below the biggest gear steps; ticks (no luck roll) are 0–1 % of duel damage; duels end in a median 6.8–8 s.
+- **Class matchups do not hold:** pairs 41–75 % in 1–9, 44–66 % in 10–19, 34–58 % in 20–29 and 39.7–56 % in 30+ (the default meta keeps 41–59 %). Owner question 2: a version 4 with a per-class skill keep (measurement-only `PvpConfig.skillKeepByClass`, unset in play).
+- **Matchmaking:** inside the bands when loadouts are uniform; with every second hero on a leader 30+ measures 9.2 % (to level 52: 11–12 %, mean favourite 73 %) 90 %+ favourites. Owner question 3: build bracket Power 4 (it reads the defence's loadout; no season boundary needed).

@@ -21,7 +21,7 @@ All deterministic: gains come from attacks landed, blows taken and the fight's p
 | Hunter | Focus | 0–100, starts at 20 | +15 on a pulse with no blow taken since the last one, +5 per crit | Focus shots |
 | Warlock | Soul Fragments | 0–3, starts with what the **last kill left** (2; 0 after a death or a timeout) | +1 on a pulse in which a curse ticks | shadow skills (Soul Burn, Drain Soul, Soul Harvest) |
 
-Passives add to these rules (Deep Reserves: 40 more Mana; Dark Pact: a kill leaves 3 fragments; Soul Siphon: hold 5, two per curse pulse). The Warlock's fragments are the only resource carried between fights (like bloodrush stacks, `momentum`): `FarmingCharacter.soulFragments` in, `FarmingResult.soulFragments` out, and a crypt run starts at 0 and carries them room to room. Since 9.2 they are stored with the activity (`activities.soul_fragments`, `farm_state.soulFragments`, default 0).
+Passives add to these rules (Deep Reserves: 25 more Mana, 40 before B.7; Dark Pact: a kill leaves 3 fragments; Soul Siphon: hold 5, two per curse pulse). The Warlock's fragments are the only resource carried between fights (like bloodrush stacks, `momentum`): `FarmingCharacter.soulFragments` in, `FarmingResult.soulFragments` out, and a crypt run starts at 0 and carries them room to room. Since 9.2 they are stored with the activity (`activities.soul_fragments`, `farm_state.soulFragments`, default 0).
 
 ## The skills
 Six actives by level (1, 5, 12, 20, 28, 36) and one taught by the **Forge Tyrant** (Phase 6 content: older bosses gain a use); four passives by level (8, 16, 24, 32) and one taught by the **Hollow Sovereign** (Phase 8). Since 9.3 both are taught by a skill quest (a fresh kill of that boss and an older boss's material, "9.3: skill quests"); 9.2 taught them by the kill flag. Today's skill is each class's first active, with today's numbers (read from `AUTO_SKILLS`). Multipliers are of the class's primary damage, like today's skill.
@@ -61,7 +61,7 @@ Two kinds of active:
 | 8 | Mana Well | passive | +2 Mana a second |
 | 16 | Arcane Power | passive | +6 % damage to foes that are not bosses, blows +10 % |
 | 24 | Mana Shield | passive | blows −6 %, −1 Mana a second |
-| 32 | Deep Reserves | passive | +40 Mana, every fight starts full |
+| 32 | Deep Reserves | passive | +25 Mana, every fight starts full (+40 before B.7) |
 | Sovereign | Kindling | passive | burns +40 %, Mana skills +5 % |
 
 **Hunter (Focus)**
@@ -244,11 +244,11 @@ A loadout moves Power by at most 2 % (it clears trials faster; nobody newly fail
 - **The mage at bosses:** a few percent of damage turns its lost Heroic and Tyrant fights into wins (71 → 92 %, 73 → 96 % in this kit). Fairer between classes (B.5's spread shrinks), but a real move at those bosses; owner question 3.
 - **Low levels:** before 36 the farming and boss leaders can coincide (fewer spenders unlocked); choice grows with levels.
 - **Small farming spreads at the Hollow Deep** for the warlock and the hunter (best × 1.06–1.07): long fights favour no single tool; the boss side carries their choice.
-- **Measurements on single reference kits** (B.2-style); B.7 re-measures on telemetry by loadout after 9.2.
+- **Measurements on single reference kits** (B.2-style); B.7 re-measured on three kit samples and with the quest rewards (`docs/BALANCE.md` "B.7": Deep Reserves 40 → 25, the boss ceilings and duel class balance with loadouts as owner questions); telemetry by loadout still to come.
 - **PvP numbers** come from Legendary kits, not B.4's fairness fixtures; 9.2 re-runs the arena bands.
 - **Power and fragments:** the Proving Grounds start every fight without fragments (no carry between their four fights), as built.
 - **Power 4 below the Legendary tier (9.2's measurement):** level-24 rare kits gain × 1.04–1.07 with a strong boss loadout (level-34 Legendaries × 1.00–1.02, as 9.1 measured); still a re-ranking among close heroes.
-- **Bracket Power 4 not built:** matchmaking's bracket Power still ignores a defence's loadout (proposed above); a loadout edge in duels is at most a small one at half keep, B.7 decides with telemetry.
+- **Bracket Power 4 not built:** matchmaking's bracket Power still ignores a defence's loadout (proposed above); a loadout edge in duels is at most a small one at half keep. B.7 measured it without telemetry: a mixed population breaks 30+'s fairness band, so building it is owner question 3 in `docs/BALANCE.md` "B.7".
 - **Skill icons and effect animations** are A.18's (parallel); the web shows placeholders until then.
 - **Cost:** up to 1.8 × today's settlement for a loadout (8 h ≤ 70 ms); fine today, watched in 9.2's telemetry.
 - **9.3, the deploy window:** migration 0049 keeps every kill flag present when it runs. A hero who fells a boss on the old server after the migration but before the new one answers would need the lesson (seconds in a normal deploy; `docs/DEPLOY.md` migrates and then starts).
