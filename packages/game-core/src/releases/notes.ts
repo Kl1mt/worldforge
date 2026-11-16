@@ -23,9 +23,19 @@ export interface PatchNote {
 }
 
 /** The version of the game in this build. Must equal the newest entry of `PATCH_NOTES`. */
-export const GAME_VERSION = '0.9.5';
+export const GAME_VERSION = '0.9.6';
 
 export const PATCH_NOTES: readonly PatchNote[] = [
+  {
+    version: '0.9.6',
+    date: '2026-11-24',
+    title: 'Phase 9 checks',
+    fixed: [
+      'Your Power on the Roll of Renown now updates as soon as you save your duel defence. It reads the skills saved with your defence, and before it waited for your next action.',
+      'A duel fought in the very moment a season ends now uses one set of duel rules from start to finish.',
+    ],
+    tickets: ['9.6'],
+  },
   {
     version: '0.9.5',
     date: '2026-11-23',

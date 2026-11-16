@@ -1662,7 +1662,7 @@ Read GDD §13.1–13.3, `docs/COSMETICS.md`, `docs/EVENTS.md`.
 - Before/after tables; data-only changes where possible. A Power version change waits for a season boundary.
 - Done (simulations only: the town is not live, so no telemetry by loadout; `tools/balance/skills-balance.ts`, guards `balance/skills-balance.test.ts`, `skills-pvp-balance.test.ts`). **Loadouts:** 9.1's search over three kit samples and with 9.3's quest rewards: 6–87 distinct viable loadouts per class and job, farming sidegrades × 1.07–1.15, no loadout leads both at the full tiers, except the mage with the quest rewards (Firebolt, Emberstorm, Arcane Bolt / Deep Reserves within 2 % of both bests): **Deep Reserves +40 → +25 Mana** (data only; best loadouts move < 1 %; default loadout untouched, skills replay passes). **Bands on each class's leaders:** B.5's Tyrant/Heroic spread, 6.3's modifiers, B.5's Warded, 4.9's guild boss, the 8.1/8.2 farming bands and B.5's XP pacing hold; 6.3's Heroic ceilings (epic +10 11–16 %, Legendary 72 % at 35) and 8.2's Sovereign ceilings (Marches +5 70–73 %, +10 95–97 %) break, a boss loadout being worth about a +5 upgrade. **PvP (rules 3):** gear keep and luck hold (ticks 0–1 % of damage), fresh heroes on their own leader keep 5.4's minimum; class matchups break with everyone on their leader (10–19 44–66 %, 20–29 34–58 %, 30+ one pair 39.7 %); matchmaking breaks 30+ with a mixed population (9.2–11.8 % 90 %+ favourites). Owner questions with recommendations (`docs/BALANCE.md` "B.7"): accept the boss ceilings as the default's; a `PVP_RULES_VERSION` 4 with a per-class skill keep (measured fit for 10–19, none by keep alone for 20–29); build bracket Power 4; accept the level 32–35 overlap. No version bumped, no migration. Version 0.9.5. `docs/BALANCE.md` "B.7", `PVP.md` "B.7", `SKILLS.md`.
 
-### 9.6 Phase 9 hardening & exit — `todo`
+### 9.6 Phase 9 hardening & exit — `done (PR #161)`
 Like 8.7:
 - **An exit run** over:
   - loadouts and presets;
@@ -1680,6 +1680,126 @@ Like 8.7:
   - slot creation races.
 - **A rate-limit review.**
 - **The Phase 9 retrospective.**
+- Done:
+  - **The API run:** `apps/server/src/e2e/phase9-exit-criteria.test.ts`, about 9 s of test time (15 s with start-up), 21 game days on one injected clock.
+  - **The browser run:** `tools/e2e/phase9-exit.mjs`, CI job `e2e-phase9`, about 13 s locally. Seed `E2E_SEED_PHASE9=1` (`apps/server/src/e2e/seed-phase9.ts`, tested by `seed-phase9.test.ts`).
+  - **The criterion in numbers:** B.7's measurements, recorded in `docs/BALANCE.md` "Phase 9 exit criterion"; game-core `balance/phase9-exit-criterion.test.ts` and server `phase9-no-pay-to-win.test.ts`.
+  - **The exploit review:** `docs/PHASE9_EXPLOIT_REVIEW.md`, three holes fixed (F1–F3), each with a test that failed first (`phase9-exploit-review.test.ts`).
+  - **The rate-limit review:** `docs/SOCIAL.md` "Rate limits: the Phase 9 review" and `SECURITY.md`; no value changed.
+  - A test seam: `buildApp({ shrine: { drawSeed } })` pins a Shrine draw's seed in tests (production never sets it).
+  - Version 0.9.6 (F1, F2). No migration, no gameplay number changed.
+
+### Phase 9 retrospective (ticket 9.6)
+**Exit criterion (Phase 9): met in the code; PvP class balance and matchmaking with loadouts wait for live data (owner decision).** *Each class plays as its GDD row reads: its resource drives its skills, and a player picks a loadout outside combat. At least three loadouts per class are viable for farming and for bosses, so no single build wins everything. Older gear keeps its value, and the boards and PvP moved by versions between seasons. Accounts grow by playing. Everything is reconciled, fair and free of pay-to-win.* The numbers are B.7's (`docs/BALANCE.md` "Phase 9 exit criterion"). The owner decided B.7's four questions on 2026-11-16 (below).
+
+**The API run** (`phase9-exit-criteria.test.ts`).
+- **Set-up.** One clock starts on a Monday 06:00 UTC derived from the wall clock and runs 21 game days. Six accounts play in an invite-only town. The town's story is production's: Season 1 was under way when the Phase 9 release arrived, so the release planned Power 4 and duel rules 3 for the season's end.
+- **Seeds.** Heroes above level 5 are seeded and measured (`holdingsBaseline`). The one seed-decided outcome the run needs (a companion from the Shrine) is a single draw pinned to a seed game-core shows producing one. Everything else is `crypto`'s and predicted from its stored seed.
+
+Covered:
+- **The Shrine's bank across days:**
+  - a new account holds one free draw;
+  - a draw's key replayed before and after midnight answers the first draw and spends nothing;
+  - the next free draw appears at midnight and not 1 ms before;
+  - nine days away the bank holds 7, not 8, and the days a full bank sat through are not paid back;
+  - every draw is predicted from its stored seed;
+  - the companion is shown beside the hero;
+  - the test account draws too, and its draws count in no telemetry.
+- **Loadouts and presets:** a fresh mage from level 1 (`playSkillsStep`): a spender at level 5, a locked skill refused, presets switched (switching twice writes once).
+- **Resources and damage over time in both simulations:** a level-24 warlock saves Agony, Corruption, Soul Burn and Malice.
+  - Her offline settlement equals game-core's aggregate settlement from the stored seed: cycles, level, XP and Soul Fragments.
+  - Her crypt run carries the loadout in its snapshot. Its detailed log, replayed from the seed, matches the claim, ticks damage over time and names her casts.
+- **A switch racing a settlement and a defence refresh:** all three land whole; the defence keeps one of the two loadouts; one switch is audited.
+- **The skill quests:** a level-38 warrior learns the Tyrant's Lesson (`playSkillQuestStep`: a fresh Tyrant kill, two Seals, a replayed turn-in pays once).
+- **Slots and the offline cap, earned live** by that warrior's first claim:
+  - the third slot: a hero refused before it, allowed after it, the fourth refused;
+  - four offline steps: 8 hours credited against a new account's 3, to the second;
+  - the deeds' Shrine draws drawn (`playShrineStep`).
+- **The season boundary:**
+  - to its last millisecond, Power 3 on the board (the warlock's 1,999) and a duel under rules 2;
+  - from its end, Power 4 on every board (her defence loadout: 2,184; Power 3's value for a hero without one) and a duel under rules 3;
+  - both duels replay from their seeds;
+  - the season archived and honoured once, its honours paying Shrine draws by best tier (equal to game-core's `shrineSeasonDraws`);
+  - the test hero on no board, and the recompute check clean.
+- **Valid:**
+  - every hero's holdings equal the audit log, and every account's Shrine reconciles;
+  - `reconcileWithAudit` and the real `pnpm report:telemetry -- --reconcile` match in all 150 checks, and telemetry counts every real Shrine draw once and none of the test account's;
+  - the privacy guard watched about 245 player responses and found no other player's email, account id or hero id;
+  - only the one test account exists.
+- Looped 20× shuffled (with the exploit-review, no-pay-to-win and seed tests) and once with `WF_CLOCK_SHIFT_DAYS=400`: green.
+
+**The browser run** (`tools/e2e/phase9-exit.mjs`, CI job `e2e-phase9`, about 13 s locally; two accounts side by side; four local passes on fresh servers):
+- a warlock's Skills screen (Soul Fragments explained, Agony as the class skill with two spenders and a passive saved, a locked skill shown, the default preset put in force and back), her scene's resource bar while she farms, and her duel defence saved;
+- a warrior's account page (three slots, one filled; 8 hours away), the muster roll's locked slot, the Tyrant's Lesson turned in and its skill saved;
+- the Shrine (a draw revealed, the odds, no paid draw) and his companion shown from the collection book, beside him in the scene.
+
+Not in the browser: mobile widths (Phase 7), a season boundary and the bank across days (the API run covers both).
+
+**The criterion in numbers** (`docs/BALANCE.md` "Phase 9 exit criterion", from B.7):
+- **Each class plays as its row reads:** four resources with their own rules; six actives and four passives each, plus the Tyrant's and the Sovereign's skills; damage over time for every class (three for the warlock).
+- **Three or more viable loadouts:** 6–87 distinct per class and job; farming sidegrades × 1.07–1.15; no loadout leads farming and the same tier's boss for any class (leaders 4.8–26.9 % apart).
+- **Older gear keeps its value:** B.5's spread, 6.3's modifiers, 4.9's guild boss, the 8.1/8.2 farming bands and the XP pacing hold on the leaders; the Depths' best gains at the Sovereign (42 → 57–65 %). **Two ceilings break**, accepted by the owner as the default loadout's ceilings.
+- **Versions between seasons:** shown live in the API run. **PvP class matchups and 30+ matchmaking with a mixed population break**; the owner chose to wait for live data.
+- **Accounts grow by playing; no pay-to-win:**
+  - `phase9-no-pay-to-win.test.ts`: a hero on a chosen defence loadout is identical before and after its account gets a shop slot and its hero, shop draws, every cosmetic and a companion;
+  - a hero in a bought slot is any fresh hero;
+  - the offline cap counts only deeds (F3).
+
+**What the exploit review found** (`docs/PHASE9_EXPLOIT_REVIEW.md`). Each was fixed with a test that failed first; none created value:
+- **F1:** saving a duel defence didn't refresh the board, though Power 4 reads its loadout (patch note).
+- **F2:** a duel at a season's end could be fought under one rules version and dated in the other season (patch note).
+- **F3:** nothing on the server enforced "the offline cap is never sold"; only the deeds' grants count now.
+
+Checked and holding: the five cases the ticket named (switches racing a settlement, defence snapshots, Shrine replays and the bank at midnight, slot creation racing deletion, skill-quest turn-ins), ownership on every Phase 9 route, the Shrine's locks, keys and seeds, and test accounts. A second, independent review pass found F1 and F2 and nothing else.
+
+**Rate limits** (`docs/SOCIAL.md` "Rate limits: the Phase 9 review"): no value changed, no class added. Phase 9 adds no timer. A loadout switch while farming costs 37 ms (a settlement and a quarter), so the account class bounds it.
+
+**What went well.**
+- Every Phase 9 ticket left a journey step (`playSkillsStep`, `playSkillQuestStep`, `playShrineStep`), so the exit run is composition plus seeding again; none needed a change.
+- "One model, two simulations" made the warlock's damage over time checkable from stored seeds in both: the offline settlement against game-core's aggregate, the crypt log against its replay.
+- The version plan (5.3's rule, 9.2) did exactly what production needs: the run's release arrived mid-season, and Power 4 and rules 3 took over at the season's last millisecond.
+- Grants that record their source (9.4, 9.5) made the shop's future rows testable today, so "no pay-to-win" includes slots and draws a shop might sell.
+- The reviews found no value bug. The holes sat at the edges again: a write that a board reads but its refresh hook missed, a clock read twice, and a promise with no check.
+
+**Flakes and stuck queues.**
+- No flake on `main` during Phase 9.
+- **This ticket's own:** none in the loops. The F2 test first read the duel rules plan before the server had planned it (its first run passed for the wrong reason); it now reads the plan after the first duel and asserts it.
+
+**Decisions** (owner, Phase 9):
+- **Phase 9 itself** (2026-11-12): resources, skills and loadouts, damage over time, earned slots and offline hours, the cosmetic Shrine. Slots and Shrine draws may be sold later in 8.8, never the offline cap or anything with power.
+- **9.1's ten questions** (2026-11-15), each the recommended answer (`docs/SKILLS.md` "Owner questions: decided"):
+  - slot 1 is the class skill that effects read;
+  - the mage's boss gain is accepted, and the 6–16 % sidegrade size kept;
+  - no healing or shields;
+  - PvP rules 3 keep half a skill's extra damage;
+  - Power 4 reads the defence loadout, between seasons;
+  - Soul Fragments carry between fights;
+  - a Tyrant active and a Sovereign passive.
+- **9.4's defaults:** slots at level 28, the Heroic crypt and a future community work; offline 3 → 8 hours in four deeds.
+- **9.5's defaults:** a free daily draw banked to 7, play draws, marks for duplicates, published odds, no paid draws until 8.8's legal review.
+- **B.7:** Deep Reserves +40 → +25 Mana.
+- **B.7's four questions** (2026-11-16, `docs/BALANCE.md` "B.7" › "Decided by the owner"):
+  1. boss ceilings with loadouts: **accepted**, read as the default loadout's ceilings (B.7's guard holds the leaders' values);
+  2. duel class balance (a `PVP_RULES_VERSION` 4 with a per-class skill keep): **wait for live data**; rules 3 stay in force;
+  3. bracket Power 4: **wait for live data**; not built;
+  4. levels 32–35: **accepted**.
+
+**Risks carried forward.**
+- **No live data yet:** Phase 9 was tuned from simulations (B.7). B.6 stays open until the town is live, and a later pass should check B.7 against loadout telemetry (`skills.farm`, `skills.boss`).
+- **PvP with loadouts, waiting for live data (next to B.6):** class matchups break with everyone on their leader, and 30+ matchmaking breaks with a mixed population. Rules 3 stay in force from the town's first season. Telemetry to watch: **duel win rates by class and loadout per bracket** (for a `PVP_RULES_VERSION` 4) and **the share of defences on a non-default loadout** (for bracket Power 4).
+- **Two boss ceilings** (6.3's Heroic, 8.2's Sovereign) break with boss loadouts; accepted by the owner, and B.7's guard keeps the leaders from slipping further.
+- **Loadout switch counts in telemetry** can be padded by a script (bounded by the account class); kill rates by loadout can't.
+- **The Shrine's paid draws** stay off until 8.8's legal review; if it says no, the shop sells marks or chosen keepsakes.
+- **Mobile:** no mobile browser run for Phase 9's screens (Phase 7).
+- **One API instance in production** (6.9 made two safe).
+
+**Owner's open items:**
+- **Waiting for live data (next to B.6):** B.7's questions 2 and 3, decided 2026-11-16 to wait. Revisit a `PVP_RULES_VERSION` 4 with a per-class skill keep once live **duel win rates by class and loadout per bracket** exist, and bracket Power 4 once telemetry shows **the share of defences on a non-default loadout**. Both belong to B.6's pass or one after it.
+- **Phase 8's going-live items still stand** (Phase 8 retrospective): SMTP, the privacy policy, Season 1, trading's launch order, the event calendar, staff names, playtest feedback, the Guild Roll's tie-break and minimum size.
+- **8.8 (the cosmetic shop)** stays gated on `docs/SHOP.md`'s decisions, now including whether Shrine draws may be sold (the legal review of paid random draws) and the price of a slot.
+- **B.6** once the town has run for a few weeks; it should include loadout telemetry.
+- **Phase 7 (desktop and mobile)** stays deferred.
+
 
 ## Deployment
 

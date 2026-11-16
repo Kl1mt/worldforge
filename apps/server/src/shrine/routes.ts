@@ -216,7 +216,7 @@ const drawResultSchema = {
 
 export async function registerShrine(
   app: FastifyInstance,
-  options: { now: () => Date },
+  options: { now: () => Date; drawSeed?: () => string },
 ): Promise<void> {
   app.get(
     '/account/shrine',
@@ -248,7 +248,7 @@ export async function registerShrine(
       const accountId = request.auth!.account.id;
       return idempotentTransaction(app, request, reply, { now: options.now }, async (tx) => {
         const now = options.now();
-        const draw = await drawTx(tx, accountId, now);
+        const draw = await drawTx(tx, accountId, now, options.drawSeed?.());
         const state = await openShrineTx(tx, accountId, now);
         return { draw, shrine: await shrineView(tx, accountId, state) };
       });

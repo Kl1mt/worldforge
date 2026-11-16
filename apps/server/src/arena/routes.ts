@@ -659,15 +659,17 @@ export async function registerArena(
       };
       await app.socialWriteLimit(me, reply);
       // Ticket 9.2: the duel rules in force now (version 3 reads loadouts; it takes over only
-      // between seasons, so a running season's ladder is fought under one version).
-      const rulesVersion = await app.formulaVersions.pvpRulesAt(activity.now());
+      // between seasons, so a running season's ladder is fought under one version). Ticket 9.6
+      // (F2): read at the same moment the duel is fought, dated and rated, so a duel at a season's
+      // end never pairs one side's rules with the other side's day or season.
+      const now = activity.now();
+      const rulesVersion = await app.formulaVersions.pvpRulesAt(now);
       return idempotentTransaction<{ duel: DuelView }>(
         app,
         request,
         reply,
         { now: activity.now, status: 201 },
         async (tx) => {
-          const now = activity.now();
           const authNow = app.authNow();
           await assertSocialWriteAllowed(tx, me, 'duel', authNow);
           await lockDuelAccount(tx, me);

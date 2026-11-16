@@ -87,9 +87,16 @@ export function registerLeaderboardRefresh(app: FastifyInstance, now: () => Date
     if (!accountId) return payload;
     const heroRoute = url.startsWith('/api/characters');
     const bossRoute = url === '/api/guild/boss/attempts';
-    if (!heroRoute && !bossRoute) return payload;
+    // Ticket 9.6 (F1): Power 4 reads the loadout saved with the hero's duel defence.
+    const defenceRoute = url === '/api/arena/defence';
+    if (!heroRoute && !bossRoute && !defenceRoute) return payload;
     const params = request.params as { characterId?: string } | undefined;
-    const characterId = heroRoute ? params?.characterId : undefined;
+    const body = request.body as { characterId?: unknown } | undefined;
+    const characterId = heroRoute
+      ? params?.characterId
+      : defenceRoute && typeof body?.characterId === 'string'
+        ? body.characterId
+        : undefined;
     try {
       await refreshAccountHeroes(deps, accountId, request.scoreClock ?? now(), characterId);
     } catch (err) {
