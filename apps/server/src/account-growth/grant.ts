@@ -1,5 +1,6 @@
 import { and, asc, count, eq, inArray } from 'drizzle-orm';
 import {
+  OFFLINE_RULES,
   SLOT_RULES,
   accountGrowthEarned,
   findAccountGrowthRule,
@@ -127,13 +128,28 @@ export function lockedView(rule: AccountGrowthRule): LockedSlotView {
   };
 }
 
-/** When each offline step of the account was granted (oldest first). */
+/**
+ * Ticket 9.6 (F3): the deeds that raise the offline cap, by rule id. The cap is never sold (ROADMAP
+ * Phase 9), so a grant of kind `offline` under any other id (a later shop source, a hand-written
+ * row) raises nothing.
+ */
+export const OFFLINE_DEED_IDS: readonly string[] = OFFLINE_RULES.map((r) => r.id);
+
+export function isOfflineDeed(g: Pick<AccountGrowthGrant, 'kind' | 'grantId'>): boolean {
+  return g.kind === 'offline' && OFFLINE_DEED_IDS.includes(g.grantId);
+}
+
+/** When each offline step of the account was granted (oldest first; deeds only, F3). */
 export async function offlineGrantTimes(executor: Executor, accountId: string): Promise<number[]> {
   const rows = await executor
     .select({ at: accountGrowthGrants.grantedAt })
     .from(accountGrowthGrants)
     .where(
-      and(eq(accountGrowthGrants.accountId, accountId), eq(accountGrowthGrants.kind, 'offline')),
+      and(
+        eq(accountGrowthGrants.accountId, accountId),
+        eq(accountGrowthGrants.kind, 'offline'),
+        inArray(accountGrowthGrants.grantId, [...OFFLINE_DEED_IDS]),
+      ),
     )
     .orderBy(asc(accountGrowthGrants.grantedAt));
   return rows.map((r) => r.at.getTime());

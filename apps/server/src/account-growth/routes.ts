@@ -9,7 +9,7 @@ import {
 } from '@worldforge/game-core';
 import { characters } from '../db/schema.js';
 import type { ActivityOptions } from '../activity/settle.js';
-import { lockedView, loadGrowthGrants } from './grant.js';
+import { isOfflineDeed, lockedView, loadGrowthGrants } from './grant.js';
 
 /**
  * Ticket 9.4 (docs/ACCOUNTS.md "API"): `GET /api/account/growth`, what the account has earned
@@ -124,7 +124,8 @@ export async function registerAccountGrowth(
           grantedAt: g.grantedAt.toISOString(),
         }));
       const slotGrants = grants.filter((g) => g.kind === 'slot').length;
-      const deeds = grants.filter((g) => g.kind === 'offline').length;
+      // Ticket 9.6 (F3): only the deeds' own grants raise the cap.
+      const deeds = grants.filter(isOfflineDeed).length;
       const base = options.offlineCapMs;
       const stepsMs = OFFLINE_BONUS_STEPS_MS.map((b) => base + b);
       return {
