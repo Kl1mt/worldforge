@@ -311,6 +311,43 @@ Its one new timer is the inbox badge. Every other Phase 8 request is a read on o
 | Test letters (8.6) | 3 an hour per admin | the readiness tab | a stolen admin session as a mail relay (the letter's text is fixed anyway) | keep |
 | Everything else | as in the Phase 6 review | unchanged | — | keep |
 
+## Rate limits: the Phase 9 review — ticket 9.6
+
+The same check after Phase 9. **No value changed and no class added.** Phase 9 adds no timer: every request is a read when a screen opens, or a click. The exploit review is `docs/PHASE9_EXPLOIT_REVIEW.md`.
+
+**What Phase 9 sends** (one tab; `GET` unless it says so):
+
+| Screen | Requests | Class |
+| --- | --- | --- |
+| Character → Skills | the hero's skills once on open; *Save Loadout …* a `PUT`, *Fight with it* a `POST`, per click (each settles first) | account (actions) |
+| Area and crypt scenes | the loadout in force once on open, for the resource bar and the skill effects (no polling: the bar moves on the scene's own clock) | account |
+| Tavern → the masters' lessons | as the Tavern; *Take the quest* and *Turn in* a `POST` per click (`Idempotency-Key`) | account (actions) |
+| Account → Muster & vigil, the muster roll | the account's growth once on open; hero creation a `POST` per click | account |
+| The Shrine (`#/shrine`) | the Shrine once on open (it accrues the free bank); a draw or a purchase a `POST` per click (`Idempotency-Key`) | account (actions) |
+| Collection book → Companions | as the book; showing a companion a `POST` per click | account (actions) |
+| Arena | unchanged; saving the defence now also refreshes the hero's board rows (F1) | account; duels are social writes |
+
+**Measured** (PGlite, in-process, 200 requests each after a warm-up; production PostgreSQL is faster per query but adds a network round trip):
+
+| Request | Time | At the action limit (300 a minute) |
+| --- | --- | --- |
+| Skills read | 4.8 ms | (a read) |
+| Loadout switch while farming (settles a minute, audit, telemetry, board refresh) | 37.3 ms | 11 s of database work a minute per account |
+| Loadout save | 17.5 ms | 5 s |
+| Settlement of a minute (for comparison, unchanged) | 29.3 ms | 9 s |
+| Shrine read (accrual under the Shrine lock) | 6.7 ms | (a read) |
+| Account growth read | 3.8 ms | (a read) |
+| Defence save (with F1's refresh) | 18.4 ms | 5.5 s |
+
+A switch costs about a settlement and a quarter, which the account class already allows at that rate. So it needs no limiter of its own (accepted in the exploit review: scripted switching gains nothing and can only pad the switch counts in the loadout telemetry).
+
+| Class | Value | Phase 9 use | Abuse it stops | Verdict |
+| --- | --- | --- | --- | --- |
+| Account (3.9) | 900 requests, 300 actions a minute | skills reads, saves and switches; lessons; the Shrine's reads, draws and purchases; growth reads; hero creation | scripted clients; at the cap a script costs what scripted settlements already did | keep |
+| Social writes (4.1) | 12 a minute, 240 an hour | duels (unchanged); the defence save is not a social write (it was not before) | — | keep |
+| Board reads (5.2) | 60 a minute | unchanged; Power 4 boards read like Power 3's | scraping | keep |
+| Everything else | as in the Phase 8 review | unchanged | — | keep |
+
 ## Race tests
 
 `apps/server/src/social/social.pg.test.ts` (real PostgreSQL, part of `test:pg`, three rounds each in varied orders, asserting only what holds in every order): concurrent duplicate reports on one target; a mute racing the target's social writes; a suspension racing the target's requests; several moderators acting on one report; a role revoke racing the moderator's actions; no deadlock or retry.

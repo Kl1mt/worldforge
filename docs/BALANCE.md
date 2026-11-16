@@ -10,6 +10,7 @@ The balance passes (B-tickets) record their method, before/after tables and deci
 - **B.5 (endgame, Phase 6): below.** Owner decisions on its questions: **B.5b** at the end of the section.
 - **Phase 6 exit criterion (ticket 6.10): at the end.** A record, not a pass: nothing changes. **Ticket 8.1** extends it to the Hollow Reach (its own section below).
 - **Phase 8 exit criterion (ticket 8.7): at the end.** A record, not a pass: nothing changes.
+- **Phase 9 exit criterion (ticket 9.6): at the very end.** A record built on B.7's measurements, not a pass: nothing changes.
 
 ## B.7: skills and loadouts (Phase 9)
 
@@ -518,3 +519,59 @@ Ticket 8.1 adds Region III's first area, the Pale Marches (40–46, `docs/WORLD.
 - The import scan: no game-core rule (combat, scoring, PvP, loot, dungeons, items, farming, economy, world, quests) imports the cosmetics, guild-hall, guild-season or event modules. On the server, the scores, the boards and the arena import them only for looks (the duel screen's palettes) and the guild roll's recompute check.
 - Invariance: a level-46 hunter's four scores, its stored duel defence (snapshot and bracket Power) are equal before and after its account owns and wears every cosmetic and its guild buys and hangs every hall upgrade.
 
+## Phase 9 exit criterion (ticket 9.6)
+
+*Each class plays as its GDD row reads: its resource drives its skills, and a player picks a loadout outside combat. At least three loadouts per class are viable for farming and for bosses, so no single build wins everything. Older gear keeps its value, and the boards and PvP moved by versions between seasons. Accounts grow by playing. Everything is reconciled, fair and free of pay-to-win.*
+
+A record, not a pass: no number changed. The numbers are **B.7's** (section "B.7" above, simulations only: the town is not live) and its guards (`balance/skills-balance.test.ts`, `balance/skills-pvp-balance.test.ts`). game-core `balance/phase9-exit-criterion.test.ts` pins the structure the other clauses read. The server half is `phase9-no-pay-to-win.test.ts` and the exit run (`e2e/phase9-exit-criteria.test.ts`).
+
+**1. Each class plays as its row reads: met.**
+- Four resources, each with its own rules (`RESOURCE_RULES`): Rage builds from blows given and taken, Mana starts full and comes back over time, Focus builds while unhit, and Soul Fragments come from kills and ticks.
+- Every class has six actives and four passives from level 1, plus the Tyrant's active and the Sovereign's passive taught by the skill quests (levels 36 and 46).
+- Damage over time: three warlock skills (Agony, Corruption, Doom), and one each for the warrior (Rend), the mage (Scorch) and the hunter (Serrated Arrow).
+- The exit run plays a warlock's Agony, Corruption, Soul Burn and Malice in both simulations:
+  - the offline settlement equals game-core's prediction from its stored seed (cycles, level, XP, Soul Fragments);
+  - a crypt run's detailed log, replayed from its seed, ticks damage over time and names the casts.
+- The default loadout is today's class skill alone, and it fights exactly as before Phase 9 (the pinned replay, `combat/skills-live.test.ts`).
+
+**2. At least three viable loadouts per class, for farming and for bosses: met.**
+- 6–87 distinct loadouts within 7 % of the best, per class and job, over three kit samples (B.7 1).
+- Farming sidegrades × 1.07–1.15, inside the owner's 6–16 %.
+- **No single build wins everything: met** at the full tiers. No loadout leads both farming and the boss of the same tier for any class (Depths 37 × Tyrant 38, Deep 49 × Sovereign 50); each leader trails the other job's best by 4.8–26.9 %. With the skill quests' rewards, B.7 cut Deep Reserves to +25 Mana so the mage's generalist no longer leads both.
+- Below level 36 some farming and boss leaders coincide. This was measured, not asserted, by 9.1's rule ("choice opens up with levels"); levels 32–35 are owner question 4.
+
+**3. Older gear keeps its value: met, with two ceilings open.**
+- B.5's class spread, 6.3's modifiers, B.5's Warded, 4.9's guild boss, the 8.1 and 8.2 farming bands and B.5's XP pacing all hold on each class's leaders (B.7 2).
+- The Depths' best gains a real chance at the Sovereign (42 → 57–65 %).
+- **Two ceilings break with boss loadouts:** 6.3's Heroic "lesser gear does not" (epic +10 up to 11–16 %, Legendary 72 % at 35) and 8.2's Sovereign "not trivially" (Marches +5 70–73 %, +10 95–97 %). A boss loadout is worth about one +5 upgrade at the steep bosses. Owner question 1; the default loadout's ceilings still hold and are still asserted.
+
+**4. Boards and PvP move by versions between seasons: met.**
+- Power 4 (the defence's loadout) and duel rules 3 were planned once by the release and waited for Season 1's end.
+- The exit run, on one clock: to the season's last millisecond the board kept Power 3 and duels fought rules 2. From its end the sweep wrote Power 4 on every board (equal to `computeScore` of the stored input, Power 3's value for a hero without a defence loadout), and the next duel fought rules 3. Both duels replay from their seeds.
+- **PvP balance with loadouts is not met everywhere:**
+  - 5.4's gear and luck rules hold;
+  - class matchups break with everyone on their leader (10–19 44–66 %, 20–29 34–58 %, 30+ one pair 39.7 %);
+  - matchmaking breaks in 30+ with a mixed population (9.2–11.8 % 90 %+ favourites);
+  - owner questions 2 and 3 (a `PVP_RULES_VERSION` 4 with a per-class skill keep, and bracket Power 4).
+
+**5. Accounts grow by playing: met.**
+- Slots go from 2 to 5:
+  - the 3rd at level 28;
+  - the 4th for the Heroic crypt;
+  - the 5th is the community seam, which no hero can earn yet.
+- The offline cap goes 3 → 4 → 5 → 6 → 8 hours through four deeds.
+- The Shrine gives one free draw a day, kept up to 7, plus play draws from event tiers (1), deeds (1) and season honours (1–4).
+- The exit run earned them live:
+  - a third hero refused before the level-28 deed and allowed after it, the fourth refused;
+  - 8 hours credited against a new account's 3, to the second;
+  - the bank across midnights and nine days away;
+  - the deeds' and the season's draws.
+
+**6. Free of pay-to-win: met.**
+- Nothing is sold. The owner may later sell slots and Shrine draws (8.8).
+- `phase9-no-pay-to-win.test.ts` writes the rows a shop would write: a `shop` slot with a hero in it, and `shop` draws drawn. Then the account owns every cosmetic and shows a companion. Before and after all of that, a warlock on a chosen loadout saved with its defence has the same scores, defence snapshot and bracket Power.
+- The bought slot's hero is any fresh hero: level 1, the default loadout, a fresh hero's scores.
+- The offline cap counts only the deeds' own grants (F3), so it can't be sold by mistake.
+- The import scan: no power rule reads the Shrine. Only the settlement and the farming screen read the account-growth grants, for the earned cap.
+
+**Verdict:** met, except PvP class balance and matchmaking with loadouts (2 and 3 of B.7's owner questions) and two boss ceilings (owner question 1). The owner has these four questions (the retrospective's open items). The town is not live, so every number is a simulation; a later pass should check them against loadout telemetry.

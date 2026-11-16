@@ -46,7 +46,6 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { and, asc, count, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import {
-  AUTO_SKILLS,
   FORMULA_VERSIONS,
   PVP_RULES_VERSION,
   SHRINE_BANK_LIMIT,
@@ -642,10 +641,7 @@ describe('Phase 9 exit criteria', () => {
     expect(grantRows.every((g) => !g.backfill && g.source === g.grantId)).toBe(true);
     // The offline cap: Brannoc's 8 hours against Ysolde's 3 (no deed yet), each to the second.
     await rest(brannoc);
-    for (const [j, capMs] of [
-      [brannoc, CAP + 5 * HOUR],
-      [ysolde, CAP],
-    ] as const) {
+    for (const j of [brannoc, ysolde]) {
       const go = await j.api('POST', `${j.base}/activity`, { areaId: 'abandonedFields' });
       expect(go.statusCode, go.body).toBe(201);
     }

@@ -28,7 +28,7 @@ The "town's next community project" doesn't exist yet. The rule `community` is d
 
 ### Later: the shop (8.8)
 
-A bought slot is a row with `kind = 'slot'`, `source = 'shop'` and its own `grant_id` (e.g. `shop:<order id>`, so an account may own several). The slot total counts every slot grant, so nothing else changes: no migration, no new check. The offline cap has no shop source and must never get one.
+A bought slot is a row with `kind = 'slot'`, `source = 'shop'` and its own `grant_id` (e.g. `shop:<order id>`, so an account may own several). The slot total counts every slot grant, so nothing else changes: no migration, no new check. The offline cap has no shop source and must never get one. Since ticket 9.6 (F3) the server enforces it: the settlement, the account page and the farming screen count only grants whose id is an offline deed's rule id (`isOfflineDeed`, `OFFLINE_DEED_IDS`), so a grant of kind `offline` under any other id raises nothing.
 
 ## Granting
 
