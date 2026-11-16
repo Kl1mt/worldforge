@@ -6,7 +6,7 @@ The balance passes (B-tickets) record their method, before/after tables and deci
 - B.2 (loot depth, economy): `docs/COMBAT.md`, `docs/ECONOMY.md` "Balance pass: loot depth & economy", `docs/DUNGEONS.md`.
 - B.3 (top end, social economy): `docs/ECONOMY.md`, `docs/COMMUNITY.md`, `docs/DUNGEONS.md`.
 - B.4 (competitive systems): `docs/LEADERBOARDS.md`, `docs/PVP.md` "Balance pass: competitive systems".
-- **B.7 (skills and loadouts, Phase 9): below, first.** Owner questions at its end.
+- **B.7 (skills and loadouts, Phase 9): below, first.** Owner questions and the owner's decisions on them (2026-11-16) at its end.
 - **B.5 (endgame, Phase 6): below.** Owner decisions on its questions: **B.5b** at the end of the section.
 - **Phase 6 exit criterion (ticket 6.10): at the end.** A record, not a pass: nothing changes. **Ticket 8.1** extends it to the Hollow Reach (its own section below).
 - **Phase 8 exit criterion (ticket 8.7): at the end.** A record, not a pass: nothing changes.
@@ -139,6 +139,12 @@ Inside the bands while loadouts are uniform; **a mixed population breaks 30+** (
 2. **Duel class balance with loadouts** (3). *Recommended: a `PVP_RULES_VERSION` 4 at the next season boundary* with a per-class skill keep in place of the uniform half (decision 6), fitted on both metas (everyone default stays as today by construction). Measured (`skills-balance.ts tune`, measurement-only `PvpConfig.skillKeepByClass`, unset in play): 10–19 with warrior 0.4, mage 0.4, warlock 0.7 (hunter 0.5) gives pairs 46–54 % and classes 48–52 % on the leaders; 1–9 needs mage 0.2, warlock 0.8 (45–57 %); 20–29 found no fit by keep alone (best pairs 38–59 % or 44–64 %: the hunter's Focus starves when hit) and would need a duel-only resource rule (e.g. Focus also on a pulse while hit) or its class factor refitted with it, in the version 4 ticket. Alternative: wait for telemetry (version 3 is in force from the town's first season; the default meta is balanced).
 3. **Bracket Power 4** (4). *Recommended: build it* (9.1's design: the expected-value duel prices the defence loadout's spenders from a crit-free replay of its resource, cooldown and condition rules, stored with the defence, recomputed when the loadout changes). It ranks nothing on a board, so it can switch at once (no season boundary), like B.5's bracket Power 3. Alternative: wait for telemetry on how mixed real defences are.
 4. **Levels 32–35:** with two to four spenders the mage's and warlock's farming and Heroic leaders coincide within 1.5–2.5 %. *Recommended: accept* (9.1's rule: choice opens up with levels).
+
+**Decided by the owner (2026-11-16)** (recorded in ticket 9.6, like B.5b):
+1. **Boss ceilings with loadouts: accepted** (as recommended). 6.3's Heroic and 8.2's Sovereign ceilings are read as the default loadout's (unchanged and still asserted); B.7's guard holds the leaders' measured values so they can't slip further.
+2. **Duel class balance with loadouts: wait for live data.** No `PVP_RULES_VERSION` 4 now; version 3 stays in force. Revisit with live duel win rates by class and loadout per bracket.
+3. **Bracket Power 4: wait for live data.** Not built now. Revisit once telemetry shows the share of duel defences on a non-default loadout.
+4. **Levels 32–35: accepted** (as recommended): choice opens up with levels.
 
 ### Risks
 - Single-source measurements: fixed seeds and reference kits, not players; the leaders are picked against defaults, not against each other's best answer.
@@ -538,12 +544,12 @@ A record, not a pass: no number changed. The numbers are **B.7's** (section "B.7
 - 6–87 distinct loadouts within 7 % of the best, per class and job, over three kit samples (B.7 1).
 - Farming sidegrades × 1.07–1.15, inside the owner's 6–16 %.
 - **No single build wins everything: met** at the full tiers. No loadout leads both farming and the boss of the same tier for any class (Depths 37 × Tyrant 38, Deep 49 × Sovereign 50); each leader trails the other job's best by 4.8–26.9 %. With the skill quests' rewards, B.7 cut Deep Reserves to +25 Mana so the mage's generalist no longer leads both.
-- Below level 36 some farming and boss leaders coincide. This was measured, not asserted, by 9.1's rule ("choice opens up with levels"); levels 32–35 are owner question 4.
+- Below level 36 some farming and boss leaders coincide. This was measured, not asserted, by 9.1's rule ("choice opens up with levels"); the owner accepted levels 32–35 (B.7 decision 4).
 
 **3. Older gear keeps its value: met, with two ceilings open.**
 - B.5's class spread, 6.3's modifiers, B.5's Warded, 4.9's guild boss, the 8.1 and 8.2 farming bands and B.5's XP pacing all hold on each class's leaders (B.7 2).
 - The Depths' best gains a real chance at the Sovereign (42 → 57–65 %).
-- **Two ceilings break with boss loadouts:** 6.3's Heroic "lesser gear does not" (epic +10 up to 11–16 %, Legendary 72 % at 35) and 8.2's Sovereign "not trivially" (Marches +5 70–73 %, +10 95–97 %). A boss loadout is worth about one +5 upgrade at the steep bosses. Owner question 1; the default loadout's ceilings still hold and are still asserted.
+- **Two ceilings break with boss loadouts:** 6.3's Heroic "lesser gear does not" (epic +10 up to 11–16 %, Legendary 72 % at 35) and 8.2's Sovereign "not trivially" (Marches +5 70–73 %, +10 95–97 %). A boss loadout is worth about one +5 upgrade at the steep bosses. The owner accepted them (B.7 decision 1); the default loadout's ceilings still hold and are still asserted.
 
 **4. Boards and PvP move by versions between seasons: met.**
 - Power 4 (the defence's loadout) and duel rules 3 were planned once by the release and waited for Season 1's end.
@@ -552,7 +558,7 @@ A record, not a pass: no number changed. The numbers are **B.7's** (section "B.7
   - 5.4's gear and luck rules hold;
   - class matchups break with everyone on their leader (10–19 44–66 %, 20–29 34–58 %, 30+ one pair 39.7 %);
   - matchmaking breaks in 30+ with a mixed population (9.2–11.8 % 90 %+ favourites);
-  - owner questions 2 and 3 (a `PVP_RULES_VERSION` 4 with a per-class skill keep, and bracket Power 4).
+  - the owner decided to wait for live data (B.7 decisions 2 and 3): no `PVP_RULES_VERSION` 4 and no bracket Power 4 for now; rules 3 stay in force.
 
 **5. Accounts grow by playing: met.**
 - Slots go from 2 to 5:
@@ -574,4 +580,4 @@ A record, not a pass: no number changed. The numbers are **B.7's** (section "B.7
 - The offline cap counts only the deeds' own grants (F3), so it can't be sold by mistake.
 - The import scan: no power rule reads the Shrine. Only the settlement and the farming screen read the account-growth grants, for the earned cap.
 
-**Verdict:** met, except PvP class balance and matchmaking with loadouts (2 and 3 of B.7's owner questions) and two boss ceilings (owner question 1). The owner has these four questions (the retrospective's open items). The town is not live, so every number is a simulation; a later pass should check them against loadout telemetry.
+**Verdict:** met, except PvP class balance and matchmaking with loadouts, which the owner chose to revisit with live data (B.7 decisions 2 and 3: duel win rates by class and loadout per bracket, and the share of defences on a non-default loadout). The two boss ceilings are accepted (decision 1). The town is not live, so every number is a simulation; a later pass should check them against loadout telemetry.

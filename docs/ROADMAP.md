@@ -1690,7 +1690,7 @@ Like 8.7:
   - Version 0.9.6 (F1, F2). No migration, no gameplay number changed.
 
 ### Phase 9 retrospective (ticket 9.6)
-**Exit criterion (Phase 9): met in the code, with PvP class balance, matchmaking and two boss ceilings left to the owner.** *Each class plays as its GDD row reads: its resource drives its skills, and a player picks a loadout outside combat. At least three loadouts per class are viable for farming and for bosses, so no single build wins everything. Older gear keeps its value, and the boards and PvP moved by versions between seasons. Accounts grow by playing. Everything is reconciled, fair and free of pay-to-win.* The numbers are B.7's (`docs/BALANCE.md` "Phase 9 exit criterion"). The four questions B.7 left open are the owner's (below).
+**Exit criterion (Phase 9): met in the code; PvP class balance and matchmaking with loadouts wait for live data (owner decision).** *Each class plays as its GDD row reads: its resource drives its skills, and a player picks a loadout outside combat. At least three loadouts per class are viable for farming and for bosses, so no single build wins everything. Older gear keeps its value, and the boards and PvP moved by versions between seasons. Accounts grow by playing. Everything is reconciled, fair and free of pay-to-win.* The numbers are B.7's (`docs/BALANCE.md` "Phase 9 exit criterion"). The owner decided B.7's four questions on 2026-11-16 (below).
 
 **The API run** (`phase9-exit-criteria.test.ts`).
 - **Set-up.** One clock starts on a Monday 06:00 UTC derived from the wall clock and runs 21 game days. Six accounts play in an invite-only town. The town's story is production's: Season 1 was under way when the Phase 9 release arrived, so the release planned Power 4 and duel rules 3 for the season's end.
@@ -1738,8 +1738,8 @@ Not in the browser: mobile widths (Phase 7), a season boundary and the bank acro
 **The criterion in numbers** (`docs/BALANCE.md` "Phase 9 exit criterion", from B.7):
 - **Each class plays as its row reads:** four resources with their own rules; six actives and four passives each, plus the Tyrant's and the Sovereign's skills; damage over time for every class (three for the warlock).
 - **Three or more viable loadouts:** 6–87 distinct per class and job; farming sidegrades × 1.07–1.15; no loadout leads farming and the same tier's boss for any class (leaders 4.8–26.9 % apart).
-- **Older gear keeps its value:** B.5's spread, 6.3's modifiers, 4.9's guild boss, the 8.1/8.2 farming bands and the XP pacing hold on the leaders; the Depths' best gains at the Sovereign (42 → 57–65 %). **Two ceilings break** (owner question 1).
-- **Versions between seasons:** shown live in the API run. **PvP class matchups and 30+ matchmaking with a mixed population break** (owner questions 2 and 3).
+- **Older gear keeps its value:** B.5's spread, 6.3's modifiers, 4.9's guild boss, the 8.1/8.2 farming bands and the XP pacing hold on the leaders; the Depths' best gains at the Sovereign (42 → 57–65 %). **Two ceilings break**, accepted by the owner as the default loadout's ceilings.
+- **Versions between seasons:** shown live in the API run. **PvP class matchups and 30+ matchmaking with a mixed population break**; the owner chose to wait for live data.
 - **Accounts grow by playing; no pay-to-win:**
   - `phase9-no-pay-to-win.test.ts`: a hero on a chosen defence loadout is identical before and after its account gets a shop slot and its hero, shop draws, every cosmetic and a companion;
   - a hero in a bought slot is any fresh hero;
@@ -1777,23 +1777,24 @@ Checked and holding: the five cases the ticket named (switches racing a settleme
   - a Tyrant active and a Sovereign passive.
 - **9.4's defaults:** slots at level 28, the Heroic crypt and a future community work; offline 3 → 8 hours in four deeds.
 - **9.5's defaults:** a free daily draw banked to 7, play draws, marks for duplicates, published odds, no paid draws until 8.8's legal review.
-- **B.7:** Deep Reserves +40 → +25 Mana; four questions left open (below).
+- **B.7:** Deep Reserves +40 → +25 Mana.
+- **B.7's four questions** (2026-11-16, `docs/BALANCE.md` "B.7" › "Decided by the owner"):
+  1. boss ceilings with loadouts: **accepted**, read as the default loadout's ceilings (B.7's guard holds the leaders' values);
+  2. duel class balance (a `PVP_RULES_VERSION` 4 with a per-class skill keep): **wait for live data**; rules 3 stay in force;
+  3. bracket Power 4: **wait for live data**; not built;
+  4. levels 32–35: **accepted**.
 
 **Risks carried forward.**
 - **No live data yet:** Phase 9 was tuned from simulations (B.7). B.6 stays open until the town is live, and a later pass should check B.7 against loadout telemetry (`skills.farm`, `skills.boss`).
-- **PvP with loadouts:** class matchups break with everyone on their leader, and 30+ matchmaking breaks with a mixed population (owner questions 2 and 3). Rules 3 take over from the town's first season.
-- **Two boss ceilings** (6.3's Heroic, 8.2's Sovereign) break with boss loadouts (owner question 1).
+- **PvP with loadouts, waiting for live data (next to B.6):** class matchups break with everyone on their leader, and 30+ matchmaking breaks with a mixed population. Rules 3 stay in force from the town's first season. Telemetry to watch: **duel win rates by class and loadout per bracket** (for a `PVP_RULES_VERSION` 4) and **the share of defences on a non-default loadout** (for bracket Power 4).
+- **Two boss ceilings** (6.3's Heroic, 8.2's Sovereign) break with boss loadouts; accepted by the owner, and B.7's guard keeps the leaders from slipping further.
 - **Loadout switch counts in telemetry** can be padded by a script (bounded by the account class); kill rates by loadout can't.
 - **The Shrine's paid draws** stay off until 8.8's legal review; if it says no, the shop sells marks or chosen keepsakes.
 - **Mobile:** no mobile browser run for Phase 9's screens (Phase 7).
 - **One API instance in production** (6.9 made two safe).
 
 **Owner's open items:**
-- **B.7's four questions** (`docs/BALANCE.md` "B.7" › "Owner questions"), **open**:
-  1. boss ceilings with loadouts (recommended: accept them as the default loadout's ceilings);
-  2. a `PVP_RULES_VERSION` 4 with a per-class skill keep at the next season boundary (recommended; a fit exists for 10–19, none by keep alone for 20–29);
-  3. bracket Power 4 (recommended: build it; it can switch at once);
-  4. levels 32–35, where some farming and boss leaders coincide (recommended: accept).
+- **Waiting for live data (next to B.6):** B.7's questions 2 and 3, decided 2026-11-16 to wait. Revisit a `PVP_RULES_VERSION` 4 with a per-class skill keep once live **duel win rates by class and loadout per bracket** exist, and bracket Power 4 once telemetry shows **the share of defences on a non-default loadout**. Both belong to B.6's pass or one after it.
 - **Phase 8's going-live items still stand** (Phase 8 retrospective): SMTP, the privacy policy, Season 1, trading's launch order, the event calendar, staff names, playtest feedback, the Guild Roll's tie-break and minimum size.
 - **8.8 (the cosmetic shop)** stays gated on `docs/SHOP.md`'s decisions, now including whether Shrine draws may be sold (the legal review of paid random draws) and the price of a slot.
 - **B.6** once the town has run for a few weeks; it should include loadout telemetry.
