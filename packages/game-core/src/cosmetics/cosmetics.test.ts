@@ -23,6 +23,7 @@ import {
   milestoneCosmeticsEarned,
   seasonCosmeticsEarned,
 } from './catalogue.js';
+import { shrineEntry } from './shrine.js';
 
 /** Ticket 6.8: the cosmetic catalogue (docs/COSMETICS.md). */
 
@@ -32,6 +33,7 @@ const PREFIX: Record<string, string> = {
   crest: 'crest.',
   titleColour: 'title-colour.',
   title: 'title.',
+  companion: 'companion.',
 };
 
 describe('the cosmetic catalogue', () => {
@@ -92,6 +94,22 @@ describe('the cosmetic catalogue', () => {
       'crest.guild-exalted',
       'banner.guild-champion',
       'crest.guild-champion',
+      // Ticket 9.5: the Reward Shrine's pool (A.19 draws the companions and the variants).
+      'companion.grave-moth',
+      'companion.bone-rat',
+      'companion.bog-toad',
+      'companion.ash-raven',
+      'companion.candle-wisp',
+      'companion.crypt-cat',
+      'companion.ember-newt',
+      'companion.barrow-owl',
+      'companion.hollow-wisp',
+      'companion.cinder-pup',
+      'title-colour.votive-gold',
+      'crest.votive-ash',
+      'title-colour.shrine-ember',
+      'banner.votive-veil',
+      'appearance.candlelight',
     ];
     expect(COSMETICS.map((c) => c.id).sort()).toEqual([...want].sort());
   });
@@ -115,6 +133,10 @@ describe('the cosmetic catalogue', () => {
         case 'exchange':
           // Ticket 6.11: every exchange cosmetic has exactly one offer (and every offer one entry).
           expect(exchangeOffer(c.id), c.id).toBeDefined();
+          break;
+        case 'shrine':
+          // Ticket 9.5: in the Shrine's pool, with a rarity of its odds table.
+          expect(shrineEntry(c.id)?.rarity, c.id).toBe(s.rarity);
           break;
         case 'milestone':
         case 'season':
@@ -140,6 +162,7 @@ describe('the cosmetic catalogue', () => {
         'season',
         'exchange',
         'guildSeason',
+        'shrine',
       ]).toContain(c.source.kind);
       // No number anywhere but a milestone's level/tier.
       const json = JSON.stringify(c);
@@ -152,7 +175,7 @@ describe('the cosmetic catalogue', () => {
 
   it('scopes appearance to the hero and the rest to the account', () => {
     expect(cosmeticScope('appearance')).toBe('hero');
-    for (const k of ['banner', 'crest', 'titleColour', 'title'] as const) {
+    for (const k of ['banner', 'crest', 'titleColour', 'title', 'companion'] as const) {
       expect(cosmeticScope(k)).toBe('account');
     }
     expect(cosmeticsOfKind('appearance').map((c) => c.id)[0]).toBe(DEFAULT_APPEARANCE_ID);
