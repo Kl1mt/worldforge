@@ -16,6 +16,7 @@ import { createTestDatabase } from '../test/db.js';
 import {
   playCalendarStep,
   playCollectionStep,
+  playShrineStep,
   playEventStep,
   playSealSinkStep,
   startJourney,
@@ -58,6 +59,9 @@ describe('journey: a rotating event (Phase 6)', () => {
     // Ticket 6.8: the keepsake in the collection book, equipped.
     const book = await playCollectionStep(hero);
     expect(book.owned).toContain('banner.harvest-sheaf');
+    // Ticket 9.5: the Reward Shrine (its free draw and the event tier's play draws).
+    const shrine = await playShrineStep(database, hero);
+    expect(shrine.draws).toBeGreaterThanOrEqual(2);
     // Ticket 6.11: the exchange and the engraver.
     const sinks = await playSealSinkStep(database, hero);
     expect(sinks.engraving).toBe('silver:oathworn');

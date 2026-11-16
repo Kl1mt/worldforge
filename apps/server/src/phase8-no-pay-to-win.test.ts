@@ -10,6 +10,8 @@
  *    Gear Score breakdown are the same before and after its account owns and wears every cosmetic
  *    in the catalogue (event keepsakes and guild honours among them) and its guild buys and hangs
  *    every hall upgrade.
+ * 3. Ticket 9.5: the same with a companion worn and Shrine draws drawn (the Shrine and companions
+ *    are cosmetic: the import scan covers the server's `shrine/` module too).
  */
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { randomUUID } from 'node:crypto';
@@ -78,6 +80,12 @@ describe('Phase 8: no pay-to-win (ticket 8.7)', () => {
       'leaderboards/leaderboard-cli.ts',
     ]);
     expect(importersOf(SERVER, 'events', power)).toEqual([]);
+    // Ticket 9.5: game-core's Shrine lives in `cosmetics/` (scanned above); no power rule on the
+    // server reads the Shrine either.
+    expect(importersOf(SERVER, 'shrine', power)).toEqual([]);
+    expect(
+      importersOf(GAME_CORE, 'cosmetics', (rel) => rel.startsWith('combat/') || rel === 'stats.ts'),
+    ).toEqual([]);
   });
 
   describe('invariance', () => {
@@ -156,8 +164,21 @@ describe('Phase 8: no pay-to-win (ticket 8.7)', () => {
         banner: first('banner'),
         crest: first('crest'),
         titleColour: first('titleColour'),
+        // Ticket 9.5: a companion beside the hero.
+        companion: first('companion'),
       });
       expect(worn.statusCode, worn.body).toBe(200);
+      expect(worn.json<{ equipped: { companion: string } }>().equipped.companion).toBe(
+        first('companion'),
+      );
+      // Ticket 9.5: the Shrine's free draws drawn (every pool cosmetic is owned: all marks).
+      const shrine = await call(me, 'GET', '/api/account/shrine');
+      expect(shrine.statusCode, shrine.body).toBe(200);
+      for (let i = 0; i < shrine.json<{ draws: number }>().draws; i++) {
+        const drew = await call(me, 'POST', '/api/account/shrine/draw');
+        expect(drew.statusCode, drew.body).toBe(200);
+        expect(drew.json<{ draw: { outcome: string } }>().draw.outcome).toBe('marks');
+      }
       const look = await call(me, 'POST', `${base}/appearance`, {
         appearance: first('appearance'),
       });

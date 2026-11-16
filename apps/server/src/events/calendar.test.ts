@@ -22,6 +22,7 @@ import {
   cosmeticUnlocks,
   eventParticipants,
   eventTrackGrants,
+  shrineDrawGrants,
   itemInstances,
   worldEvents,
 } from '../db/schema.js';
@@ -563,10 +564,17 @@ describe('the Lantern Procession: weekly unlocks, level gates, rewards exactly o
     expect(unlocks.every((u) => u.source.startsWith('event:1:tier:'))).toBe(true);
     const rewards = (await w.db.select().from(auditLog)).filter((a) => a.event === 'event.reward');
     expect(rewards).toHaveLength(7);
+    // Ticket 9.5: each tier also earned one Shrine draw, once per tier.
+    const draws = await w.db.select().from(shrineDrawGrants);
+    expect(draws.map((d) => d.sourceKey).sort()).toEqual(
+      [1, 2, 3, 4, 5, 6, 7].map((t) => `event:1:tier:${t}`),
+    );
+    expect(draws.every((d) => d.source === 'play' && d.count === 1)).toBe(true);
     w.clock.ms = start + 28 * DAY + EVENT_CLOSE_GRACE_MS;
     expect(await w.tick()).toMatchObject({ closed: [1], swept: [1] });
     expect(await sweepEventRewards(w.db, 1, w.now())).toEqual({ kind: 'already' });
     expect(await w.db.select().from(eventTrackGrants)).toHaveLength(7);
+    expect(await w.db.select().from(shrineDrawGrants)).toHaveLength(7);
     expect((await reconcileWithAudit(w.db)).filter((x) => !x.ok)).toEqual([]);
   });
 });

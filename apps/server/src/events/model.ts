@@ -1,5 +1,6 @@
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import {
+  SHRINE_PLAY_DRAWS,
   EVENT_CLOSE_GRACE_MS,
   EVENT_PLAN_MESSAGES,
   eventAt,
@@ -26,6 +27,7 @@ import {
   worldEvents,
   type WorldEvent,
 } from '../db/schema.js';
+import { grantPlayDrawsTx } from '../shrine/model.js';
 import { queryRows } from '../db/query.js';
 import { withTransaction } from '../db/transaction.js';
 import type { Database, Executor, Transaction } from '../db/types.js';
@@ -404,6 +406,13 @@ export async function grantTiersTx(
       .onConflictDoNothing()
       .returning({ tier: eventTrackGrants.tier });
     if (!ledger) continue;
+    // Ticket 9.5: each tier reached also earns Shrine draws (once, by the grant's key).
+    await grantPlayDrawsTx(tx, {
+      accountId,
+      key: `event:${event.number}:tier:${t.tier}`,
+      count: SHRINE_PLAY_DRAWS.eventTier,
+      now,
+    });
     const unlocked = await tx
       .insert(cosmeticUnlocks)
       .values({

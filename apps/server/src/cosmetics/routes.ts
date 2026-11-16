@@ -52,6 +52,8 @@ export interface CollectionResponse {
     crest: string | null;
     titleColour: string | null;
     cosmeticTitle: string | null;
+    /** Ticket 9.5: the companion beside the active hero. */
+    companion: string | null;
   };
   heroes: { id: string; name: string; classId: string; banner: string; palette: string | null }[];
 }
@@ -85,8 +87,9 @@ const collectionSchema = {
     },
     equipped: {
       type: 'object',
-      required: ['banner', 'crest', 'titleColour', 'cosmeticTitle'],
+      required: ['banner', 'crest', 'titleColour', 'cosmeticTitle', 'companion'],
       properties: {
+        companion: { type: ['string', 'null'] },
         banner: { type: ['string', 'null'] },
         crest: { type: ['string', 'null'] },
         titleColour: { type: ['string', 'null'] },
@@ -160,6 +163,7 @@ export async function collectionView(
       crest: display?.crest ?? null,
       titleColour: display?.titleColour ?? null,
       cosmeticTitle: prestige?.cosmeticTitle ?? null,
+      companion: display?.companion ?? null,
     },
     heroes: heroes.map((h) => ({
       id: h.id,
@@ -190,8 +194,8 @@ function refuse(field: string, problem: keyof typeof PROBLEM): never {
   throw new ApiError(422, code, message, { fields: { [field]: problem } });
 }
 
-type AccountSlot = 'banner' | 'crest' | 'titleColour';
-const ACCOUNT_SLOTS: readonly AccountSlot[] = ['banner', 'crest', 'titleColour'];
+type AccountSlot = 'banner' | 'crest' | 'titleColour' | 'companion';
+const ACCOUNT_SLOTS: readonly AccountSlot[] = ['banner', 'crest', 'titleColour', 'companion'];
 
 export async function registerCosmetics(
   app: FastifyInstance,
@@ -212,7 +216,12 @@ export async function registerCosmetics(
           type: 'object',
           additionalProperties: false,
           minProperties: 1,
-          properties: { banner: idSchema, crest: idSchema, titleColour: idSchema },
+          properties: {
+            banner: idSchema,
+            crest: idSchema,
+            titleColour: idSchema,
+            companion: idSchema,
+          },
         },
         response: { 200: collectionSchema },
       },

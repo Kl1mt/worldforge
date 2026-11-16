@@ -1,5 +1,6 @@
 import { and, asc, eq, isNull, sql } from 'drizzle-orm';
 import {
+  shrineSeasonDraws,
   ARENA_RATING_VERSION,
   PROVISIONAL_GAMES,
   SCORE_METRICS,
@@ -27,6 +28,7 @@ import {
   type Character,
   type Season,
 } from '../db/schema.js';
+import { grantPlayDrawsTx } from '../shrine/model.js';
 import { queryRows } from '../db/query.js';
 import { withTransaction } from '../db/transaction.js';
 import type { Database, Executor, Transaction } from '../db/types.js';
@@ -555,6 +557,13 @@ export async function awardSeason(
     }
     for (const [accountId, tiers] of tiersByAccount) {
       await grantSeasonTx(tx, accountId, number, tiers, now);
+      // Ticket 9.5: the season's honours earn Shrine draws by the best tier (once per season).
+      await grantPlayDrawsTx(tx, {
+        accountId,
+        key: `season:${number}`,
+        count: shrineSeasonDraws(tiers),
+        now,
+      });
       // Ticket 8.5: the season's honours in the account's inbox (once).
       await notifyTx(tx, {
         accountId,

@@ -39,6 +39,8 @@ import {
   type AreaId,
   type ClassId,
   type MaterialId,
+  shrineOdds,
+  shrineOutcome,
 } from '@worldforge/game-core';
 import { SESSION_COOKIE } from '../auth/index.js';
 import { tokenIn, type MemoryMailer } from '../mail/mailer.js';
@@ -87,6 +89,7 @@ import { checkLeaderboards } from '../leaderboards/check.js';
 import { cliDeps } from '../leaderboards/leaderboard-cli.js';
 import { runSeasonJobs, scheduleSeason } from '../seasons/model.js';
 import { runEventJobs } from '../events/model.js';
+import { reconcileShrine } from '../shrine/model.js';
 
 export const MIN = 60_000;
 export const HOUR = 60 * MIN;
@@ -5309,4 +5312,102 @@ export async function playSkillQuestStep(
   const checks = await reconcileWithAudit(database.db);
   expect(checks.filter((c) => !c.ok)).toEqual([]);
   return { forgeRuns: state.forge.length - forgeBefore, seals: held, skill: taught };
+}
+
+/**
+ * Ticket 9.5: the Reward Shrine step (docs/SHRINE.md), after the event and collection steps. The
+ * account holds today's free draw (or a bank of them) and the draws its event tiers earned. It opens
+ * the Shrine (the published odds, no paid draws), draws every held draw (one replayed key pays
+ * once; each draw is predicted from its stored seed by game-core, never assumed), wears a companion
+ * if one came, buys a keepsake with marks if it has enough, and nothing its scores read moves.
+ * Everything reconciles (draws = grants + marks, marks = earned − spent, the rollups).
+ */
+export async function playShrineStep(database: DatabaseHandle, hero: Journey) {
+  type View = {
+    unspent: { daily: number; play: number; shop: number };
+    draws: number;
+    marks: number;
+    paidDraws: boolean;
+    pool: { cosmeticId: string; kind: string; chance: number; price: number; owned: boolean }[];
+  };
+  type Draw = { seed: string; cosmeticId: string; outcome: 'grant' | 'marks'; marks: number };
+  const scores = async () => {
+    const r = await hero.api('GET', `${hero.base}/scores`);
+    expect(r.statusCode, r.body).toBe(200);
+    return r.json();
+  };
+  const settled = await hero.api('POST', `${hero.base}/activity/settle`);
+  expect([200, 409], settled.body).toContain(settled.statusCode);
+  const before = await scores();
+  const [row] = await database.db
+    .select({ accountId: characters.accountId })
+    .from(characters)
+    .where(eq(characters.id, hero.characterId));
+  const accountId = row!.accountId;
+
+  const opened = await hero.api('GET', '/api/account/shrine');
+  expect(opened.statusCode, opened.body).toBe(200);
+  const view = opened.json<View>();
+  expect(view.paidDraws).toBe(false);
+  expect(view.unspent.shop).toBe(0);
+  expect(view.unspent.daily).toBeGreaterThanOrEqual(1);
+  // The event step earned at least one reward tier: one play draw each.
+  expect(view.unspent.play).toBeGreaterThanOrEqual(1);
+  expect(view.pool.map((p) => [p.cosmeticId, p.chance])).toEqual(
+    shrineOdds().map((o) => [o.cosmeticId, o.chance]),
+  );
+
+  const owned = new Set(view.pool.filter((p) => p.owned).map((p) => p.cosmeticId));
+  const draws: Draw[] = [];
+  const key = randomUUID();
+  for (let i = 0; i < view.draws; i++) {
+    const res = await hero.keyed('/api/account/shrine/draw', {}, i === 0 ? key : randomUUID());
+    expect(res.statusCode, res.body).toBe(200);
+    const d = res.json<{ draw: Draw }>().draw;
+    // Predicted from the stored seed with game-core's own rule.
+    const want = shrineOutcome(d.seed, owned);
+    expect({ cosmeticId: d.cosmeticId, outcome: d.outcome, marks: d.marks }).toEqual({
+      cosmeticId: want.cosmeticId,
+      outcome: want.outcome,
+      marks: want.marks,
+    });
+    owned.add(d.cosmeticId);
+    draws.push(d);
+    if (i === 0) {
+      const replay = await hero.keyed('/api/account/shrine/draw', {}, key);
+      expect(replay.headers['idempotency-replayed']).toBe('true');
+    }
+  }
+  const empty = await hero.keyed('/api/account/shrine/draw', {});
+  expect(empty.statusCode).toBe(409);
+  const after = (await hero.api('GET', '/api/account/shrine')).json<View>();
+  expect(after.draws).toBe(0);
+  const marks = draws.reduce((a, d) => a + d.marks, 0);
+  expect(after.marks).toBe(marks);
+
+  // A companion drawn is worn beside the hero.
+  const companion = draws.find(
+    (d) => d.outcome === 'grant' && d.cosmeticId.startsWith('companion.'),
+  );
+  if (companion) {
+    const worn = await hero.keyed('/api/account/cosmetics/equip', {
+      companion: companion.cosmeticId,
+    });
+    expect(worn.statusCode, worn.body).toBe(200);
+  }
+  // Marks buy the cheapest keepsake not owned, if there are enough.
+  const offer = after.pool
+    .filter((p) => !p.owned)
+    .sort((a, b) => a.price - b.price)
+    .find((p) => p.price <= after.marks);
+  if (offer) {
+    const bought = await hero.keyed('/api/account/shrine/buy', { cosmeticId: offer.cosmeticId });
+    expect(bought.statusCode, bought.body).toBe(200);
+  }
+  const r = await reconcileShrine(database.db, accountId);
+  expect(r.ok, JSON.stringify(r)).toBe(true);
+  expect(r.draws).toBe(draws.length);
+  expect(await scores()).toEqual(before);
+  expect((await reconcileWithAudit(database.db)).filter((c) => !c.ok)).toEqual([]);
+  return { draws: draws.length, marks: r.marksHeld, companion: companion?.cosmeticId ?? null };
 }

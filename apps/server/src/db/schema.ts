@@ -1865,6 +1865,8 @@ export const cosmeticDisplays = pgTable(
     banner: text('banner'),
     crest: text('crest'),
     titleColour: text('title_colour'),
+    /** Ticket 9.5: the companion beside the active hero in the combat scene (null = none). */
+    companion: text('companion'),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull(),
   },
   (t) => [
@@ -1881,6 +1883,11 @@ export const cosmeticDisplays = pgTable(
     foreignKey({
       name: 'cosmetic_displays_title_colour_fk',
       columns: [t.accountId, t.titleColour],
+      foreignColumns: [cosmeticUnlocks.accountId, cosmeticUnlocks.cosmeticId],
+    }),
+    foreignKey({
+      name: 'cosmetic_displays_companion_fk',
+      columns: [t.accountId, t.companion],
       foreignColumns: [cosmeticUnlocks.accountId, cosmeticUnlocks.cosmeticId],
     }),
   ],
@@ -2836,3 +2843,101 @@ export const accountGrowthGrants = pgTable(
 );
 
 export type AccountGrowthGrant = typeof accountGrowthGrants.$inferSelect;
+
+/**
+ * Ticket 9.5 (docs/SHRINE.md): an account's Reward Shrine. One row per account, made the first
+ * time the Shrine is read; every Shrine write locks it first (`for update`), so draws, purchases and
+ * the daily accrual of one account never interleave. `daily_through` is the last UTC day (days since
+ * 1970-01-01) the free-draw bank accrued through; `marks` the Shrine marks held (reconciled against
+ * the draws' marks earned minus the purchases' prices). Cosmetic only.
+ */
+export const shrineAccounts = pgTable(
+  'shrine_accounts',
+  {
+    accountId: uuid('account_id')
+      .primaryKey()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    dailyThrough: integer('daily_through').notNull(),
+    marks: integer('marks').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [check('shrine_accounts_marks_check', sql`${t.marks} >= 0`)],
+);
+
+/**
+ * Ticket 9.5: draws granted to an account. `source` is `daily` (the free bank), `play` (event
+ * tiers, season honours, deeds) or `shop` (reserved for ROADMAP 8.8 after its legal review; nothing
+ * writes it yet, so adding it needs no migration). `source_key` names what earned it
+ * (`daily:<YYYY-MM-DD>`, `event:<n>:tier:<t>`, `season:<n>`, `achievement:<id>`): at most once per
+ * account by the unique index. Audited `shrine.grant`; never removed.
+ */
+export const shrineDrawGrants = pgTable(
+  'shrine_draw_grants',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    source: text('source').$type<'daily' | 'play' | 'shop'>().notNull(),
+    sourceKey: text('source_key').notNull(),
+    count: integer('count').notNull(),
+    characterId: uuid('character_id').references(() => characters.id, { onDelete: 'set null' }),
+    grantedAt: timestamp('granted_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    uniqueIndex('shrine_draw_grants_key_idx').on(t.accountId, t.sourceKey),
+    check('shrine_draw_grants_source_check', sql`${t.source} in ('daily', 'play', 'shop')`),
+    check('shrine_draw_grants_count_check', sql`${t.count} > 0`),
+  ],
+);
+
+/**
+ * Ticket 9.5: every draw, with the `crypto` seed it was drawn from (game-core `drawShrine(seed)`
+ * replays it), the kind of draw it spent (`spent_source`), what it drew and what it paid: `grant`
+ * (the cosmetic, `cosmetic_unlocks.source = shrine:draw:<id>`) or `marks` (a duplicate). Audited
+ * `shrine.draw`.
+ */
+export const shrineDraws = pgTable(
+  'shrine_draws',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    spentSource: text('spent_source').$type<'daily' | 'play' | 'shop'>().notNull(),
+    seed: text('seed').notNull(),
+    cosmeticId: text('cosmetic_id').notNull(),
+    rarity: text('rarity').notNull(),
+    outcome: text('outcome').$type<'grant' | 'marks'>().notNull(),
+    marks: integer('marks').notNull().default(0),
+    drawnAt: timestamp('drawn_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    index('shrine_draws_account_idx').on(t.accountId, t.drawnAt),
+    check('shrine_draws_spent_source_check', sql`${t.spentSource} in ('daily', 'play', 'shop')`),
+    check('shrine_draws_outcome_check', sql`${t.outcome} in ('grant', 'marks')`),
+    check('shrine_draws_marks_check', sql`${t.marks} >= 0`),
+  ],
+);
+
+/**
+ * Ticket 9.5: cosmetics bought with Shrine marks, once per account and cosmetic (the primary key).
+ * The unlock's source is `shrine:marks`. Audited `shrine.buy`.
+ */
+export const shrinePurchases = pgTable(
+  'shrine_purchases',
+  {
+    accountId: uuid('account_id')
+      .notNull()
+      .references(() => accounts.id, { onDelete: 'cascade' }),
+    cosmeticId: text('cosmetic_id').notNull(),
+    price: integer('price').notNull(),
+    boughtAt: timestamp('bought_at', { withTimezone: true }).notNull(),
+  },
+  (t) => [
+    primaryKey({ columns: [t.accountId, t.cosmeticId] }),
+    check('shrine_purchases_price_check', sql`${t.price} > 0`),
+  ],
+);
+
+export type ShrineDraw = typeof shrineDraws.$inferSelect;

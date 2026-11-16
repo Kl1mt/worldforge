@@ -351,6 +351,13 @@
       "when": 1794794146870,
       "tag": "0049_workable_meggan",
       "breakpoints": true
+    },
+    {
+      "idx": 50,
+      "version": "7",
+      "when": 1794797733984,
+      "tag": "0050_blue_polaris",
+      "breakpoints": true
     }
   ]
 }

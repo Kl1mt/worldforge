@@ -21,6 +21,7 @@ import {
   characters,
   cosmeticDisplays,
   cosmeticUnlocks,
+  shrineDrawGrants,
   dataBackfills,
   heroAppearances,
   sanctions,
@@ -181,8 +182,23 @@ describe('granting: exactly once, from the source events', () => {
     expect(got[3]).toEqual(['banner.season-laurel']);
     expect(got[4]).toEqual(['banner.season-laurel']);
     expect((await unlocks(people[0]!.id))[0]!.source).toBe(`season:${number}`);
+    // Ticket 9.5: Shrine draws by the best tier (rank 1 champion: 4; then exalted 3; …), once.
+    const draws = async () =>
+      Promise.all(
+        people.map(async (p) => {
+          const rows = await db()
+            .select()
+            .from(shrineDrawGrants)
+            .where(eq(shrineDrawGrants.accountId, p.id));
+          return rows.map((r) => [r.source, r.sourceKey, r.count]);
+        }),
+      );
+    const before = await draws();
+    expect(before[0]).toEqual([['play', `season:${number}`, 4]]);
+    for (const d of before) expect(d).toHaveLength(1);
     // A second run changes nothing.
     expect((await awardSeason(db(), number, NOW)).kind).toBe('already');
+    expect(await draws()).toEqual(before);
   });
 
   it('never stores the default appearance or an unknown id', async () => {
@@ -286,6 +302,7 @@ describe('equip and the book', () => {
       crest: null,
       titleColour: null,
       cosmeticTitle: null,
+      companion: null,
     });
     expect((await call(null, 'GET', '/api/account/collection')).statusCode).toBe(401);
   });
@@ -323,12 +340,12 @@ describe('equip and the book', () => {
     };
     const ok = await post(a, '/api/account/cosmetics/equip', body, key);
     expect(ok.statusCode, ok.body).toBe(200);
-    expect(ok.json().equipped).toEqual({ ...body, cosmeticTitle: null });
+    expect(ok.json().equipped).toEqual({ ...body, cosmeticTitle: null, companion: null });
     const replay = await post(a, '/api/account/cosmetics/equip', body, key);
     expect(replay.headers['idempotency-replayed']).toBe('true');
     // Partial change keeps the other slots; null = plain.
     const partial = await post(a, '/api/account/cosmetics/equip', { crest: null });
-    expect(partial.json().equipped).toEqual({ ...body, crest: null, cosmeticTitle: null });
+    expect(partial.json().equipped).toEqual({ ...body, crest: null, cosmeticTitle: null, companion: null });
 
     // Per hero: an owned appearance, the default, and refusals.
     const url = `/api/characters/${hero.id}/appearance`;
