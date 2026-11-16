@@ -87,7 +87,7 @@ export function validateItem(
   // Ticket 6.5b: an awakening must be the shipped one, on an eligible item.
   errors.push(...awakeningErrors(item));
   errors.push(...setErrors(item, base));
-  if (item.setId !== undefined) return errors;
+  if (item.setId !== undefined && findSet(item.setId)?.questOnly !== true) return errors;
   errors.push(...effectErrors(item, base));
   return errors;
 }
@@ -119,6 +119,11 @@ function setErrors(item: GeneratedItem, base: ItemBaseDefinition): string[] {
   if (!set) return [`unknown set ${item.setId}`];
   if (!set.pieces.includes(base.id)) errors.push(`set ${set.id} has no piece ${base.id}`);
   if (item.rarityId !== 'legendary') errors.push(`set piece ${base.id} is ${item.rarityId}`);
+  // Ticket 9.3: a quest set's piece carries a Legendary effect of its base (checked below).
+  if (set.questOnly === true) {
+    if (item.mythicId !== undefined) errors.push(`set piece ${base.id} carries a mythic`);
+    return errors;
+  }
   if (item.effectId !== undefined || item.effectRoll !== undefined || item.mythicId !== undefined) {
     errors.push(`set piece ${base.id} carries an effect`);
   }

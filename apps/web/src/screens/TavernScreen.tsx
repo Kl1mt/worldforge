@@ -5,7 +5,9 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   findContractTemplate,
   getArea,
+  getSkillQuest,
   getStoryQuest,
+  isSkillQuestId,
   type ItemSlotKind,
   type QuestObjective,
 } from '@worldforge/game-core';
@@ -16,7 +18,7 @@ import { useMediaQuery } from '../components/useMediaQuery';
 import { PHONE_QUERY } from '../lib/pixel';
 import { formatNumber } from '../lib/format';
 import { routeHref } from '../lib/route';
-import type { ContractOfferDto, QuestDto } from '../quests/api';
+import type { ContractOfferDto, QuestDto, SkillQuestOfferDto } from '../quests/api';
 import { useQuests } from '../quests/useQuests';
 import { useOnboarding } from '../onboarding/OnboardingProvider';
 import { useWorldEra } from '../community/Era';
@@ -25,8 +27,11 @@ import {
   contractTitle,
   objectiveLabel,
   objectiveTarget,
+  materialsText,
   questTitle,
   rewardParts,
+  skillQuestCostText,
+  skillQuestRewardParts,
   storyBlockerText,
 } from '../quests/text';
 import './hub.css';
@@ -72,22 +77,26 @@ function NewTag() {
 
 function QuestEntry({
   quest,
+  skill,
   busy,
   isNew,
   onTurnIn,
 }: {
   quest: QuestDto;
+  /** Ticket 9.3: the board's skill quest offer, for a skill quest. */
+  skill?: SkillQuestOfferDto | undefined;
   busy: boolean;
   isNew: boolean;
   onTurnIn: () => void;
 }) {
   const ready = quest.status === 'ready';
   const title = questTitle(quest.kind, quest.questId, quest.objectives[0]);
+  const short = skill ? Object.keys(skill.missing).length > 0 : false;
   return (
     <li className={`entry${ready ? ' entry--ready' : ''}`}>
       <div className="entry__head">
         <p className="caps entry__kind">
-          {quest.kind === 'story' ? 'Story' : 'Contract'}
+          {quest.kind === 'story' ? 'Story' : quest.kind === 'skill' ? 'Skill quest' : 'Contract'}
           {isNew ? (
             <>
               {' '}
@@ -102,13 +111,77 @@ function QuestEntry({
           <ObjectiveRow key={i} objective={o} value={quest.progress[i] ?? 0} />
         ))}
       </ul>
-      <Rewards parts={rewardParts(quest.reward)} />
+      {skill ? (
+        <p className="entry__hint">
+          {skillQuestCostText(skill.cost)}
+          {short ? ` · still missing ${materialsText(skill.missing)}` : ''}
+        </p>
+      ) : null}
+      <Rewards
+        parts={skill ? skillQuestRewardParts(skill.skill, skill.item) : rewardParts(quest.reward)}
+      />
       {ready ? (
-        <button type="button" className="btn btn--brass" disabled={busy} onClick={onTurnIn}>
-          {busy ? 'Collecting…' : 'Turn in'}
+        <button
+          type="button"
+          className="btn btn--brass"
+          disabled={busy || short}
+          onClick={onTurnIn}
+        >
+          {busy ? 'Collecting…' : short ? 'Bring the materials first' : 'Turn in'}
         </button>
       ) : (
-        <p className="entry__hint">Progress comes from your hero’s fights and gathering.</p>
+        <p className="entry__hint">
+          {quest.kind === 'skill'
+            ? 'Fell the boss after taking the quest: the kill counts when you claim the run.'
+            : 'Progress comes from your hero’s fights and gathering.'}
+        </p>
+      )}
+    </li>
+  );
+}
+
+/** Ticket 9.3: a skill quest on the board (docs/QUESTS.md "Skill quests"). */
+function SkillQuestNote({
+  offer,
+  busy,
+  onAccept,
+}: {
+  offer: SkillQuestOfferDto;
+  busy: boolean;
+  onAccept: () => void;
+}) {
+  if (!isSkillQuestId(offer.questId)) return null;
+  const def = getSkillQuest(offer.questId);
+  const locked = offer.state === 'locked';
+  const done = offer.state === 'turnedIn';
+  return (
+    <li className={`note note--skill${locked || done ? ' note--locked' : ''}`}>
+      <span className="note__pin" aria-hidden="true" />
+      <p className="caps note__from">Skill quest · {def.giver}</p>
+      <h3 className="note__title display">{def.name}</h3>
+      <p className="note__text">{def.description}</p>
+      <ul className="note__tasks">
+        {def.objectives.map((o, i) => (
+          <li key={i}>{objectiveLabel(o)}, after taking the quest</li>
+        ))}
+        <li>{skillQuestCostText(offer.cost)}</li>
+      </ul>
+      <Rewards parts={skillQuestRewardParts(offer.skill, offer.item)} />
+      {offer.learned && !done ? (
+        <p className="note__text">
+          You already know {offer.skill.name}. The lesson still pays its Legendary.
+        </p>
+      ) : null}
+      {locked ? (
+        <p className="note__blocked">{offer.blockers.map(storyBlockerText).join(' · ')}</p>
+      ) : done ? (
+        <p className="note__blocked">Learned · {offer.skill.name} is on your Skills page</p>
+      ) : offer.state === 'active' ? (
+        <p className="note__blocked">In hand · see Your quests</p>
+      ) : (
+        <button type="button" className="btn btn--brass" disabled={busy} onClick={onAccept}>
+          {busy ? 'Taking…' : 'Take the quest'}
+        </button>
       )}
     </li>
   );
@@ -306,11 +379,13 @@ export function TavernScreen() {
           <p>
             <span className="caps">Paid out</span>{' '}
             <strong>
-              {lastReward.kind === 'story'
-                ? questTitle('story', lastReward.questId)
-                : 'Contract fulfilled'}
+              {lastReward.kind === 'contract'
+                ? 'Contract fulfilled'
+                : questTitle(lastReward.kind, lastReward.questId)}
             </strong>
-            : +{formatNumber(lastReward.xp)} XP, +{formatNumber(lastReward.gold)} gold
+            {lastReward.kind === 'skill'
+              ? ': a new skill learned (choose it on your Skills page)'
+              : `: +${formatNumber(lastReward.xp)} XP, +${formatNumber(lastReward.gold)} gold`}
             {lastReward.levelsGained > 0 ? ` · level up!` : ''}
             {lastReward.item ? ' · the reward item is in your pack' : ''}
           </p>
@@ -465,6 +540,22 @@ export function TavernScreen() {
               </ul>
               <p className="board__foot">New contracts are pinned up at dawn (UTC).</p>
             </div>
+
+            {board.value.skills.length > 0 ? (
+              <div className="board__skills">
+                <p className="caps board__label">The masters’ lessons · once per hero</p>
+                <ul className="board__slips">
+                  {board.value.skills.map((offer) => (
+                    <SkillQuestNote
+                      key={offer.questId}
+                      offer={offer}
+                      busy={busy === offer.questId}
+                      onAccept={() => void quests.accept({ kind: 'skill', questId: offer.questId })}
+                    />
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </section>
 
           <section className="quests panel-ledger" aria-labelledby="quests-title">
@@ -502,6 +593,11 @@ export function TavernScreen() {
                   <QuestEntry
                     key={q.id}
                     quest={q}
+                    skill={
+                      q.kind === 'skill'
+                        ? board.value.skills.find((x) => x.questRowId === q.id)
+                        : undefined
+                    }
                     busy={busy === q.id}
                     isNew={newQuests.has(questKey.ready(q.id))}
                     onTurnIn={() => void quests.turnIn(q.id)}

@@ -107,9 +107,11 @@ describe('skills wording (ticket 9.2)', () => {
 
   it('says how a skill unlocks', () => {
     expect(unlockText(active('charge'))).toBe('Unlocks at level 12');
-    expect(unlockText(active('forgebreaker'))).toBe('Taught by the Forge Tyrant’s fall · level 36');
+    expect(unlockText(active('forgebreaker'))).toBe(
+      'Taught by the Tyrant’s Lesson (Tavern) · level 36',
+    );
     expect(unlockText(passive('hollowWrath'))).toBe(
-      'Taught by the Hollow Sovereign’s fall · level 46',
+      'Taught by the Sovereign’s Lesson (Tavern) · level 46',
     );
   });
 
@@ -174,7 +176,7 @@ describe('skills loadouts (ticket 9.2)', () => {
       'Rend is locked',
     ]);
     expect(heroFactsOf({ level: 40, unlocked: ['forgebreaker'] }).progress).toEqual({
-      forgeTyrantDefeated: true,
+      forgeTyrantSkillLearned: true,
     });
     const late = { classId: 'warrior' as const, level: 40, unlocked: ['heavyStrike'] };
     const fb: LoadoutDraft = { actives: ['heavyStrike', 'forgebreaker', null], passive: null };

@@ -65,8 +65,8 @@ describe('Skills panel', () => {
     // Locked skills are shown with their unlock, never hidden.
     expect(html).toContain('Earthsplitter');
     expect(html).toContain('Unlocks at level 36');
-    expect(html).toContain('Taught by the Forge Tyrant’s fall · level 36');
-    expect(html).toContain('Taught by the Hollow Sovereign’s fall · level 46');
+    expect(html).toContain('Taught by the Tyrant’s Lesson (Tavern) · level 36');
+    expect(html).toContain('Taught by the Sovereign’s Lesson (Tavern) · level 46');
     expect(html.match(/skill skill--locked/g)?.length).toBe(12 - 4);
     expect(html).toContain('50 Rage · 160 % damage');
     // The snapshot note.

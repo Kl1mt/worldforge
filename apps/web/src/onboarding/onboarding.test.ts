@@ -78,6 +78,7 @@ const board = (quests: QuestDto[], over: Partial<QuestBoard> = {}): QuestBoard =
   quests,
   story: { next: null, completed: [] },
   contracts: { offers: [], perDay: 3, active: 0, maxActive: 3 },
+  skills: [],
   ...over,
 });
 

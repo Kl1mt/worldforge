@@ -73,6 +73,9 @@ const DEEDS: WorldProgress = {
   gravewardenDefeated: true,
   forgeTyrantDefeated: true,
   hollowSovereignDefeated: true,
+  // Ticket 9.3: the skill quests' deed flags teach the boss skills.
+  forgeTyrantSkillLearned: true,
+  hollowSovereignSkillLearned: true,
 };
 
 async function hero(classId: ClassId, level: number, progress?: WorldProgress) {

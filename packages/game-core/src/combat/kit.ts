@@ -198,6 +198,11 @@ export interface ResolvedLoadout {
   core: ActiveSkillDefinition;
   spenders: ActiveSkillDefinition[];
   passive: PassiveModifiers;
+  /**
+   * Ticket 9.3: the skill-aware `skillThrift` effect: spenders' costs × (1 − this), rounded, at
+   * least 1 (absent: costs as written).
+   */
+  costReduction?: number;
 }
 
 /** Resolves a loadout (default when absent); throws on an invalid one. */
@@ -290,6 +295,12 @@ export function kitRules(classId: ClassId, passive: PassiveModifiers): ResourceR
   return out;
 }
 
+/** Ticket 9.3: a cost after `costReduction` (a free skill stays free, a paid one costs ≥ 1). */
+export function thrifty(cost: number, reduction?: number): number {
+  if (!reduction || cost <= 0) return cost;
+  return Math.max(1, Math.round(cost * (1 - reduction)));
+}
+
 /**
  * Compiles a resolved loadout for one encounter. `dealt` is the 1× hit after mitigation (boss and
  * passive bonuses included), `fragments` what the warlock brings into the fight.
@@ -316,7 +327,7 @@ export function compileKit(
   const spenderBonus = 1 + (p.spenderDamage ?? 0);
   const spenders = resolved.spenders.map((s): KitSpender => ({
     id: s.id,
-    cost: s.cost ?? 0,
+    cost: thrifty(s.cost ?? 0, resolved.costReduction),
     consumeAll: s.consumeAll === true,
     perUnit: (s.perUnit ?? 0) * keep,
     gain: s.gain ?? 0,

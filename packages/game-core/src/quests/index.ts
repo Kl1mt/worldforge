@@ -3,3 +3,4 @@ export * from './objectives.js';
 export * from './definitions.js';
 export * from './board.js';
 export * from './targeted.js';
+export * from './skill-quests.js';

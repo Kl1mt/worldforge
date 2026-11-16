@@ -2,7 +2,9 @@ import {
   getArea,
   getEnemy,
   getMaterial,
+  getSkillQuest,
   getStoryQuest,
+  isSkillQuestId,
   isStoryQuestId,
   type MaterialId,
   type QuestObjective,
@@ -42,11 +44,14 @@ function plural(name: string): string {
 
 /** Display name of an accepted quest or contract. */
 export function questTitle(
-  kind: 'story' | 'contract',
+  kind: 'story' | 'contract' | 'skill',
   questId: string,
   objective?: QuestObjective,
 ): string {
   if (kind === 'story' && isStoryQuestId(questId)) return getStoryQuest(questId).name;
+  // Ticket 9.3: a skill quest.
+  if (kind === 'skill' && isSkillQuestId(questId)) return getSkillQuest(questId).name;
+  if (kind === 'skill') return 'Skill quest';
   if (objective) return contractTitle(objective);
   return 'Contract';
 }
@@ -87,4 +92,33 @@ export function storyBlockerText(b: StoryBlocker): string {
   return b.kind === 'level'
     ? `Reach level ${b.required}`
     : `First finish “${getStoryQuest(b.questId).name}”`;
+}
+
+/** Ticket 9.3: a bundle of materials in words, e.g. "2 Gravewarden’s Seals". */
+export function materialsText(bundle: Partial<Record<MaterialId, number>>): string {
+  return (Object.entries(bundle) as [MaterialId, number][])
+    .filter(([, n]) => n > 0)
+    .map(([id, n]) => {
+      const name = getMaterial(id).name;
+      return `${formatNumber(n)} ${n === 1 ? name : plural(name)}`;
+    })
+    .join(' and ');
+}
+
+/** Ticket 9.3: what a skill quest takes at the turn-in, e.g. "Bring 2 Gravewarden’s Seals". */
+export function skillQuestCostText(cost: Partial<Record<MaterialId, number>>): string {
+  const text = materialsText(cost);
+  return text ? `Bring ${text} (given up at the turn-in)` : '';
+}
+
+/** Ticket 9.3: what a skill quest pays: the skill, and its Legendary piece. */
+export function skillQuestRewardParts(
+  skill: { name: string; kind: 'active' | 'passive' },
+  item: { baseId: string; rarityId: string },
+): string[] {
+  const rarity = item.rarityId[0]!.toUpperCase() + item.rarityId.slice(1);
+  return [
+    `the ${skill.kind === 'active' ? 'skill' : 'passive'} ${skill.name}`,
+    `${rarity} ${findItemBase(item.baseId)?.name ?? 'item'}`,
+  ];
 }

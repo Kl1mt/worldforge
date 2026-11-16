@@ -762,7 +762,8 @@ export const characterProfessions = pgTable(
 );
 
 /** Quest kinds (ticket 2.4): the story chain or a repeatable daily contract. */
-export type QuestKind = 'story' | 'contract';
+/** Ticket 9.3: `skill`, the skill quests (docs/QUESTS.md "Skill quests"). */
+export type QuestKind = 'story' | 'contract' | 'skill';
 /** `active` until turned in; completion is derived from `progress` vs the objectives. */
 export type QuestStatus = 'active' | 'turnedIn';
 
@@ -798,11 +799,16 @@ export const characterQuests = pgTable(
     uniqueIndex('character_quests_story_key')
       .on(t.characterId, t.questId)
       .where(sql`${t.kind} = 'story'`),
+    // Ticket 9.3: a skill quest can be accepted once per character.
+    uniqueIndex('character_quests_skill_key')
+      .on(t.characterId, t.questId)
+      .where(sql`${t.kind} = 'skill'`),
     // A contract slot can be accepted once per day.
     uniqueIndex('character_quests_contract_slot_key')
       .on(t.characterId, t.contractDay, t.contractSlot)
       .where(sql`${t.kind} = 'contract'`),
-    check('character_quests_kind_check', sql`${t.kind} in ('story', 'contract')`),
+    // Ticket 9.3: 'skill' (the skill quests).
+    check('character_quests_kind_check', sql`${t.kind} in ('story', 'contract', 'skill')`),
     check('character_quests_status_check', sql`${t.status} in ('active', 'turnedIn')`),
     check(
       'character_quests_turned_in_check',

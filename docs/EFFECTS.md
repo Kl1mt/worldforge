@@ -3,7 +3,7 @@
 One data-driven effect system in `packages/game-core/src/effects/`. Legendary effects and Mythic signatures (3.2), set bonuses (3.3) and the rare Void modification of a Legendary (3.5) all go through it. Both combat simulations read the same combined numbers, so the detailed/aggregate equivalence and split-invariance hold with effects.
 
 ## Registry
-- **Components** (`effects/types.ts`) are the mechanics combat understands: `critBurn`, `execute`, `bossSlayer`, `lifeOnKill`, `bloodrush`, `thorns`, `fortitude`, and four class-skill mechanics: `skillRage`, `skillSurge`, `skillOpener` and `skillRot`.
+- **Components** (`effects/types.ts`) are the mechanics combat understands: `critBurn`, `execute`, `bossSlayer`, `lifeOnKill`, `bloodrush`, `thorns`, `fortitude`, four class-skill mechanics: `skillRage`, `skillSurge`, `skillOpener` and `skillRot`, and since ticket 9.3 three skill-aware ones that read a loadout's kit: `skillSpender`, `skillDot`, `skillThrift` ("Skill-aware effects" below).
 - **Definitions** (`effects/registry.ts`, `EFFECTS`) are data. Each has an id, name, `kind` (`legendary` | `mythic` | `set`), its components with parameters that are fixed or a `{min, max}` range, and tooltip text with `{component.param}` placeholders. Legendary entries also list `slots`, a `weight` and, for class effects, a `classId`.
 - **Instances** (`EffectInstance`): `{ effectId, roll, strength? }`. An item gives one instance (`effect_id`, `effect_roll`). A set bonus (3.3) is an instance with a fixed roll, passed as `equipmentModifiers(…, { extraEffects })`. Void (3.5) passes `strength` > 1, which scales magnitudes but not thresholds, stack counts or decay.
 - **API:** `resolveEffectComponents(instance)`, `combineEffects(instances, classId, caps)` → `CombatEffects`, `describeEffect(instance)` (tooltip text with the rolled values), `legendaryEffectPool(base, classId)`, `itemEffectInstances(item)`. `equipmentModifiers(items, caps, loot, { classId, extraEffects })` returns `effects` next to the secondary modifiers.
@@ -25,6 +25,44 @@ One data-driven effect system in `packages/game-core/src/effects/`. Legendary ef
 | Soul Rot (warlock) | same | Shadow Bolt adds 1.5–3 % of the enemy’s remaining health (at most the bolt’s own damage) |
 
 Generation: a Legendary (rolled or requested) draws its effect **after** its affixes, so everything else about the item rolls as before. The draw is weighted from the pool for its slot and class; class effects only roll for that class, on bases it can use. The roll uses a 0.05 grid (`effect_roll`). Legendaries from before 3.2 have no effect and stay valid.
+
+## Skill-aware effects (ticket 9.3)
+Three Legendary effects and one set bonus that read a chosen loadout (docs/SKILLS.md). **On new bases only:** they list `bases` (`SKILL_QUEST_BASES`: the Ember Band and the Hollow Torc of the Masters), roll only there, and those two bases roll only them (`legendaryEffectPool`, `legendaryEffectPossibleOn`). Every older base's pool, and every draw on it, is unchanged; the two bases are `unique` and dropped by no table: the skill quests grant them (docs/QUESTS.md "Skill quests").
+
+| Effect | Kind | Does (at roll 0 → 1) |
+|---|---|---|
+| Practiced Hand | Legendary (ring, neck) | the skills in slots 2 and 3 deal +6–12 % (`skillSpender`) |
+| Festering Craft | Legendary (ring, neck) | damage over time +15–30 % (`skillDot`) |
+| Deep Wellspring | Legendary (ring, neck) | the skills in slots 2 and 3 cost 10–20 % less, rounded, at least 1 (`skillThrift`) |
+| Mastery (The Masters’ Lessons, 2 pieces) | set | slots 2 and 3 +5 %, damage over time +10 % |
+
+- **The Masters' Lessons** is a set of two quest-only pieces (`questOnly`): `setPiecePool` leaves it out (no table rolls them), and unlike the drop sets **each piece also carries its own Legendary effect** (validation allows it for this set only). A piece is never Void or Prismatic (requested bases never are).
+- **They act on the kit only.** `buildEncounter` folds them into the loadout it compiles (`withSkillEffects`: added to the passive's spender and damage-over-time bonuses; thrift lowers spenders' costs, `thrifty`), and into the kit's cache key. The default loadout has no spender, no damage over time and no cost, so **for a hero who never chose a loadout they change nothing** (tested: both simulations equal to the same items without the effects). Existing effects keep their meaning; "the class skill" still reads slot 1 (owner decision 1).
+- **Combined** like any effect: each id once, magnitudes add up to caps (`skillSpender` 0.2, `skillDot` 0.45, `skillThrift` 0.25). In `CombatEffects` the three fields are optional and absent when off, so every object without them is exactly the pre-9.3 one (no pinned hash moved). Duels keep them × `effectKeep` like every bonus.
+- **The two simulations** stay exact (the kit's dynamic program is unchanged; these only change the kit's numbers): per-fight agreement for every class against the Hollow Sovereign (6,000 trials).
+
+**Measured** (`tools/balance/skill-effects.ts`; 9.1's jobs: Hollow Deep 49 farming in Legendaries 47 +10, Hollow Sovereign 50 boss time over 48 runs). Before: today's kit, and the same kit with a ring and the neck swapped for the two quest bases at +10 *without* their effects (the control: the same affixes). After: those items with their effects at the best roll, the best of the nine effect pairs (the set bonus included).
+
+| Class | Job · loadout | Today’s kit | Quest items, stats only | With their effects | × effects | Best pair |
+|---|---|---|---|---|---|---|
+| warrior | Deep 49 k/min · default | 7.1 | 6.7 | 6.7 | 1.00 | (none acts) |
+| warrior | Deep 49 k/min · farm lead | 8.0 | 7.5 | 8.0 | 1.07 | Practiced Hand + Deep Wellspring |
+| warrior | Sovereign 50 s · default | 42.6 | 41.7 | 41.7 | 1.00 | (none acts) |
+| warrior | Sovereign 50 s · boss lead | 37.0 | 36.3 | 34.4 | 1.05 | Practiced Hand + Deep Wellspring |
+| mage | Deep 49 k/min · default | 6.6 | 6.4 | 6.4 | 1.00 | (none acts) |
+| mage | Deep 49 k/min · farm lead | 7.4 | 7.2 | 7.5 | 1.04 | Practiced Hand + Practiced Hand |
+| mage | Sovereign 50 s · default | 54.0 (90 % won) | 42.8 (98 %) | 42.8 (98 %) | 1.00 | (none acts) |
+| mage | Sovereign 50 s · boss lead | 41.6 (98 %) | 37.4 (100 %) | 36.7 (100 %) | 1.02 | Practiced Hand + Practiced Hand |
+| hunter | Deep 49 k/min · default | 9.4 | 8.2 | 8.2 | 1.00 | (none acts) |
+| hunter | Deep 49 k/min · farm lead | 10.0 | 8.8 | 9.0 | 1.02 | Practiced Hand + Deep Wellspring |
+| hunter | Sovereign 50 s · default | 35.0 | 35.4 | 35.4 | 1.00 | (none acts) |
+| hunter | Sovereign 50 s · boss lead | 29.4 | 29.7 | 27.9 | 1.06 | Practiced Hand + Deep Wellspring |
+| warlock | Deep 49 k/min · default | 7.3 | 6.9 | 6.9 | 1.00 | (none acts) |
+| warlock | Deep 49 k/min · farm lead | 7.8 | 7.5 | 7.7 | 1.02 | Practiced Hand + Festering Craft |
+| warlock | Sovereign 50 s · default | 33.8 | 37.9 | 37.9 | 1.00 | (none acts) |
+| warlock | Sovereign 50 s · boss lead | 30.3 | 33.0 | 31.6 | 1.05 | Practiced Hand + Festering Craft |
+
+(Win rates are 100 % unless shown.) The effects add 2–7 % to a chosen loadout and exactly nothing to the default one. Against today's kit the pair is a sidegrade: it gives up the swapped ring's and neck's own Legendary effects and affixes, so in these kits it is at best even for farming (warrior 8.0 = 8.0) and a few percent at the Sovereign (warrior, hunter), and behind for the others: **older gear keeps its value**, and no number of an existing item, skill or band moved (no before/after change outside these new items). "Farm lead" and "boss lead" are 9.1's leading loadouts (docs/SKILLS.md "The leading loadouts").
 
 ## Mythics (`items/mythics.ts`)
 Six named items, each on its own `unique` tier-3 base with stronger implicit stats, the Mythic rarity’s five affixes and a fixed signature (no roll). They drop only where a loot table sets `mythics: true`: the **Sunken Abbey** and the **Gravewarden’s hoard** (ticket 4.8: also the **Ashen Pass** and the **Ashen Warden’s hoard**, with the Abbey's odds). There, a Mythic rarity roll picks among the Mythics the character’s class can use. Anywhere else a Mythic roll becomes a Legendary. Rate in the Abbey: about 0.05 % of item drops (≈ one per 50 h of Abbey farming); from the Gravewarden, 0.23 % per item, 2 items per kill.

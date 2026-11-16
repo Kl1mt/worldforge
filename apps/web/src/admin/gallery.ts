@@ -242,7 +242,7 @@ export interface GallerySkillClass {
 }
 
 function unlockLabel(unlock: { level: number; deed?: string }): string {
-  if (unlock.deed === 'forgeTyrantDefeated') return 'Forge Tyrant';
+  if (unlock.deed === 'forgeTyrantSkillLearned') return 'Forge Tyrant';
   if (unlock.deed) return 'Hollow Sovereign';
   return `Lv ${unlock.level}`;
 }

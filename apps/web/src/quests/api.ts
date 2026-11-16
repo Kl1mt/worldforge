@@ -4,6 +4,8 @@ import type {
   QuestObjective,
   QuestReward,
   RarityId,
+  SkillQuestBlocker,
+  SkillQuestId,
   StoryBlocker,
   StoryQuestId,
 } from '@worldforge/game-core';
@@ -18,8 +20,9 @@ export type QuestStatus = 'active' | 'ready' | 'turnedIn';
 export interface QuestDto {
   /** The accepted quest's id (used for turn-in). */
   id: string;
-  kind: 'story' | 'contract';
-  /** Story quest id or contract template id. */
+  /** Ticket 9.3: `skill`, a skill quest. */
+  kind: 'story' | 'contract' | 'skill';
+  /** Story quest id, contract template id or skill quest id. */
   questId: string;
   contractDay: string | null;
   objectives: QuestObjective[];
@@ -50,6 +53,22 @@ export interface QuestBoard {
     completed: StoryQuestId[];
   };
   contracts: { offers: ContractOfferDto[]; perDay: number; active: number; maxActive: number };
+  /** Ticket 9.3: the skill quests, in content order. */
+  skills: SkillQuestOfferDto[];
+}
+
+/** Ticket 9.3: a skill quest as the board shows it (docs/QUESTS.md "Skill quests"). */
+export interface SkillQuestOfferDto {
+  questId: SkillQuestId;
+  bossId: string;
+  skill: { id: string; name: string; kind: 'active' | 'passive'; level: number };
+  cost: Partial<Record<MaterialId, number>>;
+  missing: Partial<Record<MaterialId, number>>;
+  item: { baseId: string; rarityId: RarityId; itemLevel: number };
+  state: 'available' | 'locked' | 'active' | 'turnedIn';
+  blockers: SkillQuestBlocker[];
+  learned: boolean;
+  questRowId: string | null;
 }
 
 export interface TurnInResult {
@@ -78,7 +97,9 @@ export interface BatchTurnInResult {
 export type AcceptIntent =
   | { kind: 'story'; questId: StoryQuestId }
   /** `rewardSlot` (ticket 3.6): the chosen reward item slot of an Abbey contract. */
-  | { kind: 'contract'; slot: number; rewardSlot?: ItemSlotKind };
+  | { kind: 'contract'; slot: number; rewardSlot?: ItemSlotKind }
+  /** Ticket 9.3: a skill quest. */
+  | { kind: 'skill'; questId: SkillQuestId };
 
 const q = (id: string) => `/characters/${encodeURIComponent(id)}/quests`;
 
@@ -137,6 +158,8 @@ export function describeQuestFailure(error: Pick<ApiFailure, 'code'>): string {
       return 'The road to that contract is closed to you. It waits until you can reach the area.';
     case 'quest_already_turned_in':
       return 'You were already paid for that one.';
+    case 'quest_materials_missing':
+      return 'You do not carry what the quest asks for yet. Bring it, then come back.';
     case 'inventory_full':
       return 'Your pack is full. Make room for the reward, then come back.';
     case 'not_found':

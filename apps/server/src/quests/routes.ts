@@ -36,7 +36,7 @@ const acceptBodySchema = {
   required: ['kind'],
   additionalProperties: false,
   properties: {
-    kind: { type: 'string', enum: ['story', 'contract'] },
+    kind: { type: 'string', enum: ['story', 'contract', 'skill'] },
     questId: { type: 'string', minLength: 1, maxLength: 64 },
     slot: { type: 'integer', minimum: 0, maximum: 15 },
     /** Ticket 3.6: the reward item's slot, for contracts that offer a choice. */
@@ -157,11 +157,18 @@ export async function registerQuests(
           slot: body.slot,
           ...(body.rewardSlot !== undefined ? { rewardSlot: body.rewardSlot } : {}),
         };
+      } else if (
+        body.kind === 'skill' &&
+        body.questId !== undefined &&
+        body.slot === undefined &&
+        body.rewardSlot === undefined
+      ) {
+        accept = { kind: 'skill', questId: body.questId };
       } else {
         throw new ApiError(
           400,
           'validation_failed',
-          'Send { kind: "story", questId } or { kind: "contract", slot, rewardSlot? }.',
+          'Send { kind: "story" | "skill", questId } or { kind: "contract", slot, rewardSlot? }.',
         );
       }
       const world = await app.worldState.flags();

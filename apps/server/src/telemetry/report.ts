@@ -483,6 +483,17 @@ export async function reconcileWithAudit(db: Executor): Promise<ReconcileCheck[]
       audit('quest.turn_in', sql`count(*)`, sql`data->>'kind' = 'contract'`),
       sumRollups(rows, 'quest.reward', (d) => d[0] === 'contract'),
     ],
+    // Ticket 9.3: the skill quests and the older bosses' materials they take.
+    [
+      'quests: skill quest turn-ins',
+      audit('quest.turn_in', sql`count(*)`, sql`data->>'kind' = 'skill'`),
+      sumRollups(rows, 'quest.reward', (d) => d[0] === 'skill'),
+    ],
+    [
+      'quests: skill quest materials paid',
+      bundle('quest.turn_in', sql`a.data->'materialsPaid'`),
+      sumRollups(rows, 'material.out', src('skill_quest'), 'amount'),
+    ],
     [
       'quests: reward items',
       audit('quest.turn_in', sql`count(*)`, sql`jsonb_typeof(data->'item') = 'object'`),

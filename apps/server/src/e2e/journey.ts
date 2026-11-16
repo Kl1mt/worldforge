@@ -754,6 +754,8 @@ async function replayHoldings(
         gold += d.gold!;
         items += d.item ? 1 : 0;
         addMaterials(d.materials);
+        // Ticket 9.3: a skill quest takes an older boss's material at the turn-in.
+        addMaterials(d.materialsPaid, -1);
         break;
       case 'dungeon.claim':
         gold += d.gold!;
@@ -5217,4 +5219,94 @@ export async function playSkillsStep(database: DatabaseHandle, hero: Journey) {
   const checks = await reconcileWithAudit(database.db);
   expect(checks.filter((c) => !c.ok)).toEqual([]);
   return { level: hero.state.level, loadout: chosen };
+}
+
+/**
+ * Phase 9 skill quests step (ticket 9.3, docs/QUESTS.md "Skill quests"): from a hero of level 36+
+ * who can reach the Tyrant's Forge (seeded like 6.10's Phase 6 heroes: `baseline`). The Tyrant's
+ * skill is refused, the Tyrant's Lesson is taken, the Forge fought until the Tyrant falls
+ * (bounded), Gravewarden's Seals earned in crypt hoards (the clock moves past the hoard's
+ * cooldown), the quest turned in (replayed, paid once), the skill saved and fought with.
+ * Everything reconciles with the audit log.
+ */
+export async function playSkillQuestStep(
+  database: DatabaseHandle,
+  hero: Journey,
+  baseline: HoldingsBaseline,
+  clock: { now: () => number; set: (ms: number) => void },
+) {
+  const { api, base, state, keyed } = hero;
+  const board = async () => {
+    const res = await api('GET', `${base}/quests`);
+    expect(res.statusCode, res.body).toBe(200);
+    return res.json<QuestBoardResponse>();
+  };
+  const seals = async () =>
+    (await api('GET', `${base}/materials`))
+      .json<{ materials: { materialId: string; quantity: number }[] }>()
+      .materials.find((m) => m.materialId === 'gravewardenSeal')?.quantity ?? 0;
+  const lesson = (b: QuestBoardResponse) => b.skills.find((s) => s.questId === 'theTyrantsLesson')!;
+  const first = lesson(await board());
+  expect(first).toMatchObject({ state: 'available', learned: false, cost: { gravewardenSeal: 2 } });
+  const taught = first.skill.id;
+  const core =
+    AUTO_SKILLS[(await api('GET', `${base}/skills`)).json<{ classId: ClassId }>().classId].id;
+  const loadout = { actives: [core, taught, null], passive: null };
+  const refused = await api('PUT', `${base}/skills/presets/1`, loadout);
+  expect(refused.statusCode).toBe(400);
+
+  const took = await api('POST', `${base}/quests`, { kind: 'skill', questId: 'theTyrantsLesson' });
+  expect(took.statusCode, took.body).toBe(201);
+  expect(lesson(took.json<QuestBoardResponse>()).state).toBe('active');
+  const rowId = lesson(await board()).questRowId!;
+
+  // The Forge until the Tyrant falls (bounded; a loss is a run like any other).
+  const forgeBefore = state.forge.length;
+  while (!state.forge.slice(forgeBefore).some((f) => f.bossDefeated)) {
+    expect(
+      state.forge.length - forgeBefore,
+      'the Tyrant should fall within a few runs',
+    ).toBeLessThan(20);
+    await hero.sellJunk(await hero.inventory());
+    await hero.runDungeon('tyrantsForge');
+  }
+  const ready = (await board()).quests.find((q) => q.id === rowId)!;
+  expect(ready.status).toBe('ready');
+
+  // Seals from crypt hoards, one per hoard; the hoard waits out its cooldown between runs.
+  for (let i = 0; i < 8 && (await seals()) < 2; i++) {
+    clock.set(clock.now() + 21 * HOUR);
+    await hero.sellJunk(await hero.inventory());
+    await hero.runCrypt(3);
+  }
+  const held = await seals();
+  expect(held).toBeGreaterThanOrEqual(2);
+
+  const key = randomUUID();
+  const done = await keyed(`${base}/quests/${rowId}/turn-in`, undefined, key);
+  expect(done.statusCode, done.body).toBe(200);
+  const body = done.json<{ quests: QuestBoardResponse; reward: { item: ItemView } }>();
+  expect(lesson(body.quests)).toMatchObject({ state: 'turnedIn', learned: true });
+  expect(body.reward.item).toMatchObject({
+    baseId: 'masters-ember-band',
+    rarityId: 'legendary',
+    setId: 'masters-lessons',
+    binding: 'account',
+  });
+  const replay = await keyed(`${base}/quests/${rowId}/turn-in`, undefined, key);
+  expect(replay.headers['idempotency-replayed']).toBe('true');
+  expect((await keyed(`${base}/quests/${rowId}/turn-in`)).statusCode).toBe(409);
+  expect(await seals()).toBe(held - 2);
+
+  // The skill is learned: saved, and fought with.
+  const saved = await api('PUT', `${base}/skills/presets/1`, loadout);
+  expect(saved.statusCode, saved.body).toBe(200);
+  await hero.farmBestArea();
+  await hero.settle();
+  await api('POST', `${base}/activity/stop`);
+
+  await expectHoldingsMatchAudit(database, hero.characterId, baseline);
+  const checks = await reconcileWithAudit(database.db);
+  expect(checks.filter((c) => !c.ok)).toEqual([]);
+  return { forgeRuns: state.forge.length - forgeBefore, seals: held, skill: taught };
 }

@@ -1101,6 +1101,39 @@ export const ITEM_BASES: readonly ItemBaseDefinition[] = [
       { stat: 'health', base: 8, perLevel: 2.2 },
     ],
   },
+  // Ticket 9.3: the skill quests' reward bases (docs/QUESTS.md "Skill quests"), appended last so
+  // every earlier base keeps its order. `unique`: no loot table drops them; a quest grants each
+  // once. Their Legendaries roll only the skill-aware effects (`SKILL_QUEST_BASES`), and the two
+  // together are the Masters' Lessons (`items/sets.ts`). Stats like the tier's ring and neck;
+  // placeholder icons until an art ticket draws them.
+  {
+    id: 'masters-ember-band',
+    name: 'Ember Band of the Masters',
+    slot: 'ring',
+    icon: 'item.wispfire-band',
+    classes: ALL_CLASSES,
+    tier: 4,
+    minItemLevel: 36,
+    unique: true,
+    stats: [
+      { stat: 'resistance', base: 5, perLevel: 1 },
+      { stat: 'health', base: 7, perLevel: 2 },
+    ],
+  },
+  {
+    id: 'masters-hollow-torc',
+    name: 'Hollow Torc of the Masters',
+    slot: 'neck',
+    icon: 'item.requiem-locket',
+    classes: ALL_CLASSES,
+    tier: 5,
+    minItemLevel: 46,
+    unique: true,
+    stats: [
+      { stat: 'resistance', base: 6, perLevel: 1.1 },
+      { stat: 'health', base: 11, perLevel: 2.64 },
+    ],
+  },
 ];
 
 const BASES_BY_ID = new Map(ITEM_BASES.map((b) => [b.id, b]));

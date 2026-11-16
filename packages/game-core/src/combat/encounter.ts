@@ -4,7 +4,7 @@ import { getEnemy, type EnemyDefinition, type EnemyId } from '../world/enemies.j
 import type { Rng } from '../rng.js';
 import { STAT_LIMITS, type StatBlock } from './characterStats.js';
 import { AUTO_SKILLS } from './skills.js';
-import { hasCombatEffects } from '../effects/resolve.js';
+import { hasCombatEffects, hasSkillEffects } from '../effects/resolve.js';
 import type { CombatEffects } from '../effects/types.js';
 import {
   compileKit,
@@ -523,13 +523,36 @@ function buildEncounterWith(
   }
   if (loadout) {
     setup.kit = compileKit(
-      loadout,
+      withSkillEffects(loadout, context?.effects),
       { dealt, critDamage, critChance, enemyHealth: e.health },
       fragments,
       pvp?.skillKeep ?? 1,
     );
   }
   return setup;
+}
+
+/**
+ * Ticket 9.3: the skill-aware effects (`skillSpender`, `skillDot`, `skillThrift`) folded into the
+ * loadout the kit compiles, as passive modifiers add up. Without them the loadout is returned as
+ * it is, so every kit (and its cache key) is the pre-9.3 one.
+ */
+function withSkillEffects(loadout: ResolvedLoadout, fx?: CombatEffects): ResolvedLoadout {
+  if (!hasSkillEffects(fx)) return loadout;
+  const spender = fx!.skillSpender ?? 0;
+  const dot = fx!.skillDot ?? 0;
+  const thrift = fx!.skillThrift ?? 0;
+  const p = loadout.passive;
+  return {
+    ...loadout,
+    key: `${loadout.key}|fx:${spender}:${dot}:${thrift}`,
+    passive: {
+      ...p,
+      ...(spender > 0 ? { spenderDamage: (p.spenderDamage ?? 0) + spender } : {}),
+      ...(dot > 0 ? { dotDamage: (p.dotDamage ?? 0) + dot } : {}),
+    },
+    ...(thrift > 0 ? { costReduction: thrift } : {}),
+  };
 }
 
 /** Effects that act inside a fight (boss slayer, life on kill and bloodrush act around it). */

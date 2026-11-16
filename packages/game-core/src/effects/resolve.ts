@@ -108,6 +108,8 @@ export function combineEffects(
 ): CombatEffects {
   const fx = emptyCombatEffects();
   let fortitudeThreshold = Infinity;
+  // Ticket 9.3: skill-aware magnitudes, written to `fx` only when on (absent otherwise).
+  const skill = { skillSpender: 0, skillDot: 0, skillThrift: 0 };
   for (const instance of distinctEffects(instances)) {
     const definition = findEffect(instance.effectId);
     if (!definition || (definition.classId !== undefined && definition.classId !== classId)) {
@@ -152,6 +154,15 @@ export function combineEffects(
         case 'skillRot':
           fx.skillRot += c.fraction;
           break;
+        case 'skillSpender':
+          skill.skillSpender += c.bonus;
+          break;
+        case 'skillDot':
+          skill.skillDot += c.bonus;
+          break;
+        case 'skillThrift':
+          skill.skillThrift += c.reduction;
+          break;
       }
     }
   }
@@ -179,6 +190,10 @@ export function combineEffects(
   fx.skillSurge = cap(fx.skillSurge, caps.skillSurge);
   fx.skillOpener = cap(fx.skillOpener, caps.skillOpener);
   fx.skillRot = cap(fx.skillRot, caps.skillRot);
+  for (const k of ['skillSpender', 'skillDot', 'skillThrift'] as const) {
+    const v = cap(skill[k], caps[k]);
+    if (v > 0) fx[k] = v;
+  }
   return fx;
 }
 
@@ -196,7 +211,16 @@ export function hasCombatEffects(fx: CombatEffects | undefined): fx is CombatEff
     fx.skillRage > 0 ||
     fx.skillSurge > 0 ||
     fx.skillOpener > 0 ||
-    fx.skillRot > 0
+    fx.skillRot > 0 ||
+    hasSkillEffects(fx)
+  );
+}
+
+/** Ticket 9.3: whether a skill-aware effect is on (they act only on a loadout's kit). */
+export function hasSkillEffects(fx: CombatEffects | undefined): boolean {
+  return (
+    fx !== undefined &&
+    ((fx.skillSpender ?? 0) > 0 || (fx.skillDot ?? 0) > 0 || (fx.skillThrift ?? 0) > 0)
   );
 }
 
@@ -237,14 +261,24 @@ export function itemEffectInstances(item: EffectCarrier): EffectInstance[] {
   ];
 }
 
+/**
+ * Ticket 9.3: bases some effect names (`EffectDefinition.bases`) roll only the effects naming
+ * them, and those effects roll only there; every other base's pool is the pre-9.3 one.
+ */
+const EFFECT_ONLY_BASES = new Set(EFFECTS.flatMap((e) => e.bases ?? []));
+function onItsBases(e: EffectDefinition, base: Pick<ItemBaseDefinition, 'id'>): boolean {
+  return e.bases ? e.bases.includes(base.id) : !EFFECT_ONLY_BASES.has(base.id);
+}
+
 /** Legendary effects that can roll on a base (slot, and class effects only for their class). */
 export function legendaryEffectPool(
-  base: Pick<ItemBaseDefinition, 'slot' | 'classes'>,
+  base: Pick<ItemBaseDefinition, 'id' | 'slot' | 'classes'>,
   classId?: ClassId,
 ): EffectDefinition[] {
   return EFFECTS.filter(
     (e) =>
       e.kind === 'legendary' &&
+      onItsBases(e, base) &&
       (e.weight ?? 0) > 0 &&
       e.slots?.includes(base.slot) === true &&
       (e.classId === undefined ||
@@ -255,10 +289,11 @@ export function legendaryEffectPool(
 /** Whether a Legendary effect could have rolled on a base for *some* class (validation). */
 export function legendaryEffectPossibleOn(
   effect: EffectDefinition,
-  base: Pick<ItemBaseDefinition, 'slot' | 'classes'>,
+  base: Pick<ItemBaseDefinition, 'id' | 'slot' | 'classes'>,
 ): boolean {
   return (
     effect.kind === 'legendary' &&
+    onItsBases(effect, base) &&
     (effect.weight ?? 0) > 0 &&
     effect.slots?.includes(base.slot) === true &&
     (effect.classId === undefined || base.classes.includes(effect.classId))

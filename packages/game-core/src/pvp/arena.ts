@@ -101,7 +101,7 @@ export function snapshotLoadout(snapshot: DuelSnapshot): Loadout | null {
   if (!l) return null;
   const facts = {
     level: snapshot.level,
-    progress: { forgeTyrantDefeated: true, hollowSovereignDefeated: true },
+    progress: { forgeTyrantSkillLearned: true, hollowSovereignSkillLearned: true },
   };
   const checked = effectiveLoadout(snapshot.classId, l, facts);
   return isDefaultLoadout(snapshot.classId, checked) ? null : checked;

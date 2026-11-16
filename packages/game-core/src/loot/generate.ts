@@ -296,7 +296,9 @@ export function generateItem(
     item.mythicId = mythic.id;
   } else if (set) {
     item.setId = set.id;
-  } else if (rarityId === 'legendary') {
+  }
+  // Ticket 9.3: a quest set's piece (the Masters' Lessons) also rolls its base's effect.
+  if (!mythic && rarityId === 'legendary' && (!set || set.questOnly === true)) {
     // Drawn after everything else, so the rest of the item rolls exactly as before ticket 3.2.
     const effects = legendaryEffectPool(base, params.classId);
     if (effects.length > 0) {

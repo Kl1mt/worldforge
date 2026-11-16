@@ -133,12 +133,20 @@ export const RESOURCE_RULES: Readonly<Record<ClassId, ResourceRules>> = {
   },
 };
 
-/** How a skill unlocks: a level, and for the later-content skills a deed (a boss's progress flag). */
+/**
+ * How a skill unlocks: a level, and for the later-content skills a deed (a progress flag). Ticket
+ * 9.3: the deed is the skill quest's (`quests/skill-quests.ts`), no longer the boss kill.
+ */
 export interface SkillUnlock {
   level: number;
-  /** Ticket 9.1: the Phase 6 and 8 skills ask for a boss this hero has felled. */
-  deed?: 'forgeTyrantDefeated' | 'hollowSovereignDefeated';
+  /**
+   * Ticket 9.1 asked for the boss's kill flag; since 9.3 the skill quest's flag (a boss kill and
+   * an older boss's material, turned in at the Tavern).
+   */
+  deed?: SkillDeed;
 }
+
+export type SkillDeed = 'forgeTyrantSkillLearned' | 'hollowSovereignSkillLearned';
 
 /** Damage over time: `perTick` × the 1× hit (after mitigation) on each of the next `ticks` pulses. */
 export interface DotDefinition {
@@ -286,7 +294,7 @@ export const ACTIVE_SKILLS: readonly ActiveSkillDefinition[] = [
     id: 'forgebreaker',
     name: 'Forgebreaker',
     classId: 'warrior',
-    unlock: { level: 36, deed: 'forgeTyrantDefeated' },
+    unlock: { level: 36, deed: 'forgeTyrantSkillLearned' },
     cost: 60,
     consumeAll: true,
     damageMultiplier: 1,
@@ -350,7 +358,7 @@ export const ACTIVE_SKILLS: readonly ActiveSkillDefinition[] = [
     id: 'emberstorm',
     name: 'Emberstorm',
     classId: 'mage',
-    unlock: { level: 36, deed: 'forgeTyrantDefeated' },
+    unlock: { level: 36, deed: 'forgeTyrantSkillLearned' },
     cost: 0,
     readyAtMs: 10_000,
     cooldownMs: 15_000,
@@ -418,7 +426,7 @@ export const ACTIVE_SKILLS: readonly ActiveSkillDefinition[] = [
     id: 'trueShot',
     name: 'True Shot',
     classId: 'hunter',
-    unlock: { level: 36, deed: 'forgeTyrantDefeated' },
+    unlock: { level: 36, deed: 'forgeTyrantSkillLearned' },
     cost: 50,
     damageMultiplier: 1.6,
     bonusCritChance: 0.4,
@@ -484,7 +492,7 @@ export const ACTIVE_SKILLS: readonly ActiveSkillDefinition[] = [
     id: 'soulHarvest',
     name: 'Soul Harvest',
     classId: 'warlock',
-    unlock: { level: 36, deed: 'forgeTyrantDefeated' },
+    unlock: { level: 36, deed: 'forgeTyrantSkillLearned' },
     cost: 4,
     consumeAll: true,
     damageMultiplier: 1.0,
@@ -533,7 +541,7 @@ export const PASSIVE_SKILLS: readonly PassiveSkillDefinition[] = [
     id: 'hollowWrath',
     name: 'Hollow Wrath',
     classId: 'warrior',
-    unlock: { level: 46, deed: 'hollowSovereignDefeated' },
+    unlock: { level: 46, deed: 'hollowSovereignSkillLearned' },
     modifiers: { spenderDamage: 0.1 },
     description: 'Taught by the Hollow Sovereign’s fall: Rage skills +10 %.',
   },
@@ -573,7 +581,7 @@ export const PASSIVE_SKILLS: readonly PassiveSkillDefinition[] = [
     id: 'kindling',
     name: 'Kindling',
     classId: 'mage',
-    unlock: { level: 46, deed: 'hollowSovereignDefeated' },
+    unlock: { level: 46, deed: 'hollowSovereignSkillLearned' },
     modifiers: { dotDamage: 0.4, spenderDamage: 0.05 },
     description: 'Taught by the Hollow Sovereign’s fall: burns +40 %, Mana skills +5 %.',
   },
@@ -613,7 +621,7 @@ export const PASSIVE_SKILLS: readonly PassiveSkillDefinition[] = [
     id: 'hollowMark',
     name: 'Hollow Mark',
     classId: 'hunter',
-    unlock: { level: 46, deed: 'hollowSovereignDefeated' },
+    unlock: { level: 46, deed: 'hollowSovereignSkillLearned' },
     modifiers: { dotDamage: 0.4, spenderDamage: 0.05 },
     description: 'Taught by the Hollow Sovereign’s fall: bleeds +40 %, Focus skills +5 %.',
   },
@@ -654,7 +662,7 @@ export const PASSIVE_SKILLS: readonly PassiveSkillDefinition[] = [
     id: 'hollowCovenant',
     name: 'Hollow Covenant',
     classId: 'warlock',
-    unlock: { level: 46, deed: 'hollowSovereignDefeated' },
+    unlock: { level: 46, deed: 'hollowSovereignSkillLearned' },
     modifiers: { spenderDamage: 0.1, dotDamage: 0.1 },
     description: 'Taught by the Hollow Sovereign’s fall: shadow skills +10 %, curses +10 %.',
   },

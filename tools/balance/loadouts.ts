@@ -296,7 +296,7 @@ if (mode === 'power') {
       const def = power(null, 'on');
       const hero = {
         level,
-        progress: { forgeTyrantDefeated: true, hollowSovereignDefeated: true },
+        progress: { forgeTyrantSkillLearned: true, hollowSovereignSkillLearned: true },
       };
       const scored = allLoadouts(c, hero, true)
         .map((l) => ({ l, p: power(l, 'on') }))

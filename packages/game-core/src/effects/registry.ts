@@ -1,5 +1,8 @@
 import type { EffectCaps, EffectDefinition } from './types.js';
 
+/** Ticket 9.3: the skill quests' reward bases (`items/bases.ts`), the only home of the skill-aware Legendaries. */
+export const SKILL_QUEST_BASES = ['masters-ember-band', 'masters-hollow-torc'] as const;
+
 /** Slot kinds of the class effects (same as the class-flavoured affixes, ticket 3.1). */
 const CLASS_EFFECT_SLOTS = ['weapon', 'offhand', 'hands', 'neck'] as const;
 
@@ -184,6 +187,39 @@ export const EFFECTS: readonly EffectDefinition[] = [
     text: 'Each kill grants {0.perStack} attack speed, up to {0.maxStacks} times, and restores {1.heal} of your health. Dying or failing a fight ends the streak; a stack fades every {0.decayMs} out of combat.',
   },
 
+  // — Ticket 9.3: skill-aware Legendary effects, only on the skill quests' new bases (so no
+  // older base's pool or draw changes). They act on a chosen loadout's kit only (docs/EFFECTS.md
+  // "Skill-aware effects"): the default loadout has no spender, tick or cost, so nothing moves.
+  {
+    id: 'practiced-hand',
+    name: 'Practiced Hand',
+    kind: 'legendary',
+    slots: ['ring', 'neck'],
+    bases: SKILL_QUEST_BASES,
+    weight: 10,
+    components: [{ type: 'skillSpender', bonus: { min: 0.06, max: 0.12 } }],
+    text: 'The skills in your slots 2 and 3 deal {0.bonus} more damage.',
+  },
+  {
+    id: 'festering-craft',
+    name: 'Festering Craft',
+    kind: 'legendary',
+    slots: ['ring', 'neck'],
+    bases: SKILL_QUEST_BASES,
+    weight: 10,
+    components: [{ type: 'skillDot', bonus: { min: 0.15, max: 0.3 } }],
+    text: 'Your damage over time deals {0.bonus} more damage.',
+  },
+  {
+    id: 'deep-wellspring',
+    name: 'Deep Wellspring',
+    kind: 'legendary',
+    slots: ['ring', 'neck'],
+    bases: SKILL_QUEST_BASES,
+    weight: 10,
+    components: [{ type: 'skillThrift', reduction: { min: 0.1, max: 0.2 } }],
+    text: 'The skills in your slots 2 and 3 cost {0.reduction} less of your resource.',
+  },
   // — Set bonuses (ticket 3.3; fixed; see `ITEM_SETS`). Active at 2, 4 and 6 distinct pieces;
   // they stack with each other and with item effects up to `DEFAULT_EFFECT_CAPS`.
   {
@@ -238,6 +274,17 @@ export const EFFECTS: readonly EffectDefinition[] = [
     ],
     text: 'Deal {0.bonus} more damage to bosses. Your class skill also rots away {1.fraction} of the enemy’s remaining health (at most the skill’s own damage).',
   },
+  // Ticket 9.3: the Masters' Lessons (the two skill quests' rewards worn together).
+  {
+    id: 'lessons-mastery',
+    name: 'Mastery',
+    kind: 'set',
+    components: [
+      { type: 'skillSpender', bonus: 0.05 },
+      { type: 'skillDot', bonus: 0.1 },
+    ],
+    text: 'The skills in your slots 2 and 3 deal {0.bonus} more damage, and your damage over time {1.bonus} more.',
+  },
   {
     id: 'bloodmoon-scent',
     name: 'Scent of Blood',
@@ -273,6 +320,10 @@ export const DEFAULT_EFFECT_CAPS: Readonly<EffectCaps> = {
   skillSurge: 2,
   skillOpener: 0.7,
   skillRot: 0.05,
+  // Ticket 9.3: the best Legendary roll and the set bonus together stay under these.
+  skillSpender: 0.2,
+  skillDot: 0.45,
+  skillThrift: 0.25,
 };
 
 const EFFECTS_BY_ID = new Map(EFFECTS.map((e) => [e.id, e]));
