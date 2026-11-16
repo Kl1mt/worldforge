@@ -140,6 +140,12 @@ export interface AppOptions extends FastifyServerOptions {
   leaderboards?: { readLimit?: { max: number; windowMs: number } };
   /** Ticket 6.9: shared state across API instances (docs/DEPLOY.md "Running two API instances"). */
   shared?: SharedStateOptions;
+  /**
+   * Ticket 9.6: tests only. Where a Shrine draw's seed comes from (default `crypto`), so a run can
+   * pin one draw to a seed game-core shows producing the case it needs (CLAUDE.md "Writing tests
+   * that don't flake"). Every seed is still stored with its draw and replayed by game-core.
+   */
+  shrine?: { drawSeed?: () => string };
 }
 
 export function buildApp({
@@ -153,6 +159,7 @@ export function buildApp({
   settings,
   leaderboards,
   shared,
+  shrine,
   ...options
 }: AppOptions): FastifyInstance {
   const app = Fastify({
@@ -259,7 +266,10 @@ export function buildApp({
       await registerEvents(api, activityOptions);
       await registerCosmetics(api, { now: activityOptions.now });
       await registerAccountGrowth(api, activityOptions);
-      await registerShrine(api, { now: activityOptions.now });
+      await registerShrine(api, {
+        now: activityOptions.now,
+        ...(shrine?.drawSeed ? { drawSeed: shrine.drawSeed } : {}),
+      });
       await registerArena(api, activityOptions);
       if (testRoutes) await testRoutes(api);
 
