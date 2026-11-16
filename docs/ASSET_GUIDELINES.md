@@ -7,7 +7,7 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | Path | Contents |
 |---|---|
 | `art/source/pixellab/<batch>/` | Raw generator output, unedited: `NN.png`, `_contact-sheet.png`, `_job.json` (prompt, size, seed, job id). Never served. |
-| `apps/web/public/assets/{items,enemies,characters,areas,hub,map,materials,achievements,guild-emblems,frames,badges,banners,crests,skills}/` | Curated picks at **native resolution**, kebab-case names (`iron-helm.png`). |
+| `apps/web/public/assets/{items,enemies,characters,areas,hub,map,materials,achievements,guild-emblems,frames,badges,banners,crests,skills,companions}/` | Curated picks at **native resolution**, kebab-case names (`iron-helm.png`). |
 | `apps/web/public/assets/manifest.json` | One entry per curated asset (see below). |
 | `art/preview-phase-0.png` | Combined preview of all curated Phase 0 assets. |
 | `art/preview-class-portraits.png` | The four class portraits side by side at ×3. |
@@ -23,6 +23,7 @@ How Worldforge pixel art is produced, stored and rendered. Art direction comes f
 | `art/preview-cinderwastes.png` | The Cinderwastes enemies at ×1 and ×2 next to the cinder hound and ember golem, the Forge Tyrant next to the Ashen Warden, both backdrops next to the Ashen Pass, and the enemies over the Cinderwastes (A.11). Rebuild with `python3 tools/art/preview_cinderwastes.py`. |
 | `art/preview-hollow-reach.png` | The Hollow Reach enemies at ×1 and ×2 next to the cinder revenant and ash colossus, their attack sheets at ×2, the Hollow Sovereign next to the Forge Tyrant, both backdrops next to the Cinderwastes and the Cinder Depths, and the foes and the boss over their backdrops (A.17). Rebuild with `python3 tools/art/preview_hollow_reach.py`. |
 | `art/preview-skill-icons.png` | The 48 skill icons (A.18), per class in `docs/SKILLS.md` order at ×2 over ×1, above a row of item and achievement icons for scale. Rebuild with `python3 tools/art/skill_icons.py`. |
+| `art/preview-shrine.png` | The Reward Shrine's art (A.19): the hub's right end cold and with the lit shrine at its hotspot, the ten companions' two idle frames at ×2 and ×1, companions beside each class in a scene at the scene's ratio, the Candlelight look on every class, the votive veil banner and the votive ash crest next to their sources. Rebuild with `python3 tools/art/preview_shrine.py`. |
 | `art/preview-tier5-icons.png` | The ten tier-5 item icons (A.17) at ×1 and ×2 next to their tier-4 counterparts, then inside every rarity frame, Void and Prismatic (the game's own frame CSS). Rebuild with `node tools/art/preview_tier5_icons.mjs`. |
 | `art/preview-tier4-icons.png` | The ten tier-4 item icons (A.15) at ×1 and ×2 next to their tier-3 counterparts, then inside every rarity frame and the Void treatment (the game's own frame CSS). Rebuild with `node tools/art/preview_tier4_icons.mjs`. |
 | `art/preview-prismatic.png` | The Prismatic treatment (A.12): icons of tiers 1–4, Mythics and set pieces in the Legendary, Mythic and set frames, each plain, Void and Prismatic, at ×2 and ×1 (the game's own frame CSS, the sweep at rest). Rebuild with `node tools/art/preview_prismatic.mjs` (`--gif <dir>` also films Void's motion next to Prismatic's shimmer, A.12b). |
@@ -44,6 +45,7 @@ Curated files are byte-for-byte copies of a raw variant. Do not hand-edit them i
 | Banner style | 32×32 | Same pixel scale as the A.8 heraldry: a dark cloth banner on an iron crossbar with one charge. |
 | Crest style | 48×56 | Shield-shaped frame; the window (4, 4, 40×48) is the `md` guild crest's box. |
 | Title badge | 32×32 | Same pixel scale as item icons: a brass-rimmed dark disc with one emblem. |
+| Companion | 32×32 per frame | A two-frame idle sheet (64×32), transparent, stored facing right; walkers stand on the bottom row, floaters hover with a row of air above. Drawn at the scene's sprite scale beside the hero (a quarter of its height). |
 | Enemy | 64×64 | Transparent background, full body, feet on the bottom rows. |
 | Character | 128×128 | Transparent background, full body. |
 | Frame sheet | N × (frame size) in one row | Same frame size and treatment as the still; frame 0 is the still itself (A.14). |
@@ -145,11 +147,12 @@ It uses only the async flow: it POSTs, then polls `GET /background-jobs/{id}` ev
 ```
 
 - `id` is `<kind>.<kebab-name>` and stays stable once referenced by content data.
-- `kind` is one of `item | material | enemy | character | area | hub | map | achievement | guild-emblem | frame | badge | banner | crest | skill`.
+- `kind` is one of `item | material | enemy | character | area | hub | map | achievement | guild-emblem | frame | badge | banner | crest | skill | companion`.
 - `frames` (frame sheets only): the number of frames in the row; `size` is one frame's size, so the PNG is `frames × width` wide.
 - `lead` (frame sheets only, A.14b): pixels of strike room in each frame before the sprite, on its facing side; the frame is the still's width plus `lead`, and the UI pulls the sheet back by `lead × scale`.
 - The optional fields are `slot` (items, using the GDD §7.1 slot family: `weapon`, `offhand`, `head`, `chest`, `hands`, `feet`, `neck`, `ring`) and `facing` (sprites).
 - `hotspots` (`hub` only): clickable buildings as `{ id, label, x, y, width, height }` rectangles in native image pixels (origin top-left). Building ids: `forge`, `merchant`, `tavern`, `guildHall`, `warehouse`, `summoningShrine`, `worldMap` (the signpost and map table). Rectangles do not overlap. Whether a building is locked is game state, not art data.
+- `hotspot` (`hub` overlays only, A.19): the id of the `hub.graumark` hotspot the art is cut to; draw it at that rectangle's `x`, `y` at the hub's scale.
 - `window` (`frame` and `crest` only): `{ x, y, width, height }`, the content box in native frame pixels (see the A.10 section).
 - `markers` (`map` only): `{ id, x, y }` centre points in native image pixels, one per `AreaId` (including the dungeon `namelessCrypt`) plus `hub` for the town of Graumark.
 
@@ -242,6 +245,22 @@ The world map came out with opaque white pixels along its burnt edge (about 1,15
 - Cleanup (`tools/art/skill_icons.py`, saved as `icons-skills-<class>-01/edits/NN-clean.png`): A.15's, alpha 0/255 with RGB 0 under transparent pixels, and ember highlights above value 0.86 compressed towards it, so the Mage's fire sits with the rest of the set. Greys, outline and hue are untouched.
 - A web test checks that every game-core skill has its own 32×32 file and a `skill` manifest entry, and that an unknown skill gives `null`. The admin animation gallery shows them per class with their unlock.
 - Preview: `art/preview-skill-icons.png`.
+
+## The Reward Shrine & companions (ticket A.19)
+
+Art for ticket 9.5 (the Reward Shrine and companions), which reads it by these keys. Nothing is drawn on a player's screen by this ticket alone; the admin animation gallery's **Companions** section plays every idle and shows the lit shrine.
+
+- **The lit shrine** `hub.shrine` (`/assets/hub/shrine-lit.png`, 18×34, opaque, `"hotspot": "summoningShrine"`, helper `litShrine()` with its `x`, `y`): exactly the hub's `summoningShrine` hotspot rectangle (x 366, y 112), cut from the hub's own pixels and lit, so it is drawn over `hub.graumark` at the hotspot at the hub's integer scale and nothing moves. Drawn in code (`tools/art/shrine_lit.py`, no generations; a 32 px generation cannot match the hub's pixel scale in an 18-pixel cut): every candle stub and wax speck on the shrine's step gets a flame (a pale core, an amber tip), the stone, ground and wood around them catch warm light in three steps that fall off with distance and fade out before the cut's left and bottom edges, and the slab's carved recess holds a dim violet rune (restrained violet = magic). 61 colours. The two candles left of the rectangle (by the cart, x 360 and 364) are outside the hotspot and stay unlit. Saved as `hub-graumark-01/edits/shrine-lit.png`; the raw hub is unchanged.
+- **Companions**, `companion.<name>` = ticket 9.5's cosmetic ids (`/assets/companions/<name>.png`, kind `companion`, helper `companionSprite(cosmeticId)`, list `COMPANION_IDS`): `grave-moth`, `bone-rat`, `bog-toad`, `ash-raven`, `candle-wisp`, `crypt-cat`, `ember-newt`, `barrow-owl`, `hollow-wisp`, `cinder-pup`. Each is a **two-frame idle**, 32×32 frames in one 64×32 row (`"frames": 2`), stored **facing right** (toward the foes) and never mirrored at render time. Frame 0 is the still; frame 1 is made in code (no animation generations): walkers **breathe** (everything above the bottom four rows sinks one pixel onto the feet), floaters (the moth and the wisps) **bob** (the whole sprite rises one pixel). Play it slowly (about a second a frame) with the `steps(2)` strip of `PixelSprite`; the gallery uses 1.1 s for the pair. At the scene's sprite scale (backdrop ×N, sprites ×N/2) a companion is a quarter of the hero's height: stand it at the hero's feet on the foes' side.
+  - The look: the setting's dark-fantasy animals and wisps, near-black outlines, muted fur and feather; the only bright ones are the wisps (candle amber, Hollow blue-white) and the newt's and pup's ember cracks. The rarer ones read richer (9.5's hallowed: the Hollow wisp, the cinder pup).
+  - **Recolours** to 9.5's descriptions (`tools/art/companions.py` `recolour`, luma kept): the crypt cat is the grey cat darkened to black with its amber eyes kept and a notch out of the near ear (one ear torn); the bone rat is the grey rat paled to bone, its pink ears and tail kept; the ash raven is the raven's blue-black lifted to ash grey.
+  - Clean-up: alpha 0/255, RGB 0 under transparent pixels, centred, walkers on the bottom row, floaters with a row of air above and two below.
+- **Jobs** (3, no regeneration, 30 generations, balance 1,193 → 1,163), each one family of 32 px subjects in one prompt, eight variants per subject: `companions-animals-01` (style image `enemies/corrupted-crow.png`; raven, cat, fox, owl, toad, bat, rat, moth), `companions-wisps-01` (style `enemies/abbey-wraith.png`; pale wisp, candle wisp, violet soul wisp, ghost hound pup, lantern spirit, skull wisp) and `companions-cinder-01` (style `enemies/slag-hound.png`; the ember newt and the cinder pup, which the first two jobs had no subject for once 9.5 named its pool; many of its variants hold both creatures, the picks hold one). A 64 px style image for 32 px output works. Picks (`PICKS`): moth `animals/57`, rat `51`, toad `33`, raven `03`, cat `10`, owl `24`; candle wisp `wisps/10`, Hollow wisp `00`; newt `cinder/27`, pup `05` (mirrored). **Unused but good**, should the pool grow: the fox (`animals/16–23`), the bat (`40–47`, dark on dark ground), the violet soul wisp (`wisps/03`, `18`…), the ghost hound pup (`04`, `12`…), the hooded lantern spirit (`06`, `14`…) and the skull wisp (`07`; its cyan is too bright for the set).
+- **Palette variants** for 9.5's Shrine-only cosmetics, reusing existing art (no generations):
+  - `appearance.candlelight` ("gear warmed to wax and gold"): a sixth theme of `tools/art/hero_palettes.py` (wax-tan cloth, candle-gold metal, wax-brown leather, flame-gold glints), regenerated into `content/palettes.ts` like the others and checked by `palettes.test.ts`.
+  - `banner.votive-veil` (the Watch's flame, `banner.warden-flame`, on a smoke-grey veil with the flame in candle gold) and `crest.votive-ash` (the iron crest paled to ash grey with candle-brass plates and bolts): **files**, not CSS tints (`tools/art/shrine_variants.py`): each pixel is recoloured by role (outline kept; banner cloth, device, the crossbar kept; crest band and plates), hue and saturation from the theme, luma kept times a factor. Being files, they resolve by id like A.13's styles (`bannerStyleAsset`, `crestStyleAsset`, `CREST_STYLE_WINDOW`) and look the same in the book, the profile and on the portrait's device.
+- A web test checks that the lit shrine is exactly the hotspot's rectangle and file size, that every companion is a 64×32 two-frame right-facing sheet with a `companion` entry, one file each, and that the new banner and crest resolve to files of their kind's size. 9.5's own test can replace `COMPANION_IDS` with the catalogue's companions.
+- Preview: `art/preview-shrine.png`.
 
 ## Achievement & guild heraldry icons (ticket A.8)
 
