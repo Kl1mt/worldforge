@@ -79,7 +79,13 @@ try {
     });
     await api(ctx, 'POST', `/characters/${character.id}/select`);
     const heroUrl = `/admin/accounts/${account.handle}/heroes/${character.id}`;
-    await api(admin.ctx, 'POST', `${heroUrl}/level`, { level: 38, reason: 'lessons' }, randomUUID());
+    await api(
+      admin.ctx,
+      'POST',
+      `${heroUrl}/level`,
+      { level: 38, reason: 'lessons' },
+      randomUUID(),
+    );
     await api(
       admin.ctx,
       'POST',
